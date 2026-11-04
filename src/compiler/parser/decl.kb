@@ -124,7 +124,7 @@ impl Parser {
 			self.match_token(TokenType.FAT_ARROW) -> {
 				val expr = self.parse_expression(Precedence.NONE);
 				self.consume(TokenType.SEMI_COLON, "Expected ';' after expression body");
-				yield self.expr_stmt(expr, expr.line, expr.col);
+				yield self.node(NodeData.ExprStmt(expr), expr.line, expr.col);
 			}
 			// Block body: { ... }
 			self.check(TokenType.OPEN_BRACE) -> self.parse_block_stmt();
@@ -135,7 +135,7 @@ impl Parser {
 			}
 		};
 		
-		return self.fn_decl(name_tok.text, type_params, params, return_type, body, public, kw.line, kw.col);
+		return self.node(NodeData.FnDecl(name_tok.text, type_params, params, return_type, body, public, false, false, ""), kw.line, kw.col);
 	}
 
 	pub fn parse_op_decl(var self, public: bool): *AstNode {
@@ -199,7 +199,7 @@ impl Parser {
 			self.match_token(TokenType.FAT_ARROW) -> {
 				val expr = self.parse_expression(Precedence.NONE);
 				self.consume(TokenType.SEMI_COLON, "Expected ';' after expression body");
-				yield self.expr_stmt(expr, expr.line, expr.col);
+				yield self.node(NodeData.ExprStmt(expr), expr.line, expr.col);
 			}
 			self.check(TokenType.OPEN_BRACE) -> self.parse_block_stmt();
 			else -> {
@@ -208,7 +208,7 @@ impl Parser {
 			}
 		};
 
-		return self.fn_decl(op_name, type_params, params, return_type, body, public, kw.line, kw.col, true);
+		return self.node(NodeData.FnDecl(op_name, type_params, params, return_type, body, public, true, false, ""), kw.line, kw.col);
 	}
 
 	pub fn parse_init_decl(var self, public: bool): *AstNode {
@@ -255,13 +255,13 @@ impl Parser {
 			self.parse_type();
 		}
 
-		val return_type = self.named_type("Self", List<*AstNode>(), kw.line, kw.col);
+		val return_type = self.node(NodeData.NamedType("Self", List<*AstNode>()), kw.line, kw.col);
 
 		val body = when {
 			self.match_token(TokenType.FAT_ARROW) -> {
 				val expr = self.parse_expression(Precedence.NONE);
 				self.consume(TokenType.SEMI_COLON, "Expected ';' after expression body");
-				yield self.expr_stmt(expr, expr.line, expr.col);
+				yield self.node(NodeData.ExprStmt(expr), expr.line, expr.col);
 			}
 			self.check(TokenType.OPEN_BRACE) -> self.parse_block_stmt();
 			else -> {
@@ -270,7 +270,7 @@ impl Parser {
 			}
 		};
 
-		return self.init_decl(type_params, params, return_type, body, public, kw.line, kw.col);
+		return self.node(NodeData.FnDecl("init", type_params, params, return_type, body, public, false, true, ""), kw.line, kw.col);
 	}
 
 	pub fn parse_struct_decl(var self, public: bool): *AstNode {
@@ -280,7 +280,7 @@ impl Parser {
 
 		// `struct Name;`: an opaque declaration whose definition may follow later.
 		if (self.match_token(TokenType.SEMI_COLON)) {
-			return self.struct_decl_forward(name_tok.text, type_params, public, kw.line, kw.col);
+			return self.node(NodeData.StructDecl(name_tok.text, type_params, List<StructField>(), public, true, true), kw.line, kw.col);
 		}
 
 		self.consume(TokenType.OPEN_BRACE, "Expected '{' before struct fields");
@@ -324,7 +324,7 @@ impl Parser {
 		}
 
 		self.consume(TokenType.CLOSE_BRACE, "Expected '}' after struct fields");
-		return self.struct_decl(name_tok.text, type_params, fields, public, kw.line, kw.col);
+		return self.node(NodeData.StructDecl(name_tok.text, type_params, fields, public, false, true), kw.line, kw.col);
 	}
 
 	pub fn parse_trait_decl(var self, public: bool): *AstNode {
@@ -369,7 +369,7 @@ impl Parser {
 		}
 
 		self.consume(TokenType.CLOSE_BRACE, "Expected '}' after trait body");
-		return self.trait_decl(name_tok.text, type_params, bases, methods, public, kw.line, kw.col, assoc);
+		return self.node(NodeData.TraitDecl(name_tok.text, type_params, bases, methods, public, assoc), kw.line, kw.col);
 	}
 
 	pub fn parse_impl_decl(var self): *AstNode {
@@ -423,7 +423,7 @@ impl Parser {
 		}
 
 		self.consume(TokenType.CLOSE_BRACE, "Expected '}' after impl body");
-		return self.impl_decl(struct_name, type_params, trait_name, methods, kw.line, kw.col, bindings);
+		return self.node(NodeData.ImplDecl(struct_name, type_params, trait_name, methods, bindings), kw.line, kw.col);
 	}
 
 	pub fn parse_enum_decl(var self, public: bool): *AstNode {
@@ -463,7 +463,7 @@ impl Parser {
 		}
 
 		self.consume(TokenType.CLOSE_BRACE, "Expected '}' after enum members");
-		return self.enum_decl(name_tok.text, underlying_type, members, public, kw.line, kw.col);
+		return self.node(NodeData.EnumDecl(name_tok.text, underlying_type, members, public), kw.line, kw.col);
 	}
 
 	pub fn parse_const_decl(var self, public: bool): *AstNode {
@@ -475,7 +475,7 @@ impl Parser {
 		val val_node = self.parse_expression(Precedence.NONE);
 		self.consume(TokenType.SEMI_COLON, "Expected ';' after const declaration");
 
-		return self.const_decl(name_tok.text, type_node, val_node, public, kw.line, kw.col);
+		return self.node(NodeData.ConstDecl(name_tok.text, type_node, val_node, public), kw.line, kw.col);
 	}
 
 	pub fn parse_module_decl(var self): *AstNode {
@@ -492,7 +492,7 @@ impl Parser {
 		}
 
 		self.consume(TokenType.SEMI_COLON, "Expected ';' after module declaration");
-		return self.module_decl(path, full_path, kw.line, kw.col);
+		return self.node(NodeData.ModuleDecl(path, full_path), kw.line, kw.col);
 	}
 
 	pub fn parse_use_decl(var self): *AstNode {
@@ -521,7 +521,7 @@ impl Parser {
 			alias = self.consume(TokenType.IDENTIFIER, "Expected alias after 'as'").text;
 
 		self.consume(TokenType.SEMI_COLON, "Expected ';' after use declaration");
-		return self.use_decl(path, full_path, symbol_name, alias, wildcard, kw.line, kw.col);
+		return self.node(NodeData.UseDecl(path, full_path, symbol_name, alias, wildcard), kw.line, kw.col);
 	}
 
 	pub fn parse_extern_block(var self): *AstNode {
@@ -538,7 +538,7 @@ impl Parser {
 		}
 
 		self.consume(TokenType.CLOSE_BRACE, "Expected '}' after extern declarations");
-		return self.extern_block(abi, declarations, kw.line, kw.col);
+		return self.node(NodeData.ExternBlock(abi, declarations), kw.line, kw.col);
 	}
 
 	pub fn parse_declaration(var self): *AstNode? {
@@ -579,7 +579,7 @@ impl Parser {
 		}
 		declarations.extend(self.struct_consts);
 
-		return self.program(declarations, 1, 1);
+		return self.node(NodeData.Program(declarations), 1, 1);
 	}
 
 }

@@ -93,9 +93,9 @@ fn test_statement_nodes(): bool {
 	defer arena.free();
 
 	// var count: i32 = 42;
-	val ty_i32 = arena.named_type("i32", List<*AstNode>(), 1, 12);
+	val ty_i32 = arena.node(NodeData.NamedType("i32", List<*AstNode>()), 1, 12);
 	val lit42 = arena.literal(LiteralKind.INT, "42", 1, 18);
-	val var_stmt = arena.var_decl(true, "count", ty_i32, lit42, 1, 1);
+	val var_stmt = arena.node(NodeData.VarDeclStmt(true, "count", ty_i32, lit42), 1, 1);
 
 	if (var_stmt.kind != NodeKind.STMT_VAR_DECL) return false;
 	val vd = var_stmt.as_var_decl_stmt();
@@ -105,13 +105,13 @@ fn test_statement_nodes(): bool {
 
 	// return count;
 	val id_count = arena.identifier("count", 2, 8);
-	val ret_stmt = arena.return_stmt(id_count, 2, 1);
+	val ret_stmt = arena.node(NodeData.ReturnStmt(id_count), 2, 1);
 	if (ret_stmt.kind != NodeKind.STMT_RETURN) return false;
 
 	// { return count; }
 	var stmts = List<*AstNode>();
 	stmts += ret_stmt;
-	val block = arena.block_stmt(stmts, 2, 1);
+	val block = arena.node(NodeData.BlockStmt(stmts), 2, 1);
 	if (block.kind != NodeKind.STMT_BLOCK) return false;
 	val blk = block.as_block_stmt();
 	if (blk.statements.len != 1) return false;
@@ -119,7 +119,7 @@ fn test_statement_nodes(): bool {
 	// if (count > 0) { return count; }
 	val lit0 = arena.literal(LiteralKind.INT, "0", 3, 13);
 	val cond = arena.binary(TokenType.GREATER, id_count, lit0, 3, 11);
-	val if_stmt = arena.if_stmt(cond, block, null, 3, 1);
+	val if_stmt = arena.node(NodeData.IfStmt(cond, block, null), 3, 1);
 
 	if (if_stmt.kind != NodeKind.STMT_IF) return false;
 	val ifs = if_stmt.as_if_stmt();
@@ -135,26 +135,21 @@ fn test_declaration_nodes(): bool {
 
 	// fn add(a: i32, b: i32): i32 { return a + b; }
 	var params = List<Param>();
-	val ty_i32 = arena.named_type("i32", List<*AstNode>(), 1, 1);
+	val ty_i32 = arena.node(NodeData.NamedType("i32", List<*AstNode>()), 1, 1);
 	params += Param("a", ty_i32, false, false, null);
 	params += Param("b", ty_i32, false, false, null);
 
 	val id_a = arena.identifier("a", 1, 1);
 	val id_b = arena.identifier("b", 1, 1);
 	val add_expr = arena.binary(TokenType.PLUS, id_a, id_b, 1, 1);
-	val ret_stmt = arena.return_stmt(add_expr, 1, 1);
+	val ret_stmt = arena.node(NodeData.ReturnStmt(add_expr), 1, 1);
 
 	var body_stmts = List<*AstNode>();
 	body_stmts += ret_stmt;
-	val body = arena.block_stmt(body_stmts, 1, 1);
+	val body = arena.node(NodeData.BlockStmt(body_stmts), 1, 1);
 
-	val fn_node = arena.fn_decl(
-		"add",
-		List<GenericParam>(),
-		params,
-		ty_i32,
-		body,
-		true,
+	val fn_node = arena.node(
+		NodeData.FnDecl("add", List<GenericParam>(), params, ty_i32, body, true, false, false, ""),
 		1,
 		1
 	);
@@ -174,11 +169,11 @@ fn test_program_iterable(): bool {
 	var arena = Arena();
 	defer arena.free();
 	var decls = List<*AstNode>();
-	val d1 = arena.fn_decl("f1", List<GenericParam>(), List<Param>(), null, null, true, 1, 1);
-	val d2 = arena.fn_decl("f2", List<GenericParam>(), List<Param>(), null, null, true, 2, 1);
+	val d1 = arena.node(NodeData.FnDecl("f1", List<GenericParam>(), List<Param>(), null, null, true, false, false, ""), 1, 1);
+	val d2 = arena.node(NodeData.FnDecl("f2", List<GenericParam>(), List<Param>(), null, null, true, false, false, ""), 2, 1);
 	decls += d1;
 	decls += d2;
-	val prog_node = arena.program(decls, 1, 1);
+	val prog_node = arena.node(NodeData.Program(decls), 1, 1);
 	val prog = prog_node.as_program();
 
 	var count: usz = 0;
@@ -219,21 +214,21 @@ fn test_arena_ast_methods(): bool {
 	if (bin.left.as_literal_expr().raw_text != "123") return false;
 	if (bin.right.as_identifier_expr().name != "x") return false;
 
-	val fn_node = arena.fn_decl("test_fn", List<GenericParam>(), List<Param>(), null, null, true, 2, 1);
+	val fn_node = arena.node(NodeData.FnDecl("test_fn", List<GenericParam>(), List<Param>(), null, null, true, false, false, ""), 2, 1);
 	val fn_d = fn_node.as_fn_decl();
 	if (fn_d.name != "test_fn") return false;
 	if (!fn_d.public) return false;
 
 	// Test arena.alloc_node + a typed NodeData payload
-	val m_lit = arena.build_node(NodeData.LiteralExpr(LiteralKind.INT, "456"), 3, 1);
+	val m_lit = arena.node(NodeData.LiteralExpr(LiteralKind.INT, "456"), 3, 1);
 	if (m_lit.kind != NodeKind.EXPR_LITERAL) return false;
 	if (m_lit.as_literal_expr().raw_text != "456") return false;
 
-	val m_id = arena.build_node(NodeData.IdentifierExpr("y"), 3, 5);
+	val m_id = arena.node(NodeData.IdentifierExpr("y"), 3, 5);
 	if (m_id.kind != NodeKind.EXPR_IDENTIFIER) return false;
 	if (m_id.as_identifier_expr().name != "y") return false;
 
-	val m_bin = arena.build_node(NodeData.BinaryExpr(m_lit, TokenType.STAR, m_id), 3, 3);
+	val m_bin = arena.node(NodeData.BinaryExpr(m_lit, TokenType.STAR, m_id), 3, 3);
 	if (m_bin.kind != NodeKind.EXPR_BINARY) return false;
 	val bin_d = m_bin.as_binary_expr();
 	if (bin_d.op != TokenType.STAR) return false;

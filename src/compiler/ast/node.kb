@@ -324,15 +324,10 @@ impl AstNode {
 }
 
 impl Arena {
-	pub fn build_node(
+	pub fn node(
 		var self, data: NodeData,
-		line: usz, col: usz
-	) => self.create_val(AstNode(node_kind_of(data), line, col, data));
-
-	pub fn create_node(
-		var self, kind: NodeKind, data: NodeData,
-		line: usz, col: usz
-	) => self.create_val(AstNode(kind, line, col, data));
+		line: usz = 0, col: usz = 0
+	): *AstNode => self.create_val(AstNode(node_kind_of(data), line, col, data));
 }
 
 pub fn node_kind_of(val data: NodeData): NodeKind => when (data) {

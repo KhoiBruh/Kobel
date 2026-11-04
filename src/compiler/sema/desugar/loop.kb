@@ -33,8 +33,23 @@ pub fn for_is_lvalue(node: *AstNode?): bool {
 }
 
 impl Arena {
+	fn loop_block(var self, stmts: List<*AstNode>, line: usz, col: usz): *AstNode
+		=> self.node(NodeData.BlockStmt(stmts), line, col);
+
+	fn loop_expr(var self, expr: *AstNode, line: usz, col: usz): *AstNode
+		=> self.node(NodeData.ExprStmt(expr), line, col);
+
+	fn loop_var(var self, mutable: bool, name: str, ty: *AstNode?, initializer: *AstNode?, line: usz, col: usz): *AstNode
+		=> self.node(NodeData.VarDeclStmt(mutable, name, ty, initializer), line, col);
+
+	fn loop_if(var self, cond: *AstNode, then_b: *AstNode, else_b: *AstNode?, line: usz, col: usz): *AstNode
+		=> self.node(NodeData.IfStmt(cond, then_b, else_b), line, col);
+
+	fn loop_while(var self, cond: *AstNode, body: *AstNode, line: usz, col: usz): *AstNode
+		=> self.node(NodeData.WhileStmt(cond, body), line, col);
+
 	pub fn for_usz_type(var self, line: usz, col: usz) =>
-		self.named_type("usz", List<*AstNode>(), line, col);
+		self.node(NodeData.NamedType("usz", List<*AstNode>()), line, col);
 
 	pub fn for_id(var self, name: str, line: usz, col: usz) =>
 		self.identifier(name, line, col);
@@ -49,13 +64,13 @@ impl Arena {
 	);
 
 	// `__for_go = <value>;`
-	pub fn for_set_go(var self, value: *AstNode, line: usz, col: usz) => self.expr_stmt(
+	pub fn for_set_go(var self, value: *AstNode, line: usz, col: usz) => self.loop_expr(
 		self.assign(self.for_id("__for_go", line, col), value, line, col),
 		line, col
 	);
 
 	// `__for_i = __for_i <+|-> 1;`
-	pub fn for_bump(var self, op: TokenType, line: usz, col: usz) => self.expr_stmt(
+	pub fn for_bump(var self, op: TokenType, line: usz, col: usz) => self.loop_expr(
 		self.assign(
 			self.for_id("__for_i", line, col),
 			self.binary(op,
@@ -73,10 +88,10 @@ impl Arena {
 		up_stmts += up_stmt;
 		var down_stmts = List<*AstNode>();
 		down_stmts += down_stmt;
-		return self.if_stmt(
+		return self.loop_if(
 			self.for_id("__for_up", line, col),
-			self.block_stmt(up_stmts, line, col),
-			self.block_stmt(down_stmts, line, col),
+			self.loop_block(up_stmts, line, col),
+			self.loop_block(down_stmts, line, col),
 			line, col
 		);
 	}
@@ -102,8 +117,8 @@ impl Arena {
 			is ContinueStmt -> {
 				var stmts = List<*AstNode>();
 				for (s in step) stmts += s;
-				stmts += self.continue_stmt(node.line, node.col);
-				val block = self.block_stmt(stmts, node.line, node.col);
+				stmts += self.node(NodeData.ContinueStmt, node.line, node.col);
+				val block = self.loop_block(stmts, node.line, node.col);
 				if (bp != null) bp.set_resolved(node!, block);
 				else node.resolved_node = block;
 			}
@@ -137,16 +152,16 @@ impl Arena {
 	): *AstNode {
 		// val __for_n: usz = <iterable>.count();
 		val count_call = self.call(self.member(fs.iterable!, "count", line, col), List<*AstNode>(), List<*AstNode>(), line, col);
-		pre += self.var_decl(false, "__for_n", self.for_usz_type(line, col), count_call, line, col);
+		pre += self.loop_var(false, "__for_n", self.for_usz_type(line, col), count_call, line, col);
 		// var __for_i: usz = 0;
-		pre += self.var_decl(true, "__for_i", self.for_usz_type(line, col),
+		pre += self.loop_var(true, "__for_i", self.for_usz_type(line, col),
 			self.for_num("0", line, col), line, col);
 
 		// val <v> = <iterable>.at(__for_i);
 		var at_args = List<*AstNode>();
 		at_args += self.for_id("__for_i", line, col);
 		val at_call = self.call(self.member(fs.iterable!, "at", line, col), at_args, List<*AstNode>(), line, col);
-		head += self.var_decl(false, fs.var_name, null, at_call, line, col);
+		head += self.loop_var(false, fs.var_name, null, at_call, line, col);
 
 		step += self.for_bump(TokenType.PLUS, line, col);
 
@@ -166,14 +181,14 @@ impl Arena {
 		col: usz
 	): *AstNode {
 		// val __for_n: usz = <iterable>.len;
-		pre += self.var_decl(false, "__for_n", self.for_usz_type(line, col),
+		pre += self.loop_var(false, "__for_n", self.for_usz_type(line, col),
 			self.member(fs.iterable!, "len", line, col), line, col);
 		// var __for_i: usz = 0;
-		pre += self.var_decl(true, "__for_i", self.for_usz_type(line, col),
+		pre += self.loop_var(true, "__for_i", self.for_usz_type(line, col),
 			self.for_num("0", line, col), line, col);
 
 		// val <v> = <iterable>.data[__for_i];
-		head += self.var_decl(false, fs.var_name, null,
+		head += self.loop_var(false, fs.var_name, null,
 			self.index(self.member(fs.iterable!, "data", line, col), self.for_id("__for_i", line, col), line, col),
 			line, col);
 
@@ -195,18 +210,18 @@ impl Arena {
 		col: usz
 	): *AstNode {
 		// val __for_e = <end>;
-		pre += self.var_decl(false, "__for_e", null, fs.range_end, line, col);
+		pre += self.loop_var(false, "__for_e", null, fs.range_end, line, col);
 		// var __for_i = __for_e;  then __for_i = <start>;
-		pre += self.var_decl(true, "__for_i", null, self.for_id("__for_e", line, col), line, col);
-		pre += self.expr_stmt(self.assign(self.for_id("__for_i", line, col), fs.range_start!, line, col), line, col);
+		pre += self.loop_var(true, "__for_i", null, self.for_id("__for_e", line, col), line, col);
+		pre += self.loop_expr(self.assign(self.for_id("__for_i", line, col), fs.range_start!, line, col), line, col);
 		// val __for_up = __for_i <= __for_e;
-		pre += self.var_decl(false, "__for_up", null, self.for_i_cmp(TokenType.LESS_EQUAL, line, col), line, col);
+		pre += self.loop_var(false, "__for_up", null, self.for_i_cmp(TokenType.LESS_EQUAL, line, col), line, col);
 
 		if (fs.is_open) {
 			pre += self.for_by_dir(self.for_bump(TokenType.PLUS, line, col), self.for_bump(TokenType.MINUS, line, col), line, col);
 		}
 
-		pre += self.var_decl(true, "__for_go", null, self.literal(LiteralKind.BOOL, "false", line, col), line, col);
+		pre += self.loop_var(true, "__for_go", null, self.literal(LiteralKind.BOOL, "false", line, col), line, col);
 		if (fs.is_open || fs.is_half_open) {
 			pre += self.for_by_dir(
 				self.for_set_go(self.for_i_cmp(TokenType.LESS, line, col), line, col),
@@ -220,7 +235,7 @@ impl Arena {
 		}
 
 		// val <v> = __for_i;
-		head += self.var_decl(false, fs.var_name, null, self.for_id("__for_i", line, col), line, col);
+		head += self.loop_var(false, fs.var_name, null, self.for_id("__for_i", line, col), line, col);
 
 		// Is there another element? Then move the counter (never past the end).
 		if (fs.is_open || fs.is_half_open) {
@@ -238,7 +253,7 @@ impl Arena {
 				self.for_set_go(self.for_i_cmp(TokenType.GREATER, line, col), line, col),
 				line, col);
 		}
-		step += self.if_stmt(self.for_id("__for_go", line, col),
+		step += self.loop_if(self.for_id("__for_go", line, col),
 			self.for_by_dir(self.for_bump(TokenType.PLUS, line, col), self.for_bump(TokenType.MINUS, line, col), line, col),
 			null, line, col);
 
@@ -273,9 +288,9 @@ impl Arena {
 		// A `continue` inside the body must still advance the counter.
 		self.for_inject_step(fs.body, &step, bp);
 
-		pre += self.while_stmt(cond, self.block_stmt(body_stmts, line, col), line, col);
+		pre += self.loop_while(cond, self.loop_block(body_stmts, line, col), line, col);
 
-		return self.block_stmt(pre, line, col);
+		return self.loop_block(pre, line, col);
 	}
 }
 

@@ -400,7 +400,7 @@ impl DeclPass {
 			var rets = List<*AstNode>();
 			if (f.body != null) self.collect_return_exprs(f.body!, &rets);
 			if (rets.empty()) {
-				f.return_type = self.arena.named_type("none", List<*AstNode>(), f.body.line, f.body.col);
+				f.return_type = self.arena.node(NodeData.NamedType("none", List<*AstNode>()), f.body.line, f.body.col);
 				return self.prims().t_none();
 			}
 
@@ -457,7 +457,7 @@ impl DeclPass {
 				if (p.name == "self" && p.type_node == null) {
 					// Receiver by value: spell its type so the backend emits `i32 self`.
 					pt = prim;
-					val rt = self.arena.named_type(prim_name, List<*AstNode>(), node.line, node.col);
+					val rt = self.arena.node(NodeData.NamedType(prim_name, List<*AstNode>()), node.line, node.col);
 					f.params[i] = Param(p.name, rt, p.mutable, p.has_val, p.default_val);
 				} else if (p.type_node != null) {
 					pt = self.resolve_ast_type(p.type_node!);

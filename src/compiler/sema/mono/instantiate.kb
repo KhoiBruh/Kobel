@@ -109,10 +109,12 @@ impl DeclPass {
 			self.pop_subst(mark);
 			self.current_self_type = null;
 
-			val iview = self.arena.impl_decl(
-				cname, List<GenericParam>(),
-				im.trait_name, methods,
-				impl_tmpl.node.line, impl_tmpl.node.col, bindings
+			val iview = self.arena.node(
+				NodeData.ImplDecl(
+					cname, List<GenericParam>(),
+					im.trait_name, methods, bindings
+				),
+				impl_tmpl.node.line, impl_tmpl.node.col
 			);
 			self.collect_impl(iview);
 			self.queue_decl(impl_tmpl.module, iview);
@@ -161,11 +163,14 @@ impl DeclPass {
 
 		self.pop_subst(mark);
 
-		val view = self.arena.fn_decl(
-			cname, List<GenericParam>(),
-			params, rt,
-			t.body,
-			t.public, tmpl.node.line, tmpl.node.col, t.operator, t.initializer
+		val view = self.arena.node(
+			NodeData.FnDecl(
+				cname, List<GenericParam>(),
+				params, rt,
+				t.body,
+				t.public, t.operator, t.initializer, ""
+			),
+			tmpl.node.line, tmpl.node.col
 		);
 		val view_f = view.as_fn_decl() as &FnDecl;
 		view_f.module = self.current_module;
@@ -227,7 +232,7 @@ impl DeclPass {
 		for (f in fields) {
 			ast_fields += AstStructField(f.name, self.arena.ast_type_from_type(f.type_ptr), f.public, f.default_val);
 		}
-		return self.arena.struct_decl(name, List<GenericParam>(), ast_fields, public, line, col);
+		return self.arena.node(NodeData.StructDecl(name, List<GenericParam>(), ast_fields, public, false, true), line, col);
 	}
 
 	// Binds type-parameter names to argument types for `resolve_ast_type`.

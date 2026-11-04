@@ -22,7 +22,7 @@ impl Parser {
 		) statements += self.parse_statement();
 
 		self.consume(TokenType.CLOSE_BRACE, "Expected '}' after block");
-		return self.block_stmt(statements, lbrace.line, lbrace.col);
+		return self.node(NodeData.BlockStmt(statements), lbrace.line, lbrace.col);
 	}
 
 	pub fn parse_var_decl_stmt(var self): *AstNode {
@@ -37,7 +37,7 @@ impl Parser {
 		else null;
 
 		self.consume(TokenType.SEMI_COLON, "Expected ';' after variable declaration");
-		return self.var_decl(mutable, name_tok.text, type_ann, init_expr, kw.line, kw.col);
+		return self.node(NodeData.VarDeclStmt(mutable, name_tok.text, type_ann, init_expr), kw.line, kw.col);
 	}
 
 	pub fn parse_if_stmt(var self): *AstNode {
@@ -50,7 +50,7 @@ impl Parser {
 		val else_branch = if (self.match_token(TokenType.KW_ELSE)) self.parse_statement()
 		else null;
 
-		return self.if_stmt(condition, then_branch, else_branch, kw.line, kw.col);
+		return self.node(NodeData.IfStmt(condition, then_branch, else_branch), kw.line, kw.col);
 	}
 
 	pub fn parse_while_stmt(var self): *AstNode {
@@ -60,7 +60,7 @@ impl Parser {
 		self.consume(TokenType.CLOSE_PAREN, "Expected ')' after while condition");
 
 		val body = self.parse_statement();
-		return self.while_stmt(condition, body, kw.line, kw.col);
+		return self.node(NodeData.WhileStmt(condition, body), kw.line, kw.col);
 	}
 
 	// `for (x in <expr>) <stmt>` where `<expr>` is either an iterable value or one
@@ -107,9 +107,9 @@ impl Parser {
 
 		self.consume(TokenType.CLOSE_PAREN, "Expected ')' after for header");
 		val body = self.parse_statement();
-		return self.for_stmt(
+		return self.node(NodeData.ForStmt(
 			name_tok.text, is_range, is_open, is_half_open,
-			iterable, range_start, range_end, body, kw.line, kw.col
+			iterable, range_start, range_end, body), kw.line, kw.col
 		);
 	}
 
@@ -118,7 +118,7 @@ impl Parser {
 		val value = if (!self.check(TokenType.SEMI_COLON)) self.parse_expression(Precedence.NONE) else null;
 
 		self.consume(TokenType.SEMI_COLON, "Expected ';' after return statement");
-		return self.return_stmt(value, kw.line, kw.col);
+		return self.node(NodeData.ReturnStmt(value), kw.line, kw.col);
 	}
 
 	pub fn parse_when_stmt(var self): *AstNode {
@@ -158,13 +158,13 @@ impl Parser {
 		}
 
 		self.consume(TokenType.CLOSE_BRACE, "Expected '}' after when statement arms");
-		return self.when_stmt(condition, arms, kw.line, kw.col);
+		return self.node(NodeData.WhenStmt(condition, arms), kw.line, kw.col);
 	}
 
 	pub fn parse_defer_stmt(var self): *AstNode {
 		val kw = self.advance(); // 'defer'
 		val body = self.parse_statement();
-		return self.defer_stmt(body, kw.line, kw.col);
+		return self.node(NodeData.DeferStmt(body), kw.line, kw.col);
 	}
 
 	pub fn parse_statement(var self): *AstNode {
@@ -184,24 +184,24 @@ impl Parser {
 			TokenType.KW_BREAK -> {
 				self.advance();
 				self.consume(TokenType.SEMI_COLON, "Expected ';' after break");
-				yield self.break_stmt(line, col);
+				yield self.node(NodeData.BreakStmt, line, col);
 			}
 			TokenType.KW_CONTINUE -> {
 				self.advance();
 				self.consume(TokenType.SEMI_COLON, "Expected ';' after continue");
-				yield self.continue_stmt(line, col);
+				yield self.node(NodeData.ContinueStmt, line, col);
 			}
 			TokenType.KW_YIELD -> {
 				self.advance();
 				val value = if (!self.check(TokenType.SEMI_COLON)) self.parse_expression(Precedence.NONE)
 				else null;
 				self.consume(TokenType.SEMI_COLON, "Expected ';' after yield");
-				yield self.yield_stmt(value, line, col);
+				yield self.node(NodeData.YieldStmt(value), line, col);
 			}
 			else -> {
 				val expr = self.parse_expression(Precedence.NONE);
 				self.consume(TokenType.SEMI_COLON, "Expected ';' after expression statement");
-				yield self.expr_stmt(expr, line, col);
+				yield self.node(NodeData.ExprStmt(expr), line, col);
 			}
 		};
 	}

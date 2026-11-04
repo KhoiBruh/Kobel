@@ -117,10 +117,10 @@ impl BodyPass {
 						);
 						return self.prims().t_none();
 					}
-					self.set_resolved(node, self.arena.enum_ctor(
+					self.set_resolved(node, self.arena.node(NodeData.EnumCtorExpr(
 						ei.c_name, ei.tag_field, mi.value, "",
-						List<*AstNode>(), node.line, node.col
-					));
+						List<*AstNode>()
+					), node.line, node.col));
 					return e_sym.type_ptr;
 				}
 

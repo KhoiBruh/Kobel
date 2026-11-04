@@ -18,17 +18,8 @@ impl Parser {
 
 	pub init(tokens: List<Token>) => Self(tokens);
 
-	pub fn named_type(var self, name: str, type_args: List<*AstNode>, line: usz, col: usz): *AstNode
-		=> self.arena.named_type(name, type_args, line, col);
-
-	pub fn pointer_type(var self, mutable: bool, pointee: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.pointer_type(mutable, pointee, line, col);
-
-	pub fn array_type(var self, elem: *AstNode, size: usz, line: usz, col: usz): *AstNode
-		=> self.arena.array_type(elem, size, line, col);
-
-	pub fn nullable_type(var self, inner: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.nullable_type(inner, line, col);
+	pub fn node(var self, data: NodeData, line: usz = 0, col: usz = 0): *AstNode
+		=> self.arena.node(data, line, col);
 
 	pub fn literal(var self, lk: LiteralKind, raw: str, line: usz, col: usz): *AstNode
 		=> self.arena.literal(lk, raw, line, col);
@@ -86,79 +77,6 @@ impl Parser {
 
 	pub fn interp(var self, parts: List<InterpPart>, line: usz, col: usz): *AstNode
 		=> self.arena.interp(parts, line, col);
-
-	pub fn block_stmt(var self, statements: List<*AstNode>, line: usz, col: usz): *AstNode
-		=> self.arena.block_stmt(statements, line, col);
-
-	pub fn expr_stmt(var self, expr: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.expr_stmt(expr, line, col);
-
-	pub fn var_decl(var self, mutable: bool, name: str, type_annotation: *AstNode?, initializer: *AstNode?, line: usz, col: usz): *AstNode
-		=> self.arena.var_decl(mutable, name, type_annotation, initializer, line, col);
-
-	pub fn if_stmt(var self, condition: *AstNode, then_branch: *AstNode, else_branch: *AstNode?, line: usz, col: usz): *AstNode
-		=> self.arena.if_stmt(condition, then_branch, else_branch, line, col);
-
-	pub fn while_stmt(var self, condition: *AstNode, body: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.while_stmt(condition, body, line, col);
-
-	pub fn for_stmt(var self, var_name: str, is_range: bool, is_open: bool, is_half_open: bool, iterable: *AstNode?, range_start: *AstNode?, range_end: *AstNode?, body: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.for_stmt(var_name, is_range, is_open, is_half_open, iterable, range_start, range_end, body, line, col);
-
-	pub fn return_stmt(var self, value: *AstNode?, line: usz, col: usz): *AstNode
-		=> self.arena.return_stmt(value, line, col);
-
-	pub fn break_stmt(var self, line: usz, col: usz): *AstNode
-		=> self.arena.break_stmt(line, col);
-
-	pub fn continue_stmt(var self, line: usz, col: usz): *AstNode
-		=> self.arena.continue_stmt(line, col);
-
-	pub fn when_stmt(var self, condition: *AstNode?, arms: List<WhenStmtArm>, line: usz, col: usz): *AstNode
-		=> self.arena.when_stmt(condition, arms, line, col);
-
-	pub fn yield_stmt(var self, value: *AstNode?, line: usz, col: usz): *AstNode
-		=> self.arena.yield_stmt(value, line, col);
-
-	pub fn defer_stmt(var self, body: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.defer_stmt(body, line, col);
-
-	pub fn module_decl(var self, path: List<str>, full_path: str, line: usz, col: usz): *AstNode
-		=> self.arena.module_decl(path, full_path, line, col);
-
-	pub fn use_decl(var self, path: List<str>, full_path: str, symbol_name: str, alias: str, wildcard: bool, line: usz, col: usz): *AstNode
-		=> self.arena.use_decl(path, full_path, symbol_name, alias, wildcard, line, col);
-
-	pub fn fn_decl(var self, name: str, type_params: List<GenericParam>, params: List<Param>, return_type: *AstNode? = null, body: *AstNode? = null, public: bool = false, line: usz = 0, col: usz = 0, operator: bool = false, initializer: bool = false): *AstNode
-		=> self.arena.fn_decl(name, type_params, params, return_type, body, public, line, col, operator, initializer);
-
-	pub fn init_decl(var self, type_params: List<GenericParam>, params: List<Param>, return_type: *AstNode? = null, body: *AstNode? = null, public: bool = false, line: usz = 0, col: usz = 0): *AstNode
-		=> self.arena.init_decl(type_params, params, return_type, body, public, line, col);
-
-	pub fn struct_decl(var self, name: str, type_params: List<GenericParam>, fields: List<StructField>, public: bool, line: usz, col: usz): *AstNode
-		=> self.arena.struct_decl(name, type_params, fields, public, line, col);
-
-	// `struct Name;` — an opaque declaration whose definition may follow later.
-	pub fn struct_decl_forward(var self, name: str, type_params: List<GenericParam>, public: bool, line: usz, col: usz): *AstNode
-		=> self.arena.struct_decl_forward(name, type_params, public, line, col);
-
-	pub fn trait_decl(var self, name: str, type_params: List<GenericParam>, bases: List<str>, methods: List<*AstNode>, public: bool, line: usz, col: usz, assoc_types: List<str> = List()): *AstNode
-		=> self.arena.trait_decl(name, type_params, bases, methods, public, line, col, assoc_types);
-
-	pub fn impl_decl(var self, struct_name: str, type_params: List<GenericParam>, trait_name: str, methods: List<*AstNode>, line: usz, col: usz, assoc_bindings: List<AssocBinding> = List()): *AstNode
-		=> self.arena.impl_decl(struct_name, type_params, trait_name, methods, line, col, assoc_bindings);
-
-	pub fn enum_decl(var self, name: str, underlying_type: *AstNode? = null, members: List<EnumMember> = List(), public: bool = false, line: usz = 0, col: usz = 0): *AstNode
-		=> self.arena.enum_decl(name, underlying_type, members, public, line, col);
-
-	pub fn const_decl(var self, name: str, type_node: *AstNode? = null, value: *AstNode? = null, public: bool = false, line: usz = 0, col: usz = 0): *AstNode
-		=> self.arena.const_decl(name, type_node, value, public, line, col);
-
-	pub fn extern_block(var self, abi: str, declarations: List<*AstNode>, line: usz, col: usz): *AstNode
-		=> self.arena.extern_block(abi, declarations, line, col);
-
-	pub fn program(var self, declarations: List<*AstNode>, line: usz, col: usz): *AstNode
-		=> self.arena.program(declarations, line, col);
 
 	pub fn is_end(val self): bool {
 		if (self.current >= self.tokens.len) return true;

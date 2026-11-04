@@ -399,17 +399,17 @@ impl Parser {
 							!self.check(TokenType.CLOSE_PAREN)
 						) self.parse_expression(Precedence.NONE) else null;
 
-						yield self.return_stmt(value, kw_line, kw_col);
+						yield self.node(NodeData.ReturnStmt(value), kw_line, kw_col);
 					}
 					self.match_token(TokenType.KW_BREAK) -> {
 						val kw_line = self.previous().line;
 						val kw_col = self.previous().col;
-						yield self.break_stmt(kw_line, kw_col);
+						yield self.node(NodeData.BreakStmt, kw_line, kw_col);
 					}
 					self.match_token(TokenType.KW_CONTINUE) -> {
 						val kw_line = self.previous().line;
 						val kw_col = self.previous().col;
-						yield self.continue_stmt(kw_line, kw_col);
+						yield self.node(NodeData.ContinueStmt, kw_line, kw_col);
 					}
 					self.match_token(TokenType.KW_YIELD) -> {
 						val kw_line = self.previous().line;
@@ -420,7 +420,7 @@ impl Parser {
 							!self.check(TokenType.CLOSE_PAREN)
 						) self.parse_expression(Precedence.NONE) else null;
 
-						yield self.yield_stmt(value, kw_line, kw_col);
+						yield self.node(NodeData.YieldStmt(value), kw_line, kw_col);
 					}
 					// One level below ELVIS keeps `?:` right-associative.
 					else -> self.parse_expression(Precedence.ASSIGN);
@@ -578,7 +578,7 @@ impl Parser {
 
 				self.consume(TokenType.SEMI_COLON, "Expected ';' after variable declaration");
 
-				yield self.var_decl(mutable, id_tok.text, ty_node, init_node, line, col);
+				yield self.node(NodeData.VarDeclStmt(mutable, id_tok.text, ty_node, init_node), line, col);
 			}
 			TokenType.KW_IF -> {
 				self.advance();
@@ -589,7 +589,7 @@ impl Parser {
 				val else_branch = if (self.match_token(TokenType.KW_ELSE)) self.parse_arm_statement()
 				else null;
 
-				yield self.if_stmt(condition, then_branch, else_branch, line, col);
+				yield self.node(NodeData.IfStmt(condition, then_branch, else_branch), line, col);
 			}
 			TokenType.KW_WHILE -> {
 				val kw = self.advance();
@@ -598,7 +598,7 @@ impl Parser {
 				self.consume(TokenType.CLOSE_PAREN, "Expected ')' after while condition");
 				val body = self.parse_arm_statement();
 
-				yield self.while_stmt(condition, body, kw.line, kw.col);
+				yield self.node(NodeData.WhileStmt(condition, body), kw.line, kw.col);
 			}
 			TokenType.KW_FOR -> {
 				val kw = self.advance();
@@ -639,38 +639,38 @@ impl Parser {
 
 				self.consume(TokenType.CLOSE_PAREN, "Expected ')' after for header");
 				val body = self.parse_arm_statement();
-				yield self.for_stmt(
+				yield self.node(NodeData.ForStmt(
 					name_tok.text, is_range, is_open, is_half_open,
-					iterable, range_start, range_end, body, kw.line, kw.col
+					iterable, range_start, range_end, body), kw.line, kw.col
 				);
 			}
 			TokenType.KW_WHEN -> self.parse_when_stmt();
 			TokenType.KW_BREAK -> {
 				self.advance();
 				self.consume(TokenType.SEMI_COLON, "Expected ';' after break");
-				yield self.break_stmt(line, col);
+				yield self.node(NodeData.BreakStmt, line, col);
 			}
 			TokenType.KW_CONTINUE -> {
 				self.advance();
 				self.consume(TokenType.SEMI_COLON, "Expected ';' after continue");
-				yield self.continue_stmt(line, col);
+				yield self.node(NodeData.ContinueStmt, line, col);
 			}
 			TokenType.KW_YIELD -> {
 				self.advance();
 				val value = if (!self.check(TokenType.SEMI_COLON)) self.parse_expression(Precedence.NONE) else null;
 				self.consume(TokenType.SEMI_COLON, "Expected ';' after yield");
-				yield self.yield_stmt(value, line, col);
+				yield self.node(NodeData.YieldStmt(value), line, col);
 			}
 			TokenType.KW_RETURN -> {
 				self.advance();
 				val value = if (!self.check(TokenType.SEMI_COLON)) self.parse_expression(Precedence.NONE) else null;
 				self.consume(TokenType.SEMI_COLON, "Expected ';' after return");
-				yield self.return_stmt(value, line, col);
+				yield self.node(NodeData.ReturnStmt(value), line, col);
 			}
 			else -> {
 				val expr = self.parse_expression(Precedence.NONE);
 				self.consume(TokenType.SEMI_COLON, "Expected ';' after expression statement");
-				yield self.expr_stmt(expr, line, col);
+				yield self.node(NodeData.ExprStmt(expr), line, col);
 			}
 		};
 	}
@@ -682,7 +682,7 @@ impl Parser {
 			stmts += self.parse_arm_statement();
 		}
 		self.consume(TokenType.CLOSE_BRACE, "Expected '}' after block");
-		return self.block_stmt(stmts, lbrace.line, lbrace.col);
+		return self.node(NodeData.BlockStmt(stmts), lbrace.line, lbrace.col);
 	}
 
 	pub fn parse_string_literal(var self, tok: Token, line: usz, col: usz): *AstNode {

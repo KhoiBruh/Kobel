@@ -64,32 +64,31 @@ impl DeclPass {
 						var args = List<*AstNode>();
 						for (ta in nt.type_args) args += self.clone_type(ta, subst);
 						val cty = self.instantiate_struct(tmpl, args);
-						yield self.arena.named_type(cty.as_struct().name, List<*AstNode>(), node.line, node.col);
+						yield self.arena.node(NodeData.NamedType(cty.as_struct().name, List<*AstNode>()), node.line, node.col);
 					}
 				}
 
 				var targs = List<*AstNode>();
 				for (ta in nt.type_args) targs += self.clone_type(ta, subst);
-				yield self.arena.named_type(nt.name, targs, node.line, node.col);
+				yield self.arena.node(NodeData.NamedType(nt.name, targs), node.line, node.col);
 			}
 
-			is PointerType as pt -> self.arena.pointer_type(
-				pt.mutable,
-				self.clone_type(pt.pointee, subst),
+			is PointerType as pt -> self.arena.node(
+				NodeData.PointerType(pt.mutable, self.clone_type(pt.pointee, subst)),
 				node.line, node.col
 			);
 
-			is ArrayType as at -> self.arena.array_type(
-				self.clone_type(at.element_type, subst),
-				at.size, node.line, node.col
-			);
-
-			is NullableType as nt -> self.arena.nullable_type(
-				self.clone_type(nt.inner_type, subst),
+			is ArrayType as at -> self.arena.node(
+				NodeData.ArrayType(self.clone_type(at.element_type, subst), at.size),
 				node.line, node.col
 			);
 
-			else -> self.arena.named_type("none", List<*AstNode>(), node.line, node.col);
+			is NullableType as nt -> self.arena.node(
+				NodeData.NullableType(self.clone_type(nt.inner_type, subst)),
+				node.line, node.col
+			);
+
+			else -> self.arena.node(NodeData.NamedType("none", List<*AstNode>()), node.line, node.col);
 		};
 	}
 
@@ -221,22 +220,19 @@ impl DeclPass {
 				yield res_is;
 			}
 
-			is StructCtorExpr as sc -> self.arena.struct_ctor(
+			is StructCtorExpr as sc -> self.arena.node(NodeData.StructCtorExpr(
 				sc.c_name,
-				self.clone_expr_list(sc.args, subst),
-				node.line, node.col
-			);
+				self.clone_expr_list(sc.args, subst)
+			), node.line, node.col);
 
-			is EnumCtorExpr as ec -> self.arena.enum_ctor(
+			is EnumCtorExpr as ec -> self.arena.node(NodeData.EnumCtorExpr(
 				ec.c_name, ec.tag_field, ec.tag_value, ec.payload_path,
-				self.clone_expr_list(ec.args, subst),
-				node.line, node.col
-			);
+				self.clone_expr_list(ec.args, subst)
+			), node.line, node.col);
 
-			is SizeOfParam as sop -> self.arena.size_of_param(
-				sop.param_index, sop.size_text,
-				node.line, node.col
-			);
+			is SizeOfParam as sop -> self.arena.node(NodeData.SizeOfParam(
+				sop.param_index, sop.size_text
+			), node.line, node.col);
 
 			else -> self.arena.identifier("<unsupported-expr>", node.line, node.col);
 		};
@@ -408,11 +404,11 @@ impl DeclPass {
 			is BlockStmt as b -> {
 				var ss = List<*AstNode>();
 				for (s in b.statements) ss += self.clone_stmt(s, subst);
-				yield self.arena.block_stmt(ss, node.line, node.col);
+				yield self.arena.node(NodeData.BlockStmt(ss), node.line, node.col);
 			}
 
-			is ExprStmt as e -> self.arena.expr_stmt(
-				self.clone_expr(e.expr, subst),
+			is ExprStmt as e -> self.arena.node(
+				NodeData.ExprStmt(self.clone_expr(e.expr, subst)),
 				node.line, node.col
 			);
 
@@ -423,45 +419,50 @@ impl DeclPass {
 				if (se?.init_override != null) init_src = se.init_override;
 				val init_expr = if (init_src != null) self.clone_expr(init_src!, subst) else null;
 				if (ta != null && init_expr != null) self.propagate_target_type(ta, init_expr);
-				yield self.arena.var_decl(v.mutable, v.name, ta, init_expr, node.line, node.col);
+				yield self.arena.node(NodeData.VarDeclStmt(v.mutable, v.name, ta, init_expr), node.line, node.col);
 			}
 
-			is IfStmt as s -> self.arena.if_stmt(
-				self.clone_expr(s.condition, subst),
-				self.clone_stmt(s.then_branch, subst),
-				if (s.else_branch != null) self.clone_stmt(s.else_branch!, subst) else null,
+			is IfStmt as s -> self.arena.node(
+				NodeData.IfStmt(
+					self.clone_expr(s.condition, subst),
+					self.clone_stmt(s.then_branch, subst),
+					if (s.else_branch != null) self.clone_stmt(s.else_branch!, subst) else null
+				),
 				node.line, node.col
 			);
 
-
-			is WhileStmt as w -> self.arena.while_stmt(
-				self.clone_expr(w.condition, subst),
-				self.clone_stmt(w.body, subst),
+			is WhileStmt as w -> self.arena.node(
+				NodeData.WhileStmt(
+					self.clone_expr(w.condition, subst),
+					self.clone_stmt(w.body, subst)
+				),
 				node.line, node.col
 			);
 
-			is ForStmt as f -> self.arena.for_stmt(
-				f.var_name, f.is_range, f.is_open, f.is_half_open,
-				if (f.iterable != null) self.clone_expr(f.iterable!, subst) else null,
-				if (f.range_start != null) self.clone_expr(f.range_start!, subst) else null,
-				if (f.range_end != null) self.clone_expr(f.range_end!, subst) else null,
-				self.clone_stmt(f.body, subst),
+			is ForStmt as f -> self.arena.node(
+				NodeData.ForStmt(
+					f.var_name, f.is_range, f.is_open, f.is_half_open,
+					if (f.iterable != null) self.clone_expr(f.iterable!, subst) else null,
+					if (f.range_start != null) self.clone_expr(f.range_start!, subst) else null,
+					if (f.range_end != null) self.clone_expr(f.range_end!, subst) else null,
+					self.clone_stmt(f.body, subst)
+				),
 				node.line, node.col
 			);
 
-			is ReturnStmt as r -> self.arena.return_stmt(
-				if (r.value != null) self.clone_expr(r.value!, subst) else null,
+			is ReturnStmt as r -> self.arena.node(
+				NodeData.ReturnStmt(if (r.value != null) self.clone_expr(r.value!, subst) else null),
 				node.line, node.col
 			);
 
-			is YieldStmt as y -> self.arena.yield_stmt(
-				if (y.value != null) self.clone_expr(y.value!, subst) else null,
+			is YieldStmt as y -> self.arena.node(
+				NodeData.YieldStmt(if (y.value != null) self.clone_expr(y.value!, subst) else null),
 				node.line, node.col
 			);
 
-			is BreakStmt -> self.arena.break_stmt(node.line, node.col);
+			is BreakStmt -> self.arena.node(NodeData.BreakStmt, node.line, node.col);
 
-			is ContinueStmt -> self.arena.continue_stmt(node.line, node.col);
+			is ContinueStmt -> self.arena.node(NodeData.ContinueStmt, node.line, node.col);
 
 			is WhenStmt as w -> {
 				var arms = List<WhenStmtArm>();
@@ -470,11 +471,11 @@ impl DeclPass {
 					for (pat in arm.patterns) pats += self.clone_expr(pat, subst);
 					arms += WhenStmtArm(pats, arm.is_else, self.clone_stmt(arm.body, subst), arm.line, arm.col);
 				}
-				yield self.arena.when_stmt(if (w.condition != null) self.clone_expr(w.condition!, subst) else null, arms, node.line, node.col);
+				yield self.arena.node(NodeData.WhenStmt(if (w.condition != null) self.clone_expr(w.condition!, subst) else null, arms), node.line, node.col);
 			}
 
-			is DeferStmt as d -> self.arena.defer_stmt(
-				self.clone_stmt(d.body, subst),
+			is DeferStmt as d -> self.arena.node(
+				NodeData.DeferStmt(self.clone_stmt(d.body, subst)),
 				node.line, node.col
 			);
 
@@ -491,13 +492,15 @@ impl DeclPass {
 			params += Param(p.name, pt, p.mutable, p.has_val, dflt);
 		}
 		val rt = if (f.return_type != null) self.clone_type(f.return_type!, subst) else null;
-		val clone = self.arena.fn_decl(
-			new_name,
-			List<GenericParam>(),
-			params, rt,
-			if (f.body != null) self.clone_stmt(f.body!, subst) else null,
-			f.public, node.line, node.col,
-			f.operator, f.initializer
+		val clone = self.arena.node(
+			NodeData.FnDecl(
+				new_name,
+				List<GenericParam>(),
+				params, rt,
+				if (f.body != null) self.clone_stmt(f.body!, subst) else null,
+				f.public, f.operator, f.initializer, ""
+			),
+			node.line, node.col
 		);
 		// Remember where the template was declared: the clone's body is checked
 		// later, in another module's context, and needs these names in scope.

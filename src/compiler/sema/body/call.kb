@@ -206,7 +206,7 @@ impl BodyPass {
 				val arg_ty = if (self.has_decl && (idx as usz) < self.decl.subst_types.len)
 					self.decl.subst_types[idx as usz] else null;
 				val size_text = self.type_c_size_text(arg_ty);
-				self.set_resolved(node, self.arena.size_of_param(idx as usz, size_text, node.line, node.col));
+				self.set_resolved(node, self.arena.node(NodeData.SizeOfParam(idx as usz, size_text), node.line, node.col));
 				return self.prims().t_usz();
 			}
 
@@ -728,9 +728,9 @@ impl BodyPass {
 		}
 
 		val payload_path = if (field_types.empty()) "" else mi.payload_path;
-		self.set_resolved(node, self.arena.enum_ctor(
-			ei.c_name, ei.tag_field, mi.value, payload_path, call.args, node.line, node.col
-		));
+		self.set_resolved(node, self.arena.node(NodeData.EnumCtorExpr(
+			ei.c_name, ei.tag_field, mi.value, payload_path, call.args
+		), node.line, node.col));
 		return e_sym.type_ptr;
 	}
 
@@ -846,7 +846,7 @@ impl BodyPass {
 
 		// Field construction becomes an explicit struct-literal node, so the backend
 		// no longer recognises a constructor by the callee's name.
-		self.set_resolved(node, self.arena.struct_ctor(s_info.c_name, call.args, node.line, node.col));
+		self.set_resolved(node, self.arena.node(NodeData.StructCtorExpr(s_info.c_name, call.args), node.line, node.col));
 		return callee_ty;
 	}
 
