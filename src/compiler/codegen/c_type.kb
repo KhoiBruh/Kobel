@@ -8,8 +8,7 @@ mod compiler.codegen;
 // `c_type_from_type` for the resolved `*Type` sema attaches to expressions.
 // ============================================================================
 
-use compiler.ast.node.*;
-use compiler.ast.types.*;
+use compiler.ast.*;
 
 use compiler.sema.types.Type;
 use compiler.sema.types.DataType;

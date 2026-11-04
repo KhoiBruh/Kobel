@@ -1,8 +1,6 @@
-mod compiler.ast.stmt;
+mod compiler.ast;
 
 use std.collections.List;
-
-use compiler.ast.node.*;
 
 pub struct BlockStmt {
 	pub statements: List<*AstNode>

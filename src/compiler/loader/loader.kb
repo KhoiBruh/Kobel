@@ -21,9 +21,7 @@ use util.*;
 
 use compiler.lexer.*;
 
-use compiler.ast.builder.*;
-use compiler.ast.node.*;
-use compiler.ast.decl.*;
+use compiler.ast.*;
 
 use compiler.parser.Parser;
 

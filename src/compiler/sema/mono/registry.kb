@@ -18,12 +18,7 @@ use util.*;
 
 use compiler.lexer.TokenType;
 
-use compiler.ast.node.*;
-use compiler.ast.types.*;
-use compiler.ast.expr.*;
-use compiler.ast.stmt.*;
-use compiler.ast.decl.*;
-use compiler.ast.builder.*;
+use compiler.ast.*;
 
 use compiler.sema.symbol.*;
 
@@ -38,7 +33,7 @@ use compiler.sema.template.*;
 
 use compiler.sema.prims.*;
 
-use compiler.ast.decl.StructField as AstStructField;
+use compiler.ast.StructField as AstStructField;
 
 // A template is a candidate when its name matches and its table kind agrees:
 // `FN` never matches an `impl` method, `METHOD` only matches one, `STRUCT`

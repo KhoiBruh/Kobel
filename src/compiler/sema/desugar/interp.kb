@@ -13,9 +13,7 @@ use std.collections.List;
 
 use compiler.lexer.TokenType;
 
-use compiler.ast.node.*;
-use compiler.ast.types.*;
-use compiler.ast.builder.*;
+use compiler.ast.*;
 
 use compiler.sema.types.*;
 

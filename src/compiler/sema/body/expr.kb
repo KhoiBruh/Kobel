@@ -14,12 +14,7 @@ use std.collections.*;
 
 use util.*;
 
-use compiler.ast.node.*;
-use compiler.ast.types.*;
-use compiler.ast.expr.*;
-use compiler.ast.stmt.*;
-use compiler.ast.decl.*;
-use compiler.ast.builder.*;
+use compiler.ast.*;
 
 use compiler.lexer.*;
 

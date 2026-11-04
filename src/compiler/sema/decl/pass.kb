@@ -21,12 +21,7 @@ use util.*;
 
 use compiler.lexer.TokenType;
 
-use compiler.ast.node.*;
-use compiler.ast.types.*;
-use compiler.ast.expr.*;
-use compiler.ast.stmt.*;
-use compiler.ast.decl.*;
-use compiler.ast.builder.*;
+use compiler.ast.*;
 use compiler.sema.symbol.*;
 use compiler.sema.mono.registry.*;
 use compiler.sema.desugar.interp.*;
@@ -46,7 +41,7 @@ use compiler.sema.traits.*;
 
 use compiler.sema.decl.type.*;
 
-use compiler.ast.decl.StructField as AstStructField;
+use compiler.ast.StructField as AstStructField;
 
 // ============================================================================
 // DeclPass - Top-level Declarations Collector

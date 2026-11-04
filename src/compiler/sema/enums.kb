@@ -10,7 +10,7 @@ mod compiler.sema.enums;
 
 use std.collections.*;
 
-use compiler.ast.expr.LiteralKind;
+use compiler.ast.LiteralKind;
 use compiler.sema.types.*;
 
 // A single enum member with its resolved integer value.

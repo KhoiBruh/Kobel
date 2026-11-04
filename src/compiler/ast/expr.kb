@@ -1,8 +1,6 @@
-mod compiler.ast.expr;
+mod compiler.ast;
 
 use std.collections.List;
-
-use compiler.ast.node.*;
 
 use compiler.lexer.TokenType;
 

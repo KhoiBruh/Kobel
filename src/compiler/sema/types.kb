@@ -14,7 +14,7 @@ use std.memory.Arena;
 use std.traits.*;
 use std.string.*;
 
-use compiler.ast.node.*;
+use compiler.ast.*;
 use compiler.sema.methods.*;
 use compiler.sema.structs.*;
 use compiler.sema.enums.*;

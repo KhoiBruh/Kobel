@@ -4,8 +4,7 @@ use std.collections.*;
 
 use compiler.lexer.*;
 
-use compiler.ast.node.*;
-use compiler.ast.builder.*;
+use compiler.ast.*;
 
 impl Parser {
 

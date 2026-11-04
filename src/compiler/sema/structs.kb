@@ -11,7 +11,7 @@ mod compiler.sema.structs;
 use std.collections.*;
 use std.memory.*;
 
-use compiler.ast.node.*;
+use compiler.ast.*;
 
 use compiler.sema.types.*;
 use compiler.sema.methods.*;

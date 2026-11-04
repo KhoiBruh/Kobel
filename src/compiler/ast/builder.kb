@@ -1,13 +1,7 @@
-mod compiler.ast.builder;
+mod compiler.ast;
 
 use std.memory.Arena;
 use std.collections.List;
-
-use compiler.ast.node.*;
-use compiler.ast.types.*;
-use compiler.ast.expr.*;
-use compiler.ast.stmt.*;
-use compiler.ast.decl.*;
 
 use compiler.lexer.TokenType;
 

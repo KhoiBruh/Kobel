@@ -4,12 +4,7 @@ use std.memory.*;
 use std.collections.*;
 
 use compiler.lexer.*;
-use compiler.ast.node.*;
-use compiler.ast.builder.*;
-use compiler.ast.types.*;
-use compiler.ast.expr.*;
-use compiler.ast.stmt.*;
-use compiler.ast.decl.*;
+use compiler.ast.*;
 
 pub struct Parser {
 	pub tokens: List<Token>,

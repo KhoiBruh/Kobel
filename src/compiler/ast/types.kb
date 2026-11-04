@@ -1,8 +1,6 @@
-mod compiler.ast.types;
+mod compiler.ast;
 
 use std.collections.List;
-
-use compiler.ast.node.*;
 
 pub struct NamedType {
 	pub name: str,

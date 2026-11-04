@@ -1,11 +1,6 @@
-mod compiler.ast.node;
+mod compiler.ast;
 
 use std.memory.Arena;
-
-use compiler.ast.types.*;
-use compiler.ast.expr.*;
-use compiler.ast.stmt.*;
-use compiler.ast.decl.*;
 
 pub enum NodeKind {
 	// Syntactic Types

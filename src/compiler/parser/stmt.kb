@@ -4,9 +4,7 @@ use std.collections.*;
 
 use compiler.lexer.*;
 
-use compiler.ast.node.*;
-use compiler.ast.stmt.WhenStmtArm;
-use compiler.ast.builder.*;
+use compiler.ast.*;
 
 // ============================================================================
 // Statement Parsers

@@ -11,8 +11,7 @@ mod compiler.sema.template;
 
 use std.collections.*;
 
-use compiler.ast.node.*;
-use compiler.ast.decl.*;
+use compiler.ast.*;
 
 // Which template table a lookup scans: `fn_templates` holds free functions and
 // `impl` methods alike (told apart by `GenTemplate.is_method`), while struct

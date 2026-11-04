@@ -23,13 +23,7 @@ use util.*;
 
 use compiler.lexer.TokenType;
 
-use compiler.ast.node.*;
-use compiler.ast.types.*;
-use compiler.ast.expr.*;
-use compiler.ast.stmt.*;
-use compiler.ast.decl.*;
-use compiler.ast.builder.*;
-use compiler.sema.symbol.*;
+use compiler.ast.*;
 
 use compiler.sema.types.DataType;
 use compiler.sema.types.Type;
@@ -37,7 +31,7 @@ use compiler.sema.structs.StructField;
 use compiler.sema.methods.MethodInfo;
 
 use compiler.sema.decl.pass.*;
-use compiler.ast.decl.StructField as AstStructField;
+use compiler.ast.StructField as AstStructField;
 use compiler.sema.mono.registry.*;
 
 use compiler.sema.template.*;

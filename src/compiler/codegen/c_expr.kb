@@ -11,12 +11,7 @@ use std.string.*;
 use std.collections.*;
 
 use compiler.lexer.*;
-use compiler.ast.builder.*;
-use compiler.ast.node.*;
-use compiler.ast.types.*;
-use compiler.ast.expr.*;
-use compiler.ast.stmt.*;
-use compiler.ast.decl.*;
+use compiler.ast.*;
 
 use compiler.sema.types.Type;
 use compiler.sema.types.DataType;

@@ -1,9 +1,7 @@
-mod compiler.ast.decl;
+mod compiler.ast;
 
 use std.collections.List;
 use std.traits.Iterable;
-
-use compiler.ast.node.*;
 
 pub struct ModuleDecl {
 	pub path: List<str>,

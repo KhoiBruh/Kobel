@@ -14,13 +14,8 @@ use util.*;
 
 use compiler.lexer.TokenType;
 
-use compiler.ast.node.*;
-use compiler.ast.types.*;
-use compiler.ast.expr.*;
-use compiler.ast.stmt.*;
-use compiler.ast.decl.*;
-use compiler.ast.decl.StructField as AstStructField;
-use compiler.ast.builder.*;
+use compiler.ast.*;
+use compiler.ast.StructField as AstStructField;
 use compiler.sema.symbol.*;
 
 use compiler.sema.types.DataType;

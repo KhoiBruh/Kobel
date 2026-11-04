@@ -6,9 +6,7 @@ use util.*;
 
 use compiler.lexer.*;
 
-use compiler.ast.node.*;
-use compiler.ast.expr.*;
-use compiler.ast.builder.*;
+use compiler.ast.*;
 
 // ============================================================================
 // Operator Precedence Levels

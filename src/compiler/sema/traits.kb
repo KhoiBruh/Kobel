@@ -10,7 +10,7 @@ mod compiler.sema.traits;
 
 use std.collections.*;
 
-use compiler.ast.node.*;
+use compiler.ast.*;
 
 // A method declared inside a `trait` block. `has_default` is true when the
 // trait provides a body (so the implementing type may leave it out).
