@@ -28,8 +28,8 @@ use compiler.sema.body.*;
 impl BodyPass {
 
 	pub fn lower_program(var self, program_node: *AstNode) {
-		val prog = program_node.as_program();
-		for (decl in prog) {
+		if (program_node is Program as prog) {
+			for (decl in prog) {
 			when (decl) {
 				is FnDecl as var f -> {
 					// Templates are never lowered: instance bodies share their AST.
@@ -51,6 +51,7 @@ impl BodyPass {
 				}
 				is ConstDecl as var c -> if (c.value != null) c.value = self.lower_expr(c.value!);
 			}
+		}
 		}
 	}
 
@@ -416,8 +417,7 @@ impl BodyPass {
 			return self.lowered(node, ctor_call);
 		}
 
-		if (!(callee is MemberExpr)) return node;
-		val mem = callee.as_member_expr() as &MemberExpr;
+		if (callee is MemberExpr as mem) {
 		val mi = node.resolved_method as *MethodInfo;
 
 		if (mi.is_static) {
@@ -474,20 +474,21 @@ impl BodyPass {
 
 		val maybe = self.arena.if_expr(cond, direct, fallback, node.line, node.col);
 		return self.lowered(node, maybe);
+		}
+		return node;
 	}
 
 	// `s.slice(a, b)` -> `kobel_slice(s, a, b)`; `s.slice(a)` -> `kobel_slice1(s, a)`.
 	fn lower_call(var self, node: *AstNode, call: &CallExpr): *AstNode {
 		val callee = call.callee ?: return node;
-		if (!(callee is MemberExpr)) return node;
-		val mem = callee.as_member_expr() as &MemberExpr;
-		if (mem.member != "slice") return node;
-		if (!self.is_str_expr(mem.object)) return node;
+		if (callee is MemberExpr as mem) {
+			if (mem.member != "slice") return node;
+			if (!self.is_str_expr(mem.object)) return node;
 
-		var args = List<*AstNode>();
-		args += mem.object;
-		if (!call.args.empty()) args += call.args.first();
-		else args += self.arena.literal(LiteralKind.INT, "0", node.line, node.col);
+			var args = List<*AstNode>();
+			args += mem.object;
+			if (!call.args.empty()) args += call.args.first();
+			else args += self.arena.literal(LiteralKind.INT, "0", node.line, node.col);
 
 		if (call.args.len >= 2) {
 			args += call.args[1];
@@ -497,6 +498,8 @@ impl BodyPass {
 
 		val slice1_call = self.arena.call(self.arena.identifier("kobel_slice1", node.line, node.col), args, List<*AstNode>(), node.line, node.col);
 		return self.lowered(node, slice1_call);
+		}
+		return node;
 	}
 
 	// ============================================================================

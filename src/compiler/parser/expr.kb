@@ -277,8 +277,7 @@ impl Parser {
 					alias = alias_tok.text;
 				}
 				val is_node = self.is_expr(null, target_type, line, col);
-				if (!alias.empty()) {
-					val is_expr = is_node.as_is_expr();
+				if (!alias.empty() && is_node is IsExpr as is_expr) {
 					is_expr.alias = alias;
 					is_expr.mutable = mutable;
 				}
@@ -473,8 +472,7 @@ impl Parser {
 					alias = alias_tok.text;
 				}
 				val is_node = self.is_expr(left, target_type, line, col);
-				if (!alias.empty()) {
-					val is_expr = is_node.as_is_expr();
+				if (!alias.empty() && is_node is IsExpr as is_expr) {
 					is_expr.alias = alias;
 					is_expr.mutable = mutable;
 				}

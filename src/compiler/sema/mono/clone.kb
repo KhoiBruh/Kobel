@@ -213,8 +213,7 @@ impl DeclPass {
 			is IsExpr as is_e -> {
 				val expr_clone = if (is_e.expr != null) self.clone_expr(is_e.expr!, subst) else null;
 				val res_is = self.arena.is_expr(expr_clone, self.clone_type(is_e.target_type, subst), node.line, node.col);
-				if (!is_e.alias.empty()) {
-					val res_e = res_is.as_is_expr();
+				if (!is_e.alias.empty() && res_is is IsExpr as res_e) {
 					res_e.alias = is_e.alias;
 					res_e.mutable = is_e.mutable;
 				}
@@ -253,21 +252,26 @@ impl DeclPass {
 		val special = self.clone_size_query(node, subst) ?: self.clone_template_call(node, subst);
 		if (special != null) return special;
 
-		val c = node.as_call_expr();
-		val args = self.clone_expr_list(c.args, subst);
-		return self.arena.call(self.clone_expr(c.callee, subst), args, List<*AstNode>(), node.line, node.col);
+		if (node is CallExpr as c) {
+			val args = self.clone_expr_list(c.args, subst);
+			return self.arena.call(self.clone_expr(c.callee, subst), args, List<*AstNode>(), node.line, node.col);
+		}
+		return node;
 	}
 
 	// `T.size()` in generic code: the substituted type's C size is known at compile
 	// time, so the call becomes an integer literal. Null when the call is not a
 	// `T.size()` on a type parameter.
 	fn clone_size_query(var self, node: *AstNode, subst: *GenSubst? = null): *AstNode? {
-		val c = node.as_call_expr();
-		if (!(c.callee is MemberExpr)) return null;
-		val m = c.callee.as_member_expr();
-		if (m.member != "size" || !(m.object is IdentifierExpr)) return null;
-		val sa = subst?.lookup(m.object.as_identifier_expr().name) ?: return null;
-		return self.arena.literal(LiteralKind.INT, "${self.ast_type_size(sa)}", node.line, node.col);
+		if (node is CallExpr as c) {
+			if (c.callee is MemberExpr as m) {
+				if (m.member == "size" && m.object is IdentifierExpr as obj_id) {
+					val sa = subst?.lookup(obj_id.name) ?: return null;
+					return self.arena.literal(LiteralKind.INT, "${self.ast_type_size(sa)}", node.line, node.col);
+				}
+			}
+		}
+		return null;
 	}
 
 	// A call with explicit type arguments instantiates the matching template and is
@@ -275,8 +279,8 @@ impl DeclPass {
 	// `Struct<X>(...)`). Null when no template matches, which sends the caller down
 	// its generic clone path.
 	fn clone_template_call(var self, node: *AstNode, subst: *GenSubst? = null): *AstNode? {
-		val c = node.as_call_expr();
-		if (c.type_args.empty()) return null;
+		if (node is CallExpr as c) {
+			if (c.type_args.empty()) return null;
 
 		val callee = c.callee;
 		if (callee is MemberExpr as mem) {
@@ -345,6 +349,7 @@ impl DeclPass {
 				);
 			}
 		}
+		}
 
 		return null;
 	}
@@ -364,29 +369,31 @@ impl DeclPass {
 	// A `when` arm's patterns are expressions; its body is a block when written as
 	// `{ ... }`, otherwise a single expression.
 	fn clone_when_arms(var self, node: *AstNode, subst: *GenSubst? = null): List<WhenArm> {
-		val we = node.as_when_expr();
 		var arms = List<WhenArm>();
-		for (arm in we.arms) {
-			val pats = self.clone_expr_list(arm.patterns, subst);
-			val arm_body = if (arm.body is BlockStmt)
-				self.clone_stmt(arm.body, subst)
-			else
-				self.clone_expr(arm.body, subst);
-			arms += WhenArm(pats, arm.is_else, arm_body, arm.line, arm.col);
+		if (node is WhenExpr as we) {
+			for (arm in we.arms) {
+				val pats = self.clone_expr_list(arm.patterns, subst);
+				val arm_body = if (arm.body is BlockStmt)
+					self.clone_stmt(arm.body, subst)
+				else
+					self.clone_expr(arm.body, subst);
+				arms += WhenArm(pats, arm.is_else, arm_body, arm.line, arm.col);
+			}
 		}
 		return arms;
 	}
 
 	fn clone_interp_parts(var self, node: *AstNode, subst: *GenSubst? = null): List<InterpPart> {
-		val ie = node.as_interp_expr();
 		var parts = List<InterpPart>();
-		for (part in ie.parts) {
-			when (part) {
-				is InterpPart.Literal as lit -> {
-					parts += InterpPart.Literal(self.clone_expr(lit.node, subst));
-				}
-				is InterpPart.Hole as hole -> {
-					parts += InterpPart.Hole(self.clone_expr(hole.node, subst));
+		if (node is InterpExpr as ie) {
+			for (part in ie.parts) {
+				when (part) {
+					is InterpPart.Literal as lit -> {
+						parts += InterpPart.Literal(self.clone_expr(lit.node, subst));
+					}
+					is InterpPart.Hole as hole -> {
+						parts += InterpPart.Hole(self.clone_expr(hole.node, subst));
+					}
 				}
 			}
 		}
@@ -485,29 +492,26 @@ impl DeclPass {
 	}
 
 	pub fn clone_fn(var self, node: *AstNode, subst: *GenSubst? = null, new_name: str = ""): *AstNode {
-		val f = node.as_fn_decl();
-		var params = List<Param>();
-		for (p in f.params) {
-			val pt = if (p.type_node != null) self.clone_type(p.type_node!, subst) else null;
-			val dflt = if (p.default_val != null) self.clone_expr(p.default_val!, subst) else null;
-			params += Param(p.name, pt, p.mutable, p.has_val, dflt);
+		if (node is FnDecl as f) {
+			var params = List<Param>();
+			for (p in f.params) {
+				val pt = if (p.type_node != null) self.clone_type(p.type_node!, subst) else null;
+				val dflt = if (p.default_val != null) self.clone_expr(p.default_val!, subst) else null;
+				params += Param(p.name, pt, p.mutable, p.has_val, dflt);
+			}
+			val rt = if (f.return_type != null) self.clone_type(f.return_type!, subst) else null;
+			return self.arena.node(
+				NodeData.FnDecl(
+					new_name,
+					List<GenericParam>(),
+					params, rt,
+					if (f.body != null) self.clone_stmt(f.body!, subst) else null,
+					f.public, f.operator, f.initializer, self.current_module
+				),
+				node.line, node.col
+			);
 		}
-		val rt = if (f.return_type != null) self.clone_type(f.return_type!, subst) else null;
-		val clone = self.arena.node(
-			NodeData.FnDecl(
-				new_name,
-				List<GenericParam>(),
-				params, rt,
-				if (f.body != null) self.clone_stmt(f.body!, subst) else null,
-				f.public, f.operator, f.initializer, ""
-			),
-			node.line, node.col
-		);
-		// Remember where the template was declared: the clone's body is checked
-		// later, in another module's context, and needs these names in scope.
-		val clone_f = clone.as_fn_decl() as &FnDecl;
-		clone_f.module = self.current_module;
-		return clone;
+		return node;
 	}
 
 
@@ -517,10 +521,12 @@ impl DeclPass {
 	pub fn materialize_body(var self, rec: *InstanceRecord): *AstNode {
 		val saved = self.mat_rec;
 		self.mat_rec = rec;
-		val f = rec.decl.as_fn_decl();
-		val body = if (f.body != null) self.clone_stmt(f.body!, null) else null as *AstNode;
+		var body: *AstNode? = null;
+		if (rec.decl is FnDecl as f && f.body != null) {
+			body = self.clone_stmt(f.body!, null);
+		}
 		self.mat_rec = saved;
-		return body;
+		return body ?: self.arena.node(NodeData.BlockStmt(List<*AstNode>()), 0, 0);
 	}
 
 }

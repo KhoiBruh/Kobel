@@ -32,16 +32,17 @@ fn trait_method_in(list: List<*TraitMethod>, name: str, arity: usz): *TraitMetho
 impl DeclPass {
 
 	pub fn collect_module(var self, node: *AstNode) {
-		val m = node.as_module_decl();
-		self.current_module = m.full_path;
-		self.symtab.set_current_module(m.full_path);
+		if (node is ModuleDecl as m) {
+			self.current_module = m.full_path;
+			self.symtab.set_current_module(m.full_path);
+		}
 	}
 
 // `use a.b.c.Sym as Alias;` -> writes an ImportBinding:
 // the name `Alias` (or `Sym` when there is no alias) resolves to `Sym` of the module.
 // `use a.b.c.*;` -> wildcard import of the whole module a.b.c
 	pub fn collect_use(var self, node: *AstNode) {
-		val u = node.as_use_decl();
+		if (node is UseDecl as u) {
 
 		if (u.wildcard) {
 			val w_mod = str_join_dots(u.path, u.path.len);
@@ -71,6 +72,7 @@ impl DeclPass {
 		if (!u.alias.empty()) local_name = u.alias;
 		if (self.symtab.explicit_imports["${self.current_module}::${local_name}"] != null) return;
 		self.symtab.add_import(mod_name, u.symbol_name, local_name, false);
+		}
 	}
 
 	// Registers a struct's name with an opaque type, without resolving its fields.
@@ -89,223 +91,226 @@ impl DeclPass {
 	}
 
 	pub fn collect_struct(var self, node: *AstNode) {
-		val s = node.as_struct_decl() as &StructDecl;
-		// Generic structs are registered as templates and instantiated on use.
-		if (s.type_params.len > 0) return;
+		if (node is StructDecl as s) {
+			// Generic structs are registered as templates and instantiated on use.
+			if (s.type_params.len > 0) return;
 
-		// A forward declaration (`struct A;`) registers an opaque type; the later
-		// definition fills that same type in, so pointers may refer to it early.
-		if (s.forward) {
-			val existing_fwd = self.symtab.lookup_in_module(self.current_module, s.name);
-			if (existing_fwd != null) {
-				s.name = existing_fwd.c_name;
+			// A forward declaration (`struct A;`) registers an opaque type; the later
+			// definition fills that same type in, so pointers may refer to it early.
+			if (s.forward) {
+				val existing_fwd = self.symtab.lookup_in_module(self.current_module, s.name);
+				if (existing_fwd != null) {
+					s.name = existing_fwd.c_name;
+					return;
+				}
+				self.declare_struct_shell(node, s);
+				val created = self.symtab.lookup_in_module(self.current_module, s.name);
+				if (created != null) s.name = created.c_name;
 				return;
 			}
-			self.declare_struct_shell(node, s);
-			val created = self.symtab.lookup_in_module(self.current_module, s.name);
-			if (created != null) s.name = created.c_name;
-			return;
-		}
 
-		val existing = self.symtab.lookup_in_module(self.current_module, s.name);
-		if (
-			existing != null &&
-			existing.kind == SymbolKind.STRUCT &&
-			existing.type_ptr.kind == DataType.STRUCT &&
-			!existing.type_ptr.as_struct().is_defined
-		) {
-			// Definition of a forward-declared struct: complete the same type.
-			val fwd_type = existing.type_ptr;
-			fwd_type.as_struct_mut().is_defined = true;
-			// A forward declaration elsewhere already emits this type's typedef.
-			if (existing.ast_node != node) s.emit_typedef = false;
-			val def_name = s.name;
-			s.name = fwd_type.as_struct().c_name;
-			var fwd_private = false;
+			val existing = self.symtab.lookup_in_module(self.current_module, s.name);
+			if (
+				existing != null &&
+				existing.kind == SymbolKind.STRUCT &&
+				existing.type_ptr.kind == DataType.STRUCT &&
+				!existing.type_ptr.as_struct().is_defined
+			) {
+				// Definition of a forward-declared struct: complete the same type.
+				val fwd_type = existing.type_ptr;
+				fwd_type.as_struct_mut().is_defined = true;
+				// A forward declaration elsewhere already emits this type's typedef.
+				if (existing.ast_node != node) s.emit_typedef = false;
+				val def_name = s.name;
+				s.name = fwd_type.as_struct().c_name;
+				var fwd_private = false;
+				for (f in s.fields) {
+					val f_type = self.resolve_ast_type(f.type_node);
+					fwd_type.as_struct_mut().fields += StructField(f.name, f_type, 0, f.public, f.default_val);
+					if (!f.public) fwd_private = true;
+				}
+				fwd_type.as_struct_mut().has_private = fwd_private;
+				fwd_type.layout_struct();
+
+				// The definition lives in a different module than the forward
+				// declaration, so that module needs its own handle on the type.
+				self.symtab.define_global(Symbol(
+					def_name, fwd_type.as_struct().c_name, SymbolKind.STRUCT, fwd_type,
+					false, s.public, node.line, node.col, node
+				));
+				return;
+			}
+
+			val c_name = self.c_name_for(s.name);
+			val s_type = self.arena.struct_type(s.name, List<StructField>());
+			s_type.as_struct_mut().c_name = c_name;
+			val ok = self.symtab.define_global(
+				Symbol(s.name, c_name, SymbolKind.STRUCT, s_type, false, s.public, node.line, node.col, node)
+			);
+			if (!ok) self.report_error(node, "Duplicate struct declaration '${s.name}'");
+
+			// Rename the AST node to the C name so the backend emits a unique name
+			s.name = c_name;
+
+			var has_private = false;
 			for (f in s.fields) {
 				val f_type = self.resolve_ast_type(f.type_node);
-				fwd_type.as_struct_mut().fields += StructField(f.name, f_type, 0, f.public, f.default_val);
-				if (!f.public) fwd_private = true;
+				val s_info = s_type.as_struct_mut();
+				s_info.fields += StructField(f.name, f_type, 0, f.public, f.default_val);
+				if (!f.public) has_private = true;
 			}
-			fwd_type.as_struct_mut().has_private = fwd_private;
-			fwd_type.layout_struct();
-
-			// The definition lives in a different module than the forward
-			// declaration, so that module needs its own handle on the type.
-			self.symtab.define_global(Symbol(
-				def_name, fwd_type.as_struct().c_name, SymbolKind.STRUCT, fwd_type,
-				false, s.public, node.line, node.col, node
-			));
-			return;
+			val st_info = s_type.as_struct_mut();
+			st_info.module = self.current_module;
+			s_type.layout_struct();
 		}
-
-		val c_name = self.c_name_for(s.name);
-		val s_type = self.arena.struct_type(s.name, List<StructField>());
-		s_type.as_struct_mut().c_name = c_name;
-		val ok = self.symtab.define_global(
-			Symbol(s.name, c_name, SymbolKind.STRUCT, s_type, false, s.public, node.line, node.col, node)
-		);
-		if (!ok) self.report_error(node, "Duplicate struct declaration '${s.name}'");
-
-		// Rename the AST node to the C name so the backend emits a unique name
-		s.name = c_name;
-
-		var has_private = false;
-		for (f in s.fields) {
-			val f_type = self.resolve_ast_type(f.type_node);
-			val s_info = s_type.as_struct_mut();
-			s_info.fields += StructField(f.name, f_type, 0, f.public, f.default_val);
-			if (!f.public) has_private = true;
-		}
-		val st_info = s_type.as_struct_mut();
-		st_info.module = self.current_module;
-		s_type.layout_struct();
 	}
 
 	pub fn collect_fn(var self, node: *AstNode) {
-		val f = node.as_fn_decl() as &FnDecl;
-		// Generic functions are registered as templates and instantiated on use.
-		if (f.type_params.len > 0) return;
-		var param_types = List<*Type>();
+		if (node is FnDecl as f) {
+			// Generic functions are registered as templates and instantiated on use.
+			if (f.type_params.len > 0) return;
+			var param_types = List<*Type>();
 
-		for (p in f.params) {
-			if (p.name == "self") {
-				self.report_error(node, "Top-level function '${f.name}' cannot have a 'self' parameter");
+			for (p in f.params) {
+				if (p.name == "self") {
+					self.report_error(node, "Top-level function '${f.name}' cannot have a 'self' parameter");
+				}
+				val p_type = if (p.type_node != null) self.resolve_ast_type(p.type_node!) else self.prims().t_none();
+				param_types += p_type;
 			}
-			val p_type = if (p.type_node != null) self.resolve_ast_type(p.type_node!) else self.prims().t_none();
-			param_types += p_type;
+
+			var ret_type = if (f.return_type != null) self.resolve_ast_type(f.return_type!)
+			else self.infer_decl_return_type(f) ?: self.prims().t_none();
+
+			val fn_type = self.arena.fn_type(param_types, ret_type);
+			val c_name = self.c_name_for(f.name);
+			val ok = self.symtab.define_global(
+				Symbol(f.name, c_name, SymbolKind.FN, fn_type, false, f.public, node.line, node.col, node)
+			);
+			if (!ok) self.report_error(node, "Duplicate function declaration '${f.name}'");
+
+			// Rename the AST node to the C name so the backend emits a unique name
+			f.name = c_name;
 		}
-
-		var ret_type = if (f.return_type != null) self.resolve_ast_type(f.return_type!)
-		else self.infer_decl_return_type(f) ?: self.prims().t_none();
-
-		val fn_type = self.arena.fn_type(param_types, ret_type);
-		val c_name = self.c_name_for(f.name);
-		val ok = self.symtab.define_global(
-			Symbol(f.name, c_name, SymbolKind.FN, fn_type, false, f.public, node.line, node.col, node)
-		);
-		if (!ok) self.report_error(node, "Duplicate function declaration '${f.name}'");
-
-		// Rename the AST node to the C name so the backend emits a unique name
-		f.name = c_name;
 	}
 
 	pub fn collect_enum(var self, node: *AstNode) {
-		val e = node.as_enum_decl() as &EnumDecl;
-		val under_type = if (e.underlying_type != null) self.resolve_ast_type(e.underlying_type!)
-		else self.prims().t_prim(Type.i32());
+		if (node is EnumDecl as e) {
+			val under_type = if (e.underlying_type != null) self.resolve_ast_type(e.underlying_type!)
+			else self.prims().t_prim(Type.i32());
 
-		var is_payload = false;
-		for (m in e.members) {
-			if (!m.payload.empty()) is_payload = true;
-		}
-		if (is_payload) {
-			self.collect_payload_enum(node, e, under_type);
-			return;
-		}
-
-		val is_int = under_type.is_integer();
-		val is_str = under_type.kind == DataType.STR;
-		val is_char = under_type.kind == DataType.CHAR;
-		val is_float = under_type.is_float();
-		val is_bool = under_type.kind == DataType.BOOL;
-
-		if (!is_int && !is_str && !is_char && !is_float && !is_bool) {
-			self.report_error(node, "Enum underlying type must be a primitive type (integer, float, char, str, or bool)");
-		}
-
-		var members = List<*EnumMemberInfo>();
-		var next_int_val: i64 = 0;
-		for (m in e.members) {
-			var v: i64 = 0;
-			var raw_text = "";
-			var lit_kind = LiteralKind.INT;
-
-			if (is_int) {
-				v = next_int_val;
-				if (m.value != null) v = self.enum_const_i64(m.value!);
-				raw_text = "${v}";
-				lit_kind = LiteralKind.INT;
-				next_int_val = v + 1;
-			} else if (is_str) {
-				lit_kind = LiteralKind.STRING;
-				if (m.value != null) {
-					if (m.value is LiteralExpr as lit && lit.literal_kind == LiteralKind.STRING) {
-						raw_text = lit.raw_text;
-					} else {
-						self.report_error(m.value!, "Enum member value for 'str' enum must be a string literal");
-						raw_text = "\"${m.name}\"";
-					}
-				} else {
-					raw_text = "\"${m.name}\"";
-				}
-			} else if (is_char) {
-				lit_kind = LiteralKind.CHAR;
-				if (m.value != null) {
-					if (m.value is LiteralExpr as lit && lit.literal_kind == LiteralKind.CHAR) {
-						raw_text = lit.raw_text;
-					} else {
-						self.report_error(m.value!, "Enum member value for 'char' enum must be a character literal");
-						raw_text = "'?'";
-					}
-				} else {
-					self.report_error(node, "Enum member '${m.name}' of 'char' enum requires an explicit character literal");
-					raw_text = "'?'";
-				}
-			} else if (is_float) {
-				lit_kind = LiteralKind.FLOAT;
-				if (m.value != null) {
-					if (m.value is LiteralExpr as lit && (lit.literal_kind == LiteralKind.FLOAT || lit.literal_kind == LiteralKind.INT)) {
-						raw_text = lit.raw_text;
-					} else {
-						self.report_error(m.value!, "Enum member value for float enum must be a number literal");
-						raw_text = "0.0";
-					}
-				} else {
-					self.report_error(node, "Enum member '${m.name}' of float enum requires an explicit float literal");
-					raw_text = "0.0";
-				}
-			} else if (is_bool) {
-				lit_kind = LiteralKind.BOOL;
-				if (m.value != null) {
-					if (m.value is LiteralExpr as lit && lit.literal_kind == LiteralKind.BOOL) {
-						raw_text = lit.raw_text;
-					} else {
-						self.report_error(m.value!, "Enum member value for 'bool' enum must be a bool literal");
-						raw_text = "false";
-					}
-				} else {
-					self.report_error(node, "Enum member '${m.name}' of 'bool' enum requires an explicit bool literal");
-					raw_text = "false";
-				}
+			var is_payload = false;
+			for (m in e.members) {
+				if (!m.payload.empty()) is_payload = true;
+			}
+			if (is_payload) {
+				self.collect_payload_enum(node, e, under_type);
+				return;
 			}
 
-			val mi = self.arena.create_val(EnumMemberInfo(m.name, v, null, "", raw_text, lit_kind));
-			members += mi;
+			val is_int = under_type.is_integer();
+			val is_str = under_type.kind == DataType.STR;
+			val is_char = under_type.kind == DataType.CHAR;
+			val is_float = under_type.is_float();
+			val is_bool = under_type.kind == DataType.BOOL;
+
+			if (!is_int && !is_str && !is_char && !is_float && !is_bool) {
+				self.report_error(node, "Enum underlying type must be a primitive type (integer, float, char, str, or bool)");
+			}
+
+			var members = List<*EnumMemberInfo>();
+			var next_int_val: i64 = 0;
+			for (m in e.members) {
+				var v: i64 = 0;
+				var raw_text = "";
+				var lit_kind = LiteralKind.INT;
+
+				if (is_int) {
+					v = next_int_val;
+					if (m.value != null) v = self.enum_const_i64(m.value!);
+					raw_text = "${v}";
+					lit_kind = LiteralKind.INT;
+					next_int_val = v + 1;
+				} else if (is_str) {
+					lit_kind = LiteralKind.STRING;
+					if (m.value != null) {
+						if (m.value is LiteralExpr as lit && lit.literal_kind == LiteralKind.STRING) {
+							raw_text = lit.raw_text;
+						} else {
+							self.report_error(m.value!, "Enum member value for 'str' enum must be a string literal");
+							raw_text = "\"${m.name}\"";
+						}
+					} else {
+						raw_text = "\"${m.name}\"";
+					}
+				} else if (is_char) {
+					lit_kind = LiteralKind.CHAR;
+					if (m.value != null) {
+						if (m.value is LiteralExpr as lit && lit.literal_kind == LiteralKind.CHAR) {
+							raw_text = lit.raw_text;
+						} else {
+							self.report_error(m.value!, "Enum member value for 'char' enum must be a character literal");
+							raw_text = "'?'";
+						}
+					} else {
+						self.report_error(node, "Enum member '${m.name}' of 'char' enum requires an explicit character literal");
+						raw_text = "'?'";
+					}
+				} else if (is_float) {
+					lit_kind = LiteralKind.FLOAT;
+					if (m.value != null) {
+						if (m.value is LiteralExpr as lit && (lit.literal_kind == LiteralKind.FLOAT || lit.literal_kind == LiteralKind.INT)) {
+							raw_text = lit.raw_text;
+						} else {
+							self.report_error(m.value!, "Enum member value for float enum must be a number literal");
+							raw_text = "0.0";
+						}
+					} else {
+						self.report_error(node, "Enum member '${m.name}' of float enum requires an explicit float literal");
+						raw_text = "0.0";
+					}
+				} else if (is_bool) {
+					lit_kind = LiteralKind.BOOL;
+					if (m.value != null) {
+						if (m.value is LiteralExpr as lit && lit.literal_kind == LiteralKind.BOOL) {
+							raw_text = lit.raw_text;
+						} else {
+							self.report_error(m.value!, "Enum member value for 'bool' enum must be a bool literal");
+							raw_text = "false";
+						}
+					} else {
+						self.report_error(node, "Enum member '${m.name}' of 'bool' enum requires an explicit bool literal");
+						raw_text = "false";
+					}
+				}
+
+				val mi = self.arena.create_val(EnumMemberInfo(m.name, v, null, "", raw_text, lit_kind));
+				members += mi;
+			}
+
+			val c_name = self.c_name_for(e.name);
+
+			val info = self.arena.create_val(EnumInfo(e.name, c_name, under_type, members));
+
+			// The symbol's type is an integer type that carries the EnumInfo, so enum
+			// values stay usable in arithmetic/comparisons while `.value` is recognized.
+			val carrier = self.arena.create_val(Type(under_type.kind, under_type.size, under_type.align, TypePayload.Enum(info)));
+
+			val ok = self.symtab.define_global(
+				Symbol(e.name, c_name, SymbolKind.ENUM, carrier, false, e.public, node.line, node.col, node)
+			);
+			if (!ok) self.report_error(node, "Duplicate enum declaration '${e.name}'");
+
+			self.symtab.register_enum_info(info);
+
+			e.name = c_name;
 		}
-
-		val c_name = self.c_name_for(e.name);
-
-		val info = self.arena.create_val(EnumInfo(e.name, c_name, under_type, members));
-
-		// The symbol's type is an integer type that carries the EnumInfo, so enum
-		// values stay usable in arithmetic/comparisons while `.value` is recognized.
-		val carrier = self.arena.create_val(Type(under_type.kind, under_type.size, under_type.align, TypePayload.Enum(info)));
-
-		val ok = self.symtab.define_global(
-			Symbol(e.name, c_name, SymbolKind.ENUM, carrier, false, e.public, node.line, node.col, node)
-		);
-		if (!ok) self.report_error(node, "Duplicate enum declaration '${e.name}'");
-
-		self.symtab.register_enum_info(info);
-
-		e.name = c_name;
 	}
 
 	// A payload enum becomes a struct: a `tag` field plus a union of per-variant
 	// payload structs. Each variant gets its own struct type named `Enum.Variant`
 	// (so an `is` pattern can name it) and an `Enum.Variant__TAG` constant symbol.
-	fn collect_payload_enum(var self, node: *AstNode, e: &EnumDecl, under_type: *Type) {
+	fn collect_payload_enum(var self, node: *AstNode, e: *EnumDecl, under_type: *Type) {
 		if (e.underlying_type != null) {
 			self.report_error(node, "A payload enum cannot declare an underlying type");
 		}
@@ -379,26 +384,28 @@ impl DeclPass {
 	}
 
 	pub fn collect_const(var self, node: *AstNode) {
-		val c = node.as_const_decl() as &ConstDecl;
-		val c_type = if (c.type_node != null) self.resolve_ast_type(c.type_node!)
-		else self.infer_const_type(c.value) ?: self.prims().t_prim(Type.i32());
-		if (c.type_node == null) c.type_node = self.arena.ast_type_from_type(c_type);
-	
-		val c_name = self.c_name_for(c.name);
-		val ok = self.symtab.define_global(
-			Symbol(c.name, c_name, SymbolKind.CONST, c_type, false, c.public, node.line, node.col, node)
-		);
-		if (!ok) self.report_error(node, "Duplicate const declaration '${c.name}'");
-	
-		c.name = c_name;
+		if (node is ConstDecl as c) {
+			val c_type = if (c.type_node != null) self.resolve_ast_type(c.type_node!)
+			else self.infer_const_type(c.value) ?: self.prims().t_prim(Type.i32());
+			if (c.type_node == null) c.type_node = self.arena.ast_type_from_type(c_type);
+		
+			val c_name = self.c_name_for(c.name);
+			val ok = self.symtab.define_global(
+				Symbol(c.name, c_name, SymbolKind.CONST, c_type, false, c.public, node.line, node.col, node)
+			);
+			if (!ok) self.report_error(node, "Duplicate const declaration '${c.name}'");
+		
+			c.name = c_name;
+		}
 	}
 
 	pub fn collect_extern_block(var self, node: *AstNode) {
-		val ext = node.as_extern_block();
-		val prev_is_extern = self.is_extern;
-		self.is_extern = true;
-		for (d in ext) self.collect_declaration(d);
-		self.is_extern = prev_is_extern;
+		if (node is ExternBlock as ext) {
+			val prev_is_extern = self.is_extern;
+			self.is_extern = true;
+			for (d in ext) self.collect_declaration(d);
+			self.is_extern = prev_is_extern;
+		}
 	}
 
 	// Records a `trait` declaration so `impl Trait for Struct` blocks can be
@@ -406,40 +413,42 @@ impl DeclPass {
 	// resolved lazily; only the method names and whether each one has a body are
 	// kept here.
 	pub fn collect_trait(var self, node: *AstNode) {
-		val t = node.as_trait_decl();
-		if (self.symtab.find_trait(t.name) != null) {
-			self.report_error(node, "Duplicate trait declaration '${t.name}'");
-			return;
-		}
-	
-		var methods = List<*TraitMethod>();
-		for (m in t.methods) {
-			val f = m.as_fn_decl();
-			if (trait_method_in(methods, f.name, f.params.len) != null) {
-				self.report_error(m,
-					"Duplicate method '${f.name}' with ${f.params.len} "
-					"parameter(s) in trait '${t.name}'"
-				);
-				continue;
+		if (node is TraitDecl as t) {
+			if (self.symtab.find_trait(t.name) != null) {
+				self.report_error(node, "Duplicate trait declaration '${t.name}'");
+				return;
 			}
-			val tm = self.arena.create_val(TraitMethod(f.name, f.params.len, f.body != null, m));
-			methods += tm;
-		}
-	
-		for (a in t.assoc_types) {
-			var seen_before = false;
-			for (a2 in t.assoc_types) {
-				if (a2 == a) {
-					if (seen_before) {
-						self.report_error(node, "Duplicate associated type '${a}' in trait '${t.name}'");
+		
+			var methods = List<*TraitMethod>();
+			for (m in t.methods) {
+				if (m is FnDecl as f) {
+					if (trait_method_in(methods, f.name, f.params.len) != null) {
+						self.report_error(m,
+							"Duplicate method '${f.name}' with ${f.params.len} "
+							"parameter(s) in trait '${t.name}'"
+						);
+						continue;
 					}
-					seen_before = true;
+					val tm = self.arena.create_val(TraitMethod(f.name, f.params.len, f.body != null, m));
+					methods += tm;
 				}
 			}
-		}
+		
+			for (a in t.assoc_types) {
+				var seen_before = false;
+				for (a2 in t.assoc_types) {
+					if (a2 == a) {
+						if (seen_before) {
+							self.report_error(node, "Duplicate associated type '${a}' in trait '${t.name}'");
+						}
+						seen_before = true;
+					}
+				}
+			}
 
-		val ti = self.arena.create_val(TraitInfo(t.name, t.bases, methods, List<str>(), t.assoc_types));
-		self.symtab.register_trait(ti);
+			val ti = self.arena.create_val(TraitInfo(t.name, t.bases, methods, List<str>(), t.assoc_types));
+			self.symtab.register_trait(ti);
+		}
 	}
 
 	pub fn collect_declaration(var self, node: *AstNode) {
@@ -458,139 +467,138 @@ impl DeclPass {
 	}
 
 	pub fn collect_program(var self, program_node: *AstNode) {
-		val prog = program_node.as_program();
-	
-		// Pass 0: register generic templates so any use can instantiate them.
-		// Module markers are processed here too, so each template records its module.
-		for (d0 in prog) {
-			val t0 = d0;
-			when (t0) {
-				is ModuleDecl -> self.collect_module(d0);
-				is TraitDecl -> self.collect_trait(d0);
-				else -> self.register_template(d0);
-			}
-		}
-	
-
-		// Pass 0.4: register wildcard imports before anything resolves a name, so
-		// the shell pass below can find a type forward-declared in another module.
-		// Explicit imports need their target symbol, so they wait for pass 1a.
-		for (d_use in prog) {
-			val t_use = d_use;
-			when (t_use) {
-				is ModuleDecl -> self.collect_module(d_use);
-				is UseDecl as u_wild -> {
-					if (u_wild.wildcard) self.collect_use(d_use);
+		if (program_node is Program as prog) {
+			// Pass 0: register generic templates so any use can instantiate them.
+			// Module markers are processed here too, so each template records its module.
+			for (d0 in prog) {
+				val t0 = d0;
+				when (t0) {
+					is ModuleDecl -> self.collect_module(d0);
+					is TraitDecl -> self.collect_trait(d0);
+					else -> self.register_template(d0);
 				}
 			}
-		}
+		
 
-		// Pass 0.5: declare every struct name with an opaque type before any field
-		// is resolved. Imports may form cycles, so a field can mention a type from
-		// a module that is collected later; the passes below fill these shells.
-		for (d_half in prog) {
-			val t_half = d_half;
-			when (t_half) {
-				is ModuleDecl -> self.collect_module(d_half);
-				is StructDecl as s_half -> {
-					if (s_half.type_params.empty()) {
-						// Global lookup: a forward declaration in another module is the
-						// shell this definition will fill in.
-						val existing_half = self.symtab.lookup_in_module(self.current_module, s_half.name);
-						if (existing_half == null) self.declare_struct_shell(d_half, s_half);
+			// Pass 0.4: register wildcard imports before anything resolves a name, so
+			// the shell pass below can find a type forward-declared in another module.
+			// Explicit imports need their target symbol, so they wait for pass 1a.
+			for (d_use in prog) {
+				val t_use = d_use;
+				when (t_use) {
+					is ModuleDecl -> self.collect_module(d_use);
+					is UseDecl as u_wild -> {
+						if (u_wild.wildcard) self.collect_use(d_use);
 					}
 				}
 			}
-		}
 
-		// Pass 0.6: record trait implementations early so generic bound checks
-		// can succeed during signature collection (struct fields, function parameters).
-		for (d_impl in prog) {
-			val t_impl = d_impl;
-			when (t_impl) {
-				is ModuleDecl -> self.collect_module(d_impl);
-				is ImplDecl as im -> {
-					if (im.type_params.empty() && !im.trait_name.empty()) {
-						val t = self.symtab.find_trait(im.trait_name);
-						if (t != null) self.trait_record_impl(t, im.struct_name);
+			// Pass 0.5: declare every struct name with an opaque type before any field
+			// is resolved. Imports may form cycles, so a field can mention a type from
+			// a module that is collected later; the passes below fill these shells.
+			for (d_half in prog) {
+				val t_half = d_half;
+				when (t_half) {
+					is ModuleDecl -> self.collect_module(d_half);
+					is StructDecl as s_half -> {
+						if (s_half.type_params.empty()) {
+							// Global lookup: a forward declaration in another module is the
+							// shell this definition will fill in.
+							val existing_half = self.symtab.lookup_in_module(self.current_module, s_half.name);
+							if (existing_half == null) self.declare_struct_shell(d_half, s_half);
+						}
 					}
 				}
 			}
-		}
 
-		// Pass 1a: collect ordinary enums first so their types exist before payload enums or signatures are resolved.
-		for (d1 in prog) {
-			val t1 = d1;
-			when (t1) {
-				is ModuleDecl -> self.collect_module(d1);
-				is EnumDecl as e -> {
-					var has_p = false;
-					for (m in e.members) if (!m.payload.empty()) has_p = true;
-					if (!has_p) self.collect_enum(d1);
+			// Pass 0.6: record trait implementations early so generic bound checks
+			// can succeed during signature collection (struct fields, function parameters).
+			for (d_impl in prog) {
+				val t_impl = d_impl;
+				when (t_impl) {
+					is ModuleDecl -> self.collect_module(d_impl);
+					is ImplDecl as im -> {
+						if (im.type_params.empty() && !im.trait_name.empty()) {
+							val t = self.symtab.find_trait(im.trait_name);
+							if (t != null) self.trait_record_impl(t, im.struct_name);
+						}
+					}
 				}
 			}
-		}
 
-		// Pass 1a2: collect payload enums now that all ordinary enums and struct shells exist.
-		for (d1 in prog) {
-			val t1 = d1;
-			when (t1) {
-				is ModuleDecl -> self.collect_module(d1);
-				is EnumDecl as e -> {
-					var has_p = false;
-					for (m in e.members) if (!m.payload.empty()) has_p = true;
-					if (has_p) self.collect_enum(d1);
+			// Pass 1a: collect ordinary enums first so their types exist before payload enums or signatures are resolved.
+			for (d1 in prog) {
+				val t1 = d1;
+				when (t1) {
+					is ModuleDecl -> self.collect_module(d1);
+					is EnumDecl as e -> {
+						var has_p = false;
+						for (m in e.members) if (!m.payload.empty()) has_p = true;
+						if (!has_p) self.collect_enum(d1);
+					}
 				}
 			}
-		}
 
-		// Pass 1b: collect ordinary declarations (structs, functions, consts, extern blocks).
-		for (d1 in prog) {
-			if (!(d1 is ImplDecl) && !(d1 is EnumDecl)) self.collect_declaration(d1);
-		}
-
-		// Pass 1c: collect impl blocks now that all types are registered.
-		for (d1 in prog) {
-			val t1 = d1;
-			when (t1) {
-				is ModuleDecl -> self.collect_module(d1);
-				is ImplDecl -> self.collect_impl(d1);
+			// Pass 1a2: collect payload enums now that all ordinary enums and struct shells exist.
+			for (d1 in prog) {
+				val t1 = d1;
+				when (t1) {
+					is ModuleDecl -> self.collect_module(d1);
+					is EnumDecl as e -> {
+						var has_p = false;
+						for (m in e.members) if (!m.payload.empty()) has_p = true;
+						if (has_p) self.collect_enum(d1);
+					}
+				}
 			}
-		}
-	
-		// Pass 2: rewrite generic uses across signatures and bodies, instantiating
-		// concrete structs / functions / methods as needed. Module markers are
-		// replayed so each declaration resolves names in its own module.
-		for (d in prog) {
-			if (d is ModuleDecl as m2) {
-				self.current_module = m2.full_path;
-				self.symtab.set_current_module(m2.full_path);
-			} else if (!is_template_decl(d)) {
-				self.rewrite_generics(d);
-			}
-		}
-	
-		// Pass 3: drain the instance worklist. Each instance was cloned with type
-		// arguments substituted syntactically, so its own generic uses are still
-		// unresolved; rewriting it here (to a fixpoint) instantiates them in the
-		// same declaration pass instead of leaving it to body checking.
-		self.drain_instances();
 
-		// Pass 4: append the monomorphized declarations after the source program,
-		// in creation order (step 5 / instance graph). No prepend is needed:
-		// - the worklist instantiates a dependency before the instance that needs
-		//   it, so creation order already is a topological order;
-		// - struct bodies are emitted in by-value dependency order by codegen,
-		//   and every function gets a prototype before its definition, so no C
-		//   ordering constraint remains;
-		// - each instance carries its own module marker, so module context is
-		//   still correct wherever the pair lands.
-		if (self.symtab.gen.instances.len > 0) {
-			var combined = List<*AstNode>();
-			for (d in prog.declarations) combined += d;
-			for (pn in self.symtab.gen.instances) combined += pn;
-			val p_info = program_node.as_program() as &Program;
-			p_info.declarations = combined;
+			// Pass 1b: collect ordinary declarations (structs, functions, consts, extern blocks).
+			for (d1 in prog) {
+				if (!(d1 is ImplDecl) && !(d1 is EnumDecl)) self.collect_declaration(d1);
+			}
+
+			// Pass 1c: collect impl blocks now that all types are registered.
+			for (d1 in prog) {
+				val t1 = d1;
+				when (t1) {
+					is ModuleDecl -> self.collect_module(d1);
+					is ImplDecl -> self.collect_impl(d1);
+				}
+			}
+		
+			// Pass 2: rewrite generic uses across signatures and bodies, instantiating
+			// concrete structs / functions / methods as needed. Module markers are
+			// replayed so each declaration resolves names in its own module.
+			for (d in prog) {
+				if (d is ModuleDecl as m2) {
+					self.current_module = m2.full_path;
+					self.symtab.set_current_module(m2.full_path);
+				} else if (!is_template_decl(d)) {
+					self.rewrite_generics(d);
+				}
+			}
+		
+			// Pass 3: drain the instance worklist. Each instance was cloned with type
+			// arguments substituted syntactically, so its own generic uses are still
+			// unresolved; rewriting it here (to a fixpoint) instantiates them in the
+			// same declaration pass instead of leaving it to body checking.
+			self.drain_instances();
+
+			// Pass 4: append the monomorphized declarations after the source program,
+			// in creation order (step 5 / instance graph). No prepend is needed:
+			// - the worklist instantiates a dependency before the instance that needs
+			//   it, so creation order already is a topological order;
+			// - struct bodies are emitted in by-value dependency order by codegen,
+			//   and every function gets a prototype before its definition, so no C
+			//   ordering constraint remains;
+			// - each instance carries its own module marker, so module context is
+			//   still correct wherever the pair lands.
+			if (self.symtab.gen.instances.len > 0) {
+				var combined = List<*AstNode>();
+				for (d in prog.declarations) combined += d;
+				for (pn in self.symtab.gen.instances) combined += pn;
+				prog.declarations = combined;
+			}
 		}
 	}
 

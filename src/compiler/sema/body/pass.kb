@@ -314,8 +314,9 @@ impl BodyPass {
 			e.has_ident_name = true;
 			return;
 		}
-		val id = node.as_identifier_expr() as &IdentifierExpr;
-		id.name = name;
+		if (node is IdentifierExpr as id) {
+			id.name = name;
+		}
 	}
 
 	pub fn ann_entry(var self, node: *AstNode): *AnnEntry {
@@ -402,9 +403,11 @@ impl BodyPass {
 	// True for an arrow-bodied function (`fn f() => expr`) whose return type is
 	// still unknown. A call to one of these during inference blocks the attempt.
 	fn arrow_pending(val self, ast: *AstNode): bool {
-		val f = ast.as_fn_decl() ?: return false;
-		if (f.return_type != null) return false;
-		return f.body is ExprStmt;
+		if (ast is FnDecl as f) {
+			if (f.return_type != null) return false;
+			return f.body is ExprStmt;
+		}
+		return false;
 	}
 
 	fn check_expr_node(var self, node: *AstNode, expected: *Type? = null): *Type {

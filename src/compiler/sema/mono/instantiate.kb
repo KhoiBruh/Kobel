@@ -47,7 +47,7 @@ impl DeclPass {
 		val existing = self.find_instance_symbol(cname);
 		if (existing != null) return existing.type_ptr;
 
-		val decl = tmpl.node.as_struct_decl();
+		if (tmpl.node is StructDecl as decl) {
 		val prev_mod = self.enter_module(tmpl.module);
 
 		val s_type = self.arena.struct_type(cname, List<StructField>());
@@ -83,7 +83,7 @@ impl DeclPass {
 		for (impl_tmpl in self.symtab.gen.impl_templates) {
 			if (impl_tmpl.name != tmpl.name) continue;
 			val prev_mod2 = self.enter_module(impl_tmpl.module);
-			val im = impl_tmpl.node.as_impl_decl();
+			if (impl_tmpl.node is ImplDecl as im) {
 
 			self.current_self_type = s_type;
 			val mark = self.subst_names.len;
@@ -91,13 +91,13 @@ impl DeclPass {
 
 			var methods = List<*AstNode>();
 			for (m in im.methods) {
-				if (!(m is FnDecl)) continue;
-				val mf = m.as_fn_decl();
-				val mview = self.make_fn_view(m, impl_tmpl, args, arg_asts, mf.name);
-				val mrec = self.arena.create_val(InstanceRecord(InstanceKind.FUNCTION, impl_tmpl, args, cname, mview));
-				mrec.sig = self.make_fn_sig(m, impl_tmpl, args, s_type);
-				mview.instance = mrec as *u8;
-				methods += mview;
+				if (m is FnDecl as mf) {
+					val mview = self.make_fn_view(m, impl_tmpl, args, arg_asts, mf.name);
+					val mrec = self.arena.create_val(InstanceRecord(InstanceKind.FUNCTION, impl_tmpl, args, cname, mview));
+					mrec.sig = self.make_fn_sig(m, impl_tmpl, args, s_type);
+					mview.instance = mrec as *u8;
+					methods += mview;
+				}
 			}
 
 			var bindings = List<AssocBinding>();
@@ -118,6 +118,7 @@ impl DeclPass {
 			);
 			self.collect_impl(iview);
 			self.queue_decl(impl_tmpl.module, iview);
+			}
 			self.leave_module(prev_mod2);
 		}
 
@@ -130,6 +131,8 @@ impl DeclPass {
 
 		val sym = self.find_instance_symbol(cname) ?: return self.prims().t_none();
 		return sym.type_ptr;
+		}
+		return self.symtab.prims.t_none();
 	}
 
 	// A function/method instance is a thin `FnDecl` view: its signature type
@@ -138,43 +141,42 @@ impl DeclPass {
 	// annotations; see `InstanceRecord.ann`). This replaces the old whole-body
 	// clone: the template AST is never duplicated at instantiation.
 	fn make_fn_view(var self, fn_node: *AstNode, tmpl: *GenTemplate, args: List<*Type>, arg_asts: List<*AstNode>, cname: str): *AstNode {
-		val t = fn_node.as_fn_decl();
-		val mark = self.subst_names.len;
-		self.push_subst(tmpl.param_names(), args);
+		if (fn_node is FnDecl as t) {
+			val mark = self.subst_names.len;
+			self.push_subst(tmpl.param_names(), args);
 
-		var params = List<Param>();
-		for (p in t.params) {
-			var pt: *AstNode? = null;
-			if (p.type_node != null) {
-				val ty = self.resolve_ast_type(p.type_node!);
-				pt = self.arena.ast_type_from_type(ty);
-			}
-			val dflt = if (p.default_val != null)
+			var params = List<Param>();
+			for (p in t.params) {
+				var pt: *AstNode? = null;
+				if (p.type_node != null) {
+					val ty = self.resolve_ast_type(p.type_node!);
+					pt = self.arena.ast_type_from_type(ty);
+				}
+				val dflt = if (p.default_val != null)
 				self.clone_expr(p.default_val!, self.alloc_subst(tmpl.param_names(), arg_asts))
 				else null;
-			params += Param(p.name, pt, p.mutable, p.has_val, dflt);
-		}
+				params += Param(p.name, pt, p.mutable, p.has_val, dflt);
+			}
 
-		var rt: *AstNode? = null;
-		if (t.return_type != null) {
-			val rty = self.resolve_ast_type(t.return_type!);
-			rt = self.arena.ast_type_from_type(rty);
-		}
+			var rt: *AstNode? = null;
+			if (t.return_type != null) {
+				val rty = self.resolve_ast_type(t.return_type!);
+				rt = self.arena.ast_type_from_type(rty);
+			}
 
 		self.pop_subst(mark);
 
-		val view = self.arena.node(
-			NodeData.FnDecl(
-				cname, List<GenericParam>(),
-				params, rt,
-				t.body,
-				t.public, t.operator, t.initializer, ""
-			),
-			tmpl.node.line, tmpl.node.col
-		);
-		val view_f = view.as_fn_decl() as &FnDecl;
-		view_f.module = self.current_module;
-		return view;
+			return self.arena.node(
+				NodeData.FnDecl(
+					cname, List<GenericParam>(),
+					params, rt,
+					t.body,
+					t.public, t.operator, t.initializer, self.current_module
+				),
+				tmpl.node.line, tmpl.node.col
+			);
+		}
+		return fn_node;
 	}
 
 	// The instance's own `FnType`, built once per view so method registration and
@@ -182,30 +184,32 @@ impl DeclPass {
 	// is the concrete struct type for the untyped `self` parameter (null for
 	// free functions).
 	fn make_fn_sig(var self, fn_node: *AstNode, tmpl: *GenTemplate, args: List<*Type>, receiver: *Type?): *Type {
-		val t = fn_node.as_fn_decl();
-		val mark = self.subst_names.len;
-		self.push_subst(tmpl.param_names(), args);
+		if (fn_node is FnDecl as t) {
+			val mark = self.subst_names.len;
+			self.push_subst(tmpl.param_names(), args);
 
-		var param_types = List<*Type>();
-		for (p in t.params) {
-			if (p.name == "self" && p.type_node == null) {
-				if (receiver != null) param_types += self.arena.pointer_type(receiver, p.mutable);
-				else param_types += self.prims().t_none();
-				continue;
+			var param_types = List<*Type>();
+			for (p in t.params) {
+				if (p.name == "self" && p.type_node == null) {
+					if (receiver != null) param_types += self.arena.pointer_type(receiver, p.mutable);
+					else param_types += self.prims().t_none();
+					continue;
+				}
+				if (p.type_node == null) {
+					param_types += self.prims().t_none();
+					continue;
+				}
+				param_types += self.resolve_ast_type(p.type_node!);
 			}
-			if (p.type_node == null) {
-				param_types += self.prims().t_none();
-				continue;
-			}
-			param_types += self.resolve_ast_type(p.type_node!);
-		}
 
-		var ret_type = self.prims().t_none();
-		if (t.return_type != null) ret_type = self.resolve_ast_type(t.return_type!);
+			var ret_type = self.prims().t_none();
+			if (t.return_type != null) ret_type = self.resolve_ast_type(t.return_type!);
 
 		self.pop_subst(mark);
 
-		return self.arena.fn_type(param_types, ret_type);
+			return self.arena.fn_type(param_types, ret_type);
+		}
+		return self.symtab.prims.t_none();
 	}
 
 	// The concrete receiver type of a method template: for a generic struct the
@@ -315,14 +319,15 @@ impl DeclPass {
 	}
 
 	pub fn collect_fn_as(var self, node: *AstNode, final_name: str, sig: *Type? = null) {
-		val f = node.as_fn_decl() as &FnDecl;
-		var param_types = List<*Type>();
-		for (p in f.params) param_types += if (p.type_node != null) self.resolve_ast_type(p.type_node!) else self.prims().t_none();
-		val ret_type = if (f.return_type != null) self.resolve_ast_type(f.return_type!) else self.prims().t_none();
+		if (node is FnDecl as f) {
+			var param_types = List<*Type>();
+			for (p in f.params) param_types += if (p.type_node != null) self.resolve_ast_type(p.type_node!) else self.prims().t_none();
+			val ret_type = if (f.return_type != null) self.resolve_ast_type(f.return_type!) else self.prims().t_none();
 
-		val fn_type = sig ?: self.arena.fn_type(param_types, ret_type);
+			val fn_type = sig ?: self.arena.fn_type(param_types, ret_type);
 		self.symtab.gen.add_inst(self.arena.create_val(Symbol(final_name, final_name, SymbolKind.FN, fn_type, false, f.public, node.line, node.col, node)));
 		f.name = final_name;
+		}
 	}
 
 }

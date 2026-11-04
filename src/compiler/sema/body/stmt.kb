@@ -23,14 +23,15 @@ use compiler.sema.desugar.*;
 impl BodyPass {
 
 	pub fn check_block_stmt(var self, node: *AstNode) {
-		val blk = node.as_block_stmt();
-		self.symtab.enter_scope(false);
-		defer self.symtab.exit_scope();
-		for (stmt in blk.statements) self.check_statement(stmt);
+		if (node is BlockStmt as blk) {
+			self.symtab.enter_scope(false);
+			defer self.symtab.exit_scope();
+			for (stmt in blk.statements) self.check_statement(stmt);
+		}
 	}
 
 	pub fn check_var_decl_stmt(var self, node: *AstNode) {
-		val vd = node.as_var_decl_stmt() as &VarDeclStmt;
+		if (node is VarDeclStmt as vd) {
 		var var_ty = self.prims().t_none();
 		var has_init = false;
 
@@ -74,6 +75,7 @@ impl BodyPass {
 
 		val ok = self.symtab.define(Symbol(vd.name, vd.name, SymbolKind.VAR, var_ty, vd.mutable, false, node.line, node.col, null));
 		self.ensure(ok, node, "Variable '${vd.name}' is already defined in this scope");
+		}
 	}
 
 	fn collect_and_conditions(var self, expr: *AstNode): List<*AstNode> {
@@ -185,7 +187,7 @@ impl BodyPass {
 	}
 
 	pub fn check_if_stmt(var self, node: *AstNode) {
-		val if_s = node.as_if_stmt();
+		if (node is IfStmt as if_s) {
 		val conds = self.collect_and_conditions(if_s.condition);
 
 		self.symtab.enter_scope(false);
@@ -247,10 +249,11 @@ impl BodyPass {
 				self.symtab.exit_scope();
 			}
 		}
+		}
 	}
 
 	pub fn check_while_stmt(var self, node: *AstNode) {
-		val wh = node.as_while_stmt();
+		if (node is WhileStmt as wh) {
 		val conds = self.collect_and_conditions(wh.condition);
 
 		self.loop_depth++;
@@ -274,10 +277,11 @@ impl BodyPass {
 		}
 
 		self.check_statement(wh.body);
+		}
 	}
 
 	pub fn check_for_stmt(var self, node: *AstNode) {
-		val fs = node.as_for_stmt() as &ForStmt;
+		if (node is ForStmt as fs) {
 		self.ensure(fs.is_range || for_is_lvalue(fs.iterable), node, "The iterated expression of a 'for' must be a variable or a field");
 		// Containers that implement `Iterable` are walked through the trait
 		// (`count()` / `at(i)`); `str` and arrays keep the `.len` / `.data`
@@ -290,12 +294,13 @@ impl BodyPass {
 		val block = self.arena.desugar_for(node, fs, use_iter_trait, self);
 		self.set_resolved(node, block);
 		self.check_statement(block);
+		}
 	}
 
 	pub fn check_return_stmt(var self, node: *AstNode) {
 		if (self.defer_depth > 0)
 			self.report_error(node, "Return statement is not allowed inside defer");
-		val ret = node.as_return_stmt();
+		if (node is ReturnStmt as ret) {
 		if (ret.value != null) {
 			if (self.current_fn_return_type?.is_list()) self.coerce_to_list(ret.value!, self.current_fn_return_type!);
 
@@ -309,10 +314,11 @@ impl BodyPass {
 		} else {
 			self.ensure(self.current_fn_return_type.kind == DataType.NONE, node, "Non-none function must return a value");
 		}
+		}
 	}
 
 	pub fn check_when_stmt(var self, node: *AstNode) {
-		val ws = node.as_when_stmt();
+		if (node is WhenStmt as ws) {
 		val cond_ty = if (ws.condition != null) self.check_expr(ws.condition!) else null;
 
 		for (arm in ws.arms) {
@@ -326,6 +332,7 @@ impl BodyPass {
 				self.check_statement(arm.body);
 				self.symtab.exit_scope();
 			} else self.check_statement(arm.body);
+		}
 		}
 	}
 
@@ -364,17 +371,20 @@ impl BodyPass {
 			if (cur is GroupExpr as g) cur = g.expr;
 			else break;
 		}
-		val call = cur.as_call_expr() ?: return null;
-		if (!call.type_args.empty()) return null;
-		val cid = call.callee?.as_identifier_expr() ?: return null;
-		val tmpl = self.find_struct_template_for(cid.name) ?: return null;
-		val prefix = "${tmpl.module.mangle_symbol(tmpl.name)}_";
-		val s = var_ty.as_struct();
-		if (!s.c_name.starts_with(prefix)) return null;
-		return self.arena.call(
-			self.arena.identifier(s.c_name, init_node.line, init_node.col),
-			call.args, List<*AstNode>(), init_node.line, init_node.col
-		);
+		if (cur is CallExpr as call) {
+			if (!call.type_args.empty()) return null;
+			if (call.callee is IdentifierExpr as cid) {
+				val tmpl = self.find_struct_template_for(cid.name) ?: return null;
+				val prefix = "${tmpl.module.mangle_symbol(tmpl.name)}_";
+				val s = var_ty.as_struct();
+				if (!s.c_name.starts_with(prefix)) return null;
+				return self.arena.call(
+					self.arena.identifier(s.c_name, init_node.line, init_node.col),
+					call.args, List<*AstNode>(), init_node.line, init_node.col
+				);
+			}
+		}
+		return null;
 	}
 
 	// Whether the type is a struct with an `impl Iterable for` block. Such a `for`

@@ -1003,7 +1003,7 @@ impl CCodeGen {
 				val pat_node = arm.patterns.first();
 				if (pat_node is IsExpr as is_e) {
 					var subj_expr = self.gen_expr(we.condition!);
-					if (ws_is_id(we.condition!)) subj_expr = we.condition!.as_identifier_expr().name;
+					if (we.condition is IdentifierExpr as id) subj_expr = id.name;
 					cast_decl = self.gen_smart_cast_decl(is_e, is_e.expr!, subj_expr, self.indent_level + 1);
 				}
 			}

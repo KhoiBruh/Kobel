@@ -97,72 +97,75 @@ impl BodyPass {
 	}
 
 	pub fn check_literal_expr(var self, node: *AstNode, expected: *Type? = null): *Type {
-		val lit = node.as_literal_expr();
-		return when (lit.literal_kind) {
-			LiteralKind.INT -> {
-				val sfx = lit.raw_text.num_suffix();
-				if (!sfx.empty()) yield int_literal_type(self.symtab.prims!, lit.raw_text);
-				if (
-					expected != null && (
-						expected.is_integer() ||
-						expected.is_float()
-					)
-				) yield expected;
-				yield self.prims().get(DataType.I32);
-			}
-			LiteralKind.FLOAT -> {
-				val raw = lit.raw_text;
-				val is_f32 = raw.ends_with("f") || raw.ends_with("F");
-				if (is_f32) yield self.prims().t_prim(Type.f32());
-				if (expected?.is_float()) {
-					yield expected;
+		if (node is LiteralExpr as lit) {
+			return when (lit.literal_kind) {
+				LiteralKind.INT -> {
+					val sfx = lit.raw_text.num_suffix();
+					if (!sfx.empty()) yield int_literal_type(self.symtab.prims!, lit.raw_text);
+					if (
+						expected != null && (
+							expected.is_integer() ||
+							expected.is_float()
+						)
+					) yield expected;
+					yield self.prims().get(DataType.I32);
 				}
-				yield self.prims().t_prim(Type.f64());
-			}
-			LiteralKind.BOOL -> self.prims().t_bool();
-			LiteralKind.STRING -> {
-				val str_ty = self.prims().t_str();
-				if (
-					expected != null &&
-					expected.kind == DataType.POINTER &&
-					expected.can_assign(str_ty)
-				) {
-					yield expected;
+				LiteralKind.FLOAT -> {
+					val raw = lit.raw_text;
+					val is_f32 = raw.ends_with("f") || raw.ends_with("F");
+					if (is_f32) yield self.prims().t_prim(Type.f32());
+					if (expected?.is_float()) {
+						yield expected;
+					}
+					yield self.prims().t_prim(Type.f64());
 				}
-				yield str_ty;
-			}
-			LiteralKind.CHAR -> self.prims().t_char();
-			LiteralKind.NULL_VAL -> self.arena.nullable_pointer_type(self.prims().t_none(), false);
-		};
+				LiteralKind.BOOL -> self.prims().t_bool();
+				LiteralKind.STRING -> {
+					val str_ty = self.prims().t_str();
+					if (
+						expected != null &&
+						expected.kind == DataType.POINTER &&
+						expected.can_assign(str_ty)
+					) {
+						yield expected;
+					}
+					yield str_ty;
+				}
+				LiteralKind.CHAR -> self.prims().t_char();
+				LiteralKind.NULL_VAL -> self.arena.nullable_pointer_type(self.prims().t_none(), false);
+			};
+		}
+		return self.prims().t_none();
 	}
 
 	pub fn check_ident_expr(var self, node: *AstNode): *Type {
-		val id = node.as_identifier_expr() as &IdentifierExpr;
+		if (node is IdentifierExpr as id) {
+			// `Self` names the type being implemented. Renaming it to the C
+			// name lets `Self(...)` build a value directly (no `new` factory).
+			// Inside an instance the identifier node is shared, so keep the source
+			// name: per-instance decisions are routed through the side table.
+			if (id.name == "Self" && self.current_self_type != null) {
+				val cur_self = self.current_self_type!;
+				if (self.current_rec == null) id.name = cur_self.as_struct().c_name;
+				return cur_self;
+			}
 
-		// `Self` names the type being implemented. Renaming it to the C
-		// name lets `Self(...)` build a value directly (no `new` factory).
-		// Inside an instance the identifier node is shared, so keep the source
-		// name: per-instance decisions are routed through the side table.
-		if (id.name == "Self" && self.current_self_type != null) {
-			val cur_self = self.current_self_type!;
-			if (self.current_rec == null) id.name = cur_self.as_struct().c_name;
-			return cur_self;
+			val sym = self.symtab.lookup(id.name);
+			if (sym == null) {
+				self.report_error(node, "Undeclared identifier '${id.name}'");
+				return self.prims().t_none();
+			}
+			// Switch to the mangled C name (import alias, symbol from another module).
+			// Inside an instance the node is shared with the template, so the name goes
+			// into the instance's side table instead of onto the AST.
+			if (!sym.c_name.empty() && sym.c_name != id.name) self.set_ident_name(node, sym.c_name);
+			return sym.type_ptr;
 		}
-
-		val sym = self.symtab.lookup(id.name);
-		if (sym == null) {
-			self.report_error(node, "Undeclared identifier '${id.name}'");
-			return self.prims().t_none();
-		}
-		// Switch to the mangled C name (import alias, symbol from another module).
-		// Inside an instance the node is shared with the template, so the name goes
-		// into the instance's side table instead of onto the AST.
-		if (!sym.c_name.empty() && sym.c_name != id.name) self.set_ident_name(node, sym.c_name);
-		return sym.type_ptr;
+		return self.prims().t_none();
 	}
 
 	pub fn check_binary_expr(var self, node: *AstNode, expected: *Type? = null): *Type {
-		val bin = node.as_binary_expr();
+		if (node is BinaryExpr as bin) {
 		val was_stmt = self.is_stmt_level;
 		self.is_stmt_level = false;
 
@@ -210,6 +213,8 @@ impl BodyPass {
 
 			else -> lt;
 		};
+		}
+		return self.prims().t_none();
 	}
 
 	fn is_safe_nav_expr(val self, expr: *AstNode?): bool {
@@ -402,115 +407,121 @@ impl BodyPass {
 	}
 
 	pub fn check_unary_expr(var self, node: *AstNode, expected: *Type? = null): *Type {
-		val un = node.as_unary_expr();
-		val op_ty = self.check_expr(un.operand, expected);
+		if (node is UnaryExpr as un) {
+			val op_ty = self.check_expr(un.operand, expected);
 
-		if (un.is_postfix && un.op == TokenType.BANG) {
-			if (op_ty.kind == DataType.POINTER) {
-				val pt = op_ty.as_pointer();
-				if (pt.nullable) {
-					return self.arena.pointer_type(pt.pointee, pt.mutable);
+			if (un.is_postfix && un.op == TokenType.BANG) {
+				if (op_ty.kind == DataType.POINTER) {
+					val pt = op_ty.as_pointer();
+					if (pt.nullable) {
+						return self.arena.pointer_type(pt.pointee, pt.mutable);
+					}
+				}
+				self.report_error(node, "Force unwrap operator '!' requires a nullable pointer");
+				return op_ty;
+			}
+
+			if (op_ty.kind == DataType.STRUCT) {
+				val op_name = when (un.op) {
+					TokenType.MINUS -> "negate";
+					TokenType.BANG -> "not";
+					else -> "";
+				};
+				if (!op_name.empty()) {
+					val s_info = op_ty.as_struct();
+					var arg_types = List<*Type>();
+					arg_types += op_ty;
+					val mi = s_info.find_operator(op_name, arg_types);
+					if (mi != null) {
+						self.set_method(node, mi);
+						return mi.fn_type.as_fn().return_type;
+					}
 				}
 			}
-			self.report_error(node, "Force unwrap operator '!' requires a nullable pointer");
-			return op_ty;
-		}
 
-		if (op_ty.kind == DataType.STRUCT) {
-			val op_name = when (un.op) {
-				TokenType.MINUS -> "negate";
-				TokenType.BANG -> "not";
-				else -> "";
-			};
-			if (!op_name.empty()) {
-				val s_info = op_ty.as_struct();
-				var arg_types = List<*Type>();
-				arg_types += op_ty;
-				val mi = s_info.find_operator(op_name, arg_types);
-				if (mi != null) {
-					self.set_method(node, mi);
-					return mi.fn_type.as_fn().return_type;
-				}
-			}
-		}
-
-		return when (un.op) {
-			TokenType.MINUS -> {
-				self.ensure(op_ty.is_numeric(), node, "Unary minus requires numeric operand");
-				yield op_ty;
-			}
-			TokenType.BANG -> {
-				self.ensure(op_ty.kind == DataType.BOOL, node, "Logical NOT requires bool operand");
-				yield self.prims().t_bool();
-			}
-			TokenType.STAR -> {
-				// Pointer dereference (*ptr)
-				if (op_ty.kind != DataType.POINTER) {
-					self.report_error(node, "Cannot dereference non-pointer type");
+			return when (un.op) {
+				TokenType.MINUS -> {
+					self.ensure(op_ty.is_numeric(), node, "Unary minus requires numeric operand");
 					yield op_ty;
 				}
-				yield op_ty.as_pointer().pointee;
-			}
-			// Take address (&expr)
-			TokenType.AMPERSAND -> self.arena.pointer_type(op_ty, true);
-			else -> op_ty;
-		};
+				TokenType.BANG -> {
+					self.ensure(op_ty.kind == DataType.BOOL, node, "Logical NOT requires bool operand");
+					yield self.prims().t_bool();
+				}
+				TokenType.STAR -> {
+					// Pointer dereference (*ptr)
+					if (op_ty.kind != DataType.POINTER) {
+						self.report_error(node, "Cannot dereference non-pointer type");
+						yield op_ty;
+					}
+					yield op_ty.as_pointer().pointee;
+				}
+				// Take address (&expr)
+				TokenType.AMPERSAND -> self.arena.pointer_type(op_ty, true);
+				else -> op_ty;
+			};
+		}
+		return self.prims().t_none();
 	}
 
 	pub fn check_if_expr(var self, node: *AstNode, expected: *Type? = null): *Type {
-		val if_e = node.as_if_expr();
-		val prev_sn = self.in_safe_nav_context;
-		self.in_safe_nav_context = true;
-		val cond_ty = self.check_expr(if_e.condition);
-		self.in_safe_nav_context = prev_sn;
-		self.ensure(cond_ty.kind == DataType.BOOL, node, "If expression condition must be bool");
-		var then_ty = self.check_expr(if_e.then_branch, expected);
-		val else_ty = self.check_expr(if_e.else_branch, if (expected != null) expected else then_ty);
+		if (node is IfExpr as if_e) {
+			val prev_sn = self.in_safe_nav_context;
+			self.in_safe_nav_context = true;
+			val cond_ty = self.check_expr(if_e.condition);
+			self.in_safe_nav_context = prev_sn;
+			self.ensure(cond_ty.kind == DataType.BOOL, node, "If expression condition must be bool");
+			var then_ty = self.check_expr(if_e.then_branch, expected);
+			val else_ty = self.check_expr(if_e.else_branch, if (expected != null) expected else then_ty);
 
-		if (
-			self.is_untyped_literal(if_e.then_branch) &&
-			else_ty.is_numeric() &&
-			!then_ty.equals(else_ty)
-		) then_ty = self.check_expr(if_e.then_branch, else_ty);
+			if (
+				self.is_untyped_literal(if_e.then_branch) &&
+				else_ty.is_numeric() &&
+				!then_ty.equals(else_ty)
+			) then_ty = self.check_expr(if_e.then_branch, else_ty);
 
-		if (then_ty.kind == DataType.POINTER && else_ty.kind == DataType.POINTER) {
-			val t_ptr = then_ty.as_pointer();
-			val e_ptr = else_ty.as_pointer();
-			if (e_ptr.pointee.kind == DataType.NONE && !t_ptr.nullable) {
-				then_ty = self.arena.nullable_pointer_type(t_ptr.pointee, t_ptr.mutable);
-			} else if (t_ptr.pointee.kind == DataType.NONE && !e_ptr.nullable) {
-				then_ty = self.arena.nullable_pointer_type(e_ptr.pointee, e_ptr.mutable);
-			} else if (t_ptr.nullable != e_ptr.nullable && t_ptr.pointee.equals(e_ptr.pointee)) {
-				val mutable = t_ptr.mutable || e_ptr.mutable;
-				then_ty = self.arena.nullable_pointer_type(t_ptr.pointee, mutable);
+			if (then_ty.kind == DataType.POINTER && else_ty.kind == DataType.POINTER) {
+				val t_ptr = then_ty.as_pointer();
+				val e_ptr = else_ty.as_pointer();
+				if (e_ptr.pointee.kind == DataType.NONE && !t_ptr.nullable) {
+					then_ty = self.arena.nullable_pointer_type(t_ptr.pointee, t_ptr.mutable);
+				} else if (t_ptr.pointee.kind == DataType.NONE && !e_ptr.nullable) {
+					then_ty = self.arena.nullable_pointer_type(e_ptr.pointee, e_ptr.mutable);
+				} else if (t_ptr.nullable != e_ptr.nullable && t_ptr.pointee.equals(e_ptr.pointee)) {
+					val mutable = t_ptr.mutable || e_ptr.mutable;
+					then_ty = self.arena.nullable_pointer_type(t_ptr.pointee, mutable);
+				}
 			}
-		}
 
-		self.ensure(then_ty.can_assign(else_ty), node, "If expression branches have incompatible types");
-		return then_ty;
+			self.ensure(then_ty.can_assign(else_ty), node, "If expression branches have incompatible types");
+			return then_ty;
+		}
+		return self.prims().t_none();
 	}
 
 
 	pub fn check_array_literal_expr(var self, node: *AstNode): *Type {
-		val al = node.as_array_literal_expr();
-		if (!al.list_struct_name.empty()) {
-			val sym = self.symtab.lookup(al.list_struct_name);
-			if (sym != null) return sym.type_ptr;
-		}
+		if (node is ArrayLiteralExpr as al) {
+			if (!al.list_struct_name.empty()) {
+				val sym = self.symtab.lookup(al.list_struct_name);
+				if (sym != null) return sym.type_ptr;
+			}
 
-		// The element type comes from the first element; an empty literal
-		// has nothing to infer from (use an annotated `[T; 0]` variable).
-		if (al.elements.empty()) {
-			self.report_error(node, "Cannot infer the element type of an empty array literal");
-			return self.prims().t_none();
-		}
+			// The element type comes from the first element; an empty literal
+			// has nothing to infer from (use an annotated `[T; 0]` variable).
+			if (al.elements.empty()) {
+				self.report_error(node, "Cannot infer the element type of an empty array literal");
+				return self.prims().t_none();
+			}
 
-		val elem_ty = self.check_expr(al.elements.first());
-		for (i in 1..<al.elements.len) {
-			val t = self.check_expr(al.elements[i], elem_ty);
-			if (!elem_ty.can_assign(t)) self.report_error(al.elements[i], "Array literal element type mismatch");
+			val elem_ty = self.check_expr(al.elements.first());
+			for (i in 1..<al.elements.len) {
+				val t = self.check_expr(al.elements[i], elem_ty);
+				if (!elem_ty.can_assign(t)) self.report_error(al.elements[i], "Array literal element type mismatch");
+			}
+			return self.arena.array_type(elem_ty, al.elements.len);
 		}
-		return self.arena.array_type(elem_ty, al.elements.len);
+		return self.prims().t_none();
 	}
 
 }

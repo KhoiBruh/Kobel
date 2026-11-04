@@ -53,13 +53,16 @@ pub struct DeclPass {
 }
 
 // Source names carried by more than one method of an impl, i.e. overloads.
-fn overloaded_names(im: &ImplDecl): List<str> {
+fn overloaded_names(im: *ImplDecl): List<str> {
 	var names = List<str>();
 	for (a in 0..<im.methods.len) {
-		val na = im.methods[a].as_fn_decl().name;
-		if (na in names) continue;
+		val ma = im.methods[a];
+		var na = "";
+		if (ma is FnDecl as fna) na = fna.name;
+		if (na.empty() || na in names) continue;
 		for (b in (a + 1)..<im.methods.len) {
-			if (im.methods[b].as_fn_decl().name == na) {
+			val mb = im.methods[b];
+			if (mb is FnDecl as fnb && fnb.name == na) {
 				names += na;
 				break;
 			}
@@ -155,143 +158,144 @@ impl DeclPass {
 	}
 
 	pub fn collect_impl(var self, node: *AstNode) {
-		val im = node.as_impl_decl() as &ImplDecl;
+		if (node is ImplDecl as im) {
+			// Generic impls (e.g. `impl List<T>`) are lowered by monomorphization; skip here.
+			if (im.type_params.len > 0) return;
 
-		// Generic impls (e.g. `impl List<T>`) are lowered by monomorphization; skip here.
-		if (im.type_params.len > 0) return;
-
-		// `impl <primitive> { ... }`: the methods extend a built-in type.
-		val prim = resolve_primitive_name(self.symtab.prims!, im.struct_name);
-		if (prim != null) {
-			self.collect_prim_impl(node, im, prim);
-			return;
-		}
-
-		val st_sym = self.symtab.lookup(im.struct_name);
-		if (st_sym == null || st_sym.type_ptr.kind != DataType.STRUCT) {
-			self.report_error(node, "Cannot impl methods for unknown type '${im.struct_name}'");
-			return;
-		}
-
-		val st_type = st_sym.type_ptr;
-		val st_c_name = st_sym.c_name;
-		val st_info = st_type.as_struct_mut();
-
-		self.current_self_type = st_type;
-
-		// Rename so the backend can learn the receiver type of each method.
-		im.struct_name = st_c_name;
-
-		// `type Item = ...;` bindings, resolved before any method signature or body
-		// in this impl so `Self.Item` resolves.
-		self.register_assoc_bindings(node, im, st_type, st_info.name);
-
-		// `impl Trait for Struct`: verify the contract and pull in default methods.
-		if (!im.trait_name.empty()) self.apply_trait(node, im, st_info.name);
-
-		// Methods may be overloaded, so each needs a distinct C name.
-		val overloaded = overloaded_names(im);
-		// C names already owned by this struct (from earlier `impl` blocks too).
-		var used_names = List<str>();
-		for (m in st_info.methods) used_names += m.c_name;
-
-		for (m_node in im.methods) {
-			val f = m_node.as_fn_decl() as &FnDecl;
-			if (f.type_params.len > 0) continue;
-
-			if (f.name == "new" || f.initializer) {
-				for (p in f.params) {
-					if (p.name == "self") {
-						self.report_error(m_node,
-							"Constructor 'new' cannot have a 'self' "
-							"parameter in struct '${st_info.name}'"
-						);
-					}
-				}
+			// `impl <primitive> { ... }`: the methods extend a built-in type.
+			val prim = resolve_primitive_name(self.symtab.prims!, im.struct_name);
+			if (prim != null) {
+				self.collect_prim_impl(node, im, prim);
+				return;
 			}
 
-			if (f.operator) {
-				if (f.params.empty() || f.params[0].name != "self") {
-					self.report_error(m_node, "Operator '${f.name}' must have 'self' as its first parameter in struct '${st_info.name}'");
-				} else {
-					val mutable_self = f.params[0].mutable;
-					when (f.name) {
-						"plus", "minus", "mul", "div", "rem",
-						"bit_and", "bit_or", "bit_xor", "shl", "shr",
-						"equals", "compare", "contains" -> {
-							if (f.params.len != 2) {
-								self.report_error(m_node, "Binary operator '${f.name}' must take exactly 1 parameter besides 'self'");
-							}
-						}
-						"plus_assign", "minus_assign", "mul_assign", "div_assign", "rem_assign",
-						"bit_and_assign", "bit_or_assign", "bit_xor_assign", "shl_assign", "shr_assign" -> {
-							if (!mutable_self) {
-								self.report_error(m_node, "Compound assignment operator '${f.name}' requires a mutable receiver 'var self'");
-							}
-							if (f.params.len != 2) {
-								self.report_error(m_node, "Compound assignment operator '${f.name}' must take exactly 1 parameter besides 'self'");
-							}
-						}
-						"get" -> {
-							if (f.params.len < 2) {
-								self.report_error(m_node, "Index operator 'get' must take at least 1 parameter besides 'self'");
-							}
-						}
-						"set" -> {
-							if (!mutable_self) {
-								self.report_error(m_node, "Index assignment operator 'set' requires a mutable receiver 'var self'");
-							}
-							if (f.params.len < 3) {
-								self.report_error(m_node, "Index assignment operator 'set' must take at least 2 parameters besides 'self' (index and value)");
-							}
-						}
-						"negate", "not" -> {
-							if (f.params.len != 1) {
-								self.report_error(m_node, "Unary operator '${f.name}' cannot take parameters besides 'self'");
+			val st_sym = self.symtab.lookup(im.struct_name);
+			if (st_sym == null || st_sym.type_ptr.kind != DataType.STRUCT) {
+				self.report_error(node, "Cannot impl methods for unknown type '${im.struct_name}'");
+				return;
+			}
+
+			val st_type = st_sym.type_ptr;
+			val st_c_name = st_sym.c_name;
+			val st_info = st_type.as_struct_mut();
+
+			self.current_self_type = st_type;
+
+			// Rename so the backend can learn the receiver type of each method.
+			im.struct_name = st_c_name;
+
+			// `type Item = ...;` bindings, resolved before any method signature or body
+			// in this impl so `Self.Item` resolves.
+			self.register_assoc_bindings(node, im, st_type, st_info.name);
+
+			// `impl Trait for Struct`: verify the contract and pull in default methods.
+			if (!im.trait_name.empty()) self.apply_trait(node, im, st_info.name);
+
+			// Methods may be overloaded, so each needs a distinct C name.
+			val overloaded = overloaded_names(im);
+			// C names already owned by this struct (from earlier `impl` blocks too).
+			var used_names = List<str>();
+			for (m in st_info.methods) used_names += m.c_name;
+
+			for (m_node in im.methods) {
+				if (m_node is FnDecl as f) {
+					if (f.type_params.len > 0) continue;
+
+					if (f.name == "new" || f.initializer) {
+						for (p in f.params) {
+							if (p.name == "self") {
+								self.report_error(m_node,
+									"Constructor 'new' cannot have a 'self' "
+									"parameter in struct '${st_info.name}'"
+								);
 							}
 						}
 					}
+
+					if (f.operator) {
+						if (f.params.empty() || f.params[0].name != "self") {
+							self.report_error(m_node, "Operator '${f.name}' must have 'self' as its first parameter in struct '${st_info.name}'");
+						} else {
+							val mutable_self = f.params[0].mutable;
+							when (f.name) {
+								"plus", "minus", "mul", "div", "rem",
+								"bit_and", "bit_or", "bit_xor", "shl", "shr",
+								"equals", "compare", "contains" -> {
+									if (f.params.len != 2) {
+										self.report_error(m_node, "Binary operator '${f.name}' must take exactly 1 parameter besides 'self'");
+									}
+								}
+								"plus_assign", "minus_assign", "mul_assign", "div_assign", "rem_assign",
+								"bit_and_assign", "bit_or_assign", "bit_xor_assign", "shl_assign", "shr_assign" -> {
+									if (!mutable_self) {
+										self.report_error(m_node, "Compound assignment operator '${f.name}' requires a mutable receiver 'var self'");
+									}
+									if (f.params.len != 2) {
+										self.report_error(m_node, "Compound assignment operator '${f.name}' must take exactly 1 parameter besides 'self'");
+									}
+								}
+								"get" -> {
+									if (f.params.len < 2) {
+										self.report_error(m_node, "Index operator 'get' must take at least 1 parameter besides 'self'");
+									}
+								}
+								"set" -> {
+									if (!mutable_self) {
+										self.report_error(m_node, "Index assignment operator 'set' requires a mutable receiver 'var self'");
+									}
+									if (f.params.len < 3) {
+										self.report_error(m_node, "Index assignment operator 'set' must take at least 2 parameters besides 'self' (index and value)");
+									}
+								}
+								"negate", "not" -> {
+									if (f.params.len != 1) {
+										self.report_error(m_node, "Unary operator '${f.name}' cannot take parameters besides 'self'");
+									}
+								}
+							}
+						}
+					}
+
+					var param_types = List<*Type>();
+
+					for (p in f.params) {
+						var pt: *Type = self.prims().t_none();
+						if (p.name == "self" && p.type_node == null) {
+							// Receiver: `*Struct` for `val self`, `*mut Struct` for `var self`.
+							pt = self.arena.pointer_type(st_type, p.mutable);
+						} else if (p.type_node != null) {
+							pt = self.resolve_ast_type(p.type_node!);
+						} else {
+							pt = self.prims().t_none();
+						}
+						param_types += pt;
+					}
+
+					val ret_type = if (f.return_type != null) self.resolve_ast_type(f.return_type!)
+					else self.infer_decl_return_type(f) ?: self.prims().t_none();
+
+					// A function-instance method view owns its own FnType (built at view
+					// creation), so two instances never mutate a shared signature object.
+					val rec_sig = (m_node.instance as *InstanceRecord)?.sig;
+					val fn_type = rec_sig ?: self.arena.fn_type(param_types, ret_type);
+
+					// Two methods with the same name and arity still need distinct names.
+					val m_c_name = method_c_name(
+						"${st_c_name}_${f.name}", param_types.len, f.name in overloaded, used_names
+					);
+					used_names += m_c_name;
+
+					val is_static = f.params.empty() || f.params[0].name != "self";
+					val mi = self.arena.create_val(MethodInfo(f.name, m_c_name, fn_type, m_node, self.current_module, f.operator, is_static, f.initializer));
+					st_info.methods += mi;
+
+					// Uniquify the AST name so the backend emits the mangled method name.
+					f.name = m_c_name;
 				}
 			}
 
-			var param_types = List<*Type>();
-
-			for (p in f.params) {
-				var pt: *Type = self.prims().t_none();
-				if (p.name == "self" && p.type_node == null) {
-					// Receiver: `*Struct` for `val self`, `*mut Struct` for `var self`.
-					pt = self.arena.pointer_type(st_type, p.mutable);
-				} else if (p.type_node != null) {
-					pt = self.resolve_ast_type(p.type_node!);
-				} else {
-					pt = self.prims().t_none();
-				}
-				param_types += pt;
-			}
-
-			val ret_type = if (f.return_type != null) self.resolve_ast_type(f.return_type!)
-			else self.infer_decl_return_type(f) ?: self.prims().t_none();
-
-			// A function-instance method view owns its own FnType (built at view
-			// creation), so two instances never mutate a shared signature object.
-			val rec_sig = (m_node.instance as *InstanceRecord)?.sig;
-			val fn_type = rec_sig ?: self.arena.fn_type(param_types, ret_type);
-
-			// Two methods with the same name and arity still need distinct names.
-			val m_c_name = method_c_name(
-				"${st_c_name}_${f.name}", param_types.len, f.name in overloaded, used_names
-			);
-			used_names += m_c_name;
-
-			val is_static = f.params.empty() || f.params[0].name != "self";
-			val mi = self.arena.create_val(MethodInfo(f.name, m_c_name, fn_type, m_node, self.current_module, f.operator, is_static, f.initializer));
-			st_info.methods += mi;
-
-			// Uniquify the AST name so the backend emits the mangled method name.
-			f.name = m_c_name;
+			self.current_self_type = null;
 		}
-
-		self.current_self_type = null;
 	}
 
 	pub fn infer_const_type(var self, expr: *AstNode?): *Type? {
@@ -335,7 +339,7 @@ impl DeclPass {
 		return null;
 	}
 
-	fn infer_expr_type_quick(var self, f: &FnDecl, expr: *AstNode): *Type? {
+	fn infer_expr_type_quick(var self, f: *FnDecl, expr: *AstNode): *Type? {
 		if (expr == null) return null;
 		val const_ty = self.infer_const_type(expr);
 		if (const_ty != null) return const_ty;
@@ -384,7 +388,7 @@ impl DeclPass {
 		}
 	}
 
-	pub fn infer_decl_return_type(var self, f: &FnDecl): *Type? {
+	pub fn infer_decl_return_type(var self, f: *FnDecl): *Type? {
 		if (f.body == null) return null;
 
 		if (f.body is ExprStmt as es && es.expr != null) {
@@ -434,7 +438,7 @@ impl DeclPass {
 // hang them on, so the receiver is typed explicitly as the primitive name (the
 // backend then passes it by value), and each method goes into the primitive
 // method table so `x.m()` can find it.
-	pub fn collect_prim_impl(var self, node: *AstNode, im: &ImplDecl, prim: *Type) {
+	pub fn collect_prim_impl(var self, node: *AstNode, im: *ImplDecl, prim: *Type) {
 		val prim_name = im.struct_name;
 		// Clear the name so codegen does not treat `self` as a pointer receiver.
 		im.struct_name = "";
@@ -447,50 +451,51 @@ impl DeclPass {
 		var used_names = List<str>();
 
 		for (m_node in im.methods) {
-			val f = m_node.as_fn_decl() as &FnDecl;
-			if (f.type_params.len > 0) continue;
-			var param_types = List<*Type>();
+			if (m_node is FnDecl as f) {
+				if (f.type_params.len > 0) continue;
+				var param_types = List<*Type>();
 
-			for (i in 0..<f.params.len) {
-				val p = f.params[i];
-				var pt: *Type = self.prims().t_none();
-				if (p.name == "self" && p.type_node == null) {
-					// Receiver by value: spell its type so the backend emits `i32 self`.
-					pt = prim;
-					val rt = self.arena.node(NodeData.NamedType(prim_name, List<*AstNode>()), node.line, node.col);
-					f.params[i] = Param(p.name, rt, p.mutable, p.has_val, p.default_val);
-				} else if (p.type_node != null) {
-					pt = self.resolve_ast_type(p.type_node!);
-				} else {
-					pt = self.prims().t_none();
+				for (i in 0..<f.params.len) {
+					val p = f.params[i];
+					var pt: *Type = self.prims().t_none();
+					if (p.name == "self" && p.type_node == null) {
+						// Receiver by value: spell its type so the backend emits `i32 self`.
+						pt = prim;
+						val rt = self.arena.node(NodeData.NamedType(prim_name, List<*AstNode>()), node.line, node.col);
+						f.params[i] = Param(p.name, rt, p.mutable, p.has_val, p.default_val);
+					} else if (p.type_node != null) {
+						pt = self.resolve_ast_type(p.type_node!);
+					} else {
+						pt = self.prims().t_none();
+					}
+					param_types += pt;
 				}
-				param_types += pt;
-			}
 
-			val ret_type = if (f.return_type != null) self.resolve_ast_type(f.return_type!)
-			else self.infer_decl_return_type(f) ?: self.prims().t_none();
+				val ret_type = if (f.return_type != null) self.resolve_ast_type(f.return_type!)
+				else self.infer_decl_return_type(f) ?: self.prims().t_none();
 
-			val fn_type = self.arena.fn_type(param_types, ret_type);
+				val fn_type = self.arena.fn_type(param_types, ret_type);
 
-			val m_c_name = method_c_name(
-				"${prim_name}_${f.name}", param_types.len,
-				f.name in overloaded, used_names
-			);
-			used_names += m_c_name;
-
-			if (self.symtab.find_prim_method_arity(prim.kind, f.name, f.params.len) != null) {
-				self.report_error(m_node,
-					"Duplicate method '${f.name}' "
-					"with ${f.params.len} parameter(s) "
-					"for built-in type '${prim_name}'"
+				val m_c_name = method_c_name(
+					"${prim_name}_${f.name}", param_types.len,
+					f.name in overloaded, used_names
 				);
+				used_names += m_c_name;
+
+				if (self.symtab.find_prim_method_arity(prim.kind, f.name, f.params.len) != null) {
+					self.report_error(m_node,
+						"Duplicate method '${f.name}' "
+						"with ${f.params.len} parameter(s) "
+						"for built-in type '${prim_name}'"
+					);
+				}
+
+				val mi = self.arena.create_val(MethodInfo(f.name, m_c_name, fn_type, m_node, self.current_module, f.operator, false, false));
+				self.symtab.register_prim_method(prim, mi);
+
+				// Uniquify the AST name so the backend emits the mangled method name.
+				f.name = m_c_name;
 			}
-
-			val mi = self.arena.create_val(MethodInfo(f.name, m_c_name, fn_type, m_node, self.current_module, f.operator, false, false));
-			self.symtab.register_prim_method(prim, mi);
-
-			// Uniquify the AST name so the backend emits the mangled method name.
-			f.name = m_c_name;
 		}
 	}
 
@@ -527,7 +532,7 @@ impl DeclPass {
 	// trait's `type Item;` declarations. The binding is stored by struct name, so
 	// `Self.Item` can be resolved during declaration collection and later while
 	// checking method bodies.
-	fn register_assoc_bindings(var self, node: *AstNode, im: &ImplDecl, st_type: *Type, struct_name: str) {
+	fn register_assoc_bindings(var self, node: *AstNode, im: *ImplDecl, st_type: *Type, struct_name: str) {
 		var trait_info: *TraitInfo? = null;
 		if (!im.trait_name.empty()) trait_info = self.symtab.find_trait(im.trait_name);
 		if (trait_info == null) {
@@ -573,7 +578,7 @@ impl DeclPass {
 		}
 	}
 
-	pub fn apply_trait(var self, node: *AstNode, im: &ImplDecl, struct_name: str) {
+	pub fn apply_trait(var self, node: *AstNode, im: *ImplDecl, struct_name: str) {
 		val t = self.symtab.find_trait(im.trait_name);
 		if (t == null) {
 			self.report_error(node, "Unknown trait '${im.trait_name}'");
@@ -592,8 +597,7 @@ impl DeclPass {
 		for (tm in effective) {
 			var have = false;
 			for (m in im.methods) {
-				val f = m.as_fn_decl();
-				if (f.name == tm.name && f.params.len == tm.arity) have = true;
+				if (m is FnDecl as f && f.name == tm.name && f.params.len == tm.arity) have = true;
 			}
 			if (have) continue;
 

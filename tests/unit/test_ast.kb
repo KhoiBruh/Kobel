@@ -60,18 +60,15 @@ fn test_expression_tree(): bool {
 	val lit3 = arena.literal(LiteralKind.INT, "3", 1, 12);
 	val mul_expr = arena.binary(TokenType.STAR, group_expr, lit3, 1, 10);
 
-	if (!(mul_expr is BinaryExpr)) return false;
-
-	val bin = mul_expr.as_binary_expr();
-	if (bin.op != TokenType.STAR) return false;
-	if (!(bin.right is LiteralExpr)) return false;
-
-	val r_lit = bin.right.as_literal_expr();
-	if (r_lit.raw_text != "3") return false;
-
-	if (!(bin.left is GroupExpr)) return false;
-	val grp = bin.left.as_group_expr();
-	if (!(grp.expr is BinaryExpr)) return false;
+	if (mul_expr is BinaryExpr as bin) {
+		if (bin.op != TokenType.STAR) return false;
+		if (bin.right is LiteralExpr as r_lit) {
+			if (r_lit.raw_text != "3") return false;
+		} else return false;
+		if (bin.left is GroupExpr as grp) {
+			if (!(grp.expr is BinaryExpr)) return false;
+		} else return false;
+	} else return false;
 
 	// Evaluate tree
 	val val_result = eval_expr(mul_expr);
@@ -89,11 +86,11 @@ fn test_statement_nodes(): bool {
 	val lit42 = arena.literal(LiteralKind.INT, "42", 1, 18);
 	val var_stmt = arena.node(NodeData.VarDeclStmt(true, "count", ty_i32, lit42), 1, 1);
 
-	if (!(var_stmt is VarDeclStmt)) return false;
-	val vd = var_stmt.as_var_decl_stmt();
-	if (!vd.mutable || vd.name != "count") return false;
-	if (!(vd.type_annotation is NamedType)) return false;
-	if (!(vd.initializer is LiteralExpr)) return false;
+	if (var_stmt is VarDeclStmt as vd) {
+		if (!vd.mutable || vd.name != "count") return false;
+		if (!(vd.type_annotation is NamedType)) return false;
+		if (!(vd.initializer is LiteralExpr)) return false;
+	} else return false;
 
 	// return count;
 	val id_count = arena.identifier("count", 2, 8);
@@ -104,19 +101,19 @@ fn test_statement_nodes(): bool {
 	var stmts = List<*AstNode>();
 	stmts += ret_stmt;
 	val block = arena.node(NodeData.BlockStmt(stmts), 2, 1);
-	if (!(block is BlockStmt)) return false;
-	val blk = block.as_block_stmt();
-	if (blk.statements.len != 1) return false;
+	if (block is BlockStmt as blk) {
+		if (blk.statements.len != 1) return false;
+	} else return false;
 
 	// if (count > 0) { return count; }
 	val lit0 = arena.literal(LiteralKind.INT, "0", 3, 13);
 	val cond = arena.binary(TokenType.GREATER, id_count, lit0, 3, 11);
 	val if_stmt = arena.node(NodeData.IfStmt(cond, block, null), 3, 1);
 
-	if (!(if_stmt is IfStmt)) return false;
-	val ifs = if_stmt.as_if_stmt();
-	if (!(ifs.condition is BinaryExpr)) return false;
-	if (!(ifs.then_branch is BlockStmt)) return false;
+	if (if_stmt is IfStmt as ifs) {
+		if (!(ifs.condition is BinaryExpr)) return false;
+		if (!(ifs.then_branch is BlockStmt)) return false;
+	} else return false;
 
 	return true;
 }
@@ -146,13 +143,13 @@ fn test_declaration_nodes(): bool {
 		1
 	);
 
-	if (!(fn_node is FnDecl)) return false;
-	val fn_d = fn_node.as_fn_decl();
-	if (fn_d.name != "add") return false;
-	if (!fn_d.public) return false;
-	if (fn_d.params.len != 2) return false;
-	if (fn_d.params[0].name != "a") return false;
-	if (fn_d.params[1].name != "b") return false;
+	if (fn_node is FnDecl as fn_d) {
+		if (fn_d.name != "add") return false;
+		if (!fn_d.public) return false;
+		if (fn_d.params.len != 2) return false;
+		if (fn_d.params[0].name != "a") return false;
+		if (fn_d.params[1].name != "b") return false;
+	} else return false;
 
 	return true;
 }
@@ -166,20 +163,20 @@ fn test_program_iterable(): bool {
 	decls += d1;
 	decls += d2;
 	val prog_node = arena.node(NodeData.Program(decls), 1, 1);
-	val prog = prog_node.as_program();
+	if (prog_node is Program as prog) {
+		var count: usz = 0;
+		for (d in prog) {
+			count = count + 1;
+		}
+		if (count != 2) return false;
 
-	var count: usz = 0;
-	for (d in prog) {
-		count = count + 1;
-	}
-	if (count != 2) return false;
-
-	val p_val = *prog;
-	var count2: usz = 0;
-	for (d in p_val) {
-		count2 = count2 + 1;
-	}
-	if (count2 != 2) return false;
+		val p_val = *prog;
+		var count2: usz = 0;
+		for (d in p_val) {
+			count2 = count2 + 1;
+		}
+		if (count2 != 2) return false;
+	} else return false;
 
 	return true;
 }
@@ -189,43 +186,53 @@ fn test_arena_ast_methods(): bool {
 	defer arena.free();
 
 	val lit_node = arena.literal(LiteralKind.INT, "123", 1, 1);
-	val lit = lit_node.as_literal_expr();
-	if (lit.raw_text != "123") return false;
-	val lit_to = lit_node.as_literal_expr();
-	if (lit_to.raw_text != "123") return false;
+	if (lit_node is LiteralExpr as lit) {
+		if (lit.raw_text != "123") return false;
+	} else return false;
 
 	val id_node = arena.identifier("x", 1, 5);
-	val id = id_node.as_identifier_expr();
-	if (id.name != "x") return false;
-	val id_to = id_node.as_identifier_expr();
-	if (id_to.name != "x") return false;
+	if (id_node is IdentifierExpr as id) {
+		if (id.name != "x") return false;
+	} else return false;
 
 	val bin_node = arena.binary(TokenType.PLUS, lit_node, id_node, 1, 3);
-	val bin = bin_node.as_binary_expr();
-	if (bin.op != TokenType.PLUS) return false;
-	if (bin.left.as_literal_expr().raw_text != "123") return false;
-	if (bin.right.as_identifier_expr().name != "x") return false;
+	if (bin_node is BinaryExpr as bin) {
+		if (bin.op != TokenType.PLUS) return false;
+		if (bin.left is LiteralExpr as l_lit) {
+			if (l_lit.raw_text != "123") return false;
+		} else return false;
+		if (bin.right is IdentifierExpr as r_id) {
+			if (r_id.name != "x") return false;
+		} else return false;
+	} else return false;
 
 	val fn_node = arena.node(NodeData.FnDecl("test_fn", List<GenericParam>(), List<Param>(), null, null, true, false, false, ""), 2, 1);
-	val fn_d = fn_node.as_fn_decl();
-	if (fn_d.name != "test_fn") return false;
-	if (!fn_d.public) return false;
+	if (fn_node is FnDecl as fn_d) {
+		if (fn_d.name != "test_fn") return false;
+		if (!fn_d.public) return false;
+	} else return false;
 
 	// Test arena.alloc_node + a typed NodeData payload
 	val m_lit = arena.node(NodeData.LiteralExpr(LiteralKind.INT, "456"), 3, 1);
-	if (!(m_lit is LiteralExpr)) return false;
-	if (m_lit.as_literal_expr().raw_text != "456") return false;
+	if (m_lit is LiteralExpr as m_lit_e) {
+		if (m_lit_e.raw_text != "456") return false;
+	} else return false;
 
 	val m_id = arena.node(NodeData.IdentifierExpr("y"), 3, 5);
-	if (!(m_id is IdentifierExpr)) return false;
-	if (m_id.as_identifier_expr().name != "y") return false;
+	if (m_id is IdentifierExpr as m_id_e) {
+		if (m_id_e.name != "y") return false;
+	} else return false;
 
 	val m_bin = arena.node(NodeData.BinaryExpr(m_lit, TokenType.STAR, m_id), 3, 3);
-	if (!(m_bin is BinaryExpr)) return false;
-	val bin_d = m_bin.as_binary_expr();
-	if (bin_d.op != TokenType.STAR) return false;
-	if (bin_d.left.as_literal_expr().raw_text != "456") return false;
-	if (bin_d.right.as_identifier_expr().name != "y") return false;
+	if (m_bin is BinaryExpr as bin_d) {
+		if (bin_d.op != TokenType.STAR) return false;
+		if (bin_d.left is LiteralExpr as bl_lit) {
+			if (bl_lit.raw_text != "456") return false;
+		} else return false;
+		if (bin_d.right is IdentifierExpr as br_id) {
+			if (br_id.name != "y") return false;
+		} else return false;
+	} else return false;
 
 	return true;
 }

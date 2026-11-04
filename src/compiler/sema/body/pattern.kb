@@ -23,50 +23,52 @@ use compiler.sema.desugar.*;
 impl BodyPass {
 
 	pub fn check_when_expr(var self, node: *AstNode, expected: *Type? = null): *Type {
-		val we = node.as_when_expr();
-		val cond_ty = if (we.condition != null) self.check_expr(we.condition!) else null;
+		if (node is WhenExpr as we) {
+			val cond_ty = if (we.condition != null) self.check_expr(we.condition!) else null;
 
-		self.when_depth++;
-		var result_ty: *Type? = expected;
-		var has_else = false;
-		for (arm in we.arms) {
-			if (arm.is_else) has_else = true;
+			self.when_depth++;
+			var result_ty: *Type? = expected;
+			var has_else = false;
+			for (arm in we.arms) {
+				if (arm.is_else) has_else = true;
 
-			val smart_cast_ty = self.resolve_arm_patterns(arm.patterns, we.condition, cond_ty);
-			val sym = self.arm_smart_cast_sym(arm.patterns, we.condition);
-			val mutable = self.arm_smart_cast_mutable(arm.patterns, we.condition);
-			val body_ty = self.check_arm_body(arm.body, sym, smart_cast_ty, mutable, result_ty);
+				val smart_cast_ty = self.resolve_arm_patterns(arm.patterns, we.condition, cond_ty);
+				val sym = self.arm_smart_cast_sym(arm.patterns, we.condition);
+				val mutable = self.arm_smart_cast_mutable(arm.patterns, we.condition);
+				val body_ty = self.check_arm_body(arm.body, sym, smart_cast_ty, mutable, result_ty);
 
-			if (result_ty == null) {
-				result_ty = body_ty;
-			} else {
-				if (result_ty.kind == DataType.POINTER && body_ty.kind == DataType.POINTER) {
-					val r_ptr = result_ty.as_pointer();
-					val b_ptr = body_ty.as_pointer();
-					if (b_ptr.pointee.kind == DataType.NONE && !r_ptr.nullable) {
-						result_ty = self.arena.nullable_pointer_type(r_ptr.pointee, r_ptr.mutable);
-					} else if (r_ptr.pointee.kind == DataType.NONE && !b_ptr.nullable) {
-						result_ty = self.arena.nullable_pointer_type(b_ptr.pointee, b_ptr.mutable);
-					} else if (r_ptr.nullable != b_ptr.nullable && r_ptr.pointee.equals(b_ptr.pointee)) {
-						val mutable = r_ptr.mutable || b_ptr.mutable;
-						result_ty = self.arena.nullable_pointer_type(r_ptr.pointee, mutable);
+				if (result_ty == null) {
+					result_ty = body_ty;
+				} else {
+					if (result_ty.kind == DataType.POINTER && body_ty.kind == DataType.POINTER) {
+						val r_ptr = result_ty.as_pointer();
+						val b_ptr = body_ty.as_pointer();
+						if (b_ptr.pointee.kind == DataType.NONE && !r_ptr.nullable) {
+							result_ty = self.arena.nullable_pointer_type(r_ptr.pointee, r_ptr.mutable);
+						} else if (r_ptr.pointee.kind == DataType.NONE && !b_ptr.nullable) {
+							result_ty = self.arena.nullable_pointer_type(b_ptr.pointee, b_ptr.mutable);
+						} else if (r_ptr.nullable != b_ptr.nullable && r_ptr.pointee.equals(b_ptr.pointee)) {
+							val mutable = r_ptr.mutable || b_ptr.mutable;
+							result_ty = self.arena.nullable_pointer_type(r_ptr.pointee, mutable);
+						}
 					}
+					self.ensure(result_ty.can_assign(body_ty), arm.body, "When arm type does not match previous arms");
 				}
-				self.ensure(result_ty.can_assign(body_ty), arm.body, "When arm type does not match previous arms");
 			}
-		}
-		self.when_depth--;
+			self.when_depth--;
 
-		val is_exhaustive = self.check_when_exhaustiveness(node, we, cond_ty);
-		if (has_else && is_exhaustive) {
-			self.report_error(node, "Redundant 'else' arm: all cases are already covered");
-		}
-		if (!has_else && !is_exhaustive) {
-			self.report_error(node, "'when' expression is not exhaustive and requires an 'else' arm");
-		}
+			val is_exhaustive = self.check_when_exhaustiveness(node, we, cond_ty);
+			if (has_else && is_exhaustive) {
+				self.report_error(node, "Redundant 'else' arm: all cases are already covered");
+			}
+			if (!has_else && !is_exhaustive) {
+				self.report_error(node, "'when' expression is not exhaustive and requires an 'else' arm");
+			}
 
-		if (result_ty == null) return self.prims().t_none();
-		return result_ty!;
+			if (result_ty == null) return self.prims().t_none();
+			return result_ty!;
+		}
+		return self.prims().t_none();
 	}
 
 	fn check_when_exhaustiveness(var self, node: *AstNode, we: *WhenExpr, cond_ty: *Type?): bool {
@@ -244,8 +246,7 @@ impl BodyPass {
 	}
 
 	pub fn check_is_pattern(var self, subject: *AstNode?, subj_ty: *Type?, is_node: *AstNode): *Type? {
-		if (is_node == null || !(is_node is IsExpr)) return null;
-		val is_e = is_node.as_is_expr() as &IsExpr;
+		if (is_node != null && is_node is IsExpr as is_e) {
 		val target_ty = self.resolve_type(is_e.target_type);
 		if (target_ty.kind != DataType.STRUCT) {
 			self.report_error(is_node, "Target type of 'is' must be a struct");
@@ -368,6 +369,8 @@ impl BodyPass {
 
 		if (is_ptr) return self.arena.pointer_type(target_ty, is_e.mutable || (is_e.alias.empty() && subj_mutable));
 		return target_ty;
+		}
+		return null;
 	}
 
 	// The tag constant a pattern compares against, under any of the spellings a
@@ -394,13 +397,14 @@ impl BodyPass {
 	}
 
 	pub fn check_is_expr(var self, node: *AstNode): *Type {
-		val is_e = node.as_is_expr() as &IsExpr;
-		if (is_e.expr == null) {
-			self.report_error(node, "'is' expression requires a subject");
-			return self.prims().t_bool();
-		}
-		val subj_ty = self.check_expr(is_e.expr!);
+		if (node is IsExpr as is_e) {
+			if (is_e.expr == null) {
+				self.report_error(node, "'is' expression requires a subject");
+				return self.prims().t_bool();
+			}
+			val subj_ty = self.check_expr(is_e.expr!);
 		self.check_is_pattern(is_e.expr, subj_ty, node);
+		}
 		return self.prims().t_bool();
 	}
 

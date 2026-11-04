@@ -292,8 +292,9 @@ impl Parser {
 
 			if (self.check(TokenType.KW_CONST)) {
 				val c_decl = self.parse_const_decl(f_pub);
-				val c = c_decl.as_const_decl() as &ConstDecl;
-				c.name = "${name_tok.text}__${c.name}";
+				if (c_decl is ConstDecl as c) {
+					c.name = "${name_tok.text}__${c.name}";
+				}
 				self.struct_consts += c_decl;
 				continue;
 			}

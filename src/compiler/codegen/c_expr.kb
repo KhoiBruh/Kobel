@@ -197,11 +197,12 @@ impl CCodeGen {
 				else -> "==";
 			};
 
-			val l_is_null = unwrapped_l?.as_literal_expr()?.literal_kind == LiteralKind.NULL_VAL;
-			val r_is_null = unwrapped_r?.as_literal_expr()?.literal_kind == LiteralKind.NULL_VAL;
+			var l_is_null = false;
+			if (unwrapped_l != null && unwrapped_l is LiteralExpr as lit_l) l_is_null = (lit_l.literal_kind == LiteralKind.NULL_VAL);
+			var r_is_null = false;
+			if (unwrapped_r != null && unwrapped_r is LiteralExpr as lit_r) r_is_null = (lit_r.literal_kind == LiteralKind.NULL_VAL);
 
-			if (l_is_safe && !r_is_safe) {
-				val mem = unwrapped_l!.as_member_expr();
+			if (l_is_safe && !r_is_safe && unwrapped_l is MemberExpr as mem) {
 				val obj_s = self.gen_expr(mem.object);
 				val obj_wrap = if (expr_needs_parens_for_member(mem.object)) "(${obj_s})" else obj_s;
 				val r_s = self.gen_expr(bin.right);
@@ -210,8 +211,7 @@ impl CCodeGen {
 				}
 				return "(${obj_wrap} != NULL && ${obj_wrap}->${mem.member} ${op_str} ${r_s})";
 			}
-			if (r_is_safe && !l_is_safe) {
-				val mem = unwrapped_r!.as_member_expr();
+			if (r_is_safe && !l_is_safe && unwrapped_r is MemberExpr as mem) {
 				val obj_s = self.gen_expr(mem.object);
 				val obj_wrap = if (expr_needs_parens_for_member(mem.object)) "(${obj_s})" else obj_s;
 				val l_s = self.gen_expr(bin.left);
@@ -220,9 +220,7 @@ impl CCodeGen {
 				}
 				return "(${obj_wrap} != NULL && ${l_s} ${op_str} ${obj_wrap}->${mem.member})";
 			}
-			if (l_is_safe && r_is_safe) {
-				val mem_l_val = unwrapped_l!.as_member_expr();
-				val mem_r_val = unwrapped_r!.as_member_expr();
+			if (l_is_safe && r_is_safe && unwrapped_l is MemberExpr as mem_l_val && unwrapped_r is MemberExpr as mem_r_val) {
 				val obj_l_s = self.gen_expr(mem_l_val.object);
 				val obj_r_s = self.gen_expr(mem_r_val.object);
 				val obj_l_wrap = if (expr_needs_parens_for_member(mem_l_val.object)) "(${obj_l_s})" else obj_l_s;
