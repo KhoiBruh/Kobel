@@ -13646,6 +13646,9 @@ void compiler__sema__decl__DeclPass_collect_payload_enum(compiler__sema__decl__D
                 v_ty->align = 1;
             }
             compiler__sema__SymbolTable_define_global(&self->symtab, (compiler__sema__Symbol){ v_name, v_c, 4, v_ty, false, e->public, m.line, m.col, node, NULL, false });
+            if (compiler__sema__SymbolTable_lookup(&self->symtab, m.name) == NULL) {
+                compiler__sema__SymbolTable_define_global(&self->symtab, (compiler__sema__Symbol){ m.name, v_c, 4, v_ty, false, e->public, m.line, m.col, node, NULL, false });
+            }
             compiler__sema__SymbolTable_define_global(&self->symtab, (compiler__sema__Symbol){ kobel_concat(v_name, KOBEL_STR("__TAG")), kobel_concat(v_c, KOBEL_STR("__TAG")), 1, tag_ty, false, false, m.line, m.col, NULL, NULL, false });
             compiler__sema__EnumMemberInfo* mi = std__memory__Arena_create_val_compiler__sema__EnumMemberInfo(&self->arena, (compiler__sema__EnumMemberInfo){ m.name, idx, v_ty, kobel_concat(KOBEL_STR("u."), m.name), KOBEL_STR(""), 0 });
             std__collections__List_ptr_compiler__sema__EnumMemberInfo_plus_assign(&members, mi);
@@ -18129,14 +18132,16 @@ compiler__sema__Type* compiler__sema__body__BodyPass_check_is_pattern(compiler__
     bool is_payload_data = false;
     kobel_str tag_field_name = KOBEL_STR("");
     kobel_str tag_const_c_name = KOBEL_STR("");
+    compiler__sema__EnumMemberInfo* matched_data_member = NULL;
     if ((data_enum != NULL && data_enum->is_payload)) {
         {
             size_t __for_n = std__collections__List_ptr_compiler__sema__EnumMemberInfo_count(&data_enum->members);
             size_t __for_i = 0;
             while (__for_i < __for_n) {
                 compiler__sema__EnumMemberInfo* m = std__collections__List_ptr_compiler__sema__EnumMemberInfo_at(&data_enum->members, __for_i);
-                if (kobel_streq(m->name, target_s->name)) {
+                if (kobel_streq(m->name, target_s->name) || kobel_streq(kobel_concat3(data_enum->name, KOBEL_STR("."), m->name), target_s->name)) {
                     is_payload_data = true;
+                    matched_data_member = m;
                     tag_field_name = KOBEL_STR("data.tag");
                     compiler__sema__Symbol* auto_tag = compiler__sema__SymbolTable_lookup(&self->symtab, kobel_concat4(data_enum->name, KOBEL_STR("."), m->name, KOBEL_STR("__TAG")));
                     tag_const_c_name = ((auto_tag != NULL) ? auto_tag->c_name : kobel_concat4(data_enum->c_name, KOBEL_STR("__"), m->name, KOBEL_STR("__TAG")));
@@ -18168,8 +18173,37 @@ compiler__sema__Type* compiler__sema__body__BodyPass_check_is_pattern(compiler__
     is_e->base_c_name = base_s->c_name;
     is_e->is_ptr = is_ptr;
     if (is_payload_data) {
-        is_e->payload_path = kobel_concat3(KOBEL_STR("data.u."), target_s->name, KOBEL_STR(".inner"));
-        is_e->payload_ptr = true;
+        bool is_inner_ptr = true;
+        kobel_str member_name = target_s->name;
+        if (matched_data_member != NULL) {
+            member_name = matched_data_member->name;
+            compiler__sema__Type* p_ty = matched_data_member->payload_ty;
+            if ((p_ty != NULL) && (p_ty->kind == 18)) {
+                compiler__sema__StructType* s = compiler__sema__Type_as_struct(p_ty);
+                bool has_inner = false;
+                {
+                    size_t __for_n = std__collections__List_compiler__sema__StructField_count(&s->fields);
+                    size_t __for_i = 0;
+                    while (__for_i < __for_n) {
+                        compiler__sema__StructField f = std__collections__List_compiler__sema__StructField_at(&s->fields, __for_i);
+                        if (kobel_streq(f.name, KOBEL_STR("inner"))) {
+                            has_inner = true;
+                        }
+                        __for_i = (__for_i + 1);
+                    }
+                }
+                if (!has_inner) {
+                    is_inner_ptr = false;
+                }
+            }
+        }
+        if (is_inner_ptr) {
+            is_e->payload_path = kobel_concat3(KOBEL_STR("data.u."), member_name, KOBEL_STR(".inner"));
+            is_e->payload_ptr = true;
+        } else {
+            is_e->payload_path = kobel_concat(KOBEL_STR("data.u."), member_name);
+            is_e->payload_ptr = false;
+        }
     }
     compiler__sema__EnumInfo* enum_info = compiler__sema__SymbolTable_find_enum_info(&self->symtab, base_s->name);
     if ((enum_info != NULL && enum_info->is_payload)) {

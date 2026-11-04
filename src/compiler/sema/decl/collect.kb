@@ -341,6 +341,11 @@ impl DeclPass {
 			self.symtab.define_global(
 				Symbol(v_name, v_c, SymbolKind.STRUCT, v_ty, false, e.public, m.line, m.col, node)
 			);
+			if (self.symtab.lookup(m.name) == null) {
+				self.symtab.define_global(
+					Symbol(m.name, v_c, SymbolKind.STRUCT, v_ty, false, e.public, m.line, m.col, node)
+				);
+			}
 			self.symtab.define_global(
 				Symbol("${v_name}__TAG", "${v_c}__TAG", SymbolKind.CONST, tag_ty, false, false, m.line, m.col, null)
 			);

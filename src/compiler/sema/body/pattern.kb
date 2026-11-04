@@ -278,10 +278,12 @@ impl BodyPass {
 		var tag_field_name = "";
 		var tag_const_c_name = "";
 
+		var matched_data_member: *EnumMemberInfo? = null;
 		if (data_enum?.is_payload) {
 			for (m in data_enum.members) {
-				if (m.name == target_s.name) {
+				if (m.name == target_s.name || "${data_enum.name}.${m.name}" == target_s.name) {
 					is_payload_data = true;
+					matched_data_member = m;
 					tag_field_name = "data.tag";
 					val auto_tag = self.symtab.lookup("${data_enum.name}.${m.name}__TAG");
 					tag_const_c_name = if (auto_tag != null) auto_tag.c_name else "${data_enum.c_name}__${m.name}__TAG";
@@ -323,8 +325,28 @@ impl BodyPass {
 		is_e.is_ptr = is_ptr;
 
 		if (is_payload_data) {
-			is_e.payload_path = "data.u.${target_s.name}.inner";
-			is_e.payload_ptr = true;
+			var is_inner_ptr = true;
+			var member_name = target_s.name;
+			if (matched_data_member != null) {
+				member_name = matched_data_member.name;
+				val p_ty = matched_data_member.payload_ty;
+				if (p_ty != null && p_ty.kind == DataType.STRUCT) {
+					val s = p_ty.as_struct();
+					var has_inner = false;
+					for (f in s.fields) {
+						if (f.name == "inner") has_inner = true;
+					}
+					if (!has_inner) is_inner_ptr = false;
+				}
+			}
+
+			if (is_inner_ptr) {
+				is_e.payload_path = "data.u.${member_name}.inner";
+				is_e.payload_ptr = true;
+			} else {
+				is_e.payload_path = "data.u.${member_name}";
+				is_e.payload_ptr = false;
+			}
 		}
 
 		// A payload-enum variant stores its data inline (`subject.u.Variant`), and
