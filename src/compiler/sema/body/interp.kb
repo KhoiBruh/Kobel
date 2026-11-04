@@ -27,9 +27,13 @@ impl BodyPass {
 	pub fn check_interp_expr(var self, node: *AstNode): *Type {
 		val ie = node.as_interp_expr();
 		for (part in ie.parts) {
-			if (part.is_literal) continue;
-			val pty = self.check_expr(part.expr!);
-			self.ensure_to_str(part.expr!, pty);
+			when (part) {
+				is InterpPart.Literal -> continue;
+				is InterpPart.Hole as hole -> {
+					val pty = self.check_expr(hole.node);
+					self.ensure_to_str(hole.node, pty);
+				}
+			}
 		}
 		return self.prims().t_str();
 	}

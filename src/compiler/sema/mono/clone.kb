@@ -384,7 +384,14 @@ impl DeclPass {
 		val ie = node.as_interp_expr();
 		var parts = List<InterpPart>();
 		for (part in ie.parts) {
-			parts += InterpPart(if (part.expr != null) self.clone_expr(part.expr!, subst) else null, part.is_literal);
+			when (part) {
+				is InterpPart.Literal as lit -> {
+					parts += InterpPart.Literal(self.clone_expr(lit.node, subst));
+				}
+				is InterpPart.Hole as hole -> {
+					parts += InterpPart.Hole(self.clone_expr(hole.node, subst));
+				}
+			}
 		}
 		return parts;
 	}

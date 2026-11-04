@@ -215,6 +215,10 @@ typedef struct compiler__ast__IfExpr compiler__ast__IfExpr;
 typedef struct compiler__ast__WhenArm compiler__ast__WhenArm;
 typedef struct compiler__ast__WhenExpr compiler__ast__WhenExpr;
 typedef struct compiler__ast__InterpPart compiler__ast__InterpPart;
+typedef struct compiler__ast__InterpPart__Literal compiler__ast__InterpPart__Literal;
+#define compiler__ast__InterpPart__Literal__TAG 0
+typedef struct compiler__ast__InterpPart__Hole compiler__ast__InterpPart__Hole;
+#define compiler__ast__InterpPart__Hole__TAG 1
 typedef struct compiler__ast__InterpExpr compiler__ast__InterpExpr;
 typedef struct compiler__ast__IsExpr compiler__ast__IsExpr;
 typedef struct compiler__ast__SizeOfParam compiler__ast__SizeOfParam;
@@ -597,9 +601,18 @@ struct compiler__ast__IfExpr {
     compiler__ast__AstNode* else_branch;
 };
 
+struct compiler__ast__InterpPart__Literal {
+    compiler__ast__AstNode* node;
+};
+struct compiler__ast__InterpPart__Hole {
+    compiler__ast__AstNode* node;
+};
 struct compiler__ast__InterpPart {
-    compiler__ast__AstNode* expr;
-    bool is_literal;
+    int32_t tag;
+    union {
+        struct compiler__ast__InterpPart__Literal Literal;
+        struct compiler__ast__InterpPart__Hole Hole;
+    } u;
 };
 
 struct compiler__ast__IsExpr {
@@ -10153,7 +10166,7 @@ compiler__ast__AstNode* compiler__parser__Parser_parse_interp_multiline(compiler
         }
         if (((c == '$') && ((i + 1) < end)) && (text.data[(i + 1)] == '{')) {
             if (has_lit) {
-                std__collections__List_compiler__ast__InterpPart_plus_assign(&parts, (compiler__ast__InterpPart){ compiler__parser__Parser_literal(self, 4, kobel_concat3(KOBEL_STR("\""), std__collections__StringBuilder_to_str(&lit), KOBEL_STR("\"")), line, col), true });
+                std__collections__List_compiler__ast__InterpPart_plus_assign(&parts, (compiler__ast__InterpPart){ .tag = 0, .u.Literal = { compiler__parser__Parser_literal(self, 4, kobel_concat3(KOBEL_STR("\""), std__collections__StringBuilder_to_str(&lit), KOBEL_STR("\"")), line, col) } });
                 std__collections__StringBuilder_clear(&lit);
                 has_lit = false;
             }
@@ -10185,7 +10198,7 @@ compiler__ast__AstNode* compiler__parser__Parser_parse_interp_multiline(compiler
                     }
                 }
             }
-            std__collections__List_compiler__ast__InterpPart_plus_assign(&parts, (compiler__ast__InterpPart){ hole, false });
+            std__collections__List_compiler__ast__InterpPart_plus_assign(&parts, (compiler__ast__InterpPart){ .tag = 1, .u.Hole = { hole } });
             i = (((size_t)h_end) + 1);
             continue;
         }
@@ -10194,7 +10207,7 @@ compiler__ast__AstNode* compiler__parser__Parser_parse_interp_multiline(compiler
         i++;
     }
     if (has_lit) {
-        std__collections__List_compiler__ast__InterpPart_plus_assign(&parts, (compiler__ast__InterpPart){ compiler__parser__Parser_literal(self, 4, kobel_concat3(KOBEL_STR("\""), std__collections__StringBuilder_to_str(&lit), KOBEL_STR("\"")), line, col), true });
+        std__collections__List_compiler__ast__InterpPart_plus_assign(&parts, (compiler__ast__InterpPart){ .tag = 0, .u.Literal = { compiler__parser__Parser_literal(self, 4, kobel_concat3(KOBEL_STR("\""), std__collections__StringBuilder_to_str(&lit), KOBEL_STR("\"")), line, col) } });
     }
     {
         compiler__ast__AstNode* __ret_tmp = compiler__parser__Parser_interp(self, parts, line, col);
@@ -10232,7 +10245,7 @@ compiler__ast__AstNode* compiler__parser__Parser_parse_interp_string(compiler__p
         }
         if (((c == '$') && ((i + 1) < end)) && (text.data[(i + 1)] == '{')) {
             if (has_lit) {
-                std__collections__List_compiler__ast__InterpPart_plus_assign(&parts, (compiler__ast__InterpPart){ compiler__parser__Parser_literal(self, 4, kobel_concat3(KOBEL_STR("\""), std__collections__StringBuilder_to_str(&lit), KOBEL_STR("\"")), line, col), true });
+                std__collections__List_compiler__ast__InterpPart_plus_assign(&parts, (compiler__ast__InterpPart){ .tag = 0, .u.Literal = { compiler__parser__Parser_literal(self, 4, kobel_concat3(KOBEL_STR("\""), std__collections__StringBuilder_to_str(&lit), KOBEL_STR("\"")), line, col) } });
                 std__collections__StringBuilder_clear(&lit);
                 has_lit = false;
             }
@@ -10264,7 +10277,7 @@ compiler__ast__AstNode* compiler__parser__Parser_parse_interp_string(compiler__p
                     }
                 }
             }
-            std__collections__List_compiler__ast__InterpPart_plus_assign(&parts, (compiler__ast__InterpPart){ hole, false });
+            std__collections__List_compiler__ast__InterpPart_plus_assign(&parts, (compiler__ast__InterpPart){ .tag = 1, .u.Hole = { hole } });
             i = (h_end + 1);
             continue;
         }
@@ -10273,7 +10286,7 @@ compiler__ast__AstNode* compiler__parser__Parser_parse_interp_string(compiler__p
         i++;
     }
     if (has_lit) {
-        std__collections__List_compiler__ast__InterpPart_plus_assign(&parts, (compiler__ast__InterpPart){ compiler__parser__Parser_literal(self, 4, kobel_concat3(KOBEL_STR("\""), std__collections__StringBuilder_to_str(&lit), KOBEL_STR("\"")), line, col), true });
+        std__collections__List_compiler__ast__InterpPart_plus_assign(&parts, (compiler__ast__InterpPart){ .tag = 0, .u.Literal = { compiler__parser__Parser_literal(self, 4, kobel_concat3(KOBEL_STR("\""), std__collections__StringBuilder_to_str(&lit), KOBEL_STR("\"")), line, col) } });
     }
     {
         compiler__ast__AstNode* __ret_tmp = compiler__parser__Parser_interp(self, parts, line, col);
@@ -11902,7 +11915,13 @@ std__collections__List_compiler__ast__InterpPart compiler__sema__decl__DeclPass_
         size_t __for_i = 0;
         while (__for_i < __for_n) {
             compiler__ast__InterpPart part = std__collections__List_compiler__ast__InterpPart_at(&ie->parts, __for_i);
-            std__collections__List_compiler__ast__InterpPart_plus_assign(&parts, (compiler__ast__InterpPart){ ((part.expr != NULL) ? compiler__sema__decl__DeclPass_clone_expr(self, part.expr, subst) : NULL), part.is_literal });
+            if (part.tag == compiler__ast__InterpPart__Literal__TAG) {
+                compiler__ast__InterpPart__Literal* lit = (compiler__ast__InterpPart__Literal*)(&(part).u.Literal);
+                std__collections__List_compiler__ast__InterpPart_plus_assign(&parts, (compiler__ast__InterpPart){ .tag = 0, .u.Literal = { compiler__sema__decl__DeclPass_clone_expr(self, lit->node, subst) } });
+            } else if (part.tag == compiler__ast__InterpPart__Hole__TAG) {
+                compiler__ast__InterpPart__Hole* hole = (compiler__ast__InterpPart__Hole*)(&(part).u.Hole);
+                std__collections__List_compiler__ast__InterpPart_plus_assign(&parts, (compiler__ast__InterpPart){ .tag = 1, .u.Hole = { compiler__sema__decl__DeclPass_clone_expr(self, hole->node, subst) } });
+            }
             __for_i = (__for_i + 1);
         }
     }
@@ -13090,7 +13109,13 @@ bool compiler__sema__decl__DeclPass_rewrite_expr_generics(compiler__sema__decl__
             size_t __for_i = 0;
             while (__for_i < __for_n) {
                 compiler__ast__InterpPart part = std__collections__List_compiler__ast__InterpPart_at(&ie->parts, __for_i);
-                compiler__sema__decl__DeclPass_rewrite_generics(self, part.expr);
+                if (part.tag == compiler__ast__InterpPart__Literal__TAG) {
+                    compiler__ast__InterpPart__Literal* lit = (compiler__ast__InterpPart__Literal*)(&(part).u.Literal);
+                    compiler__sema__decl__DeclPass_rewrite_generics(self, lit->node);
+                } else if (part.tag == compiler__ast__InterpPart__Hole__TAG) {
+                    compiler__ast__InterpPart__Hole* hole = (compiler__ast__InterpPart__Hole*)(&(part).u.Hole);
+                    compiler__sema__decl__DeclPass_rewrite_generics(self, hole->node);
+                }
                 __for_i = (__for_i + 1);
             }
         }
@@ -17285,12 +17310,16 @@ compiler__sema__Type* compiler__sema__body__BodyPass_check_interp_expr(compiler_
         size_t __for_i = 0;
         while (__for_i < __for_n) {
             compiler__ast__InterpPart part = std__collections__List_compiler__ast__InterpPart_at(&ie->parts, __for_i);
-            if (part.is_literal) {
+            if (part.tag == compiler__ast__InterpPart__Literal__TAG) {
+                void* __orig_part = (void*)&part;
+                compiler__ast__InterpPart__Literal* part = (compiler__ast__InterpPart__Literal*)((&((compiler__ast__InterpPart*)__orig_part)->u.Literal));
                 __for_i = (__for_i + 1);
                 continue;
+            } else if (part.tag == compiler__ast__InterpPart__Hole__TAG) {
+                compiler__ast__InterpPart__Hole* hole = (compiler__ast__InterpPart__Hole*)(&(part).u.Hole);
+                compiler__sema__Type* pty = compiler__sema__body__BodyPass_check_expr(self, hole->node, NULL);
+                compiler__sema__body__BodyPass_ensure_to_str(self, hole->node, pty);
             }
-            compiler__sema__Type* pty = compiler__sema__body__BodyPass_check_expr(self, part.expr, NULL);
-            compiler__sema__body__BodyPass_ensure_to_str(self, part.expr, pty);
             __for_i = (__for_i + 1);
         }
     }
@@ -19952,10 +19981,13 @@ compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_expr(compiler__sema
             while (__for_go) {
                 size_t i = __for_i;
                 compiler__ast__InterpPart part = std__collections__List_compiler__ast__InterpPart_get(&ip->parts, i);
-                if (part.expr != NULL) {
-                    part.expr = compiler__sema__body__BodyPass_lower_expr(self, part.expr);
+                if (part.tag == compiler__ast__InterpPart__Literal__TAG) {
+                    compiler__ast__InterpPart__Literal* lit = (compiler__ast__InterpPart__Literal*)(&(part).u.Literal);
+                    std__collections__List_compiler__ast__InterpPart_set(&ip->parts, i, (compiler__ast__InterpPart){ .tag = 0, .u.Literal = { compiler__sema__body__BodyPass_lower_expr(self, lit->node) } });
+                } else if (part.tag == compiler__ast__InterpPart__Hole__TAG) {
+                    compiler__ast__InterpPart__Hole* hole = (compiler__ast__InterpPart__Hole*)(&(part).u.Hole);
+                    std__collections__List_compiler__ast__InterpPart_set(&ip->parts, i, (compiler__ast__InterpPart){ .tag = 1, .u.Hole = { compiler__sema__body__BodyPass_lower_expr(self, hole->node) } });
                 }
-                std__collections__List_compiler__ast__InterpPart_set(&ip->parts, i, part);
                 if (__for_up) {
                     __for_go = ((__for_i + 1) < __for_e);
                 } else {
@@ -20148,14 +20180,16 @@ compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_interp(compiler__se
         while (__for_go) {
             size_t i = __for_i;
             compiler__ast__InterpPart part = std__collections__List_compiler__ast__InterpPart_get(&ie->parts, i);
-            compiler__ast__AstNode* piece = part.expr;
-            if (!part.is_literal && (piece != NULL)) {
+            if (part.tag == compiler__ast__InterpPart__Literal__TAG) {
+                compiler__ast__InterpPart__Literal* lit = (compiler__ast__InterpPart__Literal*)(&(part).u.Literal);
+                std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&pieces, lit->node);
+            } else if (part.tag == compiler__ast__InterpPart__Hole__TAG) {
+                compiler__ast__InterpPart__Hole* hole = (compiler__ast__InterpPart__Hole*)(&(part).u.Hole);
+                compiler__ast__AstNode* piece = hole->node;
                 compiler__ast__AstNode* conv = compiler__sema__body__BodyPass_to_str_expr(self, piece, node->line, node->col);
                 if (conv != NULL) {
                     piece = conv;
                 }
-            }
-            if (piece != NULL) {
                 std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&pieces, piece);
             }
             if (__for_up) {
@@ -25456,22 +25490,24 @@ void fmt__Formatter_format_expr(fmt__Formatter* self, compiler__ast__AstNode* no
             size_t __for_i = 0;
             while (__for_i < __for_n) {
                 compiler__ast__InterpPart part = std__collections__List_compiler__ast__InterpPart_at(&interp->parts, __for_i);
-                compiler__ast__AstNode* expr = part.expr;
-                {
-                    compiler__ast__LiteralExpr* lit = NULL;
-                    if ((expr != NULL && expr->data.tag == compiler__ast__NodeData__LiteralExpr__TAG && (lit = expr->data.u.LiteralExpr.inner, 1))) {
-                        kobel_str text = lit->raw_text;
-                        if (text.len >= 2) {
-                            fmt__FormatBuffer_plus_assign_2(&self->buf, kobel_slice(text, 1, (text.len - 1)));
+                if (part.tag == compiler__ast__InterpPart__Literal__TAG) {
+                    compiler__ast__InterpPart__Literal* lit = (compiler__ast__InterpPart__Literal*)(&(part).u.Literal);
+                    compiler__ast__AstNode* expr = lit->node;
+                    {
+                        compiler__ast__LiteralExpr* l = NULL;
+                        if ((expr != NULL && expr->data.tag == compiler__ast__NodeData__LiteralExpr__TAG && (l = expr->data.u.LiteralExpr.inner, 1))) {
+                            kobel_str text = l->raw_text;
+                            if (text.len >= 2) {
+                                fmt__FormatBuffer_plus_assign_2(&self->buf, kobel_slice(text, 1, (text.len - 1)));
+                            }
                         }
-                    } else {
-                        fmt__FormatBuffer_plus_assign_2_2(&self->buf, '$');
-                        fmt__FormatBuffer_plus_assign_2_2(&self->buf, '{');
-                        if (expr != NULL) {
-                            fmt__Formatter_format_expr(self, expr);
-                        }
-                        fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR("}"));
                     }
+                } else if (part.tag == compiler__ast__InterpPart__Hole__TAG) {
+                    compiler__ast__InterpPart__Hole* hole = (compiler__ast__InterpPart__Hole*)(&(part).u.Hole);
+                    fmt__FormatBuffer_plus_assign_2_2(&self->buf, '$');
+                    fmt__FormatBuffer_plus_assign_2_2(&self->buf, '{');
+                    fmt__Formatter_format_expr(self, hole->node);
+                    fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR("}"));
                 }
                 __for_i = (__for_i + 1);
             }

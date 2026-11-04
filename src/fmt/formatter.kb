@@ -225,19 +225,23 @@ impl Formatter {
 			is InterpExpr as interp -> {
 				self.buf += "\"";
 				for (part in interp.parts) {
-					val expr = part.expr;
-					if (expr is LiteralExpr as lit) {
-						val text = lit.raw_text;
-						// Strip enclosing quotes from string literal
-						if (text.len >= 2) {
-							self.buf += text.slice(1, text.len - 1);
+					when (part) {
+						is InterpPart.Literal as lit -> {
+							val expr = lit.node;
+							if (expr is LiteralExpr as l) {
+								val text = l.raw_text;
+								if (text.len >= 2) {
+									self.buf += text.slice(1, text.len - 1);
+								}
+							}
 						}
-					} else {
-						self.buf += '$';
+						is InterpPart.Hole as hole -> {
+							self.buf += '$';
 						self.buf += '{';
-						if (expr != null) self.format_expr(expr);
+						self.format_expr(hole.node);
 						self.buf += "}";
 					}
+				}
 				}
 				self.buf += "\"";
 			}

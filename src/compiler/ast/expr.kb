@@ -96,11 +96,11 @@ pub struct WhenExpr {
 	pub arms: List<WhenArm>
 }
 
-// One piece of an interpolated string: either a literal chunk (`is_literal`,
-// in which case `expr` is a STRING literal) or a `${...}` hole expression.
-pub struct InterpPart {
-	pub expr: *AstNode? = null,
-	pub is_literal: bool
+// One piece of an interpolated string: either a literal chunk (STRING literal)
+// or a `${...}` hole expression.
+pub enum InterpPart {
+	Literal(node: *AstNode),
+	Hole(node: *AstNode)
 }
 
 pub struct InterpExpr {

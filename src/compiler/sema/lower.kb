@@ -163,8 +163,14 @@ impl BodyPass {
 			is InterpExpr as var ip -> {
 				for (i in 0..<ip.parts.len) {
 					var part = ip.parts[i];
-					if (part.expr != null) part.expr = self.lower_expr(part.expr!);
-					ip.parts[i] = part;
+					when (part) {
+						is InterpPart.Literal as lit -> {
+							ip.parts[i] = InterpPart.Literal(self.lower_expr(lit.node));
+						}
+						is InterpPart.Hole as hole -> {
+							ip.parts[i] = InterpPart.Hole(self.lower_expr(hole.node));
+						}
+					}
 				}
 				out = self.lower_interp(node, ip);
 			}
@@ -290,13 +296,16 @@ impl BodyPass {
 		defer pieces.free();
 		for (i in 0..<ie.parts.len) {
 			val part = ie.parts[i];
-			var piece = part.expr;
-			if (!part.is_literal && piece != null) {
-				val conv = self.to_str_expr(piece, node.line, node.col);
-				if (conv != null) piece = conv;
-			}
-			if (piece != null) {
-				pieces += piece;
+			when (part) {
+				is InterpPart.Literal as lit -> {
+					pieces += lit.node;
+				}
+				is InterpPart.Hole as hole -> {
+					var piece = hole.node;
+					val conv = self.to_str_expr(piece, node.line, node.col);
+					if (conv != null) piece = conv;
+					pieces += piece;
+				}
 			}
 		}
 		var acc = self.arena.interp_concat_many(pieces, node.line, node.col);

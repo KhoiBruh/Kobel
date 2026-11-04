@@ -783,7 +783,7 @@ impl Parser {
 			}
 			if (c == '$' && i + 1 < end && text[i + 1] == '{') {
 				if (has_lit) {
-					parts += InterpPart(self.literal(LiteralKind.STRING, "\"${lit.to_str()}\"", line, col), true);
+					parts += InterpPart.Literal(self.literal(LiteralKind.STRING, "\"${lit.to_str()}\"", line, col));
 					lit.clear();
 					has_lit = false;
 				}
@@ -804,7 +804,7 @@ impl Parser {
 				if (!sub.errors.empty()) {
 					for (msg in sub.errors) self.errors += "in interpolation hole: ${msg}";
 				}
-				parts += InterpPart(hole, false);
+				parts += InterpPart.Hole(hole);
 				i = (h_end as usz) + 1;
 				continue;
 			}
@@ -813,7 +813,7 @@ impl Parser {
 			i++;
 		}
 
-		if (has_lit) parts += InterpPart(self.literal(LiteralKind.STRING, "\"${lit.to_str()}\"", line, col), true);
+		if (has_lit) parts += InterpPart.Literal(self.literal(LiteralKind.STRING, "\"${lit.to_str()}\"", line, col));
 		return self.interp(parts, line, col);
 	}
 
@@ -849,7 +849,7 @@ impl Parser {
 			}
 			if (c == '$' && i + 1 < end && text[i + 1] == '{') {
 				if (has_lit) {
-					parts += InterpPart(self.literal(LiteralKind.STRING, "\"${lit.to_str()}\"", line, col), true);
+					parts += InterpPart.Literal(self.literal(LiteralKind.STRING, "\"${lit.to_str()}\"", line, col));
 					lit.clear();
 					has_lit = false;
 				}
@@ -870,7 +870,7 @@ impl Parser {
 				if (sub.errors.len > 0) {
 					for (msg in sub.errors) self.errors += "in interpolation hole: ${msg}";
 				}
-				parts += InterpPart(hole, false);
+				parts += InterpPart.Hole(hole);
 				i = h_end + 1;
 				continue;
 			}
@@ -879,7 +879,7 @@ impl Parser {
 			i++;
 		}
 
-		if (has_lit) parts += InterpPart(self.literal(LiteralKind.STRING, "\"${lit.to_str()}\"", line, col), true);
+		if (has_lit) parts += InterpPart.Literal(self.literal(LiteralKind.STRING, "\"${lit.to_str()}\"", line, col));
 		return self.interp(parts, line, col);
 	}
 

@@ -197,7 +197,12 @@ impl DeclPass {
 				yield true;
 			}
 			is InterpExpr as ie -> {
-				for (part in ie.parts) self.rewrite_generics(part.expr);
+				for (part in ie.parts) {
+					when (part) {
+						is InterpPart.Literal as lit -> self.rewrite_generics(lit.node);
+						is InterpPart.Hole as hole -> self.rewrite_generics(hole.node);
+					}
+				}
 				yield true;
 			}
 			is IsExpr as is_e -> {
