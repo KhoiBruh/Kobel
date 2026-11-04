@@ -13,7 +13,6 @@ use std.memory.*;
 
 use compiler.ast.*;
 
-
 pub struct StructField {
 	pub name: str,
 	pub type_ptr: *Type,

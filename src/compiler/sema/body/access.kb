@@ -256,12 +256,10 @@ impl BodyPass {
 		if (node == null) return;
 		val cur = self.unwrap_group(node!);
 		when (cur) {
-			is IdentifierExpr as id -> self.mark_symbol_mutated(id.name);
-			is MemberExpr as mem -> self.mark_node_mutated(mem.object);
-			is IndexExpr as idx -> self.mark_node_mutated(idx.target);
-			is UnaryExpr as u -> {
-				if (u.op == TokenType.AMPERSAND) self.mark_node_mutated(u.operand);
-			}
+			is IdentifierExpr -> self.mark_symbol_mutated(cur.name);
+			is MemberExpr -> self.mark_node_mutated(cur.object);
+			is IndexExpr -> self.mark_node_mutated(cur.target);
+			is UnaryExpr -> if (cur.op == TokenType.AMPERSAND) self.mark_node_mutated(cur.operand);
 		}
 	}
 
@@ -458,7 +456,10 @@ impl BodyPass {
 		arg_types += idx_ty_raw;
 		if (val_ty_raw != null) arg_types += val_ty_raw;
 
-		val mi = s_info.find_operator("set", arg_types) ?: s_info.find_method_arity("set", 3) ?: s_info.find_method("set") ?: return null;
+		val mi = s_info.find_operator("set", arg_types)
+				?: s_info.find_method_arity("set", 3)
+				?: s_info.find_method("set")
+				?: return null;
 
 		val fn_info = mi.fn_type.as_fn();
 		val idx_param_ty = fn_info.param_types[1];

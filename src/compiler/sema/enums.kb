@@ -1,12 +1,14 @@
 mod compiler.sema;
 
-// ============================================================================
-// Enum descriptors
-//
-// `EnumInfo` is the payload registered for every `enum`: the underlying integer
-// for a plain enum, or `is_payload = true` with member payload types for a sum
-// type. `EnumMemberInfo` keeps one member name/value and its payload struct.
-// ============================================================================
+/*
+ * ============================================================================
+ * Enum descriptors
+ *
+ * `EnumInfo` is the payload registered for every `enum`: the underlying integer
+ * for a plain enum, or `is_payload = true` with member payload types for a sum
+ * type. `EnumMemberInfo` keeps one member name/value and its payload struct.
+ * ============================================================================
+ */
 
 use std.collections.*;
 

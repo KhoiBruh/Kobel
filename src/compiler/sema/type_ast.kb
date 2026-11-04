@@ -1,19 +1,20 @@
 mod compiler.sema;
 
-// ============================================================================
-// Resolved type -> AST annotation
-//
-// `ast_type_from_type` materializes a resolved `*Type` as an AST type node, so
-// synthesized locals and instance signatures can carry an explicit annotation
-// the C backend understands. Kept apart from the checker: no pass state is
-// involved, only the arena and the type model.
-// ============================================================================
+/*
+ * ============================================================================
+ * Resolved type -> AST annotation
+ *
+ * `ast_type_from_type` materializes a resolved `*Type` as an AST type node, so
+ * synthesized locals and instance signatures can carry an explicit annotation
+ * the C backend understands. Kept apart from the checker: no pass state is
+ * involved, only the arena and the type model.
+ * ============================================================================
+ */
 
 use std.collections.*;
 use std.memory.*;
 
 use compiler.ast.*;
-
 
 impl Arena {
 

@@ -1,19 +1,20 @@
 mod compiler.sema;
 
-// ============================================================================
-// Monomorphized instances and their per-node annotations
-//
-// An `InstanceRecord` is one monomorphized declaration (struct or function).
-// Its identity is (template, resolved args); the body is the template's shared
-// AST, so every decision the checker makes for this instance is stored in an
-// `AnnEntry` instead of on the node. `mono.clone.materialize_body` later stamps
-// those annotations onto the instance's own copy.
-// ============================================================================
+/*
+ * ============================================================================
+ * Monomorphized instances and their per-node annotations
+ *
+ * An `InstanceRecord` is one monomorphized declaration (struct or function).
+ * Its identity is (template, resolved args); the body is the template's shared
+ * AST, so every decision the checker makes for this instance is stored in an
+ * `AnnEntry` instead of on the node. `mono.clone.materialize_body` later stamps
+ * those annotations onto the instance's own copy.
+ * ============================================================================
+ */
 
 use std.collections.*;
 
 use compiler.ast.*;
-
 
 // What kind of declaration an instance was produced from.
 pub enum InstanceKind {
@@ -69,8 +70,7 @@ pub struct InstanceRecord {
 
 impl InstanceRecord {
 	pub fn find_ann(val self, node: *AstNode): *AnnEntry? {
-		val p = self.ann_map.get(node.addr());
-		if (p != null) return *p;
-		return null;
+		val p = self.ann_map.get(node.addr()) ?: return null;
+		return *p;
 	}
 }

@@ -13,7 +13,6 @@ use std.collections.*;
 
 use compiler.ast.*;
 
-
 // A method collected from an `impl` block.
 // For instance methods `fn_type.param_types[0]` is the receiver
 // (`*Struct` for `val self`, `*mut Struct` for `var self`).

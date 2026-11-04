@@ -7,11 +7,8 @@ use std.collections.List;
 
 use compiler.sema.DataType;
 use compiler.sema.Type;
-use compiler.sema.PointerType;
-use compiler.sema.ArrayType;
 use compiler.sema.StructField;
 use compiler.sema.StructType;
-use compiler.sema.FnType;
 
 
 fn assert_true(cond: bool, msg: str) {
