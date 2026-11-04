@@ -36,12 +36,12 @@ pub struct TraitInfo {
 }
 
 impl TraitInfo {
-	pub fn find_method(self, name: str): *TraitMethod? {
+	pub fn find_method(val self, name: str): *TraitMethod? {
 		for (m in self.methods) {
 			if (m.name == name) return m;
 		}
 		return null;
 	}
 
-	pub fn has_impl(self, struct_name: str) => struct_name in self.impls;
+	pub fn has_impl(val self, struct_name: str) => struct_name in self.impls;
 }

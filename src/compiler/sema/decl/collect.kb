@@ -187,6 +187,9 @@ impl DeclPass {
 		var param_types = List<*Type>();
 
 		for (p in f.params) {
+			if (p.name == "self") {
+				self.report_error(node, "Top-level function '${f.name}' cannot have a 'self' parameter");
+			}
 			val p_type = if (p.type_node != null) self.resolve_ast_type(p.type_node!) else self.prims().t_none();
 			param_types += p_type;
 		}

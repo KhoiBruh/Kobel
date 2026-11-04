@@ -10417,17 +10417,11 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_fn_decl(com
                 p_has_val = true;
             }
             compiler__lexer__Token p_name = compiler__parser__parser__Parser_consume(self, 42, KOBEL_STR("Expected parameter name"));
-            compiler__ast__node__AstNode* p_type;
-            if (compiler__parser__parser__Parser_match_token(self, 1)) {
-                p_type = compiler__parser__parser__Parser_parse_type(self);
-            } else if (!kobel_streq(p_name.text, KOBEL_STR("self"))) {
-                compiler__parser__parser__Parser_consume(self, 1, KOBEL_STR("Expected ':' after parameter name"));
-                p_type = compiler__parser__parser__Parser_parse_type(self);
-                goto __when_end_11;
-            } else {
-                p_type = NULL;
+            if (kobel_streq(p_name.text, KOBEL_STR("self"))) {
+                compiler__parser__parser__Parser_error(self, p_name, KOBEL_STR("'self' is only allowed as the first parameter"));
             }
-            __when_end_11:;
+            compiler__parser__parser__Parser_consume(self, 1, KOBEL_STR("Expected ':' after parameter name"));
+            compiler__ast__node__AstNode* p_type = compiler__parser__parser__Parser_parse_type(self);
             compiler__ast__node__AstNode* p_def = (compiler__parser__parser__Parser_match_token(self, 5) ? compiler__parser__parser__Parser_parse_expression(self, 0) : NULL);
             std__collections__List_compiler__ast__decl__Param_plus_assign(&params, (compiler__ast__decl__Param){ p_name.text, p_type, p_is_mut, p_has_val, p_def });
         }
@@ -10439,15 +10433,15 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_fn_decl(com
         compiler__ast__node__AstNode* expr = compiler__parser__parser__Parser_parse_expression(self, 0);
         compiler__parser__parser__Parser_consume(self, 0, KOBEL_STR("Expected ';' after expression body"));
         body = compiler__parser__parser__Parser_expr_stmt(self, expr, expr->line, expr->col);
-        goto __when_end_12;
+        goto __when_end_11;
     } else if (compiler__parser__parser__Parser_check(self, 17)) {
         body = compiler__parser__parser__Parser_parse_block_stmt(self);
     } else {
         compiler__parser__parser__Parser_consume(self, 0, KOBEL_STR("Expected ';' or '{' for function body"));
         body = NULL;
-        goto __when_end_12;
+        goto __when_end_11;
     }
-    __when_end_12:;
+    __when_end_11:;
     return compiler__parser__parser__Parser_fn_decl(self, name_tok.text, type_params, params, return_type, body, is_pub, kw.line, kw.col, false, false);
 }
 
@@ -10477,11 +10471,11 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_op_decl(com
         } else if (!kobel_streq(pname.text, KOBEL_STR("self"))) {
             compiler__parser__parser__Parser_consume(self, 1, KOBEL_STR("Expected ':' after parameter name"));
             ptype = compiler__parser__parser__Parser_parse_type(self);
-            goto __when_end_13;
+            goto __when_end_12;
         } else {
             ptype = NULL;
         }
-        __when_end_13:;
+        __when_end_12:;
         compiler__ast__node__AstNode* p_default = (compiler__parser__parser__Parser_match_token(self, 5) ? compiler__parser__parser__Parser_parse_expression(self, 0) : NULL);
         std__collections__List_compiler__ast__decl__Param_plus_assign(&params, (compiler__ast__decl__Param){ pname.text, ptype, is_mut, has_val, p_default });
         while (compiler__parser__parser__Parser_match_token(self, 2)) {
@@ -10493,17 +10487,11 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_op_decl(com
                 p_has_val = true;
             }
             compiler__lexer__Token p_name = compiler__parser__parser__Parser_consume(self, 42, KOBEL_STR("Expected parameter name"));
-            compiler__ast__node__AstNode* p_type;
-            if (compiler__parser__parser__Parser_match_token(self, 1)) {
-                p_type = compiler__parser__parser__Parser_parse_type(self);
-            } else if (!kobel_streq(p_name.text, KOBEL_STR("self"))) {
-                compiler__parser__parser__Parser_consume(self, 1, KOBEL_STR("Expected ':' after parameter name"));
-                p_type = compiler__parser__parser__Parser_parse_type(self);
-                goto __when_end_14;
-            } else {
-                p_type = NULL;
+            if (kobel_streq(p_name.text, KOBEL_STR("self"))) {
+                compiler__parser__parser__Parser_error(self, p_name, KOBEL_STR("'self' is only allowed as the first parameter"));
             }
-            __when_end_14:;
+            compiler__parser__parser__Parser_consume(self, 1, KOBEL_STR("Expected ':' after parameter name"));
+            compiler__ast__node__AstNode* p_type = compiler__parser__parser__Parser_parse_type(self);
             compiler__ast__node__AstNode* p_def = (compiler__parser__parser__Parser_match_token(self, 5) ? compiler__parser__parser__Parser_parse_expression(self, 0) : NULL);
             std__collections__List_compiler__ast__decl__Param_plus_assign(&params, (compiler__ast__decl__Param){ p_name.text, p_type, p_is_mut, p_has_val, p_def });
         }
@@ -10515,15 +10503,15 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_op_decl(com
         compiler__ast__node__AstNode* expr = compiler__parser__parser__Parser_parse_expression(self, 0);
         compiler__parser__parser__Parser_consume(self, 0, KOBEL_STR("Expected ';' after expression body"));
         body = compiler__parser__parser__Parser_expr_stmt(self, expr, expr->line, expr->col);
-        goto __when_end_15;
+        goto __when_end_13;
     } else if (compiler__parser__parser__Parser_check(self, 17)) {
         body = compiler__parser__parser__Parser_parse_block_stmt(self);
     } else {
         compiler__parser__parser__Parser_consume(self, 0, KOBEL_STR("Expected ';' or '{' for operator body"));
         body = NULL;
-        goto __when_end_15;
+        goto __when_end_13;
     }
-    __when_end_15:;
+    __when_end_13:;
     return compiler__parser__parser__Parser_fn_decl(self, op_name, type_params, params, return_type, body, is_pub, kw.line, kw.col, true, false);
 }
 
@@ -10573,15 +10561,15 @@ compiler__ast__node__AstNode* compiler__parser__parser__Parser_parse_init_decl(c
         compiler__ast__node__AstNode* expr = compiler__parser__parser__Parser_parse_expression(self, 0);
         compiler__parser__parser__Parser_consume(self, 0, KOBEL_STR("Expected ';' after expression body"));
         body = compiler__parser__parser__Parser_expr_stmt(self, expr, expr->line, expr->col);
-        goto __when_end_16;
+        goto __when_end_14;
     } else if (compiler__parser__parser__Parser_check(self, 17)) {
         body = compiler__parser__parser__Parser_parse_block_stmt(self);
     } else {
         compiler__parser__parser__Parser_consume(self, 0, KOBEL_STR("Expected ';' or '{' for constructor body"));
         body = NULL;
-        goto __when_end_16;
+        goto __when_end_14;
     }
-    __when_end_16:;
+    __when_end_14:;
     return compiler__parser__parser__Parser_init_decl(self, type_params, params, return_type, body, is_pub, kw.line, kw.col);
 }
 
@@ -13911,7 +13899,7 @@ void compiler__sema__decl__pass__DeclPass_collect_impl(compiler__sema__decl__pas
                 __for_i = (__for_i + 1);
                 continue;
             }
-            if (kobel_streq(f->name, KOBEL_STR("new"))) {
+            if (kobel_streq(f->name, KOBEL_STR("new")) || f->is_init) {
                 {
                     size_t __for_n = std__collections__List_compiler__ast__decl__Param_count(&f->params);
                     size_t __for_i = 0;
@@ -14918,7 +14906,7 @@ compiler__ast__node__AstNode* compiler__sema__decl__pass__DeclPass_clone_expr(co
         compiler__ast__node__AstNode* cloned_obj = compiler__sema__decl__pass__DeclPass_clone_expr(self, obj_src, subst);
         compiler__ast__node__AstNode* res = (m->is_safe ? std__memory__Arena_safe_member(&self->arena, cloned_obj, m->member, node->line, node->col) : std__memory__Arena_member(&self->arena, cloned_obj, m->member, node->line, node->col));
         out = res;
-        goto __when_end_34;
+        goto __when_end_32;
     } else if (target != NULL && target->data.tag == compiler__ast__node__NodeData__IndexExpr__TAG) {
         compiler__ast__expr__IndexExpr* ix = (target)->data.u.IndexExpr.inner;
         out = std__memory__Arena_index(&self->arena, compiler__sema__decl__pass__DeclPass_clone_expr(self, ix->target, subst), compiler__sema__decl__pass__DeclPass_clone_expr(self, ix->index, subst), node->line, node->col);
@@ -14950,7 +14938,7 @@ compiler__ast__node__AstNode* compiler__sema__decl__pass__DeclPass_clone_expr(co
             }
         }
         out = std__memory__Arena_list_literal(&self->arena, compiler__sema__decl__pass__DeclPass_clone_expr_list(self, al->elements, subst), lname, enode, node->line, node->col);
-        goto __when_end_34;
+        goto __when_end_32;
     } else if (target != NULL && target->data.tag == compiler__ast__node__NodeData__WhenExpr__TAG) {
         compiler__ast__expr__WhenExpr* we = (target)->data.u.WhenExpr.inner;
         out = std__memory__Arena_when_expr(&self->arena, ((we->condition != NULL) ? compiler__sema__decl__pass__DeclPass_clone_expr(self, we->condition, subst) : NULL), compiler__sema__decl__pass__DeclPass_clone_when_arms(self, node, subst), node->line, node->col);
@@ -14968,7 +14956,7 @@ compiler__ast__node__AstNode* compiler__sema__decl__pass__DeclPass_clone_expr(co
             res_e->is_mut = is_e->is_mut;
         }
         out = res_is;
-        goto __when_end_34;
+        goto __when_end_32;
     } else if (target != NULL && target->data.tag == compiler__ast__node__NodeData__StructCtorExpr__TAG) {
         compiler__ast__expr__StructCtorExpr* sc = (target)->data.u.StructCtorExpr.inner;
         out = std__memory__Arena_struct_ctor(&self->arena, sc->c_name, compiler__sema__decl__pass__DeclPass_clone_expr_list(self, sc->args, subst), node->line, node->col);
@@ -14981,7 +14969,7 @@ compiler__ast__node__AstNode* compiler__sema__decl__pass__DeclPass_clone_expr(co
     } else {
         out = std__memory__Arena_identifier(&self->arena, KOBEL_STR("<unsupported-expr>"), node->line, node->col);
     }
-    __when_end_34:;
+    __when_end_32:;
     if (e != NULL) {
         if (e->ty != NULL) {
             out->type_ptr = (uint8_t*)e->ty;
@@ -15892,6 +15880,9 @@ void compiler__sema__decl__pass__DeclPass_collect_fn(compiler__sema__decl__pass_
         size_t __for_i = 0;
         while (__for_i < __for_n) {
             compiler__ast__decl__Param p = std__collections__List_compiler__ast__decl__Param_at(&f->params, __for_i);
+            if (kobel_streq(p.name, KOBEL_STR("self"))) {
+                compiler__sema__decl__pass__DeclPass_report_error(self, node, kobel_concat3(KOBEL_STR("Top-level function '"), f->name, KOBEL_STR("' cannot have a 'self' parameter")));
+            }
             compiler__sema__types__Type* p_type = ((p.type_node != NULL) ? compiler__sema__decl__pass__DeclPass_resolve_ast_type(self, p.type_node) : compiler__sema__prims__PrimTypes_t_none(compiler__sema__decl__pass__DeclPass_prims(self)));
             std__collections__List_ptr_compiler__sema__types__Type_plus_assign(&param_types, p_type);
             __for_i = (__for_i + 1);
@@ -18875,6 +18866,14 @@ compiler__sema__methods__MethodInfo* compiler__sema__body__pass__BodyPass_method
 
 compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_bind_method_call(compiler__sema__body__pass__BodyPass* self, compiler__ast__node__AstNode* node, compiler__ast__expr__MemberExpr* mem, compiler__ast__expr__CallExpr* call, compiler__sema__methods__MethodInfo* mi, compiler__sema__types__Type* obj_ty) {
     compiler__sema__types__FnType* fn_info = compiler__sema__types__Type_as_fn(mi->fn_type);
+    if (fn_info->param_types.len > 0) {
+        compiler__sema__types__Type* recv_ty = std__collections__List_ptr_compiler__sema__types__Type_get(&fn_info->param_types, 0);
+        if ((recv_ty != NULL && recv_ty->kind == 16) && (*compiler__sema__types__Type_as_pointer(recv_ty)).is_mut) {
+            if (compiler__sema__body__pass__BodyPass_is_immutable_self(self, mem->object)) {
+                compiler__sema__body__pass__BodyPass_report_error(self, node, kobel_concat3(KOBEL_STR("Cannot call mutating method '"), mem->member, KOBEL_STR("' on immutable receiver 'val self'")));
+            }
+        }
+    }
     if ((call->args.len + 1) != fn_info->param_types.len) {
         compiler__sema__body__pass__BodyPass_report_error(self, node, kobel_concat3(KOBEL_STR("Argument count mismatch in method call '"), mem->member, KOBEL_STR("'")));
     } else {
@@ -19199,6 +19198,14 @@ compiler__sema__types__Type* compiler__sema__body__pass__BodyPass_check_generic_
     }
     compiler__sema__body__pass__BodyPass_ensure_callee_ready(self, sym);
     compiler__sema__types__FnType* fn_info = compiler__sema__types__Type_as_fn(sym->type_ptr);
+    if (fn_info->param_types.len > 0) {
+        compiler__sema__types__Type* recv_ty = std__collections__List_ptr_compiler__sema__types__Type_get(&fn_info->param_types, 0);
+        if ((recv_ty != NULL && recv_ty->kind == 16) && (*compiler__sema__types__Type_as_pointer(recv_ty)).is_mut) {
+            if (compiler__sema__body__pass__BodyPass_is_immutable_self(self, mem->object)) {
+                compiler__sema__body__pass__BodyPass_report_error(self, node, kobel_concat3(KOBEL_STR("Cannot call mutating method '"), mem->member, KOBEL_STR("' on immutable receiver 'val self'")));
+            }
+        }
+    }
     std__collections__List_ptr_compiler__ast__node__AstNode args = std__collections__List_ptr_compiler__ast__node__AstNode_init(4);
     if ((obj_ty->kind == 18) && !obj_is_ptr) {
         std__collections__List_ptr_compiler__ast__node__AstNode_plus_assign(&args, std__memory__Arena_unary(&self->arena, 19, mem->object, node->line, node->col, false));

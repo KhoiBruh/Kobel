@@ -391,7 +391,7 @@ impl BodyPass {
 	// Whether the type is a struct with an `impl Iterable for` block. Such a `for`
 	// iterates through the trait (`count()` / `at(i)`) instead of the built-in
 	// `.len` / `.data`, so containment no longer has to look like a flat array.
-	fn struct_implements_iterable(self, ty: *Type?): bool {
+	fn struct_implements_iterable(val self, ty: *Type?): bool {
 		var cur = ty;
 		if (cur?.kind == DataType.POINTER) cur = cur.as_pointer().pointee;
 		if (cur == null || cur.kind != DataType.STRUCT) return false;

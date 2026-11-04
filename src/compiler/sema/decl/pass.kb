@@ -149,7 +149,7 @@ impl DeclPass {
 		self.symtab.set_current_module(prev);
 	}
 
-	pub fn c_name_for(self, name: str): str {
+	pub fn c_name_for(val self, name: str): str {
 		if (self.is_extern || name == "main") return name;
 		return self.current_module.mangle_symbol(name);
 	}
@@ -218,7 +218,7 @@ impl DeclPass {
 			val f = m_node.as_fn_decl() as &FnDecl;
 			if (f.type_params.len > 0) continue;
 
-			if (f.name == "new") {
+			if (f.name == "new" || f.is_init) {
 				for (p in f.params) {
 					if (p.name == "self") {
 						self.report_error(m_node,

@@ -78,7 +78,7 @@ pub struct Scope {
 }
 
 impl Scope {
-	pub fn lookup(self, name: str): *Symbol? {
+	pub fn lookup(val self, name: str): *Symbol? {
 		for (sym in self.symbols) {
 			if (sym.name == name) return sym;
 		}
@@ -122,7 +122,7 @@ pub struct ModuleScope {
 }
 
 impl ModuleScope {
-	pub fn lookup(self, name: str): *Symbol? {
+	pub fn lookup(val self, name: str): *Symbol? {
 		val p = self.sym_map.get(name);
 		if (p != null) return p.read();
 		return null;

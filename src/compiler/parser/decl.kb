@@ -20,7 +20,7 @@ use compiler.parser.stmt.*;
 
 impl Parser {
 
-	pub fn is_valid_op_name(self, name: str): bool => when (name) {
+	pub fn is_valid_op_name(val self, name: str): bool => when (name) {
 		"plus", "minus", "mul", "div", "rem",
 		"bit_and", "bit_or", "bit_xor", "shl", "shr",
 		"plus_assign", "minus_assign", "mul_assign", "div_assign", "rem_assign",
@@ -110,14 +110,11 @@ impl Parser {
 				else if (self.match_token(TokenType.KW_VAL)) p_has_val = true;
 
 				val p_name = self.consume(TokenType.IDENTIFIER, "Expected parameter name");
-				val p_type = when {
-					self.match_token(TokenType.COLON) -> self.parse_type();
-					p_name.text != "self" -> {
-						self.consume(TokenType.COLON, "Expected ':' after parameter name");
-						yield self.parse_type();
-					}
-					else -> null;
-				};
+				if (p_name.text == "self") {
+					self.error(p_name, "'self' is only allowed as the first parameter");
+				}
+				self.consume(TokenType.COLON, "Expected ':' after parameter name");
+				val p_type = self.parse_type();
 
 				val p_def = if (self.match_token(TokenType.EQUAL)) self.parse_expression(Precedence.NONE)
 				else null;
@@ -189,14 +186,11 @@ impl Parser {
 				else if (self.match_token(TokenType.KW_VAL)) p_has_val = true;
 
 				val p_name = self.consume(TokenType.IDENTIFIER, "Expected parameter name");
-				val p_type = when {
-					self.match_token(TokenType.COLON) -> self.parse_type();
-					p_name.text != "self" -> {
-						self.consume(TokenType.COLON, "Expected ':' after parameter name");
-						yield self.parse_type();
-					}
-					else -> null;
-				};
+				if (p_name.text == "self") {
+					self.error(p_name, "'self' is only allowed as the first parameter");
+				}
+				self.consume(TokenType.COLON, "Expected ':' after parameter name");
+				val p_type = self.parse_type();
 
 				val p_def = if (self.match_token(TokenType.EQUAL)) self.parse_expression(Precedence.NONE)
 				else null;

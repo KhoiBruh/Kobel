@@ -288,6 +288,14 @@ impl BodyPass {
 	// the checker never has to build replacement nodes.
 	fn bind_method_call(var self, node: *AstNode, mem: *MemberExpr, call: &CallExpr, mi: *MethodInfo, obj_ty: *Type): *Type {
 		val fn_info = mi.fn_type.as_fn();
+		if (fn_info.param_types.len > 0) {
+			val recv_ty = fn_info.param_types[0];
+			if (recv_ty?.kind == DataType.POINTER && recv_ty.as_pointer().is_mut) {
+				if (self.is_immutable_self(mem.object)) {
+					self.report_error(node, "Cannot call mutating method '${mem.member}' on immutable receiver 'val self'");
+				}
+			}
+		}
 
 		if (call.args.len + 1 != fn_info.param_types.len) {
 			self.report_error(node, "Argument count mismatch in method call '${mem.member}'");
@@ -577,6 +585,14 @@ impl BodyPass {
 		// before its signature is read.
 		self.ensure_callee_ready(sym);
 		val fn_info = sym.type_ptr.as_fn();
+		if (fn_info.param_types.len > 0) {
+			val recv_ty = fn_info.param_types[0];
+			if (recv_ty?.kind == DataType.POINTER && recv_ty.as_pointer().is_mut) {
+				if (self.is_immutable_self(mem.object)) {
+					self.report_error(node, "Cannot call mutating method '${mem.member}' on immutable receiver 'val self'");
+				}
+			}
+		}
 
 		// Struct methods take `&receiver` unless the receiver is already a pointer;
 		// primitive methods take the receiver by value.
