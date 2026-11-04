@@ -107,7 +107,7 @@ pub enum NodeData {
 	DeferStmt(body: *AstNode),
 	ModuleDecl(path: List<str>, full_path: str),
 	UseDecl(path: List<str>, full_path: str, symbol_name: str, alias: str, wildcard: bool),
-	FnDecl(inner: *FnDecl),
+	FnDecl(name: str, type_params: List<GenericParam>, params: List<Param>, return_type: *AstNode?, body: *AstNode?, public: bool, operator: bool, initializer: bool, module: str),
 	StructDecl(name: str, type_params: List<GenericParam>, fields: List<StructField>, public: bool, forward: bool, emit_typedef: bool),
 	TraitDecl(name: str, type_params: List<GenericParam>, bases: List<str>, methods: List<*AstNode>, public: bool, assoc_types: List<str>),
 	ImplDecl(struct_name: str, type_params: List<GenericParam>, trait_name: str, methods: List<*AstNode>, assoc_bindings: List<AssocBinding>),

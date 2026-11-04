@@ -150,7 +150,7 @@ impl Arena {
 		=> self.build_node(NodeData.UseDecl(path, full_path, symbol_name, alias, wildcard), line, col);
 
 	pub fn fn_decl(var self, name: str, type_params: List<GenericParam>, params: List<Param>, return_type: *AstNode? = null, body: *AstNode? = null, public: bool = false, line: usz = 0, col: usz = 0, operator: bool = false, initializer: bool = false)
-		=> self.build_node(NodeData.FnDecl(self.create_val(FnDecl(name, type_params, params, return_type, body, public, operator, initializer))), line, col);
+		=> self.build_node(NodeData.FnDecl(name, type_params, params, return_type, body, public, operator, initializer, ""), line, col);
 
 	pub fn init_decl(var self, type_params: List<GenericParam>, params: List<Param>, return_type: *AstNode? = null, body: *AstNode? = null, public: bool = false, line: usz = 0, col: usz = 0)
 		=> self.fn_decl("init", type_params, params, return_type, body, public, line, col, false, true);

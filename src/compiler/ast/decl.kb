@@ -16,20 +16,6 @@ pub struct GenericParam {
 	pub bounds: List<str>
 }
 
-pub struct FnDecl {
-	pub name: str,
-	pub type_params: List<GenericParam>,
-	pub params: List<Param>,
-	pub return_type: *AstNode? = null,
-	pub body: *AstNode? = null,
-	pub public: bool,
-	pub operator: bool = false,
-	pub initializer: bool = false,
-	// Set on instantiated clones (monomorphization): the module the template was
-	// declared in, so its body is checked with the right names in scope.
-	pub module: str = ""
-}
-
 pub struct StructField {
 	pub name: str,
 	pub type_node: *AstNode,
