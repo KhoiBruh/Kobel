@@ -33,7 +33,7 @@ impl Parser {
 
 	pub fn parse_var_decl_stmt(var self): *AstNode {
 		val kw = self.advance(); // val or var
-		val is_mut = (kw.type == TokenType.KW_VAR);
+		val mutable = (kw.type == TokenType.KW_VAR);
 
 		val name_tok = self.consume(TokenType.IDENTIFIER, "Expected variable name");
 		val type_ann = if (self.match_token(TokenType.COLON)) self.parse_type()
@@ -43,7 +43,7 @@ impl Parser {
 		else null;
 
 		self.consume(TokenType.SEMI_COLON, "Expected ';' after variable declaration");
-		return self.var_decl(is_mut, name_tok.text, type_ann, init_expr, kw.line, kw.col);
+		return self.var_decl(mutable, name_tok.text, type_ann, init_expr, kw.line, kw.col);
 	}
 
 	pub fn parse_if_stmt(var self): *AstNode {

@@ -31,7 +31,7 @@ impl Arena {
 		return when (ty.kind) {
 			DataType.POINTER -> {
 				val pt = ty.as_pointer();
-				val base_ptr = self.pointer_type(pt.is_mut, self.ast_type_from_type(pt.pointee), 0, 0);
+				val base_ptr = self.pointer_type(pt.mutable, self.ast_type_from_type(pt.pointee), 0, 0);
 				if (pt.is_nullable) yield self.nullable_type(base_ptr, 0, 0);
 				yield base_ptr;
 			}

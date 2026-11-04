@@ -76,7 +76,7 @@ impl Parser {
 	// Top-Level Declarations
 	// ============================================================================
 
-	pub fn parse_fn_decl(var self, is_pub: bool): *AstNode {
+	pub fn parse_fn_decl(var self, public: bool): *AstNode {
 		val kw = self.advance(); // 'fn'
 		val name_tok = self.consume(TokenType.IDENTIFIER, "Expected function name");
 		val type_params = self.parse_generic_params();
@@ -85,9 +85,9 @@ impl Parser {
 		var params = List<Param>();
 
 		if (!self.check(TokenType.CLOSE_PAREN)) {
-			var is_mut = false;
+			var mutable = false;
 			var has_val = false;
-			if (self.match_token(TokenType.KW_VAR)) is_mut = true;
+			if (self.match_token(TokenType.KW_VAR)) mutable = true;
 			else if (self.match_token(TokenType.KW_VAL)) has_val = true;
 
 			val pname = self.consume(TokenType.IDENTIFIER, "Expected parameter name");
@@ -101,12 +101,12 @@ impl Parser {
 			};
 
 			val p_default = if (self.match_token(TokenType.EQUAL)) self.parse_expression(Precedence.NONE) else null;
-			params += Param(pname.text, ptype, is_mut, has_val, p_default);
+			params += Param(pname.text, ptype, mutable, has_val, p_default);
 
 			while (self.match_token(TokenType.COMMA)) {
-				var p_is_mut = false;
+				var p_mutable = false;
 				var p_has_val = false;
-				if (self.match_token(TokenType.KW_VAR)) p_is_mut = true;
+				if (self.match_token(TokenType.KW_VAR)) p_mutable = true;
 				else if (self.match_token(TokenType.KW_VAL)) p_has_val = true;
 
 				val p_name = self.consume(TokenType.IDENTIFIER, "Expected parameter name");
@@ -118,7 +118,7 @@ impl Parser {
 
 				val p_def = if (self.match_token(TokenType.EQUAL)) self.parse_expression(Precedence.NONE)
 				else null;
-				params += Param(p_name.text, p_type, p_is_mut, p_has_val, p_def);
+				params += Param(p_name.text, p_type, p_mutable, p_has_val, p_def);
 			}
 		}
 
@@ -143,10 +143,10 @@ impl Parser {
 			}
 		};
 		
-		return self.fn_decl(name_tok.text, type_params, params, return_type, body, is_pub, kw.line, kw.col);
+		return self.fn_decl(name_tok.text, type_params, params, return_type, body, public, kw.line, kw.col);
 	}
 
-	pub fn parse_op_decl(var self, is_pub: bool): *AstNode {
+	pub fn parse_op_decl(var self, public: bool): *AstNode {
 		val kw = self.advance(); // 'op'
 		val name_tok = self.peek();
 		val op_name = name_tok.text;
@@ -161,9 +161,9 @@ impl Parser {
 		var params = List<Param>();
 
 		if (!self.check(TokenType.CLOSE_PAREN)) {
-			var is_mut = false;
+			var mutable = false;
 			var has_val = false;
-			if (self.match_token(TokenType.KW_VAR)) is_mut = true;
+			if (self.match_token(TokenType.KW_VAR)) mutable = true;
 			else if (self.match_token(TokenType.KW_VAL)) has_val = true;
 
 			val pname = self.consume(TokenType.IDENTIFIER, "Expected parameter name");
@@ -177,12 +177,12 @@ impl Parser {
 			};
 
 			val p_default = if (self.match_token(TokenType.EQUAL)) self.parse_expression(Precedence.NONE) else null;
-			params += Param(pname.text, ptype, is_mut, has_val, p_default);
+			params += Param(pname.text, ptype, mutable, has_val, p_default);
 
 			while (self.match_token(TokenType.COMMA)) {
-				var p_is_mut = false;
+				var p_mutable = false;
 				var p_has_val = false;
-				if (self.match_token(TokenType.KW_VAR)) p_is_mut = true;
+				if (self.match_token(TokenType.KW_VAR)) p_mutable = true;
 				else if (self.match_token(TokenType.KW_VAL)) p_has_val = true;
 
 				val p_name = self.consume(TokenType.IDENTIFIER, "Expected parameter name");
@@ -194,7 +194,7 @@ impl Parser {
 
 				val p_def = if (self.match_token(TokenType.EQUAL)) self.parse_expression(Precedence.NONE)
 				else null;
-				params += Param(p_name.text, p_type, p_is_mut, p_has_val, p_def);
+				params += Param(p_name.text, p_type, p_mutable, p_has_val, p_def);
 			}
 		}
 
@@ -216,10 +216,10 @@ impl Parser {
 			}
 		};
 
-		return self.fn_decl(op_name, type_params, params, return_type, body, is_pub, kw.line, kw.col, true);
+		return self.fn_decl(op_name, type_params, params, return_type, body, public, kw.line, kw.col, true);
 	}
 
-	pub fn parse_init_decl(var self, is_pub: bool): *AstNode {
+	pub fn parse_init_decl(var self, public: bool): *AstNode {
 		val kw = self.advance(); // 'init'
 		val type_params = self.parse_generic_params();
 
@@ -227,9 +227,9 @@ impl Parser {
 		var params = List<Param>();
 
 		if (!self.check(TokenType.CLOSE_PAREN)) {
-			var is_mut = false;
+			var mutable = false;
 			var has_val = false;
-			if (self.match_token(TokenType.KW_VAR)) is_mut = true;
+			if (self.match_token(TokenType.KW_VAR)) mutable = true;
 			else if (self.match_token(TokenType.KW_VAL)) has_val = true;
 
 			val pname = self.consume(TokenType.IDENTIFIER, "Expected parameter name");
@@ -237,12 +237,12 @@ impl Parser {
 			val ptype = self.parse_type();
 
 			val p_default = if (self.match_token(TokenType.EQUAL)) self.parse_expression(Precedence.NONE) else null;
-			params += Param(pname.text, ptype, is_mut, has_val, p_default);
+			params += Param(pname.text, ptype, mutable, has_val, p_default);
 
 			while (self.match_token(TokenType.COMMA)) {
-				var p_is_mut = false;
+				var p_mutable = false;
 				var p_has_val = false;
-				if (self.match_token(TokenType.KW_VAR)) p_is_mut = true;
+				if (self.match_token(TokenType.KW_VAR)) p_mutable = true;
 				else if (self.match_token(TokenType.KW_VAL)) p_has_val = true;
 
 				val p_name = self.consume(TokenType.IDENTIFIER, "Expected parameter name");
@@ -250,7 +250,7 @@ impl Parser {
 				val p_type = self.parse_type();
 
 				val p_def = if (self.match_token(TokenType.EQUAL)) self.parse_expression(Precedence.NONE) else null;
-				params += Param(p_name.text, p_type, p_is_mut, p_has_val, p_def);
+				params += Param(p_name.text, p_type, p_mutable, p_has_val, p_def);
 			}
 		}
 
@@ -278,17 +278,17 @@ impl Parser {
 			}
 		};
 
-		return self.init_decl(type_params, params, return_type, body, is_pub, kw.line, kw.col);
+		return self.init_decl(type_params, params, return_type, body, public, kw.line, kw.col);
 	}
 
-	pub fn parse_struct_decl(var self, is_pub: bool): *AstNode {
+	pub fn parse_struct_decl(var self, public: bool): *AstNode {
 		val kw = self.advance(); // 'struct'
 		val name_tok = self.consume(TokenType.IDENTIFIER, "Expected struct name");
 		val type_params = self.parse_generic_params();
 
 		// `struct Name;`: an opaque declaration whose definition may follow later.
 		if (self.match_token(TokenType.SEMI_COLON)) {
-			return self.struct_decl_forward(name_tok.text, type_params, is_pub, kw.line, kw.col);
+			return self.struct_decl_forward(name_tok.text, type_params, public, kw.line, kw.col);
 		}
 
 		self.consume(TokenType.OPEN_BRACE, "Expected '{' before struct fields");
@@ -332,10 +332,10 @@ impl Parser {
 		}
 
 		self.consume(TokenType.CLOSE_BRACE, "Expected '}' after struct fields");
-		return self.struct_decl(name_tok.text, type_params, fields, is_pub, kw.line, kw.col);
+		return self.struct_decl(name_tok.text, type_params, fields, public, kw.line, kw.col);
 	}
 
-	pub fn parse_trait_decl(var self, is_pub: bool): *AstNode {
+	pub fn parse_trait_decl(var self, public: bool): *AstNode {
 		val kw = self.advance(); // 'trait'
 		val name_tok = self.consume(TokenType.IDENTIFIER, "Expected trait name");
 		val type_params = self.parse_generic_params();
@@ -377,7 +377,7 @@ impl Parser {
 		}
 
 		self.consume(TokenType.CLOSE_BRACE, "Expected '}' after trait body");
-		return self.trait_decl(name_tok.text, type_params, bases, methods, is_pub, kw.line, kw.col, assoc);
+		return self.trait_decl(name_tok.text, type_params, bases, methods, public, kw.line, kw.col, assoc);
 	}
 
 	pub fn parse_impl_decl(var self): *AstNode {
@@ -434,7 +434,7 @@ impl Parser {
 		return self.impl_decl(struct_name, type_params, trait_name, methods, kw.line, kw.col, bindings);
 	}
 
-	pub fn parse_enum_decl(var self, is_pub: bool): *AstNode {
+	pub fn parse_enum_decl(var self, public: bool): *AstNode {
 		val kw = self.advance(); // 'enum'
 		val name_tok = self.consume(TokenType.IDENTIFIER, "Expected enum name");
 		val underlying_type = if (self.match_token(TokenType.COLON)) self.parse_type()
@@ -471,10 +471,10 @@ impl Parser {
 		}
 
 		self.consume(TokenType.CLOSE_BRACE, "Expected '}' after enum members");
-		return self.enum_decl(name_tok.text, underlying_type, members, is_pub, kw.line, kw.col);
+		return self.enum_decl(name_tok.text, underlying_type, members, public, kw.line, kw.col);
 	}
 
-	pub fn parse_const_decl(var self, is_pub: bool): *AstNode {
+	pub fn parse_const_decl(var self, public: bool): *AstNode {
 		val kw = self.advance(); // 'const'
 		val name_tok = self.consume(TokenType.IDENTIFIER, "Expected constant name");
 		val type_node = if (self.match_token(TokenType.COLON)) self.parse_type() else null;
@@ -483,7 +483,7 @@ impl Parser {
 		val val_node = self.parse_expression(Precedence.NONE);
 		self.consume(TokenType.SEMI_COLON, "Expected ';' after const declaration");
 
-		return self.const_decl(name_tok.text, type_node, val_node, is_pub, kw.line, kw.col);
+		return self.const_decl(name_tok.text, type_node, val_node, public, kw.line, kw.col);
 	}
 
 	pub fn parse_module_decl(var self): *AstNode {
@@ -550,17 +550,17 @@ impl Parser {
 	}
 
 	pub fn parse_declaration(var self): *AstNode? {
-		var is_pub = false;
-		if (self.match_token(TokenType.KW_PUB)) is_pub = true;
+		var public = false;
+		if (self.match_token(TokenType.KW_PUB)) public = true;
 
 		val tok = self.peek();
 		return when (tok.type) {
-			TokenType.KW_FN -> self.parse_fn_decl(is_pub);
-			TokenType.KW_STRUCT -> self.parse_struct_decl(is_pub);
-			TokenType.KW_TRAIT -> self.parse_trait_decl(is_pub);
+			TokenType.KW_FN -> self.parse_fn_decl(public);
+			TokenType.KW_STRUCT -> self.parse_struct_decl(public);
+			TokenType.KW_TRAIT -> self.parse_trait_decl(public);
 			TokenType.KW_IMPL -> self.parse_impl_decl();
-			TokenType.KW_ENUM -> self.parse_enum_decl(is_pub);
-			TokenType.KW_CONST -> self.parse_const_decl(is_pub);
+			TokenType.KW_ENUM -> self.parse_enum_decl(public);
+			TokenType.KW_CONST -> self.parse_const_decl(public);
 			TokenType.KW_MOD -> self.parse_module_decl();
 			TokenType.KW_USE -> self.parse_use_decl();
 			TokenType.KW_EXTERN -> self.parse_extern_block();
@@ -571,7 +571,7 @@ impl Parser {
 			}
 			else -> {
 				// Top-level statement or syntax error
-				if (is_pub) self.error(tok, "'pub' modifier is not allowed on this statement");
+				if (public) self.error(tok, "'pub' modifier is not allowed on this statement");
 				val stmt = self.parse_statement();
 				yield stmt;
 			}

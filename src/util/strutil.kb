@@ -149,7 +149,7 @@ pub fn common_whitespace_prefix(lines: List<str>, start_idx: usz, end_idx: usz):
 pub fn multiline_trim_indent(raw: str): str {
 	if (raw.empty()) return "";
 	val lines = raw.split_lines();
-	if (lines.len == 0) return "";
+	if (lines.empty()) return "";
 	if (lines.len == 1) return lines[0];
 
 	var start_idx: usz = 0;

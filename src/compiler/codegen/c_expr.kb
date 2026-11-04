@@ -327,7 +327,7 @@ impl CCodeGen {
 				if (mem.is_safe) return "(${obj_str} != NULL ? (*(${obj_str}) = ${val_str}) : 0)";
 				return "(*(${obj_str}) = ${val_str})";
 			}
-			if (mem.member == "read" && self.is_pointer_value(mem.object) && call.args.len == 0) {
+			if (mem.member == "read" && self.is_pointer_value(mem.object) && call.args.empty()) {
 				val obj_str = self.gen_expr(mem.object);
 				if (mem.is_safe) return "(${obj_str} != NULL ? *(${obj_str}) : 0)";
 				return "(*(${obj_str}))";

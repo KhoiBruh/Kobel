@@ -10,7 +10,7 @@ pub struct NamedType {
 }
 
 pub struct PointerType {
-	pub is_mut: bool,
+	pub mutable: bool,
 	pub pointee: *AstNode
 }
 

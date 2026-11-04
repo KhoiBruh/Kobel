@@ -55,16 +55,12 @@ pub struct Symbol {
 	pub c_name: str,
 	pub kind: SymbolKind,
 	pub type_ptr: *Type,
-	pub is_mut: bool,
-	pub is_pub: bool,
+	pub mutable: bool,
+	pub public: bool,
 	pub line: usz,
 	pub col: usz,
 	pub ast_node: *AstNode? = null,
 	pub orig_type: *Type? = null
-}
-
-impl Symbol {
-	pub fn box(var arena: &Arena, sym: Symbol): *Symbol => arena.create_val(sym);
 }
 
 // ============================================================================
@@ -89,9 +85,7 @@ impl Scope {
 
 	pub op contains(val self, name: str) => self.lookup(name) != null;
 
-	pub op plus_assign(var self, sym: *Symbol) {
-		self.symbols += sym;
-	}
+	pub op plus_assign(var self, sym: *Symbol) => self.symbols += sym;
 }
 
 impl Iterable for Scope {
@@ -163,14 +157,11 @@ pub struct GenericReg {
 }
 
 impl GenericReg {
-	pub fn add_inst(var self, sym: *Symbol) {
-		self.inst_map[sym.name] = sym;
-	}
+	pub fn add_inst(var self, sym: *Symbol) => self.inst_map[sym.name] = sym;
 
 	pub fn find_instance_symbol(val self, name: str): *Symbol? {
-		val p = self.inst_map.get(name);
-		if (p != null) return p.read();
-		return null;
+		val p = self.inst_map.get(name) ?: return null;
+		return p.read();
 	}
 
 	pub fn add_record(var self, rec: *InstanceRecord) {
@@ -193,9 +184,8 @@ impl GenericReg {
 	}
 
 	pub fn find_record_by_cname(val self, cname: str): *InstanceRecord? {
-		val p = self.record_map.get(cname);
-		if (p != null) return p.read();
-		return null;
+		val p = self.record_map.get(cname) ?: return null;
+		return p.read();
 	}
 }
 
@@ -254,24 +244,21 @@ impl SymbolTable {
 
 	// Method of a primitive type by its source name (used by `x.m()` resolution).
 	pub fn find_prim_method(val self, kind: DataType, name: str): *MethodInfo? {
-		val t = self.prims.get(kind);
-		if (t == null) return null;
+		val t = self.prims.get(kind) ?: return null;
 		return t.method_named(name);
 	}
 
 	// Overload-aware variant of `find_prim_method` (parameter count includes the
 	// receiver). Null when no overload matches, so the caller can fall back.
 	pub fn find_prim_method_arity(val self, kind: DataType, name: str, argc: usz): *MethodInfo? {
-		val t = self.prims.get(kind);
-		if (t == null) return null;
+		val t = self.prims.get(kind) ?: return null;
 		return t.method_arity(name, argc);
 	}
 
 	// Every method of a primitive kind, in declaration order (default-argument
 	// resolution walks this list like it walks `StructType.methods`).
 	pub fn prim_methods_of(val self, kind: DataType): List<*MethodInfo> {
-		val t = self.prims.get(kind);
-		if (t == null) return List();
+		val t = self.prims.get(kind) ?: return List();
 		return t.method_list();
 	}
 
@@ -290,23 +277,22 @@ impl SymbolTable {
 	}
 
 	pub fn find_trait(val self, name: str): *TraitInfo? {
-		val p = self.trait_map.get(name);
-		if (p != null) return p.read();
-		return null;
+		val p = self.trait_map.get(name) ?: return null;
+		return p.read();
 	}
 
 	pub fn register_enum_info(var self, info: *EnumInfo) {
 		self.enums += info;
 		self.enum_map[info.name] = info;
-		if (!info.c_name.empty() && info.c_name != info.name) {
-			self.enum_map[info.c_name] = info;
-		}
+		if (
+			!info.c_name.empty() &&
+			info.c_name != info.name
+		) self.enum_map[info.c_name] = info;
 	}
 
 	pub fn find_enum_info(val self, name: str): *EnumInfo? {
-		val p = self.enum_map.get(name);
-		if (p != null) return p.read();
-		return null;
+		val p = self.enum_map.get(name) ?: return null;
+		return p.read();
 	}
 
 	pub fn enter_scope(var self, is_fn_boundary: bool): *Scope {
@@ -382,9 +368,8 @@ impl SymbolTable {
 	pub fn set_current_module(var self, name: str) => self.current_module = name;
 
 	pub fn find_module(val self, name: str): *ModuleScope? {
-		val p = self.module_map.get(name);
-		if (p != null) return p.read();
-		return null;
+		val p = self.module_map.get(name) ?: return null;
+		return p.read();
 	}
 
 	pub fn module_exists(val self, name: str) => name in self.module_map;
@@ -401,15 +386,14 @@ impl SymbolTable {
 	}
 
 	// Associated type bindings: "<struct source name>.<assoc name>" -> concrete type.
-	pub fn set_assoc_type(var self, struct_name: str, assoc: str, ty: *Type) {
-		self.assoc_types["${struct_name}.${assoc}"] = ty;
-	}
+	pub fn set_assoc_type(
+		var self, struct_name: str,
+		assoc: str, ty: *Type
+	) => self.assoc_types["${struct_name}.${assoc}"] = ty;
 
-	pub fn find_assoc_type(val self, struct_name: str, assoc: str): *Type?
-	{
-		val p = self.assoc_types.get("${struct_name}.${assoc}");
-		if (p != null) return p.read();
-		return null;
+	pub fn find_assoc_type(val self, struct_name: str, assoc: str): *Type? {
+		val p = self.assoc_types.get("${struct_name}.${assoc}") ?: return null;
+		return p.read();
 	}
 
 	// Define a top-level declaration into the scope of the given module.
@@ -440,6 +424,7 @@ impl SymbolTable {
 			!sym.c_name.empty() &&
 			sym.c_name != sym.name
 		) self.c_name_map[sym.c_name] = sym_ptr2;
+
 		if (sym.kind == SymbolKind.CONST) self.struct_const_map[sym.name] = sym_ptr2;
 		return true;
 	}
@@ -450,6 +435,7 @@ impl SymbolTable {
 	pub fn add_import(var self, module_name: str, symbol_name: str, local_name: str, is_wildcard: bool) {
 		val binding = ImportBinding(module_name, symbol_name, local_name, is_wildcard, self.current_module);
 		self.imports += binding;
+
 		if (is_wildcard) {
 			self.wildcard_owners += self.current_module;
 			self.wildcard_modules += module_name;
@@ -465,10 +451,9 @@ impl SymbolTable {
 
 	// Look up by generated C name (used when re-resolving a mangled name).
 	pub fn lookup_c_name(val self, c_name: str): *Symbol? {
-		if (c_name.len == 0) return null;
-		val p = self.c_name_map.get(c_name);
-		if (p != null) return p.read();
-		return null;
+		if (c_name.empty()) return null;
+		val p = self.c_name_map.get(c_name) ?: return null;
+		return p.read();
 	}
 
 	pub fn lookup_struct_const(val self, struct_name: str, member_name: str): *Symbol? {

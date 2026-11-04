@@ -83,7 +83,7 @@ impl BodyPass {
 			else vd.type_annotation = self.arena.ast_type_from_type(var_ty);
 		}
 
-		val ok = self.symtab.define(Symbol(vd.name, vd.name, SymbolKind.VAR, var_ty, vd.is_mut, false, node.line, node.col, null));
+		val ok = self.symtab.define(Symbol(vd.name, vd.name, SymbolKind.VAR, var_ty, vd.mutable, false, node.line, node.col, null));
 		self.ensure(ok, node, "Variable '${vd.name}' is already defined in this scope");
 	}
 
@@ -120,9 +120,9 @@ impl BodyPass {
 		val ptr_ty = type_ptr.as_pointer();
 		if (!ptr_ty.is_nullable) return;
 
-		val non_null_ty = self.arena.pointer_type(ptr_ty.pointee, ptr_ty.is_mut);
+		val non_null_ty = self.arena.pointer_type(ptr_ty.pointee, ptr_ty.mutable);
 		val orig_ty = sym.orig_type ?: sym.type_ptr;
-		self.symtab.define(Symbol(var_name, sym.c_name, sym.kind, non_null_ty, sym.is_mut, sym.is_pub, 0, 0, null, orig_ty));
+		self.symtab.define(Symbol(var_name, sym.c_name, sym.kind, non_null_ty, sym.mutable, sym.public, 0, 0, null, orig_ty));
 	}
 
 	fn check_null_guard(var self, left: *AstNode, right: *AstNode) {
@@ -218,13 +218,13 @@ impl BodyPass {
 				val cast_ty = self.check_is_pattern(is_e.expr, subj_ty, unwrapped_c);
 				if (cast_ty != null) {
 					if (!is_e.alias.empty()) {
-						self.symtab.define(Symbol(is_e.alias, is_e.alias, SymbolKind.VAR, cast_ty, is_e.is_mut, false, 0, 0));
+						self.symtab.define(Symbol(is_e.alias, is_e.alias, SymbolKind.VAR, cast_ty, is_e.mutable, false, 0, 0));
 					} else if (is_e.expr is IdentifierExpr as id) {
 						val subj_sym = self.symtab.lookup(id.name);
-						val is_mut = subj_sym?.is_mut ?: false;
+						val mutable = subj_sym?.mutable ?: false;
 						no_alias_syms += id.name;
 						no_alias_tys += cast_ty;
-						no_alias_muts += is_mut;
+						no_alias_muts += mutable;
 					}
 				}
 			}
@@ -329,11 +329,11 @@ impl BodyPass {
 		for (arm in ws.arms) {
 			val smart_cast_ty = self.resolve_arm_patterns(arm.patterns, ws.condition, cond_ty);
 			val sym = self.arm_smart_cast_sym(arm.patterns, ws.condition);
-			val is_mut = self.arm_smart_cast_is_mut(arm.patterns, ws.condition);
+			val mutable = self.arm_smart_cast_mutable(arm.patterns, ws.condition);
 
 			if (!sym.empty() && smart_cast_ty != null) {
 				self.symtab.enter_scope(false);
-				self.symtab.define(Symbol(sym, sym, SymbolKind.VAR, smart_cast_ty, is_mut, false, 0, 0));
+				self.symtab.define(Symbol(sym, sym, SymbolKind.VAR, smart_cast_ty, mutable, false, 0, 0));
 				self.check_statement(arm.body);
 				self.symtab.exit_scope();
 			} else self.check_statement(arm.body);

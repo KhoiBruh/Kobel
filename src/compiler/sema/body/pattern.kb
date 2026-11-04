@@ -44,8 +44,8 @@ impl BodyPass {
 
 			val smart_cast_ty = self.resolve_arm_patterns(arm.patterns, we.condition, cond_ty);
 			val sym = self.arm_smart_cast_sym(arm.patterns, we.condition);
-			val is_mut = self.arm_smart_cast_is_mut(arm.patterns, we.condition);
-			val body_ty = self.check_arm_body(arm.body, sym, smart_cast_ty, is_mut, result_ty);
+			val mutable = self.arm_smart_cast_mutable(arm.patterns, we.condition);
+			val body_ty = self.check_arm_body(arm.body, sym, smart_cast_ty, mutable, result_ty);
 
 			if (result_ty == null) {
 				result_ty = body_ty;
@@ -54,12 +54,12 @@ impl BodyPass {
 					val r_ptr = result_ty.as_pointer();
 					val b_ptr = body_ty.as_pointer();
 					if (b_ptr.pointee.kind == DataType.NONE && !r_ptr.is_nullable) {
-						result_ty = self.arena.nullable_pointer_type(r_ptr.pointee, r_ptr.is_mut);
+						result_ty = self.arena.nullable_pointer_type(r_ptr.pointee, r_ptr.mutable);
 					} else if (r_ptr.pointee.kind == DataType.NONE && !b_ptr.is_nullable) {
-						result_ty = self.arena.nullable_pointer_type(b_ptr.pointee, b_ptr.is_mut);
+						result_ty = self.arena.nullable_pointer_type(b_ptr.pointee, b_ptr.mutable);
 					} else if (r_ptr.is_nullable != b_ptr.is_nullable && r_ptr.pointee.equals(b_ptr.pointee)) {
-						val is_mut = r_ptr.is_mut || b_ptr.is_mut;
-						result_ty = self.arena.nullable_pointer_type(r_ptr.pointee, is_mut);
+						val mutable = r_ptr.mutable || b_ptr.mutable;
+						result_ty = self.arena.nullable_pointer_type(r_ptr.pointee, mutable);
 					}
 				}
 				self.ensure(result_ty.can_assign(body_ty), arm.body, "When arm type does not match previous arms");
@@ -179,14 +179,14 @@ impl BodyPass {
 
 	// Whether the single-`is` arm binds mutably (`as var alias` or `as &alias`,
 	// or mutating the subject directly when subject was already mutable).
-	pub fn arm_smart_cast_is_mut(val self, patterns: List<*AstNode>, cond: *AstNode?): bool {
+	pub fn arm_smart_cast_mutable(val self, patterns: List<*AstNode>, cond: *AstNode?): bool {
 		if (cond == null || patterns.len != 1) return false;
 		val pat = patterns.first();
 		if (pat is IsExpr as is_e) {
-			if (!is_e.alias.empty()) return is_e.is_mut;
+			if (!is_e.alias.empty()) return is_e.mutable;
 			if (cond is IdentifierExpr as cond_id) {
 				val subj_sym = self.symtab.lookup(cond_id.name);
-				return subj_sym != null && subj_sym.is_mut;
+				return subj_sym != null && subj_sym.mutable;
 			}
 		}
 		return false;
@@ -226,11 +226,11 @@ impl BodyPass {
 	}
 
 	// An arm that binds a name checks its body inside a scope holding that name.
-	fn check_arm_body(var self, body: *AstNode, sym: str, smart_cast_ty: *Type?, is_mut: bool, expected: *Type? = null): *Type {
+	fn check_arm_body(var self, body: *AstNode, sym: str, smart_cast_ty: *Type?, mutable: bool, expected: *Type? = null): *Type {
 		if (sym.empty() || smart_cast_ty == null) return self.check_when_arm_body(body, expected);
 		self.symtab.enter_scope(false);
 		defer self.symtab.exit_scope();
-		self.symtab.define(Symbol(sym, sym, SymbolKind.VAR, smart_cast_ty!, is_mut, false, 0, 0));
+		self.symtab.define(Symbol(sym, sym, SymbolKind.VAR, smart_cast_ty!, mutable, false, 0, 0));
 		return self.check_when_arm_body(body, expected);
 	}
 
@@ -267,10 +267,10 @@ impl BodyPass {
 		// The subject may be the struct itself or a pointer to it.
 		var base_ty = subj_ty;
 		var is_ptr = false;
-		var subj_is_mut = false;
+		var subj_mutable = false;
 		if (base_ty?.kind == DataType.POINTER) {
 			is_ptr = true;
-			subj_is_mut = base_ty.as_pointer().is_mut;
+			subj_mutable = base_ty.as_pointer().mutable;
 			base_ty = base_ty.as_pointer().pointee;
 		}
 		if (base_ty == null || base_ty.kind != DataType.STRUCT) {
@@ -351,10 +351,10 @@ impl BodyPass {
 		// The binding of an inline payload is a pointer to the variant struct, even
 		// when the subject itself is a value: the backend takes its address.
 		if (!is_e.payload_path.empty()) {
-			return self.arena.pointer_type(target_ty, is_e.is_mut || (is_ptr && subj_is_mut));
+			return self.arena.pointer_type(target_ty, is_e.mutable || (is_ptr && subj_mutable));
 		}
 
-		if (is_ptr) return self.arena.pointer_type(target_ty, is_e.is_mut || (is_e.alias.empty() && subj_is_mut));
+		if (is_ptr) return self.arena.pointer_type(target_ty, is_e.mutable || (is_e.alias.empty() && subj_mutable));
 		return target_ty;
 	}
 

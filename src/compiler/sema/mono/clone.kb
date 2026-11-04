@@ -86,7 +86,7 @@ impl DeclPass {
 			}
 
 			is PointerType as pt -> self.arena.pointer_type(
-				pt.is_mut,
+				pt.mutable,
 				self.clone_type(pt.pointee, subst),
 				node.line, node.col
 			);
@@ -228,7 +228,7 @@ impl DeclPass {
 				if (!is_e.alias.empty()) {
 					val res_e = res_is.as_is_expr();
 					res_e.alias = is_e.alias;
-					res_e.is_mut = is_e.is_mut;
+					res_e.mutable = is_e.mutable;
 				}
 				yield res_is;
 			}
@@ -291,7 +291,7 @@ impl DeclPass {
 	// its generic clone path.
 	fn clone_template_call(var self, node: *AstNode, subst: *GenSubst? = null): *AstNode? {
 		val c = node.as_call_expr();
-		if (c.type_args.len == 0) return null;
+		if (c.type_args.empty()) return null;
 
 		val callee = c.callee;
 		if (callee is MemberExpr as mem) {
@@ -428,7 +428,7 @@ impl DeclPass {
 				if (se?.init_override != null) init_src = se.init_override;
 				val init_expr = if (init_src != null) self.clone_expr(init_src!, subst) else null;
 				if (ta != null && init_expr != null) self.propagate_target_type(ta, init_expr);
-				yield self.arena.var_decl(v.is_mut, v.name, ta, init_expr, node.line, node.col);
+				yield self.arena.var_decl(v.mutable, v.name, ta, init_expr, node.line, node.col);
 			}
 
 			is IfStmt as s -> self.arena.if_stmt(
@@ -493,7 +493,7 @@ impl DeclPass {
 		for (p in f.params) {
 			val pt = if (p.type_node != null) self.clone_type(p.type_node!, subst) else null;
 			val dflt = if (p.default_val != null) self.clone_expr(p.default_val!, subst) else null;
-			params += Param(p.name, pt, p.is_mut, p.has_val, dflt);
+			params += Param(p.name, pt, p.mutable, p.has_val, dflt);
 		}
 		val rt = if (f.return_type != null) self.clone_type(f.return_type!, subst) else null;
 		val clone = self.arena.fn_decl(
@@ -501,7 +501,7 @@ impl DeclPass {
 			List<GenericParam>(),
 			params, rt,
 			if (f.body != null) self.clone_stmt(f.body!, subst) else null,
-			f.is_pub, node.line, node.col,
+			f.public, node.line, node.col,
 			f.is_op, f.is_init
 		);
 		// Remember where the template was declared: the clone's body is checked

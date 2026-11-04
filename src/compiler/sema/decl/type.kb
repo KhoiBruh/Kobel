@@ -111,7 +111,7 @@ impl DeclPass {
 			}
 			is PointerType as ptr_ast -> {
 				val pointee = self.resolve_ast_type(ptr_ast.pointee);
-				yield self.arena.pointer_type(pointee, ptr_ast.is_mut);
+				yield self.arena.pointer_type(pointee, ptr_ast.mutable);
 			}
 			is ArrayType as arr_ast -> {
 				val elem = self.resolve_ast_type(arr_ast.element_type);
@@ -122,7 +122,7 @@ impl DeclPass {
 				var res_ty = inner_ty;
 				if (inner_ty.kind == DataType.POINTER) {
 					val pt = inner_ty.as_pointer();
-					res_ty = self.arena.nullable_pointer_type(pt.pointee, pt.is_mut);
+					res_ty = self.arena.nullable_pointer_type(pt.pointee, pt.mutable);
 				} else {
 					self.report_error(node, "Nullable modifier '?' is only supported on pointer types");
 				}

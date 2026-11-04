@@ -37,7 +37,7 @@ pub enum DataType {
 
 pub struct PointerType {
 	pub pointee: *Type,
-	pub is_mut: bool,
+	pub mutable: bool,
 	pub is_nullable: bool
 }
 
@@ -149,13 +149,13 @@ impl Arena {
 
 	pub fn primitive_type(var self, base: Type) => self.create_val(base);
 
-	pub fn pointer_type(var self, pointee: *Type, is_mut: bool): *Type {
-		val inner = self.create_val(PointerType(pointee, is_mut, false));
+	pub fn pointer_type(var self, pointee: *Type, mutable: bool): *Type {
+		val inner = self.create_val(PointerType(pointee, mutable, false));
 		return self.type_payload(DataType.POINTER, 8, 8, TypePayload.Pointer(inner));
 	}
 
-	pub fn nullable_pointer_type(var self, pointee: *Type, is_mut: bool): *Type {
-		val inner = self.create_val(PointerType(pointee, is_mut, true));
+	pub fn nullable_pointer_type(var self, pointee: *Type, mutable: bool): *Type {
+		val inner = self.create_val(PointerType(pointee, mutable, true));
 		return self.type_payload(DataType.POINTER, 8, 8, TypePayload.Pointer(inner));
 	}
 
@@ -345,7 +345,7 @@ impl Type {
 			DataType.POINTER -> {
 				val p_a = self.as_pointer();
 				val p_b = b.as_pointer();
-				yield p_a.is_mut == p_b.is_mut &&
+				yield p_a.mutable == p_b.mutable &&
 					p_a.is_nullable == p_b.is_nullable &&
 					p_a.pointee.equals(p_b.pointee);
 			}
@@ -429,7 +429,7 @@ impl Type {
 			if (s_ptr.is_nullable && !t_ptr.is_nullable) return false;
 
 			if (
-				(!t_ptr.is_mut || s_ptr.is_mut) &&
+				(!t_ptr.mutable || s_ptr.mutable) &&
 				t_ptr.pointee.equals(s_ptr.pointee)
 			) return true;
 
@@ -472,7 +472,7 @@ impl Stringer for Type {
 		DataType.POINTER -> {
 			val ptr = self.as_pointer();
 			val q = if (ptr.is_nullable) "?" else "";
-			if (ptr.is_mut) yield "&${ptr.pointee.to_str()}${q}";
+			if (ptr.mutable) yield "&${ptr.pointee.to_str()}${q}";
 			yield "*${ptr.pointee.to_str()}${q}";
 		}
 		DataType.ARRAY -> {

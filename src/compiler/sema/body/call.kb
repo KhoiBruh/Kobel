@@ -290,7 +290,7 @@ impl BodyPass {
 		val fn_info = mi.fn_type.as_fn();
 		if (fn_info.param_types.len > 0) {
 			val recv_ty = fn_info.param_types[0];
-			if (recv_ty?.kind == DataType.POINTER && recv_ty.as_pointer().is_mut) {
+			if (recv_ty?.kind == DataType.POINTER && recv_ty.as_pointer().mutable) {
 				if (self.is_immutable_self(mem.object)) {
 					self.report_error(node, "Cannot call mutating method '${mem.member}' on immutable receiver 'val self'");
 				}
@@ -315,7 +315,7 @@ impl BodyPass {
 		if (mem.is_safe) {
 			if (ret_ty.kind == DataType.POINTER) {
 				val pt = ret_ty.as_pointer();
-				ret_ty = self.arena.nullable_pointer_type(pt.pointee, pt.is_mut);
+				ret_ty = self.arena.nullable_pointer_type(pt.pointee, pt.mutable);
 			} else if (ret_ty.kind != DataType.STR) {
 				self.ensure(
 					self.in_safe_nav_context,
@@ -519,7 +519,7 @@ impl BodyPass {
 			if (mem.is_safe) {
 				if (ret_ty.kind == DataType.POINTER) {
 					val pt = ret_ty.as_pointer();
-					ret_ty = self.arena.nullable_pointer_type(pt.pointee, pt.is_mut);
+					ret_ty = self.arena.nullable_pointer_type(pt.pointee, pt.mutable);
 				} else if (ret_ty.kind != DataType.STR) {
 					self.ensure(
 						self.in_safe_nav_context,
@@ -587,7 +587,7 @@ impl BodyPass {
 		val fn_info = sym.type_ptr.as_fn();
 		if (fn_info.param_types.len > 0) {
 			val recv_ty = fn_info.param_types[0];
-			if (recv_ty?.kind == DataType.POINTER && recv_ty.as_pointer().is_mut) {
+			if (recv_ty?.kind == DataType.POINTER && recv_ty.as_pointer().mutable) {
 				if (self.is_immutable_self(mem.object)) {
 					self.report_error(node, "Cannot call mutating method '${mem.member}' on immutable receiver 'val self'");
 				}

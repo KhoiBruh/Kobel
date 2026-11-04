@@ -13,7 +13,7 @@ pub struct ExprStmt {
 }
 
 pub struct VarDeclStmt {
-	pub is_mut: bool,
+	pub mutable: bool,
 	pub name: str,
 	pub type_annotation: *AstNode? = null,
 	pub initializer: *AstNode? = null

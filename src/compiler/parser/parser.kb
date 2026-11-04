@@ -26,8 +26,8 @@ impl Parser {
 	pub fn named_type(var self, name: str, type_args: List<*AstNode>, line: usz, col: usz): *AstNode
 		=> self.arena.named_type(name, type_args, line, col);
 
-	pub fn pointer_type(var self, is_mut: bool, pointee: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.pointer_type(is_mut, pointee, line, col);
+	pub fn pointer_type(var self, mutable: bool, pointee: *AstNode, line: usz, col: usz): *AstNode
+		=> self.arena.pointer_type(mutable, pointee, line, col);
 
 	pub fn array_type(var self, elem: *AstNode, size: usz, line: usz, col: usz): *AstNode
 		=> self.arena.array_type(elem, size, line, col);
@@ -98,8 +98,8 @@ impl Parser {
 	pub fn expr_stmt(var self, expr: *AstNode, line: usz, col: usz): *AstNode
 		=> self.arena.expr_stmt(expr, line, col);
 
-	pub fn var_decl(var self, is_mut: bool, name: str, type_annotation: *AstNode?, initializer: *AstNode?, line: usz, col: usz): *AstNode
-		=> self.arena.var_decl(is_mut, name, type_annotation, initializer, line, col);
+	pub fn var_decl(var self, mutable: bool, name: str, type_annotation: *AstNode?, initializer: *AstNode?, line: usz, col: usz): *AstNode
+		=> self.arena.var_decl(mutable, name, type_annotation, initializer, line, col);
 
 	pub fn if_stmt(var self, condition: *AstNode, then_branch: *AstNode, else_branch: *AstNode?, line: usz, col: usz): *AstNode
 		=> self.arena.if_stmt(condition, then_branch, else_branch, line, col);
@@ -134,30 +134,30 @@ impl Parser {
 	pub fn use_decl(var self, path: List<str>, full_path: str, symbol_name: str, alias: str, is_wildcard: bool, line: usz, col: usz): *AstNode
 		=> self.arena.use_decl(path, full_path, symbol_name, alias, is_wildcard, line, col);
 
-	pub fn fn_decl(var self, name: str, type_params: List<GenericParam>, params: List<Param>, return_type: *AstNode? = null, body: *AstNode? = null, is_pub: bool = false, line: usz = 0, col: usz = 0, is_op: bool = false, is_init: bool = false): *AstNode
-		=> self.arena.fn_decl(name, type_params, params, return_type, body, is_pub, line, col, is_op, is_init);
+	pub fn fn_decl(var self, name: str, type_params: List<GenericParam>, params: List<Param>, return_type: *AstNode? = null, body: *AstNode? = null, public: bool = false, line: usz = 0, col: usz = 0, is_op: bool = false, is_init: bool = false): *AstNode
+		=> self.arena.fn_decl(name, type_params, params, return_type, body, public, line, col, is_op, is_init);
 
-	pub fn init_decl(var self, type_params: List<GenericParam>, params: List<Param>, return_type: *AstNode? = null, body: *AstNode? = null, is_pub: bool = false, line: usz = 0, col: usz = 0): *AstNode
-		=> self.arena.init_decl(type_params, params, return_type, body, is_pub, line, col);
+	pub fn init_decl(var self, type_params: List<GenericParam>, params: List<Param>, return_type: *AstNode? = null, body: *AstNode? = null, public: bool = false, line: usz = 0, col: usz = 0): *AstNode
+		=> self.arena.init_decl(type_params, params, return_type, body, public, line, col);
 
-	pub fn struct_decl(var self, name: str, type_params: List<GenericParam>, fields: List<StructField>, is_pub: bool, line: usz, col: usz): *AstNode
-		=> self.arena.struct_decl(name, type_params, fields, is_pub, line, col);
+	pub fn struct_decl(var self, name: str, type_params: List<GenericParam>, fields: List<StructField>, public: bool, line: usz, col: usz): *AstNode
+		=> self.arena.struct_decl(name, type_params, fields, public, line, col);
 
 	// `struct Name;` — an opaque declaration whose definition may follow later.
-	pub fn struct_decl_forward(var self, name: str, type_params: List<GenericParam>, is_pub: bool, line: usz, col: usz): *AstNode
-		=> self.arena.struct_decl_forward(name, type_params, is_pub, line, col);
+	pub fn struct_decl_forward(var self, name: str, type_params: List<GenericParam>, public: bool, line: usz, col: usz): *AstNode
+		=> self.arena.struct_decl_forward(name, type_params, public, line, col);
 
-	pub fn trait_decl(var self, name: str, type_params: List<GenericParam>, bases: List<str>, methods: List<*AstNode>, is_pub: bool, line: usz, col: usz, assoc_types: List<str> = List()): *AstNode
-		=> self.arena.trait_decl(name, type_params, bases, methods, is_pub, line, col, assoc_types);
+	pub fn trait_decl(var self, name: str, type_params: List<GenericParam>, bases: List<str>, methods: List<*AstNode>, public: bool, line: usz, col: usz, assoc_types: List<str> = List()): *AstNode
+		=> self.arena.trait_decl(name, type_params, bases, methods, public, line, col, assoc_types);
 
 	pub fn impl_decl(var self, struct_name: str, type_params: List<GenericParam>, trait_name: str, methods: List<*AstNode>, line: usz, col: usz, assoc_bindings: List<AssocBinding> = List()): *AstNode
 		=> self.arena.impl_decl(struct_name, type_params, trait_name, methods, line, col, assoc_bindings);
 
-	pub fn enum_decl(var self, name: str, underlying_type: *AstNode? = null, members: List<EnumMember> = List(), is_pub: bool = false, line: usz = 0, col: usz = 0): *AstNode
-		=> self.arena.enum_decl(name, underlying_type, members, is_pub, line, col);
+	pub fn enum_decl(var self, name: str, underlying_type: *AstNode? = null, members: List<EnumMember> = List(), public: bool = false, line: usz = 0, col: usz = 0): *AstNode
+		=> self.arena.enum_decl(name, underlying_type, members, public, line, col);
 
-	pub fn const_decl(var self, name: str, type_node: *AstNode? = null, value: *AstNode? = null, is_pub: bool = false, line: usz = 0, col: usz = 0): *AstNode
-		=> self.arena.const_decl(name, type_node, value, is_pub, line, col);
+	pub fn const_decl(var self, name: str, type_node: *AstNode? = null, value: *AstNode? = null, public: bool = false, line: usz = 0, col: usz = 0): *AstNode
+		=> self.arena.const_decl(name, type_node, value, public, line, col);
 
 	pub fn extern_block(var self, abi: str, declarations: List<*AstNode>, line: usz, col: usz): *AstNode
 		=> self.arena.extern_block(abi, declarations, line, col);

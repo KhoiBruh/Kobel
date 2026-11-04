@@ -73,8 +73,8 @@ impl DeclPass {
 									val prim = resolve_primitive_name(self.symtab.prims!, im.struct_name);
 									val named = self.arena.named_type(im.struct_name, List<*AstNode>(), m.line, m.col);
 									val self_ty_node = if (prim != null) named
-										else self.arena.pointer_type(p.is_mut, named, m.line, m.col);
-									f_mut.params[i] = Param(p.name, self_ty_node, p.is_mut, p.has_val, p.default_val);
+										else self.arena.pointer_type(p.mutable, named, m.line, m.col);
+									f_mut.params[i] = Param(p.name, self_ty_node, p.mutable, p.has_val, p.default_val);
 								}
 							}
 							self.symtab.gen.fn_templates += self.gen_template(f.name, m, true, im.struct_name);

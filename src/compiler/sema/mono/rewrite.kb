@@ -131,7 +131,7 @@ impl DeclPass {
 	// struct's name. A *method* template is deliberately left alone: choosing one
 	// needs the receiver's type, which only the body pass knows.
 	fn rewrite_call_target(var self, node: *AstNode, c: &CallExpr) {
-		if (c.type_args.len == 0) return;
+		if (c.type_args.empty()) return;
 		val callee = c.callee;
 
 		if (callee is IdentifierExpr as cid) {

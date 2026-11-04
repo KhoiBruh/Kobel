@@ -20,7 +20,7 @@ pub struct StructField {
 	pub name: str,
 	pub type_ptr: *Type,
 	pub offset: usz,
-	pub is_pub: bool,
+	pub public: bool,
 	pub default_val: *AstNode? = null
 }
 

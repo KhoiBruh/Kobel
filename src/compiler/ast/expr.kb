@@ -116,7 +116,7 @@ pub struct IsExpr {
 	pub tag_field: str = "",
 	pub base_c_name: str = "",
 	pub is_ptr: bool = false,
-	pub is_mut: bool = false,
+	pub mutable: bool = false,
 	// Field path of an inline payload inside the subject, for a payload-enum
 	// variant pattern (`is Shape.Circle` reads `subject.u.Circle`) and for an
 	// AstNode pattern (`data.u.LiteralExpr`).

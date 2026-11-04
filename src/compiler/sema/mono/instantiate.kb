@@ -71,8 +71,8 @@ impl DeclPass {
 		s_type.as_struct_mut().c_name = cname;
 		// A monomorphized instance belongs to the module that declared its template.
 		s_type.as_struct_mut().module = tmpl.module;
-		self.symtab.gen.add_inst(Symbol.box(&self.arena, Symbol(
-			cname, cname, SymbolKind.STRUCT, s_type, false, decl.is_pub,
+		self.symtab.gen.add_inst(self.arena.create_val(Symbol(
+			cname, cname, SymbolKind.STRUCT, s_type, false, decl.public,
 			tmpl.node.line, tmpl.node.col, tmpl.node
 		)));
 
@@ -83,8 +83,8 @@ impl DeclPass {
 		var fields = List<StructField>();
 		for (f in decl.fields) {
 			val f_type = self.resolve_ast_type(f.type_node);
-			fields += StructField(f.name, f_type, 0, f.is_pub, f.default_val);
-			if (!f.is_pub) has_private = true;
+			fields += StructField(f.name, f_type, 0, f.public, f.default_val);
+			if (!f.public) has_private = true;
 		}
 
 		self.pop_subst(mark);
@@ -136,7 +136,7 @@ impl DeclPass {
 			self.leave_module(prev_mod2);
 		}
 
-		val view = self.struct_decl_view(cname, fields, decl.is_pub, tmpl.node.line, tmpl.node.col);
+		val view = self.struct_decl_view(cname, fields, decl.public, tmpl.node.line, tmpl.node.col);
 		self.queue_decl(tmpl.module, view);
 		val rec = self.arena.create_val(InstanceRecord(InstanceKind.STRUCT, tmpl, args, cname, view));
 		self.symtab.gen.add_record(rec);
@@ -167,7 +167,7 @@ impl DeclPass {
 			val dflt = if (p.default_val != null)
 				self.clone_expr(p.default_val!, self.alloc_subst(tmpl.param_names(), arg_asts))
 				else null;
-			params += Param(p.name, pt, p.is_mut, p.has_val, dflt);
+			params += Param(p.name, pt, p.mutable, p.has_val, dflt);
 		}
 
 		var rt: *AstNode? = null;
@@ -182,7 +182,7 @@ impl DeclPass {
 			cname, List<GenericParam>(),
 			params, rt,
 			t.body,
-			t.is_pub, tmpl.node.line, tmpl.node.col, t.is_op, t.is_init
+			t.public, tmpl.node.line, tmpl.node.col, t.is_op, t.is_init
 		);
 		val view_f = view.as_fn_decl() as &FnDecl;
 		view_f.module = self.current_module;
@@ -201,7 +201,7 @@ impl DeclPass {
 		var param_types = List<*Type>();
 		for (p in t.params) {
 			if (p.name == "self" && p.type_node == null) {
-				if (receiver != null) param_types += self.arena.pointer_type(receiver, p.is_mut);
+				if (receiver != null) param_types += self.arena.pointer_type(receiver, p.mutable);
 				else param_types += self.prims().t_none();
 				continue;
 			}
@@ -239,12 +239,12 @@ impl DeclPass {
 
 	// The C backend walks declarations, so each instance gets a declaration view
 	// whose field types are the resolved ones (never the template's `T`).
-	fn struct_decl_view(var self, name: str, fields: List<StructField>, is_pub: bool, line: usz, col: usz): *AstNode {
+	fn struct_decl_view(var self, name: str, fields: List<StructField>, public: bool, line: usz, col: usz): *AstNode {
 		var ast_fields = List<AstStructField>();
 		for (f in fields) {
-			ast_fields += AstStructField(f.name, self.arena.ast_type_from_type(f.type_ptr), f.is_pub, f.default_val);
+			ast_fields += AstStructField(f.name, self.arena.ast_type_from_type(f.type_ptr), f.public, f.default_val);
 		}
-		return self.arena.struct_decl(name, List<GenericParam>(), ast_fields, is_pub, line, col);
+		return self.arena.struct_decl(name, List<GenericParam>(), ast_fields, public, line, col);
 	}
 
 	// Binds type-parameter names to argument types for `resolve_ast_type`.
@@ -333,7 +333,7 @@ impl DeclPass {
 		val ret_type = if (f.return_type != null) self.resolve_ast_type(f.return_type!) else self.prims().t_none();
 
 		val fn_type = sig ?: self.arena.fn_type(param_types, ret_type);
-		self.symtab.gen.add_inst(Symbol.box(&self.arena, Symbol(final_name, final_name, SymbolKind.FN, fn_type, false, f.is_pub, node.line, node.col, node)));
+		self.symtab.gen.add_inst(self.arena.create_val(Symbol(final_name, final_name, SymbolKind.FN, fn_type, false, f.public, node.line, node.col, node)));
 		f.name = final_name;
 	}
 

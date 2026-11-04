@@ -86,7 +86,7 @@ impl BodyPass {
 		if (mem.is_safe) {
 			if (ret_ty.kind == DataType.POINTER) {
 				val pt = ret_ty.as_pointer();
-				ret_ty = self.arena.nullable_pointer_type(pt.pointee, pt.is_mut);
+				ret_ty = self.arena.nullable_pointer_type(pt.pointee, pt.mutable);
 			} else if (ret_ty.kind != DataType.STR) {
 				self.ensure(
 					self.in_safe_nav_context,
@@ -192,7 +192,7 @@ impl BodyPass {
 		for (f in s_info.fields) {
 			if (f.name != mem.member) continue;
 			// A non-pub field is only usable where the type is declared.
-			if (!f.is_pub && s_info.module != self.symtab.current_module) {
+			if (!f.public && s_info.module != self.symtab.current_module) {
 				self.report_error(node, "Field '${mem.member}' of '${s_info.name}' is private to module '${s_info.module}'");
 			}
 			return f.type_ptr;
@@ -305,7 +305,7 @@ impl BodyPass {
 		val obj = self.unwrap_group(obj_node);
 		if (obj is IdentifierExpr as obj_id && obj_id.name == "self") {
 			val self_sym = self.symtab.lookup("self");
-			return self_sym != null && !self_sym.is_mut;
+			return self_sym != null && !self_sym.mutable;
 		}
 		return false;
 	}
@@ -317,13 +317,13 @@ impl BodyPass {
 		when (sym.kind) {
 			SymbolKind.CONST -> self.report_error(op_node, "Cannot ${act} constant '${name}'");
 			SymbolKind.VAR -> {
-				if (!sym.is_mut) self.report_error(op_node,
+				if (!sym.mutable) self.report_error(op_node,
 					"Cannot ${act} immutable variable"
 					" '${name}' declared with 'val'"
 				);
 			}
 			SymbolKind.PARAM -> {
-				if (!sym.is_mut) self.report_error(
+				if (!sym.mutable) self.report_error(
 					op_node, "Cannot ${act} immutable parameter '${name}'"
 				);
 			}

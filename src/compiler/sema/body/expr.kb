@@ -284,7 +284,7 @@ impl BodyPass {
 			if (pt.pointee.kind == DataType.NONE && !is_jump && rt != null) return rt;
 			if (pt.is_nullable) {
 				if (is_jump || (rt != null && rt.kind == DataType.POINTER && !rt.as_pointer().is_nullable)) {
-					return self.arena.pointer_type(pt.pointee, pt.is_mut);
+					return self.arena.pointer_type(pt.pointee, pt.mutable);
 				}
 			}
 		}
@@ -419,7 +419,7 @@ impl BodyPass {
 			if (op_ty.kind == DataType.POINTER) {
 				val pt = op_ty.as_pointer();
 				if (pt.is_nullable) {
-					return self.arena.pointer_type(pt.pointee, pt.is_mut);
+					return self.arena.pointer_type(pt.pointee, pt.mutable);
 				}
 			}
 			self.report_error(node, "Force unwrap operator '!' requires a nullable pointer");
@@ -487,12 +487,12 @@ impl BodyPass {
 			val t_ptr = then_ty.as_pointer();
 			val e_ptr = else_ty.as_pointer();
 			if (e_ptr.pointee.kind == DataType.NONE && !t_ptr.is_nullable) {
-				then_ty = self.arena.nullable_pointer_type(t_ptr.pointee, t_ptr.is_mut);
+				then_ty = self.arena.nullable_pointer_type(t_ptr.pointee, t_ptr.mutable);
 			} else if (t_ptr.pointee.kind == DataType.NONE && !e_ptr.is_nullable) {
-				then_ty = self.arena.nullable_pointer_type(e_ptr.pointee, e_ptr.is_mut);
+				then_ty = self.arena.nullable_pointer_type(e_ptr.pointee, e_ptr.mutable);
 			} else if (t_ptr.is_nullable != e_ptr.is_nullable && t_ptr.pointee.equals(e_ptr.pointee)) {
-				val is_mut = t_ptr.is_mut || e_ptr.is_mut;
-				then_ty = self.arena.nullable_pointer_type(t_ptr.pointee, is_mut);
+				val mutable = t_ptr.mutable || e_ptr.mutable;
+				then_ty = self.arena.nullable_pointer_type(t_ptr.pointee, mutable);
 			}
 		}
 

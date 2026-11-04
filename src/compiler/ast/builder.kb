@@ -23,8 +23,8 @@ impl Arena {
 	pub fn named_type(var self, name: str, type_args: List<*AstNode>, line: usz, col: usz)
 		=> self.build_node(NodeData.NamedType(self.create_val(NamedType(name, type_args))), line, col);
 
-	pub fn pointer_type(var self, is_mut: bool, pointee: *AstNode, line: usz, col: usz)
-		=> self.build_node(NodeData.PointerType(self.create_val(PointerType(is_mut, pointee))), line, col);
+	pub fn pointer_type(var self, mutable: bool, pointee: *AstNode, line: usz, col: usz)
+		=> self.build_node(NodeData.PointerType(self.create_val(PointerType(mutable, pointee))), line, col);
 
 	pub fn array_type(var self, elem: *AstNode, size: usz, line: usz, col: usz)
 		=> self.build_node(NodeData.ArrayType(self.create_val(ArrayType(elem, size))), line, col);
@@ -115,8 +115,8 @@ impl Arena {
 	pub fn expr_stmt(var self, expr: *AstNode, line: usz, col: usz)
 		=> self.build_node(NodeData.ExprStmt(self.create_val(ExprStmt(expr))), line, col);
 
-	pub fn var_decl(var self, is_mut: bool, name: str, type_annotation: *AstNode?, initializer: *AstNode?, line: usz, col: usz)
-		=> self.build_node(NodeData.VarDeclStmt(self.create_val(VarDeclStmt(is_mut, name, type_annotation, initializer))), line, col);
+	pub fn var_decl(var self, mutable: bool, name: str, type_annotation: *AstNode?, initializer: *AstNode?, line: usz, col: usz)
+		=> self.build_node(NodeData.VarDeclStmt(self.create_val(VarDeclStmt(mutable, name, type_annotation, initializer))), line, col);
 
 	pub fn if_stmt(var self, condition: *AstNode, then_branch: *AstNode, else_branch: *AstNode?, line: usz, col: usz)
 		=> self.build_node(NodeData.IfStmt(self.create_val(IfStmt(condition, then_branch, else_branch))), line, col);
@@ -155,30 +155,30 @@ impl Arena {
 	pub fn use_decl(var self, path: List<str>, full_path: str, symbol_name: str, alias: str, is_wildcard: bool, line: usz, col: usz)
 		=> self.build_node(NodeData.UseDecl(self.create_val(UseDecl(path, full_path, symbol_name, alias, is_wildcard))), line, col);
 
-	pub fn fn_decl(var self, name: str, type_params: List<GenericParam>, params: List<Param>, return_type: *AstNode? = null, body: *AstNode? = null, is_pub: bool = false, line: usz = 0, col: usz = 0, is_op: bool = false, is_init: bool = false)
-		=> self.build_node(NodeData.FnDecl(self.create_val(FnDecl(name, type_params, params, return_type, body, is_pub, is_op, is_init))), line, col);
+	pub fn fn_decl(var self, name: str, type_params: List<GenericParam>, params: List<Param>, return_type: *AstNode? = null, body: *AstNode? = null, public: bool = false, line: usz = 0, col: usz = 0, is_op: bool = false, is_init: bool = false)
+		=> self.build_node(NodeData.FnDecl(self.create_val(FnDecl(name, type_params, params, return_type, body, public, is_op, is_init))), line, col);
 
-	pub fn init_decl(var self, type_params: List<GenericParam>, params: List<Param>, return_type: *AstNode? = null, body: *AstNode? = null, is_pub: bool = false, line: usz = 0, col: usz = 0)
-		=> self.fn_decl("init", type_params, params, return_type, body, is_pub, line, col, false, true);
+	pub fn init_decl(var self, type_params: List<GenericParam>, params: List<Param>, return_type: *AstNode? = null, body: *AstNode? = null, public: bool = false, line: usz = 0, col: usz = 0)
+		=> self.fn_decl("init", type_params, params, return_type, body, public, line, col, false, true);
 
-	pub fn struct_decl(var self, name: str, type_params: List<GenericParam>, fields: List<StructField>, is_pub: bool, line: usz, col: usz)
-		=> self.build_node(NodeData.StructDecl(self.create_val(StructDecl(name, type_params, fields, is_pub))), line, col);
+	pub fn struct_decl(var self, name: str, type_params: List<GenericParam>, fields: List<StructField>, public: bool, line: usz, col: usz)
+		=> self.build_node(NodeData.StructDecl(self.create_val(StructDecl(name, type_params, fields, public))), line, col);
 
 	// `struct Name;` — an opaque declaration whose definition may follow later.
-	pub fn struct_decl_forward(var self, name: str, type_params: List<GenericParam>, is_pub: bool, line: usz, col: usz)
-		=> self.build_node(NodeData.StructDecl(self.create_val(StructDecl(name, type_params, List<StructField>(), is_pub, true))), line, col);
+	pub fn struct_decl_forward(var self, name: str, type_params: List<GenericParam>, public: bool, line: usz, col: usz)
+		=> self.build_node(NodeData.StructDecl(self.create_val(StructDecl(name, type_params, List<StructField>(), public, true))), line, col);
 
-	pub fn trait_decl(var self, name: str, type_params: List<GenericParam>, bases: List<str>, methods: List<*AstNode>, is_pub: bool, line: usz, col: usz, assoc_types: List<str> = List())
-		=> self.build_node(NodeData.TraitDecl(self.create_val(TraitDecl(name, type_params, bases, methods, is_pub, assoc_types))), line, col);
+	pub fn trait_decl(var self, name: str, type_params: List<GenericParam>, bases: List<str>, methods: List<*AstNode>, public: bool, line: usz, col: usz, assoc_types: List<str> = List())
+		=> self.build_node(NodeData.TraitDecl(self.create_val(TraitDecl(name, type_params, bases, methods, public, assoc_types))), line, col);
 
 	pub fn impl_decl(var self, struct_name: str, type_params: List<GenericParam>, trait_name: str, methods: List<*AstNode>, line: usz, col: usz, assoc_bindings: List<AssocBinding> = List())
 		=> self.build_node(NodeData.ImplDecl(self.create_val(ImplDecl(struct_name, type_params, trait_name, methods, assoc_bindings))), line, col);
 
-	pub fn enum_decl(var self, name: str, underlying_type: *AstNode? = null, members: List<EnumMember> = List(), is_pub: bool = false, line: usz = 0, col: usz = 0)
-		=> self.build_node(NodeData.EnumDecl(self.create_val(EnumDecl(name, underlying_type, members, is_pub))), line, col);
+	pub fn enum_decl(var self, name: str, underlying_type: *AstNode? = null, members: List<EnumMember> = List(), public: bool = false, line: usz = 0, col: usz = 0)
+		=> self.build_node(NodeData.EnumDecl(self.create_val(EnumDecl(name, underlying_type, members, public))), line, col);
 
-	pub fn const_decl(var self, name: str, type_node: *AstNode? = null, value: *AstNode? = null, is_pub: bool = false, line: usz = 0, col: usz = 0)
-		=> self.build_node(NodeData.ConstDecl(self.create_val(ConstDecl(name, type_node, value, is_pub))), line, col);
+	pub fn const_decl(var self, name: str, type_node: *AstNode? = null, value: *AstNode? = null, public: bool = false, line: usz = 0, col: usz = 0)
+		=> self.build_node(NodeData.ConstDecl(self.create_val(ConstDecl(name, type_node, value, public))), line, col);
 
 	pub fn extern_block(var self, abi: str, declarations: List<*AstNode>, line: usz, col: usz)
 		=> self.build_node(NodeData.ExternBlock(self.create_val(ExternBlock(abi, declarations))), line, col);

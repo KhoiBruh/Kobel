@@ -269,13 +269,13 @@ impl Parser {
 			TokenType.KW_IS -> {
 				val target_type = self.parse_type();
 				var alias = "";
-				var is_mut = false;
+				var mutable = false;
 				if (self.match_token(TokenType.KW_AS)) {
 					if (self.match_token(TokenType.KW_VAR)) {
-						is_mut = true;
+						mutable = true;
 						self.match_token(TokenType.AMPERSAND);
 					} else if (self.match_token(TokenType.AMPERSAND)) {
-						is_mut = true;
+						mutable = true;
 					} else {
 						self.match_token(TokenType.KW_VAL);
 					}
@@ -286,7 +286,7 @@ impl Parser {
 				if (!alias.empty()) {
 					val is_expr = is_node.as_is_expr();
 					is_expr.alias = alias;
-					is_expr.is_mut = is_mut;
+					is_expr.mutable = mutable;
 				}
 				yield is_node;
 			}
@@ -465,13 +465,13 @@ impl Parser {
 			self.match_token(TokenType.KW_IS) -> {
 				val target_type = self.parse_type();
 				var alias = "";
-				var is_mut = false;
+				var mutable = false;
 				if (self.match_token(TokenType.KW_AS)) {
 					if (self.match_token(TokenType.KW_VAR)) {
-						is_mut = true;
+						mutable = true;
 						self.match_token(TokenType.AMPERSAND);
 					} else if (self.match_token(TokenType.AMPERSAND)) {
-						is_mut = true;
+						mutable = true;
 					} else {
 						self.match_token(TokenType.KW_VAL);
 					}
@@ -482,7 +482,7 @@ impl Parser {
 				if (!alias.empty()) {
 					val is_expr = is_node.as_is_expr();
 					is_expr.alias = alias;
-					is_expr.is_mut = is_mut;
+					is_expr.mutable = mutable;
 				}
 				yield is_node;
 			}
@@ -576,7 +576,7 @@ impl Parser {
 			TokenType.OPEN_BRACE -> self.parse_arm_block();
 			TokenType.KW_VAL, TokenType.KW_VAR -> {
 				self.advance();
-				val is_mut = tok.type == TokenType.KW_VAR;
+				val mutable = tok.type == TokenType.KW_VAR;
 				val id_tok = self.consume(TokenType.IDENTIFIER, "Expected variable name");
 				val ty_node = if (self.match_token(TokenType.COLON)) self.parse_type() else null;
 				val init_node = if (self.match_token(TokenType.EQUAL)) self.parse_expression(Precedence.NONE)
@@ -584,7 +584,7 @@ impl Parser {
 
 				self.consume(TokenType.SEMI_COLON, "Expected ';' after variable declaration");
 
-				yield self.var_decl(is_mut, id_tok.text, ty_node, init_node, line, col);
+				yield self.var_decl(mutable, id_tok.text, ty_node, init_node, line, col);
 			}
 			TokenType.KW_IF -> {
 				self.advance();

@@ -230,10 +230,10 @@ impl DeclPass {
 			}
 
 			if (f.is_op) {
-				if (f.params.len == 0 || f.params[0].name != "self") {
+				if (f.params.empty() || f.params[0].name != "self") {
 					self.report_error(m_node, "Operator '${f.name}' must have 'self' as its first parameter in struct '${st_info.name}'");
 				} else {
-					val is_mut_self = f.params[0].is_mut;
+					val mutable_self = f.params[0].mutable;
 					when (f.name) {
 						"plus", "minus", "mul", "div", "rem",
 						"bit_and", "bit_or", "bit_xor", "shl", "shr",
@@ -244,7 +244,7 @@ impl DeclPass {
 						}
 						"plus_assign", "minus_assign", "mul_assign", "div_assign", "rem_assign",
 						"bit_and_assign", "bit_or_assign", "bit_xor_assign", "shl_assign", "shr_assign" -> {
-							if (!is_mut_self) {
+							if (!mutable_self) {
 								self.report_error(m_node, "Compound assignment operator '${f.name}' requires a mutable receiver 'var self'");
 							}
 							if (f.params.len != 2) {
@@ -257,7 +257,7 @@ impl DeclPass {
 							}
 						}
 						"set" -> {
-							if (!is_mut_self) {
+							if (!mutable_self) {
 								self.report_error(m_node, "Index assignment operator 'set' requires a mutable receiver 'var self'");
 							}
 							if (f.params.len < 3) {
@@ -279,7 +279,7 @@ impl DeclPass {
 				var pt: *Type = self.prims().t_none();
 				if (p.name == "self" && p.type_node == null) {
 					// Receiver: `*Struct` for `val self`, `*mut Struct` for `var self`.
-					pt = self.arena.pointer_type(st_type, p.is_mut);
+					pt = self.arena.pointer_type(st_type, p.mutable);
 				} else if (p.type_node != null) {
 					pt = self.resolve_ast_type(p.type_node!);
 				} else {
@@ -477,7 +477,7 @@ impl DeclPass {
 					// Receiver by value: spell its type so the backend emits `i32 self`.
 					pt = prim;
 					val rt = self.arena.named_type(prim_name, List<*AstNode>(), node.line, node.col);
-					f.params[i] = Param(p.name, rt, p.is_mut, p.has_val, p.default_val);
+					f.params[i] = Param(p.name, rt, p.mutable, p.has_val, p.default_val);
 				} else if (p.type_node != null) {
 					pt = self.resolve_ast_type(p.type_node!);
 				} else {

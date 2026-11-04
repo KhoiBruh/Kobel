@@ -44,7 +44,7 @@ pub fn c_type_from_ast(node: *AstNode): str {
 
 		is PointerType -> {
 			val sub = c_type_from_ast(node.pointee);
-			if (node.is_mut) return sub + "*";
+			if (node.mutable) return sub + "*";
 
 			val pointee = node.pointee;
 			if (pointee is NamedType) {
@@ -96,7 +96,7 @@ pub fn c_type_from_type(ty: *Type): str {
 		DataType.POINTER -> {
 			val ptr = ty.as_pointer();
 			val sub = c_type_from_type(ptr.pointee);
-			if (!ptr.is_mut && ptr.pointee.kind == DataType.CHAR) yield "const ${sub}*";
+			if (!ptr.mutable && ptr.pointee.kind == DataType.CHAR) yield "const ${sub}*";
 			yield "${sub}*";
 		}
 

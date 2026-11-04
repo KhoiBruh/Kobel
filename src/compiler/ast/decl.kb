@@ -21,7 +21,7 @@ pub struct UseDecl {
 pub struct Param {
 	pub name: str,
 	pub type_node: *AstNode? = null,
-	pub is_mut: bool,
+	pub mutable: bool,
 	pub has_val: bool,
 	pub default_val: *AstNode? = null
 }
@@ -37,7 +37,7 @@ pub struct FnDecl {
 	pub params: List<Param>,
 	pub return_type: *AstNode? = null,
 	pub body: *AstNode? = null,
-	pub is_pub: bool,
+	pub public: bool,
 	pub is_op: bool = false,
 	pub is_init: bool = false,
 	// Set on instantiated clones (monomorphization): the module the template was
@@ -48,7 +48,7 @@ pub struct FnDecl {
 pub struct StructField {
 	pub name: str,
 	pub type_node: *AstNode,
-	pub is_pub: bool,
+	pub public: bool,
 	pub default_val: *AstNode? = null
 }
 
@@ -56,7 +56,7 @@ pub struct StructDecl {
 	pub name: str,
 	pub type_params: List<GenericParam>,
 	pub fields: List<StructField>,
-	pub is_pub: bool,
+	pub public: bool,
 	// `struct A;` — declares the name without a body. The definition (`struct A
 	// { ... }`) is merged into the same type during declaration collection.
 	pub is_forward: bool = false,
@@ -70,7 +70,7 @@ pub struct TraitDecl {
 	pub type_params: List<GenericParam>,
 	pub bases: List<str>,
 	pub methods: List<*AstNode>,
-	pub is_pub: bool,
+	pub public: bool,
 	// `type Item;` declarations: names only, the impl supplies the type.
 	pub assoc_types: List<str> = List()
 }
@@ -109,14 +109,14 @@ pub struct EnumDecl {
 	pub name: str,
 	pub underlying_type: *AstNode? = null,
 	pub members: List<EnumMember>,
-	pub is_pub: bool
+	pub public: bool
 }
 
 pub struct ConstDecl {
 	pub name: str,
 	pub type_node: *AstNode? = null,
 	pub value: *AstNode? = null,
-	pub is_pub: bool
+	pub public: bool
 }
 
 pub struct ExternBlock {

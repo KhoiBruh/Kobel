@@ -188,7 +188,7 @@ impl CCodeGen {
 					is FnDecl -> self.gen_fn_decl(decl, true, "");
 					is ImplDecl as im -> {
 						for (mnode in im.methods) {
-							if (mnode is FnDecl as f && f.type_params.len == 0) {
+							if (mnode is FnDecl as f && f.type_params.empty()) {
 								self.gen_fn_decl(f, true, im.struct_name);
 							}
 						}
@@ -204,7 +204,7 @@ impl CCodeGen {
 					is FnDecl -> self.gen_fn_decl(decl, false, "");
 					is ImplDecl as im -> {
 						for (mnode in im.methods) {
-							if (mnode is FnDecl as f && f.type_params.len == 0) {
+							if (mnode is FnDecl as f && f.type_params.empty()) {
 								self.gen_fn_decl(f, false, im.struct_name);
 							}
 						}
