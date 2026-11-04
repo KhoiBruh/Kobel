@@ -2,44 +2,6 @@ mod compiler.ast;
 
 use std.collections.List;
 
-pub struct BlockStmt {
-	pub statements: List<*AstNode>
-}
-
-pub struct VarDeclStmt {
-	pub mutable: bool,
-	pub name: str,
-	pub type_annotation: *AstNode? = null,
-	pub initializer: *AstNode? = null
-}
-
-pub struct IfStmt {
-	pub condition: *AstNode,
-	pub then_branch: *AstNode,
-	pub else_branch: *AstNode? = null
-}
-
-pub struct WhileStmt {
-	pub condition: *AstNode,
-	pub body: *AstNode
-}
-
-// `for (name in <iterable>)` or `for (name in <start>..<end>)`.
-// The range forms keep the bounds here instead of an `iterable` expression, so
-// the parser does not need a first-class range expression node. Exactly one of
-// `is_open` (`a>..<b`, exclusive on both ends) and `is_half_open` (`a..<b`,
-// exclusive on the end only) is set; both false means the closed `a..b` form.
-pub struct ForStmt {
-	pub var_name: str,
-	pub is_range: bool,
-	pub is_open: bool,
-	pub is_half_open: bool,
-	pub iterable: *AstNode? = null,
-	pub range_start: *AstNode? = null,
-	pub range_end: *AstNode? = null,
-	pub body: *AstNode
-}
-
 pub struct WhenStmtArm {
 	pub patterns: List<*AstNode>,
 	pub is_else: bool,
@@ -47,9 +9,3 @@ pub struct WhenStmtArm {
 	pub line: usz,
 	pub col: usz
 }
-
-pub struct WhenStmt {
-	pub condition: *AstNode? = null,
-	pub arms: List<WhenStmtArm>
-}
-
