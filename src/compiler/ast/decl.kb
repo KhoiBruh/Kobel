@@ -3,19 +3,6 @@ mod compiler.ast;
 use std.collections.List;
 use std.traits.Iterable;
 
-pub struct ModuleDecl {
-	pub path: List<str>,
-	pub full_path: str
-}
-
-pub struct UseDecl {
-	pub path: List<str>,
-	pub full_path: str,
-	pub symbol_name: str,
-	pub alias: str,
-	pub wildcard: bool
-}
-
 pub struct Param {
 	pub name: str,
 	pub type_node: *AstNode? = null,
@@ -107,13 +94,6 @@ pub struct EnumDecl {
 	pub name: str,
 	pub underlying_type: *AstNode? = null,
 	pub members: List<EnumMember>,
-	pub public: bool
-}
-
-pub struct ConstDecl {
-	pub name: str,
-	pub type_node: *AstNode? = null,
-	pub value: *AstNode? = null,
 	pub public: bool
 }
 

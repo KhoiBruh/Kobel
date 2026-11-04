@@ -144,10 +144,10 @@ impl Arena {
 	// ------------------------------------------------------------------------
 
 	pub fn module_decl(var self, path: List<str>, full_path: str, line: usz, col: usz)
-		=> self.build_node(NodeData.ModuleDecl(self.create_val(ModuleDecl(path, full_path))), line, col);
+		=> self.build_node(NodeData.ModuleDecl(path, full_path), line, col);
 
 	pub fn use_decl(var self, path: List<str>, full_path: str, symbol_name: str, alias: str, wildcard: bool, line: usz, col: usz)
-		=> self.build_node(NodeData.UseDecl(self.create_val(UseDecl(path, full_path, symbol_name, alias, wildcard))), line, col);
+		=> self.build_node(NodeData.UseDecl(path, full_path, symbol_name, alias, wildcard), line, col);
 
 	pub fn fn_decl(var self, name: str, type_params: List<GenericParam>, params: List<Param>, return_type: *AstNode? = null, body: *AstNode? = null, public: bool = false, line: usz = 0, col: usz = 0, operator: bool = false, initializer: bool = false)
 		=> self.build_node(NodeData.FnDecl(self.create_val(FnDecl(name, type_params, params, return_type, body, public, operator, initializer))), line, col);
@@ -172,7 +172,7 @@ impl Arena {
 		=> self.build_node(NodeData.EnumDecl(self.create_val(EnumDecl(name, underlying_type, members, public))), line, col);
 
 	pub fn const_decl(var self, name: str, type_node: *AstNode? = null, value: *AstNode? = null, public: bool = false, line: usz = 0, col: usz = 0)
-		=> self.build_node(NodeData.ConstDecl(self.create_val(ConstDecl(name, type_node, value, public))), line, col);
+		=> self.build_node(NodeData.ConstDecl(name, type_node, value, public), line, col);
 
 	pub fn extern_block(var self, abi: str, declarations: List<*AstNode>, line: usz, col: usz)
 		=> self.build_node(NodeData.ExternBlock(self.create_val(ExternBlock(abi, declarations))), line, col);
