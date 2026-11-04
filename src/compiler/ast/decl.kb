@@ -37,41 +37,10 @@ pub struct StructField {
 	pub default_val: *AstNode? = null
 }
 
-pub struct StructDecl {
-	pub name: str,
-	pub type_params: List<GenericParam>,
-	pub fields: List<StructField>,
-	pub public: bool,
-	// `struct A;` — declares the name without a body. The definition (`struct A
-	// { ... }`) is merged into the same type during declaration collection.
-	pub forward: bool = false,
-	// False when a forward declaration already emitted this type's C typedef, so
-	// the backend emits it exactly once.
-	pub emit_typedef: bool = true
-}
-
-pub struct TraitDecl {
-	pub name: str,
-	pub type_params: List<GenericParam>,
-	pub bases: List<str>,
-	pub methods: List<*AstNode>,
-	pub public: bool,
-	// `type Item;` declarations: names only, the impl supplies the type.
-	pub assoc_types: List<str> = List()
-}
-
 // One `type Name = Type;` binding in an impl of a trait with associated types.
 pub struct AssocBinding {
 	pub name: str,
 	pub type_node: *AstNode
-}
-
-pub struct ImplDecl {
-	pub struct_name: str,
-	pub type_params: List<GenericParam>,
-	pub trait_name: str,
-	pub methods: List<*AstNode>,
-	pub assoc_bindings: List<AssocBinding> = List()
 }
 
 // One named field of an enum variant's payload: `Circle(radius: f64)`.
@@ -88,13 +57,6 @@ pub struct EnumMember {
 	// Empty for a plain (integer) enum member; non-empty when the member carries
 	// data, which makes the whole declaration a payload enum.
 	pub payload: List<EnumField> = List()
-}
-
-pub struct EnumDecl {
-	pub name: str,
-	pub underlying_type: *AstNode? = null,
-	pub members: List<EnumMember>,
-	pub public: bool
 }
 
 impl Program {

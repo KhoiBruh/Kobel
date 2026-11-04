@@ -156,20 +156,20 @@ impl Arena {
 		=> self.fn_decl("init", type_params, params, return_type, body, public, line, col, false, true);
 
 	pub fn struct_decl(var self, name: str, type_params: List<GenericParam>, fields: List<StructField>, public: bool, line: usz, col: usz)
-		=> self.build_node(NodeData.StructDecl(self.create_val(StructDecl(name, type_params, fields, public))), line, col);
+		=> self.build_node(NodeData.StructDecl(name, type_params, fields, public, false, true), line, col);
 
 	// `struct Name;` — an opaque declaration whose definition may follow later.
 	pub fn struct_decl_forward(var self, name: str, type_params: List<GenericParam>, public: bool, line: usz, col: usz)
-		=> self.build_node(NodeData.StructDecl(self.create_val(StructDecl(name, type_params, List<StructField>(), public, true))), line, col);
+		=> self.build_node(NodeData.StructDecl(name, type_params, List<StructField>(), public, true, true), line, col);
 
 	pub fn trait_decl(var self, name: str, type_params: List<GenericParam>, bases: List<str>, methods: List<*AstNode>, public: bool, line: usz, col: usz, assoc_types: List<str> = List())
-		=> self.build_node(NodeData.TraitDecl(self.create_val(TraitDecl(name, type_params, bases, methods, public, assoc_types))), line, col);
+		=> self.build_node(NodeData.TraitDecl(name, type_params, bases, methods, public, assoc_types), line, col);
 
 	pub fn impl_decl(var self, struct_name: str, type_params: List<GenericParam>, trait_name: str, methods: List<*AstNode>, line: usz, col: usz, assoc_bindings: List<AssocBinding> = List())
-		=> self.build_node(NodeData.ImplDecl(self.create_val(ImplDecl(struct_name, type_params, trait_name, methods, assoc_bindings))), line, col);
+		=> self.build_node(NodeData.ImplDecl(struct_name, type_params, trait_name, methods, assoc_bindings), line, col);
 
 	pub fn enum_decl(var self, name: str, underlying_type: *AstNode? = null, members: List<EnumMember> = List(), public: bool = false, line: usz = 0, col: usz = 0)
-		=> self.build_node(NodeData.EnumDecl(self.create_val(EnumDecl(name, underlying_type, members, public))), line, col);
+		=> self.build_node(NodeData.EnumDecl(name, underlying_type, members, public), line, col);
 
 	pub fn const_decl(var self, name: str, type_node: *AstNode? = null, value: *AstNode? = null, public: bool = false, line: usz = 0, col: usz = 0)
 		=> self.build_node(NodeData.ConstDecl(name, type_node, value, public), line, col);

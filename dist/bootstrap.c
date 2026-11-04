@@ -186,13 +186,9 @@ typedef struct compiler__ast__Param compiler__ast__Param;
 typedef struct compiler__ast__GenericParam compiler__ast__GenericParam;
 typedef struct compiler__ast__FnDecl compiler__ast__FnDecl;
 typedef struct compiler__ast__StructField compiler__ast__StructField;
-typedef struct compiler__ast__StructDecl compiler__ast__StructDecl;
-typedef struct compiler__ast__TraitDecl compiler__ast__TraitDecl;
 typedef struct compiler__ast__AssocBinding compiler__ast__AssocBinding;
-typedef struct compiler__ast__ImplDecl compiler__ast__ImplDecl;
 typedef struct compiler__ast__EnumField compiler__ast__EnumField;
 typedef struct compiler__ast__EnumMember compiler__ast__EnumMember;
-typedef struct compiler__ast__EnumDecl compiler__ast__EnumDecl;
 typedef int32_t compiler__ast__LiteralKind;
 typedef struct compiler__ast__WhenArm compiler__ast__WhenArm;
 typedef struct compiler__ast__InterpPart compiler__ast__InterpPart;
@@ -367,14 +363,14 @@ typedef struct std__collections__List_compiler__ast__WhenArm std__collections__L
 typedef struct std__collections__List_compiler__ast__InterpPart std__collections__List_compiler__ast__InterpPart;
 typedef struct std__collections__List_compiler__ast__WhenStmtArm std__collections__List_compiler__ast__WhenStmtArm;
 typedef struct std__collections__List_str std__collections__List_str;
-typedef struct std__collections__List_ptr_compiler__sema__Type std__collections__List_ptr_compiler__sema__Type;
-typedef struct std__collections__HashMap_str_str std__collections__HashMap_str_str;
 typedef struct std__collections__List_compiler__ast__GenericParam std__collections__List_compiler__ast__GenericParam;
-typedef struct std__collections__List_compiler__ast__Param std__collections__List_compiler__ast__Param;
 typedef struct std__collections__List_compiler__ast__StructField std__collections__List_compiler__ast__StructField;
 typedef struct std__collections__List_compiler__ast__AssocBinding std__collections__List_compiler__ast__AssocBinding;
-typedef struct std__collections__List_compiler__ast__EnumField std__collections__List_compiler__ast__EnumField;
 typedef struct std__collections__List_compiler__ast__EnumMember std__collections__List_compiler__ast__EnumMember;
+typedef struct std__collections__List_ptr_compiler__sema__Type std__collections__List_ptr_compiler__sema__Type;
+typedef struct std__collections__HashMap_str_str std__collections__HashMap_str_str;
+typedef struct std__collections__List_compiler__ast__Param std__collections__List_compiler__ast__Param;
+typedef struct std__collections__List_compiler__ast__EnumField std__collections__List_compiler__ast__EnumField;
 typedef struct std__collections__List_compiler__lexer__Token std__collections__List_compiler__lexer__Token;
 typedef struct std__collections__List_compiler__loader__LoadedModule std__collections__List_compiler__loader__LoadedModule;
 typedef struct std__collections__List_ptr_compiler__sema__EnumMemberInfo std__collections__List_ptr_compiler__sema__EnumMemberInfo;
@@ -689,29 +685,8 @@ struct std__collections__List_str {
     size_t cap;
 };
 
-struct std__collections__List_ptr_compiler__sema__Type {
-    compiler__sema__Type** data;
-    size_t len;
-    size_t cap;
-};
-
-struct std__collections__HashMap_str_str {
-    kobel_str* keys;
-    kobel_str* values;
-    size_t* hashes;
-    bool* occupied;
-    size_t len;
-    size_t cap;
-};
-
 struct std__collections__List_compiler__ast__GenericParam {
     compiler__ast__GenericParam* data;
-    size_t len;
-    size_t cap;
-};
-
-struct std__collections__List_compiler__ast__Param {
-    compiler__ast__Param* data;
     size_t len;
     size_t cap;
 };
@@ -728,14 +703,35 @@ struct std__collections__List_compiler__ast__AssocBinding {
     size_t cap;
 };
 
-struct std__collections__List_compiler__ast__EnumField {
-    compiler__ast__EnumField* data;
+struct std__collections__List_compiler__ast__EnumMember {
+    compiler__ast__EnumMember* data;
     size_t len;
     size_t cap;
 };
 
-struct std__collections__List_compiler__ast__EnumMember {
-    compiler__ast__EnumMember* data;
+struct std__collections__List_ptr_compiler__sema__Type {
+    compiler__sema__Type** data;
+    size_t len;
+    size_t cap;
+};
+
+struct std__collections__HashMap_str_str {
+    kobel_str* keys;
+    kobel_str* values;
+    size_t* hashes;
+    bool* occupied;
+    size_t len;
+    size_t cap;
+};
+
+struct std__collections__List_compiler__ast__Param {
+    compiler__ast__Param* data;
+    size_t len;
+    size_t cap;
+};
+
+struct std__collections__List_compiler__ast__EnumField {
+    compiler__ast__EnumField* data;
     size_t len;
     size_t cap;
 };
@@ -980,45 +976,12 @@ struct compiler__ast__FnDecl {
     kobel_str module;
 };
 
-struct compiler__ast__StructDecl {
-    kobel_str name;
-    std__collections__List_compiler__ast__GenericParam type_params;
-    std__collections__List_compiler__ast__StructField fields;
-    bool public;
-    bool forward;
-    bool emit_typedef;
-};
-
-struct compiler__ast__TraitDecl {
-    kobel_str name;
-    std__collections__List_compiler__ast__GenericParam type_params;
-    std__collections__List_str bases;
-    std__collections__List_ptr_compiler__ast__AstNode methods;
-    bool public;
-    std__collections__List_str assoc_types;
-};
-
-struct compiler__ast__ImplDecl {
-    kobel_str struct_name;
-    std__collections__List_compiler__ast__GenericParam type_params;
-    kobel_str trait_name;
-    std__collections__List_ptr_compiler__ast__AstNode methods;
-    std__collections__List_compiler__ast__AssocBinding assoc_bindings;
-};
-
 struct compiler__ast__EnumMember {
     kobel_str name;
     compiler__ast__AstNode* value;
     size_t line;
     size_t col;
     std__collections__List_compiler__ast__EnumField payload;
-};
-
-struct compiler__ast__EnumDecl {
-    kobel_str name;
-    compiler__ast__AstNode* underlying_type;
-    std__collections__List_compiler__ast__EnumMember members;
-    bool public;
 };
 
 struct compiler__ast__WhenArm {
@@ -1203,16 +1166,33 @@ struct compiler__ast__NodeData__FnDecl {
     compiler__ast__FnDecl* inner;
 };
 struct compiler__ast__NodeData__StructDecl {
-    compiler__ast__StructDecl* inner;
+    kobel_str name;
+    std__collections__List_compiler__ast__GenericParam type_params;
+    std__collections__List_compiler__ast__StructField fields;
+    bool public;
+    bool forward;
+    bool emit_typedef;
 };
 struct compiler__ast__NodeData__TraitDecl {
-    compiler__ast__TraitDecl* inner;
+    kobel_str name;
+    std__collections__List_compiler__ast__GenericParam type_params;
+    std__collections__List_str bases;
+    std__collections__List_ptr_compiler__ast__AstNode methods;
+    bool public;
+    std__collections__List_str assoc_types;
 };
 struct compiler__ast__NodeData__ImplDecl {
-    compiler__ast__ImplDecl* inner;
+    kobel_str struct_name;
+    std__collections__List_compiler__ast__GenericParam type_params;
+    kobel_str trait_name;
+    std__collections__List_ptr_compiler__ast__AstNode methods;
+    std__collections__List_compiler__ast__AssocBinding assoc_bindings;
 };
 struct compiler__ast__NodeData__EnumDecl {
-    compiler__ast__EnumDecl* inner;
+    kobel_str name;
+    compiler__ast__AstNode* underlying_type;
+    std__collections__List_compiler__ast__EnumMember members;
+    bool public;
 };
 struct compiler__ast__NodeData__ConstDecl {
     kobel_str name;
@@ -1607,32 +1587,12 @@ static inline std__collections__List_ptr_compiler__ast__AstNode std__collections
 	l.len = n;
 	l.cap = cap;
 	return l;
-}static inline std__collections__List_ptr_compiler__sema__Type std__collections__List_ptr_compiler__sema__Type_from_array(const void* src, size_t n) {
-	size_t elem_size = sizeof(*(((std__collections__List_ptr_compiler__sema__Type*)0)->data));
-	size_t cap = (n < 4) ? 4 : n;
-	void* data = malloc(cap * elem_size);
-	if (n > 0 && src != NULL) memcpy(data, src, n * elem_size);
-	std__collections__List_ptr_compiler__sema__Type l;
-	l.data = data;
-	l.len = n;
-	l.cap = cap;
-	return l;
 }static inline std__collections__List_compiler__ast__GenericParam std__collections__List_compiler__ast__GenericParam_from_array(const void* src, size_t n) {
 	size_t elem_size = sizeof(*(((std__collections__List_compiler__ast__GenericParam*)0)->data));
 	size_t cap = (n < 4) ? 4 : n;
 	void* data = malloc(cap * elem_size);
 	if (n > 0 && src != NULL) memcpy(data, src, n * elem_size);
 	std__collections__List_compiler__ast__GenericParam l;
-	l.data = data;
-	l.len = n;
-	l.cap = cap;
-	return l;
-}static inline std__collections__List_compiler__ast__Param std__collections__List_compiler__ast__Param_from_array(const void* src, size_t n) {
-	size_t elem_size = sizeof(*(((std__collections__List_compiler__ast__Param*)0)->data));
-	size_t cap = (n < 4) ? 4 : n;
-	void* data = malloc(cap * elem_size);
-	if (n > 0 && src != NULL) memcpy(data, src, n * elem_size);
-	std__collections__List_compiler__ast__Param l;
 	l.data = data;
 	l.len = n;
 	l.cap = cap;
@@ -1657,22 +1617,42 @@ static inline std__collections__List_ptr_compiler__ast__AstNode std__collections
 	l.len = n;
 	l.cap = cap;
 	return l;
-}static inline std__collections__List_compiler__ast__EnumField std__collections__List_compiler__ast__EnumField_from_array(const void* src, size_t n) {
-	size_t elem_size = sizeof(*(((std__collections__List_compiler__ast__EnumField*)0)->data));
-	size_t cap = (n < 4) ? 4 : n;
-	void* data = malloc(cap * elem_size);
-	if (n > 0 && src != NULL) memcpy(data, src, n * elem_size);
-	std__collections__List_compiler__ast__EnumField l;
-	l.data = data;
-	l.len = n;
-	l.cap = cap;
-	return l;
 }static inline std__collections__List_compiler__ast__EnumMember std__collections__List_compiler__ast__EnumMember_from_array(const void* src, size_t n) {
 	size_t elem_size = sizeof(*(((std__collections__List_compiler__ast__EnumMember*)0)->data));
 	size_t cap = (n < 4) ? 4 : n;
 	void* data = malloc(cap * elem_size);
 	if (n > 0 && src != NULL) memcpy(data, src, n * elem_size);
 	std__collections__List_compiler__ast__EnumMember l;
+	l.data = data;
+	l.len = n;
+	l.cap = cap;
+	return l;
+}static inline std__collections__List_ptr_compiler__sema__Type std__collections__List_ptr_compiler__sema__Type_from_array(const void* src, size_t n) {
+	size_t elem_size = sizeof(*(((std__collections__List_ptr_compiler__sema__Type*)0)->data));
+	size_t cap = (n < 4) ? 4 : n;
+	void* data = malloc(cap * elem_size);
+	if (n > 0 && src != NULL) memcpy(data, src, n * elem_size);
+	std__collections__List_ptr_compiler__sema__Type l;
+	l.data = data;
+	l.len = n;
+	l.cap = cap;
+	return l;
+}static inline std__collections__List_compiler__ast__Param std__collections__List_compiler__ast__Param_from_array(const void* src, size_t n) {
+	size_t elem_size = sizeof(*(((std__collections__List_compiler__ast__Param*)0)->data));
+	size_t cap = (n < 4) ? 4 : n;
+	void* data = malloc(cap * elem_size);
+	if (n > 0 && src != NULL) memcpy(data, src, n * elem_size);
+	std__collections__List_compiler__ast__Param l;
+	l.data = data;
+	l.len = n;
+	l.cap = cap;
+	return l;
+}static inline std__collections__List_compiler__ast__EnumField std__collections__List_compiler__ast__EnumField_from_array(const void* src, size_t n) {
+	size_t elem_size = sizeof(*(((std__collections__List_compiler__ast__EnumField*)0)->data));
+	size_t cap = (n < 4) ? 4 : n;
+	void* data = malloc(cap * elem_size);
+	if (n > 0 && src != NULL) memcpy(data, src, n * elem_size);
+	std__collections__List_compiler__ast__EnumField l;
 	l.data = data;
 	l.len = n;
 	l.cap = cap;
@@ -2205,10 +2185,10 @@ compiler__ast__NodeData__DeferStmt* compiler__ast__AstNode_as_defer_stmt(compile
 compiler__ast__NodeData__ModuleDecl* compiler__ast__AstNode_as_module_decl(compiler__ast__AstNode* self);
 compiler__ast__NodeData__UseDecl* compiler__ast__AstNode_as_use_decl(compiler__ast__AstNode* self);
 compiler__ast__FnDecl* compiler__ast__AstNode_as_fn_decl(compiler__ast__AstNode* self);
-compiler__ast__StructDecl* compiler__ast__AstNode_as_struct_decl(compiler__ast__AstNode* self);
-compiler__ast__TraitDecl* compiler__ast__AstNode_as_trait_decl(compiler__ast__AstNode* self);
-compiler__ast__ImplDecl* compiler__ast__AstNode_as_impl_decl(compiler__ast__AstNode* self);
-compiler__ast__EnumDecl* compiler__ast__AstNode_as_enum_decl(compiler__ast__AstNode* self);
+compiler__ast__NodeData__StructDecl* compiler__ast__AstNode_as_struct_decl(compiler__ast__AstNode* self);
+compiler__ast__NodeData__TraitDecl* compiler__ast__AstNode_as_trait_decl(compiler__ast__AstNode* self);
+compiler__ast__NodeData__ImplDecl* compiler__ast__AstNode_as_impl_decl(compiler__ast__AstNode* self);
+compiler__ast__NodeData__EnumDecl* compiler__ast__AstNode_as_enum_decl(compiler__ast__AstNode* self);
 compiler__ast__NodeData__ConstDecl* compiler__ast__AstNode_as_const_decl(compiler__ast__AstNode* self);
 compiler__ast__NodeData__ExternBlock* compiler__ast__AstNode_as_extern_block(compiler__ast__AstNode* self);
 compiler__ast__NodeData__Program* compiler__ast__AstNode_as_program(compiler__ast__AstNode* self);
@@ -2395,17 +2375,17 @@ bool compiler__sema__decl__DeclPass_rewrite_decl_generics(compiler__sema__decl__
 compiler__sema__TraitMethod* compiler__sema__decl__trait_method_in(std__collections__List_ptr_compiler__sema__TraitMethod list, kobel_str name, size_t arity);
 void compiler__sema__decl__DeclPass_collect_module(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node);
 void compiler__sema__decl__DeclPass_collect_use(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node);
-void compiler__sema__decl__DeclPass_declare_struct_shell(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node, compiler__ast__StructDecl* s);
+void compiler__sema__decl__DeclPass_declare_struct_shell(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__StructDecl* s);
 void compiler__sema__decl__DeclPass_collect_struct(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node);
 void compiler__sema__decl__DeclPass_collect_fn(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node);
 void compiler__sema__decl__DeclPass_collect_enum(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node);
-void compiler__sema__decl__DeclPass_collect_payload_enum(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node, compiler__ast__EnumDecl* e, compiler__sema__Type* under_type);
+void compiler__sema__decl__DeclPass_collect_payload_enum(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__EnumDecl* e, compiler__sema__Type* under_type);
 void compiler__sema__decl__DeclPass_collect_const(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node);
 void compiler__sema__decl__DeclPass_collect_extern_block(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node);
 void compiler__sema__decl__DeclPass_collect_trait(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node);
 void compiler__sema__decl__DeclPass_collect_declaration(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node);
 void compiler__sema__decl__DeclPass_collect_program(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* program_node);
-std__collections__List_str compiler__sema__decl__overloaded_names(compiler__ast__ImplDecl* im);
+std__collections__List_str compiler__sema__decl__overloaded_names(compiler__ast__NodeData__ImplDecl* im);
 kobel_str compiler__sema__decl__method_c_name(kobel_str base, size_t argc, bool overloaded, std__collections__List_str taken);
 int64_t compiler__sema__decl__parse_decimal_i64(kobel_str s);
 void compiler__sema__decl__trait_put_method(std__collections__List_ptr_compiler__sema__TraitMethod* out, compiler__sema__TraitMethod* m);
@@ -2421,11 +2401,11 @@ compiler__sema__Type* compiler__sema__decl__DeclPass_infer_const_type(compiler__
 compiler__sema__Type* compiler__sema__decl__DeclPass_infer_expr_type_quick(compiler__sema__decl__DeclPass* self, compiler__ast__FnDecl* f, compiler__ast__AstNode* expr);
 void compiler__sema__decl__DeclPass_collect_return_exprs(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* stmt, std__collections__List_ptr_compiler__ast__AstNode* out_returns);
 compiler__sema__Type* compiler__sema__decl__DeclPass_infer_decl_return_type(compiler__sema__decl__DeclPass* self, compiler__ast__FnDecl* f);
-void compiler__sema__decl__DeclPass_collect_prim_impl(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node, compiler__ast__ImplDecl* im, compiler__sema__Type* prim);
+void compiler__sema__decl__DeclPass_collect_prim_impl(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__ImplDecl* im, compiler__sema__Type* prim);
 void compiler__sema__decl__DeclPass_trait_record_impl(compiler__sema__decl__DeclPass* self, compiler__sema__TraitInfo* t, kobel_str struct_name);
 void compiler__sema__decl__DeclPass_trait_effective(compiler__sema__decl__DeclPass* self, compiler__sema__TraitInfo* t, std__collections__List_ptr_compiler__sema__TraitMethod* out, std__collections__HashSet* seen);
-void compiler__sema__decl__DeclPass_register_assoc_bindings(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node, compiler__ast__ImplDecl* im, compiler__sema__Type* st_type, kobel_str struct_name);
-void compiler__sema__decl__DeclPass_apply_trait(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node, compiler__ast__ImplDecl* im, kobel_str struct_name);
+void compiler__sema__decl__DeclPass_register_assoc_bindings(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__ImplDecl* im, compiler__sema__Type* st_type, kobel_str struct_name);
+void compiler__sema__decl__DeclPass_apply_trait(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__ImplDecl* im, kobel_str struct_name);
 compiler__sema__Type* compiler__sema__decl__DeclPass_resolve_ast_type(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node);
 kobel_str compiler__sema__decl__DeclPass_ast_type_name_of(compiler__sema__decl__DeclPass* self, compiler__sema__Type* ty);
 compiler__sema__Type* compiler__sema__body__BodyPass_check_member_expr(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node);
@@ -2466,7 +2446,7 @@ compiler__sema__Type* compiler__sema__body__BodyPass_check_enum_ctor_call(compil
 compiler__sema__Type* compiler__sema__body__BodyPass_check_fn_call(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__sema__Type* callee_ty, compiler__ast__NodeData__CallExpr* call);
 compiler__sema__Type* compiler__sema__body__BodyPass_check_struct_ctor(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__sema__Type* callee_ty, compiler__ast__NodeData__CallExpr* call, bool callee_is_self);
 std__collections__List_ptr_compiler__ast__AstNode compiler__sema__body__BodyPass_infer_type_args_for_fn(compiler__sema__body__BodyPass* self, compiler__ast__FnDecl* fn_decl, std__collections__List_ptr_compiler__ast__AstNode call_args, bool is_method);
-std__collections__List_ptr_compiler__ast__AstNode compiler__sema__body__BodyPass_infer_type_args_for_struct(compiler__sema__body__BodyPass* self, compiler__ast__StructDecl* decl, std__collections__List_ptr_compiler__ast__AstNode call_args);
+std__collections__List_ptr_compiler__ast__AstNode compiler__sema__body__BodyPass_infer_type_args_for_struct(compiler__sema__body__BodyPass* self, compiler__ast__NodeData__StructDecl* decl, std__collections__List_ptr_compiler__ast__AstNode call_args);
 void compiler__sema__body__BodyPass_match_type_param(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* param_ty_node, compiler__sema__Type* arg_ty, std__collections__List_compiler__ast__GenericParam type_params, compiler__sema__Type** inferred);
 void compiler__sema__body__BodyPass_coerce_to_list(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__sema__Type* list_ty);
 bool compiler__sema__body__BodyPass_is_untyped_literal(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node);
@@ -2543,7 +2523,7 @@ void compiler__sema__body__BodyPass_infer_arrow_returns(compiler__sema__body__Bo
 size_t compiler__sema__body__BodyPass_collect_instance_arrow_candidates(compiler__sema__body__BodyPass* self, std__collections__List_ptr_compiler__sema__body__ArrowCandidate* pending, std__collections__List_ptr_compiler__ast__AstNode* seen, size_t from);
 compiler__sema__body__ArrowCandidate* compiler__sema__body__BodyPass_arrow_candidate(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__sema__Type* fn_type, compiler__sema__Type* self_ty, kobel_str module);
 void compiler__sema__body__BodyPass_add_fn_arrow_candidate(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* decl, kobel_str module, std__collections__List_ptr_compiler__sema__body__ArrowCandidate* pending, std__collections__List_ptr_compiler__ast__AstNode* seen);
-void compiler__sema__body__BodyPass_add_impl_arrow_candidates(compiler__sema__body__BodyPass* self, compiler__ast__ImplDecl* im, kobel_str module, std__collections__List_ptr_compiler__sema__body__ArrowCandidate* pending, std__collections__List_ptr_compiler__ast__AstNode* seen);
+void compiler__sema__body__BodyPass_add_impl_arrow_candidates(compiler__sema__body__BodyPass* self, compiler__ast__NodeData__ImplDecl* im, kobel_str module, std__collections__List_ptr_compiler__sema__body__ArrowCandidate* pending, std__collections__List_ptr_compiler__ast__AstNode* seen);
 bool compiler__sema__body__BodyPass_try_infer_arrow(compiler__sema__body__BodyPass* self, compiler__sema__body__ArrowCandidate* c);
 void compiler__sema__body__BodyPass_check_block_stmt(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node);
 void compiler__sema__body__BodyPass_check_var_decl_stmt(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node);
@@ -2725,7 +2705,7 @@ void compiler__codegen__CCodeGen_mark_current_scope_jumped(compiler__codegen__CC
 void compiler__codegen__CCodeGen_exit_defer_scope(compiler__codegen__CCodeGen* self);
 bool compiler__codegen__CCodeGen_has_active_defers(compiler__codegen__CCodeGen* self);
 void compiler__codegen__CCodeGen_gen_defers_unwind(compiler__codegen__CCodeGen* self, size_t depth);
-bool compiler__codegen__CCodeGen_enum_has_payload(compiler__codegen__CCodeGen* self, compiler__ast__EnumDecl* e);
+bool compiler__codegen__CCodeGen_enum_has_payload(compiler__codegen__CCodeGen* self, compiler__ast__NodeData__EnumDecl* e);
 kobel_str compiler__codegen__get_indent(size_t level);
 kobel_str compiler__codegen__c_format_int_literal(kobel_str raw);
 kobel_str compiler__codegen__c_int_literal_c_type(kobel_str raw);
@@ -2755,8 +2735,8 @@ kobel_str compiler__codegen__CCodeGen_gen_program(compiler__codegen__CCodeGen* s
 kobel_str compiler__codegen__CCodeGen_by_value_struct_name(compiler__codegen__CCodeGen* self, compiler__ast__AstNode* node);
 kobel_str compiler__codegen__CCodeGen_body_item_name(compiler__codegen__CCodeGen* self, compiler__ast__AstNode* item);
 std__collections__List_str compiler__codegen__CCodeGen_body_item_deps(compiler__codegen__CCodeGen* self, compiler__ast__AstNode* item);
-void compiler__codegen__CCodeGen_gen_struct_decl(compiler__codegen__CCodeGen* self, compiler__ast__StructDecl* s);
-void compiler__codegen__CCodeGen_gen_payload_enum(compiler__codegen__CCodeGen* self, compiler__ast__EnumDecl* e);
+void compiler__codegen__CCodeGen_gen_struct_decl(compiler__codegen__CCodeGen* self, compiler__ast__NodeData__StructDecl* s);
+void compiler__codegen__CCodeGen_gen_payload_enum(compiler__codegen__CCodeGen* self, compiler__ast__NodeData__EnumDecl* e);
 void compiler__codegen__CCodeGen_gen_fn_decl(compiler__codegen__CCodeGen* self, compiler__ast__FnDecl* f, bool is_proto, kobel_str self_c_type);
 kobel_str compiler__codegen__CCodeGen_fn_ret_c_type(compiler__codegen__CCodeGen* self, compiler__ast__FnDecl* f);
 bool compiler__ast__NodeData__WhenExpr_has_blocks(compiler__ast__NodeData__WhenExpr* self);
@@ -3042,48 +3022,6 @@ kobel_str std__collections__List_str_get(std__collections__List_str* self, size_
 bool std__collections__List_str_contains(std__collections__List_str* self, kobel_str value);
 kobel_str std__collections__List_str_set(std__collections__List_str* self, size_t index, kobel_str value);
 void std__collections__List_str_plus_assign(std__collections__List_str* self, kobel_str value);
-size_t std__collections__List_ptr_compiler__sema__Type_count(std__collections__List_ptr_compiler__sema__Type* self);
-compiler__sema__Type* std__collections__List_ptr_compiler__sema__Type_at(std__collections__List_ptr_compiler__sema__Type* self, size_t i);
-std__collections__List_ptr_compiler__sema__Type std__collections__List_ptr_compiler__sema__Type_init(size_t cap);
-compiler__sema__Type* std__collections__List_ptr_compiler__sema__Type_first(std__collections__List_ptr_compiler__sema__Type* self);
-compiler__sema__Type* std__collections__List_ptr_compiler__sema__Type_last(std__collections__List_ptr_compiler__sema__Type* self);
-bool std__collections__List_ptr_compiler__sema__Type_empty(std__collections__List_ptr_compiler__sema__Type* self);
-void std__collections__List_ptr_compiler__sema__Type_add(std__collections__List_ptr_compiler__sema__Type* self, compiler__sema__Type* value);
-compiler__sema__Type* std__collections__List_ptr_compiler__sema__Type_pop(std__collections__List_ptr_compiler__sema__Type* self);
-void std__collections__List_ptr_compiler__sema__Type_extend(std__collections__List_ptr_compiler__sema__Type* self, std__collections__List_ptr_compiler__sema__Type other);
-size_t std__collections__List_ptr_compiler__sema__Type_clear(std__collections__List_ptr_compiler__sema__Type* self);
-void std__collections__List_ptr_compiler__sema__Type_grow(std__collections__List_ptr_compiler__sema__Type* self);
-void std__collections__List_ptr_compiler__sema__Type_reserve(std__collections__List_ptr_compiler__sema__Type* self, size_t min_cap);
-compiler__sema__Type* std__collections__List_ptr_compiler__sema__Type_remove_at(std__collections__List_ptr_compiler__sema__Type* self, size_t index);
-void std__collections__List_ptr_compiler__sema__Type_insert(std__collections__List_ptr_compiler__sema__Type* self, size_t index, compiler__sema__Type* value);
-std__collections__List_ptr_compiler__sema__Type std__collections__List_ptr_compiler__sema__Type_clone(std__collections__List_ptr_compiler__sema__Type* self);
-compiler__sema__Type* std__collections__List_ptr_compiler__sema__Type_pop_or(std__collections__List_ptr_compiler__sema__Type* self, compiler__sema__Type* value);
-void std__collections__List_ptr_compiler__sema__Type_swap(std__collections__List_ptr_compiler__sema__Type* self, size_t a, size_t b);
-void std__collections__List_ptr_compiler__sema__Type_reverse(std__collections__List_ptr_compiler__sema__Type* self);
-std__collections__List_ptr_compiler__sema__Type std__collections__List_ptr_compiler__sema__Type_sub(std__collections__List_ptr_compiler__sema__Type* self, size_t start, size_t count);
-intptr_t std__collections__List_ptr_compiler__sema__Type_index_of(std__collections__List_ptr_compiler__sema__Type* self, compiler__sema__Type* value);
-intptr_t std__collections__List_ptr_compiler__sema__Type_last_index_of(std__collections__List_ptr_compiler__sema__Type* self, compiler__sema__Type* value);
-bool std__collections__List_ptr_compiler__sema__Type_remove(std__collections__List_ptr_compiler__sema__Type* self, compiler__sema__Type* value);
-size_t std__collections__List_ptr_compiler__sema__Type_remove_all(std__collections__List_ptr_compiler__sema__Type* self, compiler__sema__Type* value);
-void std__collections__List_ptr_compiler__sema__Type_free(std__collections__List_ptr_compiler__sema__Type* self);
-compiler__sema__Type* std__collections__List_ptr_compiler__sema__Type_get(std__collections__List_ptr_compiler__sema__Type* self, size_t index);
-bool std__collections__List_ptr_compiler__sema__Type_contains(std__collections__List_ptr_compiler__sema__Type* self, compiler__sema__Type* value);
-compiler__sema__Type* std__collections__List_ptr_compiler__sema__Type_set(std__collections__List_ptr_compiler__sema__Type* self, size_t index, compiler__sema__Type* value);
-void std__collections__List_ptr_compiler__sema__Type_plus_assign(std__collections__List_ptr_compiler__sema__Type* self, compiler__sema__Type* value);
-std__collections__HashMap_str_str std__collections__HashMap_str_str_init(size_t init_cap);
-size_t std__collections__HashMap_str_str_dist(std__collections__HashMap_str_str* self, size_t from, size_t to);
-kobel_str std__collections__HashMap_str_str_get_or(std__collections__HashMap_str_str* self, kobel_str key, kobel_str value);
-bool std__collections__HashMap_str_str_remove(std__collections__HashMap_str_str* self, kobel_str key);
-void std__collections__HashMap_str_str_clear(std__collections__HashMap_str_str* self);
-bool std__collections__HashMap_str_str_empty(std__collections__HashMap_str_str* self);
-size_t std__collections__HashMap_str_str_count(std__collections__HashMap_str_str* self);
-std__collections__List_str std__collections__HashMap_str_str_keys(std__collections__HashMap_str_str* self);
-std__collections__List_str std__collections__HashMap_str_str_values(std__collections__HashMap_str_str* self);
-void std__collections__HashMap_str_str_grow(std__collections__HashMap_str_str* self);
-void std__collections__HashMap_str_str_free(std__collections__HashMap_str_str* self);
-void std__collections__HashMap_str_str_set(std__collections__HashMap_str_str* self, kobel_str key, kobel_str value);
-kobel_str* std__collections__HashMap_str_str_get(std__collections__HashMap_str_str* self, kobel_str key);
-bool std__collections__HashMap_str_str_contains(std__collections__HashMap_str_str* self, kobel_str key);
 size_t std__collections__List_compiler__ast__GenericParam_count(std__collections__List_compiler__ast__GenericParam* self);
 compiler__ast__GenericParam std__collections__List_compiler__ast__GenericParam_at(std__collections__List_compiler__ast__GenericParam* self, size_t i);
 std__collections__List_compiler__ast__GenericParam std__collections__List_compiler__ast__GenericParam_init(size_t cap);
@@ -3112,34 +3050,6 @@ compiler__ast__GenericParam std__collections__List_compiler__ast__GenericParam_g
 bool std__collections__List_compiler__ast__GenericParam_contains(std__collections__List_compiler__ast__GenericParam* self, compiler__ast__GenericParam value);
 compiler__ast__GenericParam std__collections__List_compiler__ast__GenericParam_set(std__collections__List_compiler__ast__GenericParam* self, size_t index, compiler__ast__GenericParam value);
 void std__collections__List_compiler__ast__GenericParam_plus_assign(std__collections__List_compiler__ast__GenericParam* self, compiler__ast__GenericParam value);
-size_t std__collections__List_compiler__ast__Param_count(std__collections__List_compiler__ast__Param* self);
-compiler__ast__Param std__collections__List_compiler__ast__Param_at(std__collections__List_compiler__ast__Param* self, size_t i);
-std__collections__List_compiler__ast__Param std__collections__List_compiler__ast__Param_init(size_t cap);
-compiler__ast__Param std__collections__List_compiler__ast__Param_first(std__collections__List_compiler__ast__Param* self);
-compiler__ast__Param std__collections__List_compiler__ast__Param_last(std__collections__List_compiler__ast__Param* self);
-bool std__collections__List_compiler__ast__Param_empty(std__collections__List_compiler__ast__Param* self);
-void std__collections__List_compiler__ast__Param_add(std__collections__List_compiler__ast__Param* self, compiler__ast__Param value);
-compiler__ast__Param std__collections__List_compiler__ast__Param_pop(std__collections__List_compiler__ast__Param* self);
-void std__collections__List_compiler__ast__Param_extend(std__collections__List_compiler__ast__Param* self, std__collections__List_compiler__ast__Param other);
-size_t std__collections__List_compiler__ast__Param_clear(std__collections__List_compiler__ast__Param* self);
-void std__collections__List_compiler__ast__Param_grow(std__collections__List_compiler__ast__Param* self);
-void std__collections__List_compiler__ast__Param_reserve(std__collections__List_compiler__ast__Param* self, size_t min_cap);
-compiler__ast__Param std__collections__List_compiler__ast__Param_remove_at(std__collections__List_compiler__ast__Param* self, size_t index);
-void std__collections__List_compiler__ast__Param_insert(std__collections__List_compiler__ast__Param* self, size_t index, compiler__ast__Param value);
-std__collections__List_compiler__ast__Param std__collections__List_compiler__ast__Param_clone(std__collections__List_compiler__ast__Param* self);
-compiler__ast__Param std__collections__List_compiler__ast__Param_pop_or(std__collections__List_compiler__ast__Param* self, compiler__ast__Param value);
-void std__collections__List_compiler__ast__Param_swap(std__collections__List_compiler__ast__Param* self, size_t a, size_t b);
-void std__collections__List_compiler__ast__Param_reverse(std__collections__List_compiler__ast__Param* self);
-std__collections__List_compiler__ast__Param std__collections__List_compiler__ast__Param_sub(std__collections__List_compiler__ast__Param* self, size_t start, size_t count);
-intptr_t std__collections__List_compiler__ast__Param_index_of(std__collections__List_compiler__ast__Param* self, compiler__ast__Param value);
-intptr_t std__collections__List_compiler__ast__Param_last_index_of(std__collections__List_compiler__ast__Param* self, compiler__ast__Param value);
-bool std__collections__List_compiler__ast__Param_remove(std__collections__List_compiler__ast__Param* self, compiler__ast__Param value);
-size_t std__collections__List_compiler__ast__Param_remove_all(std__collections__List_compiler__ast__Param* self, compiler__ast__Param value);
-void std__collections__List_compiler__ast__Param_free(std__collections__List_compiler__ast__Param* self);
-compiler__ast__Param std__collections__List_compiler__ast__Param_get(std__collections__List_compiler__ast__Param* self, size_t index);
-bool std__collections__List_compiler__ast__Param_contains(std__collections__List_compiler__ast__Param* self, compiler__ast__Param value);
-compiler__ast__Param std__collections__List_compiler__ast__Param_set(std__collections__List_compiler__ast__Param* self, size_t index, compiler__ast__Param value);
-void std__collections__List_compiler__ast__Param_plus_assign(std__collections__List_compiler__ast__Param* self, compiler__ast__Param value);
 size_t std__collections__List_compiler__ast__StructField_count(std__collections__List_compiler__ast__StructField* self);
 compiler__ast__StructField std__collections__List_compiler__ast__StructField_at(std__collections__List_compiler__ast__StructField* self, size_t i);
 std__collections__List_compiler__ast__StructField std__collections__List_compiler__ast__StructField_init(size_t cap);
@@ -3196,34 +3106,6 @@ compiler__ast__AssocBinding std__collections__List_compiler__ast__AssocBinding_g
 bool std__collections__List_compiler__ast__AssocBinding_contains(std__collections__List_compiler__ast__AssocBinding* self, compiler__ast__AssocBinding value);
 compiler__ast__AssocBinding std__collections__List_compiler__ast__AssocBinding_set(std__collections__List_compiler__ast__AssocBinding* self, size_t index, compiler__ast__AssocBinding value);
 void std__collections__List_compiler__ast__AssocBinding_plus_assign(std__collections__List_compiler__ast__AssocBinding* self, compiler__ast__AssocBinding value);
-size_t std__collections__List_compiler__ast__EnumField_count(std__collections__List_compiler__ast__EnumField* self);
-compiler__ast__EnumField std__collections__List_compiler__ast__EnumField_at(std__collections__List_compiler__ast__EnumField* self, size_t i);
-std__collections__List_compiler__ast__EnumField std__collections__List_compiler__ast__EnumField_init(size_t cap);
-compiler__ast__EnumField std__collections__List_compiler__ast__EnumField_first(std__collections__List_compiler__ast__EnumField* self);
-compiler__ast__EnumField std__collections__List_compiler__ast__EnumField_last(std__collections__List_compiler__ast__EnumField* self);
-bool std__collections__List_compiler__ast__EnumField_empty(std__collections__List_compiler__ast__EnumField* self);
-void std__collections__List_compiler__ast__EnumField_add(std__collections__List_compiler__ast__EnumField* self, compiler__ast__EnumField value);
-compiler__ast__EnumField std__collections__List_compiler__ast__EnumField_pop(std__collections__List_compiler__ast__EnumField* self);
-void std__collections__List_compiler__ast__EnumField_extend(std__collections__List_compiler__ast__EnumField* self, std__collections__List_compiler__ast__EnumField other);
-size_t std__collections__List_compiler__ast__EnumField_clear(std__collections__List_compiler__ast__EnumField* self);
-void std__collections__List_compiler__ast__EnumField_grow(std__collections__List_compiler__ast__EnumField* self);
-void std__collections__List_compiler__ast__EnumField_reserve(std__collections__List_compiler__ast__EnumField* self, size_t min_cap);
-compiler__ast__EnumField std__collections__List_compiler__ast__EnumField_remove_at(std__collections__List_compiler__ast__EnumField* self, size_t index);
-void std__collections__List_compiler__ast__EnumField_insert(std__collections__List_compiler__ast__EnumField* self, size_t index, compiler__ast__EnumField value);
-std__collections__List_compiler__ast__EnumField std__collections__List_compiler__ast__EnumField_clone(std__collections__List_compiler__ast__EnumField* self);
-compiler__ast__EnumField std__collections__List_compiler__ast__EnumField_pop_or(std__collections__List_compiler__ast__EnumField* self, compiler__ast__EnumField value);
-void std__collections__List_compiler__ast__EnumField_swap(std__collections__List_compiler__ast__EnumField* self, size_t a, size_t b);
-void std__collections__List_compiler__ast__EnumField_reverse(std__collections__List_compiler__ast__EnumField* self);
-std__collections__List_compiler__ast__EnumField std__collections__List_compiler__ast__EnumField_sub(std__collections__List_compiler__ast__EnumField* self, size_t start, size_t count);
-intptr_t std__collections__List_compiler__ast__EnumField_index_of(std__collections__List_compiler__ast__EnumField* self, compiler__ast__EnumField value);
-intptr_t std__collections__List_compiler__ast__EnumField_last_index_of(std__collections__List_compiler__ast__EnumField* self, compiler__ast__EnumField value);
-bool std__collections__List_compiler__ast__EnumField_remove(std__collections__List_compiler__ast__EnumField* self, compiler__ast__EnumField value);
-size_t std__collections__List_compiler__ast__EnumField_remove_all(std__collections__List_compiler__ast__EnumField* self, compiler__ast__EnumField value);
-void std__collections__List_compiler__ast__EnumField_free(std__collections__List_compiler__ast__EnumField* self);
-compiler__ast__EnumField std__collections__List_compiler__ast__EnumField_get(std__collections__List_compiler__ast__EnumField* self, size_t index);
-bool std__collections__List_compiler__ast__EnumField_contains(std__collections__List_compiler__ast__EnumField* self, compiler__ast__EnumField value);
-compiler__ast__EnumField std__collections__List_compiler__ast__EnumField_set(std__collections__List_compiler__ast__EnumField* self, size_t index, compiler__ast__EnumField value);
-void std__collections__List_compiler__ast__EnumField_plus_assign(std__collections__List_compiler__ast__EnumField* self, compiler__ast__EnumField value);
 size_t std__collections__List_compiler__ast__EnumMember_count(std__collections__List_compiler__ast__EnumMember* self);
 compiler__ast__EnumMember std__collections__List_compiler__ast__EnumMember_at(std__collections__List_compiler__ast__EnumMember* self, size_t i);
 std__collections__List_compiler__ast__EnumMember std__collections__List_compiler__ast__EnumMember_init(size_t cap);
@@ -3252,6 +3134,104 @@ compiler__ast__EnumMember std__collections__List_compiler__ast__EnumMember_get(s
 bool std__collections__List_compiler__ast__EnumMember_contains(std__collections__List_compiler__ast__EnumMember* self, compiler__ast__EnumMember value);
 compiler__ast__EnumMember std__collections__List_compiler__ast__EnumMember_set(std__collections__List_compiler__ast__EnumMember* self, size_t index, compiler__ast__EnumMember value);
 void std__collections__List_compiler__ast__EnumMember_plus_assign(std__collections__List_compiler__ast__EnumMember* self, compiler__ast__EnumMember value);
+size_t std__collections__List_ptr_compiler__sema__Type_count(std__collections__List_ptr_compiler__sema__Type* self);
+compiler__sema__Type* std__collections__List_ptr_compiler__sema__Type_at(std__collections__List_ptr_compiler__sema__Type* self, size_t i);
+std__collections__List_ptr_compiler__sema__Type std__collections__List_ptr_compiler__sema__Type_init(size_t cap);
+compiler__sema__Type* std__collections__List_ptr_compiler__sema__Type_first(std__collections__List_ptr_compiler__sema__Type* self);
+compiler__sema__Type* std__collections__List_ptr_compiler__sema__Type_last(std__collections__List_ptr_compiler__sema__Type* self);
+bool std__collections__List_ptr_compiler__sema__Type_empty(std__collections__List_ptr_compiler__sema__Type* self);
+void std__collections__List_ptr_compiler__sema__Type_add(std__collections__List_ptr_compiler__sema__Type* self, compiler__sema__Type* value);
+compiler__sema__Type* std__collections__List_ptr_compiler__sema__Type_pop(std__collections__List_ptr_compiler__sema__Type* self);
+void std__collections__List_ptr_compiler__sema__Type_extend(std__collections__List_ptr_compiler__sema__Type* self, std__collections__List_ptr_compiler__sema__Type other);
+size_t std__collections__List_ptr_compiler__sema__Type_clear(std__collections__List_ptr_compiler__sema__Type* self);
+void std__collections__List_ptr_compiler__sema__Type_grow(std__collections__List_ptr_compiler__sema__Type* self);
+void std__collections__List_ptr_compiler__sema__Type_reserve(std__collections__List_ptr_compiler__sema__Type* self, size_t min_cap);
+compiler__sema__Type* std__collections__List_ptr_compiler__sema__Type_remove_at(std__collections__List_ptr_compiler__sema__Type* self, size_t index);
+void std__collections__List_ptr_compiler__sema__Type_insert(std__collections__List_ptr_compiler__sema__Type* self, size_t index, compiler__sema__Type* value);
+std__collections__List_ptr_compiler__sema__Type std__collections__List_ptr_compiler__sema__Type_clone(std__collections__List_ptr_compiler__sema__Type* self);
+compiler__sema__Type* std__collections__List_ptr_compiler__sema__Type_pop_or(std__collections__List_ptr_compiler__sema__Type* self, compiler__sema__Type* value);
+void std__collections__List_ptr_compiler__sema__Type_swap(std__collections__List_ptr_compiler__sema__Type* self, size_t a, size_t b);
+void std__collections__List_ptr_compiler__sema__Type_reverse(std__collections__List_ptr_compiler__sema__Type* self);
+std__collections__List_ptr_compiler__sema__Type std__collections__List_ptr_compiler__sema__Type_sub(std__collections__List_ptr_compiler__sema__Type* self, size_t start, size_t count);
+intptr_t std__collections__List_ptr_compiler__sema__Type_index_of(std__collections__List_ptr_compiler__sema__Type* self, compiler__sema__Type* value);
+intptr_t std__collections__List_ptr_compiler__sema__Type_last_index_of(std__collections__List_ptr_compiler__sema__Type* self, compiler__sema__Type* value);
+bool std__collections__List_ptr_compiler__sema__Type_remove(std__collections__List_ptr_compiler__sema__Type* self, compiler__sema__Type* value);
+size_t std__collections__List_ptr_compiler__sema__Type_remove_all(std__collections__List_ptr_compiler__sema__Type* self, compiler__sema__Type* value);
+void std__collections__List_ptr_compiler__sema__Type_free(std__collections__List_ptr_compiler__sema__Type* self);
+compiler__sema__Type* std__collections__List_ptr_compiler__sema__Type_get(std__collections__List_ptr_compiler__sema__Type* self, size_t index);
+bool std__collections__List_ptr_compiler__sema__Type_contains(std__collections__List_ptr_compiler__sema__Type* self, compiler__sema__Type* value);
+compiler__sema__Type* std__collections__List_ptr_compiler__sema__Type_set(std__collections__List_ptr_compiler__sema__Type* self, size_t index, compiler__sema__Type* value);
+void std__collections__List_ptr_compiler__sema__Type_plus_assign(std__collections__List_ptr_compiler__sema__Type* self, compiler__sema__Type* value);
+std__collections__HashMap_str_str std__collections__HashMap_str_str_init(size_t init_cap);
+size_t std__collections__HashMap_str_str_dist(std__collections__HashMap_str_str* self, size_t from, size_t to);
+kobel_str std__collections__HashMap_str_str_get_or(std__collections__HashMap_str_str* self, kobel_str key, kobel_str value);
+bool std__collections__HashMap_str_str_remove(std__collections__HashMap_str_str* self, kobel_str key);
+void std__collections__HashMap_str_str_clear(std__collections__HashMap_str_str* self);
+bool std__collections__HashMap_str_str_empty(std__collections__HashMap_str_str* self);
+size_t std__collections__HashMap_str_str_count(std__collections__HashMap_str_str* self);
+std__collections__List_str std__collections__HashMap_str_str_keys(std__collections__HashMap_str_str* self);
+std__collections__List_str std__collections__HashMap_str_str_values(std__collections__HashMap_str_str* self);
+void std__collections__HashMap_str_str_grow(std__collections__HashMap_str_str* self);
+void std__collections__HashMap_str_str_free(std__collections__HashMap_str_str* self);
+void std__collections__HashMap_str_str_set(std__collections__HashMap_str_str* self, kobel_str key, kobel_str value);
+kobel_str* std__collections__HashMap_str_str_get(std__collections__HashMap_str_str* self, kobel_str key);
+bool std__collections__HashMap_str_str_contains(std__collections__HashMap_str_str* self, kobel_str key);
+size_t std__collections__List_compiler__ast__Param_count(std__collections__List_compiler__ast__Param* self);
+compiler__ast__Param std__collections__List_compiler__ast__Param_at(std__collections__List_compiler__ast__Param* self, size_t i);
+std__collections__List_compiler__ast__Param std__collections__List_compiler__ast__Param_init(size_t cap);
+compiler__ast__Param std__collections__List_compiler__ast__Param_first(std__collections__List_compiler__ast__Param* self);
+compiler__ast__Param std__collections__List_compiler__ast__Param_last(std__collections__List_compiler__ast__Param* self);
+bool std__collections__List_compiler__ast__Param_empty(std__collections__List_compiler__ast__Param* self);
+void std__collections__List_compiler__ast__Param_add(std__collections__List_compiler__ast__Param* self, compiler__ast__Param value);
+compiler__ast__Param std__collections__List_compiler__ast__Param_pop(std__collections__List_compiler__ast__Param* self);
+void std__collections__List_compiler__ast__Param_extend(std__collections__List_compiler__ast__Param* self, std__collections__List_compiler__ast__Param other);
+size_t std__collections__List_compiler__ast__Param_clear(std__collections__List_compiler__ast__Param* self);
+void std__collections__List_compiler__ast__Param_grow(std__collections__List_compiler__ast__Param* self);
+void std__collections__List_compiler__ast__Param_reserve(std__collections__List_compiler__ast__Param* self, size_t min_cap);
+compiler__ast__Param std__collections__List_compiler__ast__Param_remove_at(std__collections__List_compiler__ast__Param* self, size_t index);
+void std__collections__List_compiler__ast__Param_insert(std__collections__List_compiler__ast__Param* self, size_t index, compiler__ast__Param value);
+std__collections__List_compiler__ast__Param std__collections__List_compiler__ast__Param_clone(std__collections__List_compiler__ast__Param* self);
+compiler__ast__Param std__collections__List_compiler__ast__Param_pop_or(std__collections__List_compiler__ast__Param* self, compiler__ast__Param value);
+void std__collections__List_compiler__ast__Param_swap(std__collections__List_compiler__ast__Param* self, size_t a, size_t b);
+void std__collections__List_compiler__ast__Param_reverse(std__collections__List_compiler__ast__Param* self);
+std__collections__List_compiler__ast__Param std__collections__List_compiler__ast__Param_sub(std__collections__List_compiler__ast__Param* self, size_t start, size_t count);
+intptr_t std__collections__List_compiler__ast__Param_index_of(std__collections__List_compiler__ast__Param* self, compiler__ast__Param value);
+intptr_t std__collections__List_compiler__ast__Param_last_index_of(std__collections__List_compiler__ast__Param* self, compiler__ast__Param value);
+bool std__collections__List_compiler__ast__Param_remove(std__collections__List_compiler__ast__Param* self, compiler__ast__Param value);
+size_t std__collections__List_compiler__ast__Param_remove_all(std__collections__List_compiler__ast__Param* self, compiler__ast__Param value);
+void std__collections__List_compiler__ast__Param_free(std__collections__List_compiler__ast__Param* self);
+compiler__ast__Param std__collections__List_compiler__ast__Param_get(std__collections__List_compiler__ast__Param* self, size_t index);
+bool std__collections__List_compiler__ast__Param_contains(std__collections__List_compiler__ast__Param* self, compiler__ast__Param value);
+compiler__ast__Param std__collections__List_compiler__ast__Param_set(std__collections__List_compiler__ast__Param* self, size_t index, compiler__ast__Param value);
+void std__collections__List_compiler__ast__Param_plus_assign(std__collections__List_compiler__ast__Param* self, compiler__ast__Param value);
+size_t std__collections__List_compiler__ast__EnumField_count(std__collections__List_compiler__ast__EnumField* self);
+compiler__ast__EnumField std__collections__List_compiler__ast__EnumField_at(std__collections__List_compiler__ast__EnumField* self, size_t i);
+std__collections__List_compiler__ast__EnumField std__collections__List_compiler__ast__EnumField_init(size_t cap);
+compiler__ast__EnumField std__collections__List_compiler__ast__EnumField_first(std__collections__List_compiler__ast__EnumField* self);
+compiler__ast__EnumField std__collections__List_compiler__ast__EnumField_last(std__collections__List_compiler__ast__EnumField* self);
+bool std__collections__List_compiler__ast__EnumField_empty(std__collections__List_compiler__ast__EnumField* self);
+void std__collections__List_compiler__ast__EnumField_add(std__collections__List_compiler__ast__EnumField* self, compiler__ast__EnumField value);
+compiler__ast__EnumField std__collections__List_compiler__ast__EnumField_pop(std__collections__List_compiler__ast__EnumField* self);
+void std__collections__List_compiler__ast__EnumField_extend(std__collections__List_compiler__ast__EnumField* self, std__collections__List_compiler__ast__EnumField other);
+size_t std__collections__List_compiler__ast__EnumField_clear(std__collections__List_compiler__ast__EnumField* self);
+void std__collections__List_compiler__ast__EnumField_grow(std__collections__List_compiler__ast__EnumField* self);
+void std__collections__List_compiler__ast__EnumField_reserve(std__collections__List_compiler__ast__EnumField* self, size_t min_cap);
+compiler__ast__EnumField std__collections__List_compiler__ast__EnumField_remove_at(std__collections__List_compiler__ast__EnumField* self, size_t index);
+void std__collections__List_compiler__ast__EnumField_insert(std__collections__List_compiler__ast__EnumField* self, size_t index, compiler__ast__EnumField value);
+std__collections__List_compiler__ast__EnumField std__collections__List_compiler__ast__EnumField_clone(std__collections__List_compiler__ast__EnumField* self);
+compiler__ast__EnumField std__collections__List_compiler__ast__EnumField_pop_or(std__collections__List_compiler__ast__EnumField* self, compiler__ast__EnumField value);
+void std__collections__List_compiler__ast__EnumField_swap(std__collections__List_compiler__ast__EnumField* self, size_t a, size_t b);
+void std__collections__List_compiler__ast__EnumField_reverse(std__collections__List_compiler__ast__EnumField* self);
+std__collections__List_compiler__ast__EnumField std__collections__List_compiler__ast__EnumField_sub(std__collections__List_compiler__ast__EnumField* self, size_t start, size_t count);
+intptr_t std__collections__List_compiler__ast__EnumField_index_of(std__collections__List_compiler__ast__EnumField* self, compiler__ast__EnumField value);
+intptr_t std__collections__List_compiler__ast__EnumField_last_index_of(std__collections__List_compiler__ast__EnumField* self, compiler__ast__EnumField value);
+bool std__collections__List_compiler__ast__EnumField_remove(std__collections__List_compiler__ast__EnumField* self, compiler__ast__EnumField value);
+size_t std__collections__List_compiler__ast__EnumField_remove_all(std__collections__List_compiler__ast__EnumField* self, compiler__ast__EnumField value);
+void std__collections__List_compiler__ast__EnumField_free(std__collections__List_compiler__ast__EnumField* self);
+compiler__ast__EnumField std__collections__List_compiler__ast__EnumField_get(std__collections__List_compiler__ast__EnumField* self, size_t index);
+bool std__collections__List_compiler__ast__EnumField_contains(std__collections__List_compiler__ast__EnumField* self, compiler__ast__EnumField value);
+compiler__ast__EnumField std__collections__List_compiler__ast__EnumField_set(std__collections__List_compiler__ast__EnumField* self, size_t index, compiler__ast__EnumField value);
+void std__collections__List_compiler__ast__EnumField_plus_assign(std__collections__List_compiler__ast__EnumField* self, compiler__ast__EnumField value);
 size_t std__collections__List_compiler__lexer__Token_count(std__collections__List_compiler__lexer__Token* self);
 compiler__lexer__Token std__collections__List_compiler__lexer__Token_at(std__collections__List_compiler__lexer__Token* self, size_t i);
 std__collections__List_compiler__lexer__Token std__collections__List_compiler__lexer__Token_init(size_t cap);
@@ -4024,10 +4004,6 @@ compiler__codegen__ConditionAlias std__collections__List_compiler__codegen__Cond
 void std__collections__List_compiler__codegen__ConditionAlias_plus_assign(std__collections__List_compiler__codegen__ConditionAlias* self, compiler__codegen__ConditionAlias value);
 void std__memory__Heap_free_u8(uint8_t* ptr);
 compiler__ast__FnDecl* std__memory__Arena_create_val_compiler__ast__FnDecl(std__memory__Arena* self, compiler__ast__FnDecl value);
-compiler__ast__StructDecl* std__memory__Arena_create_val_compiler__ast__StructDecl(std__memory__Arena* self, compiler__ast__StructDecl value);
-compiler__ast__TraitDecl* std__memory__Arena_create_val_compiler__ast__TraitDecl(std__memory__Arena* self, compiler__ast__TraitDecl value);
-compiler__ast__ImplDecl* std__memory__Arena_create_val_compiler__ast__ImplDecl(std__memory__Arena* self, compiler__ast__ImplDecl value);
-compiler__ast__EnumDecl* std__memory__Arena_create_val_compiler__ast__EnumDecl(std__memory__Arena* self, compiler__ast__EnumDecl value);
 compiler__ast__AstNode* std__memory__Arena_create_val_compiler__ast__AstNode(std__memory__Arena* self, compiler__ast__AstNode value);
 compiler__sema__Type* std__memory__Arena_create_val_compiler__sema__Type(std__memory__Arena* self, compiler__sema__Type value);
 void std__memory__Heap_free_ptr_compiler__ast__AstNode(compiler__ast__AstNode** ptr);
@@ -4035,13 +4011,13 @@ void std__memory__Heap_free_compiler__ast__WhenArm(compiler__ast__WhenArm* ptr);
 void std__memory__Heap_free_compiler__ast__InterpPart(compiler__ast__InterpPart* ptr);
 void std__memory__Heap_free_compiler__ast__WhenStmtArm(compiler__ast__WhenStmtArm* ptr);
 void std__memory__Heap_free_str(kobel_str* ptr);
-void std__memory__Heap_free_ptr_compiler__sema__Type(compiler__sema__Type** ptr);
 void std__memory__Heap_free_compiler__ast__GenericParam(compiler__ast__GenericParam* ptr);
-void std__memory__Heap_free_compiler__ast__Param(compiler__ast__Param* ptr);
 void std__memory__Heap_free_compiler__ast__StructField(compiler__ast__StructField* ptr);
 void std__memory__Heap_free_compiler__ast__AssocBinding(compiler__ast__AssocBinding* ptr);
-void std__memory__Heap_free_compiler__ast__EnumField(compiler__ast__EnumField* ptr);
 void std__memory__Heap_free_compiler__ast__EnumMember(compiler__ast__EnumMember* ptr);
+void std__memory__Heap_free_ptr_compiler__sema__Type(compiler__sema__Type** ptr);
+void std__memory__Heap_free_compiler__ast__Param(compiler__ast__Param* ptr);
+void std__memory__Heap_free_compiler__ast__EnumField(compiler__ast__EnumField* ptr);
 void std__memory__Heap_free_compiler__lexer__Token(compiler__lexer__Token* ptr);
 void std__memory__Heap_free_compiler__loader__LoadedModule(compiler__loader__LoadedModule* ptr);
 void std__memory__Heap_free_ptr_compiler__sema__EnumMemberInfo(compiler__sema__EnumMemberInfo** ptr);
@@ -4098,20 +4074,20 @@ compiler__ast__InterpPart* std__memory__Heap_resize_compiler__ast__InterpPart(co
 compiler__ast__WhenStmtArm* std__memory__Heap_create_array_compiler__ast__WhenStmtArm(size_t count);
 compiler__ast__WhenStmtArm* std__memory__Heap_resize_compiler__ast__WhenStmtArm(compiler__ast__WhenStmtArm* ptr, size_t count);
 kobel_str* std__memory__Heap_resize_str(kobel_str* ptr, size_t count);
-compiler__sema__Type** std__memory__Heap_create_array_ptr_compiler__sema__Type(size_t count);
-compiler__sema__Type** std__memory__Heap_resize_ptr_compiler__sema__Type(compiler__sema__Type** ptr, size_t count);
 compiler__ast__GenericParam* std__memory__Heap_create_array_compiler__ast__GenericParam(size_t count);
 compiler__ast__GenericParam* std__memory__Heap_resize_compiler__ast__GenericParam(compiler__ast__GenericParam* ptr, size_t count);
-compiler__ast__Param* std__memory__Heap_create_array_compiler__ast__Param(size_t count);
-compiler__ast__Param* std__memory__Heap_resize_compiler__ast__Param(compiler__ast__Param* ptr, size_t count);
 compiler__ast__StructField* std__memory__Heap_create_array_compiler__ast__StructField(size_t count);
 compiler__ast__StructField* std__memory__Heap_resize_compiler__ast__StructField(compiler__ast__StructField* ptr, size_t count);
 compiler__ast__AssocBinding* std__memory__Heap_create_array_compiler__ast__AssocBinding(size_t count);
 compiler__ast__AssocBinding* std__memory__Heap_resize_compiler__ast__AssocBinding(compiler__ast__AssocBinding* ptr, size_t count);
-compiler__ast__EnumField* std__memory__Heap_create_array_compiler__ast__EnumField(size_t count);
-compiler__ast__EnumField* std__memory__Heap_resize_compiler__ast__EnumField(compiler__ast__EnumField* ptr, size_t count);
 compiler__ast__EnumMember* std__memory__Heap_create_array_compiler__ast__EnumMember(size_t count);
 compiler__ast__EnumMember* std__memory__Heap_resize_compiler__ast__EnumMember(compiler__ast__EnumMember* ptr, size_t count);
+compiler__sema__Type** std__memory__Heap_create_array_ptr_compiler__sema__Type(size_t count);
+compiler__sema__Type** std__memory__Heap_resize_ptr_compiler__sema__Type(compiler__sema__Type** ptr, size_t count);
+compiler__ast__Param* std__memory__Heap_create_array_compiler__ast__Param(size_t count);
+compiler__ast__Param* std__memory__Heap_resize_compiler__ast__Param(compiler__ast__Param* ptr, size_t count);
+compiler__ast__EnumField* std__memory__Heap_create_array_compiler__ast__EnumField(size_t count);
+compiler__ast__EnumField* std__memory__Heap_resize_compiler__ast__EnumField(compiler__ast__EnumField* ptr, size_t count);
 compiler__lexer__Token* std__memory__Heap_create_array_compiler__lexer__Token(size_t count);
 compiler__lexer__Token* std__memory__Heap_resize_compiler__lexer__Token(compiler__lexer__Token* ptr, size_t count);
 compiler__loader__LoadedModule* std__memory__Heap_create_array_compiler__loader__LoadedModule(size_t count);
@@ -4157,10 +4133,6 @@ compiler__sema__body__ArrowCandidate** std__memory__Heap_resize_ptr_compiler__se
 compiler__codegen__ConditionAlias* std__memory__Heap_create_array_compiler__codegen__ConditionAlias(size_t count);
 compiler__codegen__ConditionAlias* std__memory__Heap_resize_compiler__codegen__ConditionAlias(compiler__codegen__ConditionAlias* ptr, size_t count);
 compiler__ast__FnDecl* std__memory__Arena_create_compiler__ast__FnDecl(std__memory__Arena* self);
-compiler__ast__StructDecl* std__memory__Arena_create_compiler__ast__StructDecl(std__memory__Arena* self);
-compiler__ast__TraitDecl* std__memory__Arena_create_compiler__ast__TraitDecl(std__memory__Arena* self);
-compiler__ast__ImplDecl* std__memory__Arena_create_compiler__ast__ImplDecl(std__memory__Arena* self);
-compiler__ast__EnumDecl* std__memory__Arena_create_compiler__ast__EnumDecl(std__memory__Arena* self);
 compiler__ast__AstNode* std__memory__Arena_create_compiler__ast__AstNode(std__memory__Arena* self);
 compiler__sema__Type* std__memory__Arena_create_compiler__sema__Type(std__memory__Arena* self);
 compiler__sema__Symbol* std__memory__Arena_create_compiler__sema__Symbol(std__memory__Arena* self);
@@ -7966,23 +7938,23 @@ compiler__ast__AstNode* std__memory__Arena_init_decl(std__memory__Arena* self, s
 }
 
 compiler__ast__AstNode* std__memory__Arena_struct_decl(std__memory__Arena* self, kobel_str name, std__collections__List_compiler__ast__GenericParam type_params, std__collections__List_compiler__ast__StructField fields, bool public, size_t line, size_t col) {
-    return std__memory__Arena_build_node(self, (compiler__ast__NodeData){ .tag = 39, .u.StructDecl = { std__memory__Arena_create_val_compiler__ast__StructDecl(self, (compiler__ast__StructDecl){ name, type_params, fields, public, false, true }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__NodeData){ .tag = 39, .u.StructDecl = { name, type_params, fields, public, false, true } }, line, col);
 }
 
 compiler__ast__AstNode* std__memory__Arena_struct_decl_forward(std__memory__Arena* self, kobel_str name, std__collections__List_compiler__ast__GenericParam type_params, bool public, size_t line, size_t col) {
-    return std__memory__Arena_build_node(self, (compiler__ast__NodeData){ .tag = 39, .u.StructDecl = { std__memory__Arena_create_val_compiler__ast__StructDecl(self, (compiler__ast__StructDecl){ name, type_params, std__collections__List_compiler__ast__StructField_init(4), public, true, true }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__NodeData){ .tag = 39, .u.StructDecl = { name, type_params, std__collections__List_compiler__ast__StructField_init(4), public, true, true } }, line, col);
 }
 
 compiler__ast__AstNode* std__memory__Arena_trait_decl(std__memory__Arena* self, kobel_str name, std__collections__List_compiler__ast__GenericParam type_params, std__collections__List_str bases, std__collections__List_ptr_compiler__ast__AstNode methods, bool public, size_t line, size_t col, std__collections__List_str assoc_types) {
-    return std__memory__Arena_build_node(self, (compiler__ast__NodeData){ .tag = 40, .u.TraitDecl = { std__memory__Arena_create_val_compiler__ast__TraitDecl(self, (compiler__ast__TraitDecl){ name, type_params, bases, methods, public, assoc_types }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__NodeData){ .tag = 40, .u.TraitDecl = { name, type_params, bases, methods, public, assoc_types } }, line, col);
 }
 
 compiler__ast__AstNode* std__memory__Arena_impl_decl(std__memory__Arena* self, kobel_str struct_name, std__collections__List_compiler__ast__GenericParam type_params, kobel_str trait_name, std__collections__List_ptr_compiler__ast__AstNode methods, size_t line, size_t col, std__collections__List_compiler__ast__AssocBinding assoc_bindings) {
-    return std__memory__Arena_build_node(self, (compiler__ast__NodeData){ .tag = 41, .u.ImplDecl = { std__memory__Arena_create_val_compiler__ast__ImplDecl(self, (compiler__ast__ImplDecl){ struct_name, type_params, trait_name, methods, assoc_bindings }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__NodeData){ .tag = 41, .u.ImplDecl = { struct_name, type_params, trait_name, methods, assoc_bindings } }, line, col);
 }
 
 compiler__ast__AstNode* std__memory__Arena_enum_decl(std__memory__Arena* self, kobel_str name, compiler__ast__AstNode* underlying_type, std__collections__List_compiler__ast__EnumMember members, bool public, size_t line, size_t col) {
-    return std__memory__Arena_build_node(self, (compiler__ast__NodeData){ .tag = 42, .u.EnumDecl = { std__memory__Arena_create_val_compiler__ast__EnumDecl(self, (compiler__ast__EnumDecl){ name, underlying_type, members, public }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__NodeData){ .tag = 42, .u.EnumDecl = { name, underlying_type, members, public } }, line, col);
 }
 
 compiler__ast__AstNode* std__memory__Arena_const_decl(std__memory__Arena* self, kobel_str name, compiler__ast__AstNode* type_node, compiler__ast__AstNode* value, bool public, size_t line, size_t col) {
@@ -8414,44 +8386,44 @@ compiler__ast__FnDecl* compiler__ast__AstNode_as_fn_decl(compiler__ast__AstNode*
     return (compiler__ast__FnDecl*)NULL;
 }
 
-compiler__ast__StructDecl* compiler__ast__AstNode_as_struct_decl(compiler__ast__AstNode* self) {
+compiler__ast__NodeData__StructDecl* compiler__ast__AstNode_as_struct_decl(compiler__ast__AstNode* self) {
     {
-        compiler__ast__StructDecl* d = NULL;
-        if ((self != NULL && self->data.tag == compiler__ast__NodeData__StructDecl__TAG && (d = self->data.u.StructDecl.inner, 1))) {
+        compiler__ast__NodeData__StructDecl* d = NULL;
+        if ((self != NULL && self->data.tag == compiler__ast__NodeData__StructDecl__TAG && (d = (compiler__ast__NodeData__StructDecl*)(&(self)->data.u.StructDecl), 1))) {
             return d;
         }
     }
-    return (compiler__ast__StructDecl*)NULL;
+    return (compiler__ast__NodeData__StructDecl*)NULL;
 }
 
-compiler__ast__TraitDecl* compiler__ast__AstNode_as_trait_decl(compiler__ast__AstNode* self) {
+compiler__ast__NodeData__TraitDecl* compiler__ast__AstNode_as_trait_decl(compiler__ast__AstNode* self) {
     {
-        compiler__ast__TraitDecl* d = NULL;
-        if ((self != NULL && self->data.tag == compiler__ast__NodeData__TraitDecl__TAG && (d = self->data.u.TraitDecl.inner, 1))) {
+        compiler__ast__NodeData__TraitDecl* d = NULL;
+        if ((self != NULL && self->data.tag == compiler__ast__NodeData__TraitDecl__TAG && (d = (compiler__ast__NodeData__TraitDecl*)(&(self)->data.u.TraitDecl), 1))) {
             return d;
         }
     }
-    return (compiler__ast__TraitDecl*)NULL;
+    return (compiler__ast__NodeData__TraitDecl*)NULL;
 }
 
-compiler__ast__ImplDecl* compiler__ast__AstNode_as_impl_decl(compiler__ast__AstNode* self) {
+compiler__ast__NodeData__ImplDecl* compiler__ast__AstNode_as_impl_decl(compiler__ast__AstNode* self) {
     {
-        compiler__ast__ImplDecl* d = NULL;
-        if ((self != NULL && self->data.tag == compiler__ast__NodeData__ImplDecl__TAG && (d = self->data.u.ImplDecl.inner, 1))) {
+        compiler__ast__NodeData__ImplDecl* d = NULL;
+        if ((self != NULL && self->data.tag == compiler__ast__NodeData__ImplDecl__TAG && (d = (compiler__ast__NodeData__ImplDecl*)(&(self)->data.u.ImplDecl), 1))) {
             return d;
         }
     }
-    return (compiler__ast__ImplDecl*)NULL;
+    return (compiler__ast__NodeData__ImplDecl*)NULL;
 }
 
-compiler__ast__EnumDecl* compiler__ast__AstNode_as_enum_decl(compiler__ast__AstNode* self) {
+compiler__ast__NodeData__EnumDecl* compiler__ast__AstNode_as_enum_decl(compiler__ast__AstNode* self) {
     {
-        compiler__ast__EnumDecl* d = NULL;
-        if ((self != NULL && self->data.tag == compiler__ast__NodeData__EnumDecl__TAG && (d = self->data.u.EnumDecl.inner, 1))) {
+        compiler__ast__NodeData__EnumDecl* d = NULL;
+        if ((self != NULL && self->data.tag == compiler__ast__NodeData__EnumDecl__TAG && (d = (compiler__ast__NodeData__EnumDecl*)(&(self)->data.u.EnumDecl), 1))) {
             return d;
         }
     }
-    return (compiler__ast__EnumDecl*)NULL;
+    return (compiler__ast__NodeData__EnumDecl*)NULL;
 }
 
 compiler__ast__NodeData__ConstDecl* compiler__ast__AstNode_as_const_decl(compiler__ast__AstNode* self) {
@@ -11797,7 +11769,7 @@ compiler__sema__Type* compiler__sema__decl__DeclPass_instantiate_struct(compiler
     if (existing != NULL) {
         return existing->type_ptr;
     }
-    compiler__ast__StructDecl* decl = compiler__ast__AstNode_as_struct_decl(tmpl->node);
+    compiler__ast__NodeData__StructDecl* decl = compiler__ast__AstNode_as_struct_decl(tmpl->node);
     kobel_str prev_mod = compiler__sema__decl__DeclPass_enter_module(self, tmpl->module);
     compiler__sema__Type* s_type = std__memory__Arena_struct_type(&self->arena, cname, std__collections__List_compiler__sema__StructField_init(4));
     (*compiler__sema__Type_as_struct_mut(s_type)).c_name = cname;
@@ -11842,7 +11814,7 @@ compiler__sema__Type* compiler__sema__decl__DeclPass_instantiate_struct(compiler
                 continue;
             }
             kobel_str prev_mod2 = compiler__sema__decl__DeclPass_enter_module(self, impl_tmpl->module);
-            compiler__ast__ImplDecl* im = compiler__ast__AstNode_as_impl_decl(impl_tmpl->node);
+            compiler__ast__NodeData__ImplDecl* im = compiler__ast__AstNode_as_impl_decl(impl_tmpl->node);
             self->current_self_type = s_type;
             size_t mark = self->subst_names.len;
             compiler__sema__decl__DeclPass_push_subst(self, compiler__sema__GenTemplate_param_names(impl_tmpl), args);
@@ -12164,7 +12136,7 @@ bool compiler__sema__mono__template_matches(compiler__sema__TemplateKind kind, c
 void compiler__sema__decl__DeclPass_register_template(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node) {
     compiler__ast__AstNode* cur = node;
     if (cur != NULL && cur->data.tag == compiler__ast__NodeData__StructDecl__TAG) {
-        compiler__ast__StructDecl* s = (cur)->data.u.StructDecl.inner;
+        compiler__ast__NodeData__StructDecl* s = (compiler__ast__NodeData__StructDecl*)(&(cur)->data.u.StructDecl);
         if (s->type_params.len > 0) {
             std__collections__List_ptr_compiler__sema__GenTemplate_plus_assign(&self->symtab.gen.struct_templates, compiler__sema__decl__DeclPass_gen_template(self, s->name, node, false, KOBEL_STR("")));
         }
@@ -12174,7 +12146,7 @@ void compiler__sema__decl__DeclPass_register_template(compiler__sema__decl__Decl
             std__collections__List_ptr_compiler__sema__GenTemplate_plus_assign(&self->symtab.gen.fn_templates, compiler__sema__decl__DeclPass_gen_template(self, f->name, node, false, KOBEL_STR("")));
         }
     } else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__ImplDecl__TAG) {
-        compiler__ast__ImplDecl* im = (cur)->data.u.ImplDecl.inner;
+        compiler__ast__NodeData__ImplDecl* im = (compiler__ast__NodeData__ImplDecl*)(&(cur)->data.u.ImplDecl);
         if (im->type_params.len > 0) {
             std__collections__List_ptr_compiler__sema__GenTemplate_plus_assign(&self->symtab.gen.impl_templates, compiler__sema__decl__DeclPass_gen_template(self, im->struct_name, node, true, KOBEL_STR("")));
         } else {
@@ -12938,7 +12910,7 @@ bool compiler__sema__decl__DeclPass_rewrite_stmt_generics(compiler__sema__decl__
 bool compiler__sema__decl__DeclPass_rewrite_decl_generics(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node) {
     compiler__ast__AstNode* cur = node;
     if (cur != NULL && cur->data.tag == compiler__ast__NodeData__StructDecl__TAG) {
-        compiler__ast__StructDecl* s = (cur)->data.u.StructDecl.inner;
+        compiler__ast__NodeData__StructDecl* s = (compiler__ast__NodeData__StructDecl*)(&(cur)->data.u.StructDecl);
         {
             size_t __for_n = std__collections__List_compiler__ast__StructField_count(&s->fields);
             size_t __for_i = 0;
@@ -12985,7 +12957,7 @@ bool compiler__sema__decl__DeclPass_rewrite_decl_generics(compiler__sema__decl__
         self->current_fn_return_type = prev_ret;
         return true;
     } else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__ImplDecl__TAG) {
-        compiler__ast__ImplDecl* im = (cur)->data.u.ImplDecl.inner;
+        compiler__ast__NodeData__ImplDecl* im = (compiler__ast__NodeData__ImplDecl*)(&(cur)->data.u.ImplDecl);
         {
             size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&im->methods);
             size_t __for_i = 0;
@@ -13086,7 +13058,7 @@ void compiler__sema__decl__DeclPass_collect_use(compiler__sema__decl__DeclPass* 
     compiler__sema__SymbolTable_add_import(&self->symtab, mod_name, u->symbol_name, local_name, false);
 }
 
-void compiler__sema__decl__DeclPass_declare_struct_shell(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node, compiler__ast__StructDecl* s) {
+void compiler__sema__decl__DeclPass_declare_struct_shell(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__StructDecl* s) {
     kobel_str c_name = compiler__sema__decl__DeclPass_c_name_for(self, s->name);
     compiler__sema__Type* s_type = std__memory__Arena_struct_type(&self->arena, s->name, std__collections__List_compiler__sema__StructField_init(4));
     (*compiler__sema__Type_as_struct_mut(s_type)).c_name = c_name;
@@ -13099,7 +13071,7 @@ void compiler__sema__decl__DeclPass_declare_struct_shell(compiler__sema__decl__D
 }
 
 void compiler__sema__decl__DeclPass_collect_struct(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node) {
-    compiler__ast__StructDecl* s = (compiler__ast__StructDecl*)compiler__ast__AstNode_as_struct_decl(node);
+    compiler__ast__NodeData__StructDecl* s = (compiler__ast__NodeData__StructDecl*)compiler__ast__AstNode_as_struct_decl(node);
     if (s->type_params.len > 0) {
         return;
     }
@@ -13202,7 +13174,7 @@ void compiler__sema__decl__DeclPass_collect_fn(compiler__sema__decl__DeclPass* s
 }
 
 void compiler__sema__decl__DeclPass_collect_enum(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node) {
-    compiler__ast__EnumDecl* e = (compiler__ast__EnumDecl*)compiler__ast__AstNode_as_enum_decl(node);
+    compiler__ast__NodeData__EnumDecl* e = (compiler__ast__NodeData__EnumDecl*)compiler__ast__AstNode_as_enum_decl(node);
     compiler__sema__Type* under_type = ((e->underlying_type != NULL) ? compiler__sema__decl__DeclPass_resolve_ast_type(self, e->underlying_type) : compiler__sema__PrimTypes_t_prim(compiler__sema__decl__DeclPass_prims(self), compiler__sema__Type_i32()));
     bool is_payload = false;
     {
@@ -13326,7 +13298,7 @@ void compiler__sema__decl__DeclPass_collect_enum(compiler__sema__decl__DeclPass*
     e->name = c_name;
 }
 
-void compiler__sema__decl__DeclPass_collect_payload_enum(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node, compiler__ast__EnumDecl* e, compiler__sema__Type* under_type) {
+void compiler__sema__decl__DeclPass_collect_payload_enum(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__EnumDecl* e, compiler__sema__Type* under_type) {
     if (e->underlying_type != NULL) {
         compiler__sema__decl__DeclPass_report_error(self, node, KOBEL_STR("A payload enum cannot declare an underlying type"));
     }
@@ -13434,7 +13406,7 @@ void compiler__sema__decl__DeclPass_collect_extern_block(compiler__sema__decl__D
 }
 
 void compiler__sema__decl__DeclPass_collect_trait(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node) {
-    compiler__ast__TraitDecl* t = compiler__ast__AstNode_as_trait_decl(node);
+    compiler__ast__NodeData__TraitDecl* t = compiler__ast__AstNode_as_trait_decl(node);
     if (compiler__sema__SymbolTable_find_trait(&self->symtab, t->name) != NULL) {
         compiler__sema__decl__DeclPass_report_error(self, node, kobel_concat3(KOBEL_STR("Duplicate trait declaration '"), t->name, KOBEL_STR("'")));
         return;
@@ -13547,7 +13519,7 @@ void compiler__sema__decl__DeclPass_collect_program(compiler__sema__decl__DeclPa
             if (d_half->kind == 31) {
                 compiler__sema__decl__DeclPass_collect_module(self, d_half);
             } else if (d_half->kind == 34) {
-                compiler__ast__StructDecl* s_half = compiler__ast__AstNode_as_struct_decl(d_half);
+                compiler__ast__NodeData__StructDecl* s_half = compiler__ast__AstNode_as_struct_decl(d_half);
                 if (std__collections__List_compiler__ast__GenericParam_empty(&s_half->type_params)) {
                     compiler__sema__Symbol* existing_half = compiler__sema__SymbolTable_lookup_in_module(&self->symtab, self->current_module, s_half->name);
                     if (existing_half == NULL) {
@@ -13566,7 +13538,7 @@ void compiler__sema__decl__DeclPass_collect_program(compiler__sema__decl__DeclPa
             if (d_impl->kind == 31) {
                 compiler__sema__decl__DeclPass_collect_module(self, d_impl);
             } else if (d_impl->kind == 36) {
-                compiler__ast__ImplDecl* im = compiler__ast__AstNode_as_impl_decl(d_impl);
+                compiler__ast__NodeData__ImplDecl* im = compiler__ast__AstNode_as_impl_decl(d_impl);
                 if (std__collections__List_compiler__ast__GenericParam_empty(&im->type_params) && !str_empty(im->trait_name)) {
                     compiler__sema__TraitInfo* t = compiler__sema__SymbolTable_find_trait(&self->symtab, im->trait_name);
                     if (t != NULL) {
@@ -13585,7 +13557,7 @@ void compiler__sema__decl__DeclPass_collect_program(compiler__sema__decl__DeclPa
             if (d1->kind == 31) {
                 compiler__sema__decl__DeclPass_collect_module(self, d1);
             } else if (d1->kind == 37) {
-                compiler__ast__EnumDecl* e = compiler__ast__AstNode_as_enum_decl(d1);
+                compiler__ast__NodeData__EnumDecl* e = compiler__ast__AstNode_as_enum_decl(d1);
                 bool has_p = false;
                 {
                     size_t __for_n = std__collections__List_compiler__ast__EnumMember_count(&e->members);
@@ -13613,7 +13585,7 @@ void compiler__sema__decl__DeclPass_collect_program(compiler__sema__decl__DeclPa
             if (d1->kind == 31) {
                 compiler__sema__decl__DeclPass_collect_module(self, d1);
             } else if (d1->kind == 37) {
-                compiler__ast__EnumDecl* e = compiler__ast__AstNode_as_enum_decl(d1);
+                compiler__ast__NodeData__EnumDecl* e = compiler__ast__AstNode_as_enum_decl(d1);
                 bool has_p = false;
                 {
                     size_t __for_n = std__collections__List_compiler__ast__EnumMember_count(&e->members);
@@ -13700,7 +13672,7 @@ void compiler__sema__decl__DeclPass_collect_program(compiler__sema__decl__DeclPa
     }
 }
 
-std__collections__List_str compiler__sema__decl__overloaded_names(compiler__ast__ImplDecl* im) {
+std__collections__List_str compiler__sema__decl__overloaded_names(compiler__ast__NodeData__ImplDecl* im) {
     std__collections__List_str names = std__collections__List_str_init(4);
     {
         size_t __for_e = im->methods.len;
@@ -13902,7 +13874,7 @@ int64_t compiler__sema__decl__DeclPass_enum_const_i64(compiler__sema__decl__Decl
 }
 
 void compiler__sema__decl__DeclPass_collect_impl(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node) {
-    compiler__ast__ImplDecl* im = (compiler__ast__ImplDecl*)compiler__ast__AstNode_as_impl_decl(node);
+    compiler__ast__NodeData__ImplDecl* im = (compiler__ast__NodeData__ImplDecl*)compiler__ast__AstNode_as_impl_decl(node);
     if (im->type_params.len > 0) {
         return;
     }
@@ -14239,7 +14211,7 @@ compiler__sema__Type* compiler__sema__decl__DeclPass_infer_decl_return_type(comp
     return NULL;
 }
 
-void compiler__sema__decl__DeclPass_collect_prim_impl(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node, compiler__ast__ImplDecl* im, compiler__sema__Type* prim) {
+void compiler__sema__decl__DeclPass_collect_prim_impl(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__ImplDecl* im, compiler__sema__Type* prim) {
     kobel_str prim_name = im->struct_name;
     im->struct_name = KOBEL_STR("");
     if (!str_empty(im->trait_name)) {
@@ -14359,7 +14331,7 @@ void compiler__sema__decl__DeclPass_trait_effective(compiler__sema__decl__DeclPa
     }
 }
 
-void compiler__sema__decl__DeclPass_register_assoc_bindings(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node, compiler__ast__ImplDecl* im, compiler__sema__Type* st_type, kobel_str struct_name) {
+void compiler__sema__decl__DeclPass_register_assoc_bindings(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__ImplDecl* im, compiler__sema__Type* st_type, kobel_str struct_name) {
     compiler__sema__TraitInfo* trait_info = NULL;
     if (!str_empty(im->trait_name)) {
         trait_info = compiler__sema__SymbolTable_find_trait(&self->symtab, im->trait_name);
@@ -14423,7 +14395,7 @@ void compiler__sema__decl__DeclPass_register_assoc_bindings(compiler__sema__decl
     }
 }
 
-void compiler__sema__decl__DeclPass_apply_trait(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node, compiler__ast__ImplDecl* im, kobel_str struct_name) {
+void compiler__sema__decl__DeclPass_apply_trait(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__ImplDecl* im, kobel_str struct_name) {
     compiler__sema__TraitInfo* t = compiler__sema__SymbolTable_find_trait(&self->symtab, im->trait_name);
     if (t == NULL) {
         compiler__sema__decl__DeclPass_report_error(self, node, kobel_concat3(KOBEL_STR("Unknown trait '"), im->trait_name, KOBEL_STR("'")));
@@ -16332,7 +16304,7 @@ std__collections__List_ptr_compiler__ast__AstNode compiler__sema__body__BodyPass
     return result;
 }
 
-std__collections__List_ptr_compiler__ast__AstNode compiler__sema__body__BodyPass_infer_type_args_for_struct(compiler__sema__body__BodyPass* self, compiler__ast__StructDecl* decl, std__collections__List_ptr_compiler__ast__AstNode call_args) {
+std__collections__List_ptr_compiler__ast__AstNode compiler__sema__body__BodyPass_infer_type_args_for_struct(compiler__sema__body__BodyPass* self, compiler__ast__NodeData__StructDecl* decl, std__collections__List_ptr_compiler__ast__AstNode call_args) {
     std__collections__List_compiler__ast__GenericParam type_params = decl->type_params;
     if (std__collections__List_compiler__ast__GenericParam_empty(&type_params)) {
         return std__collections__List_ptr_compiler__ast__AstNode_init(4);
@@ -18188,7 +18160,7 @@ void compiler__sema__body__BodyPass_check_fn_body(compiler__sema__body__BodyPass
 }
 
 void compiler__sema__body__BodyPass_check_impl(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node) {
-    compiler__ast__ImplDecl* im = compiler__ast__AstNode_as_impl_decl(node);
+    compiler__ast__NodeData__ImplDecl* im = compiler__ast__AstNode_as_impl_decl(node);
     if (str_empty(im->struct_name)) {
         {
             size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&im->methods);
@@ -18279,7 +18251,7 @@ void compiler__sema__body__BodyPass_check_program(compiler__sema__body__BodyPass
                 compiler__ast__FnDecl* f = (decl)->data.u.FnDecl.inner;
                 compiler__sema__body__BodyPass_check_fn(self, decl);
             } else if (decl != NULL && decl->data.tag == compiler__ast__NodeData__ImplDecl__TAG) {
-                compiler__ast__ImplDecl* im = (decl)->data.u.ImplDecl.inner;
+                compiler__ast__NodeData__ImplDecl* im = (compiler__ast__NodeData__ImplDecl*)(&(decl)->data.u.ImplDecl);
                 compiler__sema__body__BodyPass_check_impl(self, decl);
             } else if (decl != NULL && decl->data.tag == compiler__ast__NodeData__ConstDecl__TAG) {
                 compiler__ast__NodeData__ConstDecl* c = (compiler__ast__NodeData__ConstDecl*)(&(decl)->data.u.ConstDecl);
@@ -18451,7 +18423,7 @@ void compiler__sema__body__BodyPass_add_fn_arrow_candidate(compiler__sema__body_
     std__collections__List_ptr_compiler__sema__body__ArrowCandidate_plus_assign(pending, compiler__sema__body__BodyPass_arrow_candidate(self, decl, sym->type_ptr, NULL, module));
 }
 
-void compiler__sema__body__BodyPass_add_impl_arrow_candidates(compiler__sema__body__BodyPass* self, compiler__ast__ImplDecl* im, kobel_str module, std__collections__List_ptr_compiler__sema__body__ArrowCandidate* pending, std__collections__List_ptr_compiler__ast__AstNode* seen) {
+void compiler__sema__body__BodyPass_add_impl_arrow_candidates(compiler__sema__body__BodyPass* self, compiler__ast__NodeData__ImplDecl* im, kobel_str module, std__collections__List_ptr_compiler__sema__body__ArrowCandidate* pending, std__collections__List_ptr_compiler__ast__AstNode* seen) {
     if (im->type_params.len > 0) {
         return;
     }
@@ -19372,7 +19344,7 @@ void compiler__sema__body__BodyPass_lower_program(compiler__sema__body__BodyPass
                     f->body = compiler__sema__body__BodyPass_lower_stmt(self, f->body);
                 }
             } else if (decl != NULL && decl->data.tag == compiler__ast__NodeData__ImplDecl__TAG) {
-                compiler__ast__ImplDecl* im = (decl)->data.u.ImplDecl.inner;
+                compiler__ast__NodeData__ImplDecl* im = (compiler__ast__NodeData__ImplDecl*)(&(decl)->data.u.ImplDecl);
                 {
                     size_t __for_e = im->methods.len;
                     size_t __for_i = __for_e;
@@ -21161,7 +21133,7 @@ std__collections__List_str compiler__sema__GenTemplate_param_names(compiler__sem
     compiler__ast__AstNode* node = self->node;
     if (node != NULL && node->data.tag == compiler__ast__NodeData__StructDecl__TAG) {
         void* __orig_node = (void*)node;
-        compiler__ast__StructDecl* node = (compiler__ast__StructDecl*)(((compiler__ast__AstNode*)__orig_node)->data.u.StructDecl.inner);
+        compiler__ast__NodeData__StructDecl* node = (compiler__ast__NodeData__StructDecl*)((&((compiler__ast__AstNode*)__orig_node)->data.u.StructDecl));
         size_t __for_n = std__collections__List_compiler__ast__GenericParam_count(&node->type_params);
         size_t __for_i = 0;
         while (__for_i < __for_n) {
@@ -21181,7 +21153,7 @@ std__collections__List_str compiler__sema__GenTemplate_param_names(compiler__sem
         }
     } else if (node != NULL && node->data.tag == compiler__ast__NodeData__ImplDecl__TAG) {
         void* __orig_node = (void*)node;
-        compiler__ast__ImplDecl* node = (compiler__ast__ImplDecl*)(((compiler__ast__AstNode*)__orig_node)->data.u.ImplDecl.inner);
+        compiler__ast__NodeData__ImplDecl* node = (compiler__ast__NodeData__ImplDecl*)((&((compiler__ast__AstNode*)__orig_node)->data.u.ImplDecl));
         size_t __for_n = std__collections__List_compiler__ast__GenericParam_count(&node->type_params);
         size_t __for_i = 0;
         while (__for_i < __for_n) {
@@ -21822,7 +21794,7 @@ void compiler__codegen__CCodeGen_gen_defers_unwind(compiler__codegen__CCodeGen* 
     }
 }
 
-bool compiler__codegen__CCodeGen_enum_has_payload(compiler__codegen__CCodeGen* self, compiler__ast__EnumDecl* e) {
+bool compiler__codegen__CCodeGen_enum_has_payload(compiler__codegen__CCodeGen* self, compiler__ast__NodeData__EnumDecl* e) {
     {
         size_t __for_n = std__collections__List_compiler__ast__EnumMember_count(&e->members);
         size_t __for_i = 0;
@@ -22483,7 +22455,7 @@ kobel_str compiler__codegen__CCodeGen_gen_program(compiler__codegen__CCodeGen* s
                         continue;
                     }
                     if (decl != NULL && decl->data.tag == compiler__ast__NodeData__StructDecl__TAG) {
-                        compiler__ast__StructDecl* s = (decl)->data.u.StructDecl.inner;
+                        compiler__ast__NodeData__StructDecl* s = (compiler__ast__NodeData__StructDecl*)(&(decl)->data.u.StructDecl);
                         if (s->forward || s->emit_typedef) {
                             std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("typedef struct "));
                             std__collections__StringBuilder_plus_assign_2(&self->out, s->name);
@@ -22492,7 +22464,7 @@ kobel_str compiler__codegen__CCodeGen_gen_program(compiler__codegen__CCodeGen* s
                             std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
                         }
                     } else if (decl != NULL && decl->data.tag == compiler__ast__NodeData__EnumDecl__TAG) {
-                        compiler__ast__EnumDecl* e = (decl)->data.u.EnumDecl.inner;
+                        compiler__ast__NodeData__EnumDecl* e = (compiler__ast__NodeData__EnumDecl*)(&(decl)->data.u.EnumDecl);
                         if (compiler__codegen__CCodeGen_enum_has_payload(self, e)) {
                             std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("typedef struct "));
                             std__collections__StringBuilder_plus_assign_2(&self->out, e->name);
@@ -22576,14 +22548,14 @@ kobel_str compiler__codegen__CCodeGen_gen_program(compiler__codegen__CCodeGen* s
                         continue;
                     }
                     {
-                        compiler__ast__StructDecl* s = NULL;
-                        compiler__ast__EnumDecl* e = NULL;
-                        if ((decl != NULL && decl->data.tag == compiler__ast__NodeData__StructDecl__TAG && (s = decl->data.u.StructDecl.inner, 1))) {
+                        compiler__ast__NodeData__StructDecl* s = NULL;
+                        compiler__ast__NodeData__EnumDecl* e = NULL;
+                        if ((decl != NULL && decl->data.tag == compiler__ast__NodeData__StructDecl__TAG && (s = (compiler__ast__NodeData__StructDecl*)(&(decl)->data.u.StructDecl), 1))) {
                             if (!s->forward) {
                                 std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&items, decl);
                                 std__collections__HashSet_plus_assign(&pending, s->name);
                             }
-                        } else if ((decl != NULL && decl->data.tag == compiler__ast__NodeData__EnumDecl__TAG && (e = decl->data.u.EnumDecl.inner, 1))) {
+                        } else if ((decl != NULL && decl->data.tag == compiler__ast__NodeData__EnumDecl__TAG && (e = (compiler__ast__NodeData__EnumDecl*)(&(decl)->data.u.EnumDecl), 1))) {
                             if (compiler__codegen__CCodeGen_enum_has_payload(self, e)) {
                                 std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&items, decl);
                                 std__collections__HashSet_plus_assign(&pending, e->name);
@@ -22656,11 +22628,11 @@ kobel_str compiler__codegen__CCodeGen_gen_program(compiler__codegen__CCodeGen* s
                 while (__for_i < __for_n) {
                     compiler__ast__AstNode* item = std__collections__List_ptr_compiler__ast__AstNode_at(&order, __for_i);
                     {
-                        compiler__ast__StructDecl* s = NULL;
-                        compiler__ast__EnumDecl* e = NULL;
-                        if ((item != NULL && item->data.tag == compiler__ast__NodeData__StructDecl__TAG && (s = item->data.u.StructDecl.inner, 1))) {
+                        compiler__ast__NodeData__StructDecl* s = NULL;
+                        compiler__ast__NodeData__EnumDecl* e = NULL;
+                        if ((item != NULL && item->data.tag == compiler__ast__NodeData__StructDecl__TAG && (s = (compiler__ast__NodeData__StructDecl*)(&(item)->data.u.StructDecl), 1))) {
                             compiler__codegen__CCodeGen_gen_struct_decl(self, s);
-                        } else if ((item != NULL && item->data.tag == compiler__ast__NodeData__EnumDecl__TAG && (e = item->data.u.EnumDecl.inner, 1))) {
+                        } else if ((item != NULL && item->data.tag == compiler__ast__NodeData__EnumDecl__TAG && (e = (compiler__ast__NodeData__EnumDecl*)(&(item)->data.u.EnumDecl), 1))) {
                             compiler__codegen__CCodeGen_gen_payload_enum(self, e);
                         }
                     }
@@ -22673,8 +22645,8 @@ kobel_str compiler__codegen__CCodeGen_gen_program(compiler__codegen__CCodeGen* s
                 while (__for_i < __for_n) {
                     compiler__ast__AstNode* decl_list = compiler__ast__NodeData__Program_at(prog, __for_i);
                     {
-                        compiler__ast__StructDecl* s = NULL;
-                        if ((!compiler__ast__decl_is_template(decl_list) && (decl_list != NULL && decl_list->data.tag == compiler__ast__NodeData__StructDecl__TAG && (s = decl_list->data.u.StructDecl.inner, 1))) && (str_starts_with(s->name, KOBEL_STR("std__collections__list__List")) || str_starts_with(s->name, KOBEL_STR("std__collections__List")))) {
+                        compiler__ast__NodeData__StructDecl* s = NULL;
+                        if ((!compiler__ast__decl_is_template(decl_list) && (decl_list != NULL && decl_list->data.tag == compiler__ast__NodeData__StructDecl__TAG && (s = (compiler__ast__NodeData__StructDecl*)(&(decl_list)->data.u.StructDecl), 1))) && (str_starts_with(s->name, KOBEL_STR("std__collections__list__List")) || str_starts_with(s->name, KOBEL_STR("std__collections__List")))) {
                             std__collections__StringBuilder_plus_assign_2(&self->out, kobel_concat5(kobel_concat5(KOBEL_STR("static inline "), s->name, KOBEL_STR(" "), s->name, KOBEL_STR("_from_array(const void* src, size_t n) {\n	size_t elem_size = sizeof(*(((")), s->name, KOBEL_STR("*)0)->data));\n	size_t cap = (n < 4) ? 4 : n;\n	void* data = malloc(cap * elem_size);\n	if (n > 0 && src != NULL) memcpy(data, src, n * elem_size);\n	"), s->name, KOBEL_STR(" l;\n	l.data = data;\n	l.len = n;\n	l.cap = cap;\n	return l;\n}")));
                         }
                     }
@@ -22695,7 +22667,7 @@ kobel_str compiler__codegen__CCodeGen_gen_program(compiler__codegen__CCodeGen* s
                         compiler__ast__FnDecl* decl = (compiler__ast__FnDecl*)(((compiler__ast__AstNode*)__orig_decl)->data.u.FnDecl.inner);
                         compiler__codegen__CCodeGen_gen_fn_decl(self, decl, true, KOBEL_STR(""));
                     } else if (decl != NULL && decl->data.tag == compiler__ast__NodeData__ImplDecl__TAG) {
-                        compiler__ast__ImplDecl* im = (decl)->data.u.ImplDecl.inner;
+                        compiler__ast__NodeData__ImplDecl* im = (compiler__ast__NodeData__ImplDecl*)(&(decl)->data.u.ImplDecl);
                         {
                             size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&im->methods);
                             size_t __for_i = 0;
@@ -22729,7 +22701,7 @@ kobel_str compiler__codegen__CCodeGen_gen_program(compiler__codegen__CCodeGen* s
                         compiler__ast__FnDecl* decl = (compiler__ast__FnDecl*)(((compiler__ast__AstNode*)__orig_decl)->data.u.FnDecl.inner);
                         compiler__codegen__CCodeGen_gen_fn_decl(self, decl, false, KOBEL_STR(""));
                     } else if (decl != NULL && decl->data.tag == compiler__ast__NodeData__ImplDecl__TAG) {
-                        compiler__ast__ImplDecl* im = (decl)->data.u.ImplDecl.inner;
+                        compiler__ast__NodeData__ImplDecl* im = (compiler__ast__NodeData__ImplDecl*)(&(decl)->data.u.ImplDecl);
                         {
                             size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&im->methods);
                             size_t __for_i = 0;
@@ -22773,11 +22745,11 @@ kobel_str compiler__codegen__CCodeGen_by_value_struct_name(compiler__codegen__CC
 kobel_str compiler__codegen__CCodeGen_body_item_name(compiler__codegen__CCodeGen* self, compiler__ast__AstNode* item) {
     if (item != NULL && item->data.tag == compiler__ast__NodeData__StructDecl__TAG) {
         void* __orig_item = (void*)item;
-        compiler__ast__StructDecl* item = (compiler__ast__StructDecl*)(((compiler__ast__AstNode*)__orig_item)->data.u.StructDecl.inner);
+        compiler__ast__NodeData__StructDecl* item = (compiler__ast__NodeData__StructDecl*)((&((compiler__ast__AstNode*)__orig_item)->data.u.StructDecl));
         return item->name;
     } else if (item != NULL && item->data.tag == compiler__ast__NodeData__EnumDecl__TAG) {
         void* __orig_item = (void*)item;
-        compiler__ast__EnumDecl* item = (compiler__ast__EnumDecl*)(((compiler__ast__AstNode*)__orig_item)->data.u.EnumDecl.inner);
+        compiler__ast__NodeData__EnumDecl* item = (compiler__ast__NodeData__EnumDecl*)((&((compiler__ast__AstNode*)__orig_item)->data.u.EnumDecl));
         return item->name;
     } else {
         return KOBEL_STR("");
@@ -22787,9 +22759,9 @@ kobel_str compiler__codegen__CCodeGen_body_item_name(compiler__codegen__CCodeGen
 std__collections__List_str compiler__codegen__CCodeGen_body_item_deps(compiler__codegen__CCodeGen* self, compiler__ast__AstNode* item) {
     std__collections__List_str deps = std__collections__List_str_init(4);
     {
-        compiler__ast__StructDecl* s = NULL;
-        compiler__ast__EnumDecl* e = NULL;
-        if ((item != NULL && item->data.tag == compiler__ast__NodeData__StructDecl__TAG && (s = item->data.u.StructDecl.inner, 1))) {
+        compiler__ast__NodeData__StructDecl* s = NULL;
+        compiler__ast__NodeData__EnumDecl* e = NULL;
+        if ((item != NULL && item->data.tag == compiler__ast__NodeData__StructDecl__TAG && (s = (compiler__ast__NodeData__StructDecl*)(&(item)->data.u.StructDecl), 1))) {
             {
                 size_t __for_n = std__collections__List_compiler__ast__StructField_count(&s->fields);
                 size_t __for_i = 0;
@@ -22799,7 +22771,7 @@ std__collections__List_str compiler__codegen__CCodeGen_body_item_deps(compiler__
                     __for_i = (__for_i + 1);
                 }
             }
-        } else if ((item != NULL && item->data.tag == compiler__ast__NodeData__EnumDecl__TAG && (e = item->data.u.EnumDecl.inner, 1))) {
+        } else if ((item != NULL && item->data.tag == compiler__ast__NodeData__EnumDecl__TAG && (e = (compiler__ast__NodeData__EnumDecl*)(&(item)->data.u.EnumDecl), 1))) {
             {
                 size_t __for_n = std__collections__List_compiler__ast__EnumMember_count(&e->members);
                 size_t __for_i = 0;
@@ -22822,7 +22794,7 @@ std__collections__List_str compiler__codegen__CCodeGen_body_item_deps(compiler__
     return deps;
 }
 
-void compiler__codegen__CCodeGen_gen_struct_decl(compiler__codegen__CCodeGen* self, compiler__ast__StructDecl* s) {
+void compiler__codegen__CCodeGen_gen_struct_decl(compiler__codegen__CCodeGen* self, compiler__ast__NodeData__StructDecl* s) {
     if (s->forward) {
         return;
     }
@@ -22846,7 +22818,7 @@ void compiler__codegen__CCodeGen_gen_struct_decl(compiler__codegen__CCodeGen* se
     std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("};\n\n"));
 }
 
-void compiler__codegen__CCodeGen_gen_payload_enum(compiler__codegen__CCodeGen* self, compiler__ast__EnumDecl* e) {
+void compiler__codegen__CCodeGen_gen_payload_enum(compiler__codegen__CCodeGen* self, compiler__ast__NodeData__EnumDecl* e) {
     if (!compiler__codegen__CCodeGen_enum_has_payload(self, e)) {
         return;
     }
@@ -25616,7 +25588,7 @@ void fmt__Formatter_format_decl(fmt__Formatter* self, compiler__ast__AstNode* no
         fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR(";"));
         fmt__CommentTable_emit_trailing_on_line(&self->comments, &self->buf, node->line);
     } else if (node != NULL && node->data.tag == compiler__ast__NodeData__StructDecl__TAG) {
-        compiler__ast__StructDecl* s = (node)->data.u.StructDecl.inner;
+        compiler__ast__NodeData__StructDecl* s = (compiler__ast__NodeData__StructDecl*)(&(node)->data.u.StructDecl);
         if (s->public) {
             fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR("pub "));
         }
@@ -25761,7 +25733,7 @@ void fmt__Formatter_format_decl(fmt__Formatter* self, compiler__ast__AstNode* no
         }
         fmt__CommentTable_emit_trailing_on_line(&self->comments, &self->buf, node->line);
     } else if (node != NULL && node->data.tag == compiler__ast__NodeData__ImplDecl__TAG) {
-        compiler__ast__ImplDecl* im = (node)->data.u.ImplDecl.inner;
+        compiler__ast__NodeData__ImplDecl* im = (compiler__ast__NodeData__ImplDecl*)(&(node)->data.u.ImplDecl);
         fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR("impl"));
         if (im->type_params.len > 0) {
             fmt__FormatBuffer_space(&self->buf);
@@ -25792,7 +25764,7 @@ void fmt__Formatter_format_decl(fmt__Formatter* self, compiler__ast__AstNode* no
         fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR("}"));
         fmt__CommentTable_emit_trailing_on_line(&self->comments, &self->buf, node->line);
     } else if (node != NULL && node->data.tag == compiler__ast__NodeData__TraitDecl__TAG) {
-        compiler__ast__TraitDecl* tr = (node)->data.u.TraitDecl.inner;
+        compiler__ast__NodeData__TraitDecl* tr = (compiler__ast__NodeData__TraitDecl*)(&(node)->data.u.TraitDecl);
         if (tr->public) {
             fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR("pub "));
         }
@@ -25852,7 +25824,7 @@ void fmt__Formatter_format_decl(fmt__Formatter* self, compiler__ast__AstNode* no
         fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR("}"));
         fmt__CommentTable_emit_trailing_on_line(&self->comments, &self->buf, node->line);
     } else if (node != NULL && node->data.tag == compiler__ast__NodeData__EnumDecl__TAG) {
-        compiler__ast__EnumDecl* en = (node)->data.u.EnumDecl.inner;
+        compiler__ast__NodeData__EnumDecl* en = (compiler__ast__NodeData__EnumDecl*)(&(node)->data.u.EnumDecl);
         if (en->public) {
             fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR("pub "));
         }
@@ -26465,22 +26437,22 @@ lsp__JsonValue* lsp__AnalysisResult_document_symbols(kobel_str source) {
                 sym_kind = 12;
             } else if (decl != NULL && decl->data.tag == compiler__ast__NodeData__StructDecl__TAG) {
                 void* __orig_decl = (void*)decl;
-                compiler__ast__StructDecl* decl = (compiler__ast__StructDecl*)(((compiler__ast__AstNode*)__orig_decl)->data.u.StructDecl.inner);
+                compiler__ast__NodeData__StructDecl* decl = (compiler__ast__NodeData__StructDecl*)((&((compiler__ast__AstNode*)__orig_decl)->data.u.StructDecl));
                 sym_name = decl->name;
                 sym_kind = 23;
             } else if (decl != NULL && decl->data.tag == compiler__ast__NodeData__EnumDecl__TAG) {
                 void* __orig_decl = (void*)decl;
-                compiler__ast__EnumDecl* decl = (compiler__ast__EnumDecl*)(((compiler__ast__AstNode*)__orig_decl)->data.u.EnumDecl.inner);
+                compiler__ast__NodeData__EnumDecl* decl = (compiler__ast__NodeData__EnumDecl*)((&((compiler__ast__AstNode*)__orig_decl)->data.u.EnumDecl));
                 sym_name = decl->name;
                 sym_kind = 10;
             } else if (decl != NULL && decl->data.tag == compiler__ast__NodeData__TraitDecl__TAG) {
                 void* __orig_decl = (void*)decl;
-                compiler__ast__TraitDecl* decl = (compiler__ast__TraitDecl*)(((compiler__ast__AstNode*)__orig_decl)->data.u.TraitDecl.inner);
+                compiler__ast__NodeData__TraitDecl* decl = (compiler__ast__NodeData__TraitDecl*)((&((compiler__ast__AstNode*)__orig_decl)->data.u.TraitDecl));
                 sym_name = decl->name;
                 sym_kind = 11;
             } else if (decl != NULL && decl->data.tag == compiler__ast__NodeData__ImplDecl__TAG) {
                 void* __orig_decl = (void*)decl;
-                compiler__ast__ImplDecl* decl = (compiler__ast__ImplDecl*)(((compiler__ast__AstNode*)__orig_decl)->data.u.ImplDecl.inner);
+                compiler__ast__NodeData__ImplDecl* decl = (compiler__ast__NodeData__ImplDecl*)((&((compiler__ast__AstNode*)__orig_decl)->data.u.ImplDecl));
                 sym_name = kobel_concat(KOBEL_STR("impl "), decl->struct_name);
                 sym_kind = 5;
             } else if (decl != NULL && decl->data.tag == compiler__ast__NodeData__ConstDecl__TAG) {
@@ -29336,6 +29308,1346 @@ void std__collections__List_str_plus_assign(std__collections__List_str* self, ko
     std__collections__List_str_add(self, value);
 }
 
+size_t std__collections__List_compiler__ast__GenericParam_count(std__collections__List_compiler__ast__GenericParam* self) {
+    return self->len;
+}
+
+compiler__ast__GenericParam std__collections__List_compiler__ast__GenericParam_at(std__collections__List_compiler__ast__GenericParam* self, size_t i) {
+    return self->data[i];
+}
+
+std__collections__List_compiler__ast__GenericParam std__collections__List_compiler__ast__GenericParam_init(size_t cap) {
+    return (std__collections__List_compiler__ast__GenericParam){ std__memory__Heap_create_array_compiler__ast__GenericParam(cap), 0, cap };
+}
+
+compiler__ast__GenericParam std__collections__List_compiler__ast__GenericParam_first(std__collections__List_compiler__ast__GenericParam* self) {
+    return self->data[0];
+}
+
+compiler__ast__GenericParam std__collections__List_compiler__ast__GenericParam_last(std__collections__List_compiler__ast__GenericParam* self) {
+    return self->data[(self->len - 1)];
+}
+
+bool std__collections__List_compiler__ast__GenericParam_empty(std__collections__List_compiler__ast__GenericParam* self) {
+    return (self->len == 0);
+}
+
+void std__collections__List_compiler__ast__GenericParam_add(std__collections__List_compiler__ast__GenericParam* self, compiler__ast__GenericParam value) {
+    if (self->len == self->cap) {
+        std__collections__List_compiler__ast__GenericParam_grow(self);
+    }
+    self->data[self->len] = value;
+    self->len++;
+}
+
+compiler__ast__GenericParam std__collections__List_compiler__ast__GenericParam_pop(std__collections__List_compiler__ast__GenericParam* self) {
+    self->len--;
+    return self->data[self->len];
+}
+
+void std__collections__List_compiler__ast__GenericParam_extend(std__collections__List_compiler__ast__GenericParam* self, std__collections__List_compiler__ast__GenericParam other) {
+    {
+        size_t __for_n = std__collections__List_compiler__ast__GenericParam_count(&other);
+        size_t __for_i = 0;
+        while (__for_i < __for_n) {
+            compiler__ast__GenericParam data = std__collections__List_compiler__ast__GenericParam_at(&other, __for_i);
+            std__collections__List_compiler__ast__GenericParam_plus_assign(self, data);
+            __for_i = (__for_i + 1);
+        }
+    }
+}
+
+size_t std__collections__List_compiler__ast__GenericParam_clear(std__collections__List_compiler__ast__GenericParam* self) {
+    return self->len = 0;
+}
+
+void std__collections__List_compiler__ast__GenericParam_grow(std__collections__List_compiler__ast__GenericParam* self) {
+    size_t new_cap = (self->cap * 2);
+    self->data = std__memory__Heap_resize_compiler__ast__GenericParam(self->data, new_cap);
+    self->cap = new_cap;
+}
+
+void std__collections__List_compiler__ast__GenericParam_reserve(std__collections__List_compiler__ast__GenericParam* self, size_t min_cap) {
+    if (min_cap > self->cap) {
+        size_t new_cap = self->cap;
+        while (new_cap < min_cap) {
+            new_cap *= 2;
+        }
+        self->data = std__memory__Heap_resize_compiler__ast__GenericParam(self->data, new_cap);
+        self->cap = new_cap;
+    }
+}
+
+compiler__ast__GenericParam std__collections__List_compiler__ast__GenericParam_remove_at(std__collections__List_compiler__ast__GenericParam* self, size_t index) {
+    compiler__ast__GenericParam item = self->data[index];
+    {
+        size_t __for_e = (self->len - 1);
+        size_t __for_i = __for_e;
+        __for_i = index;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            self->data[i] = self->data[(i + 1)];
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    self->len--;
+    return item;
+}
+
+void std__collections__List_compiler__ast__GenericParam_insert(std__collections__List_compiler__ast__GenericParam* self, size_t index, compiler__ast__GenericParam value) {
+    if (self->len == self->cap) {
+        std__collections__List_compiler__ast__GenericParam_grow(self);
+    }
+    size_t i = self->len;
+    while (i > index) {
+        self->data[i] = self->data[(i - 1)];
+        i--;
+    }
+    self->data[index] = value;
+    self->len++;
+}
+
+std__collections__List_compiler__ast__GenericParam std__collections__List_compiler__ast__GenericParam_clone(std__collections__List_compiler__ast__GenericParam* self) {
+    size_t cap = ((self->cap > 0) ? self->cap : 4);
+    std__collections__List_compiler__ast__GenericParam res = (std__collections__List_compiler__ast__GenericParam){ std__memory__Heap_create_array_compiler__ast__GenericParam(cap), 0, cap };
+    {
+        size_t __for_e = self->len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            std__collections__List_compiler__ast__GenericParam_plus_assign(&res, self->data[i]);
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return res;
+}
+
+compiler__ast__GenericParam std__collections__List_compiler__ast__GenericParam_pop_or(std__collections__List_compiler__ast__GenericParam* self, compiler__ast__GenericParam value) {
+    return ((self->len == 0) ? value : std__collections__List_compiler__ast__GenericParam_pop(self));
+}
+
+void std__collections__List_compiler__ast__GenericParam_swap(std__collections__List_compiler__ast__GenericParam* self, size_t a, size_t b) {
+    compiler__ast__GenericParam tmp = self->data[a];
+    self->data[a] = self->data[b];
+    self->data[b] = tmp;
+}
+
+void std__collections__List_compiler__ast__GenericParam_reverse(std__collections__List_compiler__ast__GenericParam* self) {
+    if (self->len <= 1) {
+        return;
+    }
+    int32_t left = 0;
+    size_t right = (self->len - 1);
+    while (left < right) {
+        compiler__ast__GenericParam tmp = self->data[left];
+        self->data[left] = self->data[right];
+        self->data[right] = tmp;
+        left++;
+        right--;
+    }
+}
+
+std__collections__List_compiler__ast__GenericParam std__collections__List_compiler__ast__GenericParam_sub(std__collections__List_compiler__ast__GenericParam* self, size_t start, size_t count) {
+    std__collections__List_compiler__ast__GenericParam res = (std__collections__List_compiler__ast__GenericParam){ std__memory__Heap_create_array_compiler__ast__GenericParam(count), 0, count };
+    if (start >= self->len) {
+        return res;
+    }
+    size_t end = (((start + count) > self->len) ? self->len : (start + count));
+    {
+        size_t __for_e = end;
+        size_t __for_i = __for_e;
+        __for_i = start;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            std__collections__List_compiler__ast__GenericParam_plus_assign(&res, self->data[i]);
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return res;
+}
+
+intptr_t std__collections__List_compiler__ast__GenericParam_index_of(std__collections__List_compiler__ast__GenericParam* self, compiler__ast__GenericParam value) {
+    {
+        size_t __for_e = self->len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            if (kobel_memeq(&self->data[i], &value, 40)) {
+                return i;
+            }
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return -1;
+}
+
+intptr_t std__collections__List_compiler__ast__GenericParam_last_index_of(std__collections__List_compiler__ast__GenericParam* self, compiler__ast__GenericParam value) {
+    if (self->len == 0) {
+        return -1;
+    }
+    size_t i = (self->len - 1);
+    while (true) {
+        if (kobel_memeq(&self->data[i], &value, 40)) {
+            return i;
+        }
+        if (i == 0) {
+            break;
+        }
+        i--;
+    }
+    return -1;
+}
+
+bool std__collections__List_compiler__ast__GenericParam_remove(std__collections__List_compiler__ast__GenericParam* self, compiler__ast__GenericParam value) {
+    intptr_t idx = std__collections__List_compiler__ast__GenericParam_index_of(self, value);
+    if (idx < 0) {
+        return false;
+    }
+    std__collections__List_compiler__ast__GenericParam_remove_at(self, (size_t)idx);
+    return true;
+}
+
+size_t std__collections__List_compiler__ast__GenericParam_remove_all(std__collections__List_compiler__ast__GenericParam* self, compiler__ast__GenericParam value) {
+    int32_t write = 0;
+    int32_t removed = 0;
+    {
+        size_t __for_e = self->len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            if (kobel_memeq(&self->data[i], &value, 40)) {
+                removed++;
+            } else {
+                if (write != i) {
+                    self->data[write] = self->data[i];
+                }
+                write++;
+            }
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    self->len = write;
+    return removed;
+}
+
+void std__collections__List_compiler__ast__GenericParam_free(std__collections__List_compiler__ast__GenericParam* self) {
+    std__memory__Heap_free_compiler__ast__GenericParam(self->data);
+}
+
+compiler__ast__GenericParam std__collections__List_compiler__ast__GenericParam_get(std__collections__List_compiler__ast__GenericParam* self, size_t index) {
+    return self->data[index];
+}
+
+bool std__collections__List_compiler__ast__GenericParam_contains(std__collections__List_compiler__ast__GenericParam* self, compiler__ast__GenericParam value) {
+    return (std__collections__List_compiler__ast__GenericParam_index_of(self, value) != -1);
+}
+
+compiler__ast__GenericParam std__collections__List_compiler__ast__GenericParam_set(std__collections__List_compiler__ast__GenericParam* self, size_t index, compiler__ast__GenericParam value) {
+    return self->data[index] = value;
+}
+
+void std__collections__List_compiler__ast__GenericParam_plus_assign(std__collections__List_compiler__ast__GenericParam* self, compiler__ast__GenericParam value) {
+    std__collections__List_compiler__ast__GenericParam_add(self, value);
+}
+
+size_t std__collections__List_compiler__ast__StructField_count(std__collections__List_compiler__ast__StructField* self) {
+    return self->len;
+}
+
+compiler__ast__StructField std__collections__List_compiler__ast__StructField_at(std__collections__List_compiler__ast__StructField* self, size_t i) {
+    return self->data[i];
+}
+
+std__collections__List_compiler__ast__StructField std__collections__List_compiler__ast__StructField_init(size_t cap) {
+    return (std__collections__List_compiler__ast__StructField){ std__memory__Heap_create_array_compiler__ast__StructField(cap), 0, cap };
+}
+
+compiler__ast__StructField std__collections__List_compiler__ast__StructField_first(std__collections__List_compiler__ast__StructField* self) {
+    return self->data[0];
+}
+
+compiler__ast__StructField std__collections__List_compiler__ast__StructField_last(std__collections__List_compiler__ast__StructField* self) {
+    return self->data[(self->len - 1)];
+}
+
+bool std__collections__List_compiler__ast__StructField_empty(std__collections__List_compiler__ast__StructField* self) {
+    return (self->len == 0);
+}
+
+void std__collections__List_compiler__ast__StructField_add(std__collections__List_compiler__ast__StructField* self, compiler__ast__StructField value) {
+    if (self->len == self->cap) {
+        std__collections__List_compiler__ast__StructField_grow(self);
+    }
+    self->data[self->len] = value;
+    self->len++;
+}
+
+compiler__ast__StructField std__collections__List_compiler__ast__StructField_pop(std__collections__List_compiler__ast__StructField* self) {
+    self->len--;
+    return self->data[self->len];
+}
+
+void std__collections__List_compiler__ast__StructField_extend(std__collections__List_compiler__ast__StructField* self, std__collections__List_compiler__ast__StructField other) {
+    {
+        size_t __for_n = std__collections__List_compiler__ast__StructField_count(&other);
+        size_t __for_i = 0;
+        while (__for_i < __for_n) {
+            compiler__ast__StructField data = std__collections__List_compiler__ast__StructField_at(&other, __for_i);
+            std__collections__List_compiler__ast__StructField_plus_assign(self, data);
+            __for_i = (__for_i + 1);
+        }
+    }
+}
+
+size_t std__collections__List_compiler__ast__StructField_clear(std__collections__List_compiler__ast__StructField* self) {
+    return self->len = 0;
+}
+
+void std__collections__List_compiler__ast__StructField_grow(std__collections__List_compiler__ast__StructField* self) {
+    size_t new_cap = (self->cap * 2);
+    self->data = std__memory__Heap_resize_compiler__ast__StructField(self->data, new_cap);
+    self->cap = new_cap;
+}
+
+void std__collections__List_compiler__ast__StructField_reserve(std__collections__List_compiler__ast__StructField* self, size_t min_cap) {
+    if (min_cap > self->cap) {
+        size_t new_cap = self->cap;
+        while (new_cap < min_cap) {
+            new_cap *= 2;
+        }
+        self->data = std__memory__Heap_resize_compiler__ast__StructField(self->data, new_cap);
+        self->cap = new_cap;
+    }
+}
+
+compiler__ast__StructField std__collections__List_compiler__ast__StructField_remove_at(std__collections__List_compiler__ast__StructField* self, size_t index) {
+    compiler__ast__StructField item = self->data[index];
+    {
+        size_t __for_e = (self->len - 1);
+        size_t __for_i = __for_e;
+        __for_i = index;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            self->data[i] = self->data[(i + 1)];
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    self->len--;
+    return item;
+}
+
+void std__collections__List_compiler__ast__StructField_insert(std__collections__List_compiler__ast__StructField* self, size_t index, compiler__ast__StructField value) {
+    if (self->len == self->cap) {
+        std__collections__List_compiler__ast__StructField_grow(self);
+    }
+    size_t i = self->len;
+    while (i > index) {
+        self->data[i] = self->data[(i - 1)];
+        i--;
+    }
+    self->data[index] = value;
+    self->len++;
+}
+
+std__collections__List_compiler__ast__StructField std__collections__List_compiler__ast__StructField_clone(std__collections__List_compiler__ast__StructField* self) {
+    size_t cap = ((self->cap > 0) ? self->cap : 4);
+    std__collections__List_compiler__ast__StructField res = (std__collections__List_compiler__ast__StructField){ std__memory__Heap_create_array_compiler__ast__StructField(cap), 0, cap };
+    {
+        size_t __for_e = self->len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            std__collections__List_compiler__ast__StructField_plus_assign(&res, self->data[i]);
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return res;
+}
+
+compiler__ast__StructField std__collections__List_compiler__ast__StructField_pop_or(std__collections__List_compiler__ast__StructField* self, compiler__ast__StructField value) {
+    return ((self->len == 0) ? value : std__collections__List_compiler__ast__StructField_pop(self));
+}
+
+void std__collections__List_compiler__ast__StructField_swap(std__collections__List_compiler__ast__StructField* self, size_t a, size_t b) {
+    compiler__ast__StructField tmp = self->data[a];
+    self->data[a] = self->data[b];
+    self->data[b] = tmp;
+}
+
+void std__collections__List_compiler__ast__StructField_reverse(std__collections__List_compiler__ast__StructField* self) {
+    if (self->len <= 1) {
+        return;
+    }
+    int32_t left = 0;
+    size_t right = (self->len - 1);
+    while (left < right) {
+        compiler__ast__StructField tmp = self->data[left];
+        self->data[left] = self->data[right];
+        self->data[right] = tmp;
+        left++;
+        right--;
+    }
+}
+
+std__collections__List_compiler__ast__StructField std__collections__List_compiler__ast__StructField_sub(std__collections__List_compiler__ast__StructField* self, size_t start, size_t count) {
+    std__collections__List_compiler__ast__StructField res = (std__collections__List_compiler__ast__StructField){ std__memory__Heap_create_array_compiler__ast__StructField(count), 0, count };
+    if (start >= self->len) {
+        return res;
+    }
+    size_t end = (((start + count) > self->len) ? self->len : (start + count));
+    {
+        size_t __for_e = end;
+        size_t __for_i = __for_e;
+        __for_i = start;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            std__collections__List_compiler__ast__StructField_plus_assign(&res, self->data[i]);
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return res;
+}
+
+intptr_t std__collections__List_compiler__ast__StructField_index_of(std__collections__List_compiler__ast__StructField* self, compiler__ast__StructField value) {
+    {
+        size_t __for_e = self->len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            if (kobel_memeq(&self->data[i], &value, 40)) {
+                return i;
+            }
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return -1;
+}
+
+intptr_t std__collections__List_compiler__ast__StructField_last_index_of(std__collections__List_compiler__ast__StructField* self, compiler__ast__StructField value) {
+    if (self->len == 0) {
+        return -1;
+    }
+    size_t i = (self->len - 1);
+    while (true) {
+        if (kobel_memeq(&self->data[i], &value, 40)) {
+            return i;
+        }
+        if (i == 0) {
+            break;
+        }
+        i--;
+    }
+    return -1;
+}
+
+bool std__collections__List_compiler__ast__StructField_remove(std__collections__List_compiler__ast__StructField* self, compiler__ast__StructField value) {
+    intptr_t idx = std__collections__List_compiler__ast__StructField_index_of(self, value);
+    if (idx < 0) {
+        return false;
+    }
+    std__collections__List_compiler__ast__StructField_remove_at(self, (size_t)idx);
+    return true;
+}
+
+size_t std__collections__List_compiler__ast__StructField_remove_all(std__collections__List_compiler__ast__StructField* self, compiler__ast__StructField value) {
+    int32_t write = 0;
+    int32_t removed = 0;
+    {
+        size_t __for_e = self->len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            if (kobel_memeq(&self->data[i], &value, 40)) {
+                removed++;
+            } else {
+                if (write != i) {
+                    self->data[write] = self->data[i];
+                }
+                write++;
+            }
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    self->len = write;
+    return removed;
+}
+
+void std__collections__List_compiler__ast__StructField_free(std__collections__List_compiler__ast__StructField* self) {
+    std__memory__Heap_free_compiler__ast__StructField(self->data);
+}
+
+compiler__ast__StructField std__collections__List_compiler__ast__StructField_get(std__collections__List_compiler__ast__StructField* self, size_t index) {
+    return self->data[index];
+}
+
+bool std__collections__List_compiler__ast__StructField_contains(std__collections__List_compiler__ast__StructField* self, compiler__ast__StructField value) {
+    return (std__collections__List_compiler__ast__StructField_index_of(self, value) != -1);
+}
+
+compiler__ast__StructField std__collections__List_compiler__ast__StructField_set(std__collections__List_compiler__ast__StructField* self, size_t index, compiler__ast__StructField value) {
+    return self->data[index] = value;
+}
+
+void std__collections__List_compiler__ast__StructField_plus_assign(std__collections__List_compiler__ast__StructField* self, compiler__ast__StructField value) {
+    std__collections__List_compiler__ast__StructField_add(self, value);
+}
+
+size_t std__collections__List_compiler__ast__AssocBinding_count(std__collections__List_compiler__ast__AssocBinding* self) {
+    return self->len;
+}
+
+compiler__ast__AssocBinding std__collections__List_compiler__ast__AssocBinding_at(std__collections__List_compiler__ast__AssocBinding* self, size_t i) {
+    return self->data[i];
+}
+
+std__collections__List_compiler__ast__AssocBinding std__collections__List_compiler__ast__AssocBinding_init(size_t cap) {
+    return (std__collections__List_compiler__ast__AssocBinding){ std__memory__Heap_create_array_compiler__ast__AssocBinding(cap), 0, cap };
+}
+
+compiler__ast__AssocBinding std__collections__List_compiler__ast__AssocBinding_first(std__collections__List_compiler__ast__AssocBinding* self) {
+    return self->data[0];
+}
+
+compiler__ast__AssocBinding std__collections__List_compiler__ast__AssocBinding_last(std__collections__List_compiler__ast__AssocBinding* self) {
+    return self->data[(self->len - 1)];
+}
+
+bool std__collections__List_compiler__ast__AssocBinding_empty(std__collections__List_compiler__ast__AssocBinding* self) {
+    return (self->len == 0);
+}
+
+void std__collections__List_compiler__ast__AssocBinding_add(std__collections__List_compiler__ast__AssocBinding* self, compiler__ast__AssocBinding value) {
+    if (self->len == self->cap) {
+        std__collections__List_compiler__ast__AssocBinding_grow(self);
+    }
+    self->data[self->len] = value;
+    self->len++;
+}
+
+compiler__ast__AssocBinding std__collections__List_compiler__ast__AssocBinding_pop(std__collections__List_compiler__ast__AssocBinding* self) {
+    self->len--;
+    return self->data[self->len];
+}
+
+void std__collections__List_compiler__ast__AssocBinding_extend(std__collections__List_compiler__ast__AssocBinding* self, std__collections__List_compiler__ast__AssocBinding other) {
+    {
+        size_t __for_n = std__collections__List_compiler__ast__AssocBinding_count(&other);
+        size_t __for_i = 0;
+        while (__for_i < __for_n) {
+            compiler__ast__AssocBinding data = std__collections__List_compiler__ast__AssocBinding_at(&other, __for_i);
+            std__collections__List_compiler__ast__AssocBinding_plus_assign(self, data);
+            __for_i = (__for_i + 1);
+        }
+    }
+}
+
+size_t std__collections__List_compiler__ast__AssocBinding_clear(std__collections__List_compiler__ast__AssocBinding* self) {
+    return self->len = 0;
+}
+
+void std__collections__List_compiler__ast__AssocBinding_grow(std__collections__List_compiler__ast__AssocBinding* self) {
+    size_t new_cap = (self->cap * 2);
+    self->data = std__memory__Heap_resize_compiler__ast__AssocBinding(self->data, new_cap);
+    self->cap = new_cap;
+}
+
+void std__collections__List_compiler__ast__AssocBinding_reserve(std__collections__List_compiler__ast__AssocBinding* self, size_t min_cap) {
+    if (min_cap > self->cap) {
+        size_t new_cap = self->cap;
+        while (new_cap < min_cap) {
+            new_cap *= 2;
+        }
+        self->data = std__memory__Heap_resize_compiler__ast__AssocBinding(self->data, new_cap);
+        self->cap = new_cap;
+    }
+}
+
+compiler__ast__AssocBinding std__collections__List_compiler__ast__AssocBinding_remove_at(std__collections__List_compiler__ast__AssocBinding* self, size_t index) {
+    compiler__ast__AssocBinding item = self->data[index];
+    {
+        size_t __for_e = (self->len - 1);
+        size_t __for_i = __for_e;
+        __for_i = index;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            self->data[i] = self->data[(i + 1)];
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    self->len--;
+    return item;
+}
+
+void std__collections__List_compiler__ast__AssocBinding_insert(std__collections__List_compiler__ast__AssocBinding* self, size_t index, compiler__ast__AssocBinding value) {
+    if (self->len == self->cap) {
+        std__collections__List_compiler__ast__AssocBinding_grow(self);
+    }
+    size_t i = self->len;
+    while (i > index) {
+        self->data[i] = self->data[(i - 1)];
+        i--;
+    }
+    self->data[index] = value;
+    self->len++;
+}
+
+std__collections__List_compiler__ast__AssocBinding std__collections__List_compiler__ast__AssocBinding_clone(std__collections__List_compiler__ast__AssocBinding* self) {
+    size_t cap = ((self->cap > 0) ? self->cap : 4);
+    std__collections__List_compiler__ast__AssocBinding res = (std__collections__List_compiler__ast__AssocBinding){ std__memory__Heap_create_array_compiler__ast__AssocBinding(cap), 0, cap };
+    {
+        size_t __for_e = self->len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            std__collections__List_compiler__ast__AssocBinding_plus_assign(&res, self->data[i]);
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return res;
+}
+
+compiler__ast__AssocBinding std__collections__List_compiler__ast__AssocBinding_pop_or(std__collections__List_compiler__ast__AssocBinding* self, compiler__ast__AssocBinding value) {
+    return ((self->len == 0) ? value : std__collections__List_compiler__ast__AssocBinding_pop(self));
+}
+
+void std__collections__List_compiler__ast__AssocBinding_swap(std__collections__List_compiler__ast__AssocBinding* self, size_t a, size_t b) {
+    compiler__ast__AssocBinding tmp = self->data[a];
+    self->data[a] = self->data[b];
+    self->data[b] = tmp;
+}
+
+void std__collections__List_compiler__ast__AssocBinding_reverse(std__collections__List_compiler__ast__AssocBinding* self) {
+    if (self->len <= 1) {
+        return;
+    }
+    int32_t left = 0;
+    size_t right = (self->len - 1);
+    while (left < right) {
+        compiler__ast__AssocBinding tmp = self->data[left];
+        self->data[left] = self->data[right];
+        self->data[right] = tmp;
+        left++;
+        right--;
+    }
+}
+
+std__collections__List_compiler__ast__AssocBinding std__collections__List_compiler__ast__AssocBinding_sub(std__collections__List_compiler__ast__AssocBinding* self, size_t start, size_t count) {
+    std__collections__List_compiler__ast__AssocBinding res = (std__collections__List_compiler__ast__AssocBinding){ std__memory__Heap_create_array_compiler__ast__AssocBinding(count), 0, count };
+    if (start >= self->len) {
+        return res;
+    }
+    size_t end = (((start + count) > self->len) ? self->len : (start + count));
+    {
+        size_t __for_e = end;
+        size_t __for_i = __for_e;
+        __for_i = start;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            std__collections__List_compiler__ast__AssocBinding_plus_assign(&res, self->data[i]);
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return res;
+}
+
+intptr_t std__collections__List_compiler__ast__AssocBinding_index_of(std__collections__List_compiler__ast__AssocBinding* self, compiler__ast__AssocBinding value) {
+    {
+        size_t __for_e = self->len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            if (kobel_memeq(&self->data[i], &value, 24)) {
+                return i;
+            }
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return -1;
+}
+
+intptr_t std__collections__List_compiler__ast__AssocBinding_last_index_of(std__collections__List_compiler__ast__AssocBinding* self, compiler__ast__AssocBinding value) {
+    if (self->len == 0) {
+        return -1;
+    }
+    size_t i = (self->len - 1);
+    while (true) {
+        if (kobel_memeq(&self->data[i], &value, 24)) {
+            return i;
+        }
+        if (i == 0) {
+            break;
+        }
+        i--;
+    }
+    return -1;
+}
+
+bool std__collections__List_compiler__ast__AssocBinding_remove(std__collections__List_compiler__ast__AssocBinding* self, compiler__ast__AssocBinding value) {
+    intptr_t idx = std__collections__List_compiler__ast__AssocBinding_index_of(self, value);
+    if (idx < 0) {
+        return false;
+    }
+    std__collections__List_compiler__ast__AssocBinding_remove_at(self, (size_t)idx);
+    return true;
+}
+
+size_t std__collections__List_compiler__ast__AssocBinding_remove_all(std__collections__List_compiler__ast__AssocBinding* self, compiler__ast__AssocBinding value) {
+    int32_t write = 0;
+    int32_t removed = 0;
+    {
+        size_t __for_e = self->len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            if (kobel_memeq(&self->data[i], &value, 24)) {
+                removed++;
+            } else {
+                if (write != i) {
+                    self->data[write] = self->data[i];
+                }
+                write++;
+            }
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    self->len = write;
+    return removed;
+}
+
+void std__collections__List_compiler__ast__AssocBinding_free(std__collections__List_compiler__ast__AssocBinding* self) {
+    std__memory__Heap_free_compiler__ast__AssocBinding(self->data);
+}
+
+compiler__ast__AssocBinding std__collections__List_compiler__ast__AssocBinding_get(std__collections__List_compiler__ast__AssocBinding* self, size_t index) {
+    return self->data[index];
+}
+
+bool std__collections__List_compiler__ast__AssocBinding_contains(std__collections__List_compiler__ast__AssocBinding* self, compiler__ast__AssocBinding value) {
+    return (std__collections__List_compiler__ast__AssocBinding_index_of(self, value) != -1);
+}
+
+compiler__ast__AssocBinding std__collections__List_compiler__ast__AssocBinding_set(std__collections__List_compiler__ast__AssocBinding* self, size_t index, compiler__ast__AssocBinding value) {
+    return self->data[index] = value;
+}
+
+void std__collections__List_compiler__ast__AssocBinding_plus_assign(std__collections__List_compiler__ast__AssocBinding* self, compiler__ast__AssocBinding value) {
+    std__collections__List_compiler__ast__AssocBinding_add(self, value);
+}
+
+size_t std__collections__List_compiler__ast__EnumMember_count(std__collections__List_compiler__ast__EnumMember* self) {
+    return self->len;
+}
+
+compiler__ast__EnumMember std__collections__List_compiler__ast__EnumMember_at(std__collections__List_compiler__ast__EnumMember* self, size_t i) {
+    return self->data[i];
+}
+
+std__collections__List_compiler__ast__EnumMember std__collections__List_compiler__ast__EnumMember_init(size_t cap) {
+    return (std__collections__List_compiler__ast__EnumMember){ std__memory__Heap_create_array_compiler__ast__EnumMember(cap), 0, cap };
+}
+
+compiler__ast__EnumMember std__collections__List_compiler__ast__EnumMember_first(std__collections__List_compiler__ast__EnumMember* self) {
+    return self->data[0];
+}
+
+compiler__ast__EnumMember std__collections__List_compiler__ast__EnumMember_last(std__collections__List_compiler__ast__EnumMember* self) {
+    return self->data[(self->len - 1)];
+}
+
+bool std__collections__List_compiler__ast__EnumMember_empty(std__collections__List_compiler__ast__EnumMember* self) {
+    return (self->len == 0);
+}
+
+void std__collections__List_compiler__ast__EnumMember_add(std__collections__List_compiler__ast__EnumMember* self, compiler__ast__EnumMember value) {
+    if (self->len == self->cap) {
+        std__collections__List_compiler__ast__EnumMember_grow(self);
+    }
+    self->data[self->len] = value;
+    self->len++;
+}
+
+compiler__ast__EnumMember std__collections__List_compiler__ast__EnumMember_pop(std__collections__List_compiler__ast__EnumMember* self) {
+    self->len--;
+    return self->data[self->len];
+}
+
+void std__collections__List_compiler__ast__EnumMember_extend(std__collections__List_compiler__ast__EnumMember* self, std__collections__List_compiler__ast__EnumMember other) {
+    {
+        size_t __for_n = std__collections__List_compiler__ast__EnumMember_count(&other);
+        size_t __for_i = 0;
+        while (__for_i < __for_n) {
+            compiler__ast__EnumMember data = std__collections__List_compiler__ast__EnumMember_at(&other, __for_i);
+            std__collections__List_compiler__ast__EnumMember_plus_assign(self, data);
+            __for_i = (__for_i + 1);
+        }
+    }
+}
+
+size_t std__collections__List_compiler__ast__EnumMember_clear(std__collections__List_compiler__ast__EnumMember* self) {
+    return self->len = 0;
+}
+
+void std__collections__List_compiler__ast__EnumMember_grow(std__collections__List_compiler__ast__EnumMember* self) {
+    size_t new_cap = (self->cap * 2);
+    self->data = std__memory__Heap_resize_compiler__ast__EnumMember(self->data, new_cap);
+    self->cap = new_cap;
+}
+
+void std__collections__List_compiler__ast__EnumMember_reserve(std__collections__List_compiler__ast__EnumMember* self, size_t min_cap) {
+    if (min_cap > self->cap) {
+        size_t new_cap = self->cap;
+        while (new_cap < min_cap) {
+            new_cap *= 2;
+        }
+        self->data = std__memory__Heap_resize_compiler__ast__EnumMember(self->data, new_cap);
+        self->cap = new_cap;
+    }
+}
+
+compiler__ast__EnumMember std__collections__List_compiler__ast__EnumMember_remove_at(std__collections__List_compiler__ast__EnumMember* self, size_t index) {
+    compiler__ast__EnumMember item = self->data[index];
+    {
+        size_t __for_e = (self->len - 1);
+        size_t __for_i = __for_e;
+        __for_i = index;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            self->data[i] = self->data[(i + 1)];
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    self->len--;
+    return item;
+}
+
+void std__collections__List_compiler__ast__EnumMember_insert(std__collections__List_compiler__ast__EnumMember* self, size_t index, compiler__ast__EnumMember value) {
+    if (self->len == self->cap) {
+        std__collections__List_compiler__ast__EnumMember_grow(self);
+    }
+    size_t i = self->len;
+    while (i > index) {
+        self->data[i] = self->data[(i - 1)];
+        i--;
+    }
+    self->data[index] = value;
+    self->len++;
+}
+
+std__collections__List_compiler__ast__EnumMember std__collections__List_compiler__ast__EnumMember_clone(std__collections__List_compiler__ast__EnumMember* self) {
+    size_t cap = ((self->cap > 0) ? self->cap : 4);
+    std__collections__List_compiler__ast__EnumMember res = (std__collections__List_compiler__ast__EnumMember){ std__memory__Heap_create_array_compiler__ast__EnumMember(cap), 0, cap };
+    {
+        size_t __for_e = self->len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            std__collections__List_compiler__ast__EnumMember_plus_assign(&res, self->data[i]);
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return res;
+}
+
+compiler__ast__EnumMember std__collections__List_compiler__ast__EnumMember_pop_or(std__collections__List_compiler__ast__EnumMember* self, compiler__ast__EnumMember value) {
+    return ((self->len == 0) ? value : std__collections__List_compiler__ast__EnumMember_pop(self));
+}
+
+void std__collections__List_compiler__ast__EnumMember_swap(std__collections__List_compiler__ast__EnumMember* self, size_t a, size_t b) {
+    compiler__ast__EnumMember tmp = self->data[a];
+    self->data[a] = self->data[b];
+    self->data[b] = tmp;
+}
+
+void std__collections__List_compiler__ast__EnumMember_reverse(std__collections__List_compiler__ast__EnumMember* self) {
+    if (self->len <= 1) {
+        return;
+    }
+    int32_t left = 0;
+    size_t right = (self->len - 1);
+    while (left < right) {
+        compiler__ast__EnumMember tmp = self->data[left];
+        self->data[left] = self->data[right];
+        self->data[right] = tmp;
+        left++;
+        right--;
+    }
+}
+
+std__collections__List_compiler__ast__EnumMember std__collections__List_compiler__ast__EnumMember_sub(std__collections__List_compiler__ast__EnumMember* self, size_t start, size_t count) {
+    std__collections__List_compiler__ast__EnumMember res = (std__collections__List_compiler__ast__EnumMember){ std__memory__Heap_create_array_compiler__ast__EnumMember(count), 0, count };
+    if (start >= self->len) {
+        return res;
+    }
+    size_t end = (((start + count) > self->len) ? self->len : (start + count));
+    {
+        size_t __for_e = end;
+        size_t __for_i = __for_e;
+        __for_i = start;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            std__collections__List_compiler__ast__EnumMember_plus_assign(&res, self->data[i]);
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return res;
+}
+
+intptr_t std__collections__List_compiler__ast__EnumMember_index_of(std__collections__List_compiler__ast__EnumMember* self, compiler__ast__EnumMember value) {
+    {
+        size_t __for_e = self->len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            if (kobel_memeq(&self->data[i], &value, 64)) {
+                return i;
+            }
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return -1;
+}
+
+intptr_t std__collections__List_compiler__ast__EnumMember_last_index_of(std__collections__List_compiler__ast__EnumMember* self, compiler__ast__EnumMember value) {
+    if (self->len == 0) {
+        return -1;
+    }
+    size_t i = (self->len - 1);
+    while (true) {
+        if (kobel_memeq(&self->data[i], &value, 64)) {
+            return i;
+        }
+        if (i == 0) {
+            break;
+        }
+        i--;
+    }
+    return -1;
+}
+
+bool std__collections__List_compiler__ast__EnumMember_remove(std__collections__List_compiler__ast__EnumMember* self, compiler__ast__EnumMember value) {
+    intptr_t idx = std__collections__List_compiler__ast__EnumMember_index_of(self, value);
+    if (idx < 0) {
+        return false;
+    }
+    std__collections__List_compiler__ast__EnumMember_remove_at(self, (size_t)idx);
+    return true;
+}
+
+size_t std__collections__List_compiler__ast__EnumMember_remove_all(std__collections__List_compiler__ast__EnumMember* self, compiler__ast__EnumMember value) {
+    int32_t write = 0;
+    int32_t removed = 0;
+    {
+        size_t __for_e = self->len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            if (kobel_memeq(&self->data[i], &value, 64)) {
+                removed++;
+            } else {
+                if (write != i) {
+                    self->data[write] = self->data[i];
+                }
+                write++;
+            }
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    self->len = write;
+    return removed;
+}
+
+void std__collections__List_compiler__ast__EnumMember_free(std__collections__List_compiler__ast__EnumMember* self) {
+    std__memory__Heap_free_compiler__ast__EnumMember(self->data);
+}
+
+compiler__ast__EnumMember std__collections__List_compiler__ast__EnumMember_get(std__collections__List_compiler__ast__EnumMember* self, size_t index) {
+    return self->data[index];
+}
+
+bool std__collections__List_compiler__ast__EnumMember_contains(std__collections__List_compiler__ast__EnumMember* self, compiler__ast__EnumMember value) {
+    return (std__collections__List_compiler__ast__EnumMember_index_of(self, value) != -1);
+}
+
+compiler__ast__EnumMember std__collections__List_compiler__ast__EnumMember_set(std__collections__List_compiler__ast__EnumMember* self, size_t index, compiler__ast__EnumMember value) {
+    return self->data[index] = value;
+}
+
+void std__collections__List_compiler__ast__EnumMember_plus_assign(std__collections__List_compiler__ast__EnumMember* self, compiler__ast__EnumMember value) {
+    std__collections__List_compiler__ast__EnumMember_add(self, value);
+}
+
 size_t std__collections__List_ptr_compiler__sema__Type_count(std__collections__List_ptr_compiler__sema__Type* self) {
     return self->len;
 }
@@ -30030,341 +31342,6 @@ bool std__collections__HashMap_str_str_contains(std__collections__HashMap_str_st
     return false;
 }
 
-size_t std__collections__List_compiler__ast__GenericParam_count(std__collections__List_compiler__ast__GenericParam* self) {
-    return self->len;
-}
-
-compiler__ast__GenericParam std__collections__List_compiler__ast__GenericParam_at(std__collections__List_compiler__ast__GenericParam* self, size_t i) {
-    return self->data[i];
-}
-
-std__collections__List_compiler__ast__GenericParam std__collections__List_compiler__ast__GenericParam_init(size_t cap) {
-    return (std__collections__List_compiler__ast__GenericParam){ std__memory__Heap_create_array_compiler__ast__GenericParam(cap), 0, cap };
-}
-
-compiler__ast__GenericParam std__collections__List_compiler__ast__GenericParam_first(std__collections__List_compiler__ast__GenericParam* self) {
-    return self->data[0];
-}
-
-compiler__ast__GenericParam std__collections__List_compiler__ast__GenericParam_last(std__collections__List_compiler__ast__GenericParam* self) {
-    return self->data[(self->len - 1)];
-}
-
-bool std__collections__List_compiler__ast__GenericParam_empty(std__collections__List_compiler__ast__GenericParam* self) {
-    return (self->len == 0);
-}
-
-void std__collections__List_compiler__ast__GenericParam_add(std__collections__List_compiler__ast__GenericParam* self, compiler__ast__GenericParam value) {
-    if (self->len == self->cap) {
-        std__collections__List_compiler__ast__GenericParam_grow(self);
-    }
-    self->data[self->len] = value;
-    self->len++;
-}
-
-compiler__ast__GenericParam std__collections__List_compiler__ast__GenericParam_pop(std__collections__List_compiler__ast__GenericParam* self) {
-    self->len--;
-    return self->data[self->len];
-}
-
-void std__collections__List_compiler__ast__GenericParam_extend(std__collections__List_compiler__ast__GenericParam* self, std__collections__List_compiler__ast__GenericParam other) {
-    {
-        size_t __for_n = std__collections__List_compiler__ast__GenericParam_count(&other);
-        size_t __for_i = 0;
-        while (__for_i < __for_n) {
-            compiler__ast__GenericParam data = std__collections__List_compiler__ast__GenericParam_at(&other, __for_i);
-            std__collections__List_compiler__ast__GenericParam_plus_assign(self, data);
-            __for_i = (__for_i + 1);
-        }
-    }
-}
-
-size_t std__collections__List_compiler__ast__GenericParam_clear(std__collections__List_compiler__ast__GenericParam* self) {
-    return self->len = 0;
-}
-
-void std__collections__List_compiler__ast__GenericParam_grow(std__collections__List_compiler__ast__GenericParam* self) {
-    size_t new_cap = (self->cap * 2);
-    self->data = std__memory__Heap_resize_compiler__ast__GenericParam(self->data, new_cap);
-    self->cap = new_cap;
-}
-
-void std__collections__List_compiler__ast__GenericParam_reserve(std__collections__List_compiler__ast__GenericParam* self, size_t min_cap) {
-    if (min_cap > self->cap) {
-        size_t new_cap = self->cap;
-        while (new_cap < min_cap) {
-            new_cap *= 2;
-        }
-        self->data = std__memory__Heap_resize_compiler__ast__GenericParam(self->data, new_cap);
-        self->cap = new_cap;
-    }
-}
-
-compiler__ast__GenericParam std__collections__List_compiler__ast__GenericParam_remove_at(std__collections__List_compiler__ast__GenericParam* self, size_t index) {
-    compiler__ast__GenericParam item = self->data[index];
-    {
-        size_t __for_e = (self->len - 1);
-        size_t __for_i = __for_e;
-        __for_i = index;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            __for_go = (__for_i < __for_e);
-        } else {
-            __for_go = (__for_i > __for_e);
-        }
-        while (__for_go) {
-            size_t i = __for_i;
-            self->data[i] = self->data[(i + 1)];
-            if (__for_up) {
-                __for_go = ((__for_i + 1) < __for_e);
-            } else {
-                __for_go = ((__for_i - 1) > __for_e);
-            }
-            if (__for_go) {
-                if (__for_up) {
-                    __for_i = (__for_i + 1);
-                } else {
-                    __for_i = (__for_i - 1);
-                }
-            }
-        }
-    }
-    self->len--;
-    return item;
-}
-
-void std__collections__List_compiler__ast__GenericParam_insert(std__collections__List_compiler__ast__GenericParam* self, size_t index, compiler__ast__GenericParam value) {
-    if (self->len == self->cap) {
-        std__collections__List_compiler__ast__GenericParam_grow(self);
-    }
-    size_t i = self->len;
-    while (i > index) {
-        self->data[i] = self->data[(i - 1)];
-        i--;
-    }
-    self->data[index] = value;
-    self->len++;
-}
-
-std__collections__List_compiler__ast__GenericParam std__collections__List_compiler__ast__GenericParam_clone(std__collections__List_compiler__ast__GenericParam* self) {
-    size_t cap = ((self->cap > 0) ? self->cap : 4);
-    std__collections__List_compiler__ast__GenericParam res = (std__collections__List_compiler__ast__GenericParam){ std__memory__Heap_create_array_compiler__ast__GenericParam(cap), 0, cap };
-    {
-        size_t __for_e = self->len;
-        size_t __for_i = __for_e;
-        __for_i = 0;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            __for_go = (__for_i < __for_e);
-        } else {
-            __for_go = (__for_i > __for_e);
-        }
-        while (__for_go) {
-            size_t i = __for_i;
-            std__collections__List_compiler__ast__GenericParam_plus_assign(&res, self->data[i]);
-            if (__for_up) {
-                __for_go = ((__for_i + 1) < __for_e);
-            } else {
-                __for_go = ((__for_i - 1) > __for_e);
-            }
-            if (__for_go) {
-                if (__for_up) {
-                    __for_i = (__for_i + 1);
-                } else {
-                    __for_i = (__for_i - 1);
-                }
-            }
-        }
-    }
-    return res;
-}
-
-compiler__ast__GenericParam std__collections__List_compiler__ast__GenericParam_pop_or(std__collections__List_compiler__ast__GenericParam* self, compiler__ast__GenericParam value) {
-    return ((self->len == 0) ? value : std__collections__List_compiler__ast__GenericParam_pop(self));
-}
-
-void std__collections__List_compiler__ast__GenericParam_swap(std__collections__List_compiler__ast__GenericParam* self, size_t a, size_t b) {
-    compiler__ast__GenericParam tmp = self->data[a];
-    self->data[a] = self->data[b];
-    self->data[b] = tmp;
-}
-
-void std__collections__List_compiler__ast__GenericParam_reverse(std__collections__List_compiler__ast__GenericParam* self) {
-    if (self->len <= 1) {
-        return;
-    }
-    int32_t left = 0;
-    size_t right = (self->len - 1);
-    while (left < right) {
-        compiler__ast__GenericParam tmp = self->data[left];
-        self->data[left] = self->data[right];
-        self->data[right] = tmp;
-        left++;
-        right--;
-    }
-}
-
-std__collections__List_compiler__ast__GenericParam std__collections__List_compiler__ast__GenericParam_sub(std__collections__List_compiler__ast__GenericParam* self, size_t start, size_t count) {
-    std__collections__List_compiler__ast__GenericParam res = (std__collections__List_compiler__ast__GenericParam){ std__memory__Heap_create_array_compiler__ast__GenericParam(count), 0, count };
-    if (start >= self->len) {
-        return res;
-    }
-    size_t end = (((start + count) > self->len) ? self->len : (start + count));
-    {
-        size_t __for_e = end;
-        size_t __for_i = __for_e;
-        __for_i = start;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            __for_go = (__for_i < __for_e);
-        } else {
-            __for_go = (__for_i > __for_e);
-        }
-        while (__for_go) {
-            size_t i = __for_i;
-            std__collections__List_compiler__ast__GenericParam_plus_assign(&res, self->data[i]);
-            if (__for_up) {
-                __for_go = ((__for_i + 1) < __for_e);
-            } else {
-                __for_go = ((__for_i - 1) > __for_e);
-            }
-            if (__for_go) {
-                if (__for_up) {
-                    __for_i = (__for_i + 1);
-                } else {
-                    __for_i = (__for_i - 1);
-                }
-            }
-        }
-    }
-    return res;
-}
-
-intptr_t std__collections__List_compiler__ast__GenericParam_index_of(std__collections__List_compiler__ast__GenericParam* self, compiler__ast__GenericParam value) {
-    {
-        size_t __for_e = self->len;
-        size_t __for_i = __for_e;
-        __for_i = 0;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            __for_go = (__for_i < __for_e);
-        } else {
-            __for_go = (__for_i > __for_e);
-        }
-        while (__for_go) {
-            size_t i = __for_i;
-            if (kobel_memeq(&self->data[i], &value, 40)) {
-                return i;
-            }
-            if (__for_up) {
-                __for_go = ((__for_i + 1) < __for_e);
-            } else {
-                __for_go = ((__for_i - 1) > __for_e);
-            }
-            if (__for_go) {
-                if (__for_up) {
-                    __for_i = (__for_i + 1);
-                } else {
-                    __for_i = (__for_i - 1);
-                }
-            }
-        }
-    }
-    return -1;
-}
-
-intptr_t std__collections__List_compiler__ast__GenericParam_last_index_of(std__collections__List_compiler__ast__GenericParam* self, compiler__ast__GenericParam value) {
-    if (self->len == 0) {
-        return -1;
-    }
-    size_t i = (self->len - 1);
-    while (true) {
-        if (kobel_memeq(&self->data[i], &value, 40)) {
-            return i;
-        }
-        if (i == 0) {
-            break;
-        }
-        i--;
-    }
-    return -1;
-}
-
-bool std__collections__List_compiler__ast__GenericParam_remove(std__collections__List_compiler__ast__GenericParam* self, compiler__ast__GenericParam value) {
-    intptr_t idx = std__collections__List_compiler__ast__GenericParam_index_of(self, value);
-    if (idx < 0) {
-        return false;
-    }
-    std__collections__List_compiler__ast__GenericParam_remove_at(self, (size_t)idx);
-    return true;
-}
-
-size_t std__collections__List_compiler__ast__GenericParam_remove_all(std__collections__List_compiler__ast__GenericParam* self, compiler__ast__GenericParam value) {
-    int32_t write = 0;
-    int32_t removed = 0;
-    {
-        size_t __for_e = self->len;
-        size_t __for_i = __for_e;
-        __for_i = 0;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            __for_go = (__for_i < __for_e);
-        } else {
-            __for_go = (__for_i > __for_e);
-        }
-        while (__for_go) {
-            size_t i = __for_i;
-            if (kobel_memeq(&self->data[i], &value, 40)) {
-                removed++;
-            } else {
-                if (write != i) {
-                    self->data[write] = self->data[i];
-                }
-                write++;
-            }
-            if (__for_up) {
-                __for_go = ((__for_i + 1) < __for_e);
-            } else {
-                __for_go = ((__for_i - 1) > __for_e);
-            }
-            if (__for_go) {
-                if (__for_up) {
-                    __for_i = (__for_i + 1);
-                } else {
-                    __for_i = (__for_i - 1);
-                }
-            }
-        }
-    }
-    self->len = write;
-    return removed;
-}
-
-void std__collections__List_compiler__ast__GenericParam_free(std__collections__List_compiler__ast__GenericParam* self) {
-    std__memory__Heap_free_compiler__ast__GenericParam(self->data);
-}
-
-compiler__ast__GenericParam std__collections__List_compiler__ast__GenericParam_get(std__collections__List_compiler__ast__GenericParam* self, size_t index) {
-    return self->data[index];
-}
-
-bool std__collections__List_compiler__ast__GenericParam_contains(std__collections__List_compiler__ast__GenericParam* self, compiler__ast__GenericParam value) {
-    return (std__collections__List_compiler__ast__GenericParam_index_of(self, value) != -1);
-}
-
-compiler__ast__GenericParam std__collections__List_compiler__ast__GenericParam_set(std__collections__List_compiler__ast__GenericParam* self, size_t index, compiler__ast__GenericParam value) {
-    return self->data[index] = value;
-}
-
-void std__collections__List_compiler__ast__GenericParam_plus_assign(std__collections__List_compiler__ast__GenericParam* self, compiler__ast__GenericParam value) {
-    std__collections__List_compiler__ast__GenericParam_add(self, value);
-}
-
 size_t std__collections__List_compiler__ast__Param_count(std__collections__List_compiler__ast__Param* self) {
     return self->len;
 }
@@ -30700,676 +31677,6 @@ void std__collections__List_compiler__ast__Param_plus_assign(std__collections__L
     std__collections__List_compiler__ast__Param_add(self, value);
 }
 
-size_t std__collections__List_compiler__ast__StructField_count(std__collections__List_compiler__ast__StructField* self) {
-    return self->len;
-}
-
-compiler__ast__StructField std__collections__List_compiler__ast__StructField_at(std__collections__List_compiler__ast__StructField* self, size_t i) {
-    return self->data[i];
-}
-
-std__collections__List_compiler__ast__StructField std__collections__List_compiler__ast__StructField_init(size_t cap) {
-    return (std__collections__List_compiler__ast__StructField){ std__memory__Heap_create_array_compiler__ast__StructField(cap), 0, cap };
-}
-
-compiler__ast__StructField std__collections__List_compiler__ast__StructField_first(std__collections__List_compiler__ast__StructField* self) {
-    return self->data[0];
-}
-
-compiler__ast__StructField std__collections__List_compiler__ast__StructField_last(std__collections__List_compiler__ast__StructField* self) {
-    return self->data[(self->len - 1)];
-}
-
-bool std__collections__List_compiler__ast__StructField_empty(std__collections__List_compiler__ast__StructField* self) {
-    return (self->len == 0);
-}
-
-void std__collections__List_compiler__ast__StructField_add(std__collections__List_compiler__ast__StructField* self, compiler__ast__StructField value) {
-    if (self->len == self->cap) {
-        std__collections__List_compiler__ast__StructField_grow(self);
-    }
-    self->data[self->len] = value;
-    self->len++;
-}
-
-compiler__ast__StructField std__collections__List_compiler__ast__StructField_pop(std__collections__List_compiler__ast__StructField* self) {
-    self->len--;
-    return self->data[self->len];
-}
-
-void std__collections__List_compiler__ast__StructField_extend(std__collections__List_compiler__ast__StructField* self, std__collections__List_compiler__ast__StructField other) {
-    {
-        size_t __for_n = std__collections__List_compiler__ast__StructField_count(&other);
-        size_t __for_i = 0;
-        while (__for_i < __for_n) {
-            compiler__ast__StructField data = std__collections__List_compiler__ast__StructField_at(&other, __for_i);
-            std__collections__List_compiler__ast__StructField_plus_assign(self, data);
-            __for_i = (__for_i + 1);
-        }
-    }
-}
-
-size_t std__collections__List_compiler__ast__StructField_clear(std__collections__List_compiler__ast__StructField* self) {
-    return self->len = 0;
-}
-
-void std__collections__List_compiler__ast__StructField_grow(std__collections__List_compiler__ast__StructField* self) {
-    size_t new_cap = (self->cap * 2);
-    self->data = std__memory__Heap_resize_compiler__ast__StructField(self->data, new_cap);
-    self->cap = new_cap;
-}
-
-void std__collections__List_compiler__ast__StructField_reserve(std__collections__List_compiler__ast__StructField* self, size_t min_cap) {
-    if (min_cap > self->cap) {
-        size_t new_cap = self->cap;
-        while (new_cap < min_cap) {
-            new_cap *= 2;
-        }
-        self->data = std__memory__Heap_resize_compiler__ast__StructField(self->data, new_cap);
-        self->cap = new_cap;
-    }
-}
-
-compiler__ast__StructField std__collections__List_compiler__ast__StructField_remove_at(std__collections__List_compiler__ast__StructField* self, size_t index) {
-    compiler__ast__StructField item = self->data[index];
-    {
-        size_t __for_e = (self->len - 1);
-        size_t __for_i = __for_e;
-        __for_i = index;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            __for_go = (__for_i < __for_e);
-        } else {
-            __for_go = (__for_i > __for_e);
-        }
-        while (__for_go) {
-            size_t i = __for_i;
-            self->data[i] = self->data[(i + 1)];
-            if (__for_up) {
-                __for_go = ((__for_i + 1) < __for_e);
-            } else {
-                __for_go = ((__for_i - 1) > __for_e);
-            }
-            if (__for_go) {
-                if (__for_up) {
-                    __for_i = (__for_i + 1);
-                } else {
-                    __for_i = (__for_i - 1);
-                }
-            }
-        }
-    }
-    self->len--;
-    return item;
-}
-
-void std__collections__List_compiler__ast__StructField_insert(std__collections__List_compiler__ast__StructField* self, size_t index, compiler__ast__StructField value) {
-    if (self->len == self->cap) {
-        std__collections__List_compiler__ast__StructField_grow(self);
-    }
-    size_t i = self->len;
-    while (i > index) {
-        self->data[i] = self->data[(i - 1)];
-        i--;
-    }
-    self->data[index] = value;
-    self->len++;
-}
-
-std__collections__List_compiler__ast__StructField std__collections__List_compiler__ast__StructField_clone(std__collections__List_compiler__ast__StructField* self) {
-    size_t cap = ((self->cap > 0) ? self->cap : 4);
-    std__collections__List_compiler__ast__StructField res = (std__collections__List_compiler__ast__StructField){ std__memory__Heap_create_array_compiler__ast__StructField(cap), 0, cap };
-    {
-        size_t __for_e = self->len;
-        size_t __for_i = __for_e;
-        __for_i = 0;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            __for_go = (__for_i < __for_e);
-        } else {
-            __for_go = (__for_i > __for_e);
-        }
-        while (__for_go) {
-            size_t i = __for_i;
-            std__collections__List_compiler__ast__StructField_plus_assign(&res, self->data[i]);
-            if (__for_up) {
-                __for_go = ((__for_i + 1) < __for_e);
-            } else {
-                __for_go = ((__for_i - 1) > __for_e);
-            }
-            if (__for_go) {
-                if (__for_up) {
-                    __for_i = (__for_i + 1);
-                } else {
-                    __for_i = (__for_i - 1);
-                }
-            }
-        }
-    }
-    return res;
-}
-
-compiler__ast__StructField std__collections__List_compiler__ast__StructField_pop_or(std__collections__List_compiler__ast__StructField* self, compiler__ast__StructField value) {
-    return ((self->len == 0) ? value : std__collections__List_compiler__ast__StructField_pop(self));
-}
-
-void std__collections__List_compiler__ast__StructField_swap(std__collections__List_compiler__ast__StructField* self, size_t a, size_t b) {
-    compiler__ast__StructField tmp = self->data[a];
-    self->data[a] = self->data[b];
-    self->data[b] = tmp;
-}
-
-void std__collections__List_compiler__ast__StructField_reverse(std__collections__List_compiler__ast__StructField* self) {
-    if (self->len <= 1) {
-        return;
-    }
-    int32_t left = 0;
-    size_t right = (self->len - 1);
-    while (left < right) {
-        compiler__ast__StructField tmp = self->data[left];
-        self->data[left] = self->data[right];
-        self->data[right] = tmp;
-        left++;
-        right--;
-    }
-}
-
-std__collections__List_compiler__ast__StructField std__collections__List_compiler__ast__StructField_sub(std__collections__List_compiler__ast__StructField* self, size_t start, size_t count) {
-    std__collections__List_compiler__ast__StructField res = (std__collections__List_compiler__ast__StructField){ std__memory__Heap_create_array_compiler__ast__StructField(count), 0, count };
-    if (start >= self->len) {
-        return res;
-    }
-    size_t end = (((start + count) > self->len) ? self->len : (start + count));
-    {
-        size_t __for_e = end;
-        size_t __for_i = __for_e;
-        __for_i = start;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            __for_go = (__for_i < __for_e);
-        } else {
-            __for_go = (__for_i > __for_e);
-        }
-        while (__for_go) {
-            size_t i = __for_i;
-            std__collections__List_compiler__ast__StructField_plus_assign(&res, self->data[i]);
-            if (__for_up) {
-                __for_go = ((__for_i + 1) < __for_e);
-            } else {
-                __for_go = ((__for_i - 1) > __for_e);
-            }
-            if (__for_go) {
-                if (__for_up) {
-                    __for_i = (__for_i + 1);
-                } else {
-                    __for_i = (__for_i - 1);
-                }
-            }
-        }
-    }
-    return res;
-}
-
-intptr_t std__collections__List_compiler__ast__StructField_index_of(std__collections__List_compiler__ast__StructField* self, compiler__ast__StructField value) {
-    {
-        size_t __for_e = self->len;
-        size_t __for_i = __for_e;
-        __for_i = 0;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            __for_go = (__for_i < __for_e);
-        } else {
-            __for_go = (__for_i > __for_e);
-        }
-        while (__for_go) {
-            size_t i = __for_i;
-            if (kobel_memeq(&self->data[i], &value, 40)) {
-                return i;
-            }
-            if (__for_up) {
-                __for_go = ((__for_i + 1) < __for_e);
-            } else {
-                __for_go = ((__for_i - 1) > __for_e);
-            }
-            if (__for_go) {
-                if (__for_up) {
-                    __for_i = (__for_i + 1);
-                } else {
-                    __for_i = (__for_i - 1);
-                }
-            }
-        }
-    }
-    return -1;
-}
-
-intptr_t std__collections__List_compiler__ast__StructField_last_index_of(std__collections__List_compiler__ast__StructField* self, compiler__ast__StructField value) {
-    if (self->len == 0) {
-        return -1;
-    }
-    size_t i = (self->len - 1);
-    while (true) {
-        if (kobel_memeq(&self->data[i], &value, 40)) {
-            return i;
-        }
-        if (i == 0) {
-            break;
-        }
-        i--;
-    }
-    return -1;
-}
-
-bool std__collections__List_compiler__ast__StructField_remove(std__collections__List_compiler__ast__StructField* self, compiler__ast__StructField value) {
-    intptr_t idx = std__collections__List_compiler__ast__StructField_index_of(self, value);
-    if (idx < 0) {
-        return false;
-    }
-    std__collections__List_compiler__ast__StructField_remove_at(self, (size_t)idx);
-    return true;
-}
-
-size_t std__collections__List_compiler__ast__StructField_remove_all(std__collections__List_compiler__ast__StructField* self, compiler__ast__StructField value) {
-    int32_t write = 0;
-    int32_t removed = 0;
-    {
-        size_t __for_e = self->len;
-        size_t __for_i = __for_e;
-        __for_i = 0;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            __for_go = (__for_i < __for_e);
-        } else {
-            __for_go = (__for_i > __for_e);
-        }
-        while (__for_go) {
-            size_t i = __for_i;
-            if (kobel_memeq(&self->data[i], &value, 40)) {
-                removed++;
-            } else {
-                if (write != i) {
-                    self->data[write] = self->data[i];
-                }
-                write++;
-            }
-            if (__for_up) {
-                __for_go = ((__for_i + 1) < __for_e);
-            } else {
-                __for_go = ((__for_i - 1) > __for_e);
-            }
-            if (__for_go) {
-                if (__for_up) {
-                    __for_i = (__for_i + 1);
-                } else {
-                    __for_i = (__for_i - 1);
-                }
-            }
-        }
-    }
-    self->len = write;
-    return removed;
-}
-
-void std__collections__List_compiler__ast__StructField_free(std__collections__List_compiler__ast__StructField* self) {
-    std__memory__Heap_free_compiler__ast__StructField(self->data);
-}
-
-compiler__ast__StructField std__collections__List_compiler__ast__StructField_get(std__collections__List_compiler__ast__StructField* self, size_t index) {
-    return self->data[index];
-}
-
-bool std__collections__List_compiler__ast__StructField_contains(std__collections__List_compiler__ast__StructField* self, compiler__ast__StructField value) {
-    return (std__collections__List_compiler__ast__StructField_index_of(self, value) != -1);
-}
-
-compiler__ast__StructField std__collections__List_compiler__ast__StructField_set(std__collections__List_compiler__ast__StructField* self, size_t index, compiler__ast__StructField value) {
-    return self->data[index] = value;
-}
-
-void std__collections__List_compiler__ast__StructField_plus_assign(std__collections__List_compiler__ast__StructField* self, compiler__ast__StructField value) {
-    std__collections__List_compiler__ast__StructField_add(self, value);
-}
-
-size_t std__collections__List_compiler__ast__AssocBinding_count(std__collections__List_compiler__ast__AssocBinding* self) {
-    return self->len;
-}
-
-compiler__ast__AssocBinding std__collections__List_compiler__ast__AssocBinding_at(std__collections__List_compiler__ast__AssocBinding* self, size_t i) {
-    return self->data[i];
-}
-
-std__collections__List_compiler__ast__AssocBinding std__collections__List_compiler__ast__AssocBinding_init(size_t cap) {
-    return (std__collections__List_compiler__ast__AssocBinding){ std__memory__Heap_create_array_compiler__ast__AssocBinding(cap), 0, cap };
-}
-
-compiler__ast__AssocBinding std__collections__List_compiler__ast__AssocBinding_first(std__collections__List_compiler__ast__AssocBinding* self) {
-    return self->data[0];
-}
-
-compiler__ast__AssocBinding std__collections__List_compiler__ast__AssocBinding_last(std__collections__List_compiler__ast__AssocBinding* self) {
-    return self->data[(self->len - 1)];
-}
-
-bool std__collections__List_compiler__ast__AssocBinding_empty(std__collections__List_compiler__ast__AssocBinding* self) {
-    return (self->len == 0);
-}
-
-void std__collections__List_compiler__ast__AssocBinding_add(std__collections__List_compiler__ast__AssocBinding* self, compiler__ast__AssocBinding value) {
-    if (self->len == self->cap) {
-        std__collections__List_compiler__ast__AssocBinding_grow(self);
-    }
-    self->data[self->len] = value;
-    self->len++;
-}
-
-compiler__ast__AssocBinding std__collections__List_compiler__ast__AssocBinding_pop(std__collections__List_compiler__ast__AssocBinding* self) {
-    self->len--;
-    return self->data[self->len];
-}
-
-void std__collections__List_compiler__ast__AssocBinding_extend(std__collections__List_compiler__ast__AssocBinding* self, std__collections__List_compiler__ast__AssocBinding other) {
-    {
-        size_t __for_n = std__collections__List_compiler__ast__AssocBinding_count(&other);
-        size_t __for_i = 0;
-        while (__for_i < __for_n) {
-            compiler__ast__AssocBinding data = std__collections__List_compiler__ast__AssocBinding_at(&other, __for_i);
-            std__collections__List_compiler__ast__AssocBinding_plus_assign(self, data);
-            __for_i = (__for_i + 1);
-        }
-    }
-}
-
-size_t std__collections__List_compiler__ast__AssocBinding_clear(std__collections__List_compiler__ast__AssocBinding* self) {
-    return self->len = 0;
-}
-
-void std__collections__List_compiler__ast__AssocBinding_grow(std__collections__List_compiler__ast__AssocBinding* self) {
-    size_t new_cap = (self->cap * 2);
-    self->data = std__memory__Heap_resize_compiler__ast__AssocBinding(self->data, new_cap);
-    self->cap = new_cap;
-}
-
-void std__collections__List_compiler__ast__AssocBinding_reserve(std__collections__List_compiler__ast__AssocBinding* self, size_t min_cap) {
-    if (min_cap > self->cap) {
-        size_t new_cap = self->cap;
-        while (new_cap < min_cap) {
-            new_cap *= 2;
-        }
-        self->data = std__memory__Heap_resize_compiler__ast__AssocBinding(self->data, new_cap);
-        self->cap = new_cap;
-    }
-}
-
-compiler__ast__AssocBinding std__collections__List_compiler__ast__AssocBinding_remove_at(std__collections__List_compiler__ast__AssocBinding* self, size_t index) {
-    compiler__ast__AssocBinding item = self->data[index];
-    {
-        size_t __for_e = (self->len - 1);
-        size_t __for_i = __for_e;
-        __for_i = index;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            __for_go = (__for_i < __for_e);
-        } else {
-            __for_go = (__for_i > __for_e);
-        }
-        while (__for_go) {
-            size_t i = __for_i;
-            self->data[i] = self->data[(i + 1)];
-            if (__for_up) {
-                __for_go = ((__for_i + 1) < __for_e);
-            } else {
-                __for_go = ((__for_i - 1) > __for_e);
-            }
-            if (__for_go) {
-                if (__for_up) {
-                    __for_i = (__for_i + 1);
-                } else {
-                    __for_i = (__for_i - 1);
-                }
-            }
-        }
-    }
-    self->len--;
-    return item;
-}
-
-void std__collections__List_compiler__ast__AssocBinding_insert(std__collections__List_compiler__ast__AssocBinding* self, size_t index, compiler__ast__AssocBinding value) {
-    if (self->len == self->cap) {
-        std__collections__List_compiler__ast__AssocBinding_grow(self);
-    }
-    size_t i = self->len;
-    while (i > index) {
-        self->data[i] = self->data[(i - 1)];
-        i--;
-    }
-    self->data[index] = value;
-    self->len++;
-}
-
-std__collections__List_compiler__ast__AssocBinding std__collections__List_compiler__ast__AssocBinding_clone(std__collections__List_compiler__ast__AssocBinding* self) {
-    size_t cap = ((self->cap > 0) ? self->cap : 4);
-    std__collections__List_compiler__ast__AssocBinding res = (std__collections__List_compiler__ast__AssocBinding){ std__memory__Heap_create_array_compiler__ast__AssocBinding(cap), 0, cap };
-    {
-        size_t __for_e = self->len;
-        size_t __for_i = __for_e;
-        __for_i = 0;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            __for_go = (__for_i < __for_e);
-        } else {
-            __for_go = (__for_i > __for_e);
-        }
-        while (__for_go) {
-            size_t i = __for_i;
-            std__collections__List_compiler__ast__AssocBinding_plus_assign(&res, self->data[i]);
-            if (__for_up) {
-                __for_go = ((__for_i + 1) < __for_e);
-            } else {
-                __for_go = ((__for_i - 1) > __for_e);
-            }
-            if (__for_go) {
-                if (__for_up) {
-                    __for_i = (__for_i + 1);
-                } else {
-                    __for_i = (__for_i - 1);
-                }
-            }
-        }
-    }
-    return res;
-}
-
-compiler__ast__AssocBinding std__collections__List_compiler__ast__AssocBinding_pop_or(std__collections__List_compiler__ast__AssocBinding* self, compiler__ast__AssocBinding value) {
-    return ((self->len == 0) ? value : std__collections__List_compiler__ast__AssocBinding_pop(self));
-}
-
-void std__collections__List_compiler__ast__AssocBinding_swap(std__collections__List_compiler__ast__AssocBinding* self, size_t a, size_t b) {
-    compiler__ast__AssocBinding tmp = self->data[a];
-    self->data[a] = self->data[b];
-    self->data[b] = tmp;
-}
-
-void std__collections__List_compiler__ast__AssocBinding_reverse(std__collections__List_compiler__ast__AssocBinding* self) {
-    if (self->len <= 1) {
-        return;
-    }
-    int32_t left = 0;
-    size_t right = (self->len - 1);
-    while (left < right) {
-        compiler__ast__AssocBinding tmp = self->data[left];
-        self->data[left] = self->data[right];
-        self->data[right] = tmp;
-        left++;
-        right--;
-    }
-}
-
-std__collections__List_compiler__ast__AssocBinding std__collections__List_compiler__ast__AssocBinding_sub(std__collections__List_compiler__ast__AssocBinding* self, size_t start, size_t count) {
-    std__collections__List_compiler__ast__AssocBinding res = (std__collections__List_compiler__ast__AssocBinding){ std__memory__Heap_create_array_compiler__ast__AssocBinding(count), 0, count };
-    if (start >= self->len) {
-        return res;
-    }
-    size_t end = (((start + count) > self->len) ? self->len : (start + count));
-    {
-        size_t __for_e = end;
-        size_t __for_i = __for_e;
-        __for_i = start;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            __for_go = (__for_i < __for_e);
-        } else {
-            __for_go = (__for_i > __for_e);
-        }
-        while (__for_go) {
-            size_t i = __for_i;
-            std__collections__List_compiler__ast__AssocBinding_plus_assign(&res, self->data[i]);
-            if (__for_up) {
-                __for_go = ((__for_i + 1) < __for_e);
-            } else {
-                __for_go = ((__for_i - 1) > __for_e);
-            }
-            if (__for_go) {
-                if (__for_up) {
-                    __for_i = (__for_i + 1);
-                } else {
-                    __for_i = (__for_i - 1);
-                }
-            }
-        }
-    }
-    return res;
-}
-
-intptr_t std__collections__List_compiler__ast__AssocBinding_index_of(std__collections__List_compiler__ast__AssocBinding* self, compiler__ast__AssocBinding value) {
-    {
-        size_t __for_e = self->len;
-        size_t __for_i = __for_e;
-        __for_i = 0;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            __for_go = (__for_i < __for_e);
-        } else {
-            __for_go = (__for_i > __for_e);
-        }
-        while (__for_go) {
-            size_t i = __for_i;
-            if (kobel_memeq(&self->data[i], &value, 24)) {
-                return i;
-            }
-            if (__for_up) {
-                __for_go = ((__for_i + 1) < __for_e);
-            } else {
-                __for_go = ((__for_i - 1) > __for_e);
-            }
-            if (__for_go) {
-                if (__for_up) {
-                    __for_i = (__for_i + 1);
-                } else {
-                    __for_i = (__for_i - 1);
-                }
-            }
-        }
-    }
-    return -1;
-}
-
-intptr_t std__collections__List_compiler__ast__AssocBinding_last_index_of(std__collections__List_compiler__ast__AssocBinding* self, compiler__ast__AssocBinding value) {
-    if (self->len == 0) {
-        return -1;
-    }
-    size_t i = (self->len - 1);
-    while (true) {
-        if (kobel_memeq(&self->data[i], &value, 24)) {
-            return i;
-        }
-        if (i == 0) {
-            break;
-        }
-        i--;
-    }
-    return -1;
-}
-
-bool std__collections__List_compiler__ast__AssocBinding_remove(std__collections__List_compiler__ast__AssocBinding* self, compiler__ast__AssocBinding value) {
-    intptr_t idx = std__collections__List_compiler__ast__AssocBinding_index_of(self, value);
-    if (idx < 0) {
-        return false;
-    }
-    std__collections__List_compiler__ast__AssocBinding_remove_at(self, (size_t)idx);
-    return true;
-}
-
-size_t std__collections__List_compiler__ast__AssocBinding_remove_all(std__collections__List_compiler__ast__AssocBinding* self, compiler__ast__AssocBinding value) {
-    int32_t write = 0;
-    int32_t removed = 0;
-    {
-        size_t __for_e = self->len;
-        size_t __for_i = __for_e;
-        __for_i = 0;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            __for_go = (__for_i < __for_e);
-        } else {
-            __for_go = (__for_i > __for_e);
-        }
-        while (__for_go) {
-            size_t i = __for_i;
-            if (kobel_memeq(&self->data[i], &value, 24)) {
-                removed++;
-            } else {
-                if (write != i) {
-                    self->data[write] = self->data[i];
-                }
-                write++;
-            }
-            if (__for_up) {
-                __for_go = ((__for_i + 1) < __for_e);
-            } else {
-                __for_go = ((__for_i - 1) > __for_e);
-            }
-            if (__for_go) {
-                if (__for_up) {
-                    __for_i = (__for_i + 1);
-                } else {
-                    __for_i = (__for_i - 1);
-                }
-            }
-        }
-    }
-    self->len = write;
-    return removed;
-}
-
-void std__collections__List_compiler__ast__AssocBinding_free(std__collections__List_compiler__ast__AssocBinding* self) {
-    std__memory__Heap_free_compiler__ast__AssocBinding(self->data);
-}
-
-compiler__ast__AssocBinding std__collections__List_compiler__ast__AssocBinding_get(std__collections__List_compiler__ast__AssocBinding* self, size_t index) {
-    return self->data[index];
-}
-
-bool std__collections__List_compiler__ast__AssocBinding_contains(std__collections__List_compiler__ast__AssocBinding* self, compiler__ast__AssocBinding value) {
-    return (std__collections__List_compiler__ast__AssocBinding_index_of(self, value) != -1);
-}
-
-compiler__ast__AssocBinding std__collections__List_compiler__ast__AssocBinding_set(std__collections__List_compiler__ast__AssocBinding* self, size_t index, compiler__ast__AssocBinding value) {
-    return self->data[index] = value;
-}
-
-void std__collections__List_compiler__ast__AssocBinding_plus_assign(std__collections__List_compiler__ast__AssocBinding* self, compiler__ast__AssocBinding value) {
-    std__collections__List_compiler__ast__AssocBinding_add(self, value);
-}
-
 size_t std__collections__List_compiler__ast__EnumField_count(std__collections__List_compiler__ast__EnumField* self) {
     return self->len;
 }
@@ -31703,341 +32010,6 @@ compiler__ast__EnumField std__collections__List_compiler__ast__EnumField_set(std
 
 void std__collections__List_compiler__ast__EnumField_plus_assign(std__collections__List_compiler__ast__EnumField* self, compiler__ast__EnumField value) {
     std__collections__List_compiler__ast__EnumField_add(self, value);
-}
-
-size_t std__collections__List_compiler__ast__EnumMember_count(std__collections__List_compiler__ast__EnumMember* self) {
-    return self->len;
-}
-
-compiler__ast__EnumMember std__collections__List_compiler__ast__EnumMember_at(std__collections__List_compiler__ast__EnumMember* self, size_t i) {
-    return self->data[i];
-}
-
-std__collections__List_compiler__ast__EnumMember std__collections__List_compiler__ast__EnumMember_init(size_t cap) {
-    return (std__collections__List_compiler__ast__EnumMember){ std__memory__Heap_create_array_compiler__ast__EnumMember(cap), 0, cap };
-}
-
-compiler__ast__EnumMember std__collections__List_compiler__ast__EnumMember_first(std__collections__List_compiler__ast__EnumMember* self) {
-    return self->data[0];
-}
-
-compiler__ast__EnumMember std__collections__List_compiler__ast__EnumMember_last(std__collections__List_compiler__ast__EnumMember* self) {
-    return self->data[(self->len - 1)];
-}
-
-bool std__collections__List_compiler__ast__EnumMember_empty(std__collections__List_compiler__ast__EnumMember* self) {
-    return (self->len == 0);
-}
-
-void std__collections__List_compiler__ast__EnumMember_add(std__collections__List_compiler__ast__EnumMember* self, compiler__ast__EnumMember value) {
-    if (self->len == self->cap) {
-        std__collections__List_compiler__ast__EnumMember_grow(self);
-    }
-    self->data[self->len] = value;
-    self->len++;
-}
-
-compiler__ast__EnumMember std__collections__List_compiler__ast__EnumMember_pop(std__collections__List_compiler__ast__EnumMember* self) {
-    self->len--;
-    return self->data[self->len];
-}
-
-void std__collections__List_compiler__ast__EnumMember_extend(std__collections__List_compiler__ast__EnumMember* self, std__collections__List_compiler__ast__EnumMember other) {
-    {
-        size_t __for_n = std__collections__List_compiler__ast__EnumMember_count(&other);
-        size_t __for_i = 0;
-        while (__for_i < __for_n) {
-            compiler__ast__EnumMember data = std__collections__List_compiler__ast__EnumMember_at(&other, __for_i);
-            std__collections__List_compiler__ast__EnumMember_plus_assign(self, data);
-            __for_i = (__for_i + 1);
-        }
-    }
-}
-
-size_t std__collections__List_compiler__ast__EnumMember_clear(std__collections__List_compiler__ast__EnumMember* self) {
-    return self->len = 0;
-}
-
-void std__collections__List_compiler__ast__EnumMember_grow(std__collections__List_compiler__ast__EnumMember* self) {
-    size_t new_cap = (self->cap * 2);
-    self->data = std__memory__Heap_resize_compiler__ast__EnumMember(self->data, new_cap);
-    self->cap = new_cap;
-}
-
-void std__collections__List_compiler__ast__EnumMember_reserve(std__collections__List_compiler__ast__EnumMember* self, size_t min_cap) {
-    if (min_cap > self->cap) {
-        size_t new_cap = self->cap;
-        while (new_cap < min_cap) {
-            new_cap *= 2;
-        }
-        self->data = std__memory__Heap_resize_compiler__ast__EnumMember(self->data, new_cap);
-        self->cap = new_cap;
-    }
-}
-
-compiler__ast__EnumMember std__collections__List_compiler__ast__EnumMember_remove_at(std__collections__List_compiler__ast__EnumMember* self, size_t index) {
-    compiler__ast__EnumMember item = self->data[index];
-    {
-        size_t __for_e = (self->len - 1);
-        size_t __for_i = __for_e;
-        __for_i = index;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            __for_go = (__for_i < __for_e);
-        } else {
-            __for_go = (__for_i > __for_e);
-        }
-        while (__for_go) {
-            size_t i = __for_i;
-            self->data[i] = self->data[(i + 1)];
-            if (__for_up) {
-                __for_go = ((__for_i + 1) < __for_e);
-            } else {
-                __for_go = ((__for_i - 1) > __for_e);
-            }
-            if (__for_go) {
-                if (__for_up) {
-                    __for_i = (__for_i + 1);
-                } else {
-                    __for_i = (__for_i - 1);
-                }
-            }
-        }
-    }
-    self->len--;
-    return item;
-}
-
-void std__collections__List_compiler__ast__EnumMember_insert(std__collections__List_compiler__ast__EnumMember* self, size_t index, compiler__ast__EnumMember value) {
-    if (self->len == self->cap) {
-        std__collections__List_compiler__ast__EnumMember_grow(self);
-    }
-    size_t i = self->len;
-    while (i > index) {
-        self->data[i] = self->data[(i - 1)];
-        i--;
-    }
-    self->data[index] = value;
-    self->len++;
-}
-
-std__collections__List_compiler__ast__EnumMember std__collections__List_compiler__ast__EnumMember_clone(std__collections__List_compiler__ast__EnumMember* self) {
-    size_t cap = ((self->cap > 0) ? self->cap : 4);
-    std__collections__List_compiler__ast__EnumMember res = (std__collections__List_compiler__ast__EnumMember){ std__memory__Heap_create_array_compiler__ast__EnumMember(cap), 0, cap };
-    {
-        size_t __for_e = self->len;
-        size_t __for_i = __for_e;
-        __for_i = 0;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            __for_go = (__for_i < __for_e);
-        } else {
-            __for_go = (__for_i > __for_e);
-        }
-        while (__for_go) {
-            size_t i = __for_i;
-            std__collections__List_compiler__ast__EnumMember_plus_assign(&res, self->data[i]);
-            if (__for_up) {
-                __for_go = ((__for_i + 1) < __for_e);
-            } else {
-                __for_go = ((__for_i - 1) > __for_e);
-            }
-            if (__for_go) {
-                if (__for_up) {
-                    __for_i = (__for_i + 1);
-                } else {
-                    __for_i = (__for_i - 1);
-                }
-            }
-        }
-    }
-    return res;
-}
-
-compiler__ast__EnumMember std__collections__List_compiler__ast__EnumMember_pop_or(std__collections__List_compiler__ast__EnumMember* self, compiler__ast__EnumMember value) {
-    return ((self->len == 0) ? value : std__collections__List_compiler__ast__EnumMember_pop(self));
-}
-
-void std__collections__List_compiler__ast__EnumMember_swap(std__collections__List_compiler__ast__EnumMember* self, size_t a, size_t b) {
-    compiler__ast__EnumMember tmp = self->data[a];
-    self->data[a] = self->data[b];
-    self->data[b] = tmp;
-}
-
-void std__collections__List_compiler__ast__EnumMember_reverse(std__collections__List_compiler__ast__EnumMember* self) {
-    if (self->len <= 1) {
-        return;
-    }
-    int32_t left = 0;
-    size_t right = (self->len - 1);
-    while (left < right) {
-        compiler__ast__EnumMember tmp = self->data[left];
-        self->data[left] = self->data[right];
-        self->data[right] = tmp;
-        left++;
-        right--;
-    }
-}
-
-std__collections__List_compiler__ast__EnumMember std__collections__List_compiler__ast__EnumMember_sub(std__collections__List_compiler__ast__EnumMember* self, size_t start, size_t count) {
-    std__collections__List_compiler__ast__EnumMember res = (std__collections__List_compiler__ast__EnumMember){ std__memory__Heap_create_array_compiler__ast__EnumMember(count), 0, count };
-    if (start >= self->len) {
-        return res;
-    }
-    size_t end = (((start + count) > self->len) ? self->len : (start + count));
-    {
-        size_t __for_e = end;
-        size_t __for_i = __for_e;
-        __for_i = start;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            __for_go = (__for_i < __for_e);
-        } else {
-            __for_go = (__for_i > __for_e);
-        }
-        while (__for_go) {
-            size_t i = __for_i;
-            std__collections__List_compiler__ast__EnumMember_plus_assign(&res, self->data[i]);
-            if (__for_up) {
-                __for_go = ((__for_i + 1) < __for_e);
-            } else {
-                __for_go = ((__for_i - 1) > __for_e);
-            }
-            if (__for_go) {
-                if (__for_up) {
-                    __for_i = (__for_i + 1);
-                } else {
-                    __for_i = (__for_i - 1);
-                }
-            }
-        }
-    }
-    return res;
-}
-
-intptr_t std__collections__List_compiler__ast__EnumMember_index_of(std__collections__List_compiler__ast__EnumMember* self, compiler__ast__EnumMember value) {
-    {
-        size_t __for_e = self->len;
-        size_t __for_i = __for_e;
-        __for_i = 0;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            __for_go = (__for_i < __for_e);
-        } else {
-            __for_go = (__for_i > __for_e);
-        }
-        while (__for_go) {
-            size_t i = __for_i;
-            if (kobel_memeq(&self->data[i], &value, 64)) {
-                return i;
-            }
-            if (__for_up) {
-                __for_go = ((__for_i + 1) < __for_e);
-            } else {
-                __for_go = ((__for_i - 1) > __for_e);
-            }
-            if (__for_go) {
-                if (__for_up) {
-                    __for_i = (__for_i + 1);
-                } else {
-                    __for_i = (__for_i - 1);
-                }
-            }
-        }
-    }
-    return -1;
-}
-
-intptr_t std__collections__List_compiler__ast__EnumMember_last_index_of(std__collections__List_compiler__ast__EnumMember* self, compiler__ast__EnumMember value) {
-    if (self->len == 0) {
-        return -1;
-    }
-    size_t i = (self->len - 1);
-    while (true) {
-        if (kobel_memeq(&self->data[i], &value, 64)) {
-            return i;
-        }
-        if (i == 0) {
-            break;
-        }
-        i--;
-    }
-    return -1;
-}
-
-bool std__collections__List_compiler__ast__EnumMember_remove(std__collections__List_compiler__ast__EnumMember* self, compiler__ast__EnumMember value) {
-    intptr_t idx = std__collections__List_compiler__ast__EnumMember_index_of(self, value);
-    if (idx < 0) {
-        return false;
-    }
-    std__collections__List_compiler__ast__EnumMember_remove_at(self, (size_t)idx);
-    return true;
-}
-
-size_t std__collections__List_compiler__ast__EnumMember_remove_all(std__collections__List_compiler__ast__EnumMember* self, compiler__ast__EnumMember value) {
-    int32_t write = 0;
-    int32_t removed = 0;
-    {
-        size_t __for_e = self->len;
-        size_t __for_i = __for_e;
-        __for_i = 0;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            __for_go = (__for_i < __for_e);
-        } else {
-            __for_go = (__for_i > __for_e);
-        }
-        while (__for_go) {
-            size_t i = __for_i;
-            if (kobel_memeq(&self->data[i], &value, 64)) {
-                removed++;
-            } else {
-                if (write != i) {
-                    self->data[write] = self->data[i];
-                }
-                write++;
-            }
-            if (__for_up) {
-                __for_go = ((__for_i + 1) < __for_e);
-            } else {
-                __for_go = ((__for_i - 1) > __for_e);
-            }
-            if (__for_go) {
-                if (__for_up) {
-                    __for_i = (__for_i + 1);
-                } else {
-                    __for_i = (__for_i - 1);
-                }
-            }
-        }
-    }
-    self->len = write;
-    return removed;
-}
-
-void std__collections__List_compiler__ast__EnumMember_free(std__collections__List_compiler__ast__EnumMember* self) {
-    std__memory__Heap_free_compiler__ast__EnumMember(self->data);
-}
-
-compiler__ast__EnumMember std__collections__List_compiler__ast__EnumMember_get(std__collections__List_compiler__ast__EnumMember* self, size_t index) {
-    return self->data[index];
-}
-
-bool std__collections__List_compiler__ast__EnumMember_contains(std__collections__List_compiler__ast__EnumMember* self, compiler__ast__EnumMember value) {
-    return (std__collections__List_compiler__ast__EnumMember_index_of(self, value) != -1);
-}
-
-compiler__ast__EnumMember std__collections__List_compiler__ast__EnumMember_set(std__collections__List_compiler__ast__EnumMember* self, size_t index, compiler__ast__EnumMember value) {
-    return self->data[index] = value;
-}
-
-void std__collections__List_compiler__ast__EnumMember_plus_assign(std__collections__List_compiler__ast__EnumMember* self, compiler__ast__EnumMember value) {
-    std__collections__List_compiler__ast__EnumMember_add(self, value);
 }
 
 size_t std__collections__List_compiler__lexer__Token_count(std__collections__List_compiler__lexer__Token* self) {
@@ -42986,30 +42958,6 @@ compiler__ast__FnDecl* std__memory__Arena_create_val_compiler__ast__FnDecl(std__
     return ptr;
 }
 
-compiler__ast__StructDecl* std__memory__Arena_create_val_compiler__ast__StructDecl(std__memory__Arena* self, compiler__ast__StructDecl value) {
-    compiler__ast__StructDecl* ptr = std__memory__Arena_create_compiler__ast__StructDecl(self);
-    (*(ptr) = value);
-    return ptr;
-}
-
-compiler__ast__TraitDecl* std__memory__Arena_create_val_compiler__ast__TraitDecl(std__memory__Arena* self, compiler__ast__TraitDecl value) {
-    compiler__ast__TraitDecl* ptr = std__memory__Arena_create_compiler__ast__TraitDecl(self);
-    (*(ptr) = value);
-    return ptr;
-}
-
-compiler__ast__ImplDecl* std__memory__Arena_create_val_compiler__ast__ImplDecl(std__memory__Arena* self, compiler__ast__ImplDecl value) {
-    compiler__ast__ImplDecl* ptr = std__memory__Arena_create_compiler__ast__ImplDecl(self);
-    (*(ptr) = value);
-    return ptr;
-}
-
-compiler__ast__EnumDecl* std__memory__Arena_create_val_compiler__ast__EnumDecl(std__memory__Arena* self, compiler__ast__EnumDecl value) {
-    compiler__ast__EnumDecl* ptr = std__memory__Arena_create_compiler__ast__EnumDecl(self);
-    (*(ptr) = value);
-    return ptr;
-}
-
 compiler__ast__AstNode* std__memory__Arena_create_val_compiler__ast__AstNode(std__memory__Arena* self, compiler__ast__AstNode value) {
     compiler__ast__AstNode* ptr = std__memory__Arena_create_compiler__ast__AstNode(self);
     (*(ptr) = value);
@@ -43042,15 +42990,7 @@ void std__memory__Heap_free_str(kobel_str* ptr) {
     free((uint8_t*)ptr);
 }
 
-void std__memory__Heap_free_ptr_compiler__sema__Type(compiler__sema__Type** ptr) {
-    free((uint8_t*)ptr);
-}
-
 void std__memory__Heap_free_compiler__ast__GenericParam(compiler__ast__GenericParam* ptr) {
-    free((uint8_t*)ptr);
-}
-
-void std__memory__Heap_free_compiler__ast__Param(compiler__ast__Param* ptr) {
     free((uint8_t*)ptr);
 }
 
@@ -43062,11 +43002,19 @@ void std__memory__Heap_free_compiler__ast__AssocBinding(compiler__ast__AssocBind
     free((uint8_t*)ptr);
 }
 
-void std__memory__Heap_free_compiler__ast__EnumField(compiler__ast__EnumField* ptr) {
+void std__memory__Heap_free_compiler__ast__EnumMember(compiler__ast__EnumMember* ptr) {
     free((uint8_t*)ptr);
 }
 
-void std__memory__Heap_free_compiler__ast__EnumMember(compiler__ast__EnumMember* ptr) {
+void std__memory__Heap_free_ptr_compiler__sema__Type(compiler__sema__Type** ptr) {
+    free((uint8_t*)ptr);
+}
+
+void std__memory__Heap_free_compiler__ast__Param(compiler__ast__Param* ptr) {
+    free((uint8_t*)ptr);
+}
+
+void std__memory__Heap_free_compiler__ast__EnumField(compiler__ast__EnumField* ptr) {
     free((uint8_t*)ptr);
 }
 
@@ -43326,28 +43274,12 @@ kobel_str* std__memory__Heap_resize_str(kobel_str* ptr, size_t count) {
     return (kobel_str*)realloc((uint8_t*)ptr, (count * 16));
 }
 
-compiler__sema__Type** std__memory__Heap_create_array_ptr_compiler__sema__Type(size_t count) {
-    return (compiler__sema__Type**)malloc((count * 8));
-}
-
-compiler__sema__Type** std__memory__Heap_resize_ptr_compiler__sema__Type(compiler__sema__Type** ptr, size_t count) {
-    return (compiler__sema__Type**)realloc((uint8_t*)ptr, (count * 8));
-}
-
 compiler__ast__GenericParam* std__memory__Heap_create_array_compiler__ast__GenericParam(size_t count) {
     return (compiler__ast__GenericParam*)malloc((count * 40));
 }
 
 compiler__ast__GenericParam* std__memory__Heap_resize_compiler__ast__GenericParam(compiler__ast__GenericParam* ptr, size_t count) {
     return (compiler__ast__GenericParam*)realloc((uint8_t*)ptr, (count * 40));
-}
-
-compiler__ast__Param* std__memory__Heap_create_array_compiler__ast__Param(size_t count) {
-    return (compiler__ast__Param*)malloc((count * 40));
-}
-
-compiler__ast__Param* std__memory__Heap_resize_compiler__ast__Param(compiler__ast__Param* ptr, size_t count) {
-    return (compiler__ast__Param*)realloc((uint8_t*)ptr, (count * 40));
 }
 
 compiler__ast__StructField* std__memory__Heap_create_array_compiler__ast__StructField(size_t count) {
@@ -43366,20 +43298,36 @@ compiler__ast__AssocBinding* std__memory__Heap_resize_compiler__ast__AssocBindin
     return (compiler__ast__AssocBinding*)realloc((uint8_t*)ptr, (count * 24));
 }
 
-compiler__ast__EnumField* std__memory__Heap_create_array_compiler__ast__EnumField(size_t count) {
-    return (compiler__ast__EnumField*)malloc((count * 24));
-}
-
-compiler__ast__EnumField* std__memory__Heap_resize_compiler__ast__EnumField(compiler__ast__EnumField* ptr, size_t count) {
-    return (compiler__ast__EnumField*)realloc((uint8_t*)ptr, (count * 24));
-}
-
 compiler__ast__EnumMember* std__memory__Heap_create_array_compiler__ast__EnumMember(size_t count) {
     return (compiler__ast__EnumMember*)malloc((count * 64));
 }
 
 compiler__ast__EnumMember* std__memory__Heap_resize_compiler__ast__EnumMember(compiler__ast__EnumMember* ptr, size_t count) {
     return (compiler__ast__EnumMember*)realloc((uint8_t*)ptr, (count * 64));
+}
+
+compiler__sema__Type** std__memory__Heap_create_array_ptr_compiler__sema__Type(size_t count) {
+    return (compiler__sema__Type**)malloc((count * 8));
+}
+
+compiler__sema__Type** std__memory__Heap_resize_ptr_compiler__sema__Type(compiler__sema__Type** ptr, size_t count) {
+    return (compiler__sema__Type**)realloc((uint8_t*)ptr, (count * 8));
+}
+
+compiler__ast__Param* std__memory__Heap_create_array_compiler__ast__Param(size_t count) {
+    return (compiler__ast__Param*)malloc((count * 40));
+}
+
+compiler__ast__Param* std__memory__Heap_resize_compiler__ast__Param(compiler__ast__Param* ptr, size_t count) {
+    return (compiler__ast__Param*)realloc((uint8_t*)ptr, (count * 40));
+}
+
+compiler__ast__EnumField* std__memory__Heap_create_array_compiler__ast__EnumField(size_t count) {
+    return (compiler__ast__EnumField*)malloc((count * 24));
+}
+
+compiler__ast__EnumField* std__memory__Heap_resize_compiler__ast__EnumField(compiler__ast__EnumField* ptr, size_t count) {
+    return (compiler__ast__EnumField*)realloc((uint8_t*)ptr, (count * 24));
 }
 
 compiler__lexer__Token* std__memory__Heap_create_array_compiler__lexer__Token(size_t count) {
@@ -43562,24 +43510,8 @@ compiler__ast__FnDecl* std__memory__Arena_create_compiler__ast__FnDecl(std__memo
     return (compiler__ast__FnDecl*)std__memory__Arena_alloc_bytes(self, 104, 8);
 }
 
-compiler__ast__StructDecl* std__memory__Arena_create_compiler__ast__StructDecl(std__memory__Arena* self) {
-    return (compiler__ast__StructDecl*)std__memory__Arena_alloc_bytes(self, 72, 8);
-}
-
-compiler__ast__TraitDecl* std__memory__Arena_create_compiler__ast__TraitDecl(std__memory__Arena* self) {
-    return (compiler__ast__TraitDecl*)std__memory__Arena_alloc_bytes(self, 120, 8);
-}
-
-compiler__ast__ImplDecl* std__memory__Arena_create_compiler__ast__ImplDecl(std__memory__Arena* self) {
-    return (compiler__ast__ImplDecl*)std__memory__Arena_alloc_bytes(self, 104, 8);
-}
-
-compiler__ast__EnumDecl* std__memory__Arena_create_compiler__ast__EnumDecl(std__memory__Arena* self) {
-    return (compiler__ast__EnumDecl*)std__memory__Arena_alloc_bytes(self, 56, 8);
-}
-
 compiler__ast__AstNode* std__memory__Arena_create_compiler__ast__AstNode(std__memory__Arena* self) {
-    return (compiler__ast__AstNode*)std__memory__Arena_alloc_bytes(self, 176, 8);
+    return (compiler__ast__AstNode*)std__memory__Arena_alloc_bytes(self, 184, 8);
 }
 
 compiler__sema__Type* std__memory__Arena_create_compiler__sema__Type(std__memory__Arena* self) {
