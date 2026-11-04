@@ -350,7 +350,7 @@ impl BodyPass {
 
 	// The tag constant a pattern compares against, under any of the spellings a
 	// tagged struct may use. Null when the struct declares none.
-	fn find_tag_const(var self, struct_name: str): *Symbol? {
+	fn find_tag_const(val self, struct_name: str): *Symbol? {
 		return self.symtab.lookup("${struct_name}__TAG")
 			?: self.symtab.lookup_struct_const(struct_name, "TAG")
 			?: self.symtab.lookup("${struct_name}__KIND")
@@ -359,12 +359,12 @@ impl BodyPass {
 
 	// The tag is the struct's first field: that is the language rule for `is`
 	// patterns, so no field name is guessed.
-	fn tag_field_name_of(var self, base_s: *StructType): str {
+	fn tag_field_name_of(val self, base_s: *StructType): str {
 		if (base_s.fields.empty()) return "";
 		return base_s.fields[0].name;
 	}
 
-	fn field_type_of(var self, base_s: *StructType, name: str): *Type? {
+	fn field_type_of(val self, base_s: *StructType, name: str): *Type? {
 		for (f in base_s.fields) {
 			if (f.name == name) return f.type_ptr;
 		}

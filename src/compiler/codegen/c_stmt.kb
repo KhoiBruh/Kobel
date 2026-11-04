@@ -953,7 +953,7 @@ impl CCodeGen {
 		}
 	}
 
-	pub fn gen_smart_cast_decl(var self, is_e: *IsExpr, subject: *AstNode, var_name: str, ind_level: usz): str {
+	pub fn gen_smart_cast_decl(val self, is_e: *IsExpr, subject: *AstNode, var_name: str, ind_level: usz): str {
 		val target_name = c_type_from_ast(is_e.target_type);
 		val bound_name = if (!is_e.alias.empty()) is_e.alias else var_name;
 		val is_ptr = if (is_e.is_ptr) true else self.is_pointer_value(subject);

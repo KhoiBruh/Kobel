@@ -278,6 +278,7 @@ impl BodyPass {
 				if (self.is_immutable_self(mem.object)) {
 					self.report_error(node, "Cannot call mutating method '${mem.member}' on immutable receiver 'val self'");
 				}
+				self.mark_node_mutated(mem.object);
 			}
 		}
 
@@ -287,6 +288,9 @@ impl BodyPass {
 			for (i in 0..<call.args.len) {
 				val param_ty = fn_info.param_types[i + 1];
 				val arg_n = call.args[i];
+				if (param_ty?.kind == DataType.POINTER && param_ty.as_pointer().mutable) {
+					self.mark_node_mutated(arg_n);
+				}
 				if (param_ty?.is_list()) self.coerce_to_list(arg_n, param_ty);
 				val arg_ty = self.check_expr(arg_n, param_ty);
 				self.ensure(param_ty.can_assign(arg_ty), node, "Argument type mismatch in method call '${mem.member}'");
@@ -413,6 +417,9 @@ impl BodyPass {
 			for (i in 0..<call.args.len) {
 				val param_ty = fn_info.param_types[i];
 				val arg_n = call.args[i];
+				if (param_ty?.kind == DataType.POINTER && param_ty.as_pointer().mutable) {
+					self.mark_node_mutated(arg_n);
+				}
 				if (param_ty?.is_list()) self.coerce_to_list(arg_n, param_ty);
 				val arg_ty = self.check_expr(arg_n, param_ty);
 				self.ensure(param_ty.can_assign(arg_ty), node, "Argument type mismatch in call to '${st.name}.${mem.member}'");
@@ -575,6 +582,7 @@ impl BodyPass {
 				if (self.is_immutable_self(mem.object)) {
 					self.report_error(node, "Cannot call mutating method '${mem.member}' on immutable receiver 'val self'");
 				}
+				self.mark_node_mutated(mem.object);
 			}
 		}
 
@@ -600,6 +608,9 @@ impl BodyPass {
 			for (i in 1..<args.len) {
 				val param_ty = fn_info.param_types[i];
 				val arg_n = args[i];
+				if (param_ty?.kind == DataType.POINTER && param_ty.as_pointer().mutable) {
+					self.mark_node_mutated(arg_n);
+				}
 				if (param_ty?.is_list()) self.coerce_to_list(arg_n, param_ty);
 				val arg_ty = self.check_expr(arg_n, param_ty);
 				self.ensure(param_ty.can_assign(arg_ty), node, "Argument type mismatch in method call '${mem.member}'");
@@ -738,6 +749,9 @@ impl BodyPass {
 			for (i in 0..<call.args.len) {
 				val param_ty = fn_info.param_types[i];
 				val arg_n = call.args[i];
+				if (param_ty?.kind == DataType.POINTER && param_ty.as_pointer().mutable) {
+					self.mark_node_mutated(arg_n);
+				}
 				if (param_ty?.is_list()) self.coerce_to_list(arg_n, param_ty);
 				val arg_ty = self.check_expr(arg_n, param_ty);
 				if (!param_ty.can_assign(arg_ty)) {

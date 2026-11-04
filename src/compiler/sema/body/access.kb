@@ -247,13 +247,34 @@ impl BodyPass {
 		return self.prims().t_none();
 	}
 
+	pub fn mark_symbol_mutated(val self, name: str) {
+		val sym = self.symtab.lookup(name);
+		if (sym != null) sym.mutated = true;
+	}
+
+	pub fn mark_node_mutated(var self, node: *AstNode?) {
+		if (node == null) return;
+		val cur = self.unwrap_group(node!);
+		when (cur) {
+			is IdentifierExpr as id -> self.mark_symbol_mutated(id.name);
+			is MemberExpr as mem -> self.mark_node_mutated(mem.object);
+			is IndexExpr as idx -> self.mark_node_mutated(idx.target);
+			is UnaryExpr as u -> {
+				if (u.op == TokenType.AMPERSAND) self.mark_node_mutated(u.operand);
+			}
+		}
+	}
+
 	pub fn check_lvalue_mutability(var self, target_node: *AstNode, op_node: *AstNode, is_update: bool) {
 		val cur = self.unwrap_group(target_node) ?: return;
 
 		when (cur) {
-			is IdentifierExpr -> self.check_ident_assignable(
-				op_node, cur.name, self.symtab.lookup(cur.name), is_update
-			);
+			is IdentifierExpr -> {
+				self.check_ident_assignable(
+					op_node, cur.name, self.symtab.lookup(cur.name), is_update
+				);
+				self.mark_symbol_mutated(cur.name);
+			}
 
 			is MemberExpr -> {
 				if (cur.is_safe) self.report_error(op_node, "Cannot assign to safe navigation expression");
@@ -263,6 +284,7 @@ impl BodyPass {
 						"on immutable receiver 'self' in 'val self' method"
 					);
 				}
+				self.mark_node_mutated(cur.object);
 			}
 
 			is IndexExpr -> {
@@ -273,6 +295,7 @@ impl BodyPass {
 						" 'self' in 'val self' method"
 					);
 				}
+				self.mark_node_mutated(cur.target);
 			}
 
 			else -> self.report_error(op_node, "Invalid target for ${self.target_word(is_update)}");
@@ -283,7 +306,7 @@ impl BodyPass {
 	fn target_word(val self, update: bool) => if (update) "increment/decrement operator" else "assignment";
 
 	// Strip the parentheses a target may be wrapped in.
-	pub fn unwrap_group(var self, node: *AstNode): *AstNode {
+	pub fn unwrap_group(val self, node: *AstNode): *AstNode {
 		var cur = node;
 		while (cur != null) {
 			if (cur is GroupExpr as g) cur = g.expr;
@@ -294,7 +317,7 @@ impl BodyPass {
 
 	// Writing a field or an index through `self` needs a mutating receiver
 	// (`var self`). False when the object is not `self` at all.
-	fn is_immutable_self(var self, obj_node: *AstNode): bool {
+	fn is_immutable_self(val self, obj_node: *AstNode): bool {
 		val obj = self.unwrap_group(obj_node);
 		if (obj is IdentifierExpr as obj_id && obj_id.name == "self") {
 			val self_sym = self.symtab.lookup("self");
@@ -375,6 +398,7 @@ impl BodyPass {
 						else if (self.is_immutable_self(target_expr)) {
 							self.report_error(node, "Cannot mutate immutable receiver 'self' in 'val self' method");
 						}
+						self.mark_node_mutated(target_expr);
 						self.set_method(node, mi);
 						return mi.fn_type.as_fn().return_type;
 					}

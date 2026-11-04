@@ -52,7 +52,8 @@ pub struct Symbol {
 	pub line: usz,
 	pub col: usz,
 	pub ast_node: *AstNode? = null,
-	pub orig_type: *Type? = null
+	pub orig_type: *Type? = null,
+	pub mutated: bool = false
 }
 
 // ============================================================================
@@ -231,7 +232,7 @@ impl SymbolTable {
 	}
 
 	// Register a method of a built-in type on its canonical instance.
-	pub fn register_prim_method(var self, prim: *Type, mi: *MethodInfo) {
+	pub fn register_prim_method(val self, prim: *Type, mi: *MethodInfo) {
 		var target = prim;
 		target.add_method(mi);
 	}
@@ -301,7 +302,7 @@ impl SymbolTable {
 		}
 	}
 
-	pub fn is_in_function(var self): bool {
+	pub fn is_in_function(val self): bool {
 		var curr: *Scope? = self.current_scope;
 		while (curr != null) {
 			if (curr.is_fn_boundary) return true;
@@ -310,7 +311,7 @@ impl SymbolTable {
 		return false;
 	}
 
-	pub fn lookup_current(var self, name: str): *Symbol? {
+	pub fn lookup_current(val self, name: str): *Symbol? {
 		val scope = self.current_scope;
 		for (sym in scope) if (sym.name == name) return sym;
 		return null;
@@ -318,7 +319,7 @@ impl SymbolTable {
 
 	// Name lookup: local scope -> declarations of the current module -> imports of
 	// the current module -> mangled C name (so re-resolution gives the same result).
-	pub fn lookup(var self, name: str): *Symbol? {
+	pub fn lookup(val self, name: str): *Symbol? {
 		var curr: *Scope? = self.current_scope;
 		while (curr != null) {
 			for (sym in curr) if (sym.name == name) return sym;

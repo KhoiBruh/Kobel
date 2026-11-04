@@ -409,7 +409,7 @@ impl CCodeGen {
 
 // C return type of a function: explicit annotation, else inferred from an
 // arrow body (used by both the prototype and the definition).
-	pub fn fn_ret_c_type(var self, f: *FnDecl): str {
+	pub fn fn_ret_c_type(val self, f: *FnDecl): str {
 		if (f.return_type != null) return c_type_from_ast(f.return_type!);
 
 		val f_body = f.body;

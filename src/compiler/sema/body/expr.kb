@@ -212,7 +212,7 @@ impl BodyPass {
 		};
 	}
 
-	fn is_safe_nav_expr(var self, expr: *AstNode?): bool {
+	fn is_safe_nav_expr(val self, expr: *AstNode?): bool {
 		if (expr == null) return false;
 		val cur = self.unwrap_group(expr!);
 		if (cur is MemberExpr as mem) return mem.is_safe;

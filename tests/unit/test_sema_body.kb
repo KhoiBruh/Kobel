@@ -429,8 +429,30 @@ fn test_interpolation_requires_to_str() {
 	println("  [PASS] test_interpolation_requires_to_str");
 }
 
+
+fn test_unused_mutability_warning() {
+	val src = """
+		struct Item {
+		    pub val: i32
+		}
+		impl Item {
+		    pub fn query(var self): i32 => self.val;
+		}
+		fn compute(var x: i32): i32 => x + 1;
+	""";
+	var l = Lexer(src);
+	var p = Parser(l.tokenize());
+	var bp = BodyPass();
+	bp.check_program(p.parse_program());
+
+	assert_eq_usz(bp.errors.len, 0, "No errors expected");
+	assert_eq_usz(bp.warnings.len, 2, "Must emit 2 warnings for unused var self and unused var param");
+	println("  [PASS] test_unused_mutability_warning");
+}
+
 fn main(): i32 {
 	println("[RUNNING] Bootstrap Semantic BodyPass tests...");
+	test_unused_mutability_warning();
 	test_interpolation_requires_to_str();
 	test_valid_program();
 	test_undeclared_identifier();

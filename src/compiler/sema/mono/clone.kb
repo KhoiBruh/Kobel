@@ -41,7 +41,7 @@ impl DeclPass {
 
 	// The annotation side-table entry for a node while materializing a function
 	// instance (null when not materializing or when the node has no entry).
-	fn mat_ann(var self, node: *AstNode?): *AnnEntry? {
+	fn mat_ann(val self, node: *AstNode?): *AnnEntry? {
 		if (node == null || self.mat_rec == null) return null;
 		return self.mat_rec.find_ann(node!);
 	}

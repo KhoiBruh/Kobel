@@ -11,7 +11,8 @@ pub struct Diagnostic {
 	pub file_path: str,
 	pub line: usz,
 	pub col: usz,
-	pub message: str
+	pub message: str,
+	pub is_warning: bool = false
 }
 
 fn resolve_file_path(target: str, default_file: str, loader: *ModuleLoader?): str {
@@ -91,11 +92,13 @@ impl Diagnostic {
 
 	pub fn render(val self): str {
 		val c_red = "\x1b[1;31m";
+		val c_yellow = "\x1b[1;33m";
 		val c_blue = "\x1b[1;34m";
 		val c_bold = "\x1b[1m";
 		val c_reset = "\x1b[0m";
 
-		var out = "${c_red}error${c_reset}${c_bold}: ${self.message}${c_reset}\n";
+		val prefix = if (self.is_warning) "${c_yellow}warning${c_reset}" else "${c_red}error${c_reset}";
+		var out = "${prefix}${c_bold}: ${self.message}${c_reset}\n";
 
 		if (!self.file_path.empty()) {
 			if (self.line > 0) {
@@ -168,4 +171,26 @@ pub fn print_diagnostics(errors: List<str>, default_file: str, loader: *ModuleLo
 	}
 
 	println("\x1b[1;31merror\x1b[0m: could not compile '${default_file}' due to ${printed_count} previous error(s)");
+}
+
+pub fn print_warnings(warnings: List<str>, default_file: str, loader: *ModuleLoader? = null) {
+	var seen = List<str>();
+
+	for (w in warnings) {
+		var diag = Diagnostic.parse(w, default_file, loader);
+		diag.is_warning = true;
+		val key = "${diag.file_path}:${diag.line}:${diag.col}:${diag.message}";
+		var already_seen = false;
+		for (s in seen) {
+			if (s == key) {
+				already_seen = true;
+				break;
+			}
+		}
+		if (already_seen) continue;
+		seen += key;
+
+		print(diag.render());
+		println("");
+	}
 }

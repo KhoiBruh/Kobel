@@ -179,7 +179,7 @@ pub fn interp_find_close(text: str, start: usz): isz {
 
 impl Parser {
 
-	pub fn get_infix_precedence(var self, t: TokenType): Precedence => when (t) {
+	pub fn get_infix_precedence(val self, t: TokenType): Precedence => when (t) {
 		TokenType.EQUAL, TokenType.PLUS_EQUAL,
 		TokenType.MINUS_EQUAL, TokenType.STAR_EQUAL,
 		TokenType.SLASH_EQUAL, TokenType.PERCENT_EQUAL -> Precedence.ASSIGN;

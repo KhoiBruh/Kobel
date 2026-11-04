@@ -142,6 +142,29 @@ impl BodyPass {
 			}
 		}
 
+		// Check for unused mutability on parameters
+		val is_trait_impl = !self.current_trait_name.empty();
+		for (p in f.params) {
+			if (p.mutable) {
+				val sym = self.symtab.lookup(p.name);
+				if (sym != null && !sym.mutated) {
+					if (p.name == "self") {
+						if (!is_trait_impl) {
+							self.report_warning(
+								fn_node,
+								"In function '${f.name}': Receiver 'self' is declared mutable with 'var', but is never mutated; consider using 'val self'"
+							);
+						}
+					} else if (!p.name.starts_with("_")) {
+						self.report_warning(
+							fn_node,
+							"In function '${f.name}': Parameter '${p.name}' is declared mutable with 'var', but is never mutated; consider using 'val'"
+						);
+					}
+				}
+			}
+		}
+
 		if (had_env) {
 			self.decl.subst_names = saved_names;
 			self.decl.subst_types = saved_types;
@@ -169,6 +192,9 @@ impl BodyPass {
 		if (st_sym.type_ptr.kind != DataType.STRUCT) return;
 		val st_info = st_sym.type_ptr.as_struct();
 
+		val prev_trait = self.current_trait_name;
+		self.current_trait_name = im.trait_name;
+
 		// Make `Self` resolve to this struct inside every method body.
 		self.current_self_type = st_sym.type_ptr;
 		for (m_node in im.methods) {
@@ -182,6 +208,7 @@ impl BodyPass {
 			self.pop_instance(saved_rec, rec);
 		}
 		self.current_self_type = null;
+		self.current_trait_name = prev_trait;
 	}
 
 	pub fn check_program(var self, program_node: *AstNode) {

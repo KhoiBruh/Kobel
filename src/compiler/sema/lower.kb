@@ -192,7 +192,7 @@ impl BodyPass {
 
 	// A replacement keeps the value's type, which the checker already stored on
 	// the original node; the backend reads it from the node it now sees.
-	fn lowered(var self, original: *AstNode, replacement: *AstNode): *AstNode {
+	fn lowered(val self, original: *AstNode, replacement: *AstNode): *AstNode {
 		replacement.type_ptr = original.type_ptr;
 		return replacement;
 	}
@@ -495,21 +495,21 @@ impl BodyPass {
 
 	// The semantic type sema attached while checking. Groups are transparent:
 	// `check_expr` recurses into them without annotating the group itself.
-	fn type_of(var self, node: *AstNode): *Type? {
+	fn type_of(val self, node: *AstNode): *Type? {
 		var cur = node;
 		while (cur?.kind == NodeKind.EXPR_GROUP) cur = cur.as_group_expr().expr;
 		if (cur == null) return null;
 		return cur.type_ptr as *Type;
 	}
 
-	fn is_str_expr(var self, node: *AstNode): bool {
+	fn is_str_expr(val self, node: *AstNode): bool {
 		val t = self.type_of(node);
 		return t?.kind == DataType.STR;
 	}
 
 	// True for the statement nodes that can sit in an expression position (the
 	// right side of `?:` is allowed to be `return`/`yield`/`break`/`continue`/block).
-	fn is_stmt_node(var self, node: *AstNode): bool {
+	fn is_stmt_node(val self, node: *AstNode): bool {
 		if (node == null) return false;
 		return node.kind == NodeKind.STMT_RETURN ||
 			node.kind == NodeKind.STMT_BREAK ||
@@ -518,7 +518,7 @@ impl BodyPass {
 			node.kind == NodeKind.STMT_BLOCK;
 	}
 
-	fn is_array_expr(var self, node: *AstNode): bool {
+	fn is_array_expr(val self, node: *AstNode): bool {
 		val t = self.type_of(node);
 		return t?.kind == DataType.ARRAY;
 	}

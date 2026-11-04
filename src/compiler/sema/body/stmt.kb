@@ -93,7 +93,7 @@ impl BodyPass {
 		return res;
 	}
 
-	fn is_null_literal(var self, node: *AstNode): bool {
+	fn is_null_literal(val self, node: *AstNode): bool {
 		if (node == null) return false;
 		val cur = self.unwrap_group(node);
 		if (cur is LiteralExpr) return cur.literal_kind == LiteralKind.NULL_VAL;

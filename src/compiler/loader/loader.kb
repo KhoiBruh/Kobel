@@ -132,7 +132,7 @@ impl ModuleLoader {
 	// File Resolution
 	// ============================================================================
 
-	pub fn find_module_files(var self, module_name: str): List<ModuleFile> {
+	pub fn find_module_files(val self, module_name: str): List<ModuleFile> {
 		var list = List<ModuleFile>();
 		val rel_file = "${module_name.module_to_rel()}.kb";
 		val rel_dir = module_name.module_to_rel();
@@ -182,7 +182,7 @@ impl ModuleLoader {
 		return list;
 	}
 
-	pub fn find_module(var self, module_name: str): ModuleFile {
+	pub fn find_module(val self, module_name: str): ModuleFile {
 		val files = self.find_module_files(module_name);
 		if (files.empty()) return ModuleFile(false, "", "");
 		return files[0];

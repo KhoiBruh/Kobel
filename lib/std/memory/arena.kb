@@ -58,7 +58,7 @@ impl Arena {
 		self.current = blk as *ArenaBlock;
 	}
 
-	pub fn reset(var self) {
+	pub fn reset(val self) {
 		var curr = self.current;
 		while (curr != null) {
 			val blk = curr as &ArenaBlock;

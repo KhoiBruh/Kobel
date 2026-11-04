@@ -139,6 +139,9 @@ impl CompileOptions {
 		if (!self.quiet) println("[3/4] Semantic analysis (bodies)...");
 		val body_p = BodyPass(decl_p.symtab, decl_p);
 		body_p.check_program(prog);
+		if (!body_p.warnings.empty() && !self.quiet) {
+			print_warnings(body_p.warnings, input_path, &loader);
+		}
 		if (!body_p.errors.empty()) {
 			print_diagnostics(body_p.errors, input_path, &loader);
 			return 1;

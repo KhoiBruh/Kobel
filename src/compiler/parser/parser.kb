@@ -160,24 +160,24 @@ impl Parser {
 	pub fn program(var self, declarations: List<*AstNode>, line: usz, col: usz): *AstNode
 		=> self.arena.program(declarations, line, col);
 
-	pub fn is_end(var self): bool {
+	pub fn is_end(val self): bool {
 		if (self.current >= self.tokens.len) return true;
 		val tok = self.tokens[self.current];
 		return tok.type == TokenType.END_OF_FILE;
 	}
 
-	pub fn peek(var self) =>
+	pub fn peek(val self) =>
 		if (self.current >= self.tokens.len) self.tokens.last()
 		else self.tokens[self.current];
 
 // Token `offset` positions ahead of the cursor (0 == peek), clamped to the end.
-	pub fn peek_at(var self, offset: usz): Token {
+	pub fn peek_at(val self, offset: usz): Token {
 		val idx = self.current + offset;
 		if (idx >= self.tokens.len) return self.tokens.last();
 		return self.tokens[idx];
 	}
 
-	pub fn previous(var self) =>
+	pub fn previous(val self) =>
 		if (self.current == 0) self.tokens.first()
 		else self.tokens[self.current - 1];
 
@@ -186,7 +186,7 @@ impl Parser {
 		return self.previous();
 	}
 
-	pub fn check(var self, t: TokenType): bool {
+	pub fn check(val self, t: TokenType): bool {
 		if (self.is_end()) return false;
 		val tok = self.peek();
 		return tok.type == t;
@@ -235,7 +235,7 @@ impl Parser {
 		}
 	}
 
-	pub fn is_generic_args_ahead(var self): bool {
+	pub fn is_generic_args_ahead(val self): bool {
 		// Check whether the position after '<' looks like type arguments ending with '>'
 		if (!self.check(TokenType.LESS)) return false;
 

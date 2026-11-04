@@ -67,7 +67,9 @@ pub struct BodyPass {
 	// instance checks cannot shadow an outer type parameter of the same name.
 	pub env_saved_names: List<str> = List(),
 	pub env_saved_types: List<*Type> = List(),
-	pub has_env_saved: bool = false
+	pub has_env_saved: bool = false,
+	pub warnings: List<str> = List(),
+	pub current_trait_name: str = ""
 }
 
 impl BodyPass {
@@ -144,6 +146,15 @@ impl BodyPass {
 		val ty = self.check_expr(expr, expected);
 		self.is_stmt_level = prev;
 		return ty;
+	}
+
+	pub fn report_warning(var self, node: *AstNode?, msg: str) {
+		val loc = if (node != null) "Line ${node.line}, Column ${node.col}: ${msg}"
+		else msg;
+
+		if (self.symtab.current_module.len > 0) {
+			self.warnings += "${self.symtab.current_module}: ${loc}";
+		} else self.warnings += loc;
 	}
 
 	pub fn report_error(var self, node: *AstNode, msg: str) {
@@ -355,7 +366,7 @@ impl BodyPass {
 
 	// Index of a type parameter name in the current instance's env (-1 when it
 	// is not a type parameter).
-	fn type_param_index(var self, name: str): i64 {
+	fn type_param_index(val self, name: str): i64 {
 		if (!self.has_decl) return -1;
 		for (i in 0..<self.decl.subst_names.len) {
 			if (self.decl.subst_names[i] == name) return i as i64;

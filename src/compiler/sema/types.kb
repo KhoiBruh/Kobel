@@ -229,7 +229,7 @@ impl Type {
 
 	// Methods of a built-in type. Called through the canonical instance from
 	// `PrimTypes`, so `i32` accumulates exactly one method list.
-	pub fn add_method(var self, mi: *MethodInfo) {
+	pub fn add_method(val self, mi: *MethodInfo) {
 		if (self.methods == null) return;
 		self.methods.list += mi;
 	}
