@@ -1,8 +1,7 @@
-mod config.project;
+mod config;
 
 use std.io.*;
 use std.filesystem.*;
-use config.toml.*;
 
 // ============================================================================
 // Mini-TOML Parser and Project Configuration

@@ -1,4 +1,4 @@
-mod lsp.protocol;
+mod lsp;
 
 use std.io.*;
 use std.string.*;
@@ -6,9 +6,7 @@ use std.ascii.*;
 use std.memory.*;
 use std.collections.*;
 
-use util.strutil.*;
-
-use lsp.json.*;
+use util.*;
 
 // ============================================================================
 // Libc Stdio & Mode Bindings

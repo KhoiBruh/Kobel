@@ -1,15 +1,10 @@
-mod lsp.server;
+mod lsp;
 
 use std.io.*;
 use std.process.*;
 use std.collections.*;
 
-use util.strutil.*;
-
-use lsp.json.*;
-use lsp.protocol.*;
-use lsp.document.*;
-use lsp.analysis.*;
+use util.*;
 
 // ============================================================================
 // Diagnostics Publisher Helper

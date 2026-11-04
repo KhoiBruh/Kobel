@@ -17,7 +17,7 @@ use std.string.*;
 use std.memory.*;
 use std.collections.*;
 
-use util.strutil.*;
+use util.*;
 
 use compiler.lexer.TokenType;
 

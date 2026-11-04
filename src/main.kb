@@ -2,16 +2,15 @@ use std.io.*;
 use std.filesystem.*;
 use std.collections.*;
 
-use util.strutil.*;
+use util.*;
 
-use config.project.*;
+use config.*;
 
 use compiler.driver.*;
 
-use fmt.options.*;
-use fmt.formatter.*;
+use fmt.*;
 
-use lsp.server.*;
+use lsp.*;
 
 fn print_usage() {
 	println("""

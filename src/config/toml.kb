@@ -1,9 +1,9 @@
-mod config.toml;
+mod config;
 
 use std.collections.List;
 use std.collections.HashMap;
 
-use util.strutil.*;
+use util.*;
 
 pub struct Toml {
 	pub entries: HashMap<str, str> = HashMap()
@@ -54,12 +54,10 @@ impl Toml {
 
 	pub fn get(val self, key: str, default_val: str) => self.entries.get_or(key, default_val);
 
-	pub op get(val self, key: str): str => self.entries.get_or(key, "");
+	pub op get(val self, key: str) => self.entries.get_or(key, "");
 
-	pub op set(var self, key: str, value: str) {
-		self.entries[key] = value;
-	}
+	pub op set(var self, key: str, value: str) => self.entries[key] = value;
 
-	pub op contains(val self, key: str): bool => key in self.entries;
+	pub op contains(val self, key: str) => key in self.entries;
 
 }

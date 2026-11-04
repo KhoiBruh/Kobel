@@ -11,7 +11,7 @@ mod compiler.sema.prims;
 use std.collections.*;
 use std.memory.*;
 
-use util.strutil.*;
+use util.*;
 
 use compiler.sema.types.*;
 use compiler.sema.methods.*;

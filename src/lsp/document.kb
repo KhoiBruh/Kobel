@@ -1,9 +1,9 @@
-mod lsp.document;
+mod lsp;
 
 use std.ascii.*;
 use std.collections.*;
 
-use util.strutil.*;
+use util.*;
 
 // ============================================================================
 // Document Representation

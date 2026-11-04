@@ -5,7 +5,7 @@ use std.filesystem.*;
 use std.system.*;
 use std.collections.*;
 
-use util.strutil.*;
+use util.*;
 
 use compiler.ast.node.*;
 use compiler.sema.decl.pass.*;

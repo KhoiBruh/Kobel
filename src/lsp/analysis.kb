@@ -1,11 +1,10 @@
-mod lsp.analysis;
+mod lsp;
 
 use std.ascii.*;
 use std.collections.*;
 
-use util.strutil.*;
+use util.*;
 
-use compiler.lexer.*;
 use compiler.lexer.*;
 use compiler.parser.parser.*;
 use compiler.parser.decl.*;
@@ -21,11 +20,7 @@ use compiler.sema.body.expr.*;
 use compiler.sema.body.call.*;
 use compiler.sema.body.program.*;
 
-use fmt.options.*;
-use fmt.formatter.*;
-
-use lsp.json.*;
-use lsp.document.*;
+use fmt.*;
 
 // ============================================================================
 // LSP Diagnostic Model

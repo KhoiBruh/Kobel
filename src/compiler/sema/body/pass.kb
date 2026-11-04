@@ -14,7 +14,7 @@ mod compiler.sema.body.pass;
 use std.memory.*;
 use std.collections.*;
 
-use util.strutil.*;
+use util.*;
 
 use compiler.ast.node.*;
 use compiler.ast.types.*;

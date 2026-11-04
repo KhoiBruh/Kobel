@@ -19,7 +19,7 @@ use compiler.sema.methods.*;
 use compiler.sema.structs.*;
 use compiler.sema.enums.*;
 
-use util.strutil.*;
+use util.*;
 
 pub enum DataType {
 	NONE,

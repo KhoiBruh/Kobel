@@ -1,8 +1,6 @@
-mod fmt.buffer;
+mod fmt;
 
 use std.collections.*;
-
-use fmt.options.*;
 
 // ============================================================================
 // FormatBuffer - Output writer with Smart Tabs and Alignment tracking

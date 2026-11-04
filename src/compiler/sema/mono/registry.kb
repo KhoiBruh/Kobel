@@ -14,7 +14,7 @@ use std.memory.*;
 use std.collections.*;
 use std.traits.*;
 
-use util.strutil.*;
+use util.*;
 
 use compiler.lexer.TokenType;
 

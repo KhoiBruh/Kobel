@@ -2,7 +2,7 @@ mod compiler.parser.expr;
 
 use std.collections.*;
 use std.collections.StringBuilder;
-use util.strutil.*;
+use util.*;
 
 use compiler.lexer.*;
 use compiler.lexer.*;
