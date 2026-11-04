@@ -165,7 +165,7 @@ impl DeclPass {
 			cname, List<GenericParam>(),
 			params, rt,
 			t.body,
-			t.public, tmpl.node.line, tmpl.node.col, t.is_op, t.is_init
+			t.public, tmpl.node.line, tmpl.node.col, t.operator, t.initializer
 		);
 		val view_f = view.as_fn_decl() as &FnDecl;
 		view_f.module = self.current_module;

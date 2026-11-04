@@ -491,10 +491,10 @@ impl Formatter {
 			}
 			is FnDecl as f -> {
 				if (f.public) self.buf += "pub ";
-				if (f.is_init) {
+				if (f.initializer) {
 					self.buf += "init";
 				} else {
-					if (f.is_op) self.buf += "op ";
+					if (f.operator) self.buf += "op ";
 					else self.buf += "fn ";
 					self.buf += f.name;
 				}
@@ -518,7 +518,7 @@ impl Formatter {
 				}
 				self.buf += ")";
 
-				if (!f.is_init && f.return_type != null) {
+				if (!f.initializer && f.return_type != null) {
 					self.buf += ": ";
 					self.format_type(f.return_type!);
 				}

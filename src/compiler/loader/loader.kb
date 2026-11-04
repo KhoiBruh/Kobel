@@ -236,7 +236,7 @@ impl ModuleLoader {
 		for (decl in prog) {
 			if (decl is UseDecl as u) {
 				val mod_name = when {
-					u.is_wildcard -> str_join_dots(u.path, u.path.len);
+					u.wildcard -> str_join_dots(u.path, u.path.len);
 					u.path.len >= 2 -> str_join_dots(u.path, u.path.len - 1);
 					else -> "";
 				};

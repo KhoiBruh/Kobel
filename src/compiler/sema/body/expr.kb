@@ -272,8 +272,8 @@ impl BodyPass {
 		if (lt.kind == DataType.POINTER) {
 			val pt = lt.as_pointer();
 			if (pt.pointee.kind == DataType.NONE && !is_jump && rt != null) return rt;
-			if (pt.is_nullable) {
-				if (is_jump || (rt != null && rt.kind == DataType.POINTER && !rt.as_pointer().is_nullable)) {
+			if (pt.nullable) {
+				if (is_jump || (rt != null && rt.kind == DataType.POINTER && !rt.as_pointer().nullable)) {
 					return self.arena.pointer_type(pt.pointee, pt.mutable);
 				}
 			}
@@ -408,7 +408,7 @@ impl BodyPass {
 		if (un.is_postfix && un.op == TokenType.BANG) {
 			if (op_ty.kind == DataType.POINTER) {
 				val pt = op_ty.as_pointer();
-				if (pt.is_nullable) {
+				if (pt.nullable) {
 					return self.arena.pointer_type(pt.pointee, pt.mutable);
 				}
 			}
@@ -476,11 +476,11 @@ impl BodyPass {
 		if (then_ty.kind == DataType.POINTER && else_ty.kind == DataType.POINTER) {
 			val t_ptr = then_ty.as_pointer();
 			val e_ptr = else_ty.as_pointer();
-			if (e_ptr.pointee.kind == DataType.NONE && !t_ptr.is_nullable) {
+			if (e_ptr.pointee.kind == DataType.NONE && !t_ptr.nullable) {
 				then_ty = self.arena.nullable_pointer_type(t_ptr.pointee, t_ptr.mutable);
-			} else if (t_ptr.pointee.kind == DataType.NONE && !e_ptr.is_nullable) {
+			} else if (t_ptr.pointee.kind == DataType.NONE && !e_ptr.nullable) {
 				then_ty = self.arena.nullable_pointer_type(e_ptr.pointee, e_ptr.mutable);
-			} else if (t_ptr.is_nullable != e_ptr.is_nullable && t_ptr.pointee.equals(e_ptr.pointee)) {
+			} else if (t_ptr.nullable != e_ptr.nullable && t_ptr.pointee.equals(e_ptr.pointee)) {
 				val mutable = t_ptr.mutable || e_ptr.mutable;
 				then_ty = self.arena.nullable_pointer_type(t_ptr.pointee, mutable);
 			}

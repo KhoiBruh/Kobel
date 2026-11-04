@@ -36,7 +36,7 @@ pub enum DataType {
 // a payload enum keeps the variant (and its accessors) checked.
 pub enum TypePayload {
 	NONE,
-	Pointer(pointee: *Type, mutable: bool, is_nullable: bool),
+	Pointer(pointee: *Type, mutable: bool, nullable: bool),
 	Array(elem: *Type, length: usz),
 	Struct(inner: *StructType),
 	Fn(param_types: List<*Type>, return_type: *Type),
@@ -79,26 +79,26 @@ impl Type {
 		return Type(kind, size, align, TypePayload.NONE);
 	}
 
-	pub fn none(): Type => Type.primitive(DataType.NONE);
-	pub fn bool(): Type => Type.primitive(DataType.BOOL);
-	pub fn char(): Type => Type.primitive(DataType.CHAR);
+	pub fn none() => Type.primitive(DataType.NONE);
+	pub fn bool() => Type.primitive(DataType.BOOL);
+	pub fn char() => Type.primitive(DataType.CHAR);
 
-	pub fn i8(): Type => Type.primitive(DataType.I8);
-	pub fn i16(): Type => Type.primitive(DataType.I16);
-	pub fn i32(): Type => Type.primitive(DataType.I32);
-	pub fn i64(): Type => Type.primitive(DataType.I64);
-	pub fn isz(): Type => Type.primitive(DataType.ISZ);
+	pub fn i8() => Type.primitive(DataType.I8);
+	pub fn i16() => Type.primitive(DataType.I16);
+	pub fn i32() => Type.primitive(DataType.I32);
+	pub fn i64() => Type.primitive(DataType.I64);
+	pub fn isz() => Type.primitive(DataType.ISZ);
 
-	pub fn u8(): Type => Type.primitive(DataType.U8);
-	pub fn u16(): Type => Type.primitive(DataType.U16);
-	pub fn u32(): Type => Type.primitive(DataType.U32);
-	pub fn u64(): Type => Type.primitive(DataType.U64);
-	pub fn usz(): Type => Type.primitive(DataType.USZ);
+	pub fn u8() => Type.primitive(DataType.U8);
+	pub fn u16() => Type.primitive(DataType.U16);
+	pub fn u32() => Type.primitive(DataType.U32);
+	pub fn u64() => Type.primitive(DataType.U64);
+	pub fn usz() => Type.primitive(DataType.USZ);
 
-	pub fn f32(): Type => Type.primitive(DataType.F32);
-	pub fn f64(): Type => Type.primitive(DataType.F64);
+	pub fn f32() => Type.primitive(DataType.F32);
+	pub fn f64() => Type.primitive(DataType.F64);
 
-	pub fn str(): Type => Type.primitive(DataType.STR);
+	pub fn str() => Type.primitive(DataType.STR);
 
 }
 
@@ -251,37 +251,41 @@ impl Type {
 	pub fn is_list(val self): bool {
 		if (self.kind != DataType.STRUCT) return false;
 		val s = self.as_struct();
-		if (s.module != "std.collections.list" && s.module != "std.collections") return false;
-		return s.name.starts_with("std__collections__list__List") ||
-			s.c_name.starts_with("std__collections__list__List") ||
-			s.name.starts_with("std__collections__List") ||
-			s.c_name.starts_with("std__collections__List");
+		if (
+			s.module != "std.collections.list"
+			&& s.module != "std.collections"
+		) return false;
+
+		return s.name.starts_with("std__collections__list__List")
+			|| s.c_name.starts_with("std__collections__list__List")
+			|| s.name.starts_with("std__collections__List")
+			|| s.c_name.starts_with("std__collections__List");
 	}
 
 	pub fn layout_struct(var self) {
 		val st = self.as_struct_mut();
 		var max_align = 1;
-		var off = 0;
+		var offset = 0;
 
-		for (i in 0..<st.fields.len) {
-			val f = st.fields[i];
-			val fa = f.type_ptr.align;
-			if (fa > max_align) max_align = fa;
-			val rem = off % fa;
-			if (rem != 0) off += (fa - rem);
-			f.offset = off;
-			st.fields[i] = f;
-			off += f.type_ptr.size;
+		for (field in st.fields) {
+			val field_align = field.type_ptr.align;
+			if (field_align > max_align) max_align = field_align;
+
+			val remove = offset % field_align;
+			if (remove != 0) offset += field_align - remove;
+
+			field.offset = offset;
+			offset += field.type_ptr.size;
 		}
 
-		val tr = off % max_align;
-		if (tr != 0) off += (max_align - tr);
+		val total = offset % max_align;
+		if (total != 0) offset += max_align - total;
 
-		self.size = off;
+		self.size = offset;
 		self.align = max_align;
 	}
 
-	pub fn equals(val self, b: *Type): bool {
+	pub op equals(val self, b: *Type): bool {
 		if (self == b) return true;
 		if (self.kind != b.kind) return false;
 
@@ -299,13 +303,14 @@ impl Type {
 				val p_a = self.as_pointer();
 				val p_b = b.as_pointer();
 				yield p_a.mutable == p_b.mutable &&
-					p_a.is_nullable == p_b.is_nullable &&
+					p_a.nullable == p_b.nullable &&
 					p_a.pointee.equals(p_b.pointee);
 			}
 			DataType.ARRAY -> {
 				val arr_a = self.as_array();
 				val arr_b = b.as_array();
-				yield arr_a.length == arr_b.length && arr_a.elem.equals(arr_b.elem);
+				yield arr_a.length == arr_b.length
+					&& arr_a.elem.equals(arr_b.elem);
 			}
 			DataType.STRUCT -> {
 				// Struct names are only unique per module: compare the mangled C name
@@ -331,7 +336,7 @@ impl Type {
 		};
 	}
 
-	pub op equals(val self, b: Type): bool => self.equals(&b);
+	//pub op equals(val self, b: Type) => self.equals(&b);
 
 	pub fn can_assign(val self, source: *Type): bool {
 		if (self.equals(source)) return true;
@@ -365,7 +370,7 @@ impl Type {
 		// 4. Allow assigning a char/u8 pointer to str
 		if (self.kind == DataType.STR && source.kind == DataType.POINTER) {
 			val s_ptr = source.as_pointer();
-			if (s_ptr.is_nullable) return false;
+			if (s_ptr.nullable) return false;
 			if (
 				s_ptr.pointee.kind == DataType.CHAR ||
 				s_ptr.pointee.kind == DataType.U8
@@ -379,7 +384,7 @@ impl Type {
 			val s_ptr = source.as_pointer();
 
 			// Nullable pointer cannot be assigned to non-nullable pointer
-			if (s_ptr.is_nullable && !t_ptr.is_nullable) return false;
+			if (s_ptr.nullable && !t_ptr.nullable) return false;
 
 			if (
 				(!t_ptr.mutable || s_ptr.mutable) &&
@@ -387,9 +392,7 @@ impl Type {
 			) return true;
 
 			// Allow none pointer (null pointer) to be compatible only with nullable pointers
-			if (s_ptr.pointee.kind == DataType.NONE) {
-				return t_ptr.is_nullable;
-			}
+			if (s_ptr.pointee.kind == DataType.NONE) return t_ptr.nullable;
 
 			// Allow raw byte pointer compatibility
 			if (
@@ -424,7 +427,7 @@ impl Stringer for Type {
 		DataType.STR -> "str";
 		DataType.POINTER -> {
 			val ptr = self.as_pointer();
-			val q = if (ptr.is_nullable) "?" else "";
+			val q = if (ptr.nullable) "?" else "";
 			if (ptr.mutable) yield "&${ptr.pointee.to_str()}${q}";
 			yield "*${ptr.pointee.to_str()}${q}";
 		}

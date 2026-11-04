@@ -501,13 +501,13 @@ impl Parser {
 		val first_seg = self.consume(TokenType.IDENTIFIER, "Expected path in use declaration").text;
 		path += first_seg;
 		var full_path = first_seg;
-		var is_wildcard = false;
+		var wildcard = false;
 		var symbol_name = first_seg;
 		var alias = "";
 
 		while (self.match_token(TokenType.DOT)) {
 			if (self.match_token(TokenType.STAR)) {
-				is_wildcard = true;
+				wildcard = true;
 				full_path = "${full_path}.*";
 				break;
 			}
@@ -521,7 +521,7 @@ impl Parser {
 			alias = self.consume(TokenType.IDENTIFIER, "Expected alias after 'as'").text;
 
 		self.consume(TokenType.SEMI_COLON, "Expected ';' after use declaration");
-		return self.use_decl(path, full_path, symbol_name, alias, is_wildcard, kw.line, kw.col);
+		return self.use_decl(path, full_path, symbol_name, alias, wildcard, kw.line, kw.col);
 	}
 
 	pub fn parse_extern_block(var self): *AstNode {

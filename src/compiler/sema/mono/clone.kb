@@ -490,7 +490,7 @@ impl DeclPass {
 			params, rt,
 			if (f.body != null) self.clone_stmt(f.body!, subst) else null,
 			f.public, node.line, node.col,
-			f.is_op, f.is_init
+			f.operator, f.initializer
 		);
 		// Remember where the template was declared: the clone's body is checked
 		// later, in another module's context, and needs these names in scope.

@@ -31,7 +31,7 @@ impl CCodeGen {
 					is StructDecl as s -> {
 						// A forward declaration and its definition are two AST nodes for
 						// one C type; the declaration pass marks which one emits it.
-						if (s.is_forward || s.emit_typedef) {
+						if (s.forward || s.emit_typedef) {
 							self.out += "typedef struct ";
 							self.out += s.name;
 							self.out += ' ';
@@ -100,7 +100,7 @@ impl CCodeGen {
 			for (decl in prog) {
 				if (decl_is_template(decl)) continue;
 				if (decl is StructDecl as s) {
-					if (!s.is_forward) {
+					if (!s.forward) {
 						items += decl;
 						pending += s.name;
 					}
@@ -236,7 +236,7 @@ impl CCodeGen {
 	pub fn gen_struct_decl(var self, s: *StructDecl) {
 		// The definition carries the fields; a forward declaration only
 		// contributes the typedef emitted in the first pass.
-		if (s.is_forward) return;
+		if (s.forward) return;
 
 		self.out += "struct ";
 		self.out += s.name;

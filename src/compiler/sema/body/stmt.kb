@@ -107,7 +107,7 @@ impl BodyPass {
 		val type_ptr = sym.type_ptr ?: return;
 		if (type_ptr.kind != DataType.POINTER) return;
 		val ptr_ty = type_ptr.as_pointer();
-		if (!ptr_ty.is_nullable) return;
+		if (!ptr_ty.nullable) return;
 
 		val non_null_ty = self.arena.pointer_type(ptr_ty.pointee, ptr_ty.mutable);
 		val orig_ty = sym.orig_type ?: sym.type_ptr;

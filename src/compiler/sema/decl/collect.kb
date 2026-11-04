@@ -43,7 +43,7 @@ impl DeclPass {
 	pub fn collect_use(var self, node: *AstNode) {
 		val u = node.as_use_decl();
 
-		if (u.is_wildcard) {
+		if (u.wildcard) {
 			val w_mod = str_join_dots(u.path, u.path.len);
 			if (!self.symtab.has_wildcard(self.current_module, w_mod)) {
 				self.symtab.add_import(w_mod, "", "", true);
@@ -95,7 +95,7 @@ impl DeclPass {
 
 		// A forward declaration (`struct A;`) registers an opaque type; the later
 		// definition fills that same type in, so pointers may refer to it early.
-		if (s.is_forward) {
+		if (s.forward) {
 			val existing_fwd = self.symtab.lookup_in_module(self.current_module, s.name);
 			if (existing_fwd != null) {
 				s.name = existing_fwd.c_name;
@@ -473,7 +473,7 @@ impl DeclPass {
 				NodeKind.DECL_MODULE -> self.collect_module(d_use);
 				NodeKind.DECL_USE -> {
 					val u_wild = d_use.as_use_decl();
-					if (u_wild.is_wildcard) self.collect_use(d_use);
+					if (u_wild.wildcard) self.collect_use(d_use);
 				}
 			}
 		}

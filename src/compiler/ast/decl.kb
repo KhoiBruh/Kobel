@@ -13,7 +13,7 @@ pub struct UseDecl {
 	pub full_path: str,
 	pub symbol_name: str,
 	pub alias: str,
-	pub is_wildcard: bool
+	pub wildcard: bool
 }
 
 pub struct Param {
@@ -36,8 +36,8 @@ pub struct FnDecl {
 	pub return_type: *AstNode? = null,
 	pub body: *AstNode? = null,
 	pub public: bool,
-	pub is_op: bool = false,
-	pub is_init: bool = false,
+	pub operator: bool = false,
+	pub initializer: bool = false,
 	// Set on instantiated clones (monomorphization): the module the template was
 	// declared in, so its body is checked with the right names in scope.
 	pub module: str = ""
@@ -57,7 +57,7 @@ pub struct StructDecl {
 	pub public: bool,
 	// `struct A;` — declares the name without a body. The definition (`struct A
 	// { ... }`) is merged into the same type during declaration collection.
-	pub is_forward: bool = false,
+	pub forward: bool = false,
 	// False when a forward declaration already emitted this type's C typedef, so
 	// the backend emits it exactly once.
 	pub emit_typedef: bool = true

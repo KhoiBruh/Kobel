@@ -90,14 +90,14 @@ impl Iterable for Scope {
 // ============================================================================
 
 // A `use` that resolved to a symbol of another module.
-// When `is_wildcard` = true, every symbol of `module_name` is usable.
+// When `wildcard` = true, every symbol of `module_name` is usable.
 // `owner_module` is the module the `use` was written in, so imports stay
 // scoped: two modules importing the same name do not affect each other.
 pub struct ImportBinding {
 	pub module_name: str,
 	pub symbol_name: str,
 	pub local_name: str,
-	pub is_wildcard: bool,
+	pub wildcard: bool,
 	pub owner_module: str
 }
 
@@ -428,11 +428,11 @@ impl SymbolTable {
 	// Define a top-level declaration into the module currently being collected.
 	pub fn define_global(var self, sym: Symbol) => self.define_in_module(self.current_module, sym);
 
-	pub fn add_import(var self, module_name: str, symbol_name: str, local_name: str, is_wildcard: bool) {
-		val binding = ImportBinding(module_name, symbol_name, local_name, is_wildcard, self.current_module);
+	pub fn add_import(var self, module_name: str, symbol_name: str, local_name: str, wildcard: bool) {
+		val binding = ImportBinding(module_name, symbol_name, local_name, wildcard, self.current_module);
 		self.imports += binding;
 
-		if (is_wildcard) {
+		if (wildcard) {
 			self.wildcard_owners += self.current_module;
 			self.wildcard_modules += module_name;
 		} else {

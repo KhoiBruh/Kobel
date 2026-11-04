@@ -41,13 +41,13 @@ pub struct StructType {
 impl StructType {
 
 	pub fn find_method(val self, name: str): *MethodInfo? {
-		for (m in self.methods) if (!m.is_op && m.name == name) return m;
+		for (m in self.methods) if (!m.operator && m.name == name) return m;
 		for (m in self.methods) if (m.name == name) return m;
 		return null;
 	}
 
 	pub fn find_static_method(val self, name: str): *MethodInfo? {
-		for (m in self.methods) if (!m.is_op && m.is_static && m.name == name) return m;
+		for (m in self.methods) if (!m.operator && m.is_static && m.name == name) return m;
 		for (m in self.methods) if (m.is_static && m.name == name) return m;
 		return null;
 	}
@@ -55,7 +55,7 @@ impl StructType {
 	pub fn find_static_method_arity(val self, name: str, argc: usz): *MethodInfo? {
 		for (m in self.methods) {
 			if (
-				!m.is_op && m.is_static && m.name == name &&
+				!m.operator && m.is_static && m.name == name &&
 				m.fn_type.as_fn().param_types.len == argc
 			) return m;
 		}
@@ -72,7 +72,7 @@ impl StructType {
 		var n = 0;
 		for (m in self.methods) {
 			if (
-				!m.is_op && m.is_static && m.name == name &&
+				!m.operator && m.is_static && m.name == name &&
 				m.fn_type.as_fn().param_types.len == argc
 			) n++;
 		}
@@ -82,7 +82,7 @@ impl StructType {
 	pub fn find_method_arity(val self, name: str, argc: usz): *MethodInfo? {
 		for (m in self.methods) {
 			if (
-				!m.is_op && !m.is_static && m.name == name &&
+				!m.operator && !m.is_static && m.name == name &&
 				m.fn_type.as_fn().param_types.len == argc
 			) return m;
 		}
@@ -99,7 +99,7 @@ impl StructType {
 		var n = 0;
 		for (m in self.methods) {
 			if (
-				!m.is_op && !m.is_static && m.name == name &&
+				!m.operator && !m.is_static && m.name == name &&
 				m.fn_type.as_fn().param_types.len == argc
 			) n++;
 		}
@@ -116,7 +116,7 @@ impl StructType {
 		var assignable_match: *MethodInfo? = null;
 
 		for (m in self.methods) {
-			if (!m.is_op || m.name != op_name) continue;
+			if (!m.operator || m.name != op_name) continue;
 			val fn_t = m.fn_type.as_fn();
 			if (fn_t.param_types.len != arg_types.len) continue;
 

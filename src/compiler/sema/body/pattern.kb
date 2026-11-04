@@ -43,11 +43,11 @@ impl BodyPass {
 				if (result_ty.kind == DataType.POINTER && body_ty.kind == DataType.POINTER) {
 					val r_ptr = result_ty.as_pointer();
 					val b_ptr = body_ty.as_pointer();
-					if (b_ptr.pointee.kind == DataType.NONE && !r_ptr.is_nullable) {
+					if (b_ptr.pointee.kind == DataType.NONE && !r_ptr.nullable) {
 						result_ty = self.arena.nullable_pointer_type(r_ptr.pointee, r_ptr.mutable);
-					} else if (r_ptr.pointee.kind == DataType.NONE && !b_ptr.is_nullable) {
+					} else if (r_ptr.pointee.kind == DataType.NONE && !b_ptr.nullable) {
 						result_ty = self.arena.nullable_pointer_type(b_ptr.pointee, b_ptr.mutable);
-					} else if (r_ptr.is_nullable != b_ptr.is_nullable && r_ptr.pointee.equals(b_ptr.pointee)) {
+					} else if (r_ptr.nullable != b_ptr.nullable && r_ptr.pointee.equals(b_ptr.pointee)) {
 						val mutable = r_ptr.mutable || b_ptr.mutable;
 						result_ty = self.arena.nullable_pointer_type(r_ptr.pointee, mutable);
 					}

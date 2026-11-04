@@ -126,11 +126,11 @@ impl Parser {
 	pub fn module_decl(var self, path: List<str>, full_path: str, line: usz, col: usz): *AstNode
 		=> self.arena.module_decl(path, full_path, line, col);
 
-	pub fn use_decl(var self, path: List<str>, full_path: str, symbol_name: str, alias: str, is_wildcard: bool, line: usz, col: usz): *AstNode
-		=> self.arena.use_decl(path, full_path, symbol_name, alias, is_wildcard, line, col);
+	pub fn use_decl(var self, path: List<str>, full_path: str, symbol_name: str, alias: str, wildcard: bool, line: usz, col: usz): *AstNode
+		=> self.arena.use_decl(path, full_path, symbol_name, alias, wildcard, line, col);
 
-	pub fn fn_decl(var self, name: str, type_params: List<GenericParam>, params: List<Param>, return_type: *AstNode? = null, body: *AstNode? = null, public: bool = false, line: usz = 0, col: usz = 0, is_op: bool = false, is_init: bool = false): *AstNode
-		=> self.arena.fn_decl(name, type_params, params, return_type, body, public, line, col, is_op, is_init);
+	pub fn fn_decl(var self, name: str, type_params: List<GenericParam>, params: List<Param>, return_type: *AstNode? = null, body: *AstNode? = null, public: bool = false, line: usz = 0, col: usz = 0, operator: bool = false, initializer: bool = false): *AstNode
+		=> self.arena.fn_decl(name, type_params, params, return_type, body, public, line, col, operator, initializer);
 
 	pub fn init_decl(var self, type_params: List<GenericParam>, params: List<Param>, return_type: *AstNode? = null, body: *AstNode? = null, public: bool = false, line: usz = 0, col: usz = 0): *AstNode
 		=> self.arena.init_decl(type_params, params, return_type, body, public, line, col);
