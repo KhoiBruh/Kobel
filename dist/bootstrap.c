@@ -199,17 +199,8 @@ typedef struct compiler__ast__ConstDecl compiler__ast__ConstDecl;
 typedef struct compiler__ast__ExternBlock compiler__ast__ExternBlock;
 typedef struct compiler__ast__Program compiler__ast__Program;
 typedef int32_t compiler__ast__LiteralKind;
-typedef struct compiler__ast__LiteralExpr compiler__ast__LiteralExpr;
-typedef struct compiler__ast__IdentifierExpr compiler__ast__IdentifierExpr;
-typedef struct compiler__ast__BinaryExpr compiler__ast__BinaryExpr;
-typedef struct compiler__ast__UnaryExpr compiler__ast__UnaryExpr;
 typedef struct compiler__ast__CallExpr compiler__ast__CallExpr;
 typedef struct compiler__ast__MemberExpr compiler__ast__MemberExpr;
-typedef struct compiler__ast__IndexExpr compiler__ast__IndexExpr;
-typedef struct compiler__ast__AssignExpr compiler__ast__AssignExpr;
-typedef struct compiler__ast__UpdateExpr compiler__ast__UpdateExpr;
-typedef struct compiler__ast__CastExpr compiler__ast__CastExpr;
-typedef struct compiler__ast__GroupExpr compiler__ast__GroupExpr;
 typedef struct compiler__ast__ArrayLiteralExpr compiler__ast__ArrayLiteralExpr;
 typedef struct compiler__ast__IfExpr compiler__ast__IfExpr;
 typedef struct compiler__ast__WhenArm compiler__ast__WhenArm;
@@ -221,7 +212,6 @@ typedef struct compiler__ast__InterpPart__Hole compiler__ast__InterpPart__Hole;
 #define compiler__ast__InterpPart__Hole__TAG 1
 typedef struct compiler__ast__InterpExpr compiler__ast__InterpExpr;
 typedef struct compiler__ast__IsExpr compiler__ast__IsExpr;
-typedef struct compiler__ast__SizeOfParam compiler__ast__SizeOfParam;
 typedef struct compiler__ast__StructCtorExpr compiler__ast__StructCtorExpr;
 typedef struct compiler__ast__EnumCtorExpr compiler__ast__EnumCtorExpr;
 typedef int32_t compiler__ast__NodeKind;
@@ -527,56 +517,10 @@ struct compiler__ast__ConstDecl {
     bool public;
 };
 
-struct compiler__ast__LiteralExpr {
-    compiler__ast__LiteralKind literal_kind;
-    kobel_str raw_text;
-};
-
-struct compiler__ast__IdentifierExpr {
-    kobel_str name;
-};
-
-struct compiler__ast__BinaryExpr {
-    compiler__ast__AstNode* left;
-    compiler__lexer__TokenType op;
-    compiler__ast__AstNode* right;
-};
-
-struct compiler__ast__UnaryExpr {
-    compiler__lexer__TokenType op;
-    compiler__ast__AstNode* operand;
-    bool is_postfix;
-};
-
 struct compiler__ast__MemberExpr {
     compiler__ast__AstNode* object;
     kobel_str member;
     bool is_safe;
-};
-
-struct compiler__ast__IndexExpr {
-    compiler__ast__AstNode* target;
-    compiler__ast__AstNode* index;
-};
-
-struct compiler__ast__AssignExpr {
-    compiler__ast__AstNode* target;
-    compiler__lexer__TokenType op;
-    compiler__ast__AstNode* value;
-};
-
-struct compiler__ast__UpdateExpr {
-    compiler__lexer__TokenType op;
-    compiler__ast__AstNode* target;
-};
-
-struct compiler__ast__CastExpr {
-    compiler__ast__AstNode* expr;
-    compiler__ast__AstNode* target_type;
-};
-
-struct compiler__ast__GroupExpr {
-    compiler__ast__AstNode* expr;
 };
 
 struct compiler__ast__IfExpr {
@@ -610,11 +554,6 @@ struct compiler__ast__IsExpr {
     kobel_str payload_path;
     bool payload_ptr;
     kobel_str tag_const;
-};
-
-struct compiler__ast__SizeOfParam {
-    size_t param_index;
-    kobel_str size_text;
 };
 
 struct compiler__loader__LoadedModule {
@@ -1211,16 +1150,21 @@ struct compiler__ast__NodeData__NullableType {
     compiler__ast__AstNode* inner_type;
 };
 struct compiler__ast__NodeData__LiteralExpr {
-    compiler__ast__LiteralExpr* inner;
+    compiler__ast__LiteralKind literal_kind;
+    kobel_str raw_text;
 };
 struct compiler__ast__NodeData__IdentifierExpr {
-    compiler__ast__IdentifierExpr* inner;
+    kobel_str name;
 };
 struct compiler__ast__NodeData__BinaryExpr {
-    compiler__ast__BinaryExpr* inner;
+    compiler__ast__AstNode* left;
+    compiler__lexer__TokenType op;
+    compiler__ast__AstNode* right;
 };
 struct compiler__ast__NodeData__UnaryExpr {
-    compiler__ast__UnaryExpr* inner;
+    compiler__lexer__TokenType op;
+    compiler__ast__AstNode* operand;
+    bool is_postfix;
 };
 struct compiler__ast__NodeData__CallExpr {
     compiler__ast__CallExpr* inner;
@@ -1229,19 +1173,24 @@ struct compiler__ast__NodeData__MemberExpr {
     compiler__ast__MemberExpr* inner;
 };
 struct compiler__ast__NodeData__IndexExpr {
-    compiler__ast__IndexExpr* inner;
+    compiler__ast__AstNode* target;
+    compiler__ast__AstNode* index;
 };
 struct compiler__ast__NodeData__AssignExpr {
-    compiler__ast__AssignExpr* inner;
+    compiler__ast__AstNode* target;
+    compiler__lexer__TokenType op;
+    compiler__ast__AstNode* value;
 };
 struct compiler__ast__NodeData__UpdateExpr {
-    compiler__ast__UpdateExpr* inner;
+    compiler__lexer__TokenType op;
+    compiler__ast__AstNode* target;
 };
 struct compiler__ast__NodeData__CastExpr {
-    compiler__ast__CastExpr* inner;
+    compiler__ast__AstNode* expr;
+    compiler__ast__AstNode* target_type;
 };
 struct compiler__ast__NodeData__GroupExpr {
-    compiler__ast__GroupExpr* inner;
+    compiler__ast__AstNode* expr;
 };
 struct compiler__ast__NodeData__ArrayLiteralExpr {
     compiler__ast__ArrayLiteralExpr* inner;
@@ -1265,7 +1214,8 @@ struct compiler__ast__NodeData__EnumCtorExpr {
     compiler__ast__EnumCtorExpr* inner;
 };
 struct compiler__ast__NodeData__SizeOfParam {
-    compiler__ast__SizeOfParam* inner;
+    size_t param_index;
+    kobel_str size_text;
 };
 struct compiler__ast__NodeData__BlockStmt {
     std__collections__List_ptr_compiler__ast__AstNode statements;
@@ -2291,17 +2241,17 @@ compiler__ast__NodeData__NamedType* compiler__ast__AstNode_as_named_type(compile
 compiler__ast__NodeData__PointerType* compiler__ast__AstNode_as_pointer_type(compiler__ast__AstNode* self);
 compiler__ast__NodeData__ArrayType* compiler__ast__AstNode_as_array_type(compiler__ast__AstNode* self);
 compiler__ast__NodeData__NullableType* compiler__ast__AstNode_as_nullable_type(compiler__ast__AstNode* self);
-compiler__ast__LiteralExpr* compiler__ast__AstNode_as_literal_expr(compiler__ast__AstNode* self);
-compiler__ast__IdentifierExpr* compiler__ast__AstNode_as_identifier_expr(compiler__ast__AstNode* self);
-compiler__ast__BinaryExpr* compiler__ast__AstNode_as_binary_expr(compiler__ast__AstNode* self);
-compiler__ast__UnaryExpr* compiler__ast__AstNode_as_unary_expr(compiler__ast__AstNode* self);
+compiler__ast__NodeData__LiteralExpr* compiler__ast__AstNode_as_literal_expr(compiler__ast__AstNode* self);
+compiler__ast__NodeData__IdentifierExpr* compiler__ast__AstNode_as_identifier_expr(compiler__ast__AstNode* self);
+compiler__ast__NodeData__BinaryExpr* compiler__ast__AstNode_as_binary_expr(compiler__ast__AstNode* self);
+compiler__ast__NodeData__UnaryExpr* compiler__ast__AstNode_as_unary_expr(compiler__ast__AstNode* self);
 compiler__ast__CallExpr* compiler__ast__AstNode_as_call_expr(compiler__ast__AstNode* self);
 compiler__ast__MemberExpr* compiler__ast__AstNode_as_member_expr(compiler__ast__AstNode* self);
-compiler__ast__IndexExpr* compiler__ast__AstNode_as_index_expr(compiler__ast__AstNode* self);
-compiler__ast__AssignExpr* compiler__ast__AstNode_as_assign_expr(compiler__ast__AstNode* self);
-compiler__ast__UpdateExpr* compiler__ast__AstNode_as_update_expr(compiler__ast__AstNode* self);
-compiler__ast__CastExpr* compiler__ast__AstNode_as_cast_expr(compiler__ast__AstNode* self);
-compiler__ast__GroupExpr* compiler__ast__AstNode_as_group_expr(compiler__ast__AstNode* self);
+compiler__ast__NodeData__IndexExpr* compiler__ast__AstNode_as_index_expr(compiler__ast__AstNode* self);
+compiler__ast__NodeData__AssignExpr* compiler__ast__AstNode_as_assign_expr(compiler__ast__AstNode* self);
+compiler__ast__NodeData__UpdateExpr* compiler__ast__AstNode_as_update_expr(compiler__ast__AstNode* self);
+compiler__ast__NodeData__CastExpr* compiler__ast__AstNode_as_cast_expr(compiler__ast__AstNode* self);
+compiler__ast__NodeData__GroupExpr* compiler__ast__AstNode_as_group_expr(compiler__ast__AstNode* self);
 compiler__ast__ArrayLiteralExpr* compiler__ast__AstNode_as_array_literal_expr(compiler__ast__AstNode* self);
 compiler__ast__IfExpr* compiler__ast__AstNode_as_if_expr(compiler__ast__AstNode* self);
 compiler__ast__WhenExpr* compiler__ast__AstNode_as_when_expr(compiler__ast__AstNode* self);
@@ -2309,7 +2259,7 @@ compiler__ast__InterpExpr* compiler__ast__AstNode_as_interp_expr(compiler__ast__
 compiler__ast__IsExpr* compiler__ast__AstNode_as_is_expr(compiler__ast__AstNode* self);
 compiler__ast__StructCtorExpr* compiler__ast__AstNode_as_struct_ctor_expr(compiler__ast__AstNode* self);
 compiler__ast__EnumCtorExpr* compiler__ast__AstNode_as_enum_ctor_expr(compiler__ast__AstNode* self);
-compiler__ast__SizeOfParam* compiler__ast__AstNode_as_size_of_param(compiler__ast__AstNode* self);
+compiler__ast__NodeData__SizeOfParam* compiler__ast__AstNode_as_size_of_param(compiler__ast__AstNode* self);
 compiler__ast__NodeData__BlockStmt* compiler__ast__AstNode_as_block_stmt(compiler__ast__AstNode* self);
 compiler__ast__NodeData__ExprStmt* compiler__ast__AstNode_as_expr_stmt(compiler__ast__AstNode* self);
 compiler__ast__NodeData__VarDeclStmt* compiler__ast__AstNode_as_var_decl_stmt(compiler__ast__AstNode* self);
@@ -2562,8 +2512,8 @@ compiler__ast__AstNode* compiler__sema__body__BodyPass_unwrap_group(compiler__se
 bool compiler__sema__body__BodyPass_is_immutable_self(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* obj_node);
 void compiler__sema__body__BodyPass_check_ident_assignable(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* op_node, kobel_str name, compiler__sema__Symbol* sym, bool is_update);
 compiler__sema__Type* compiler__sema__body__BodyPass_check_assign_expr(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node);
-compiler__sema__Type* compiler__sema__body__BodyPass_lower_index_assign(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__AssignExpr* asgn, compiler__ast__IndexExpr* idx);
-compiler__sema__Type* compiler__sema__body__BodyPass_lower_index_write(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__IndexExpr* idx, compiler__lexer__TokenType op, compiler__ast__AstNode* rhs, kobel_str what);
+compiler__sema__Type* compiler__sema__body__BodyPass_lower_index_assign(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__AssignExpr* asgn, compiler__ast__NodeData__IndexExpr* idx);
+compiler__sema__Type* compiler__sema__body__BodyPass_lower_index_write(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__IndexExpr* idx, compiler__lexer__TokenType op, compiler__ast__AstNode* rhs, kobel_str what);
 compiler__sema__Type* compiler__sema__body__BodyPass_check_update_expr(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node);
 compiler__sema__Type* compiler__sema__body__BodyPass_check_cast_expr(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node);
 compiler__sema__Type* compiler__sema__body__BodyPass_check_call_expr(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node);
@@ -2594,12 +2544,12 @@ compiler__sema__Type* compiler__sema__body__BodyPass_check_literal_expr(compiler
 compiler__sema__Type* compiler__sema__body__BodyPass_check_ident_expr(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node);
 compiler__sema__Type* compiler__sema__body__BodyPass_check_binary_expr(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__sema__Type* expected);
 bool compiler__sema__body__BodyPass_is_safe_nav_expr(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* expr);
-compiler__sema__Type* compiler__sema__body__BodyPass_check_elvis_expr(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__BinaryExpr* bin, bool was_stmt);
-compiler__sema__Type* compiler__sema__body__BodyPass_check_arith_op(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__BinaryExpr* bin, compiler__sema__Type* lt, compiler__sema__Type* rt);
-compiler__sema__Type* compiler__sema__body__BodyPass_check_equality_op(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__BinaryExpr* bin, compiler__sema__Type* lt, compiler__sema__Type* rt);
+compiler__sema__Type* compiler__sema__body__BodyPass_check_elvis_expr(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__BinaryExpr* bin, bool was_stmt);
+compiler__sema__Type* compiler__sema__body__BodyPass_check_arith_op(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__BinaryExpr* bin, compiler__sema__Type* lt, compiler__sema__Type* rt);
+compiler__sema__Type* compiler__sema__body__BodyPass_check_equality_op(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__BinaryExpr* bin, compiler__sema__Type* lt, compiler__sema__Type* rt);
 compiler__sema__Type* compiler__sema__body__BodyPass_check_ordering_op(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__sema__Type* lt, compiler__sema__Type* rt);
 compiler__sema__Type* compiler__sema__body__BodyPass_check_logic_op(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__sema__Type* lt, compiler__sema__Type* rt);
-compiler__sema__Type* compiler__sema__body__BodyPass_check_in_op(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__BinaryExpr* bin, compiler__sema__Type* lt, compiler__sema__Type* rt);
+compiler__sema__Type* compiler__sema__body__BodyPass_check_in_op(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__BinaryExpr* bin, compiler__sema__Type* lt, compiler__sema__Type* rt);
 compiler__sema__Type* compiler__sema__body__BodyPass_check_unary_expr(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__sema__Type* expected);
 compiler__sema__Type* compiler__sema__body__BodyPass_check_if_expr(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__sema__Type* expected);
 compiler__sema__Type* compiler__sema__body__BodyPass_check_array_literal_expr(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node);
@@ -2700,13 +2650,13 @@ compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_stmt(compiler__sema
 compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_expr(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node);
 compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_arm_body(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* body);
 compiler__ast__AstNode* compiler__sema__body__BodyPass_lowered(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* original, compiler__ast__AstNode* replacement);
-compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_binary(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__BinaryExpr* bin);
-compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_assign(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__AssignExpr* asgn);
+compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_binary(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__BinaryExpr* bin);
+compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_assign(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__AssignExpr* asgn);
 compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_interp(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__InterpExpr* ie);
 compiler__ast__AstNode* compiler__sema__body__BodyPass_to_str_expr(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* expr, size_t line, size_t col);
 compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_member(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__MemberExpr* mem);
-compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_unary(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__UnaryExpr* un);
-compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_index(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__IndexExpr* idx);
+compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_unary(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__UnaryExpr* un);
+compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_index(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__IndexExpr* idx);
 compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_bound_call(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__CallExpr* call);
 compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_call(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__CallExpr* call);
 compiler__sema__Type* compiler__sema__body__BodyPass_type_of(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node);
@@ -2854,16 +2804,16 @@ kobel_str compiler__codegen__c_format_float_literal(kobel_str raw);
 compiler__ast__AstNode* compiler__codegen__unwrap_group_expr(compiler__ast__AstNode* node);
 bool compiler__codegen__expr_needs_parens_for_member(compiler__ast__AstNode* node);
 kobel_str compiler__codegen__CCodeGen_gen_expr(compiler__codegen__CCodeGen* self, compiler__ast__AstNode* node);
-kobel_str compiler__codegen__CCodeGen_gen_literal_expr(compiler__codegen__CCodeGen* self, compiler__ast__AstNode* ast_node, compiler__ast__LiteralExpr* lit);
-kobel_str compiler__codegen__CCodeGen_gen_binary_expr(compiler__codegen__CCodeGen* self, compiler__ast__BinaryExpr* bin);
-kobel_str compiler__codegen__CCodeGen_gen_unary_expr(compiler__codegen__CCodeGen* self, compiler__ast__UnaryExpr* un);
+kobel_str compiler__codegen__CCodeGen_gen_literal_expr(compiler__codegen__CCodeGen* self, compiler__ast__AstNode* ast_node, compiler__ast__NodeData__LiteralExpr* lit);
+kobel_str compiler__codegen__CCodeGen_gen_binary_expr(compiler__codegen__CCodeGen* self, compiler__ast__NodeData__BinaryExpr* bin);
+kobel_str compiler__codegen__CCodeGen_gen_unary_expr(compiler__codegen__CCodeGen* self, compiler__ast__NodeData__UnaryExpr* un);
 kobel_str compiler__codegen__CCodeGen_gen_array_literal_expr(compiler__codegen__CCodeGen* self, compiler__ast__ArrayLiteralExpr* al);
 kobel_str compiler__codegen__CCodeGen_gen_call_expr(compiler__codegen__CCodeGen* self, compiler__ast__CallExpr* call);
 kobel_str compiler__codegen__CCodeGen_gen_member_expr(compiler__codegen__CCodeGen* self, compiler__ast__AstNode* ast_node, compiler__ast__MemberExpr* mem);
-kobel_str compiler__codegen__CCodeGen_gen_assign_expr(compiler__codegen__CCodeGen* self, compiler__ast__AssignExpr* asgn);
+kobel_str compiler__codegen__CCodeGen_gen_assign_expr(compiler__codegen__CCodeGen* self, compiler__ast__NodeData__AssignExpr* asgn);
 kobel_str compiler__codegen__CCodeGen_gen_when_expr(compiler__codegen__CCodeGen* self, compiler__ast__WhenExpr* we);
 kobel_str compiler__codegen__CCodeGen_gen_tag_test(compiler__codegen__CCodeGen* self, kobel_str subject, bool is_ptr, kobel_str tag_field, kobel_str tag_const);
-kobel_str compiler__codegen__CCodeGen_gen_cast_expr(compiler__codegen__CCodeGen* self, compiler__ast__CastExpr* cst);
+kobel_str compiler__codegen__CCodeGen_gen_cast_expr(compiler__codegen__CCodeGen* self, compiler__ast__NodeData__CastExpr* cst);
 kobel_str compiler__codegen__CCodeGen_gen_is_expr(compiler__codegen__CCodeGen* self, compiler__ast__IsExpr* is_e);
 kobel_str compiler__codegen__CCodeGen_gen_when_test(compiler__codegen__CCodeGen* self, kobel_str cond, std__collections__List_ptr_compiler__ast__AstNode patterns);
 kobel_str compiler__codegen__CCodeGen_c_type_of(compiler__codegen__CCodeGen* self, compiler__ast__AstNode* expr);
@@ -2894,8 +2844,8 @@ void compiler__codegen__CCodeGen_gen_if_stmt(compiler__codegen__CCodeGen* self, 
 void compiler__codegen__CCodeGen_gen_while_stmt(compiler__codegen__CCodeGen* self, compiler__ast__NodeData__WhileStmt* wh);
 void compiler__codegen__CCodeGen_gen_return_stmt(compiler__codegen__CCodeGen* self, compiler__ast__NodeData__ReturnStmt* ret);
 void compiler__codegen__CCodeGen_gen_expr_stmt(compiler__codegen__CCodeGen* self, compiler__ast__NodeData__ExprStmt* es);
-void compiler__codegen__CCodeGen_gen_assign_elvis_stmt(compiler__codegen__CCodeGen* self, compiler__ast__AssignExpr* asg, compiler__ast__AstNode* asg_val, kobel_str ind);
-void compiler__codegen__CCodeGen_gen_elvis_jump_stmt(compiler__codegen__CCodeGen* self, compiler__ast__BinaryExpr* bin, kobel_str ind);
+void compiler__codegen__CCodeGen_gen_assign_elvis_stmt(compiler__codegen__CCodeGen* self, compiler__ast__NodeData__AssignExpr* asg, compiler__ast__AstNode* asg_val, kobel_str ind);
+void compiler__codegen__CCodeGen_gen_elvis_jump_stmt(compiler__codegen__CCodeGen* self, compiler__ast__NodeData__BinaryExpr* bin, kobel_str ind);
 void compiler__codegen__CCodeGen_gen_yield_stmt(compiler__codegen__CCodeGen* self, compiler__ast__NodeData__YieldStmt* ys);
 kobel_str compiler__codegen__CCodeGen_when_arm_binding(compiler__codegen__CCodeGen* self, std__collections__List_ptr_compiler__ast__AstNode patterns, compiler__ast__AstNode* cond);
 void compiler__codegen__CCodeGen_gen_when_stmt(compiler__codegen__CCodeGen* self, compiler__ast__NodeData__WhenStmt* ws);
@@ -4143,20 +4093,10 @@ bool std__collections__List_compiler__codegen__ConditionAlias_contains(std__coll
 compiler__codegen__ConditionAlias std__collections__List_compiler__codegen__ConditionAlias_set(std__collections__List_compiler__codegen__ConditionAlias* self, size_t index, compiler__codegen__ConditionAlias value);
 void std__collections__List_compiler__codegen__ConditionAlias_plus_assign(std__collections__List_compiler__codegen__ConditionAlias* self, compiler__codegen__ConditionAlias value);
 void std__memory__Heap_free_u8(uint8_t* ptr);
-compiler__ast__LiteralExpr* std__memory__Arena_create_val_compiler__ast__LiteralExpr(std__memory__Arena* self, compiler__ast__LiteralExpr value);
-compiler__ast__IdentifierExpr* std__memory__Arena_create_val_compiler__ast__IdentifierExpr(std__memory__Arena* self, compiler__ast__IdentifierExpr value);
-compiler__ast__BinaryExpr* std__memory__Arena_create_val_compiler__ast__BinaryExpr(std__memory__Arena* self, compiler__ast__BinaryExpr value);
-compiler__ast__UnaryExpr* std__memory__Arena_create_val_compiler__ast__UnaryExpr(std__memory__Arena* self, compiler__ast__UnaryExpr value);
 compiler__ast__CallExpr* std__memory__Arena_create_val_compiler__ast__CallExpr(std__memory__Arena* self, compiler__ast__CallExpr value);
 compiler__ast__StructCtorExpr* std__memory__Arena_create_val_compiler__ast__StructCtorExpr(std__memory__Arena* self, compiler__ast__StructCtorExpr value);
 compiler__ast__EnumCtorExpr* std__memory__Arena_create_val_compiler__ast__EnumCtorExpr(std__memory__Arena* self, compiler__ast__EnumCtorExpr value);
-compiler__ast__SizeOfParam* std__memory__Arena_create_val_compiler__ast__SizeOfParam(std__memory__Arena* self, compiler__ast__SizeOfParam value);
 compiler__ast__MemberExpr* std__memory__Arena_create_val_compiler__ast__MemberExpr(std__memory__Arena* self, compiler__ast__MemberExpr value);
-compiler__ast__IndexExpr* std__memory__Arena_create_val_compiler__ast__IndexExpr(std__memory__Arena* self, compiler__ast__IndexExpr value);
-compiler__ast__AssignExpr* std__memory__Arena_create_val_compiler__ast__AssignExpr(std__memory__Arena* self, compiler__ast__AssignExpr value);
-compiler__ast__UpdateExpr* std__memory__Arena_create_val_compiler__ast__UpdateExpr(std__memory__Arena* self, compiler__ast__UpdateExpr value);
-compiler__ast__CastExpr* std__memory__Arena_create_val_compiler__ast__CastExpr(std__memory__Arena* self, compiler__ast__CastExpr value);
-compiler__ast__GroupExpr* std__memory__Arena_create_val_compiler__ast__GroupExpr(std__memory__Arena* self, compiler__ast__GroupExpr value);
 compiler__ast__ArrayLiteralExpr* std__memory__Arena_create_val_compiler__ast__ArrayLiteralExpr(std__memory__Arena* self, compiler__ast__ArrayLiteralExpr value);
 compiler__ast__IfExpr* std__memory__Arena_create_val_compiler__ast__IfExpr(std__memory__Arena* self, compiler__ast__IfExpr value);
 compiler__ast__WhenExpr* std__memory__Arena_create_val_compiler__ast__WhenExpr(std__memory__Arena* self, compiler__ast__WhenExpr value);
@@ -4300,20 +4240,10 @@ compiler__sema__body__ArrowCandidate** std__memory__Heap_create_array_ptr_compil
 compiler__sema__body__ArrowCandidate** std__memory__Heap_resize_ptr_compiler__sema__body__ArrowCandidate(compiler__sema__body__ArrowCandidate** ptr, size_t count);
 compiler__codegen__ConditionAlias* std__memory__Heap_create_array_compiler__codegen__ConditionAlias(size_t count);
 compiler__codegen__ConditionAlias* std__memory__Heap_resize_compiler__codegen__ConditionAlias(compiler__codegen__ConditionAlias* ptr, size_t count);
-compiler__ast__LiteralExpr* std__memory__Arena_create_compiler__ast__LiteralExpr(std__memory__Arena* self);
-compiler__ast__IdentifierExpr* std__memory__Arena_create_compiler__ast__IdentifierExpr(std__memory__Arena* self);
-compiler__ast__BinaryExpr* std__memory__Arena_create_compiler__ast__BinaryExpr(std__memory__Arena* self);
-compiler__ast__UnaryExpr* std__memory__Arena_create_compiler__ast__UnaryExpr(std__memory__Arena* self);
 compiler__ast__CallExpr* std__memory__Arena_create_compiler__ast__CallExpr(std__memory__Arena* self);
 compiler__ast__StructCtorExpr* std__memory__Arena_create_compiler__ast__StructCtorExpr(std__memory__Arena* self);
 compiler__ast__EnumCtorExpr* std__memory__Arena_create_compiler__ast__EnumCtorExpr(std__memory__Arena* self);
-compiler__ast__SizeOfParam* std__memory__Arena_create_compiler__ast__SizeOfParam(std__memory__Arena* self);
 compiler__ast__MemberExpr* std__memory__Arena_create_compiler__ast__MemberExpr(std__memory__Arena* self);
-compiler__ast__IndexExpr* std__memory__Arena_create_compiler__ast__IndexExpr(std__memory__Arena* self);
-compiler__ast__AssignExpr* std__memory__Arena_create_compiler__ast__AssignExpr(std__memory__Arena* self);
-compiler__ast__UpdateExpr* std__memory__Arena_create_compiler__ast__UpdateExpr(std__memory__Arena* self);
-compiler__ast__CastExpr* std__memory__Arena_create_compiler__ast__CastExpr(std__memory__Arena* self);
-compiler__ast__GroupExpr* std__memory__Arena_create_compiler__ast__GroupExpr(std__memory__Arena* self);
 compiler__ast__ArrayLiteralExpr* std__memory__Arena_create_compiler__ast__ArrayLiteralExpr(std__memory__Arena* self);
 compiler__ast__IfExpr* std__memory__Arena_create_compiler__ast__IfExpr(std__memory__Arena* self);
 compiler__ast__WhenExpr* std__memory__Arena_create_compiler__ast__WhenExpr(std__memory__Arena* self);
@@ -7982,19 +7912,19 @@ compiler__ast__AstNode* std__memory__Arena_nullable_type(std__memory__Arena* sel
 }
 
 compiler__ast__AstNode* std__memory__Arena_literal(std__memory__Arena* self, compiler__ast__LiteralKind lk, kobel_str raw, size_t line, size_t col) {
-    return std__memory__Arena_build_node(self, (compiler__ast__NodeData){ .tag = 5, .u.LiteralExpr = { std__memory__Arena_create_val_compiler__ast__LiteralExpr(self, (compiler__ast__LiteralExpr){ lk, raw }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__NodeData){ .tag = 5, .u.LiteralExpr = { lk, raw } }, line, col);
 }
 
 compiler__ast__AstNode* std__memory__Arena_identifier(std__memory__Arena* self, kobel_str name, size_t line, size_t col) {
-    return std__memory__Arena_build_node(self, (compiler__ast__NodeData){ .tag = 6, .u.IdentifierExpr = { std__memory__Arena_create_val_compiler__ast__IdentifierExpr(self, (compiler__ast__IdentifierExpr){ name }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__NodeData){ .tag = 6, .u.IdentifierExpr = { name } }, line, col);
 }
 
 compiler__ast__AstNode* std__memory__Arena_binary(std__memory__Arena* self, compiler__lexer__TokenType op, compiler__ast__AstNode* left, compiler__ast__AstNode* right, size_t line, size_t col) {
-    return std__memory__Arena_build_node(self, (compiler__ast__NodeData){ .tag = 7, .u.BinaryExpr = { std__memory__Arena_create_val_compiler__ast__BinaryExpr(self, (compiler__ast__BinaryExpr){ left, op, right }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__NodeData){ .tag = 7, .u.BinaryExpr = { left, op, right } }, line, col);
 }
 
 compiler__ast__AstNode* std__memory__Arena_unary(std__memory__Arena* self, compiler__lexer__TokenType op, compiler__ast__AstNode* operand, size_t line, size_t col, bool is_postfix) {
-    return std__memory__Arena_build_node(self, (compiler__ast__NodeData){ .tag = 8, .u.UnaryExpr = { std__memory__Arena_create_val_compiler__ast__UnaryExpr(self, (compiler__ast__UnaryExpr){ op, operand, is_postfix }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__NodeData){ .tag = 8, .u.UnaryExpr = { op, operand, is_postfix } }, line, col);
 }
 
 compiler__ast__AstNode* std__memory__Arena_call(std__memory__Arena* self, compiler__ast__AstNode* callee, std__collections__List_ptr_compiler__ast__AstNode args, std__collections__List_ptr_compiler__ast__AstNode type_args, size_t line, size_t col) {
@@ -8010,7 +7940,7 @@ compiler__ast__AstNode* std__memory__Arena_enum_ctor(std__memory__Arena* self, k
 }
 
 compiler__ast__AstNode* std__memory__Arena_size_of_param(std__memory__Arena* self, size_t param_index, kobel_str size_text, size_t line, size_t col) {
-    return std__memory__Arena_build_node(self, (compiler__ast__NodeData){ .tag = 23, .u.SizeOfParam = { std__memory__Arena_create_val_compiler__ast__SizeOfParam(self, (compiler__ast__SizeOfParam){ param_index, size_text }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__NodeData){ .tag = 23, .u.SizeOfParam = { param_index, size_text } }, line, col);
 }
 
 compiler__ast__AstNode* std__memory__Arena_member(std__memory__Arena* self, compiler__ast__AstNode* obj, kobel_str member, size_t line, size_t col) {
@@ -8022,27 +7952,27 @@ compiler__ast__AstNode* std__memory__Arena_safe_member(std__memory__Arena* self,
 }
 
 compiler__ast__AstNode* std__memory__Arena_index(std__memory__Arena* self, compiler__ast__AstNode* target, compiler__ast__AstNode* index, size_t line, size_t col) {
-    return std__memory__Arena_build_node(self, (compiler__ast__NodeData){ .tag = 11, .u.IndexExpr = { std__memory__Arena_create_val_compiler__ast__IndexExpr(self, (compiler__ast__IndexExpr){ target, index }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__NodeData){ .tag = 11, .u.IndexExpr = { target, index } }, line, col);
 }
 
 compiler__ast__AstNode* std__memory__Arena_assign(std__memory__Arena* self, compiler__ast__AstNode* target, compiler__ast__AstNode* value, size_t line, size_t col) {
-    return std__memory__Arena_build_node(self, (compiler__ast__NodeData){ .tag = 12, .u.AssignExpr = { std__memory__Arena_create_val_compiler__ast__AssignExpr(self, (compiler__ast__AssignExpr){ target, 5, value }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__NodeData){ .tag = 12, .u.AssignExpr = { target, 5, value } }, line, col);
 }
 
 compiler__ast__AstNode* std__memory__Arena_compound_assign(std__memory__Arena* self, compiler__lexer__TokenType op, compiler__ast__AstNode* target, compiler__ast__AstNode* value, size_t line, size_t col) {
-    return std__memory__Arena_build_node(self, (compiler__ast__NodeData){ .tag = 12, .u.AssignExpr = { std__memory__Arena_create_val_compiler__ast__AssignExpr(self, (compiler__ast__AssignExpr){ target, op, value }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__NodeData){ .tag = 12, .u.AssignExpr = { target, op, value } }, line, col);
 }
 
 compiler__ast__AstNode* std__memory__Arena_update(std__memory__Arena* self, compiler__lexer__TokenType op, compiler__ast__AstNode* target, size_t line, size_t col) {
-    return std__memory__Arena_build_node(self, (compiler__ast__NodeData){ .tag = 13, .u.UpdateExpr = { std__memory__Arena_create_val_compiler__ast__UpdateExpr(self, (compiler__ast__UpdateExpr){ op, target }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__NodeData){ .tag = 13, .u.UpdateExpr = { op, target } }, line, col);
 }
 
 compiler__ast__AstNode* std__memory__Arena_cast(std__memory__Arena* self, compiler__ast__AstNode* expr, compiler__ast__AstNode* target_type, size_t line, size_t col) {
-    return std__memory__Arena_build_node(self, (compiler__ast__NodeData){ .tag = 14, .u.CastExpr = { std__memory__Arena_create_val_compiler__ast__CastExpr(self, (compiler__ast__CastExpr){ expr, target_type }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__NodeData){ .tag = 14, .u.CastExpr = { expr, target_type } }, line, col);
 }
 
 compiler__ast__AstNode* std__memory__Arena_group(std__memory__Arena* self, compiler__ast__AstNode* expr, size_t line, size_t col) {
-    return std__memory__Arena_build_node(self, (compiler__ast__NodeData){ .tag = 15, .u.GroupExpr = { std__memory__Arena_create_val_compiler__ast__GroupExpr(self, (compiler__ast__GroupExpr){ expr }) } }, line, col);
+    return std__memory__Arena_build_node(self, (compiler__ast__NodeData){ .tag = 15, .u.GroupExpr = { expr } }, line, col);
 }
 
 compiler__ast__AstNode* std__memory__Arena_array_literal(std__memory__Arena* self, std__collections__List_ptr_compiler__ast__AstNode elements, size_t line, size_t col) {
@@ -8242,44 +8172,44 @@ compiler__ast__NodeData__NullableType* compiler__ast__AstNode_as_nullable_type(c
     return (compiler__ast__NodeData__NullableType*)NULL;
 }
 
-compiler__ast__LiteralExpr* compiler__ast__AstNode_as_literal_expr(compiler__ast__AstNode* self) {
+compiler__ast__NodeData__LiteralExpr* compiler__ast__AstNode_as_literal_expr(compiler__ast__AstNode* self) {
     {
-        compiler__ast__LiteralExpr* d = NULL;
-        if ((self != NULL && self->data.tag == compiler__ast__NodeData__LiteralExpr__TAG && (d = self->data.u.LiteralExpr.inner, 1))) {
+        compiler__ast__NodeData__LiteralExpr* d = NULL;
+        if ((self != NULL && self->data.tag == compiler__ast__NodeData__LiteralExpr__TAG && (d = (compiler__ast__NodeData__LiteralExpr*)(&(self)->data.u.LiteralExpr), 1))) {
             return d;
         }
     }
-    return (compiler__ast__LiteralExpr*)NULL;
+    return (compiler__ast__NodeData__LiteralExpr*)NULL;
 }
 
-compiler__ast__IdentifierExpr* compiler__ast__AstNode_as_identifier_expr(compiler__ast__AstNode* self) {
+compiler__ast__NodeData__IdentifierExpr* compiler__ast__AstNode_as_identifier_expr(compiler__ast__AstNode* self) {
     {
-        compiler__ast__IdentifierExpr* d = NULL;
-        if ((self != NULL && self->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (d = self->data.u.IdentifierExpr.inner, 1))) {
+        compiler__ast__NodeData__IdentifierExpr* d = NULL;
+        if ((self != NULL && self->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (d = (compiler__ast__NodeData__IdentifierExpr*)(&(self)->data.u.IdentifierExpr), 1))) {
             return d;
         }
     }
-    return (compiler__ast__IdentifierExpr*)NULL;
+    return (compiler__ast__NodeData__IdentifierExpr*)NULL;
 }
 
-compiler__ast__BinaryExpr* compiler__ast__AstNode_as_binary_expr(compiler__ast__AstNode* self) {
+compiler__ast__NodeData__BinaryExpr* compiler__ast__AstNode_as_binary_expr(compiler__ast__AstNode* self) {
     {
-        compiler__ast__BinaryExpr* d = NULL;
-        if ((self != NULL && self->data.tag == compiler__ast__NodeData__BinaryExpr__TAG && (d = self->data.u.BinaryExpr.inner, 1))) {
+        compiler__ast__NodeData__BinaryExpr* d = NULL;
+        if ((self != NULL && self->data.tag == compiler__ast__NodeData__BinaryExpr__TAG && (d = (compiler__ast__NodeData__BinaryExpr*)(&(self)->data.u.BinaryExpr), 1))) {
             return d;
         }
     }
-    return (compiler__ast__BinaryExpr*)NULL;
+    return (compiler__ast__NodeData__BinaryExpr*)NULL;
 }
 
-compiler__ast__UnaryExpr* compiler__ast__AstNode_as_unary_expr(compiler__ast__AstNode* self) {
+compiler__ast__NodeData__UnaryExpr* compiler__ast__AstNode_as_unary_expr(compiler__ast__AstNode* self) {
     {
-        compiler__ast__UnaryExpr* d = NULL;
-        if ((self != NULL && self->data.tag == compiler__ast__NodeData__UnaryExpr__TAG && (d = self->data.u.UnaryExpr.inner, 1))) {
+        compiler__ast__NodeData__UnaryExpr* d = NULL;
+        if ((self != NULL && self->data.tag == compiler__ast__NodeData__UnaryExpr__TAG && (d = (compiler__ast__NodeData__UnaryExpr*)(&(self)->data.u.UnaryExpr), 1))) {
             return d;
         }
     }
-    return (compiler__ast__UnaryExpr*)NULL;
+    return (compiler__ast__NodeData__UnaryExpr*)NULL;
 }
 
 compiler__ast__CallExpr* compiler__ast__AstNode_as_call_expr(compiler__ast__AstNode* self) {
@@ -8302,54 +8232,54 @@ compiler__ast__MemberExpr* compiler__ast__AstNode_as_member_expr(compiler__ast__
     return (compiler__ast__MemberExpr*)NULL;
 }
 
-compiler__ast__IndexExpr* compiler__ast__AstNode_as_index_expr(compiler__ast__AstNode* self) {
+compiler__ast__NodeData__IndexExpr* compiler__ast__AstNode_as_index_expr(compiler__ast__AstNode* self) {
     {
-        compiler__ast__IndexExpr* d = NULL;
-        if ((self != NULL && self->data.tag == compiler__ast__NodeData__IndexExpr__TAG && (d = self->data.u.IndexExpr.inner, 1))) {
+        compiler__ast__NodeData__IndexExpr* d = NULL;
+        if ((self != NULL && self->data.tag == compiler__ast__NodeData__IndexExpr__TAG && (d = (compiler__ast__NodeData__IndexExpr*)(&(self)->data.u.IndexExpr), 1))) {
             return d;
         }
     }
-    return (compiler__ast__IndexExpr*)NULL;
+    return (compiler__ast__NodeData__IndexExpr*)NULL;
 }
 
-compiler__ast__AssignExpr* compiler__ast__AstNode_as_assign_expr(compiler__ast__AstNode* self) {
+compiler__ast__NodeData__AssignExpr* compiler__ast__AstNode_as_assign_expr(compiler__ast__AstNode* self) {
     {
-        compiler__ast__AssignExpr* d = NULL;
-        if ((self != NULL && self->data.tag == compiler__ast__NodeData__AssignExpr__TAG && (d = self->data.u.AssignExpr.inner, 1))) {
+        compiler__ast__NodeData__AssignExpr* d = NULL;
+        if ((self != NULL && self->data.tag == compiler__ast__NodeData__AssignExpr__TAG && (d = (compiler__ast__NodeData__AssignExpr*)(&(self)->data.u.AssignExpr), 1))) {
             return d;
         }
     }
-    return (compiler__ast__AssignExpr*)NULL;
+    return (compiler__ast__NodeData__AssignExpr*)NULL;
 }
 
-compiler__ast__UpdateExpr* compiler__ast__AstNode_as_update_expr(compiler__ast__AstNode* self) {
+compiler__ast__NodeData__UpdateExpr* compiler__ast__AstNode_as_update_expr(compiler__ast__AstNode* self) {
     {
-        compiler__ast__UpdateExpr* d = NULL;
-        if ((self != NULL && self->data.tag == compiler__ast__NodeData__UpdateExpr__TAG && (d = self->data.u.UpdateExpr.inner, 1))) {
+        compiler__ast__NodeData__UpdateExpr* d = NULL;
+        if ((self != NULL && self->data.tag == compiler__ast__NodeData__UpdateExpr__TAG && (d = (compiler__ast__NodeData__UpdateExpr*)(&(self)->data.u.UpdateExpr), 1))) {
             return d;
         }
     }
-    return (compiler__ast__UpdateExpr*)NULL;
+    return (compiler__ast__NodeData__UpdateExpr*)NULL;
 }
 
-compiler__ast__CastExpr* compiler__ast__AstNode_as_cast_expr(compiler__ast__AstNode* self) {
+compiler__ast__NodeData__CastExpr* compiler__ast__AstNode_as_cast_expr(compiler__ast__AstNode* self) {
     {
-        compiler__ast__CastExpr* d = NULL;
-        if ((self != NULL && self->data.tag == compiler__ast__NodeData__CastExpr__TAG && (d = self->data.u.CastExpr.inner, 1))) {
+        compiler__ast__NodeData__CastExpr* d = NULL;
+        if ((self != NULL && self->data.tag == compiler__ast__NodeData__CastExpr__TAG && (d = (compiler__ast__NodeData__CastExpr*)(&(self)->data.u.CastExpr), 1))) {
             return d;
         }
     }
-    return (compiler__ast__CastExpr*)NULL;
+    return (compiler__ast__NodeData__CastExpr*)NULL;
 }
 
-compiler__ast__GroupExpr* compiler__ast__AstNode_as_group_expr(compiler__ast__AstNode* self) {
+compiler__ast__NodeData__GroupExpr* compiler__ast__AstNode_as_group_expr(compiler__ast__AstNode* self) {
     {
-        compiler__ast__GroupExpr* d = NULL;
-        if ((self != NULL && self->data.tag == compiler__ast__NodeData__GroupExpr__TAG && (d = self->data.u.GroupExpr.inner, 1))) {
+        compiler__ast__NodeData__GroupExpr* d = NULL;
+        if ((self != NULL && self->data.tag == compiler__ast__NodeData__GroupExpr__TAG && (d = (compiler__ast__NodeData__GroupExpr*)(&(self)->data.u.GroupExpr), 1))) {
             return d;
         }
     }
-    return (compiler__ast__GroupExpr*)NULL;
+    return (compiler__ast__NodeData__GroupExpr*)NULL;
 }
 
 compiler__ast__ArrayLiteralExpr* compiler__ast__AstNode_as_array_literal_expr(compiler__ast__AstNode* self) {
@@ -8422,14 +8352,14 @@ compiler__ast__EnumCtorExpr* compiler__ast__AstNode_as_enum_ctor_expr(compiler__
     return (compiler__ast__EnumCtorExpr*)NULL;
 }
 
-compiler__ast__SizeOfParam* compiler__ast__AstNode_as_size_of_param(compiler__ast__AstNode* self) {
+compiler__ast__NodeData__SizeOfParam* compiler__ast__AstNode_as_size_of_param(compiler__ast__AstNode* self) {
     {
-        compiler__ast__SizeOfParam* d = NULL;
-        if ((self != NULL && self->data.tag == compiler__ast__NodeData__SizeOfParam__TAG && (d = self->data.u.SizeOfParam.inner, 1))) {
+        compiler__ast__NodeData__SizeOfParam* d = NULL;
+        if ((self != NULL && self->data.tag == compiler__ast__NodeData__SizeOfParam__TAG && (d = (compiler__ast__NodeData__SizeOfParam*)(&(self)->data.u.SizeOfParam), 1))) {
             return d;
         }
     }
-    return (compiler__ast__SizeOfParam*)NULL;
+    return (compiler__ast__NodeData__SizeOfParam*)NULL;
 }
 
 compiler__ast__NodeData__BlockStmt* compiler__ast__AstNode_as_block_stmt(compiler__ast__AstNode* self) {
@@ -11533,16 +11463,16 @@ compiler__ast__AstNode* compiler__sema__decl__DeclPass_clone_expr(compiler__sema
     compiler__ast__AstNode* target = node;
     compiler__ast__AstNode* out;
     if (target != NULL && target->data.tag == compiler__ast__NodeData__LiteralExpr__TAG) {
-        compiler__ast__LiteralExpr* l = (target)->data.u.LiteralExpr.inner;
+        compiler__ast__NodeData__LiteralExpr* l = (compiler__ast__NodeData__LiteralExpr*)(&(target)->data.u.LiteralExpr);
         out = std__memory__Arena_literal(&self->arena, l->literal_kind, l->raw_text, node->line, node->col);
     } else if (target != NULL && target->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG) {
-        compiler__ast__IdentifierExpr* id = (target)->data.u.IdentifierExpr.inner;
+        compiler__ast__NodeData__IdentifierExpr* id = (compiler__ast__NodeData__IdentifierExpr*)(&(target)->data.u.IdentifierExpr);
         out = std__memory__Arena_identifier(&self->arena, ((e != NULL && e->has_ident_name) ? e->ident_name : id->name), node->line, node->col);
     } else if (target != NULL && target->data.tag == compiler__ast__NodeData__BinaryExpr__TAG) {
-        compiler__ast__BinaryExpr* b = (target)->data.u.BinaryExpr.inner;
+        compiler__ast__NodeData__BinaryExpr* b = (compiler__ast__NodeData__BinaryExpr*)(&(target)->data.u.BinaryExpr);
         out = std__memory__Arena_binary(&self->arena, b->op, compiler__sema__decl__DeclPass_clone_expr(self, b->left, subst), compiler__sema__decl__DeclPass_clone_expr(self, b->right, subst), node->line, node->col);
     } else if (target != NULL && target->data.tag == compiler__ast__NodeData__UnaryExpr__TAG) {
-        compiler__ast__UnaryExpr* u = (target)->data.u.UnaryExpr.inner;
+        compiler__ast__NodeData__UnaryExpr* u = (compiler__ast__NodeData__UnaryExpr*)(&(target)->data.u.UnaryExpr);
         out = std__memory__Arena_unary(&self->arena, u->op, compiler__sema__decl__DeclPass_clone_expr(self, u->operand, subst), node->line, node->col, u->is_postfix);
     } else if (target != NULL && target->data.tag == compiler__ast__NodeData__CallExpr__TAG) {
         void* __orig_target = (void*)target;
@@ -11557,19 +11487,19 @@ compiler__ast__AstNode* compiler__sema__decl__DeclPass_clone_expr(compiler__sema
         out = res;
         goto __when_end_17;
     } else if (target != NULL && target->data.tag == compiler__ast__NodeData__IndexExpr__TAG) {
-        compiler__ast__IndexExpr* ix = (target)->data.u.IndexExpr.inner;
+        compiler__ast__NodeData__IndexExpr* ix = (compiler__ast__NodeData__IndexExpr*)(&(target)->data.u.IndexExpr);
         out = std__memory__Arena_index(&self->arena, compiler__sema__decl__DeclPass_clone_expr(self, ix->target, subst), compiler__sema__decl__DeclPass_clone_expr(self, ix->index, subst), node->line, node->col);
     } else if (target != NULL && target->data.tag == compiler__ast__NodeData__AssignExpr__TAG) {
-        compiler__ast__AssignExpr* a = (target)->data.u.AssignExpr.inner;
+        compiler__ast__NodeData__AssignExpr* a = (compiler__ast__NodeData__AssignExpr*)(&(target)->data.u.AssignExpr);
         out = std__memory__Arena_compound_assign(&self->arena, a->op, compiler__sema__decl__DeclPass_clone_expr(self, a->target, subst), compiler__sema__decl__DeclPass_clone_expr(self, a->value, subst), node->line, node->col);
     } else if (target != NULL && target->data.tag == compiler__ast__NodeData__UpdateExpr__TAG) {
-        compiler__ast__UpdateExpr* u = (target)->data.u.UpdateExpr.inner;
+        compiler__ast__NodeData__UpdateExpr* u = (compiler__ast__NodeData__UpdateExpr*)(&(target)->data.u.UpdateExpr);
         out = std__memory__Arena_update(&self->arena, u->op, compiler__sema__decl__DeclPass_clone_expr(self, u->target, subst), node->line, node->col);
     } else if (target != NULL && target->data.tag == compiler__ast__NodeData__CastExpr__TAG) {
-        compiler__ast__CastExpr* cst = (target)->data.u.CastExpr.inner;
+        compiler__ast__NodeData__CastExpr* cst = (compiler__ast__NodeData__CastExpr*)(&(target)->data.u.CastExpr);
         out = std__memory__Arena_cast(&self->arena, ((cst->expr != NULL) ? compiler__sema__decl__DeclPass_clone_expr(self, cst->expr, subst) : NULL), compiler__sema__decl__DeclPass_clone_type(self, cst->target_type, subst), node->line, node->col);
     } else if (target != NULL && target->data.tag == compiler__ast__NodeData__GroupExpr__TAG) {
-        compiler__ast__GroupExpr* g = (target)->data.u.GroupExpr.inner;
+        compiler__ast__NodeData__GroupExpr* g = (compiler__ast__NodeData__GroupExpr*)(&(target)->data.u.GroupExpr);
         out = std__memory__Arena_group(&self->arena, compiler__sema__decl__DeclPass_clone_expr(self, g->expr, subst), node->line, node->col);
     } else if (target != NULL && target->data.tag == compiler__ast__NodeData__IfExpr__TAG) {
         compiler__ast__IfExpr* ie = (target)->data.u.IfExpr.inner;
@@ -11613,7 +11543,7 @@ compiler__ast__AstNode* compiler__sema__decl__DeclPass_clone_expr(compiler__sema
         compiler__ast__EnumCtorExpr* ec = (target)->data.u.EnumCtorExpr.inner;
         out = std__memory__Arena_enum_ctor(&self->arena, ec->c_name, ec->tag_field, ec->tag_value, ec->payload_path, compiler__sema__decl__DeclPass_clone_expr_list(self, ec->args, subst), node->line, node->col);
     } else if (target != NULL && target->data.tag == compiler__ast__NodeData__SizeOfParam__TAG) {
-        compiler__ast__SizeOfParam* sop = (target)->data.u.SizeOfParam.inner;
+        compiler__ast__NodeData__SizeOfParam* sop = (compiler__ast__NodeData__SizeOfParam*)(&(target)->data.u.SizeOfParam);
         out = std__memory__Arena_size_of_param(&self->arena, sop->param_index, sop->size_text, node->line, node->col);
     } else {
         out = std__memory__Arena_identifier(&self->arena, KOBEL_STR("<unsupported-expr>"), node->line, node->col);
@@ -11668,8 +11598,8 @@ compiler__ast__AstNode* compiler__sema__decl__DeclPass_clone_template_call(compi
         if ((callee != NULL && callee->data.tag == compiler__ast__NodeData__MemberExpr__TAG && (mem = callee->data.u.MemberExpr.inner, 1))) {
             compiler__sema__GenTemplate* ft = NULL;
             {
-                compiler__ast__IdentifierExpr* id = NULL;
-                if ((mem->object != NULL && mem->object->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (id = mem->object->data.u.IdentifierExpr.inner, 1))) {
+                compiler__ast__NodeData__IdentifierExpr* id = NULL;
+                if ((mem->object != NULL && mem->object->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (id = (compiler__ast__NodeData__IdentifierExpr*)(&(mem->object)->data.u.IdentifierExpr), 1))) {
                     ft = compiler__sema__decl__DeclPass_find_method_template(self, mem->member, id->name);
                 }
             }
@@ -11711,8 +11641,8 @@ compiler__ast__AstNode* compiler__sema__decl__DeclPass_clone_template_call(compi
         }
     }
     {
-        compiler__ast__IdentifierExpr* cid = NULL;
-        if ((callee != NULL && callee->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (cid = callee->data.u.IdentifierExpr.inner, 1))) {
+        compiler__ast__NodeData__IdentifierExpr* cid = NULL;
+        if ((callee != NULL && callee->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (cid = (compiler__ast__NodeData__IdentifierExpr*)(&(callee)->data.u.IdentifierExpr), 1))) {
             compiler__sema__GenTemplate* ft = compiler__sema__decl__DeclPass_find_fn_template(self, cid->name);
             if (ft != NULL) {
                 std__collections__List_ptr_compiler__ast__AstNode targs = compiler__sema__decl__DeclPass_clone_type_args(self, c->type_args, subst);
@@ -12760,8 +12690,8 @@ void compiler__sema__decl__DeclPass_propagate_target_type(compiler__sema__decl__
             compiler__ast__AstNode* cur = init_node;
             while (cur != NULL) {
                 {
-                    compiler__ast__GroupExpr* g = NULL;
-                    if ((cur != NULL && cur->data.tag == compiler__ast__NodeData__GroupExpr__TAG && (g = cur->data.u.GroupExpr.inner, 1))) {
+                    compiler__ast__NodeData__GroupExpr* g = NULL;
+                    if ((cur != NULL && cur->data.tag == compiler__ast__NodeData__GroupExpr__TAG && (g = (compiler__ast__NodeData__GroupExpr*)(&(cur)->data.u.GroupExpr), 1))) {
                         cur = g->expr;
                     } else {
                         break;
@@ -12775,8 +12705,8 @@ void compiler__sema__decl__DeclPass_propagate_target_type(compiler__sema__decl__
                 compiler__ast__CallExpr* call = (cur)->data.u.CallExpr.inner;
                 compiler__ast__AstNode* callee = call->callee;
                 {
-                    compiler__ast__IdentifierExpr* cid = NULL;
-                    if ((callee != NULL && callee->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (cid = callee->data.u.IdentifierExpr.inner, 1))) {
+                    compiler__ast__NodeData__IdentifierExpr* cid = NULL;
+                    if ((callee != NULL && callee->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (cid = (compiler__ast__NodeData__IdentifierExpr*)(&(callee)->data.u.IdentifierExpr), 1))) {
                         if (std__collections__List_ptr_compiler__ast__AstNode_empty(&call->type_args)) {
                             if (nt->type_args.len > 0) {
                                 if (kobel_streq(cid->name, nt->name)) {
@@ -12798,7 +12728,7 @@ void compiler__sema__decl__DeclPass_propagate_target_type(compiler__sema__decl__
                                 if (tmpl != NULL) {
                                     kobel_str prefix = kobel_concat(str_mangle_symbol(tmpl->module, tmpl->name), KOBEL_STR("_"));
                                     if (str_starts_with(nt->name, prefix)) {
-                                        compiler__ast__IdentifierExpr* cid_mut = (compiler__ast__IdentifierExpr*)cid;
+                                        compiler__ast__NodeData__IdentifierExpr* cid_mut = (compiler__ast__NodeData__IdentifierExpr*)cid;
                                         cid_mut->name = nt->name;
                                     }
                                 }
@@ -12880,19 +12810,19 @@ void compiler__sema__decl__DeclPass_rewrite_call_target(compiler__sema__decl__De
     }
     compiler__ast__AstNode* callee = c->callee;
     {
-        compiler__ast__IdentifierExpr* cid = NULL;
-        if ((callee != NULL && callee->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (cid = callee->data.u.IdentifierExpr.inner, 1))) {
+        compiler__ast__NodeData__IdentifierExpr* cid = NULL;
+        if ((callee != NULL && callee->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (cid = (compiler__ast__NodeData__IdentifierExpr*)(&(callee)->data.u.IdentifierExpr), 1))) {
             compiler__sema__GenTemplate* ft = compiler__sema__decl__DeclPass_find_fn_template(self, cid->name);
             if (ft != NULL) {
                 kobel_str cname = compiler__sema__decl__DeclPass_instantiate_fn(self, ft, c->type_args);
-                compiler__ast__IdentifierExpr* cid_mut = (compiler__ast__IdentifierExpr*)cid;
+                compiler__ast__NodeData__IdentifierExpr* cid_mut = (compiler__ast__NodeData__IdentifierExpr*)cid;
                 cid_mut->name = cname;
                 c->type_args = std__collections__List_ptr_compiler__ast__AstNode_init(4);
             } else {
                 compiler__sema__GenTemplate* st = compiler__sema__decl__DeclPass_find_struct_template(self, cid->name);
                 if (st != NULL) {
                     compiler__sema__Type* cty = compiler__sema__decl__DeclPass_instantiate_struct(self, st, c->type_args);
-                    compiler__ast__IdentifierExpr* cid_mut = (compiler__ast__IdentifierExpr*)cid;
+                    compiler__ast__NodeData__IdentifierExpr* cid_mut = (compiler__ast__NodeData__IdentifierExpr*)cid;
                     cid_mut->name = (*compiler__sema__Type_as_struct(cty)).name;
                     c->type_args = std__collections__List_ptr_compiler__ast__AstNode_init(4);
                 }
@@ -12919,36 +12849,36 @@ bool compiler__sema__decl__DeclPass_rewrite_expr_generics(compiler__sema__decl__
         }
         return true;
     } else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__BinaryExpr__TAG) {
-        compiler__ast__BinaryExpr* b = (cur)->data.u.BinaryExpr.inner;
+        compiler__ast__NodeData__BinaryExpr* b = (compiler__ast__NodeData__BinaryExpr*)(&(cur)->data.u.BinaryExpr);
         compiler__sema__decl__DeclPass_rewrite_generics(self, b->left);
         compiler__sema__decl__DeclPass_rewrite_generics(self, b->right);
         return true;
     } else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__UnaryExpr__TAG) {
-        compiler__ast__UnaryExpr* u = (cur)->data.u.UnaryExpr.inner;
+        compiler__ast__NodeData__UnaryExpr* u = (compiler__ast__NodeData__UnaryExpr*)(&(cur)->data.u.UnaryExpr);
         return compiler__sema__decl__DeclPass_rewrite_child(self, u->operand);
     } else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__MemberExpr__TAG) {
         compiler__ast__MemberExpr* m = (cur)->data.u.MemberExpr.inner;
         return compiler__sema__decl__DeclPass_rewrite_child(self, m->object);
     } else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__IndexExpr__TAG) {
-        compiler__ast__IndexExpr* ix = (cur)->data.u.IndexExpr.inner;
+        compiler__ast__NodeData__IndexExpr* ix = (compiler__ast__NodeData__IndexExpr*)(&(cur)->data.u.IndexExpr);
         compiler__sema__decl__DeclPass_rewrite_generics(self, ix->target);
         compiler__sema__decl__DeclPass_rewrite_generics(self, ix->index);
         return true;
     } else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__AssignExpr__TAG) {
-        compiler__ast__AssignExpr* a = (cur)->data.u.AssignExpr.inner;
+        compiler__ast__NodeData__AssignExpr* a = (compiler__ast__NodeData__AssignExpr*)(&(cur)->data.u.AssignExpr);
         compiler__sema__decl__DeclPass_rewrite_generics(self, a->target);
         compiler__sema__decl__DeclPass_rewrite_generics(self, a->value);
         return true;
     } else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__UpdateExpr__TAG) {
-        compiler__ast__UpdateExpr* u = (cur)->data.u.UpdateExpr.inner;
+        compiler__ast__NodeData__UpdateExpr* u = (compiler__ast__NodeData__UpdateExpr*)(&(cur)->data.u.UpdateExpr);
         return compiler__sema__decl__DeclPass_rewrite_child(self, u->target);
     } else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__CastExpr__TAG) {
-        compiler__ast__CastExpr* cst = (cur)->data.u.CastExpr.inner;
+        compiler__ast__NodeData__CastExpr* cst = (compiler__ast__NodeData__CastExpr*)(&(cur)->data.u.CastExpr);
         compiler__sema__decl__DeclPass_rewrite_generics(self, cst->expr);
         compiler__sema__decl__DeclPass_rewrite_generics(self, cst->target_type);
         return true;
     } else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__GroupExpr__TAG) {
-        compiler__ast__GroupExpr* g = (cur)->data.u.GroupExpr.inner;
+        compiler__ast__NodeData__GroupExpr* g = (compiler__ast__NodeData__GroupExpr*)(&(cur)->data.u.GroupExpr);
         return compiler__sema__decl__DeclPass_rewrite_child(self, g->expr);
     } else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__IfExpr__TAG) {
         compiler__ast__IfExpr* ie = (cur)->data.u.IfExpr.inner;
@@ -13418,8 +13348,8 @@ void compiler__sema__decl__DeclPass_collect_enum(compiler__sema__decl__DeclPass*
                 lit_kind = 4;
                 if (m.value != NULL) {
                     {
-                        compiler__ast__LiteralExpr* lit = NULL;
-                        if ((m.value != NULL && m.value->data.tag == compiler__ast__NodeData__LiteralExpr__TAG && (lit = m.value->data.u.LiteralExpr.inner, 1)) && (lit->literal_kind == 4)) {
+                        compiler__ast__NodeData__LiteralExpr* lit = NULL;
+                        if ((m.value != NULL && m.value->data.tag == compiler__ast__NodeData__LiteralExpr__TAG && (lit = (compiler__ast__NodeData__LiteralExpr*)(&(m.value)->data.u.LiteralExpr), 1)) && (lit->literal_kind == 4)) {
                             raw_text = lit->raw_text;
                         } else {
                             compiler__sema__decl__DeclPass_report_error(self, m.value, KOBEL_STR("Enum member value for 'str' enum must be a string literal"));
@@ -13433,8 +13363,8 @@ void compiler__sema__decl__DeclPass_collect_enum(compiler__sema__decl__DeclPass*
                 lit_kind = 3;
                 if (m.value != NULL) {
                     {
-                        compiler__ast__LiteralExpr* lit = NULL;
-                        if ((m.value != NULL && m.value->data.tag == compiler__ast__NodeData__LiteralExpr__TAG && (lit = m.value->data.u.LiteralExpr.inner, 1)) && (lit->literal_kind == 3)) {
+                        compiler__ast__NodeData__LiteralExpr* lit = NULL;
+                        if ((m.value != NULL && m.value->data.tag == compiler__ast__NodeData__LiteralExpr__TAG && (lit = (compiler__ast__NodeData__LiteralExpr*)(&(m.value)->data.u.LiteralExpr), 1)) && (lit->literal_kind == 3)) {
                             raw_text = lit->raw_text;
                         } else {
                             compiler__sema__decl__DeclPass_report_error(self, m.value, KOBEL_STR("Enum member value for 'char' enum must be a character literal"));
@@ -13449,8 +13379,8 @@ void compiler__sema__decl__DeclPass_collect_enum(compiler__sema__decl__DeclPass*
                 lit_kind = 1;
                 if (m.value != NULL) {
                     {
-                        compiler__ast__LiteralExpr* lit = NULL;
-                        if ((m.value != NULL && m.value->data.tag == compiler__ast__NodeData__LiteralExpr__TAG && (lit = m.value->data.u.LiteralExpr.inner, 1)) && ((lit->literal_kind == 1) || (lit->literal_kind == 0))) {
+                        compiler__ast__NodeData__LiteralExpr* lit = NULL;
+                        if ((m.value != NULL && m.value->data.tag == compiler__ast__NodeData__LiteralExpr__TAG && (lit = (compiler__ast__NodeData__LiteralExpr*)(&(m.value)->data.u.LiteralExpr), 1)) && ((lit->literal_kind == 1) || (lit->literal_kind == 0))) {
                             raw_text = lit->raw_text;
                         } else {
                             compiler__sema__decl__DeclPass_report_error(self, m.value, KOBEL_STR("Enum member value for float enum must be a number literal"));
@@ -13465,8 +13395,8 @@ void compiler__sema__decl__DeclPass_collect_enum(compiler__sema__decl__DeclPass*
                 lit_kind = 2;
                 if (m.value != NULL) {
                     {
-                        compiler__ast__LiteralExpr* lit = NULL;
-                        if ((m.value != NULL && m.value->data.tag == compiler__ast__NodeData__LiteralExpr__TAG && (lit = m.value->data.u.LiteralExpr.inner, 1)) && (lit->literal_kind == 2)) {
+                        compiler__ast__NodeData__LiteralExpr* lit = NULL;
+                        if ((m.value != NULL && m.value->data.tag == compiler__ast__NodeData__LiteralExpr__TAG && (lit = (compiler__ast__NodeData__LiteralExpr*)(&(m.value)->data.u.LiteralExpr), 1)) && (lit->literal_kind == 2)) {
                             raw_text = lit->raw_text;
                         } else {
                             compiler__sema__decl__DeclPass_report_error(self, m.value, KOBEL_STR("Enum member value for 'bool' enum must be a bool literal"));
@@ -14054,14 +13984,14 @@ void compiler__sema__decl__DeclPass_report_error(compiler__sema__decl__DeclPass*
 
 int64_t compiler__sema__decl__DeclPass_enum_const_i64(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* expr) {
     {
-        compiler__ast__LiteralExpr* lit = NULL;
-        if ((expr != NULL && expr->data.tag == compiler__ast__NodeData__LiteralExpr__TAG && (lit = expr->data.u.LiteralExpr.inner, 1))) {
+        compiler__ast__NodeData__LiteralExpr* lit = NULL;
+        if ((expr != NULL && expr->data.tag == compiler__ast__NodeData__LiteralExpr__TAG && (lit = (compiler__ast__NodeData__LiteralExpr*)(&(expr)->data.u.LiteralExpr), 1))) {
             return compiler__sema__decl__parse_decimal_i64(lit->raw_text);
         }
     }
     {
-        compiler__ast__UnaryExpr* un = NULL;
-        if ((expr != NULL && expr->data.tag == compiler__ast__NodeData__UnaryExpr__TAG && (un = expr->data.u.UnaryExpr.inner, 1)) && (un->op == 7)) {
+        compiler__ast__NodeData__UnaryExpr* un = NULL;
+        if ((expr != NULL && expr->data.tag == compiler__ast__NodeData__UnaryExpr__TAG && (un = (compiler__ast__NodeData__UnaryExpr*)(&(expr)->data.u.UnaryExpr), 1)) && (un->op == 7)) {
             return (0 - compiler__sema__decl__DeclPass_enum_const_i64(self, un->operand));
         }
     }
@@ -14200,8 +14130,8 @@ compiler__sema__Type* compiler__sema__decl__DeclPass_infer_const_type(compiler__
         return NULL;
     }
     {
-        compiler__ast__LiteralExpr* lit = NULL;
-        if ((expr != NULL && expr->data.tag == compiler__ast__NodeData__LiteralExpr__TAG && (lit = expr->data.u.LiteralExpr.inner, 1))) {
+        compiler__ast__NodeData__LiteralExpr* lit = NULL;
+        if ((expr != NULL && expr->data.tag == compiler__ast__NodeData__LiteralExpr__TAG && (lit = (compiler__ast__NodeData__LiteralExpr*)(&(expr)->data.u.LiteralExpr), 1))) {
             if (lit->literal_kind == 0) {
                 return compiler__sema__int_literal_type(self->symtab.prims, lit->raw_text);
             } else if (lit->literal_kind == 1) {
@@ -14228,8 +14158,8 @@ compiler__sema__Type* compiler__sema__decl__DeclPass_infer_const_type(compiler__
     }
     {
         compiler__ast__MemberExpr* mem = NULL;
-        compiler__ast__IdentifierExpr* id = NULL;
-        if ((expr != NULL && expr->data.tag == compiler__ast__NodeData__MemberExpr__TAG && (mem = expr->data.u.MemberExpr.inner, 1)) && (mem->object != NULL && mem->object->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (id = mem->object->data.u.IdentifierExpr.inner, 1))) {
+        compiler__ast__NodeData__IdentifierExpr* id = NULL;
+        if ((expr != NULL && expr->data.tag == compiler__ast__NodeData__MemberExpr__TAG && (mem = expr->data.u.MemberExpr.inner, 1)) && (mem->object != NULL && mem->object->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (id = (compiler__ast__NodeData__IdentifierExpr*)(&(mem->object)->data.u.IdentifierExpr), 1))) {
             compiler__sema__Symbol* sym = compiler__sema__SymbolTable_lookup(&self->symtab, id->name);
             if (((((sym != NULL && sym->type_ptr != NULL) ? compiler__sema__Type_as_enum((sym != NULL ? sym->type_ptr : NULL)) : NULL) != NULL) ? compiler__sema__EnumInfo_find_member(((sym != NULL && sym->type_ptr != NULL) ? compiler__sema__Type_as_enum((sym != NULL ? sym->type_ptr : NULL)) : NULL), mem->member) : NULL) != NULL) {
                 return sym->type_ptr;
@@ -14237,8 +14167,8 @@ compiler__sema__Type* compiler__sema__decl__DeclPass_infer_const_type(compiler__
         }
     }
     {
-        compiler__ast__UnaryExpr* un = NULL;
-        if ((expr != NULL && expr->data.tag == compiler__ast__NodeData__UnaryExpr__TAG && (un = expr->data.u.UnaryExpr.inner, 1))) {
+        compiler__ast__NodeData__UnaryExpr* un = NULL;
+        if ((expr != NULL && expr->data.tag == compiler__ast__NodeData__UnaryExpr__TAG && (un = (compiler__ast__NodeData__UnaryExpr*)(&(expr)->data.u.UnaryExpr), 1))) {
             if ((un->op == 7) || (un->op == 6)) {
                 return compiler__sema__decl__DeclPass_infer_const_type(self, un->operand);
             }
@@ -14248,8 +14178,8 @@ compiler__sema__Type* compiler__sema__decl__DeclPass_infer_const_type(compiler__
         }
     }
     {
-        compiler__ast__GroupExpr* g = NULL;
-        if ((expr != NULL && expr->data.tag == compiler__ast__NodeData__GroupExpr__TAG && (g = expr->data.u.GroupExpr.inner, 1))) {
+        compiler__ast__NodeData__GroupExpr* g = NULL;
+        if ((expr != NULL && expr->data.tag == compiler__ast__NodeData__GroupExpr__TAG && (g = (compiler__ast__NodeData__GroupExpr*)(&(expr)->data.u.GroupExpr), 1))) {
             return compiler__sema__decl__DeclPass_infer_const_type(self, g->expr);
         }
     }
@@ -14265,11 +14195,11 @@ compiler__sema__Type* compiler__sema__decl__DeclPass_infer_expr_type_quick(compi
         return const_ty;
     }
     {
-        compiler__ast__UpdateExpr* u = NULL;
-        if ((expr != NULL && expr->data.tag == compiler__ast__NodeData__UpdateExpr__TAG && (u = expr->data.u.UpdateExpr.inner, 1))) {
+        compiler__ast__NodeData__UpdateExpr* u = NULL;
+        if ((expr != NULL && expr->data.tag == compiler__ast__NodeData__UpdateExpr__TAG && (u = (compiler__ast__NodeData__UpdateExpr*)(&(expr)->data.u.UpdateExpr), 1))) {
             {
-                compiler__ast__IdentifierExpr* id = NULL;
-                if ((u->target != NULL && u->target->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (id = u->target->data.u.IdentifierExpr.inner, 1))) {
+                compiler__ast__NodeData__IdentifierExpr* id = NULL;
+                if ((u->target != NULL && u->target->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (id = (compiler__ast__NodeData__IdentifierExpr*)(&(u->target)->data.u.IdentifierExpr), 1))) {
                     {
                         size_t __for_n = std__collections__List_compiler__ast__Param_count(&f->params);
                         size_t __for_i = 0;
@@ -14285,8 +14215,8 @@ compiler__sema__Type* compiler__sema__decl__DeclPass_infer_expr_type_quick(compi
             }
             {
                 compiler__ast__MemberExpr* mem = NULL;
-                compiler__ast__IdentifierExpr* obj_id = NULL;
-                if ((((u->target != NULL && u->target->data.tag == compiler__ast__NodeData__MemberExpr__TAG && (mem = u->target->data.u.MemberExpr.inner, 1)) && (mem->object != NULL && mem->object->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (obj_id = mem->object->data.u.IdentifierExpr.inner, 1))) && kobel_streq(obj_id->name, KOBEL_STR("self"))) && (self->current_self_type != NULL && self->current_self_type->kind == 18)) {
+                compiler__ast__NodeData__IdentifierExpr* obj_id = NULL;
+                if ((((u->target != NULL && u->target->data.tag == compiler__ast__NodeData__MemberExpr__TAG && (mem = u->target->data.u.MemberExpr.inner, 1)) && (mem->object != NULL && mem->object->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (obj_id = (compiler__ast__NodeData__IdentifierExpr*)(&(mem->object)->data.u.IdentifierExpr), 1))) && kobel_streq(obj_id->name, KOBEL_STR("self"))) && (self->current_self_type != NULL && self->current_self_type->kind == 18)) {
                     compiler__sema__StructType* s_info = compiler__sema__Type_as_struct(self->current_self_type);
                     {
                         size_t __for_n = std__collections__List_compiler__sema__StructField_count(&s_info->fields);
@@ -14305,8 +14235,8 @@ compiler__sema__Type* compiler__sema__decl__DeclPass_infer_expr_type_quick(compi
         }
     }
     {
-        compiler__ast__GroupExpr* g = NULL;
-        if ((expr != NULL && expr->data.tag == compiler__ast__NodeData__GroupExpr__TAG && (g = expr->data.u.GroupExpr.inner, 1))) {
+        compiler__ast__NodeData__GroupExpr* g = NULL;
+        if ((expr != NULL && expr->data.tag == compiler__ast__NodeData__GroupExpr__TAG && (g = (compiler__ast__NodeData__GroupExpr*)(&(expr)->data.u.GroupExpr), 1))) {
             return compiler__sema__decl__DeclPass_infer_expr_type_quick(self, f, g->expr);
         }
     }
@@ -14826,8 +14756,8 @@ compiler__sema__Type* compiler__sema__body__BodyPass_check_member_expr(compiler_
 compiler__sema__Type* compiler__sema__body__BodyPass_check_const_member(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__MemberExpr* mem) {
     compiler__ast__AstNode* obj = mem->object;
     {
-        compiler__ast__IdentifierExpr* enum_id = NULL;
-        if ((obj != NULL && obj->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (enum_id = obj->data.u.IdentifierExpr.inner, 1))) {
+        compiler__ast__NodeData__IdentifierExpr* enum_id = NULL;
+        if ((obj != NULL && obj->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (enum_id = (compiler__ast__NodeData__IdentifierExpr*)(&(obj)->data.u.IdentifierExpr), 1))) {
             compiler__sema__EnumInfo* ei = compiler__sema__SymbolTable_find_enum_info(&self->symtab, enum_id->name);
             if (ei != NULL) {
                 compiler__sema__EnumMemberInfo* mi = compiler__sema__EnumInfo_find_member(ei, mem->member);
@@ -14920,7 +14850,7 @@ compiler__sema__Type* compiler__sema__body__BodyPass_member_on_struct(compiler__
 }
 
 compiler__sema__Type* compiler__sema__body__BodyPass_check_index_expr(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node) {
-    compiler__ast__IndexExpr* idx = compiler__ast__AstNode_as_index_expr(node);
+    compiler__ast__NodeData__IndexExpr* idx = compiler__ast__AstNode_as_index_expr(node);
     compiler__sema__Type* target_ty = compiler__sema__body__BodyPass_check_expr(self, idx->target, NULL);
     compiler__sema__Type* index_ty = compiler__sema__body__BodyPass_check_expr(self, idx->index, NULL);
     if (((target_ty->kind == 17) || (target_ty->kind == 15)) || ((target_ty->kind == 16) && compiler__sema__Type_is_integer(index_ty))) {
@@ -14976,7 +14906,7 @@ void compiler__sema__body__BodyPass_mark_node_mutated(compiler__sema__body__Body
     compiler__ast__AstNode* cur = compiler__sema__body__BodyPass_unwrap_group(self, node);
     if (cur != NULL && cur->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG) {
         void* __orig_cur = (void*)cur;
-        compiler__ast__IdentifierExpr* cur = (compiler__ast__IdentifierExpr*)(((compiler__ast__AstNode*)__orig_cur)->data.u.IdentifierExpr.inner);
+        compiler__ast__NodeData__IdentifierExpr* cur = (compiler__ast__NodeData__IdentifierExpr*)((&((compiler__ast__AstNode*)__orig_cur)->data.u.IdentifierExpr));
         compiler__sema__body__BodyPass_mark_symbol_mutated(self, cur->name);
     } else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__MemberExpr__TAG) {
         void* __orig_cur = (void*)cur;
@@ -14984,11 +14914,11 @@ void compiler__sema__body__BodyPass_mark_node_mutated(compiler__sema__body__Body
         compiler__sema__body__BodyPass_mark_node_mutated(self, cur->object);
     } else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__IndexExpr__TAG) {
         void* __orig_cur = (void*)cur;
-        compiler__ast__IndexExpr* cur = (compiler__ast__IndexExpr*)(((compiler__ast__AstNode*)__orig_cur)->data.u.IndexExpr.inner);
+        compiler__ast__NodeData__IndexExpr* cur = (compiler__ast__NodeData__IndexExpr*)((&((compiler__ast__AstNode*)__orig_cur)->data.u.IndexExpr));
         compiler__sema__body__BodyPass_mark_node_mutated(self, cur->target);
     } else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__UnaryExpr__TAG) {
         void* __orig_cur = (void*)cur;
-        compiler__ast__UnaryExpr* cur = (compiler__ast__UnaryExpr*)(((compiler__ast__AstNode*)__orig_cur)->data.u.UnaryExpr.inner);
+        compiler__ast__NodeData__UnaryExpr* cur = (compiler__ast__NodeData__UnaryExpr*)((&((compiler__ast__AstNode*)__orig_cur)->data.u.UnaryExpr));
         if (cur->op == 19) {
             compiler__sema__body__BodyPass_mark_node_mutated(self, cur->operand);
         }
@@ -15002,7 +14932,7 @@ void compiler__sema__body__BodyPass_check_lvalue_mutability(compiler__sema__body
     }
     if (cur != NULL && cur->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG) {
         void* __orig_cur = (void*)cur;
-        compiler__ast__IdentifierExpr* cur = (compiler__ast__IdentifierExpr*)(((compiler__ast__AstNode*)__orig_cur)->data.u.IdentifierExpr.inner);
+        compiler__ast__NodeData__IdentifierExpr* cur = (compiler__ast__NodeData__IdentifierExpr*)((&((compiler__ast__AstNode*)__orig_cur)->data.u.IdentifierExpr));
         compiler__sema__body__BodyPass_check_ident_assignable(self, op_node, cur->name, compiler__sema__SymbolTable_lookup(&self->symtab, cur->name), is_update);
         compiler__sema__body__BodyPass_mark_symbol_mutated(self, cur->name);
     } else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__MemberExpr__TAG) {
@@ -15017,7 +14947,7 @@ void compiler__sema__body__BodyPass_check_lvalue_mutability(compiler__sema__body
         compiler__sema__body__BodyPass_mark_node_mutated(self, cur->object);
     } else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__IndexExpr__TAG) {
         void* __orig_cur = (void*)cur;
-        compiler__ast__IndexExpr* cur = (compiler__ast__IndexExpr*)(((compiler__ast__AstNode*)__orig_cur)->data.u.IndexExpr.inner);
+        compiler__ast__NodeData__IndexExpr* cur = (compiler__ast__NodeData__IndexExpr*)((&((compiler__ast__AstNode*)__orig_cur)->data.u.IndexExpr));
         if (compiler__sema__body__BodyPass_is_immutable_self(self, cur->target)) {
             kobel_str act = (is_update ? KOBEL_STR("update") : KOBEL_STR("mutate"));
             compiler__sema__body__BodyPass_report_error(self, op_node, kobel_concat3(KOBEL_STR("Cannot "), act, KOBEL_STR(" through index on immutable receiver 'self' in 'val self' method")));
@@ -15036,8 +14966,8 @@ compiler__ast__AstNode* compiler__sema__body__BodyPass_unwrap_group(compiler__se
     compiler__ast__AstNode* cur = node;
     while (cur != NULL) {
         {
-            compiler__ast__GroupExpr* g = NULL;
-            if ((cur != NULL && cur->data.tag == compiler__ast__NodeData__GroupExpr__TAG && (g = cur->data.u.GroupExpr.inner, 1))) {
+            compiler__ast__NodeData__GroupExpr* g = NULL;
+            if ((cur != NULL && cur->data.tag == compiler__ast__NodeData__GroupExpr__TAG && (g = (compiler__ast__NodeData__GroupExpr*)(&(cur)->data.u.GroupExpr), 1))) {
                 cur = g->expr;
             } else {
                 break;
@@ -15050,8 +14980,8 @@ compiler__ast__AstNode* compiler__sema__body__BodyPass_unwrap_group(compiler__se
 bool compiler__sema__body__BodyPass_is_immutable_self(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* obj_node) {
     compiler__ast__AstNode* obj = compiler__sema__body__BodyPass_unwrap_group(self, obj_node);
     {
-        compiler__ast__IdentifierExpr* obj_id = NULL;
-        if ((obj != NULL && obj->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (obj_id = obj->data.u.IdentifierExpr.inner, 1)) && kobel_streq(obj_id->name, KOBEL_STR("self"))) {
+        compiler__ast__NodeData__IdentifierExpr* obj_id = NULL;
+        if ((obj != NULL && obj->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (obj_id = (compiler__ast__NodeData__IdentifierExpr*)(&(obj)->data.u.IdentifierExpr), 1)) && kobel_streq(obj_id->name, KOBEL_STR("self"))) {
             compiler__sema__Symbol* self_sym = compiler__sema__SymbolTable_lookup(&self->symtab, KOBEL_STR("self"));
             return ((self_sym != NULL) && !self_sym->mutable);
         }
@@ -15080,13 +15010,13 @@ void compiler__sema__body__BodyPass_check_ident_assignable(compiler__sema__body_
 }
 
 compiler__sema__Type* compiler__sema__body__BodyPass_check_assign_expr(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node) {
-    compiler__ast__AssignExpr* asgn = (compiler__ast__AssignExpr*)compiler__ast__AstNode_as_assign_expr(node);
+    compiler__ast__NodeData__AssignExpr* asgn = (compiler__ast__NodeData__AssignExpr*)compiler__ast__AstNode_as_assign_expr(node);
     bool was_stmt = self->is_stmt_level;
     self->is_stmt_level = false;
     compiler__ast__AstNode* target_expr = compiler__sema__body__BodyPass_unwrap_group(self, asgn->target);
     {
-        compiler__ast__IndexExpr* idx = NULL;
-        if ((target_expr != NULL && target_expr->data.tag == compiler__ast__NodeData__IndexExpr__TAG && (idx = target_expr->data.u.IndexExpr.inner, 1))) {
+        compiler__ast__NodeData__IndexExpr* idx = NULL;
+        if ((target_expr != NULL && target_expr->data.tag == compiler__ast__NodeData__IndexExpr__TAG && (idx = (compiler__ast__NodeData__IndexExpr*)(&(target_expr)->data.u.IndexExpr), 1))) {
             compiler__sema__body__BodyPass_check_lvalue_mutability(self, target_expr, node, false);
             compiler__sema__Type* lowered = compiler__sema__body__BodyPass_lower_index_assign(self, node, asgn, idx);
             if (lowered != NULL) {
@@ -15097,8 +15027,8 @@ compiler__sema__Type* compiler__sema__body__BodyPass_check_assign_expr(compiler_
     compiler__sema__Type* target_ty = compiler__sema__body__BodyPass_check_expr(self, asgn->target, NULL);
     compiler__sema__Symbol* sym_to_update = NULL;
     {
-        compiler__ast__IdentifierExpr* id = NULL;
-        if ((target_expr != NULL && target_expr->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (id = target_expr->data.u.IdentifierExpr.inner, 1))) {
+        compiler__ast__NodeData__IdentifierExpr* id = NULL;
+        if ((target_expr != NULL && target_expr->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (id = (compiler__ast__NodeData__IdentifierExpr*)(&(target_expr)->data.u.IdentifierExpr), 1))) {
             compiler__sema__Symbol* sym = compiler__sema__SymbolTable_lookup(&self->symtab, id->name);
             if (sym != NULL && sym->orig_type != NULL) {
                 target_ty = sym->orig_type;
@@ -15151,12 +15081,12 @@ compiler__sema__Type* compiler__sema__body__BodyPass_check_assign_expr(compiler_
     return target_ty;
 }
 
-compiler__sema__Type* compiler__sema__body__BodyPass_lower_index_assign(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__AssignExpr* asgn, compiler__ast__IndexExpr* idx) {
+compiler__sema__Type* compiler__sema__body__BodyPass_lower_index_assign(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__AssignExpr* asgn, compiler__ast__NodeData__IndexExpr* idx) {
     compiler__lexer__TokenType bin_op = (asgn->op == 32 ? 6 : (asgn->op == 33 ? 7 : (asgn->op == 34 ? 8 : (asgn->op == 35 ? 9 : (asgn->op == 36 ? 10 : 5)))));
     return compiler__sema__body__BodyPass_lower_index_write(self, node, idx, bin_op, asgn->value, KOBEL_STR("assignment"));
 }
 
-compiler__sema__Type* compiler__sema__body__BodyPass_lower_index_write(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__IndexExpr* idx, compiler__lexer__TokenType op, compiler__ast__AstNode* rhs, kobel_str what) {
+compiler__sema__Type* compiler__sema__body__BodyPass_lower_index_write(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__IndexExpr* idx, compiler__lexer__TokenType op, compiler__ast__AstNode* rhs, kobel_str what) {
     compiler__sema__Type* target_raw_ty = compiler__sema__body__BodyPass_check_expr(self, idx->target, NULL);
     bool t_is_ptr = (target_raw_ty->kind == 16);
     compiler__sema__Type* t_struct_ty = (t_is_ptr ? (*compiler__sema__Type_as_pointer(target_raw_ty)).pointee : target_raw_ty);
@@ -15212,12 +15142,12 @@ compiler__sema__Type* compiler__sema__body__BodyPass_lower_index_write(compiler_
 }
 
 compiler__sema__Type* compiler__sema__body__BodyPass_check_update_expr(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node) {
-    compiler__ast__UpdateExpr* u = compiler__ast__AstNode_as_update_expr(node);
+    compiler__ast__NodeData__UpdateExpr* u = compiler__ast__AstNode_as_update_expr(node);
     compiler__ast__AstNode* target_expr = compiler__sema__body__BodyPass_unwrap_group(self, u->target);
     compiler__sema__body__BodyPass_check_lvalue_mutability(self, target_expr, node, true);
     {
-        compiler__ast__IndexExpr* idx = NULL;
-        if ((target_expr != NULL && target_expr->data.tag == compiler__ast__NodeData__IndexExpr__TAG && (idx = target_expr->data.u.IndexExpr.inner, 1))) {
+        compiler__ast__NodeData__IndexExpr* idx = NULL;
+        if ((target_expr != NULL && target_expr->data.tag == compiler__ast__NodeData__IndexExpr__TAG && (idx = (compiler__ast__NodeData__IndexExpr*)(&(target_expr)->data.u.IndexExpr), 1))) {
             compiler__lexer__TokenType op = ((u->op == 30) ? 6 : 7);
             compiler__sema__Type* lowered = compiler__sema__body__BodyPass_lower_index_write(self, node, idx, op, NULL, KOBEL_STR("update"));
             if (lowered != NULL) {
@@ -15231,7 +15161,7 @@ compiler__sema__Type* compiler__sema__body__BodyPass_check_update_expr(compiler_
 }
 
 compiler__sema__Type* compiler__sema__body__BodyPass_check_cast_expr(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node) {
-    compiler__ast__CastExpr* cst = compiler__ast__AstNode_as_cast_expr(node);
+    compiler__ast__NodeData__CastExpr* cst = compiler__ast__AstNode_as_cast_expr(node);
     compiler__sema__Type* src_ty = ((cst->expr != NULL) ? compiler__sema__body__BodyPass_check_expr(self, cst->expr, NULL) : compiler__sema__PrimTypes_t_none(compiler__sema__body__BodyPass_prims(self)));
     compiler__sema__Type* ty = compiler__sema__body__BodyPass_resolve_type(self, cst->target_type);
     if (self->current_rec != NULL) {
@@ -15261,8 +15191,8 @@ compiler__sema__Type* compiler__sema__body__BodyPass_check_cast_expr(compiler__s
 compiler__sema__Type* compiler__sema__body__BodyPass_check_call_expr(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node) {
     compiler__ast__CallExpr* call = (compiler__ast__CallExpr*)compiler__ast__AstNode_as_call_expr(node);
     {
-        compiler__ast__IdentifierExpr* id = NULL;
-        if ((call->callee != NULL && call->callee->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (id = call->callee->data.u.IdentifierExpr.inner, 1)) && kobel_streq(id->name, KOBEL_STR("char"))) {
+        compiler__ast__NodeData__IdentifierExpr* id = NULL;
+        if ((call->callee != NULL && call->callee->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (id = (compiler__ast__NodeData__IdentifierExpr*)(&(call->callee)->data.u.IdentifierExpr), 1)) && kobel_streq(id->name, KOBEL_STR("char"))) {
             return compiler__sema__body__BodyPass_check_char_ctor(self, node, compiler__sema__PrimTypes_t_char(compiler__sema__body__BodyPass_prims(self)), call);
         }
     }
@@ -15292,14 +15222,14 @@ compiler__sema__Type* compiler__sema__body__BodyPass_check_call_expr(compiler__s
     }
     bool callee_is_self = false;
     {
-        compiler__ast__IdentifierExpr* id = NULL;
-        if ((callee != NULL && callee->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (id = callee->data.u.IdentifierExpr.inner, 1))) {
+        compiler__ast__NodeData__IdentifierExpr* id = NULL;
+        if ((callee != NULL && callee->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (id = (compiler__ast__NodeData__IdentifierExpr*)(&(callee)->data.u.IdentifierExpr), 1))) {
             callee_is_self = (kobel_streq(id->name, KOBEL_STR("Self")));
         }
     }
     {
-        compiler__ast__IdentifierExpr* cid = NULL;
-        if (!std__collections__List_ptr_compiler__ast__AstNode_empty(&call->type_args) && (callee != NULL && callee->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (cid = callee->data.u.IdentifierExpr.inner, 1))) {
+        compiler__ast__NodeData__IdentifierExpr* cid = NULL;
+        if (!std__collections__List_ptr_compiler__ast__AstNode_empty(&call->type_args) && (callee != NULL && callee->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (cid = (compiler__ast__NodeData__IdentifierExpr*)(&(callee)->data.u.IdentifierExpr), 1))) {
             compiler__sema__GenTemplate* ft = compiler__sema__body__BodyPass_find_fn_template_for(self, cid->name);
             if (ft != NULL) {
                 kobel_str cname = compiler__sema__body__BodyPass_instantiate_template_fn(self, ft, call->type_args);
@@ -15326,8 +15256,8 @@ compiler__sema__Type* compiler__sema__body__BodyPass_check_call_expr(compiler__s
         }
     }
     {
-        compiler__ast__IdentifierExpr* cid = NULL;
-        if (std__collections__List_ptr_compiler__ast__AstNode_empty(&call->type_args) && (callee != NULL && callee->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (cid = callee->data.u.IdentifierExpr.inner, 1))) {
+        compiler__ast__NodeData__IdentifierExpr* cid = NULL;
+        if (std__collections__List_ptr_compiler__ast__AstNode_empty(&call->type_args) && (callee != NULL && callee->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (cid = (compiler__ast__NodeData__IdentifierExpr*)(&(callee)->data.u.IdentifierExpr), 1))) {
             compiler__sema__Symbol* local_sym = compiler__sema__SymbolTable_lookup(&self->symtab, cid->name);
             bool is_local_var = ((local_sym != NULL && local_sym->kind == 0) || (local_sym != NULL && local_sym->kind == 2));
             if (!is_local_var && ((local_sym == NULL) || ((local_sym->kind != 3) && (local_sym->kind != 4)))) {
@@ -15413,8 +15343,8 @@ compiler__sema__Type* compiler__sema__body__BodyPass_check_char_ctor(compiler__s
 compiler__sema__Type* compiler__sema__body__BodyPass_lower_size_query(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__MemberExpr* mem) {
     compiler__ast__AstNode* obj = mem->object;
     {
-        compiler__ast__IdentifierExpr* id = NULL;
-        if ((obj != NULL && obj->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (id = obj->data.u.IdentifierExpr.inner, 1))) {
+        compiler__ast__NodeData__IdentifierExpr* id = NULL;
+        if ((obj != NULL && obj->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (id = (compiler__ast__NodeData__IdentifierExpr*)(&(obj)->data.u.IdentifierExpr), 1))) {
             int64_t idx = compiler__sema__body__BodyPass_type_param_index(self, id->name);
             if (idx >= 0) {
                 compiler__sema__Type* arg_ty = ((self->has_decl && (((size_t)idx) < self->decl.subst_types.len)) ? std__collections__List_ptr_compiler__sema__Type_get(&self->decl.subst_types, (size_t)idx) : NULL);
@@ -15623,8 +15553,8 @@ compiler__sema__Type* compiler__sema__body__BodyPass_check_static_method_call(co
     compiler__sema__StructType* s_info = NULL;
     compiler__sema__Type* struct_ty = NULL;
     {
-        compiler__ast__IdentifierExpr* id = NULL;
-        if ((mem->object != NULL && mem->object->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (id = mem->object->data.u.IdentifierExpr.inner, 1))) {
+        compiler__ast__NodeData__IdentifierExpr* id = NULL;
+        if ((mem->object != NULL && mem->object->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (id = (compiler__ast__NodeData__IdentifierExpr*)(&(mem->object)->data.u.IdentifierExpr), 1))) {
             if (kobel_streq(id->name, KOBEL_STR("Self")) && (self->current_self_type != NULL)) {
                 struct_ty = self->current_self_type;
                 s_info = compiler__sema__Type_as_struct(self->current_self_type);
@@ -16027,7 +15957,7 @@ compiler__sema__Type* compiler__sema__body__BodyPass_check_enum_ctor_call(compil
     if (obj->kind != 5) {
         return NULL;
     }
-    compiler__ast__IdentifierExpr* enum_id = compiler__ast__AstNode_as_identifier_expr(obj);
+    compiler__ast__NodeData__IdentifierExpr* enum_id = compiler__ast__AstNode_as_identifier_expr(obj);
     compiler__sema__EnumInfo* ei = compiler__sema__SymbolTable_find_enum_info(&self->symtab, enum_id->name);
     if ((ei == NULL) || !ei->is_payload) {
         return NULL;
@@ -16100,8 +16030,8 @@ compiler__sema__Type* compiler__sema__body__BodyPass_check_enum_ctor_call(compil
 compiler__sema__Type* compiler__sema__body__BodyPass_check_fn_call(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__sema__Type* callee_ty, compiler__ast__CallExpr* call) {
     compiler__ast__AstNode* callee = call->callee;
     {
-        compiler__ast__IdentifierExpr* id = NULL;
-        if ((callee != NULL && callee->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (id = callee->data.u.IdentifierExpr.inner, 1))) {
+        compiler__ast__NodeData__IdentifierExpr* id = NULL;
+        if ((callee != NULL && callee->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (id = (compiler__ast__NodeData__IdentifierExpr*)(&(callee)->data.u.IdentifierExpr), 1))) {
             compiler__sema__Symbol* sym = compiler__sema__SymbolTable_lookup(&self->symtab, id->name);
             if (sym != NULL) {
                 if (sym->ast_node != NULL) {
@@ -16818,7 +16748,7 @@ void compiler__sema__body__BodyPass_coerce_to_list(compiler__sema__body__BodyPas
         compiler__sema__body__BodyPass_coerce_to_list(self, node->else_branch, list_ty);
     } else if (node != NULL && node->data.tag == compiler__ast__NodeData__GroupExpr__TAG) {
         void* __orig_node = (void*)node;
-        compiler__ast__GroupExpr* node = (compiler__ast__GroupExpr*)(((compiler__ast__AstNode*)__orig_node)->data.u.GroupExpr.inner);
+        compiler__ast__NodeData__GroupExpr* node = (compiler__ast__NodeData__GroupExpr*)((&((compiler__ast__AstNode*)__orig_node)->data.u.GroupExpr));
         compiler__sema__body__BodyPass_coerce_to_list(self, node->expr, list_ty);
     } else if (node != NULL && node->data.tag == compiler__ast__NodeData__WhenExpr__TAG) {
         void* __orig_node = (void*)node;
@@ -16838,8 +16768,8 @@ bool compiler__sema__body__BodyPass_is_untyped_literal(compiler__sema__body__Bod
         return false;
     }
     {
-        compiler__ast__LiteralExpr* lit = NULL;
-        if ((node != NULL && node->data.tag == compiler__ast__NodeData__LiteralExpr__TAG && (lit = node->data.u.LiteralExpr.inner, 1))) {
+        compiler__ast__NodeData__LiteralExpr* lit = NULL;
+        if ((node != NULL && node->data.tag == compiler__ast__NodeData__LiteralExpr__TAG && (lit = (compiler__ast__NodeData__LiteralExpr*)(&(node)->data.u.LiteralExpr), 1))) {
             if (lit->literal_kind == 0) {
                 return str_empty(str_num_suffix(lit->raw_text));
             }
@@ -16850,14 +16780,14 @@ bool compiler__sema__body__BodyPass_is_untyped_literal(compiler__sema__body__Bod
         }
     }
     {
-        compiler__ast__GroupExpr* g = NULL;
-        if ((node != NULL && node->data.tag == compiler__ast__NodeData__GroupExpr__TAG && (g = node->data.u.GroupExpr.inner, 1))) {
+        compiler__ast__NodeData__GroupExpr* g = NULL;
+        if ((node != NULL && node->data.tag == compiler__ast__NodeData__GroupExpr__TAG && (g = (compiler__ast__NodeData__GroupExpr*)(&(node)->data.u.GroupExpr), 1))) {
             return compiler__sema__body__BodyPass_is_untyped_literal(self, g->expr);
         }
     }
     {
-        compiler__ast__UnaryExpr* un = NULL;
-        if ((node != NULL && node->data.tag == compiler__ast__NodeData__UnaryExpr__TAG && (un = node->data.u.UnaryExpr.inner, 1)) && ((un->op == 7) || (un->op == 6))) {
+        compiler__ast__NodeData__UnaryExpr* un = NULL;
+        if ((node != NULL && node->data.tag == compiler__ast__NodeData__UnaryExpr__TAG && (un = (compiler__ast__NodeData__UnaryExpr*)(&(node)->data.u.UnaryExpr), 1)) && ((un->op == 7) || (un->op == 6))) {
             return compiler__sema__body__BodyPass_is_untyped_literal(self, un->operand);
         }
     }
@@ -16865,7 +16795,7 @@ bool compiler__sema__body__BodyPass_is_untyped_literal(compiler__sema__body__Bod
 }
 
 compiler__sema__Type* compiler__sema__body__BodyPass_check_literal_expr(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__sema__Type* expected) {
-    compiler__ast__LiteralExpr* lit = compiler__ast__AstNode_as_literal_expr(node);
+    compiler__ast__NodeData__LiteralExpr* lit = compiler__ast__AstNode_as_literal_expr(node);
     if (lit->literal_kind == 0) {
         kobel_str sfx = str_num_suffix(lit->raw_text);
         if (!str_empty(sfx)) {
@@ -16901,7 +16831,7 @@ compiler__sema__Type* compiler__sema__body__BodyPass_check_literal_expr(compiler
 }
 
 compiler__sema__Type* compiler__sema__body__BodyPass_check_ident_expr(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node) {
-    compiler__ast__IdentifierExpr* id = (compiler__ast__IdentifierExpr*)compiler__ast__AstNode_as_identifier_expr(node);
+    compiler__ast__NodeData__IdentifierExpr* id = (compiler__ast__NodeData__IdentifierExpr*)compiler__ast__AstNode_as_identifier_expr(node);
     if (kobel_streq(id->name, KOBEL_STR("Self")) && (self->current_self_type != NULL)) {
         compiler__sema__Type* cur_self = self->current_self_type;
         if (self->current_rec == NULL) {
@@ -16921,7 +16851,7 @@ compiler__sema__Type* compiler__sema__body__BodyPass_check_ident_expr(compiler__
 }
 
 compiler__sema__Type* compiler__sema__body__BodyPass_check_binary_expr(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__sema__Type* expected) {
-    compiler__ast__BinaryExpr* bin = compiler__ast__AstNode_as_binary_expr(node);
+    compiler__ast__NodeData__BinaryExpr* bin = compiler__ast__AstNode_as_binary_expr(node);
     bool was_stmt = self->is_stmt_level;
     self->is_stmt_level = false;
     if (bin->op == 37) {
@@ -16968,7 +16898,7 @@ bool compiler__sema__body__BodyPass_is_safe_nav_expr(compiler__sema__body__BodyP
     return false;
 }
 
-compiler__sema__Type* compiler__sema__body__BodyPass_check_elvis_expr(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__BinaryExpr* bin, bool was_stmt) {
+compiler__sema__Type* compiler__sema__body__BodyPass_check_elvis_expr(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__BinaryExpr* bin, bool was_stmt) {
     compiler__sema__Type* num_expected = NULL;
     bool prev_sn = self->in_safe_nav_context;
     self->in_safe_nav_context = true;
@@ -17006,7 +16936,7 @@ compiler__sema__Type* compiler__sema__body__BodyPass_check_elvis_expr(compiler__
     return lt;
 }
 
-compiler__sema__Type* compiler__sema__body__BodyPass_check_arith_op(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__BinaryExpr* bin, compiler__sema__Type* lt, compiler__sema__Type* rt) {
+compiler__sema__Type* compiler__sema__body__BodyPass_check_arith_op(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__BinaryExpr* bin, compiler__sema__Type* lt, compiler__sema__Type* rt) {
     if ((bin->op == 6) && (lt->kind == 15)) {
         return compiler__sema__PrimTypes_t_str(compiler__sema__body__BodyPass_prims(self));
     }
@@ -17049,7 +16979,7 @@ compiler__sema__Type* compiler__sema__body__BodyPass_check_arith_op(compiler__se
     return lt;
 }
 
-compiler__sema__Type* compiler__sema__body__BodyPass_check_equality_op(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__BinaryExpr* bin, compiler__sema__Type* lt, compiler__sema__Type* rt) {
+compiler__sema__Type* compiler__sema__body__BodyPass_check_equality_op(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__BinaryExpr* bin, compiler__sema__Type* lt, compiler__sema__Type* rt) {
     if ((lt->kind == 15) && (rt->kind == 15)) {
         return compiler__sema__PrimTypes_t_bool(compiler__sema__body__BodyPass_prims(self));
     }
@@ -17081,7 +17011,7 @@ compiler__sema__Type* compiler__sema__body__BodyPass_check_logic_op(compiler__se
     return compiler__sema__PrimTypes_t_bool(compiler__sema__body__BodyPass_prims(self));
 }
 
-compiler__sema__Type* compiler__sema__body__BodyPass_check_in_op(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__BinaryExpr* bin, compiler__sema__Type* lt, compiler__sema__Type* rt) {
+compiler__sema__Type* compiler__sema__body__BodyPass_check_in_op(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__BinaryExpr* bin, compiler__sema__Type* lt, compiler__sema__Type* rt) {
     bool r_is_ptr = (rt->kind == 16);
     compiler__sema__Type* r_struct_ty = (r_is_ptr ? (*compiler__sema__Type_as_pointer(rt)).pointee : rt);
     if (r_struct_ty != NULL && r_struct_ty->kind == 18) {
@@ -17118,7 +17048,7 @@ compiler__sema__Type* compiler__sema__body__BodyPass_check_in_op(compiler__sema_
 }
 
 compiler__sema__Type* compiler__sema__body__BodyPass_check_unary_expr(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__sema__Type* expected) {
-    compiler__ast__UnaryExpr* un = compiler__ast__AstNode_as_unary_expr(node);
+    compiler__ast__NodeData__UnaryExpr* un = compiler__ast__AstNode_as_unary_expr(node);
     compiler__sema__Type* op_ty = compiler__sema__body__BodyPass_check_expr(self, un->operand, expected);
     if (un->is_postfix && (un->op == 4)) {
         if (op_ty->kind == 16) {
@@ -17435,8 +17365,8 @@ compiler__sema__Type* compiler__sema__body__BodyPass_check_expr(compiler__sema__
         return compiler__sema__PrimTypes_t_none(compiler__sema__body__BodyPass_prims(self));
     }
     {
-        compiler__ast__GroupExpr* g = NULL;
-        if ((node != NULL && node->data.tag == compiler__ast__NodeData__GroupExpr__TAG && (g = node->data.u.GroupExpr.inner, 1))) {
+        compiler__ast__NodeData__GroupExpr* g = NULL;
+        if ((node != NULL && node->data.tag == compiler__ast__NodeData__GroupExpr__TAG && (g = (compiler__ast__NodeData__GroupExpr*)(&(node)->data.u.GroupExpr), 1))) {
             return compiler__sema__body__BodyPass_check_expr(self, g->expr, expected);
         }
     }
@@ -17510,7 +17440,7 @@ void compiler__sema__body__BodyPass_set_ident_name(compiler__sema__body__BodyPas
         e->has_ident_name = true;
         return;
     }
-    compiler__ast__IdentifierExpr* id = (compiler__ast__IdentifierExpr*)compiler__ast__AstNode_as_identifier_expr(node);
+    compiler__ast__NodeData__IdentifierExpr* id = (compiler__ast__NodeData__IdentifierExpr*)compiler__ast__AstNode_as_identifier_expr(node);
     id->name = name;
 }
 
@@ -17765,16 +17695,16 @@ bool compiler__sema__body__BodyPass_check_when_exhaustiveness(compiler__sema__bo
                     while (__for_i < __for_n) {
                         compiler__ast__AstNode* pat = std__collections__List_ptr_compiler__ast__AstNode_at(&arm.patterns, __for_i);
                         {
-                            compiler__ast__LiteralExpr* lit = NULL;
-                            compiler__ast__IdentifierExpr* id = NULL;
-                            if ((pat != NULL && pat->data.tag == compiler__ast__NodeData__LiteralExpr__TAG && (lit = pat->data.u.LiteralExpr.inner, 1)) && (lit->literal_kind == 2)) {
+                            compiler__ast__NodeData__LiteralExpr* lit = NULL;
+                            compiler__ast__NodeData__IdentifierExpr* id = NULL;
+                            if ((pat != NULL && pat->data.tag == compiler__ast__NodeData__LiteralExpr__TAG && (lit = (compiler__ast__NodeData__LiteralExpr*)(&(pat)->data.u.LiteralExpr), 1)) && (lit->literal_kind == 2)) {
                                 if (kobel_streq(lit->raw_text, KOBEL_STR("true"))) {
                                     has_true = true;
                                 }
                                 if (kobel_streq(lit->raw_text, KOBEL_STR("false"))) {
                                     has_false = true;
                                 }
-                            } else if ((pat != NULL && pat->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (id = pat->data.u.IdentifierExpr.inner, 1))) {
+                            } else if ((pat != NULL && pat->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (id = (compiler__ast__NodeData__IdentifierExpr*)(&(pat)->data.u.IdentifierExpr), 1))) {
                                 if (kobel_streq(id->name, KOBEL_STR("true"))) {
                                     has_true = true;
                                 }
@@ -17846,12 +17776,12 @@ kobel_str compiler__sema__body__BodyPass_match_enum_variant(compiler__sema__body
     {
         compiler__ast__MemberExpr* mem = NULL;
         compiler__ast__IsExpr* is_e = NULL;
-        compiler__ast__IdentifierExpr* id = NULL;
+        compiler__ast__NodeData__IdentifierExpr* id = NULL;
         if ((pat != NULL && pat->data.tag == compiler__ast__NodeData__MemberExpr__TAG && (mem = pat->data.u.MemberExpr.inner, 1))) {
             bool target_matches = true;
             {
-                compiler__ast__IdentifierExpr* tid = NULL;
-                if ((mem->object != NULL && mem->object->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (tid = mem->object->data.u.IdentifierExpr.inner, 1))) {
+                compiler__ast__NodeData__IdentifierExpr* tid = NULL;
+                if ((mem->object != NULL && mem->object->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (tid = (compiler__ast__NodeData__IdentifierExpr*)(&(mem->object)->data.u.IdentifierExpr), 1))) {
                     target_matches = (kobel_streq(tid->name, enum_info->name) || kobel_streq(tid->name, enum_info->c_name));
                 }
             }
@@ -17880,7 +17810,7 @@ kobel_str compiler__sema__body__BodyPass_match_enum_variant(compiler__sema__body
                     }
                 }
             }
-        } else if ((pat != NULL && pat->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (id = pat->data.u.IdentifierExpr.inner, 1))) {
+        } else if ((pat != NULL && pat->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (id = (compiler__ast__NodeData__IdentifierExpr*)(&(pat)->data.u.IdentifierExpr), 1))) {
             compiler__sema__EnumMemberInfo* m = compiler__sema__EnumInfo_find_member(enum_info, id->name);
             if (m != NULL) {
                 return m->name;
@@ -17902,8 +17832,8 @@ kobel_str compiler__sema__body__BodyPass_arm_smart_cast_sym(compiler__sema__body
                 return is_e->alias;
             }
             {
-                compiler__ast__IdentifierExpr* cond_id = NULL;
-                if ((cond != NULL && cond->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (cond_id = cond->data.u.IdentifierExpr.inner, 1))) {
+                compiler__ast__NodeData__IdentifierExpr* cond_id = NULL;
+                if ((cond != NULL && cond->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (cond_id = (compiler__ast__NodeData__IdentifierExpr*)(&(cond)->data.u.IdentifierExpr), 1))) {
                     return cond_id->name;
                 }
             }
@@ -17924,8 +17854,8 @@ bool compiler__sema__body__BodyPass_arm_smart_cast_mutable(compiler__sema__body_
                 return is_e->mutable;
             }
             {
-                compiler__ast__IdentifierExpr* cond_id = NULL;
-                if ((cond != NULL && cond->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (cond_id = cond->data.u.IdentifierExpr.inner, 1))) {
+                compiler__ast__NodeData__IdentifierExpr* cond_id = NULL;
+                if ((cond != NULL && cond->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (cond_id = (compiler__ast__NodeData__IdentifierExpr*)(&(cond)->data.u.IdentifierExpr), 1))) {
                     compiler__sema__Symbol* subj_sym = compiler__sema__SymbolTable_lookup(&self->symtab, cond_id->name);
                     return ((subj_sym != NULL) && subj_sym->mutable);
                 }
@@ -18829,8 +18759,8 @@ std__collections__List_ptr_compiler__ast__AstNode compiler__sema__body__BodyPass
         return res;
     }
     {
-        compiler__ast__BinaryExpr* bin = NULL;
-        if ((cur != NULL && cur->data.tag == compiler__ast__NodeData__BinaryExpr__TAG && (bin = cur->data.u.BinaryExpr.inner, 1)) && (bin->op == 25)) {
+        compiler__ast__NodeData__BinaryExpr* bin = NULL;
+        if ((cur != NULL && cur->data.tag == compiler__ast__NodeData__BinaryExpr__TAG && (bin = (compiler__ast__NodeData__BinaryExpr*)(&(cur)->data.u.BinaryExpr), 1)) && (bin->op == 25)) {
             std__collections__List_ptr_compiler__ast__AstNode left = compiler__sema__body__BodyPass_collect_and_conditions(self, bin->left);
             std__collections__List_ptr_compiler__ast__AstNode right = compiler__sema__body__BodyPass_collect_and_conditions(self, bin->right);
             {
@@ -18865,7 +18795,7 @@ bool compiler__sema__body__BodyPass_is_null_literal(compiler__sema__body__BodyPa
     compiler__ast__AstNode* cur = compiler__sema__body__BodyPass_unwrap_group(self, node);
     if ((cur != NULL && cur->data.tag == compiler__ast__NodeData__LiteralExpr__TAG)) {
         void* __orig_cur = (void*)cur;
-        compiler__ast__LiteralExpr* cur = (compiler__ast__LiteralExpr*)(((compiler__ast__AstNode*)__orig_cur)->data.u.LiteralExpr.inner);
+        compiler__ast__NodeData__LiteralExpr* cur = (compiler__ast__NodeData__LiteralExpr*)((&((compiler__ast__AstNode*)__orig_cur)->data.u.LiteralExpr));
         return (cur->literal_kind == 5);
     }
     return false;
@@ -18901,11 +18831,11 @@ void compiler__sema__body__BodyPass_check_null_guard(compiler__sema__body__BodyP
     compiler__ast__AstNode* r = compiler__sema__body__BodyPass_unwrap_group(self, right);
     kobel_str var_name = KOBEL_STR("");
     {
-        compiler__ast__IdentifierExpr* l_id = NULL;
-        compiler__ast__IdentifierExpr* r_id = NULL;
-        if (compiler__sema__body__BodyPass_is_null_literal(self, r) && (l != NULL && l->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (l_id = l->data.u.IdentifierExpr.inner, 1))) {
+        compiler__ast__NodeData__IdentifierExpr* l_id = NULL;
+        compiler__ast__NodeData__IdentifierExpr* r_id = NULL;
+        if (compiler__sema__body__BodyPass_is_null_literal(self, r) && (l != NULL && l->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (l_id = (compiler__ast__NodeData__IdentifierExpr*)(&(l)->data.u.IdentifierExpr), 1))) {
             var_name = l_id->name;
-        } else if (compiler__sema__body__BodyPass_is_null_literal(self, l) && (r != NULL && r->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (r_id = r->data.u.IdentifierExpr.inner, 1))) {
+        } else if (compiler__sema__body__BodyPass_is_null_literal(self, l) && (r != NULL && r->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (r_id = (compiler__ast__NodeData__IdentifierExpr*)(&(r)->data.u.IdentifierExpr), 1))) {
             var_name = r_id->name;
         }
     }
@@ -18920,8 +18850,8 @@ void compiler__sema__body__BodyPass_promote_expr_receiver(compiler__sema__body__
     }
     compiler__ast__AstNode* un = compiler__sema__body__BodyPass_unwrap_group(self, obj);
     {
-        compiler__ast__IdentifierExpr* id = NULL;
-        if ((un != NULL && un->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (id = un->data.u.IdentifierExpr.inner, 1))) {
+        compiler__ast__NodeData__IdentifierExpr* id = NULL;
+        if ((un != NULL && un->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (id = (compiler__ast__NodeData__IdentifierExpr*)(&(un)->data.u.IdentifierExpr), 1))) {
             compiler__sema__body__BodyPass_promote_to_non_null(self, id->name);
         }
     }
@@ -18936,8 +18866,8 @@ void compiler__sema__body__BodyPass_extract_safe_receivers(compiler__sema__body_
         return;
     }
     {
-        compiler__ast__BinaryExpr* bin = NULL;
-        if ((cur != NULL && cur->data.tag == compiler__ast__NodeData__BinaryExpr__TAG && (bin = cur->data.u.BinaryExpr.inner, 1))) {
+        compiler__ast__NodeData__BinaryExpr* bin = NULL;
+        if ((cur != NULL && cur->data.tag == compiler__ast__NodeData__BinaryExpr__TAG && (bin = (compiler__ast__NodeData__BinaryExpr*)(&(cur)->data.u.BinaryExpr), 1))) {
             bool has_null = (compiler__sema__body__BodyPass_is_null_literal(self, bin->left) || compiler__sema__body__BodyPass_is_null_literal(self, bin->right));
             if (bin->op == 22) {
                 if (true) {
@@ -19019,10 +18949,10 @@ void compiler__sema__body__BodyPass_check_if_stmt(compiler__sema__body__BodyPass
                     compiler__sema__Type* cast_ty = compiler__sema__body__BodyPass_check_is_pattern(self, is_e->expr, subj_ty, unwrapped_c);
                     if (cast_ty != NULL) {
                         {
-                            compiler__ast__IdentifierExpr* id = NULL;
+                            compiler__ast__NodeData__IdentifierExpr* id = NULL;
                             if (!str_empty(is_e->alias)) {
                                 compiler__sema__SymbolTable_define(&self->symtab, (compiler__sema__Symbol){ is_e->alias, is_e->alias, 0, cast_ty, is_e->mutable, false, 0, 0, NULL, NULL, false });
-                            } else if ((is_e->expr != NULL && is_e->expr->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (id = is_e->expr->data.u.IdentifierExpr.inner, 1))) {
+                            } else if ((is_e->expr != NULL && is_e->expr->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (id = (compiler__ast__NodeData__IdentifierExpr*)(&(is_e->expr)->data.u.IdentifierExpr), 1))) {
                                 compiler__sema__Symbol* subj_sym = compiler__sema__SymbolTable_lookup(&self->symtab, id->name);
                                 bool mutable = (subj_sym != NULL ? subj_sym->mutable : false);
                                 std__collections__List_str_plus_assign(&no_alias_syms, id->name);
@@ -19034,8 +18964,8 @@ void compiler__sema__body__BodyPass_check_if_stmt(compiler__sema__body__BodyPass
                 }
             }
             {
-                compiler__ast__BinaryExpr* bin = NULL;
-                if ((unwrapped_c != NULL && unwrapped_c->data.tag == compiler__ast__NodeData__BinaryExpr__TAG && (bin = unwrapped_c->data.u.BinaryExpr.inner, 1)) && (bin->op == 22)) {
+                compiler__ast__NodeData__BinaryExpr* bin = NULL;
+                if ((unwrapped_c != NULL && unwrapped_c->data.tag == compiler__ast__NodeData__BinaryExpr__TAG && (bin = (compiler__ast__NodeData__BinaryExpr*)(&(unwrapped_c)->data.u.BinaryExpr), 1)) && (bin->op == 22)) {
                     compiler__sema__body__BodyPass_check_null_guard(self, bin->left, bin->right);
                 }
             }
@@ -19077,8 +19007,8 @@ void compiler__sema__body__BodyPass_check_if_stmt(compiler__sema__body__BodyPass
         bool else_null_guard = false;
         compiler__ast__AstNode* single_c = compiler__sema__body__BodyPass_unwrap_group(self, if_s->condition);
         {
-            compiler__ast__BinaryExpr* eq_bin = NULL;
-            if ((single_c != NULL && single_c->data.tag == compiler__ast__NodeData__BinaryExpr__TAG && (eq_bin = single_c->data.u.BinaryExpr.inner, 1)) && (eq_bin->op == 21)) {
+            compiler__ast__NodeData__BinaryExpr* eq_bin = NULL;
+            if ((single_c != NULL && single_c->data.tag == compiler__ast__NodeData__BinaryExpr__TAG && (eq_bin = (compiler__ast__NodeData__BinaryExpr*)(&(single_c)->data.u.BinaryExpr), 1)) && (eq_bin->op == 21)) {
                 compiler__sema__SymbolTable_enter_scope(&self->symtab, false);
                 compiler__sema__body__BodyPass_check_null_guard(self, eq_bin->left, eq_bin->right);
                 else_null_guard = true;
@@ -19108,8 +19038,8 @@ void compiler__sema__body__BodyPass_check_while_stmt(compiler__sema__body__BodyP
             compiler__sema__body__BodyPass_ensure(self, (c_ty->kind == 1), c, KOBEL_STR("While statement condition must be bool"));
             compiler__ast__AstNode* unwrapped_c = compiler__sema__body__BodyPass_unwrap_group(self, c);
             {
-                compiler__ast__BinaryExpr* bin = NULL;
-                if ((unwrapped_c != NULL && unwrapped_c->data.tag == compiler__ast__NodeData__BinaryExpr__TAG && (bin = unwrapped_c->data.u.BinaryExpr.inner, 1)) && (bin->op == 22)) {
+                compiler__ast__NodeData__BinaryExpr* bin = NULL;
+                if ((unwrapped_c != NULL && unwrapped_c->data.tag == compiler__ast__NodeData__BinaryExpr__TAG && (bin = (compiler__ast__NodeData__BinaryExpr*)(&(unwrapped_c)->data.u.BinaryExpr), 1)) && (bin->op == 22)) {
                     compiler__sema__body__BodyPass_check_null_guard(self, bin->left, bin->right);
                 }
             }
@@ -19185,14 +19115,14 @@ compiler__sema__Type* compiler__sema__body__BodyPass_for_iterable_type(compiler_
     }
     compiler__ast__AstNode* target = node;
     {
-        compiler__ast__GroupExpr* g = NULL;
-        if ((target != NULL && target->data.tag == compiler__ast__NodeData__GroupExpr__TAG && (g = target->data.u.GroupExpr.inner, 1))) {
+        compiler__ast__NodeData__GroupExpr* g = NULL;
+        if ((target != NULL && target->data.tag == compiler__ast__NodeData__GroupExpr__TAG && (g = (compiler__ast__NodeData__GroupExpr*)(&(target)->data.u.GroupExpr), 1))) {
             return compiler__sema__body__BodyPass_for_iterable_type(self, g->expr);
         }
     }
     {
-        compiler__ast__IdentifierExpr* id = NULL;
-        if ((target != NULL && target->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (id = target->data.u.IdentifierExpr.inner, 1))) {
+        compiler__ast__NodeData__IdentifierExpr* id = NULL;
+        if ((target != NULL && target->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (id = (compiler__ast__NodeData__IdentifierExpr*)(&(target)->data.u.IdentifierExpr), 1))) {
             compiler__sema__Symbol* sym = compiler__sema__SymbolTable_lookup(&self->symtab, id->name);
             if (sym == NULL) {
                 return NULL;
@@ -19238,8 +19168,8 @@ compiler__ast__AstNode* compiler__sema__body__BodyPass_propagate_instance_init(c
     compiler__ast__AstNode* cur = init_node;
     while (cur != NULL) {
         {
-            compiler__ast__GroupExpr* g = NULL;
-            if ((cur != NULL && cur->data.tag == compiler__ast__NodeData__GroupExpr__TAG && (g = cur->data.u.GroupExpr.inner, 1))) {
+            compiler__ast__NodeData__GroupExpr* g = NULL;
+            if ((cur != NULL && cur->data.tag == compiler__ast__NodeData__GroupExpr__TAG && (g = (compiler__ast__NodeData__GroupExpr*)(&(cur)->data.u.GroupExpr), 1))) {
                 cur = g->expr;
             } else {
                 break;
@@ -19253,7 +19183,7 @@ compiler__ast__AstNode* compiler__sema__body__BodyPass_propagate_instance_init(c
     if (!std__collections__List_ptr_compiler__ast__AstNode_empty(&call->type_args)) {
         return NULL;
     }
-    compiler__ast__IdentifierExpr* cid = ((call->callee != NULL) ? compiler__ast__AstNode_as_identifier_expr(call->callee) : NULL);
+    compiler__ast__NodeData__IdentifierExpr* cid = ((call->callee != NULL) ? compiler__ast__AstNode_as_identifier_expr(call->callee) : NULL);
     if (cid == NULL) {
         return NULL;
     }
@@ -19295,11 +19225,11 @@ bool compiler__sema__desugar__for_is_lvalue(compiler__ast__AstNode* node) {
         return (target->is_safe ? false : compiler__sema__desugar__for_is_lvalue(target->object));
     } else if (target != NULL && target->data.tag == compiler__ast__NodeData__GroupExpr__TAG) {
         void* __orig_target = (void*)target;
-        compiler__ast__GroupExpr* target = (compiler__ast__GroupExpr*)(((compiler__ast__AstNode*)__orig_target)->data.u.GroupExpr.inner);
+        compiler__ast__NodeData__GroupExpr* target = (compiler__ast__NodeData__GroupExpr*)((&((compiler__ast__AstNode*)__orig_target)->data.u.GroupExpr));
         return compiler__sema__desugar__for_is_lvalue(target->expr);
     } else if (target != NULL && target->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG) {
         void* __orig_target = (void*)target;
-        compiler__ast__IdentifierExpr* target = (compiler__ast__IdentifierExpr*)(((compiler__ast__AstNode*)__orig_target)->data.u.IdentifierExpr.inner);
+        compiler__ast__NodeData__IdentifierExpr* target = (compiler__ast__NodeData__IdentifierExpr*)((&((compiler__ast__AstNode*)__orig_target)->data.u.IdentifierExpr));
         return true;
     } else {
         return false;
@@ -19406,8 +19336,8 @@ void std__memory__Arena_for_inject_step_expr(std__memory__Arena* self, compiler_
     compiler__ast__AstNode* cur = expr;
     while (cur != NULL) {
         {
-            compiler__ast__GroupExpr* g = NULL;
-            if ((cur != NULL && cur->data.tag == compiler__ast__NodeData__GroupExpr__TAG && (g = cur->data.u.GroupExpr.inner, 1))) {
+            compiler__ast__NodeData__GroupExpr* g = NULL;
+            if ((cur != NULL && cur->data.tag == compiler__ast__NodeData__GroupExpr__TAG && (g = (compiler__ast__NodeData__GroupExpr*)(&(cur)->data.u.GroupExpr), 1))) {
                 cur = g->expr;
             } else {
                 break;
@@ -19418,11 +19348,11 @@ void std__memory__Arena_for_inject_step_expr(std__memory__Arena* self, compiler_
         return;
     }
     {
-        compiler__ast__BinaryExpr* bin = NULL;
-        compiler__ast__AssignExpr* asg = NULL;
-        if ((cur != NULL && cur->data.tag == compiler__ast__NodeData__BinaryExpr__TAG && (bin = cur->data.u.BinaryExpr.inner, 1)) && (bin->op == 37)) {
+        compiler__ast__NodeData__BinaryExpr* bin = NULL;
+        compiler__ast__NodeData__AssignExpr* asg = NULL;
+        if ((cur != NULL && cur->data.tag == compiler__ast__NodeData__BinaryExpr__TAG && (bin = (compiler__ast__NodeData__BinaryExpr*)(&(cur)->data.u.BinaryExpr), 1)) && (bin->op == 37)) {
             std__memory__Arena_for_inject_step(self, bin->right, step, bp);
-        } else if ((cur != NULL && cur->data.tag == compiler__ast__NodeData__AssignExpr__TAG && (asg = cur->data.u.AssignExpr.inner, 1))) {
+        } else if ((cur != NULL && cur->data.tag == compiler__ast__NodeData__AssignExpr__TAG && (asg = (compiler__ast__NodeData__AssignExpr*)(&(cur)->data.u.AssignExpr), 1))) {
             std__memory__Arena_for_inject_step_expr(self, asg->value, step, bp);
         }
     }
@@ -19763,12 +19693,12 @@ compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_expr(compiler__sema
     }
     compiler__ast__AstNode* out = node;
     if (node != NULL && node->data.tag == compiler__ast__NodeData__BinaryExpr__TAG) {
-        compiler__ast__BinaryExpr* b = (node)->data.u.BinaryExpr.inner;
+        compiler__ast__NodeData__BinaryExpr* b = (compiler__ast__NodeData__BinaryExpr*)(&(node)->data.u.BinaryExpr);
         b->left = compiler__sema__body__BodyPass_lower_expr(self, b->left);
         b->right = compiler__sema__body__BodyPass_lower_expr(self, b->right);
         out = compiler__sema__body__BodyPass_lower_binary(self, node, b);
     } else if (node != NULL && node->data.tag == compiler__ast__NodeData__UnaryExpr__TAG) {
-        compiler__ast__UnaryExpr* u = (node)->data.u.UnaryExpr.inner;
+        compiler__ast__NodeData__UnaryExpr* u = (compiler__ast__NodeData__UnaryExpr*)(&(node)->data.u.UnaryExpr);
         u->operand = compiler__sema__body__BodyPass_lower_expr(self, u->operand);
         out = compiler__sema__body__BodyPass_lower_unary(self, node, u);
     } else if (node != NULL && node->data.tag == compiler__ast__NodeData__CallExpr__TAG) {
@@ -19812,25 +19742,25 @@ compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_expr(compiler__sema
         m->object = compiler__sema__body__BodyPass_lower_expr(self, m->object);
         out = compiler__sema__body__BodyPass_lower_member(self, node, m);
     } else if (node != NULL && node->data.tag == compiler__ast__NodeData__IndexExpr__TAG) {
-        compiler__ast__IndexExpr* ix = (node)->data.u.IndexExpr.inner;
+        compiler__ast__NodeData__IndexExpr* ix = (compiler__ast__NodeData__IndexExpr*)(&(node)->data.u.IndexExpr);
         ix->target = compiler__sema__body__BodyPass_lower_expr(self, ix->target);
         ix->index = compiler__sema__body__BodyPass_lower_expr(self, ix->index);
         out = compiler__sema__body__BodyPass_lower_index(self, node, ix);
     } else if (node != NULL && node->data.tag == compiler__ast__NodeData__AssignExpr__TAG) {
-        compiler__ast__AssignExpr* asg = (node)->data.u.AssignExpr.inner;
+        compiler__ast__NodeData__AssignExpr* asg = (compiler__ast__NodeData__AssignExpr*)(&(node)->data.u.AssignExpr);
         asg->target = compiler__sema__body__BodyPass_lower_expr(self, asg->target);
         asg->value = compiler__sema__body__BodyPass_lower_expr(self, asg->value);
         out = compiler__sema__body__BodyPass_lower_assign(self, node, asg);
     } else if (node != NULL && node->data.tag == compiler__ast__NodeData__UpdateExpr__TAG) {
-        compiler__ast__UpdateExpr* up = (node)->data.u.UpdateExpr.inner;
+        compiler__ast__NodeData__UpdateExpr* up = (compiler__ast__NodeData__UpdateExpr*)(&(node)->data.u.UpdateExpr);
         up->target = compiler__sema__body__BodyPass_lower_expr(self, up->target);
     } else if (node != NULL && node->data.tag == compiler__ast__NodeData__CastExpr__TAG) {
-        compiler__ast__CastExpr* cst = (node)->data.u.CastExpr.inner;
+        compiler__ast__NodeData__CastExpr* cst = (compiler__ast__NodeData__CastExpr*)(&(node)->data.u.CastExpr);
         if (cst->expr != NULL) {
             cst->expr = compiler__sema__body__BodyPass_lower_expr(self, cst->expr);
         }
     } else if (node != NULL && node->data.tag == compiler__ast__NodeData__GroupExpr__TAG) {
-        compiler__ast__GroupExpr* g = (node)->data.u.GroupExpr.inner;
+        compiler__ast__NodeData__GroupExpr* g = (compiler__ast__NodeData__GroupExpr*)(&(node)->data.u.GroupExpr);
         g->expr = compiler__sema__body__BodyPass_lower_expr(self, g->expr);
     } else if (node != NULL && node->data.tag == compiler__ast__NodeData__ArrayLiteralExpr__TAG) {
         compiler__ast__ArrayLiteralExpr* al = (node)->data.u.ArrayLiteralExpr.inner;
@@ -20049,7 +19979,7 @@ compiler__ast__AstNode* compiler__sema__body__BodyPass_lowered(compiler__sema__b
     return replacement;
 }
 
-compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_binary(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__BinaryExpr* bin) {
+compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_binary(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__BinaryExpr* bin) {
     if (bin->op == 37) {
         if (compiler__sema__body__BodyPass_is_stmt_node(self, bin->right)) {
             bin->right = compiler__sema__body__BodyPass_lower_stmt(self, bin->right);
@@ -20101,7 +20031,7 @@ compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_binary(compiler__se
     return node;
 }
 
-compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_assign(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__AssignExpr* asgn) {
+compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_assign(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__AssignExpr* asgn) {
     if (node->resolved_method != NULL) {
         compiler__sema__MethodInfo* mi = (compiler__sema__MethodInfo*)node->resolved_method;
         compiler__sema__Type* target_ty = compiler__sema__body__BodyPass_type_of(self, asgn->target);
@@ -20242,7 +20172,7 @@ compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_member(compiler__se
     return node;
 }
 
-compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_unary(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__UnaryExpr* un) {
+compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_unary(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__UnaryExpr* un) {
     if (node->resolved_method == NULL) {
         return node;
     }
@@ -20253,7 +20183,7 @@ compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_unary(compiler__sem
     return compiler__sema__body__BodyPass_lowered(self, node, call);
 }
 
-compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_index(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__IndexExpr* idx) {
+compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_index(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__IndexExpr* idx) {
     if (node->resolved_method == NULL) {
         return node;
     }
@@ -22049,8 +21979,8 @@ compiler__ast__AstNode* compiler__codegen__unwrap_group_expr(compiler__ast__AstN
     compiler__ast__AstNode* cur = node;
     while (cur != NULL) {
         {
-            compiler__ast__GroupExpr* g = NULL;
-            if ((cur != NULL && cur->data.tag == compiler__ast__NodeData__GroupExpr__TAG && (g = cur->data.u.GroupExpr.inner, 1))) {
+            compiler__ast__NodeData__GroupExpr* g = NULL;
+            if ((cur != NULL && cur->data.tag == compiler__ast__NodeData__GroupExpr__TAG && (g = (compiler__ast__NodeData__GroupExpr*)(&(cur)->data.u.GroupExpr), 1))) {
                 cur = g->expr;
             } else {
                 break;
@@ -22075,15 +22005,15 @@ kobel_str compiler__codegen__CCodeGen_gen_expr(compiler__codegen__CCodeGen* self
     compiler__ast__AstNode* ast_node = node;
     if (node != NULL && node->data.tag == compiler__ast__NodeData__LiteralExpr__TAG) {
         void* __orig_node = (void*)node;
-        compiler__ast__LiteralExpr* node = (compiler__ast__LiteralExpr*)(((compiler__ast__AstNode*)__orig_node)->data.u.LiteralExpr.inner);
+        compiler__ast__NodeData__LiteralExpr* node = (compiler__ast__NodeData__LiteralExpr*)((&((compiler__ast__AstNode*)__orig_node)->data.u.LiteralExpr));
         return compiler__codegen__CCodeGen_gen_literal_expr(self, ast_node, node);
     } else if (node != NULL && node->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG) {
         void* __orig_node = (void*)node;
-        compiler__ast__IdentifierExpr* node = (compiler__ast__IdentifierExpr*)(((compiler__ast__AstNode*)__orig_node)->data.u.IdentifierExpr.inner);
+        compiler__ast__NodeData__IdentifierExpr* node = (compiler__ast__NodeData__IdentifierExpr*)((&((compiler__ast__AstNode*)__orig_node)->data.u.IdentifierExpr));
         return node->name;
     } else if (node != NULL && node->data.tag == compiler__ast__NodeData__GroupExpr__TAG) {
         void* __orig_node = (void*)node;
-        compiler__ast__GroupExpr* node = (compiler__ast__GroupExpr*)(((compiler__ast__AstNode*)__orig_node)->data.u.GroupExpr.inner);
+        compiler__ast__NodeData__GroupExpr* node = (compiler__ast__NodeData__GroupExpr*)((&((compiler__ast__AstNode*)__orig_node)->data.u.GroupExpr));
         kobel_str inner = compiler__codegen__CCodeGen_gen_expr(self, node->expr);
         compiler__ast__AstNode* ne = node->expr;
         if ((ne != NULL && ne->data.tag == compiler__ast__NodeData__BinaryExpr__TAG) || (ne != NULL && ne->data.tag == compiler__ast__NodeData__GroupExpr__TAG)) {
@@ -22092,11 +22022,11 @@ kobel_str compiler__codegen__CCodeGen_gen_expr(compiler__codegen__CCodeGen* self
         return kobel_concat3(KOBEL_STR("("), inner, KOBEL_STR(")"));
     } else if (node != NULL && node->data.tag == compiler__ast__NodeData__BinaryExpr__TAG) {
         void* __orig_node = (void*)node;
-        compiler__ast__BinaryExpr* node = (compiler__ast__BinaryExpr*)(((compiler__ast__AstNode*)__orig_node)->data.u.BinaryExpr.inner);
+        compiler__ast__NodeData__BinaryExpr* node = (compiler__ast__NodeData__BinaryExpr*)((&((compiler__ast__AstNode*)__orig_node)->data.u.BinaryExpr));
         return compiler__codegen__CCodeGen_gen_binary_expr(self, node);
     } else if (node != NULL && node->data.tag == compiler__ast__NodeData__UnaryExpr__TAG) {
         void* __orig_node = (void*)node;
-        compiler__ast__UnaryExpr* node = (compiler__ast__UnaryExpr*)(((compiler__ast__AstNode*)__orig_node)->data.u.UnaryExpr.inner);
+        compiler__ast__NodeData__UnaryExpr* node = (compiler__ast__NodeData__UnaryExpr*)((&((compiler__ast__AstNode*)__orig_node)->data.u.UnaryExpr));
         return compiler__codegen__CCodeGen_gen_unary_expr(self, node);
     } else if (node != NULL && node->data.tag == compiler__ast__NodeData__ArrayLiteralExpr__TAG) {
         void* __orig_node = (void*)node;
@@ -22112,7 +22042,7 @@ kobel_str compiler__codegen__CCodeGen_gen_expr(compiler__codegen__CCodeGen* self
         return compiler__codegen__CCodeGen_gen_member_expr(self, ast_node, node);
     } else if (node != NULL && node->data.tag == compiler__ast__NodeData__IndexExpr__TAG) {
         void* __orig_node = (void*)node;
-        compiler__ast__IndexExpr* node = (compiler__ast__IndexExpr*)(((compiler__ast__AstNode*)__orig_node)->data.u.IndexExpr.inner);
+        compiler__ast__NodeData__IndexExpr* node = (compiler__ast__NodeData__IndexExpr*)((&((compiler__ast__AstNode*)__orig_node)->data.u.IndexExpr));
         kobel_str tgt = compiler__codegen__CCodeGen_gen_expr(self, node->target);
         kobel_str idx = compiler__codegen__CCodeGen_gen_expr(self, node->index);
         if (compiler__codegen__CCodeGen_is_str_value(self, node->target)) {
@@ -22122,15 +22052,15 @@ kobel_str compiler__codegen__CCodeGen_gen_expr(compiler__codegen__CCodeGen* self
         return kobel_concat4(tgt, KOBEL_STR("["), idx, KOBEL_STR("]"));
     } else if (node != NULL && node->data.tag == compiler__ast__NodeData__AssignExpr__TAG) {
         void* __orig_node = (void*)node;
-        compiler__ast__AssignExpr* node = (compiler__ast__AssignExpr*)(((compiler__ast__AstNode*)__orig_node)->data.u.AssignExpr.inner);
+        compiler__ast__NodeData__AssignExpr* node = (compiler__ast__NodeData__AssignExpr*)((&((compiler__ast__AstNode*)__orig_node)->data.u.AssignExpr));
         return compiler__codegen__CCodeGen_gen_assign_expr(self, node);
     } else if (node != NULL && node->data.tag == compiler__ast__NodeData__UpdateExpr__TAG) {
         void* __orig_node = (void*)node;
-        compiler__ast__UpdateExpr* node = (compiler__ast__UpdateExpr*)(((compiler__ast__AstNode*)__orig_node)->data.u.UpdateExpr.inner);
+        compiler__ast__NodeData__UpdateExpr* node = (compiler__ast__NodeData__UpdateExpr*)((&((compiler__ast__AstNode*)__orig_node)->data.u.UpdateExpr));
         kobel_str op_str = ((node->op == 30) ? KOBEL_STR("++") : KOBEL_STR("--"));
         return kobel_concat(compiler__codegen__CCodeGen_gen_expr(self, node->target), op_str);
     } else if (node != NULL && node->data.tag == compiler__ast__NodeData__CastExpr__TAG) {
-        compiler__ast__CastExpr* cst = (node)->data.u.CastExpr.inner;
+        compiler__ast__NodeData__CastExpr* cst = (compiler__ast__NodeData__CastExpr*)(&(node)->data.u.CastExpr);
         return compiler__codegen__CCodeGen_gen_cast_expr(self, cst);
     } else if (node != NULL && node->data.tag == compiler__ast__NodeData__IfExpr__TAG) {
         void* __orig_node = (void*)node;
@@ -22182,14 +22112,14 @@ kobel_str compiler__codegen__CCodeGen_gen_expr(compiler__codegen__CCodeGen* self
         return kobel_concat3(kobel_concat5(kobel_concat5(KOBEL_STR("("), node->c_name, KOBEL_STR("){ ."), node->tag_field, KOBEL_STR(" = ")), i64_to_str(node->tag_value), KOBEL_STR(", ."), node->payload_path, KOBEL_STR(" = { ")), joined, KOBEL_STR(" } }"));
     } else if (node != NULL && node->data.tag == compiler__ast__NodeData__SizeOfParam__TAG) {
         void* __orig_node = (void*)node;
-        compiler__ast__SizeOfParam* node = (compiler__ast__SizeOfParam*)(((compiler__ast__AstNode*)__orig_node)->data.u.SizeOfParam.inner);
+        compiler__ast__NodeData__SizeOfParam* node = (compiler__ast__NodeData__SizeOfParam*)((&((compiler__ast__AstNode*)__orig_node)->data.u.SizeOfParam));
         return compiler__codegen__c_format_int_literal(node->size_text);
     } else {
         return KOBEL_STR("");
     }
 }
 
-kobel_str compiler__codegen__CCodeGen_gen_literal_expr(compiler__codegen__CCodeGen* self, compiler__ast__AstNode* ast_node, compiler__ast__LiteralExpr* lit) {
+kobel_str compiler__codegen__CCodeGen_gen_literal_expr(compiler__codegen__CCodeGen* self, compiler__ast__AstNode* ast_node, compiler__ast__NodeData__LiteralExpr* lit) {
     if (lit->literal_kind == 0) {
         return compiler__codegen__c_format_int_literal(lit->raw_text);
     } else if (lit->literal_kind == 1) {
@@ -22214,7 +22144,7 @@ kobel_str compiler__codegen__CCodeGen_gen_literal_expr(compiler__codegen__CCodeG
     }
 }
 
-kobel_str compiler__codegen__CCodeGen_gen_binary_expr(compiler__codegen__CCodeGen* self, compiler__ast__BinaryExpr* bin) {
+kobel_str compiler__codegen__CCodeGen_gen_binary_expr(compiler__codegen__CCodeGen* self, compiler__ast__NodeData__BinaryExpr* bin) {
     if (bin->op == 37) {
         compiler__ast__AstNode* unwrapped_l = compiler__codegen__unwrap_group_expr(bin->left);
         {
@@ -22297,7 +22227,7 @@ kobel_str compiler__codegen__CCodeGen_gen_binary_expr(compiler__codegen__CCodeGe
     return kobel_concat3(kobel_concat5(KOBEL_STR("("), l, KOBEL_STR(" "), op_str, KOBEL_STR(" ")), r, KOBEL_STR(")"));
 }
 
-kobel_str compiler__codegen__CCodeGen_gen_unary_expr(compiler__codegen__CCodeGen* self, compiler__ast__UnaryExpr* un) {
+kobel_str compiler__codegen__CCodeGen_gen_unary_expr(compiler__codegen__CCodeGen* self, compiler__ast__NodeData__UnaryExpr* un) {
     kobel_str opnd = compiler__codegen__CCodeGen_gen_expr(self, un->operand);
     if (un->is_postfix && (un->op == 4)) {
         return opnd;
@@ -22367,8 +22297,8 @@ kobel_str compiler__codegen__CCodeGen_gen_call_expr(compiler__codegen__CCodeGen*
         }
     }
     {
-        compiler__ast__IdentifierExpr* id = NULL;
-        if (((callee != NULL && callee->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (id = callee->data.u.IdentifierExpr.inner, 1)) && kobel_streq(id->name, KOBEL_STR("char"))) && (call->args.len == 1)) {
+        compiler__ast__NodeData__IdentifierExpr* id = NULL;
+        if (((callee != NULL && callee->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (id = (compiler__ast__NodeData__IdentifierExpr*)(&(callee)->data.u.IdentifierExpr), 1)) && kobel_streq(id->name, KOBEL_STR("char"))) && (call->args.len == 1)) {
             return kobel_concat3(KOBEL_STR("((char)("), compiler__codegen__CCodeGen_gen_expr(self, std__collections__List_ptr_compiler__ast__AstNode_get(&call->args, 0)), KOBEL_STR("))"));
         }
     }
@@ -22455,7 +22385,7 @@ kobel_str compiler__codegen__CCodeGen_gen_member_expr(compiler__codegen__CCodeGe
     return kobel_concat3(obj_str, KOBEL_STR("."), mem->member);
 }
 
-kobel_str compiler__codegen__CCodeGen_gen_assign_expr(compiler__codegen__CCodeGen* self, compiler__ast__AssignExpr* asgn) {
+kobel_str compiler__codegen__CCodeGen_gen_assign_expr(compiler__codegen__CCodeGen* self, compiler__ast__NodeData__AssignExpr* asgn) {
     kobel_str op_str = (asgn->op == 32 ? KOBEL_STR("+=") : (asgn->op == 33 ? KOBEL_STR("-=") : (asgn->op == 34 ? KOBEL_STR("*=") : (asgn->op == 35 ? KOBEL_STR("/=") : (asgn->op == 36 ? KOBEL_STR("%=") : KOBEL_STR("="))))));
     return kobel_concat5(compiler__codegen__CCodeGen_gen_expr(self, asgn->target), KOBEL_STR(" "), op_str, KOBEL_STR(" "), compiler__codegen__CCodeGen_gen_expr(self, asgn->value));
 }
@@ -22495,7 +22425,7 @@ kobel_str compiler__codegen__CCodeGen_gen_tag_test(compiler__codegen__CCodeGen* 
     return (is_ptr ? kobel_concat3(kobel_concat5(subject, KOBEL_STR(" != NULL && "), subject, KOBEL_STR("->"), tag_field), KOBEL_STR(" == "), tag_const) : kobel_concat5(subject, KOBEL_STR("."), tag_field, KOBEL_STR(" == "), tag_const));
 }
 
-kobel_str compiler__codegen__CCodeGen_gen_cast_expr(compiler__codegen__CCodeGen* self, compiler__ast__CastExpr* cst) {
+kobel_str compiler__codegen__CCodeGen_gen_cast_expr(compiler__codegen__CCodeGen* self, compiler__ast__NodeData__CastExpr* cst) {
     kobel_str ty = compiler__codegen__c_type_from_ast(cst->target_type);
     if ((kobel_streq(ty, KOBEL_STR("kobel_str")) && (cst->expr != NULL)) && compiler__codegen__CCodeGen_is_pointer_value(self, cst->expr)) {
         return kobel_concat3(KOBEL_STR("kobel_from_cstr((const char*)("), compiler__codegen__CCodeGen_gen_expr(self, cst->expr), KOBEL_STR("))"));
@@ -22539,7 +22469,7 @@ kobel_str compiler__codegen__CCodeGen_gen_when_test(compiler__codegen__CCodeGen*
             kobel_str test = KOBEL_STR("");
             {
                 compiler__ast__IsExpr* is_e = NULL;
-                compiler__ast__LiteralExpr* lit = NULL;
+                compiler__ast__NodeData__LiteralExpr* lit = NULL;
                 if (str_empty(cond)) {
                     test = compiler__codegen__CCodeGen_gen_expr(self, p);
                 } else if ((p != NULL && p->data.tag == compiler__ast__NodeData__IsExpr__TAG && (is_e = p->data.u.IsExpr.inner, 1))) {
@@ -22550,7 +22480,7 @@ kobel_str compiler__codegen__CCodeGen_gen_when_test(compiler__codegen__CCodeGen*
                     }
                     kobel_str tag_const = (str_empty(is_e->tag_const) ? kobel_concat(target_name, KOBEL_STR("__TAG")) : is_e->tag_const);
                     test = compiler__codegen__CCodeGen_gen_tag_test(self, cond, is_e->is_ptr, tag_field, tag_const);
-                } else if ((p != NULL && p->data.tag == compiler__ast__NodeData__LiteralExpr__TAG && (lit = p->data.u.LiteralExpr.inner, 1))) {
+                } else if ((p != NULL && p->data.tag == compiler__ast__NodeData__LiteralExpr__TAG && (lit = (compiler__ast__NodeData__LiteralExpr*)(&(p)->data.u.LiteralExpr), 1))) {
                     if (lit->literal_kind == 4) {
                         test = kobel_concat5(KOBEL_STR("kobel_streq("), cond, KOBEL_STR(", "), compiler__codegen__CCodeGen_gen_expr(self, p), KOBEL_STR(")"));
                     } else {
@@ -23151,8 +23081,8 @@ void compiler__codegen__CCodeGen_gen_fn_decl(compiler__codegen__CCodeGen* self, 
             compiler__ast__AstNode* es_candidate = es_e;
             while (es_candidate != NULL) {
                 {
-                    compiler__ast__GroupExpr* g = NULL;
-                    if ((es_candidate != NULL && es_candidate->data.tag == compiler__ast__NodeData__GroupExpr__TAG && (g = es_candidate->data.u.GroupExpr.inner, 1))) {
+                    compiler__ast__NodeData__GroupExpr* g = NULL;
+                    if ((es_candidate != NULL && es_candidate->data.tag == compiler__ast__NodeData__GroupExpr__TAG && (g = (compiler__ast__NodeData__GroupExpr*)(&(es_candidate)->data.u.GroupExpr), 1))) {
                         es_candidate = g->expr;
                     } else {
                         break;
@@ -23160,8 +23090,8 @@ void compiler__codegen__CCodeGen_gen_fn_decl(compiler__codegen__CCodeGen* self, 
                 }
             }
             {
-                compiler__ast__BinaryExpr* bin = NULL;
-                if ((!is_special && (es_candidate != NULL && es_candidate->data.tag == compiler__ast__NodeData__BinaryExpr__TAG && (bin = es_candidate->data.u.BinaryExpr.inner, 1))) && (bin->op == 37)) {
+                compiler__ast__NodeData__BinaryExpr* bin = NULL;
+                if ((!is_special && (es_candidate != NULL && es_candidate->data.tag == compiler__ast__NodeData__BinaryExpr__TAG && (bin = (compiler__ast__NodeData__BinaryExpr*)(&(es_candidate)->data.u.BinaryExpr), 1))) && (bin->op == 37)) {
                     bool is_str_ret = (kobel_streq(ret_ty, KOBEL_STR("kobel_str")) || compiler__codegen__CCodeGen_is_str_value(self, bin->left));
                     kobel_str not_null_chk = (is_str_ret ? KOBEL_STR(".data != NULL") : KOBEL_STR(" != NULL"));
                     std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("    "));
@@ -23171,8 +23101,8 @@ void compiler__codegen__CCodeGen_gen_fn_decl(compiler__codegen__CCodeGen* self, 
                     while (cur != NULL) {
                         while (cur != NULL) {
                             {
-                                compiler__ast__GroupExpr* g = NULL;
-                                if ((cur != NULL && cur->data.tag == compiler__ast__NodeData__GroupExpr__TAG && (g = cur->data.u.GroupExpr.inner, 1))) {
+                                compiler__ast__NodeData__GroupExpr* g = NULL;
+                                if ((cur != NULL && cur->data.tag == compiler__ast__NodeData__GroupExpr__TAG && (g = (compiler__ast__NodeData__GroupExpr*)(&(cur)->data.u.GroupExpr), 1))) {
                                     cur = g->expr;
                                 } else {
                                     break;
@@ -23183,8 +23113,8 @@ void compiler__codegen__CCodeGen_gen_fn_decl(compiler__codegen__CCodeGen* self, 
                             break;
                         }
                         {
-                            compiler__ast__BinaryExpr* b = NULL;
-                            if ((cur != NULL && cur->data.tag == compiler__ast__NodeData__BinaryExpr__TAG && (b = cur->data.u.BinaryExpr.inner, 1)) && (b->op == 37)) {
+                            compiler__ast__NodeData__BinaryExpr* b = NULL;
+                            if ((cur != NULL && cur->data.tag == compiler__ast__NodeData__BinaryExpr__TAG && (b = (compiler__ast__NodeData__BinaryExpr*)(&(cur)->data.u.BinaryExpr), 1)) && (b->op == 37)) {
                                 std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("    __ret_tmp = "));
                                 std__collections__StringBuilder_plus_assign_2(&self->out, compiler__codegen__CCodeGen_gen_expr(self, b->left));
                                 std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n    if (__ret_tmp"));
@@ -23410,8 +23340,8 @@ void compiler__codegen__CCodeGen_gen_var_decl_stmt(compiler__codegen__CCodeGen* 
     compiler__ast__AstNode* init_e = vd->initializer;
     while (init_e != NULL) {
         {
-            compiler__ast__GroupExpr* g = NULL;
-            if ((init_e != NULL && init_e->data.tag == compiler__ast__NodeData__GroupExpr__TAG && (g = init_e->data.u.GroupExpr.inner, 1))) {
+            compiler__ast__NodeData__GroupExpr* g = NULL;
+            if ((init_e != NULL && init_e->data.tag == compiler__ast__NodeData__GroupExpr__TAG && (g = (compiler__ast__NodeData__GroupExpr*)(&(init_e)->data.u.GroupExpr), 1))) {
                 init_e = g->expr;
             } else {
                 break;
@@ -23431,8 +23361,8 @@ void compiler__codegen__CCodeGen_gen_var_decl_stmt(compiler__codegen__CCodeGen* 
         }
     }
     {
-        compiler__ast__BinaryExpr* bin = NULL;
-        if ((init_e != NULL && init_e->data.tag == compiler__ast__NodeData__BinaryExpr__TAG && (bin = init_e->data.u.BinaryExpr.inner, 1)) && (bin->op == 37)) {
+        compiler__ast__NodeData__BinaryExpr* bin = NULL;
+        if ((init_e != NULL && init_e->data.tag == compiler__ast__NodeData__BinaryExpr__TAG && (bin = (compiler__ast__NodeData__BinaryExpr*)(&(init_e)->data.u.BinaryExpr), 1)) && (bin->op == 37)) {
             compiler__codegen__CCodeGen_gen_var_elvis_init(self, vd, init_e, ind, ty_str);
             return;
         }
@@ -23461,8 +23391,8 @@ void compiler__codegen__CCodeGen_gen_var_decl_stmt(compiler__codegen__CCodeGen* 
 void compiler__codegen__CCodeGen_gen_var_elvis_init(compiler__codegen__CCodeGen* self, compiler__ast__NodeData__VarDeclStmt* vd, compiler__ast__AstNode* init_e, kobel_str ind, kobel_str ty_str) {
     compiler__ast__AstNode* unwrapped_init = compiler__codegen__unwrap_group_expr(init_e);
     {
-        compiler__ast__BinaryExpr* eb = NULL;
-        if (((unwrapped_init != NULL) && (unwrapped_init != NULL && unwrapped_init->data.tag == compiler__ast__NodeData__BinaryExpr__TAG && (eb = unwrapped_init->data.u.BinaryExpr.inner, 1))) && (eb->op == 37)) {
+        compiler__ast__NodeData__BinaryExpr* eb = NULL;
+        if (((unwrapped_init != NULL) && (unwrapped_init != NULL && unwrapped_init->data.tag == compiler__ast__NodeData__BinaryExpr__TAG && (eb = (compiler__ast__NodeData__BinaryExpr*)(&(unwrapped_init)->data.u.BinaryExpr), 1))) && (eb->op == 37)) {
             compiler__ast__AstNode* unwrapped_l = compiler__codegen__unwrap_group_expr(eb->left);
             {
                 compiler__ast__MemberExpr* mem = NULL;
@@ -23513,8 +23443,8 @@ void compiler__codegen__CCodeGen_gen_var_elvis_init(compiler__codegen__CCodeGen*
     }
     bool is_str_var = kobel_streq(ty_str, KOBEL_STR("kobel_str"));
     {
-        compiler__ast__BinaryExpr* eb2 = NULL;
-        if ((unwrapped_init != NULL && unwrapped_init->data.tag == compiler__ast__NodeData__BinaryExpr__TAG && (eb2 = unwrapped_init->data.u.BinaryExpr.inner, 1))) {
+        compiler__ast__NodeData__BinaryExpr* eb2 = NULL;
+        if ((unwrapped_init != NULL && unwrapped_init->data.tag == compiler__ast__NodeData__BinaryExpr__TAG && (eb2 = (compiler__ast__NodeData__BinaryExpr*)(&(unwrapped_init)->data.u.BinaryExpr), 1))) {
             if (compiler__codegen__CCodeGen_is_str_value(self, eb2->left)) {
                 is_str_var = true;
             }
@@ -23526,8 +23456,8 @@ void compiler__codegen__CCodeGen_gen_var_elvis_init(compiler__codegen__CCodeGen*
     while (cur != NULL) {
         while (cur != NULL) {
             {
-                compiler__ast__GroupExpr* g = NULL;
-                if ((cur != NULL && cur->data.tag == compiler__ast__NodeData__GroupExpr__TAG && (g = cur->data.u.GroupExpr.inner, 1))) {
+                compiler__ast__NodeData__GroupExpr* g = NULL;
+                if ((cur != NULL && cur->data.tag == compiler__ast__NodeData__GroupExpr__TAG && (g = (compiler__ast__NodeData__GroupExpr*)(&(cur)->data.u.GroupExpr), 1))) {
                     cur = g->expr;
                 } else {
                     break;
@@ -23538,8 +23468,8 @@ void compiler__codegen__CCodeGen_gen_var_elvis_init(compiler__codegen__CCodeGen*
             break;
         }
         {
-            compiler__ast__BinaryExpr* b = NULL;
-            if ((cur != NULL && cur->data.tag == compiler__ast__NodeData__BinaryExpr__TAG && (b = cur->data.u.BinaryExpr.inner, 1))) {
+            compiler__ast__NodeData__BinaryExpr* b = NULL;
+            if ((cur != NULL && cur->data.tag == compiler__ast__NodeData__BinaryExpr__TAG && (b = (compiler__ast__NodeData__BinaryExpr*)(&(cur)->data.u.BinaryExpr), 1))) {
                 if (b->op == 37) {
                     if (first) {
                         std__collections__StringBuilder_plus_assign_2(&self->out, ind);
@@ -23612,8 +23542,8 @@ std__collections__List_compiler__codegen__ConditionAlias compiler__codegen__CCod
     compiler__ast__AstNode* cur = expr;
     while (cur != NULL) {
         {
-            compiler__ast__GroupExpr* g = NULL;
-            if ((cur != NULL && cur->data.tag == compiler__ast__NodeData__GroupExpr__TAG && (g = cur->data.u.GroupExpr.inner, 1))) {
+            compiler__ast__NodeData__GroupExpr* g = NULL;
+            if ((cur != NULL && cur->data.tag == compiler__ast__NodeData__GroupExpr__TAG && (g = (compiler__ast__NodeData__GroupExpr*)(&(cur)->data.u.GroupExpr), 1))) {
                 cur = g->expr;
             } else {
                 break;
@@ -23624,8 +23554,8 @@ std__collections__List_compiler__codegen__ConditionAlias compiler__codegen__CCod
         return res;
     }
     {
-        compiler__ast__BinaryExpr* bin = NULL;
-        if ((cur != NULL && cur->data.tag == compiler__ast__NodeData__BinaryExpr__TAG && (bin = cur->data.u.BinaryExpr.inner, 1))) {
+        compiler__ast__NodeData__BinaryExpr* bin = NULL;
+        if ((cur != NULL && cur->data.tag == compiler__ast__NodeData__BinaryExpr__TAG && (bin = (compiler__ast__NodeData__BinaryExpr*)(&(cur)->data.u.BinaryExpr), 1))) {
             if (bin->op == 25) {
                 std__collections__List_compiler__codegen__ConditionAlias left = compiler__codegen__CCodeGen_collect_condition_aliases(self, bin->left);
                 std__collections__List_compiler__codegen__ConditionAlias right = compiler__codegen__CCodeGen_collect_condition_aliases(self, bin->right);
@@ -23760,8 +23690,8 @@ void compiler__codegen__CCodeGen_gen_if_stmt(compiler__codegen__CCodeGen* self, 
     compiler__ast__AstNode* cond = ifs->condition;
     while (cond != NULL) {
         {
-            compiler__ast__GroupExpr* g = NULL;
-            if ((cond != NULL && cond->data.tag == compiler__ast__NodeData__GroupExpr__TAG && (g = cond->data.u.GroupExpr.inner, 1))) {
+            compiler__ast__NodeData__GroupExpr* g = NULL;
+            if ((cond != NULL && cond->data.tag == compiler__ast__NodeData__GroupExpr__TAG && (g = (compiler__ast__NodeData__GroupExpr*)(&(cond)->data.u.GroupExpr), 1))) {
                 cond = g->expr;
             } else {
                 break;
@@ -23771,8 +23701,8 @@ void compiler__codegen__CCodeGen_gen_if_stmt(compiler__codegen__CCodeGen* self, 
     kobel_str cast_decl = KOBEL_STR("");
     {
         compiler__ast__IsExpr* is_e = NULL;
-        compiler__ast__IdentifierExpr* id = NULL;
-        if (((cond != NULL && cond->data.tag == compiler__ast__NodeData__IsExpr__TAG && (is_e = cond->data.u.IsExpr.inner, 1)) && str_empty(is_e->alias)) && (is_e->expr != NULL && is_e->expr->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (id = is_e->expr->data.u.IdentifierExpr.inner, 1))) {
+        compiler__ast__NodeData__IdentifierExpr* id = NULL;
+        if (((cond != NULL && cond->data.tag == compiler__ast__NodeData__IsExpr__TAG && (is_e = cond->data.u.IsExpr.inner, 1)) && str_empty(is_e->alias)) && (is_e->expr != NULL && is_e->expr->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (id = (compiler__ast__NodeData__IdentifierExpr*)(&(is_e->expr)->data.u.IdentifierExpr), 1))) {
             cast_decl = compiler__codegen__CCodeGen_gen_smart_cast_decl(self, is_e, is_e->expr, id->name, (self->indent_level + 1));
         }
     }
@@ -23819,8 +23749,8 @@ void compiler__codegen__CCodeGen_gen_if_stmt(compiler__codegen__CCodeGen* self, 
                 compiler__ast__AstNode* elif_cond = elif->condition;
                 while (elif_cond != NULL) {
                     {
-                        compiler__ast__GroupExpr* g = NULL;
-                        if ((elif_cond != NULL && elif_cond->data.tag == compiler__ast__NodeData__GroupExpr__TAG && (g = elif_cond->data.u.GroupExpr.inner, 1))) {
+                        compiler__ast__NodeData__GroupExpr* g = NULL;
+                        if ((elif_cond != NULL && elif_cond->data.tag == compiler__ast__NodeData__GroupExpr__TAG && (g = (compiler__ast__NodeData__GroupExpr*)(&(elif_cond)->data.u.GroupExpr), 1))) {
                             elif_cond = g->expr;
                         } else {
                             break;
@@ -23830,8 +23760,8 @@ void compiler__codegen__CCodeGen_gen_if_stmt(compiler__codegen__CCodeGen* self, 
                 kobel_str elif_cast = KOBEL_STR("");
                 {
                     compiler__ast__IsExpr* elif_is_e = NULL;
-                    compiler__ast__IdentifierExpr* id = NULL;
-                    if (((elif_cond != NULL && elif_cond->data.tag == compiler__ast__NodeData__IsExpr__TAG && (elif_is_e = elif_cond->data.u.IsExpr.inner, 1)) && str_empty(elif_is_e->alias)) && (elif_is_e->expr != NULL && elif_is_e->expr->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (id = elif_is_e->expr->data.u.IdentifierExpr.inner, 1))) {
+                    compiler__ast__NodeData__IdentifierExpr* id = NULL;
+                    if (((elif_cond != NULL && elif_cond->data.tag == compiler__ast__NodeData__IsExpr__TAG && (elif_is_e = elif_cond->data.u.IsExpr.inner, 1)) && str_empty(elif_is_e->alias)) && (elif_is_e->expr != NULL && elif_is_e->expr->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (id = (compiler__ast__NodeData__IdentifierExpr*)(&(elif_is_e->expr)->data.u.IdentifierExpr), 1))) {
                         elif_cast = compiler__codegen__CCodeGen_gen_smart_cast_decl(self, elif_is_e, elif_is_e->expr, id->name, (self->indent_level + 1));
                     }
                 }
@@ -23899,8 +23829,8 @@ void compiler__codegen__CCodeGen_gen_return_stmt(compiler__codegen__CCodeGen* se
             compiler__ast__AstNode* ret_candidate = ret_val;
             while (ret_candidate != NULL) {
                 {
-                    compiler__ast__GroupExpr* g = NULL;
-                    if ((ret_candidate != NULL && ret_candidate->data.tag == compiler__ast__NodeData__GroupExpr__TAG && (g = ret_candidate->data.u.GroupExpr.inner, 1))) {
+                    compiler__ast__NodeData__GroupExpr* g = NULL;
+                    if ((ret_candidate != NULL && ret_candidate->data.tag == compiler__ast__NodeData__GroupExpr__TAG && (g = (compiler__ast__NodeData__GroupExpr*)(&(ret_candidate)->data.u.GroupExpr), 1))) {
                         ret_candidate = g->expr;
                     } else {
                         break;
@@ -23908,8 +23838,8 @@ void compiler__codegen__CCodeGen_gen_return_stmt(compiler__codegen__CCodeGen* se
                 }
             }
             {
-                compiler__ast__BinaryExpr* bin = NULL;
-                if ((ret_candidate != NULL && ret_candidate->data.tag == compiler__ast__NodeData__BinaryExpr__TAG && (bin = ret_candidate->data.u.BinaryExpr.inner, 1)) && (bin->op == 37)) {
+                compiler__ast__NodeData__BinaryExpr* bin = NULL;
+                if ((ret_candidate != NULL && ret_candidate->data.tag == compiler__ast__NodeData__BinaryExpr__TAG && (bin = (compiler__ast__NodeData__BinaryExpr*)(&(ret_candidate)->data.u.BinaryExpr), 1)) && (bin->op == 37)) {
                     kobel_str ret_ty = self->current_fn_ret_type;
                     if (str_empty(ret_ty) || kobel_streq(ret_ty, KOBEL_STR("void"))) {
                         ret_ty = compiler__codegen__CCodeGen_c_type_or(self, bin->left, KOBEL_STR("int32_t"));
@@ -23927,8 +23857,8 @@ void compiler__codegen__CCodeGen_gen_return_stmt(compiler__codegen__CCodeGen* se
                     while (cur != NULL) {
                         while (cur != NULL) {
                             {
-                                compiler__ast__GroupExpr* g = NULL;
-                                if ((cur != NULL && cur->data.tag == compiler__ast__NodeData__GroupExpr__TAG && (g = cur->data.u.GroupExpr.inner, 1))) {
+                                compiler__ast__NodeData__GroupExpr* g = NULL;
+                                if ((cur != NULL && cur->data.tag == compiler__ast__NodeData__GroupExpr__TAG && (g = (compiler__ast__NodeData__GroupExpr*)(&(cur)->data.u.GroupExpr), 1))) {
                                     cur = g->expr;
                                 } else {
                                     break;
@@ -23939,8 +23869,8 @@ void compiler__codegen__CCodeGen_gen_return_stmt(compiler__codegen__CCodeGen* se
                             break;
                         }
                         {
-                            compiler__ast__BinaryExpr* b = NULL;
-                            if ((cur != NULL && cur->data.tag == compiler__ast__NodeData__BinaryExpr__TAG && (b = cur->data.u.BinaryExpr.inner, 1)) && (b->op == 37)) {
+                            compiler__ast__NodeData__BinaryExpr* b = NULL;
+                            if ((cur != NULL && cur->data.tag == compiler__ast__NodeData__BinaryExpr__TAG && (b = (compiler__ast__NodeData__BinaryExpr*)(&(cur)->data.u.BinaryExpr), 1)) && (b->op == 37)) {
                                 std__collections__StringBuilder_plus_assign_2(&self->out, inner_ind);
                                 std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("__ret_tmp = "));
                                 std__collections__StringBuilder_plus_assign_2(&self->out, compiler__codegen__CCodeGen_gen_expr(self, b->left));
@@ -24010,8 +23940,8 @@ void compiler__codegen__CCodeGen_gen_expr_stmt(compiler__codegen__CCodeGen* self
         compiler__ast__AstNode* asg_candidate = e;
         while (asg_candidate != NULL) {
             {
-                compiler__ast__GroupExpr* g = NULL;
-                if ((asg_candidate != NULL && asg_candidate->data.tag == compiler__ast__NodeData__GroupExpr__TAG && (g = asg_candidate->data.u.GroupExpr.inner, 1))) {
+                compiler__ast__NodeData__GroupExpr* g = NULL;
+                if ((asg_candidate != NULL && asg_candidate->data.tag == compiler__ast__NodeData__GroupExpr__TAG && (g = (compiler__ast__NodeData__GroupExpr*)(&(asg_candidate)->data.u.GroupExpr), 1))) {
                     asg_candidate = g->expr;
                 } else {
                     break;
@@ -24019,13 +23949,13 @@ void compiler__codegen__CCodeGen_gen_expr_stmt(compiler__codegen__CCodeGen* self
             }
         }
         {
-            compiler__ast__AssignExpr* asg = NULL;
-            if ((asg_candidate != NULL && asg_candidate->data.tag == compiler__ast__NodeData__AssignExpr__TAG && (asg = asg_candidate->data.u.AssignExpr.inner, 1))) {
+            compiler__ast__NodeData__AssignExpr* asg = NULL;
+            if ((asg_candidate != NULL && asg_candidate->data.tag == compiler__ast__NodeData__AssignExpr__TAG && (asg = (compiler__ast__NodeData__AssignExpr*)(&(asg_candidate)->data.u.AssignExpr), 1))) {
                 compiler__ast__AstNode* asg_val = asg->value;
                 while (asg_val != NULL) {
                     {
-                        compiler__ast__GroupExpr* g = NULL;
-                        if ((asg_val != NULL && asg_val->data.tag == compiler__ast__NodeData__GroupExpr__TAG && (g = asg_val->data.u.GroupExpr.inner, 1))) {
+                        compiler__ast__NodeData__GroupExpr* g = NULL;
+                        if ((asg_val != NULL && asg_val->data.tag == compiler__ast__NodeData__GroupExpr__TAG && (g = (compiler__ast__NodeData__GroupExpr*)(&(asg_val)->data.u.GroupExpr), 1))) {
                             asg_val = g->expr;
                         } else {
                             break;
@@ -24033,8 +23963,8 @@ void compiler__codegen__CCodeGen_gen_expr_stmt(compiler__codegen__CCodeGen* self
                     }
                 }
                 {
-                    compiler__ast__BinaryExpr* bin = NULL;
-                    if ((asg_val != NULL && asg_val->data.tag == compiler__ast__NodeData__BinaryExpr__TAG && (bin = asg_val->data.u.BinaryExpr.inner, 1)) && (bin->op == 37)) {
+                    compiler__ast__NodeData__BinaryExpr* bin = NULL;
+                    if ((asg_val != NULL && asg_val->data.tag == compiler__ast__NodeData__BinaryExpr__TAG && (bin = (compiler__ast__NodeData__BinaryExpr*)(&(asg_val)->data.u.BinaryExpr), 1)) && (bin->op == 37)) {
                         compiler__codegen__CCodeGen_gen_assign_elvis_stmt(self, asg, asg_val, ind);
                         return;
                     }
@@ -24044,8 +23974,8 @@ void compiler__codegen__CCodeGen_gen_expr_stmt(compiler__codegen__CCodeGen* self
         compiler__ast__AstNode* bin_candidate = e;
         while (bin_candidate != NULL) {
             {
-                compiler__ast__GroupExpr* g = NULL;
-                if ((bin_candidate != NULL && bin_candidate->data.tag == compiler__ast__NodeData__GroupExpr__TAG && (g = bin_candidate->data.u.GroupExpr.inner, 1))) {
+                compiler__ast__NodeData__GroupExpr* g = NULL;
+                if ((bin_candidate != NULL && bin_candidate->data.tag == compiler__ast__NodeData__GroupExpr__TAG && (g = (compiler__ast__NodeData__GroupExpr*)(&(bin_candidate)->data.u.GroupExpr), 1))) {
                     bin_candidate = g->expr;
                 } else {
                     break;
@@ -24053,8 +23983,8 @@ void compiler__codegen__CCodeGen_gen_expr_stmt(compiler__codegen__CCodeGen* self
             }
         }
         {
-            compiler__ast__BinaryExpr* bin = NULL;
-            if ((bin_candidate != NULL && bin_candidate->data.tag == compiler__ast__NodeData__BinaryExpr__TAG && (bin = bin_candidate->data.u.BinaryExpr.inner, 1)) && (bin->op == 37)) {
+            compiler__ast__NodeData__BinaryExpr* bin = NULL;
+            if ((bin_candidate != NULL && bin_candidate->data.tag == compiler__ast__NodeData__BinaryExpr__TAG && (bin = (compiler__ast__NodeData__BinaryExpr*)(&(bin_candidate)->data.u.BinaryExpr), 1)) && (bin->op == 37)) {
                 bool is_jump = ((((((*bin->right).kind == 25) || ((*bin->right).kind == 26)) || ((*bin->right).kind == 27)) || ((*bin->right).kind == 29)) || ((*bin->right).kind == 19));
                 if (is_jump) {
                     compiler__codegen__CCodeGen_gen_elvis_jump_stmt(self, bin, ind);
@@ -24068,12 +23998,12 @@ void compiler__codegen__CCodeGen_gen_expr_stmt(compiler__codegen__CCodeGen* self
     std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
 }
 
-void compiler__codegen__CCodeGen_gen_assign_elvis_stmt(compiler__codegen__CCodeGen* self, compiler__ast__AssignExpr* asg, compiler__ast__AstNode* asg_val, kobel_str ind) {
+void compiler__codegen__CCodeGen_gen_assign_elvis_stmt(compiler__codegen__CCodeGen* self, compiler__ast__NodeData__AssignExpr* asg, compiler__ast__AstNode* asg_val, kobel_str ind) {
     kobel_str tgt = compiler__codegen__CCodeGen_gen_expr(self, asg->target);
     compiler__ast__AstNode* unwrapped_val = compiler__codegen__unwrap_group_expr(asg_val);
     {
-        compiler__ast__BinaryExpr* eb = NULL;
-        if (((unwrapped_val != NULL) && (unwrapped_val != NULL && unwrapped_val->data.tag == compiler__ast__NodeData__BinaryExpr__TAG && (eb = unwrapped_val->data.u.BinaryExpr.inner, 1))) && (eb->op == 37)) {
+        compiler__ast__NodeData__BinaryExpr* eb = NULL;
+        if (((unwrapped_val != NULL) && (unwrapped_val != NULL && unwrapped_val->data.tag == compiler__ast__NodeData__BinaryExpr__TAG && (eb = (compiler__ast__NodeData__BinaryExpr*)(&(unwrapped_val)->data.u.BinaryExpr), 1))) && (eb->op == 37)) {
             compiler__ast__AstNode* unwrapped_l = compiler__codegen__unwrap_group_expr(eb->left);
             {
                 compiler__ast__MemberExpr* mem = NULL;
@@ -24120,8 +24050,8 @@ void compiler__codegen__CCodeGen_gen_assign_elvis_stmt(compiler__codegen__CCodeG
     }
     bool is_str_tgt = compiler__codegen__CCodeGen_is_str_value(self, asg->target);
     {
-        compiler__ast__BinaryExpr* eb2 = NULL;
-        if ((unwrapped_val != NULL && unwrapped_val->data.tag == compiler__ast__NodeData__BinaryExpr__TAG && (eb2 = unwrapped_val->data.u.BinaryExpr.inner, 1))) {
+        compiler__ast__NodeData__BinaryExpr* eb2 = NULL;
+        if ((unwrapped_val != NULL && unwrapped_val->data.tag == compiler__ast__NodeData__BinaryExpr__TAG && (eb2 = (compiler__ast__NodeData__BinaryExpr*)(&(unwrapped_val)->data.u.BinaryExpr), 1))) {
             if (compiler__codegen__CCodeGen_is_str_value(self, eb2->left)) {
                 is_str_tgt = true;
             }
@@ -24133,8 +24063,8 @@ void compiler__codegen__CCodeGen_gen_assign_elvis_stmt(compiler__codegen__CCodeG
     while (cur != NULL) {
         while (cur != NULL) {
             {
-                compiler__ast__GroupExpr* g = NULL;
-                if ((cur != NULL && cur->data.tag == compiler__ast__NodeData__GroupExpr__TAG && (g = cur->data.u.GroupExpr.inner, 1))) {
+                compiler__ast__NodeData__GroupExpr* g = NULL;
+                if ((cur != NULL && cur->data.tag == compiler__ast__NodeData__GroupExpr__TAG && (g = (compiler__ast__NodeData__GroupExpr*)(&(cur)->data.u.GroupExpr), 1))) {
                     cur = g->expr;
                 } else {
                     break;
@@ -24145,8 +24075,8 @@ void compiler__codegen__CCodeGen_gen_assign_elvis_stmt(compiler__codegen__CCodeG
             break;
         }
         {
-            compiler__ast__BinaryExpr* b = NULL;
-            if ((cur != NULL && cur->data.tag == compiler__ast__NodeData__BinaryExpr__TAG && (b = cur->data.u.BinaryExpr.inner, 1))) {
+            compiler__ast__NodeData__BinaryExpr* b = NULL;
+            if ((cur != NULL && cur->data.tag == compiler__ast__NodeData__BinaryExpr__TAG && (b = (compiler__ast__NodeData__BinaryExpr*)(&(cur)->data.u.BinaryExpr), 1))) {
                 if (b->op == 37) {
                     if (first) {
                         std__collections__StringBuilder_plus_assign_2(&self->out, ind);
@@ -24209,7 +24139,7 @@ void compiler__codegen__CCodeGen_gen_assign_elvis_stmt(compiler__codegen__CCodeG
     }
 }
 
-void compiler__codegen__CCodeGen_gen_elvis_jump_stmt(compiler__codegen__CCodeGen* self, compiler__ast__BinaryExpr* bin, kobel_str ind) {
+void compiler__codegen__CCodeGen_gen_elvis_jump_stmt(compiler__codegen__CCodeGen* self, compiler__ast__NodeData__BinaryExpr* bin, kobel_str ind) {
     compiler__ast__AstNode* unwrapped_l = compiler__codegen__unwrap_group_expr(bin->left);
     {
         compiler__ast__MemberExpr* mem = NULL;
@@ -25188,20 +25118,20 @@ void fmt__Formatter_format_expr(fmt__Formatter* self, compiler__ast__AstNode* no
         return;
     }
     if (node != NULL && node->data.tag == compiler__ast__NodeData__LiteralExpr__TAG) {
-        compiler__ast__LiteralExpr* lit = (node)->data.u.LiteralExpr.inner;
+        compiler__ast__NodeData__LiteralExpr* lit = (compiler__ast__NodeData__LiteralExpr*)(&(node)->data.u.LiteralExpr);
         fmt__FormatBuffer_plus_assign_2(&self->buf, lit->raw_text);
     } else if (node != NULL && node->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG) {
-        compiler__ast__IdentifierExpr* id = (node)->data.u.IdentifierExpr.inner;
+        compiler__ast__NodeData__IdentifierExpr* id = (compiler__ast__NodeData__IdentifierExpr*)(&(node)->data.u.IdentifierExpr);
         fmt__FormatBuffer_plus_assign_2(&self->buf, id->name);
     } else if (node != NULL && node->data.tag == compiler__ast__NodeData__BinaryExpr__TAG) {
-        compiler__ast__BinaryExpr* b = (node)->data.u.BinaryExpr.inner;
+        compiler__ast__NodeData__BinaryExpr* b = (compiler__ast__NodeData__BinaryExpr*)(&(node)->data.u.BinaryExpr);
         fmt__Formatter_format_expr(self, b->left);
         fmt__FormatBuffer_space(&self->buf);
         fmt__FormatBuffer_plus_assign_2(&self->buf, fmt__op_to_str(b->op));
         fmt__FormatBuffer_space(&self->buf);
         fmt__Formatter_format_expr(self, b->right);
     } else if (node != NULL && node->data.tag == compiler__ast__NodeData__UnaryExpr__TAG) {
-        compiler__ast__UnaryExpr* u = (node)->data.u.UnaryExpr.inner;
+        compiler__ast__NodeData__UnaryExpr* u = (compiler__ast__NodeData__UnaryExpr*)(&(node)->data.u.UnaryExpr);
         if (u->is_postfix) {
             fmt__Formatter_format_expr(self, u->operand);
             fmt__FormatBuffer_plus_assign_2(&self->buf, fmt__op_to_str(u->op));
@@ -25290,31 +25220,31 @@ void fmt__Formatter_format_expr(fmt__Formatter* self, compiler__ast__AstNode* no
         }
         fmt__FormatBuffer_plus_assign_2(&self->buf, m->member);
     } else if (node != NULL && node->data.tag == compiler__ast__NodeData__IndexExpr__TAG) {
-        compiler__ast__IndexExpr* idx = (node)->data.u.IndexExpr.inner;
+        compiler__ast__NodeData__IndexExpr* idx = (compiler__ast__NodeData__IndexExpr*)(&(node)->data.u.IndexExpr);
         fmt__Formatter_format_expr(self, idx->target);
         fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR("["));
         fmt__Formatter_format_expr(self, idx->index);
         fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR("]"));
     } else if (node != NULL && node->data.tag == compiler__ast__NodeData__AssignExpr__TAG) {
-        compiler__ast__AssignExpr* a = (node)->data.u.AssignExpr.inner;
+        compiler__ast__NodeData__AssignExpr* a = (compiler__ast__NodeData__AssignExpr*)(&(node)->data.u.AssignExpr);
         fmt__Formatter_format_expr(self, a->target);
         fmt__FormatBuffer_space(&self->buf);
         fmt__FormatBuffer_plus_assign_2(&self->buf, fmt__op_to_str(a->op));
         fmt__FormatBuffer_space(&self->buf);
         fmt__Formatter_format_expr(self, a->value);
     } else if (node != NULL && node->data.tag == compiler__ast__NodeData__UpdateExpr__TAG) {
-        compiler__ast__UpdateExpr* u = (node)->data.u.UpdateExpr.inner;
+        compiler__ast__NodeData__UpdateExpr* u = (compiler__ast__NodeData__UpdateExpr*)(&(node)->data.u.UpdateExpr);
         fmt__Formatter_format_expr(self, u->target);
         fmt__FormatBuffer_plus_assign_2(&self->buf, fmt__op_to_str(u->op));
     } else if (node != NULL && node->data.tag == compiler__ast__NodeData__CastExpr__TAG) {
-        compiler__ast__CastExpr* cst = (node)->data.u.CastExpr.inner;
+        compiler__ast__NodeData__CastExpr* cst = (compiler__ast__NodeData__CastExpr*)(&(node)->data.u.CastExpr);
         if (cst->expr != NULL) {
             fmt__Formatter_format_expr(self, cst->expr);
         }
         fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR(" as "));
         fmt__Formatter_format_type(self, cst->target_type);
     } else if (node != NULL && node->data.tag == compiler__ast__NodeData__GroupExpr__TAG) {
-        compiler__ast__GroupExpr* g = (node)->data.u.GroupExpr.inner;
+        compiler__ast__NodeData__GroupExpr* g = (compiler__ast__NodeData__GroupExpr*)(&(node)->data.u.GroupExpr);
         fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR("("));
         fmt__Formatter_format_expr(self, g->expr);
         fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR(")"));
@@ -25459,8 +25389,8 @@ void fmt__Formatter_format_expr(fmt__Formatter* self, compiler__ast__AstNode* no
                     compiler__ast__InterpPart__Literal* lit = (compiler__ast__InterpPart__Literal*)(&(part).u.Literal);
                     compiler__ast__AstNode* expr = lit->node;
                     {
-                        compiler__ast__LiteralExpr* l = NULL;
-                        if ((expr != NULL && expr->data.tag == compiler__ast__NodeData__LiteralExpr__TAG && (l = expr->data.u.LiteralExpr.inner, 1))) {
+                        compiler__ast__NodeData__LiteralExpr* l = NULL;
+                        if ((expr != NULL && expr->data.tag == compiler__ast__NodeData__LiteralExpr__TAG && (l = (compiler__ast__NodeData__LiteralExpr*)(&(expr)->data.u.LiteralExpr), 1))) {
                             kobel_str text = l->raw_text;
                             if (text.len >= 2) {
                                 fmt__FormatBuffer_plus_assign_2(&self->buf, kobel_slice(text, 1, (text.len - 1)));
@@ -43148,30 +43078,6 @@ void std__memory__Heap_free_u8(uint8_t* ptr) {
     free((uint8_t*)ptr);
 }
 
-compiler__ast__LiteralExpr* std__memory__Arena_create_val_compiler__ast__LiteralExpr(std__memory__Arena* self, compiler__ast__LiteralExpr value) {
-    compiler__ast__LiteralExpr* ptr = std__memory__Arena_create_compiler__ast__LiteralExpr(self);
-    (*(ptr) = value);
-    return ptr;
-}
-
-compiler__ast__IdentifierExpr* std__memory__Arena_create_val_compiler__ast__IdentifierExpr(std__memory__Arena* self, compiler__ast__IdentifierExpr value) {
-    compiler__ast__IdentifierExpr* ptr = std__memory__Arena_create_compiler__ast__IdentifierExpr(self);
-    (*(ptr) = value);
-    return ptr;
-}
-
-compiler__ast__BinaryExpr* std__memory__Arena_create_val_compiler__ast__BinaryExpr(std__memory__Arena* self, compiler__ast__BinaryExpr value) {
-    compiler__ast__BinaryExpr* ptr = std__memory__Arena_create_compiler__ast__BinaryExpr(self);
-    (*(ptr) = value);
-    return ptr;
-}
-
-compiler__ast__UnaryExpr* std__memory__Arena_create_val_compiler__ast__UnaryExpr(std__memory__Arena* self, compiler__ast__UnaryExpr value) {
-    compiler__ast__UnaryExpr* ptr = std__memory__Arena_create_compiler__ast__UnaryExpr(self);
-    (*(ptr) = value);
-    return ptr;
-}
-
 compiler__ast__CallExpr* std__memory__Arena_create_val_compiler__ast__CallExpr(std__memory__Arena* self, compiler__ast__CallExpr value) {
     compiler__ast__CallExpr* ptr = std__memory__Arena_create_compiler__ast__CallExpr(self);
     (*(ptr) = value);
@@ -43190,44 +43096,8 @@ compiler__ast__EnumCtorExpr* std__memory__Arena_create_val_compiler__ast__EnumCt
     return ptr;
 }
 
-compiler__ast__SizeOfParam* std__memory__Arena_create_val_compiler__ast__SizeOfParam(std__memory__Arena* self, compiler__ast__SizeOfParam value) {
-    compiler__ast__SizeOfParam* ptr = std__memory__Arena_create_compiler__ast__SizeOfParam(self);
-    (*(ptr) = value);
-    return ptr;
-}
-
 compiler__ast__MemberExpr* std__memory__Arena_create_val_compiler__ast__MemberExpr(std__memory__Arena* self, compiler__ast__MemberExpr value) {
     compiler__ast__MemberExpr* ptr = std__memory__Arena_create_compiler__ast__MemberExpr(self);
-    (*(ptr) = value);
-    return ptr;
-}
-
-compiler__ast__IndexExpr* std__memory__Arena_create_val_compiler__ast__IndexExpr(std__memory__Arena* self, compiler__ast__IndexExpr value) {
-    compiler__ast__IndexExpr* ptr = std__memory__Arena_create_compiler__ast__IndexExpr(self);
-    (*(ptr) = value);
-    return ptr;
-}
-
-compiler__ast__AssignExpr* std__memory__Arena_create_val_compiler__ast__AssignExpr(std__memory__Arena* self, compiler__ast__AssignExpr value) {
-    compiler__ast__AssignExpr* ptr = std__memory__Arena_create_compiler__ast__AssignExpr(self);
-    (*(ptr) = value);
-    return ptr;
-}
-
-compiler__ast__UpdateExpr* std__memory__Arena_create_val_compiler__ast__UpdateExpr(std__memory__Arena* self, compiler__ast__UpdateExpr value) {
-    compiler__ast__UpdateExpr* ptr = std__memory__Arena_create_compiler__ast__UpdateExpr(self);
-    (*(ptr) = value);
-    return ptr;
-}
-
-compiler__ast__CastExpr* std__memory__Arena_create_val_compiler__ast__CastExpr(std__memory__Arena* self, compiler__ast__CastExpr value) {
-    compiler__ast__CastExpr* ptr = std__memory__Arena_create_compiler__ast__CastExpr(self);
-    (*(ptr) = value);
-    return ptr;
-}
-
-compiler__ast__GroupExpr* std__memory__Arena_create_val_compiler__ast__GroupExpr(std__memory__Arena* self, compiler__ast__GroupExpr value) {
-    compiler__ast__GroupExpr* ptr = std__memory__Arena_create_compiler__ast__GroupExpr(self);
     (*(ptr) = value);
     return ptr;
 }
@@ -43870,22 +43740,6 @@ compiler__codegen__ConditionAlias* std__memory__Heap_resize_compiler__codegen__C
     return (compiler__codegen__ConditionAlias*)realloc((uint8_t*)ptr, (count * 48));
 }
 
-compiler__ast__LiteralExpr* std__memory__Arena_create_compiler__ast__LiteralExpr(std__memory__Arena* self) {
-    return (compiler__ast__LiteralExpr*)std__memory__Arena_alloc_bytes(self, 24, 8);
-}
-
-compiler__ast__IdentifierExpr* std__memory__Arena_create_compiler__ast__IdentifierExpr(std__memory__Arena* self) {
-    return (compiler__ast__IdentifierExpr*)std__memory__Arena_alloc_bytes(self, 16, 8);
-}
-
-compiler__ast__BinaryExpr* std__memory__Arena_create_compiler__ast__BinaryExpr(std__memory__Arena* self) {
-    return (compiler__ast__BinaryExpr*)std__memory__Arena_alloc_bytes(self, 24, 8);
-}
-
-compiler__ast__UnaryExpr* std__memory__Arena_create_compiler__ast__UnaryExpr(std__memory__Arena* self) {
-    return (compiler__ast__UnaryExpr*)std__memory__Arena_alloc_bytes(self, 24, 8);
-}
-
 compiler__ast__CallExpr* std__memory__Arena_create_compiler__ast__CallExpr(std__memory__Arena* self) {
     return (compiler__ast__CallExpr*)std__memory__Arena_alloc_bytes(self, 56, 8);
 }
@@ -43898,32 +43752,8 @@ compiler__ast__EnumCtorExpr* std__memory__Arena_create_compiler__ast__EnumCtorEx
     return (compiler__ast__EnumCtorExpr*)std__memory__Arena_alloc_bytes(self, 80, 8);
 }
 
-compiler__ast__SizeOfParam* std__memory__Arena_create_compiler__ast__SizeOfParam(std__memory__Arena* self) {
-    return (compiler__ast__SizeOfParam*)std__memory__Arena_alloc_bytes(self, 24, 8);
-}
-
 compiler__ast__MemberExpr* std__memory__Arena_create_compiler__ast__MemberExpr(std__memory__Arena* self) {
     return (compiler__ast__MemberExpr*)std__memory__Arena_alloc_bytes(self, 32, 8);
-}
-
-compiler__ast__IndexExpr* std__memory__Arena_create_compiler__ast__IndexExpr(std__memory__Arena* self) {
-    return (compiler__ast__IndexExpr*)std__memory__Arena_alloc_bytes(self, 16, 8);
-}
-
-compiler__ast__AssignExpr* std__memory__Arena_create_compiler__ast__AssignExpr(std__memory__Arena* self) {
-    return (compiler__ast__AssignExpr*)std__memory__Arena_alloc_bytes(self, 24, 8);
-}
-
-compiler__ast__UpdateExpr* std__memory__Arena_create_compiler__ast__UpdateExpr(std__memory__Arena* self) {
-    return (compiler__ast__UpdateExpr*)std__memory__Arena_alloc_bytes(self, 16, 8);
-}
-
-compiler__ast__CastExpr* std__memory__Arena_create_compiler__ast__CastExpr(std__memory__Arena* self) {
-    return (compiler__ast__CastExpr*)std__memory__Arena_alloc_bytes(self, 16, 8);
-}
-
-compiler__ast__GroupExpr* std__memory__Arena_create_compiler__ast__GroupExpr(std__memory__Arena* self) {
-    return (compiler__ast__GroupExpr*)std__memory__Arena_alloc_bytes(self, 8, 8);
 }
 
 compiler__ast__ArrayLiteralExpr* std__memory__Arena_create_compiler__ast__ArrayLiteralExpr(std__memory__Arena* self) {

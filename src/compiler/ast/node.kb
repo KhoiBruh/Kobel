@@ -2,6 +2,7 @@ mod compiler.ast;
 
 use std.memory.Arena;
 use std.collections.List;
+use compiler.lexer.*;
 
 pub enum NodeKind {
 	// Syntactic Types
@@ -73,17 +74,17 @@ pub enum NodeData {
 	PointerType(mutable: bool, pointee: *AstNode),
 	ArrayType(element_type: *AstNode, size: usz),
 	NullableType(inner_type: *AstNode),
-	LiteralExpr(inner: *LiteralExpr),
-	IdentifierExpr(inner: *IdentifierExpr),
-	BinaryExpr(inner: *BinaryExpr),
-	UnaryExpr(inner: *UnaryExpr),
+	LiteralExpr(literal_kind: LiteralKind, raw_text: str),
+	IdentifierExpr(name: str),
+	BinaryExpr(left: *AstNode, op: TokenType, right: *AstNode),
+	UnaryExpr(op: TokenType, operand: *AstNode, is_postfix: bool),
 	CallExpr(inner: *CallExpr),
 	MemberExpr(inner: *MemberExpr),
-	IndexExpr(inner: *IndexExpr),
-	AssignExpr(inner: *AssignExpr),
-	UpdateExpr(inner: *UpdateExpr),
-	CastExpr(inner: *CastExpr),
-	GroupExpr(inner: *GroupExpr),
+	IndexExpr(target: *AstNode, index: *AstNode),
+	AssignExpr(target: *AstNode, op: TokenType, value: *AstNode),
+	UpdateExpr(op: TokenType, target: *AstNode),
+	CastExpr(expr: *AstNode?, target_type: *AstNode),
+	GroupExpr(expr: *AstNode),
 	ArrayLiteralExpr(inner: *ArrayLiteralExpr),
 	IfExpr(inner: *IfExpr),
 	WhenExpr(inner: *WhenExpr),
@@ -91,7 +92,7 @@ pub enum NodeData {
 	IsExpr(inner: *IsExpr),
 	StructCtorExpr(inner: *StructCtorExpr),
 	EnumCtorExpr(inner: *EnumCtorExpr),
-	SizeOfParam(inner: *SizeOfParam),
+	SizeOfParam(param_index: usz, size_text: str),
 	BlockStmt(statements: List<*AstNode>),
 	ExprStmt(expr: *AstNode),
 	VarDeclStmt(mutable: bool, name: str, type_annotation: *AstNode?, initializer: *AstNode?),
