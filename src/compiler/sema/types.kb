@@ -252,15 +252,17 @@ impl Type {
 		var max_align = 1;
 		var offset = 0;
 
-		for (field in st.fields) {
-			val field_align = field.type_ptr.align;
+		for (i in 0..<st.fields.len) {
+			val field_align = st.fields[i].type_ptr.align;
 			if (field_align > max_align) max_align = field_align;
 
 			val remove = offset % field_align;
 			if (remove != 0) offset += field_align - remove;
 
-			field.offset = offset;
-			offset += field.type_ptr.size;
+			var f = st.fields[i];
+			f.offset = offset;
+			st.fields[i] = f;
+			offset += f.type_ptr.size;
 		}
 
 		val total = offset % max_align;

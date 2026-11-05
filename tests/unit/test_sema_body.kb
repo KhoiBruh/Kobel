@@ -250,6 +250,51 @@ fn test_val_immutability() {
 	bp6.check_program(p6.parse_program());
 	assert_eq_usz(bp6.errors.len, 0, "Mutations on var must produce 0 errors");
 
+	// 6g: Calling mutating method on val variable
+	val src7 = """
+		struct Counter {
+		    pub count: i32
+		}
+		impl Counter {
+		    pub fn increment(var self) { self.count++; }
+		}
+		fn test(): none {
+		    val c = Counter();
+		    c.increment();
+		}
+	""";
+	var l7 = Lexer(src7);
+	var p7 = Parser(l7.tokenize());
+	var bp7 = BodyPass();
+	bp7.check_program(p7.parse_program());
+	assert_true(bp7.errors.len >= 1, "Must catch mutating method call on val variable");
+
+	// 6h: Mutating field on val variable
+	val src8 = """
+		struct Point { pub x: i32 }
+		fn test(): none {
+		    val p = Point();
+		    p.x = 10;
+		}
+	""";
+	var l8 = Lexer(src8);
+	var p8 = Parser(l8.tokenize());
+	var bp8 = BodyPass();
+	bp8.check_program(p8.parse_program());
+	assert_true(bp8.errors.len >= 1, "Must catch field mutation on val variable");
+
+	// 6i: Calling write on read-only pointer
+	val src9 = """
+		fn test(p: *i32): none {
+		    p.write(10);
+		}
+	""";
+	var l9 = Lexer(src9);
+	var p9 = Parser(l9.tokenize());
+	var bp9 = BodyPass();
+	bp9.check_program(p9.parse_program());
+	assert_true(bp9.errors.len >= 1, "Must catch write call on read-only pointer");
+
 	println("  [PASS] test_val_immutability");
 }
 

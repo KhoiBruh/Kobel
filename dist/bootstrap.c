@@ -2283,10 +2283,11 @@ compiler__sema__Type* compiler__sema__body__BodyPass_lower_size_query(compiler__
 compiler__sema__Type* compiler__sema__body__BodyPass_check_slice_call(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__MemberExpr* mem, compiler__ast__NodeData__CallExpr* call);
 bool compiler__sema__body__BodyPass_append_defaults(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, size_t argc, compiler__ast__NodeData__CallExpr* call);
 compiler__sema__MethodInfo* compiler__sema__body__BodyPass_method_with_defaults(compiler__sema__body__BodyPass* self, kobel_str name, size_t argc, std__collections__List_ptr_compiler__sema__MethodInfo cands, compiler__ast__NodeData__CallExpr* call, compiler__sema__MethodInfo* found);
-compiler__sema__Type* compiler__sema__body__BodyPass_bind_method_call(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__MemberExpr* mem, compiler__ast__NodeData__CallExpr* call, compiler__sema__MethodInfo* mi, compiler__sema__Type* obj_ty);
+void compiler__sema__body__BodyPass_check_receiver_mutability(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__AstNode* obj_node, kobel_str member, compiler__sema__Type* obj_raw_ty);
+compiler__sema__Type* compiler__sema__body__BodyPass_bind_method_call(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__MemberExpr* mem, compiler__ast__NodeData__CallExpr* call, compiler__sema__MethodInfo* mi, compiler__sema__Type* obj_ty, compiler__sema__Type* obj_raw_ty);
 compiler__sema__Type* compiler__sema__body__BodyPass_check_static_method_call(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__MemberExpr* mem, compiler__ast__NodeData__CallExpr* call);
 compiler__sema__Type* compiler__sema__body__BodyPass_check_method_call(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__MemberExpr* mem, compiler__ast__NodeData__CallExpr* call);
-compiler__sema__Type* compiler__sema__body__BodyPass_check_generic_method_call(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__MemberExpr* mem, compiler__ast__NodeData__CallExpr* call, compiler__sema__Type* obj_ty, bool obj_is_ptr);
+compiler__sema__Type* compiler__sema__body__BodyPass_check_generic_method_call(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__MemberExpr* mem, compiler__ast__NodeData__CallExpr* call, compiler__sema__Type* obj_ty, bool obj_is_ptr, compiler__sema__Type* obj_raw_ty);
 compiler__sema__GenTemplate* compiler__sema__body__BodyPass_find_fn_template_for(compiler__sema__body__BodyPass* self, kobel_str name);
 compiler__sema__GenTemplate* compiler__sema__body__BodyPass_find_struct_template_for(compiler__sema__body__BodyPass* self, kobel_str name);
 kobel_str compiler__sema__body__BodyPass_instantiate_template_fn(compiler__sema__body__BodyPass* self, compiler__sema__GenTemplate* tmpl, std__collections__List_ptr_compiler__ast__AstNode arg_asts);
@@ -13887,6 +13888,17 @@ void compiler__sema__body__BodyPass_check_lvalue_mutability(compiler__sema__body
         }
         if (compiler__sema__body__BodyPass_is_immutable_self(self, cur->object)) {
             compiler__sema__body__BodyPass_report_error(self, op_node, kobel_concat3(KOBEL_STR("Cannot mutate field '"), cur->member, KOBEL_STR("' on immutable receiver 'self' in 'val self' method")));
+        } else {
+            compiler__ast__AstNode* obj_expr = compiler__sema__body__BodyPass_unwrap_group(self, cur->object);
+            {
+                compiler__ast__NodeData__IdentifierExpr* id = NULL;
+                if ((obj_expr != NULL && obj_expr->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (id = (compiler__ast__NodeData__IdentifierExpr*)(&(obj_expr)->data.u.IdentifierExpr), 1))) {
+                    compiler__sema__Symbol* sym = compiler__sema__SymbolTable_lookup(&self->symtab, id->name);
+                    if (((sym != NULL) && ((*sym->type_ptr).kind != 16)) && !sym->mutable) {
+                        compiler__sema__body__BodyPass_report_error(self, op_node, kobel_concat5(KOBEL_STR("Cannot mutate field '"), cur->member, KOBEL_STR("' on immutable variable '"), id->name, KOBEL_STR("' declared with 'val'. Use 'var' instead.")));
+                    }
+                }
+            }
         }
         compiler__sema__body__BodyPass_mark_node_mutated(self, cur->object);
     } else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__IndexExpr__TAG) {
@@ -13895,6 +13907,18 @@ void compiler__sema__body__BodyPass_check_lvalue_mutability(compiler__sema__body
         if (compiler__sema__body__BodyPass_is_immutable_self(self, cur->target)) {
             kobel_str act = (is_update ? KOBEL_STR("update") : KOBEL_STR("mutate"));
             compiler__sema__body__BodyPass_report_error(self, op_node, kobel_concat3(KOBEL_STR("Cannot "), act, KOBEL_STR(" through index on immutable receiver 'self' in 'val self' method")));
+        } else {
+            compiler__ast__AstNode* target_expr = compiler__sema__body__BodyPass_unwrap_group(self, cur->target);
+            {
+                compiler__ast__NodeData__IdentifierExpr* id = NULL;
+                if ((target_expr != NULL && target_expr->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (id = (compiler__ast__NodeData__IdentifierExpr*)(&(target_expr)->data.u.IdentifierExpr), 1))) {
+                    compiler__sema__Symbol* sym = compiler__sema__SymbolTable_lookup(&self->symtab, id->name);
+                    if (((sym != NULL) && ((*sym->type_ptr).kind != 16)) && !sym->mutable) {
+                        kobel_str act = (is_update ? KOBEL_STR("update") : KOBEL_STR("mutate"));
+                        compiler__sema__body__BodyPass_report_error(self, op_node, kobel_concat5(KOBEL_STR("Cannot "), act, KOBEL_STR(" through index on immutable variable '"), id->name, KOBEL_STR("' declared with 'val'. Use 'var' instead.")));
+                    }
+                }
+            }
         }
         compiler__sema__body__BodyPass_mark_node_mutated(self, cur->target);
     } else {
@@ -14472,14 +14496,41 @@ compiler__sema__MethodInfo* compiler__sema__body__BodyPass_method_with_defaults(
     return NULL;
 }
 
-compiler__sema__Type* compiler__sema__body__BodyPass_bind_method_call(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__MemberExpr* mem, compiler__ast__NodeData__CallExpr* call, compiler__sema__MethodInfo* mi, compiler__sema__Type* obj_ty) {
+void compiler__sema__body__BodyPass_check_receiver_mutability(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__AstNode* obj_node, kobel_str member, compiler__sema__Type* obj_raw_ty) {
+    if (compiler__sema__body__BodyPass_is_immutable_self(self, obj_node)) {
+        compiler__sema__body__BodyPass_report_error(self, node, kobel_concat3(KOBEL_STR("Cannot call mutating method '"), member, KOBEL_STR("' on immutable receiver 'val self'")));
+        return;
+    }
+    if (obj_raw_ty->kind != 16) {
+        compiler__ast__AstNode* cur = compiler__sema__body__BodyPass_unwrap_group(self, obj_node);
+        if (cur != NULL && cur->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG) {
+            compiler__ast__NodeData__IdentifierExpr* id = (compiler__ast__NodeData__IdentifierExpr*)(&(cur)->data.u.IdentifierExpr);
+            compiler__sema__Symbol* sym = compiler__sema__SymbolTable_lookup(&self->symtab, id->name);
+            if ((sym != NULL) && !sym->mutable) {
+                compiler__sema__body__BodyPass_report_error(self, node, kobel_concat5(KOBEL_STR("Cannot call mutating method '"), member, KOBEL_STR("' on immutable variable '"), id->name, KOBEL_STR("' declared with 'val'. Use 'var' instead.")));
+            }
+        } else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__MemberExpr__TAG) {
+            compiler__ast__NodeData__MemberExpr* m = (compiler__ast__NodeData__MemberExpr*)(&(cur)->data.u.MemberExpr);
+            compiler__ast__AstNode* obj_expr = compiler__sema__body__BodyPass_unwrap_group(self, m->object);
+            {
+                compiler__ast__NodeData__IdentifierExpr* id = NULL;
+                if ((obj_expr != NULL && obj_expr->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (id = (compiler__ast__NodeData__IdentifierExpr*)(&(obj_expr)->data.u.IdentifierExpr), 1))) {
+                    compiler__sema__Symbol* sym = compiler__sema__SymbolTable_lookup(&self->symtab, id->name);
+                    if (((sym != NULL) && ((*sym->type_ptr).kind != 16)) && !sym->mutable) {
+                        compiler__sema__body__BodyPass_report_error(self, node, kobel_concat5(KOBEL_STR("Cannot call mutating method '"), member, KOBEL_STR("' on immutable variable '"), id->name, KOBEL_STR("' declared with 'val'. Use 'var' instead.")));
+                    }
+                }
+            }
+        }
+    }
+}
+
+compiler__sema__Type* compiler__sema__body__BodyPass_bind_method_call(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__MemberExpr* mem, compiler__ast__NodeData__CallExpr* call, compiler__sema__MethodInfo* mi, compiler__sema__Type* obj_ty, compiler__sema__Type* obj_raw_ty) {
     compiler__sema__TypePayload__Fn* fn_info = compiler__sema__Type_as_fn(mi->fn_type);
     if (fn_info->param_types.len > 0) {
         compiler__sema__Type* recv_ty = std__collections__List_ptr_compiler__sema__Type_get(&fn_info->param_types, 0);
         if ((recv_ty != NULL && recv_ty->kind == 16) && (*compiler__sema__Type_as_pointer(recv_ty)).mutable) {
-            if (compiler__sema__body__BodyPass_is_immutable_self(self, mem->object)) {
-                compiler__sema__body__BodyPass_report_error(self, node, kobel_concat3(KOBEL_STR("Cannot call mutating method '"), mem->member, KOBEL_STR("' on immutable receiver 'val self'")));
-            }
+            compiler__sema__body__BodyPass_check_receiver_mutability(self, node, mem->object, mem->member, obj_raw_ty);
             compiler__sema__body__BodyPass_mark_node_mutated(self, mem->object);
         }
     }
@@ -14728,7 +14779,7 @@ compiler__sema__Type* compiler__sema__body__BodyPass_check_method_call(compiler_
     }
     size_t argc = (call->args.len + 1);
     if (call->type_args.len > 0) {
-        compiler__sema__Type* g_ty = compiler__sema__body__BodyPass_check_generic_method_call(self, node, mem, call, obj_ty, obj_is_ptr);
+        compiler__sema__Type* g_ty = compiler__sema__body__BodyPass_check_generic_method_call(self, node, mem, call, obj_ty, obj_is_ptr, obj_raw_ty);
         if (g_ty != NULL) {
             return g_ty;
         }
@@ -14741,10 +14792,14 @@ compiler__sema__Type* compiler__sema__body__BodyPass_check_method_call(compiler_
         compiler__sema__MethodInfo* mi = compiler__sema__body__BodyPass_method_with_defaults(self, mem->member, argc, s_info->methods, call, compiler__sema__StructType_find_method_arity(s_info, mem->member, argc));
         if (mi == NULL) mi = compiler__sema__StructType_find_method(s_info, mem->member);
         if (mi != NULL) {
-            return compiler__sema__body__BodyPass_bind_method_call(self, node, mem, call, mi, obj_ty);
+            return compiler__sema__body__BodyPass_bind_method_call(self, node, mem, call, mi, obj_ty, obj_raw_ty);
         }
     }
     if (obj_is_ptr && kobel_streq(mem->member, KOBEL_STR("write"))) {
+        if (!(*compiler__sema__Type_as_pointer(obj_raw_ty)).mutable) {
+            compiler__sema__body__BodyPass_report_error(self, node, kobel_concat3(KOBEL_STR("Cannot call mutating method 'write' on read-only pointer of type '"), compiler__sema__Type_to_str(obj_raw_ty), KOBEL_STR("'")));
+            return compiler__sema__PrimTypes_t_none(compiler__sema__body__BodyPass_prims(self));
+        }
         if (call->args.len != 1) {
             compiler__sema__body__BodyPass_report_error(self, node, KOBEL_STR("Method 'write' takes exactly 1 argument"));
             return compiler__sema__PrimTypes_t_none(compiler__sema__body__BodyPass_prims(self));
@@ -14774,24 +14829,24 @@ compiler__sema__Type* compiler__sema__body__BodyPass_check_method_call(compiler_
     compiler__sema__MethodInfo* pmi = compiler__sema__body__BodyPass_method_with_defaults(self, mem->member, argc, compiler__sema__SymbolTable_prim_methods_of(&self->symtab, obj_ty->kind), call, compiler__sema__SymbolTable_find_prim_method_arity(&self->symtab, obj_ty->kind, mem->member, argc));
     if (pmi == NULL) pmi = compiler__sema__SymbolTable_find_prim_method(&self->symtab, obj_ty->kind, mem->member);
     if (pmi != NULL) {
-        return compiler__sema__body__BodyPass_bind_method_call(self, node, mem, call, pmi, obj_ty);
+        return compiler__sema__body__BodyPass_bind_method_call(self, node, mem, call, pmi, obj_ty, obj_raw_ty);
     }
     if (obj_ty->kind == 18) {
-        compiler__sema__Type* g_ty = compiler__sema__body__BodyPass_check_generic_method_call(self, node, mem, call, obj_ty, obj_is_ptr);
+        compiler__sema__Type* g_ty = compiler__sema__body__BodyPass_check_generic_method_call(self, node, mem, call, obj_ty, obj_is_ptr, obj_raw_ty);
         if (g_ty != NULL) {
             return g_ty;
         }
         compiler__sema__body__BodyPass_report_error(self, node, kobel_concat5(KOBEL_STR("Method '"), mem->member, KOBEL_STR("' not found on type '"), (*compiler__sema__Type_as_struct(obj_ty)).name, KOBEL_STR("'")));
         return compiler__sema__PrimTypes_t_none(compiler__sema__body__BodyPass_prims(self));
     }
-    compiler__sema__Type* g_prim_ty = compiler__sema__body__BodyPass_check_generic_method_call(self, node, mem, call, obj_ty, obj_is_ptr);
+    compiler__sema__Type* g_prim_ty = compiler__sema__body__BodyPass_check_generic_method_call(self, node, mem, call, obj_ty, obj_is_ptr, obj_raw_ty);
     if (g_prim_ty != NULL) {
         return g_prim_ty;
     }
     return NULL;
 }
 
-compiler__sema__Type* compiler__sema__body__BodyPass_check_generic_method_call(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__MemberExpr* mem, compiler__ast__NodeData__CallExpr* call, compiler__sema__Type* obj_ty, bool obj_is_ptr) {
+compiler__sema__Type* compiler__sema__body__BodyPass_check_generic_method_call(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__MemberExpr* mem, compiler__ast__NodeData__CallExpr* call, compiler__sema__Type* obj_ty, bool obj_is_ptr, compiler__sema__Type* obj_raw_ty) {
     kobel_str recv_name = ((obj_ty->kind == 18) ? (*compiler__sema__Type_as_struct(obj_ty)).name : compiler__sema__primitive_type_name(obj_ty));
     if (str_empty(recv_name)) {
         return NULL;
@@ -14823,9 +14878,7 @@ compiler__sema__Type* compiler__sema__body__BodyPass_check_generic_method_call(c
     if (fn_info->param_types.len > 0) {
         compiler__sema__Type* recv_ty = std__collections__List_ptr_compiler__sema__Type_get(&fn_info->param_types, 0);
         if ((recv_ty != NULL && recv_ty->kind == 16) && (*compiler__sema__Type_as_pointer(recv_ty)).mutable) {
-            if (compiler__sema__body__BodyPass_is_immutable_self(self, mem->object)) {
-                compiler__sema__body__BodyPass_report_error(self, node, kobel_concat3(KOBEL_STR("Cannot call mutating method '"), mem->member, KOBEL_STR("' on immutable receiver 'val self'")));
-            }
+            compiler__sema__body__BodyPass_check_receiver_mutability(self, node, mem->object, mem->member, obj_raw_ty);
             compiler__sema__body__BodyPass_mark_node_mutated(self, mem->object);
         }
     }
@@ -20961,11 +21014,19 @@ void compiler__sema__Type_layout_struct(compiler__sema__Type* self) {
     int32_t max_align = 1;
     int32_t offset = 0;
     {
-        size_t __for_n = std__collections__List_compiler__sema__StructField_count(&st->fields);
-        size_t __for_i = 0;
-        while (__for_i < __for_n) {
-            compiler__sema__StructField field = std__collections__List_compiler__sema__StructField_at(&st->fields, __for_i);
-            size_t field_align = (*field.type_ptr).align;
+        size_t __for_e = st->fields.len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            size_t field_align = (*std__collections__List_compiler__sema__StructField_get(&st->fields, i).type_ptr).align;
             if (field_align > max_align) {
                 max_align = field_align;
             }
@@ -20973,9 +21034,22 @@ void compiler__sema__Type_layout_struct(compiler__sema__Type* self) {
             if (remove != 0) {
                 offset += (field_align - remove);
             }
-            field.offset = offset;
-            offset += (*field.type_ptr).size;
-            __for_i = (__for_i + 1);
+            compiler__sema__StructField f = std__collections__List_compiler__sema__StructField_get(&st->fields, i);
+            f.offset = offset;
+            std__collections__List_compiler__sema__StructField_set(&st->fields, i, f);
+            offset += (*f.type_ptr).size;
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
         }
     }
     int32_t total = (offset % max_align);

@@ -153,7 +153,7 @@ impl StructType {
 
 impl Arena {
 
-	pub fn struct_type(var self, name: str, fields: List<StructField>): *Type {
+	pub fn struct_type(var self, name: str, var fields: List<StructField>): *Type {
 		var max_align = 1;
 		var current_offset = 0;
 

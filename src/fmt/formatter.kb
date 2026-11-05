@@ -696,13 +696,13 @@ pub fn format_source(src: str, options: FormatOptions): str {
 	val comments = Comment.extract(src);
 	val comment_table = CommentTable(comments);
 
-	val lex = Lexer(src);
+	var lex = Lexer(src);
 	val tokens = lex.tokenize();
 
-	val parser = Parser(tokens);
+	var parser = Parser(tokens);
 	val program = parser.parse_program();
 
-	val fmt = Formatter(options, comment_table);
+	var fmt = Formatter(options, comment_table);
 	fmt.format_program(program);
 
 	return fmt.to_str();

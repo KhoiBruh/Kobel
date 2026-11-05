@@ -129,7 +129,7 @@ impl CompileOptions {
 		if (!self.quiet) println("  ${loader.count()} module(s) loaded");
 
 		if (!self.quiet) println("[2/4] Semantic analysis (declarations)...");
-		val decl_p = DeclPass();
+		var decl_p = DeclPass();
 		decl_p.collect_program(prog);
 		if (!decl_p.errors.empty()) {
 			print_diagnostics(decl_p.errors, input_path, &loader);
@@ -137,7 +137,7 @@ impl CompileOptions {
 		}
 
 		if (!self.quiet) println("[3/4] Semantic analysis (bodies)...");
-		val body_p = BodyPass(decl_p.symtab, decl_p);
+		var body_p = BodyPass(decl_p.symtab, decl_p);
 		body_p.check_program(prog);
 		if (!body_p.warnings.empty() && !self.quiet) {
 			print_warnings(body_p.warnings, input_path, &loader);
@@ -152,7 +152,7 @@ impl CompileOptions {
 		body_p.lower_program(prog);
 
 		if (!self.quiet) println("[4/4] Generating C99 code...");
-		val codegen = CCodeGen();
+		var codegen = CCodeGen();
 		val c_code = codegen.gen_program(prog);
 
 		if (self.only_emit_c) {

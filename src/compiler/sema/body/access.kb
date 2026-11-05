@@ -284,6 +284,17 @@ impl BodyPass {
 						"Cannot mutate field '${cur.member}' "
 						"on immutable receiver 'self' in 'val self' method"
 					);
+				} else {
+					val obj_expr = self.unwrap_group(cur.object);
+					if (obj_expr is IdentifierExpr as id) {
+						val sym = self.symtab.lookup(id.name);
+						if (sym != null && sym.type_ptr.kind != DataType.POINTER && !sym.mutable) {
+							self.report_error(
+								op_node,
+								"Cannot mutate field '${cur.member}' on immutable variable '${id.name}' declared with 'val'. Use 'var' instead."
+							);
+						}
+					}
 				}
 				self.mark_node_mutated(cur.object);
 			}
@@ -295,6 +306,18 @@ impl BodyPass {
 						"Cannot ${act} through index on immutable receiver"
 						" 'self' in 'val self' method"
 					);
+				} else {
+					val target_expr = self.unwrap_group(cur.target);
+					if (target_expr is IdentifierExpr as id) {
+						val sym = self.symtab.lookup(id.name);
+						if (sym != null && sym.type_ptr.kind != DataType.POINTER && !sym.mutable) {
+							val act = if (is_update) "update" else "mutate";
+							self.report_error(
+								op_node,
+								"Cannot ${act} through index on immutable variable '${id.name}' declared with 'val'. Use 'var' instead."
+							);
+						}
+					}
 				}
 				self.mark_node_mutated(cur.target);
 			}
