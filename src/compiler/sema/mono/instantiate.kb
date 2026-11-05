@@ -51,9 +51,10 @@ impl DeclPass {
 		val prev_mod = self.enter_module(tmpl.module);
 
 		val s_type = self.arena.struct_type(cname, List<StructField>());
-		s_type.as_struct_mut().c_name = cname;
+		val st = s_type.as_struct();
+		st.c_name = cname;
 		// A monomorphized instance belongs to the module that declared its template.
-		s_type.as_struct_mut().module = tmpl.module;
+		st.module = tmpl.module;
 		self.symtab.gen.add_inst(self.arena.create_val(Symbol(
 			cname, cname, SymbolKind.STRUCT, s_type, false, decl.public,
 			tmpl.node.line, tmpl.node.col, tmpl.node
@@ -72,8 +73,8 @@ impl DeclPass {
 
 		self.pop_subst(mark);
 
-		for (f in fields) s_type.as_struct_mut().fields += f;
-		s_type.as_struct_mut().has_private = has_private;
+		for (f in fields) st.fields += f;
+		st.has_private = has_private;
 		s_type.layout_struct();
 
 		// A generic type may have several `impl` blocks (an inherent one plus any

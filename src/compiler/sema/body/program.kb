@@ -121,7 +121,7 @@ impl BodyPass {
 				}
 				if (f.return_type == null && self.current_fn_return_type != null) {
 					val cur_ret = self.current_fn_return_type!;
-					val fn_info_mut = fn_type.as_fn_mut();
+					val fn_info_mut = fn_type.as_fn();
 					fn_info_mut.return_type = cur_ret;
 					f.return_type = self.arena.ast_type_from_type(cur_ret);
 				}
@@ -132,7 +132,7 @@ impl BodyPass {
 
 				val body_ty = self.check_expr(es.expr);
 				if (f.return_type == null) {
-					val fn_info_mut = fn_type.as_fn_mut();
+					val fn_info_mut = fn_type.as_fn();
 					fn_info_mut.return_type = body_ty;
 					self.current_fn_return_type = body_ty;
 					f.return_type = self.arena.ast_type_from_type(body_ty);
@@ -496,7 +496,7 @@ impl BodyPass {
 		}
 		self.infer_blocked = saved_blocked;
 
-		val fn_mut = c.fn_type.as_fn_mut();
+		val fn_mut = c.fn_type.as_fn();
 		fn_mut.return_type = body_ty;
 		f.return_type = self.arena.ast_type_from_type(body_ty);
 		self.checked_fns += c.node;

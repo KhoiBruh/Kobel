@@ -155,25 +155,10 @@ impl Type {
 		};
 	}
 
-	pub fn as_struct_mut(val self): &StructType {
-		val data = self.data;
-		return when (data) {
-			is TypePayload.Struct as p -> p.inner as &StructType;
-			else -> (null as *StructType) as &StructType;
-		};
-	}
-
 	pub fn as_fn(val self): *TypePayload.Fn {
 		return when (self.data) {
 			is TypePayload.Fn as p -> p;
 			else -> null as *TypePayload.Fn;
-		};
-	}
-
-	pub fn as_fn_mut(val self): &TypePayload.Fn {
-		return when (self.data) {
-			is TypePayload.Fn as p -> p as &TypePayload.Fn;
-			else -> (null as *TypePayload.Fn) as &TypePayload.Fn;
 		};
 	}
 
@@ -263,7 +248,7 @@ impl Type {
 	}
 
 	pub fn layout_struct(var self) {
-		val st = self.as_struct_mut();
+		val st = self.as_struct();
 		var max_align = 1;
 		var offset = 0;
 

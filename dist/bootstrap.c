@@ -2534,9 +2534,7 @@ compiler__sema__Type* std__memory__Arena_fn_type(std__memory__Arena* self, std__
 compiler__sema__TypePayload__Pointer* compiler__sema__Type_as_pointer(compiler__sema__Type* self);
 compiler__sema__TypePayload__Array* compiler__sema__Type_as_array(compiler__sema__Type* self);
 compiler__sema__StructType* compiler__sema__Type_as_struct(compiler__sema__Type* self);
-compiler__sema__StructType* compiler__sema__Type_as_struct_mut(compiler__sema__Type* self);
 compiler__sema__TypePayload__Fn* compiler__sema__Type_as_fn(compiler__sema__Type* self);
-compiler__sema__TypePayload__Fn* compiler__sema__Type_as_fn_mut(compiler__sema__Type* self);
 compiler__sema__EnumInfo* compiler__sema__Type_as_enum(compiler__sema__Type* self);
 void compiler__sema__Type_add_method(compiler__sema__Type* self, compiler__sema__MethodInfo* mi);
 std__collections__List_ptr_compiler__sema__MethodInfo compiler__sema__Type_method_list(compiler__sema__Type* self);
@@ -10692,8 +10690,9 @@ compiler__sema__Type* compiler__sema__decl__DeclPass_instantiate_struct(compiler
         if ((tmpl->node != NULL && tmpl->node->data.tag == compiler__ast__NodeData__StructDecl__TAG && (decl = (compiler__ast__NodeData__StructDecl*)(&(tmpl->node)->data.u.StructDecl), 1))) {
             kobel_str prev_mod = compiler__sema__decl__DeclPass_enter_module(self, tmpl->module);
             compiler__sema__Type* s_type = std__memory__Arena_struct_type(&self->arena, cname, std__collections__List_compiler__sema__StructField_init(4));
-            (*compiler__sema__Type_as_struct_mut(s_type)).c_name = cname;
-            (*compiler__sema__Type_as_struct_mut(s_type)).module = tmpl->module;
+            compiler__sema__StructType* st = compiler__sema__Type_as_struct(s_type);
+            st->c_name = cname;
+            st->module = tmpl->module;
             compiler__sema__GenericReg_add_inst(&self->symtab.gen, std__memory__Arena_create_val_compiler__sema__Symbol(&self->arena, (compiler__sema__Symbol){ cname, cname, 4, s_type, false, decl->public, (*tmpl->node).line, (*tmpl->node).col, tmpl->node, NULL, false }));
             size_t mark = self->subst_names.len;
             compiler__sema__decl__DeclPass_push_subst(self, compiler__sema__GenTemplate_param_names(tmpl), args);
@@ -10718,11 +10717,11 @@ compiler__sema__Type* compiler__sema__decl__DeclPass_instantiate_struct(compiler
                 size_t __for_i = 0;
                 while (__for_i < __for_n) {
                     compiler__sema__StructField f = std__collections__List_compiler__sema__StructField_at(&fields, __for_i);
-                    std__collections__List_compiler__sema__StructField_plus_assign(&(*compiler__sema__Type_as_struct_mut(s_type)).fields, f);
+                    std__collections__List_compiler__sema__StructField_plus_assign(&st->fields, f);
                     __for_i = (__for_i + 1);
                 }
             }
-            (*compiler__sema__Type_as_struct_mut(s_type)).has_private = has_private;
+            st->has_private = has_private;
             compiler__sema__Type_layout_struct(s_type);
             {
                 size_t __for_n = std__collections__List_ptr_compiler__sema__GenTemplate_count(&self->symtab.gen.impl_templates);
@@ -12027,9 +12026,10 @@ void compiler__sema__decl__DeclPass_collect_use(compiler__sema__decl__DeclPass* 
 void compiler__sema__decl__DeclPass_declare_struct_shell(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__StructDecl* s) {
     kobel_str c_name = compiler__sema__decl__DeclPass_c_name_for(self, s->name);
     compiler__sema__Type* s_type = std__memory__Arena_struct_type(&self->arena, s->name, std__collections__List_compiler__sema__StructField_init(4));
-    (*compiler__sema__Type_as_struct_mut(s_type)).c_name = c_name;
-    (*compiler__sema__Type_as_struct_mut(s_type)).module = self->current_module;
-    (*compiler__sema__Type_as_struct_mut(s_type)).is_defined = false;
+    compiler__sema__StructType* st = compiler__sema__Type_as_struct(s_type);
+    st->c_name = c_name;
+    st->module = self->current_module;
+    st->is_defined = false;
     bool ok = compiler__sema__SymbolTable_define_global(&self->symtab, (compiler__sema__Symbol){ s->name, c_name, 4, s_type, false, s->public, node->line, node->col, node, NULL, false });
     if (!ok) {
         compiler__sema__decl__DeclPass_report_error(self, node, kobel_concat3(KOBEL_STR("Duplicate struct declaration '"), s->name, KOBEL_STR("'")));
@@ -12059,12 +12059,13 @@ void compiler__sema__decl__DeclPass_collect_struct(compiler__sema__decl__DeclPas
             compiler__sema__Symbol* existing = compiler__sema__SymbolTable_lookup_in_module(&self->symtab, self->current_module, s->name);
             if ((((existing != NULL) && (existing->kind == 4)) && ((*existing->type_ptr).kind == 18)) && !(*compiler__sema__Type_as_struct(existing->type_ptr)).is_defined) {
                 compiler__sema__Type* fwd_type = existing->type_ptr;
-                (*compiler__sema__Type_as_struct_mut(fwd_type)).is_defined = true;
+                compiler__sema__StructType* fwd_st = compiler__sema__Type_as_struct(fwd_type);
+                fwd_st->is_defined = true;
                 if (existing->ast_node != node) {
                     s->emit_typedef = false;
                 }
                 kobel_str def_name = s->name;
-                s->name = (*compiler__sema__Type_as_struct(fwd_type)).c_name;
+                s->name = fwd_st->c_name;
                 bool fwd_private = false;
                 {
                     size_t __for_n = std__collections__List_compiler__ast__StructField_count(&s->fields);
@@ -12072,21 +12073,22 @@ void compiler__sema__decl__DeclPass_collect_struct(compiler__sema__decl__DeclPas
                     while (__for_i < __for_n) {
                         compiler__ast__StructField f = std__collections__List_compiler__ast__StructField_at(&s->fields, __for_i);
                         compiler__sema__Type* f_type = compiler__sema__decl__DeclPass_resolve_ast_type(self, f.type_node);
-                        std__collections__List_compiler__sema__StructField_plus_assign(&(*compiler__sema__Type_as_struct_mut(fwd_type)).fields, (compiler__sema__StructField){ f.name, f_type, 0, f.public, f.default_val });
+                        std__collections__List_compiler__sema__StructField_plus_assign(&fwd_st->fields, (compiler__sema__StructField){ f.name, f_type, 0, f.public, f.default_val });
                         if (!f.public) {
                             fwd_private = true;
                         }
                         __for_i = (__for_i + 1);
                     }
                 }
-                (*compiler__sema__Type_as_struct_mut(fwd_type)).has_private = fwd_private;
+                fwd_st->has_private = fwd_private;
                 compiler__sema__Type_layout_struct(fwd_type);
-                compiler__sema__SymbolTable_define_global(&self->symtab, (compiler__sema__Symbol){ def_name, (*compiler__sema__Type_as_struct(fwd_type)).c_name, 4, fwd_type, false, s->public, node->line, node->col, node, NULL, false });
+                compiler__sema__SymbolTable_define_global(&self->symtab, (compiler__sema__Symbol){ def_name, fwd_st->c_name, 4, fwd_type, false, s->public, node->line, node->col, node, NULL, false });
                 return;
             }
             kobel_str c_name = compiler__sema__decl__DeclPass_c_name_for(self, s->name);
             compiler__sema__Type* s_type = std__memory__Arena_struct_type(&self->arena, s->name, std__collections__List_compiler__sema__StructField_init(4));
-            (*compiler__sema__Type_as_struct_mut(s_type)).c_name = c_name;
+            compiler__sema__StructType* s_info = compiler__sema__Type_as_struct(s_type);
+            s_info->c_name = c_name;
             bool ok = compiler__sema__SymbolTable_define_global(&self->symtab, (compiler__sema__Symbol){ s->name, c_name, 4, s_type, false, s->public, node->line, node->col, node, NULL, false });
             if (!ok) {
                 compiler__sema__decl__DeclPass_report_error(self, node, kobel_concat3(KOBEL_STR("Duplicate struct declaration '"), s->name, KOBEL_STR("'")));
@@ -12099,7 +12101,6 @@ void compiler__sema__decl__DeclPass_collect_struct(compiler__sema__decl__DeclPas
                 while (__for_i < __for_n) {
                     compiler__ast__StructField f = std__collections__List_compiler__ast__StructField_at(&s->fields, __for_i);
                     compiler__sema__Type* f_type = compiler__sema__decl__DeclPass_resolve_ast_type(self, f.type_node);
-                    compiler__sema__StructType* s_info = compiler__sema__Type_as_struct_mut(s_type);
                     std__collections__List_compiler__sema__StructField_plus_assign(&s_info->fields, (compiler__sema__StructField){ f.name, f_type, 0, f.public, f.default_val });
                     if (!f.public) {
                         has_private = true;
@@ -12107,8 +12108,7 @@ void compiler__sema__decl__DeclPass_collect_struct(compiler__sema__decl__DeclPas
                     __for_i = (__for_i + 1);
                 }
             }
-            compiler__sema__StructType* st_info = compiler__sema__Type_as_struct_mut(s_type);
-            st_info->module = self->current_module;
+            s_info->module = self->current_module;
             compiler__sema__Type_layout_struct(s_type);
         }
     }
@@ -12283,9 +12283,10 @@ void compiler__sema__decl__DeclPass_collect_payload_enum(compiler__sema__decl__D
     kobel_str c_name = compiler__sema__decl__DeclPass_c_name_for(self, e->name);
     compiler__sema__Type* tag_ty = compiler__sema__PrimTypes_t_prim(compiler__sema__decl__DeclPass_prims(self), compiler__sema__Type_i32());
     compiler__sema__Type* enum_ty = std__memory__Arena_struct_type(&self->arena, e->name, std__collections__List_compiler__sema__StructField_init(4));
-    (*compiler__sema__Type_as_struct_mut(enum_ty)).c_name = c_name;
-    (*compiler__sema__Type_as_struct_mut(enum_ty)).module = self->current_module;
-    std__collections__List_compiler__sema__StructField_plus_assign(&(*compiler__sema__Type_as_struct_mut(enum_ty)).fields, (compiler__sema__StructField){ KOBEL_STR("tag"), tag_ty, 0, true, NULL });
+    compiler__sema__StructType* enum_st = compiler__sema__Type_as_struct(enum_ty);
+    enum_st->c_name = c_name;
+    enum_st->module = self->current_module;
+    std__collections__List_compiler__sema__StructField_plus_assign(&enum_st->fields, (compiler__sema__StructField){ KOBEL_STR("tag"), tag_ty, 0, true, NULL });
     std__collections__List_ptr_compiler__sema__EnumMemberInfo members = std__collections__List_ptr_compiler__sema__EnumMemberInfo_init(4);
     size_t max_payload = 1;
     size_t max_align = tag_ty->align;
@@ -12298,15 +12299,16 @@ void compiler__sema__decl__DeclPass_collect_payload_enum(compiler__sema__decl__D
             kobel_str v_name = kobel_concat3(e->name, KOBEL_STR("."), m.name);
             kobel_str v_c = kobel_concat3(c_name, KOBEL_STR("__"), m.name);
             compiler__sema__Type* v_ty = std__memory__Arena_struct_type(&self->arena, v_name, std__collections__List_compiler__sema__StructField_init(4));
-            (*compiler__sema__Type_as_struct_mut(v_ty)).c_name = v_c;
-            (*compiler__sema__Type_as_struct_mut(v_ty)).module = self->current_module;
+            compiler__sema__StructType* v_st = compiler__sema__Type_as_struct(v_ty);
+            v_st->c_name = v_c;
+            v_st->module = self->current_module;
             {
                 size_t __for_n = std__collections__List_compiler__ast__EnumField_count(&m.payload);
                 size_t __for_i = 0;
                 while (__for_i < __for_n) {
                     compiler__ast__EnumField f = std__collections__List_compiler__ast__EnumField_at(&m.payload, __for_i);
                     compiler__sema__Type* f_ty = compiler__sema__decl__DeclPass_resolve_ast_type(self, f.type_node);
-                    std__collections__List_compiler__sema__StructField_plus_assign(&(*compiler__sema__Type_as_struct_mut(v_ty)).fields, (compiler__sema__StructField){ f.name, f_ty, 0, true, NULL });
+                    std__collections__List_compiler__sema__StructField_plus_assign(&v_st->fields, (compiler__sema__StructField){ f.name, f_ty, 0, true, NULL });
                     __for_i = (__for_i + 1);
                 }
             }
@@ -12944,7 +12946,7 @@ void compiler__sema__decl__DeclPass_collect_impl(compiler__sema__decl__DeclPass*
             }
             compiler__sema__Type* st_type = st_sym->type_ptr;
             kobel_str st_c_name = st_sym->c_name;
-            compiler__sema__StructType* st_info = compiler__sema__Type_as_struct_mut(st_type);
+            compiler__sema__StructType* st_info = compiler__sema__Type_as_struct(st_type);
             self->current_self_type = st_type;
             im->struct_name = st_c_name;
             compiler__sema__decl__DeclPass_register_assoc_bindings(self, node, im, st_type, st_info->name);
@@ -17377,7 +17379,7 @@ void compiler__sema__body__BodyPass_check_fn_body(compiler__sema__body__BodyPass
                 }
                 if ((f->return_type == NULL) && (self->current_fn_return_type != NULL)) {
                     compiler__sema__Type* cur_ret = self->current_fn_return_type;
-                    compiler__sema__TypePayload__Fn* fn_info_mut = compiler__sema__Type_as_fn_mut(fn_type);
+                    compiler__sema__TypePayload__Fn* fn_info_mut = compiler__sema__Type_as_fn(fn_type);
                     fn_info_mut->return_type = cur_ret;
                     f->return_type = std__memory__Arena_ast_type_from_type(&self->arena, cur_ret);
                 }
@@ -17388,7 +17390,7 @@ void compiler__sema__body__BodyPass_check_fn_body(compiler__sema__body__BodyPass
                 }
                 compiler__sema__Type* body_ty = compiler__sema__body__BodyPass_check_expr(self, es->expr, NULL);
                 if (f->return_type == NULL) {
-                    compiler__sema__TypePayload__Fn* fn_info_mut = compiler__sema__Type_as_fn_mut(fn_type);
+                    compiler__sema__TypePayload__Fn* fn_info_mut = compiler__sema__Type_as_fn(fn_type);
                     fn_info_mut->return_type = body_ty;
                     self->current_fn_return_type = body_ty;
                     f->return_type = std__memory__Arena_ast_type_from_type(&self->arena, body_ty);
@@ -17915,7 +17917,7 @@ bool compiler__sema__body__BodyPass_try_infer_arrow(compiler__sema__body__BodyPa
                 return false;
             }
             self->infer_blocked = saved_blocked;
-            compiler__sema__TypePayload__Fn* fn_mut = compiler__sema__Type_as_fn_mut(c->fn_type);
+            compiler__sema__TypePayload__Fn* fn_mut = compiler__sema__Type_as_fn(c->fn_type);
             fn_mut->return_type = body_ty;
             f->return_type = std__memory__Arena_ast_type_from_type(&self->arena, body_ty);
             std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&self->checked_fns, c->node);
@@ -20842,31 +20844,12 @@ compiler__sema__StructType* compiler__sema__Type_as_struct(compiler__sema__Type*
     }
 }
 
-compiler__sema__StructType* compiler__sema__Type_as_struct_mut(compiler__sema__Type* self) {
-    compiler__sema__TypePayload data = self->data;
-    if (data.tag == compiler__sema__TypePayload__Struct__TAG) {
-        compiler__sema__TypePayload__Struct* p = (compiler__sema__TypePayload__Struct*)(&(data).u.Struct);
-        return (compiler__sema__StructType*)p->inner;
-    } else {
-        return (compiler__sema__StructType*)((compiler__sema__StructType*)NULL);
-    }
-}
-
 compiler__sema__TypePayload__Fn* compiler__sema__Type_as_fn(compiler__sema__Type* self) {
     if (self->data.tag == compiler__sema__TypePayload__Fn__TAG) {
         compiler__sema__TypePayload__Fn* p = (compiler__sema__TypePayload__Fn*)(&(self->data).u.Fn);
         return p;
     } else {
         return (compiler__sema__TypePayload__Fn*)NULL;
-    }
-}
-
-compiler__sema__TypePayload__Fn* compiler__sema__Type_as_fn_mut(compiler__sema__Type* self) {
-    if (self->data.tag == compiler__sema__TypePayload__Fn__TAG) {
-        compiler__sema__TypePayload__Fn* p = (compiler__sema__TypePayload__Fn*)(&(self->data).u.Fn);
-        return (compiler__sema__TypePayload__Fn*)p;
-    } else {
-        return (compiler__sema__TypePayload__Fn*)((compiler__sema__TypePayload__Fn*)NULL);
     }
 }
 
@@ -20982,7 +20965,7 @@ bool compiler__sema__Type_is_list(compiler__sema__Type* self) {
 }
 
 void compiler__sema__Type_layout_struct(compiler__sema__Type* self) {
-    compiler__sema__StructType* st = compiler__sema__Type_as_struct_mut(self);
+    compiler__sema__StructType* st = compiler__sema__Type_as_struct(self);
     int32_t max_align = 1;
     int32_t offset = 0;
     {

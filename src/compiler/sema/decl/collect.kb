@@ -81,9 +81,10 @@ impl DeclPass {
 	fn declare_struct_shell(var self, node: *AstNode, s: *StructDecl) {
 		val c_name = self.c_name_for(s.name);
 		val s_type = self.arena.struct_type(s.name, List<StructField>());
-		s_type.as_struct_mut().c_name = c_name;
-		s_type.as_struct_mut().module = self.current_module;
-		s_type.as_struct_mut().is_defined = false;
+		val st = s_type.as_struct();
+		st.c_name = c_name;
+		st.module = self.current_module;
+		st.is_defined = false;
 		val ok = self.symtab.define_global(
 			Symbol(s.name, c_name, SymbolKind.STRUCT, s_type, false, s.public, node.line, node.col, node)
 		);
@@ -118,24 +119,25 @@ impl DeclPass {
 			) {
 				// Definition of a forward-declared struct: complete the same type.
 				val fwd_type = existing.type_ptr;
-				fwd_type.as_struct_mut().is_defined = true;
+				val fwd_st = fwd_type.as_struct();
+				fwd_st.is_defined = true;
 				// A forward declaration elsewhere already emits this type's typedef.
 				if (existing.ast_node != node) s.emit_typedef = false;
 				val def_name = s.name;
-				s.name = fwd_type.as_struct().c_name;
+				s.name = fwd_st.c_name;
 				var fwd_private = false;
 				for (f in s.fields) {
 					val f_type = self.resolve_ast_type(f.type_node);
-					fwd_type.as_struct_mut().fields += StructField(f.name, f_type, 0, f.public, f.default_val);
+					fwd_st.fields += StructField(f.name, f_type, 0, f.public, f.default_val);
 					if (!f.public) fwd_private = true;
 				}
-				fwd_type.as_struct_mut().has_private = fwd_private;
+				fwd_st.has_private = fwd_private;
 				fwd_type.layout_struct();
 
 				// The definition lives in a different module than the forward
 				// declaration, so that module needs its own handle on the type.
 				self.symtab.define_global(Symbol(
-					def_name, fwd_type.as_struct().c_name, SymbolKind.STRUCT, fwd_type,
+					def_name, fwd_st.c_name, SymbolKind.STRUCT, fwd_type,
 					false, s.public, node.line, node.col, node
 				));
 				return;
@@ -143,7 +145,8 @@ impl DeclPass {
 
 			val c_name = self.c_name_for(s.name);
 			val s_type = self.arena.struct_type(s.name, List<StructField>());
-			s_type.as_struct_mut().c_name = c_name;
+			val s_info = s_type.as_struct();
+			s_info.c_name = c_name;
 			val ok = self.symtab.define_global(
 				Symbol(s.name, c_name, SymbolKind.STRUCT, s_type, false, s.public, node.line, node.col, node)
 			);
@@ -155,12 +158,10 @@ impl DeclPass {
 			var has_private = false;
 			for (f in s.fields) {
 				val f_type = self.resolve_ast_type(f.type_node);
-				val s_info = s_type.as_struct_mut();
 				s_info.fields += StructField(f.name, f_type, 0, f.public, f.default_val);
 				if (!f.public) has_private = true;
 			}
-			val st_info = s_type.as_struct_mut();
-			st_info.module = self.current_module;
+			s_info.module = self.current_module;
 			s_type.layout_struct();
 		}
 	}
@@ -318,9 +319,10 @@ impl DeclPass {
 		val c_name = self.c_name_for(e.name);
 		val tag_ty = self.prims().t_prim(Type.i32());
 		val enum_ty = self.arena.struct_type(e.name, List<StructField>());
-		enum_ty.as_struct_mut().c_name = c_name;
-		enum_ty.as_struct_mut().module = self.current_module;
-		enum_ty.as_struct_mut().fields += StructField("tag", tag_ty, 0, true, null);
+		val enum_st = enum_ty.as_struct();
+		enum_st.c_name = c_name;
+		enum_st.module = self.current_module;
+		enum_st.fields += StructField("tag", tag_ty, 0, true, null);
 
 		var members = List<*EnumMemberInfo>();
 		var max_payload: usz = 1;
@@ -331,11 +333,12 @@ impl DeclPass {
 			val v_name = "${e.name}.${m.name}";
 			val v_c = "${c_name}__${m.name}";
 			val v_ty = self.arena.struct_type(v_name, List<StructField>());
-			v_ty.as_struct_mut().c_name = v_c;
-			v_ty.as_struct_mut().module = self.current_module;
+			val v_st = v_ty.as_struct();
+			v_st.c_name = v_c;
+			v_st.module = self.current_module;
 			for (f in m.payload) {
 				val f_ty = self.resolve_ast_type(f.type_node);
-				v_ty.as_struct_mut().fields += StructField(f.name, f_ty, 0, true, null);
+				v_st.fields += StructField(f.name, f_ty, 0, true, null);
 			}
 			v_ty.layout_struct();
 			if (v_ty.size == 0) {

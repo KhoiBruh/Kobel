@@ -177,7 +177,7 @@ impl DeclPass {
 
 			val st_type = st_sym.type_ptr;
 			val st_c_name = st_sym.c_name;
-			val st_info = st_type.as_struct_mut();
+			val st_info = st_type.as_struct();
 
 			self.current_self_type = st_type;
 

@@ -153,7 +153,7 @@ fn test_struct_layout() {
 	val s_info = s_ty.as_struct();
 	assert_eq_str(s_info.name, "Sample", "Struct name must match");
 	assert_eq_str(s_ty.as_struct().name, "Sample", "s_ty.as_struct() name must match");
-	assert_eq_usz(s_ty.as_struct_mut().fields.len, 3, "s_ty.as_struct_mut() fields len must be 3");
+	assert_eq_usz(s_ty.as_struct().fields.len, 3, "s_ty.as_struct() fields len must be 3");
 	assert_eq_usz(s_info.fields.len, 3, "Field count must be 3");
 
 	assert_eq_usz(s_info.fields[0].offset, 0, "Field a offset must be 0");
