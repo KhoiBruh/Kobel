@@ -4101,7 +4101,7 @@ uint8_t* std__memory__Arena_alloc_bytes(std__memory__Arena* self, size_t size, s
     if (self->current == NULL) {
         std__memory__Arena_new_block(self, size);
     }
-    std__memory__ArenaBlock* blk = (std__memory__ArenaBlock*)self->current;
+    std__memory__ArenaBlock* blk = self->current;
     size_t rem = (blk->used % align);
     size_t aligned_used = blk->used;
     if (rem != 0) {
@@ -4109,11 +4109,11 @@ uint8_t* std__memory__Arena_alloc_bytes(std__memory__Arena* self, size_t size, s
     }
     if ((aligned_used + size) > blk->size) {
         std__memory__Arena_new_block(self, size);
-        blk = (std__memory__ArenaBlock*)self->current;
         aligned_used = 0;
     }
-    uint8_t* ptr = &blk->data[aligned_used];
-    blk->used = (aligned_used + size);
+    std__memory__ArenaBlock* cur_blk = self->current;
+    uint8_t* ptr = &cur_blk->data[aligned_used];
+    cur_blk->used = (aligned_used + size);
     return ptr;
 }
 
@@ -4132,24 +4132,22 @@ void std__memory__Arena_new_block(std__memory__Arena* self, size_t min_size) {
     blk->size = sz;
     blk->used = 0;
     blk->next = self->current;
-    self->current = (std__memory__ArenaBlock*)blk;
+    self->current = blk;
 }
 
 void std__memory__Arena_reset(std__memory__Arena* self) {
     std__memory__ArenaBlock* curr = self->current;
     while (curr != NULL) {
-        std__memory__ArenaBlock* blk = (std__memory__ArenaBlock*)curr;
-        blk->used = 0;
-        curr = blk->next;
+        curr->used = 0;
+        curr = curr->next;
     }
 }
 
 void std__memory__Arena_free(std__memory__Arena* self) {
     std__memory__ArenaBlock* curr = self->current;
     while (curr != NULL) {
-        std__memory__ArenaBlock* blk = (std__memory__ArenaBlock*)curr;
-        std__memory__ArenaBlock* next_blk = blk->next;
-        std__memory__Heap_free_u8(blk->data);
+        std__memory__ArenaBlock* next_blk = curr->next;
+        std__memory__Heap_free_u8(curr->data);
         std__memory__Heap_free_std__memory__ArenaBlock(curr);
         curr = next_blk;
     }

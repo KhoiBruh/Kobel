@@ -11,11 +11,11 @@ struct ArenaBlock {
 	data: &u8,
 	size: usz,
 	used: usz,
-	next: *ArenaBlock? = null
+	next: &ArenaBlock? = null
 }
 
 pub struct Arena {
-	current: *ArenaBlock? = null,
+	current: &ArenaBlock? = null,
 	block_size: usz
 }
 
@@ -23,19 +23,19 @@ impl Allocator for Arena {
 	pub fn alloc_bytes(var self, size: usz, align: usz): &u8 {
 		if (self.current == null) self.new_block(size);
 
-		var blk = self.current as &ArenaBlock;
+		val blk = self.current!;
 		val rem = blk.used % align;
 		var aligned_used = blk.used;
 		if (rem != 0) aligned_used = blk.used + (align - rem);
 
 		if (aligned_used + size > blk.size) {
 			self.new_block(size);
-			blk = self.current as &ArenaBlock;
 			aligned_used = 0;
 		}
 
-		val ptr = &blk.data[aligned_used];
-		blk.used = aligned_used + size;
+		val cur_blk = self.current!;
+		val ptr = &cur_blk.data[aligned_used];
+		cur_blk.used = aligned_used + size;
 		return ptr;
 	}
 }
@@ -55,33 +55,31 @@ impl Arena {
 		blk.size = sz;
 		blk.used = 0;
 		blk.next = self.current;
-		self.current = blk as *ArenaBlock;
+		self.current = blk;
 	}
 
 	pub fn reset(val self) {
 		var curr = self.current;
 		while (curr != null) {
-			val blk = curr as &ArenaBlock;
-			blk.used = 0;
-			curr = blk.next;
+			curr.used = 0;
+			curr = curr.next;
 		}
 	}
 
 	pub fn free(var self) {
 		var curr = self.current;
 		while (curr != null) {
-			val blk = curr as &ArenaBlock;
-			val next_blk = blk.next;
-			Heap.free(blk.data);
+			val next_blk = curr.next;
+			Heap.free(curr.data);
 			Heap.free(curr);
 			curr = next_blk;
 		}
 		self.current = null;
 	}
 
-	pub fn create<T>(var self) => self.alloc_bytes(T.size(), 8) as *T;
+	pub fn create<T>(var self): &T => self.alloc_bytes(T.size(), 8) as &T;
 
-	pub fn create_val<T>(var self, value: T): *T {
+	pub fn create_val<T>(var self, value: T): &T {
 		val ptr = self.create<T>();
 		ptr.write(value);
 		return ptr;
