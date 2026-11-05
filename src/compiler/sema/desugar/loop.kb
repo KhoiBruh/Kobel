@@ -52,30 +52,37 @@ impl Arena {
 		self.node(NodeData.NamedType("usz", List<*AstNode>()), line, col);
 
 	pub fn for_id(var self, name: str, line: usz, col: usz) =>
-		self.identifier(name, line, col);
+		self.node(NodeData.IdentifierExpr(name), line, col);
 
 	pub fn for_num(var self, text: str, line: usz, col: usz) =>
-		self.literal(LiteralKind.INT, text, line, col);
+		self.node(NodeData.LiteralExpr(LiteralKind.INT, text), line, col);
 
 	// `__for_i <cmp> __for_e`
-	pub fn for_i_cmp(var self, op: TokenType, line: usz, col: usz) => self.binary(
-		op, self.for_id("__for_i", line, col),
-		self.for_id("__for_e", line, col), line, col
+	pub fn for_i_cmp(var self, op: TokenType, line: usz, col: usz) => self.node(
+		NodeData.BinaryExpr(self.for_id("__for_i", line, col), op, self.for_id("__for_e", line, col)),
+		line, col
 	);
 
 	// `__for_go = <value>;`
 	pub fn for_set_go(var self, value: *AstNode, line: usz, col: usz) => self.loop_expr(
-		self.assign(self.for_id("__for_go", line, col), value, line, col),
+		self.node(NodeData.AssignExpr(self.for_id("__for_go", line, col), TokenType.EQUAL, value), line, col),
 		line, col
 	);
 
 	// `__for_i = __for_i <+|-> 1;`
 	pub fn for_bump(var self, op: TokenType, line: usz, col: usz) => self.loop_expr(
-		self.assign(
-			self.for_id("__for_i", line, col),
-			self.binary(op,
+		self.node(
+			NodeData.AssignExpr(
 				self.for_id("__for_i", line, col),
-				self.for_num("1", line, col), line, col
+				TokenType.EQUAL,
+				self.node(
+					NodeData.BinaryExpr(
+						self.for_id("__for_i", line, col),
+						op,
+						self.for_num("1", line, col)
+					),
+					line, col
+				)
 			),
 			line, col
 		),
@@ -151,7 +158,8 @@ impl Arena {
 		col: usz
 	): *AstNode {
 		// val __for_n: usz = <iterable>.count();
-		val count_call = self.call(self.member(fs.iterable!, "count", line, col), List<*AstNode>(), List<*AstNode>(), line, col);
+		val count_mem = self.node(NodeData.MemberExpr(fs.iterable!, "count", false), line, col);
+		val count_call = self.node(NodeData.CallExpr(count_mem, List<*AstNode>(), List<*AstNode>()), line, col);
 		pre += self.loop_var(false, "__for_n", self.for_usz_type(line, col), count_call, line, col);
 		// var __for_i: usz = 0;
 		pre += self.loop_var(true, "__for_i", self.for_usz_type(line, col),
@@ -160,13 +168,14 @@ impl Arena {
 		// val <v> = <iterable>.at(__for_i);
 		var at_args = List<*AstNode>();
 		at_args += self.for_id("__for_i", line, col);
-		val at_call = self.call(self.member(fs.iterable!, "at", line, col), at_args, List<*AstNode>(), line, col);
+		val at_mem = self.node(NodeData.MemberExpr(fs.iterable!, "at", false), line, col);
+		val at_call = self.node(NodeData.CallExpr(at_mem, at_args, List<*AstNode>()), line, col);
 		head += self.loop_var(false, fs.var_name, null, at_call, line, col);
 
 		step += self.for_bump(TokenType.PLUS, line, col);
 
 		// __for_i < __for_n
-		return self.binary(TokenType.LESS, self.for_id("__for_i", line, col), self.for_id("__for_n", line, col), line, col);
+		return self.node(NodeData.BinaryExpr(self.for_id("__for_i", line, col), TokenType.LESS, self.for_id("__for_n", line, col)), line, col);
 	}
 
 	// `for (v in <iterable>)`: index over the container's `.data` storage, caching
@@ -182,20 +191,20 @@ impl Arena {
 	): *AstNode {
 		// val __for_n: usz = <iterable>.len;
 		pre += self.loop_var(false, "__for_n", self.for_usz_type(line, col),
-			self.member(fs.iterable!, "len", line, col), line, col);
+			self.node(NodeData.MemberExpr(fs.iterable!, "len", false), line, col), line, col);
 		// var __for_i: usz = 0;
 		pre += self.loop_var(true, "__for_i", self.for_usz_type(line, col),
 			self.for_num("0", line, col), line, col);
 
 		// val <v> = <iterable>.data[__for_i];
 		head += self.loop_var(false, fs.var_name, null,
-			self.index(self.member(fs.iterable!, "data", line, col), self.for_id("__for_i", line, col), line, col),
+			self.node(NodeData.IndexExpr(self.node(NodeData.MemberExpr(fs.iterable!, "data", false), line, col), self.for_id("__for_i", line, col)), line, col),
 			line, col);
 
 		step += self.for_bump(TokenType.PLUS, line, col);
 
 		// __for_i < __for_n
-		return self.binary(TokenType.LESS, self.for_id("__for_i", line, col), self.for_id("__for_n", line, col), line, col);
+		return self.node(NodeData.BinaryExpr(self.for_id("__for_i", line, col), TokenType.LESS, self.for_id("__for_n", line, col)), line, col);
 	}
 
 	// `for (v in a..b)` (closed) / `for (v in a..<b)` (half-open) /
@@ -213,7 +222,7 @@ impl Arena {
 		pre += self.loop_var(false, "__for_e", null, fs.range_end, line, col);
 		// var __for_i = __for_e;  then __for_i = <start>;
 		pre += self.loop_var(true, "__for_i", null, self.for_id("__for_e", line, col), line, col);
-		pre += self.loop_expr(self.assign(self.for_id("__for_i", line, col), fs.range_start!, line, col), line, col);
+		pre += self.loop_expr(self.node(NodeData.AssignExpr(self.for_id("__for_i", line, col), TokenType.EQUAL, fs.range_start!), line, col), line, col);
 		// val __for_up = __for_i <= __for_e;
 		pre += self.loop_var(false, "__for_up", null, self.for_i_cmp(TokenType.LESS_EQUAL, line, col), line, col);
 
@@ -221,7 +230,7 @@ impl Arena {
 			pre += self.for_by_dir(self.for_bump(TokenType.PLUS, line, col), self.for_bump(TokenType.MINUS, line, col), line, col);
 		}
 
-		pre += self.loop_var(true, "__for_go", null, self.literal(LiteralKind.BOOL, "false", line, col), line, col);
+		pre += self.loop_var(true, "__for_go", null, self.node(NodeData.LiteralExpr(LiteralKind.BOOL, "false"), line, col), line, col);
 		if (fs.is_open || fs.is_half_open) {
 			pre += self.for_by_dir(
 				self.for_set_go(self.for_i_cmp(TokenType.LESS, line, col), line, col),
@@ -240,12 +249,14 @@ impl Arena {
 		// Is there another element? Then move the counter (never past the end).
 		if (fs.is_open || fs.is_half_open) {
 			step += self.for_by_dir(
-				self.for_set_go(self.binary(TokenType.LESS,
-					self.binary(TokenType.PLUS, self.for_id("__for_i", line, col), self.for_num("1", line, col), line, col),
-					self.for_id("__for_e", line, col), line, col), line, col),
-				self.for_set_go(self.binary(TokenType.GREATER,
-					self.binary(TokenType.MINUS, self.for_id("__for_i", line, col), self.for_num("1", line, col), line, col),
-					self.for_id("__for_e", line, col), line, col), line, col),
+				self.for_set_go(self.node(NodeData.BinaryExpr(
+					self.node(NodeData.BinaryExpr(self.for_id("__for_i", line, col), TokenType.PLUS, self.for_num("1", line, col)), line, col),
+					TokenType.LESS,
+					self.for_id("__for_e", line, col)), line, col), line, col),
+				self.for_set_go(self.node(NodeData.BinaryExpr(
+					self.node(NodeData.BinaryExpr(self.for_id("__for_i", line, col), TokenType.MINUS, self.for_num("1", line, col)), line, col),
+					TokenType.GREATER,
+					self.for_id("__for_e", line, col)), line, col), line, col),
 				line, col);
 		} else {
 			step += self.for_by_dir(

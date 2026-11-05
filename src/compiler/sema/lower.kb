@@ -235,9 +235,10 @@ impl BodyPass {
 			val r_is_ptr = right_ty?.kind == DataType.POINTER;
 			var args = List<*AstNode>();
 			if (r_is_ptr) args += bin.right;
-			else args += self.arena.unary(TokenType.AMPERSAND, bin.right, node.line, node.col);
+			else args += self.arena.node(NodeData.UnaryExpr(TokenType.AMPERSAND, bin.right, false), node.line, node.col);
 			args += bin.left;
-			val call = self.arena.call(self.arena.identifier(mi.c_name, node.line, node.col), args, List<*AstNode>(), node.line, node.col);
+			val callee = self.arena.node(NodeData.IdentifierExpr(mi.c_name), node.line, node.col);
+		val call = self.arena.node(NodeData.CallExpr(callee, args, List<*AstNode>()), node.line, node.col);
 			return self.lowered(node, call);
 		}
 
@@ -245,11 +246,12 @@ impl BodyPass {
 		if (node.resolved_method != null) {
 			val mi = node.resolved_method as *MethodInfo;
 			var args = List<*AstNode>();
-			args += self.arena.unary(TokenType.AMPERSAND, bin.left, node.line, node.col);
+			args += self.arena.node(NodeData.UnaryExpr(TokenType.AMPERSAND, bin.left, false), node.line, node.col);
 			args += bin.right;
-			val call = self.arena.call(self.arena.identifier(mi.c_name, node.line, node.col), args, List<*AstNode>(), node.line, node.col);
+			val callee = self.arena.node(NodeData.IdentifierExpr(mi.c_name), node.line, node.col);
+		val call = self.arena.node(NodeData.CallExpr(callee, args, List<*AstNode>()), node.line, node.col);
 			if (bin.op == TokenType.BANG_EQUAL) {
-				return self.lowered(node, self.arena.unary(TokenType.BANG, call, node.line, node.col));
+				return self.lowered(node, self.arena.node(NodeData.UnaryExpr(TokenType.BANG, call, false), node.line, node.col));
 			}
 			return self.lowered(node, call);
 		}
@@ -275,9 +277,10 @@ impl BodyPass {
 			val t_is_ptr = target_ty?.kind == DataType.POINTER;
 			var args = List<*AstNode>();
 			if (t_is_ptr) args += asgn.target;
-			else args += self.arena.unary(TokenType.AMPERSAND, asgn.target, node.line, node.col);
+			else args += self.arena.node(NodeData.UnaryExpr(TokenType.AMPERSAND, asgn.target, false), node.line, node.col);
 			args += asgn.value;
-			val call = self.arena.call(self.arena.identifier(mi.c_name, node.line, node.col), args, List<*AstNode>(), node.line, node.col);
+			val callee = self.arena.node(NodeData.IdentifierExpr(mi.c_name), node.line, node.col);
+		val call = self.arena.node(NodeData.CallExpr(callee, args, List<*AstNode>()), node.line, node.col);
 			return self.lowered(node, call);
 		}
 
@@ -311,7 +314,7 @@ impl BodyPass {
 			}
 		}
 		var acc = self.arena.interp_concat_many(pieces, node.line, node.col);
-		if (acc == null) acc = self.arena.literal(LiteralKind.STRING, "\"\"", node.line, node.col);
+		if (acc == null) acc = self.arena.node(NodeData.LiteralExpr(LiteralKind.STRING, "\"\""), node.line, node.col);
 		return self.lowered(node, acc!);
 	}
 
@@ -335,7 +338,7 @@ impl BodyPass {
 			val mi = cur_ty.as_struct().find_method("to_str");
 			if (mi != null) {
 				var arg = expr;
-				if (!is_ptr) arg = self.arena.unary(TokenType.AMPERSAND, expr, line, col);
+				if (!is_ptr) arg = self.arena.node(NodeData.UnaryExpr(TokenType.AMPERSAND, expr, false), line, col);
 				return self.arena.interp_call(mi.c_name, arg, line, col);
 			}
 		}
@@ -353,7 +356,7 @@ impl BodyPass {
 
 		if (self.is_str_expr(obj)) {
 			if (mem.member == "size") {
-				val len_mem = self.arena.member(obj, "len", node.line, node.col);
+				val len_mem = self.arena.node(NodeData.MemberExpr(obj, "len", false), node.line, node.col);
 				return self.lowered(node, len_mem);
 			}
 			return node;
@@ -362,7 +365,7 @@ impl BodyPass {
 		if (self.is_array_expr(obj)) {
 			if (mem.member == "len" || mem.member == "size") {
 				val arr = self.type_of(obj).as_array();
-				val lit = self.arena.literal(LiteralKind.INT, "${arr.length}", node.line, node.col);
+				val lit = self.arena.node(NodeData.LiteralExpr(LiteralKind.INT, "${arr.length}"), node.line, node.col);
 				return self.lowered(node, lit);
 			}
 			if (mem.member == "data") return self.lowered(node, obj);
@@ -376,8 +379,9 @@ impl BodyPass {
 		if (node.resolved_method == null) return node;
 		val mi = node.resolved_method as *MethodInfo;
 		var args = List<*AstNode>();
-		args += self.arena.unary(TokenType.AMPERSAND, un.operand, node.line, node.col);
-		val call = self.arena.call(self.arena.identifier(mi.c_name, node.line, node.col), args, List<*AstNode>(), node.line, node.col);
+		args += self.arena.node(NodeData.UnaryExpr(TokenType.AMPERSAND, un.operand, false), node.line, node.col);
+		val callee = self.arena.node(NodeData.IdentifierExpr(mi.c_name), node.line, node.col);
+		val call = self.arena.node(NodeData.CallExpr(callee, args, List<*AstNode>()), node.line, node.col);
 		return self.lowered(node, call);
 	}
 
@@ -390,9 +394,10 @@ impl BodyPass {
 		val t_is_ptr = target_ty?.kind == DataType.POINTER;
 		var args = List<*AstNode>();
 		if (t_is_ptr) args += idx.target;
-		else args += self.arena.unary(TokenType.AMPERSAND, idx.target, node.line, node.col);
+		else args += self.arena.node(NodeData.UnaryExpr(TokenType.AMPERSAND, idx.target, false), node.line, node.col);
 		args += idx.index;
-		val call = self.arena.call(self.arena.identifier(mi.c_name, node.line, node.col), args, List<*AstNode>(), node.line, node.col);
+		val callee = self.arena.node(NodeData.IdentifierExpr(mi.c_name), node.line, node.col);
+		val call = self.arena.node(NodeData.CallExpr(callee, args, List<*AstNode>()), node.line, node.col);
 		return self.lowered(node, call);
 	}
 
@@ -410,9 +415,10 @@ impl BodyPass {
 			val new_mi = node.resolved_method as *MethodInfo;
 			var ctor_args = List<*AstNode>();
 			for (arg in call.args) ctor_args += arg;
-			val ctor_call = self.arena.call(
-				self.arena.identifier(new_mi.c_name, node.line, node.col),
-				ctor_args, List<*AstNode>(), node.line, node.col
+			val fn_id = self.arena.node(NodeData.IdentifierExpr(new_mi.c_name), node.line, node.col);
+			val ctor_call = self.arena.node(
+				NodeData.CallExpr(fn_id, ctor_args, List<*AstNode>()),
+				node.line, node.col
 			);
 			return self.lowered(node, ctor_call);
 		}
@@ -423,9 +429,10 @@ impl BodyPass {
 		if (mi.is_static) {
 			var static_args = List<*AstNode>();
 			for (arg in call.args) static_args += arg;
-			val direct = self.arena.call(
-				self.arena.identifier(mi.c_name, node.line, node.col),
-				static_args, List<*AstNode>(), node.line, node.col
+			val fn_id = self.arena.node(NodeData.IdentifierExpr(mi.c_name), node.line, node.col);
+			val direct = self.arena.node(
+				NodeData.CallExpr(fn_id, static_args, List<*AstNode>()),
+				node.line, node.col
 			);
 			return self.lowered(node, direct);
 		}
@@ -443,36 +450,34 @@ impl BodyPass {
 		else {
 			var op = TokenType.STAR;
 			if (by_ref) op = TokenType.AMPERSAND;
-			new_args += self.arena.unary(op, recv, node.line, node.col);
+			new_args += self.arena.node(NodeData.UnaryExpr(op, recv, false), node.line, node.col);
 		}
 		for (arg in call.args) new_args += arg;
 
-		val direct = self.arena.call(self.arena.identifier(mi.c_name, node.line, node.col), new_args, List<*AstNode>(), node.line, node.col);
+		val fn_id = self.arena.node(NodeData.IdentifierExpr(mi.c_name), node.line, node.col);
+		val direct = self.arena.node(NodeData.CallExpr(fn_id, new_args, List<*AstNode>()), node.line, node.col);
 		if (!mem.is_safe) return self.lowered(node, direct);
 
 		val call_ty = self.type_of(node);
-		val null_lit = self.arena.literal(LiteralKind.NULL_VAL, "null", node.line, node.col);
-		val cond = self.arena.binary(TokenType.BANG_EQUAL, recv, null_lit, node.line, node.col);
+		val null_lit = self.arena.node(NodeData.LiteralExpr(LiteralKind.NULL_VAL, "null"), node.line, node.col);
+		val cond = self.arena.node(NodeData.BinaryExpr(recv, TokenType.BANG_EQUAL, null_lit), node.line, node.col);
 
 		if (call_ty?.kind == DataType.BOOL) {
-			val maybe = self.arena.binary(TokenType.AND_AND, cond, direct, node.line, node.col);
+			val maybe = self.arena.node(NodeData.BinaryExpr(cond, TokenType.AND_AND, direct), node.line, node.col);
 			return self.lowered(node, maybe);
 		}
 
 		val fallback = if (call_ty?.kind == DataType.STR) {
-			self.arena.call(
-				self.arena.identifier("kobel_null_str", node.line, node.col),
-				List<*AstNode>(), List<*AstNode>(), node.line, node.col
-			)
+			self.arena.node(NodeData.CallExpr(self.arena.node(NodeData.IdentifierExpr("kobel_null_str"), node.line, node.col), List<*AstNode>(), List<*AstNode>()), node.line, node.col)
 		} else if (call_ty?.is_integer() || call_ty?.is_enum() || call_ty?.kind == DataType.CHAR) {
-			self.arena.literal(LiteralKind.INT, "0", node.line, node.col)
+			self.arena.node(NodeData.LiteralExpr(LiteralKind.INT, "0"), node.line, node.col)
 		} else if (call_ty?.kind == DataType.F32 || call_ty?.kind == DataType.F64) {
-			self.arena.literal(LiteralKind.FLOAT, "0.0", node.line, node.col)
+			self.arena.node(NodeData.LiteralExpr(LiteralKind.FLOAT, "0.0"), node.line, node.col)
 		} else {
 			null_lit
 		};
 
-		val maybe = self.arena.if_expr(cond, direct, fallback, node.line, node.col);
+		val maybe = self.arena.node(NodeData.IfExpr(cond, direct, fallback), node.line, node.col);
 		return self.lowered(node, maybe);
 		}
 		return node;
@@ -488,15 +493,17 @@ impl BodyPass {
 			var args = List<*AstNode>();
 			args += mem.object;
 			if (!call.args.empty()) args += call.args.first();
-			else args += self.arena.literal(LiteralKind.INT, "0", node.line, node.col);
+			else args += self.arena.node(NodeData.LiteralExpr(LiteralKind.INT, "0"), node.line, node.col);
 
 		if (call.args.len >= 2) {
 			args += call.args[1];
-			val slice_call = self.arena.call(self.arena.identifier("kobel_slice", node.line, node.col), args, List<*AstNode>(), node.line, node.col);
+			val callee = self.arena.node(NodeData.IdentifierExpr("kobel_slice"), node.line, node.col);
+		val slice_call = self.arena.node(NodeData.CallExpr(callee, args, List<*AstNode>()), node.line, node.col);
 			return self.lowered(node, slice_call);
 		}
 
-		val slice1_call = self.arena.call(self.arena.identifier("kobel_slice1", node.line, node.col), args, List<*AstNode>(), node.line, node.col);
+		val callee = self.arena.node(NodeData.IdentifierExpr("kobel_slice1"), node.line, node.col);
+		val slice1_call = self.arena.node(NodeData.CallExpr(callee, args, List<*AstNode>()), node.line, node.col);
 		return self.lowered(node, slice1_call);
 		}
 		return node;
@@ -556,19 +563,21 @@ impl Arena {
 		var eargs = List<*AstNode>();
 		eargs += left;
 		eargs += right;
-		val eq_call = self.call(self.identifier("kobel_streq", line, col), eargs, List<*AstNode>(), line, col);
-		if (is_neq) return self.unary(TokenType.BANG, eq_call, line, col);
+		val callee = self.node(NodeData.IdentifierExpr("kobel_streq"), line, col);
+		val eq_call = self.node(NodeData.CallExpr(callee, eargs, List<*AstNode>()), line, col);
+		if (is_neq) return self.node(NodeData.UnaryExpr(TokenType.BANG, eq_call, false), line, col);
 		return eq_call;
 	}
 
 	// Builds `kobel_memeq(&a, &b, sizeof)`, optionally negated, for default struct equality.
 	pub fn make_mem_eq(var self, is_neq: bool, left: *AstNode, right: *AstNode, size: usz, line: usz, col: usz): *AstNode {
 		var eargs = List<*AstNode>();
-		eargs += self.unary(TokenType.AMPERSAND, left, line, col);
-		eargs += self.unary(TokenType.AMPERSAND, right, line, col);
-		eargs += self.literal(LiteralKind.INT, "${size}", line, col);
-		val eq_call = self.call(self.identifier("kobel_memeq", line, col), eargs, List<*AstNode>(), line, col);
-		if (is_neq) return self.unary(TokenType.BANG, eq_call, line, col);
+		eargs += self.node(NodeData.UnaryExpr(TokenType.AMPERSAND, left, false), line, col);
+		eargs += self.node(NodeData.UnaryExpr(TokenType.AMPERSAND, right, false), line, col);
+		eargs += self.node(NodeData.LiteralExpr(LiteralKind.INT, "${size}"), line, col);
+		val callee = self.node(NodeData.IdentifierExpr("kobel_memeq"), line, col);
+		val eq_call = self.node(NodeData.CallExpr(callee, eargs, List<*AstNode>()), line, col);
+		if (is_neq) return self.node(NodeData.UnaryExpr(TokenType.BANG, eq_call, false), line, col);
 		return eq_call;
 	}
 }

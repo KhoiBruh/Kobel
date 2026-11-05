@@ -390,8 +390,8 @@ impl BodyPass {
 				) {
 					var args = List<*AstNode>();
 					args += bin.right;
-					val mem = self.arena.member(bin.left, "in_list", node.line, node.col);
-					val call_node = self.arena.call(mem, args, List<*AstNode>(), node.line, node.col);
+					val mem = self.arena.node(NodeData.MemberExpr(bin.left, "in_list", false), node.line, node.col);
+					val call_node = self.arena.node(NodeData.CallExpr(mem, args, List<*AstNode>()), node.line, node.col);
 					self.set_resolved(node, call_node);
 					return self.check_expr(call_node);
 				}
@@ -400,8 +400,8 @@ impl BodyPass {
 
 		var args = List<*AstNode>();
 		args += bin.left;
-		val mem = self.arena.member(bin.right, "contains", node.line, node.col);
-		val call_node = self.arena.call(mem, args, List<*AstNode>(), node.line, node.col);
+		val mem = self.arena.node(NodeData.MemberExpr(bin.right, "contains", false), node.line, node.col);
+		val call_node = self.arena.node(NodeData.CallExpr(mem, args, List<*AstNode>()), node.line, node.col);
 		self.set_resolved(node, call_node);
 		return self.check_expr(call_node);
 	}

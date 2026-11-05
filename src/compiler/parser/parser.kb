@@ -21,63 +21,6 @@ impl Parser {
 	pub fn node(var self, data: NodeData, line: usz = 0, col: usz = 0): *AstNode
 		=> self.arena.node(data, line, col);
 
-	pub fn literal(var self, lk: LiteralKind, raw: str, line: usz, col: usz): *AstNode
-		=> self.arena.literal(lk, raw, line, col);
-
-	pub fn identifier(var self, name: str, line: usz, col: usz): *AstNode
-		=> self.arena.identifier(name, line, col);
-
-	pub fn binary(var self, op: TokenType, left: *AstNode, right: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.binary(op, left, right, line, col);
-
-	pub fn unary(var self, op: TokenType, operand: *AstNode, line: usz, col: usz, is_postfix: bool = false): *AstNode
-		=> self.arena.unary(op, operand, line, col, is_postfix);
-
-	pub fn call(var self, callee: *AstNode, args: List<*AstNode>, type_args: List<*AstNode>, line: usz, col: usz): *AstNode
-		=> self.arena.call(callee, args, type_args, line, col);
-
-	pub fn member(var self, obj: *AstNode, member: str, line: usz, col: usz): *AstNode
-		=> self.arena.member(obj, member, line, col);
-
-	pub fn safe_member(var self, obj: *AstNode, member: str, line: usz, col: usz): *AstNode
-		=> self.arena.safe_member(obj, member, line, col);
-
-	pub fn index(var self, target: *AstNode, index: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.index(target, index, line, col);
-
-	pub fn assign(var self, target: *AstNode, value: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.assign(target, value, line, col);
-
-	pub fn compound_assign(var self, op: TokenType, target: *AstNode, value: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.compound_assign(op, target, value, line, col);
-
-	pub fn update(var self, op: TokenType, target: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.update(op, target, line, col);
-
-	pub fn cast(var self, expr: *AstNode, target_type: *AstNode, line: usz = 0, col: usz = 0): *AstNode
-		=> self.arena.cast(expr, target_type, line, col);
-
-	pub fn is_expr(var self, expr: *AstNode? = null, target_type: *AstNode, line: usz = 0, col: usz = 0): *AstNode
-		=> self.arena.is_expr(expr, target_type, line, col);
-
-	pub fn group(var self, expr: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.group(expr, line, col);
-
-	pub fn array_literal(var self, elements: List<*AstNode>, line: usz, col: usz): *AstNode
-		=> self.arena.array_literal(elements, line, col);
-
-	pub fn list_literal(var self, elements: List<*AstNode>, list_struct_name: str, elem_type_node: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.list_literal(elements, list_struct_name, elem_type_node, line, col);
-
-	pub fn if_expr(var self, condition: *AstNode, then_branch: *AstNode, else_branch: *AstNode, line: usz, col: usz): *AstNode
-		=> self.arena.if_expr(condition, then_branch, else_branch, line, col);
-
-	pub fn when_expr(var self, condition: *AstNode?, arms: List<WhenArm>, line: usz, col: usz): *AstNode
-		=> self.arena.when_expr(condition, arms, line, col);
-
-	pub fn interp(var self, parts: List<InterpPart>, line: usz, col: usz): *AstNode
-		=> self.arena.interp(parts, line, col);
-
 	pub fn is_end(val self): bool {
 		if (self.current >= self.tokens.len) return true;
 		val tok = self.tokens[self.current];

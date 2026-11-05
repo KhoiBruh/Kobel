@@ -31,14 +31,16 @@ impl Arena {
 	pub fn interp_call(var self, name: str, arg: *AstNode, line: usz, col: usz): *AstNode {
 		var args = List<*AstNode>();
 		args += arg;
-		return self.call(self.identifier(name, line, col), args, List<*AstNode>(), line, col);
+		val callee = self.node(NodeData.IdentifierExpr(name), line, col);
+		return self.node(NodeData.CallExpr(callee, args, List<*AstNode>()), line, col);
 	}
 
 	pub fn interp_concat(var self, a: *AstNode, b_node: *AstNode, line: usz, col: usz): *AstNode {
 		var args = List<*AstNode>();
 		args += a;
 		args += b_node;
-		return self.call(self.identifier("kobel_concat", line, col), args, List<*AstNode>(), line, col);
+		val callee = self.node(NodeData.IdentifierExpr("kobel_concat"), line, col);
+		return self.node(NodeData.CallExpr(callee, args, List<*AstNode>()), line, col);
 	}
 
 	// Joins `pieces` in groups of up to 5 per call so a multi-part interpolation
@@ -67,7 +69,8 @@ impl Arena {
 				4 -> "kobel_concat4";
 				else -> "kobel_concat5";
 			};
-			acc = self.call(self.identifier(helper, line, col), args, List<*AstNode>(), line, col);
+			val callee = self.node(NodeData.IdentifierExpr(helper), line, col);
+			acc = self.node(NodeData.CallExpr(callee, args, List<*AstNode>()), line, col);
 			i += take;
 		}
 		return acc;

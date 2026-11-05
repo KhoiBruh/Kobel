@@ -52,13 +52,13 @@ fn test_expression_tree(): bool {
 	defer arena.free();
 
 	// Build: (10 + 20) * 3
-	val lit10 = arena.literal(LiteralKind.INT, "10", 1, 2);
-	val lit20 = arena.literal(LiteralKind.INT, "20", 1, 7);
-	val add_expr = arena.binary(TokenType.PLUS, lit10, lit20, 1, 5);
-	val group_expr = arena.group(add_expr, 1, 1);
+	val lit10 = arena.node(NodeData.LiteralExpr(LiteralKind.INT, "10"), 1, 2);
+	val lit20 = arena.node(NodeData.LiteralExpr(LiteralKind.INT, "20"), 1, 7);
+	val add_expr = arena.node(NodeData.BinaryExpr(lit10, TokenType.PLUS, lit20), 1, 5);
+	val group_expr = arena.node(NodeData.GroupExpr(add_expr), 1, 1);
 
-	val lit3 = arena.literal(LiteralKind.INT, "3", 1, 12);
-	val mul_expr = arena.binary(TokenType.STAR, group_expr, lit3, 1, 10);
+	val lit3 = arena.node(NodeData.LiteralExpr(LiteralKind.INT, "3"), 1, 12);
+	val mul_expr = arena.node(NodeData.BinaryExpr(group_expr, TokenType.STAR, lit3), 1, 10);
 
 	if (mul_expr is BinaryExpr as bin) {
 		if (bin.op != TokenType.STAR) return false;
@@ -83,7 +83,7 @@ fn test_statement_nodes(): bool {
 
 	// var count: i32 = 42;
 	val ty_i32 = arena.node(NodeData.NamedType("i32", List<*AstNode>()), 1, 12);
-	val lit42 = arena.literal(LiteralKind.INT, "42", 1, 18);
+	val lit42 = arena.node(NodeData.LiteralExpr(LiteralKind.INT, "42"), 1, 18);
 	val var_stmt = arena.node(NodeData.VarDeclStmt(true, "count", ty_i32, lit42), 1, 1);
 
 	if (var_stmt is VarDeclStmt as vd) {
@@ -93,7 +93,7 @@ fn test_statement_nodes(): bool {
 	} else return false;
 
 	// return count;
-	val id_count = arena.identifier("count", 2, 8);
+	val id_count = arena.node(NodeData.IdentifierExpr("count"), 2, 8);
 	val ret_stmt = arena.node(NodeData.ReturnStmt(id_count), 2, 1);
 	if (!(ret_stmt is ReturnStmt)) return false;
 
@@ -106,8 +106,8 @@ fn test_statement_nodes(): bool {
 	} else return false;
 
 	// if (count > 0) { return count; }
-	val lit0 = arena.literal(LiteralKind.INT, "0", 3, 13);
-	val cond = arena.binary(TokenType.GREATER, id_count, lit0, 3, 11);
+	val lit0 = arena.node(NodeData.LiteralExpr(LiteralKind.INT, "0"), 3, 13);
+	val cond = arena.node(NodeData.BinaryExpr(id_count, TokenType.GREATER, lit0), 3, 11);
 	val if_stmt = arena.node(NodeData.IfStmt(cond, block, null), 3, 1);
 
 	if (if_stmt is IfStmt as ifs) {
@@ -128,9 +128,9 @@ fn test_declaration_nodes(): bool {
 	params += Param("a", ty_i32, false, false, null);
 	params += Param("b", ty_i32, false, false, null);
 
-	val id_a = arena.identifier("a", 1, 1);
-	val id_b = arena.identifier("b", 1, 1);
-	val add_expr = arena.binary(TokenType.PLUS, id_a, id_b, 1, 1);
+	val id_a = arena.node(NodeData.IdentifierExpr("a"), 1, 1);
+	val id_b = arena.node(NodeData.IdentifierExpr("b"), 1, 1);
+	val add_expr = arena.node(NodeData.BinaryExpr(id_a, TokenType.PLUS, id_b), 1, 1);
 	val ret_stmt = arena.node(NodeData.ReturnStmt(add_expr), 1, 1);
 
 	var body_stmts = List<*AstNode>();
@@ -185,17 +185,17 @@ fn test_arena_ast_methods(): bool {
 	var arena = Arena();
 	defer arena.free();
 
-	val lit_node = arena.literal(LiteralKind.INT, "123", 1, 1);
+	val lit_node = arena.node(NodeData.LiteralExpr(LiteralKind.INT, "123"), 1, 1);
 	if (lit_node is LiteralExpr as lit) {
 		if (lit.raw_text != "123") return false;
 	} else return false;
 
-	val id_node = arena.identifier("x", 1, 5);
+	val id_node = arena.node(NodeData.IdentifierExpr("x"), 1, 5);
 	if (id_node is IdentifierExpr as id) {
 		if (id.name != "x") return false;
 	} else return false;
 
-	val bin_node = arena.binary(TokenType.PLUS, lit_node, id_node, 1, 3);
+	val bin_node = arena.node(NodeData.BinaryExpr(lit_node, TokenType.PLUS, id_node), 1, 3);
 	if (bin_node is BinaryExpr as bin) {
 		if (bin.op != TokenType.PLUS) return false;
 		if (bin.left is LiteralExpr as l_lit) {

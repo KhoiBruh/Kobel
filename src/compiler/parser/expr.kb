@@ -221,21 +221,21 @@ impl Parser {
 			// A number token keeps its fractional part, so a '.' in the text means
 			// the literal is a float (types are decided here, not by the lexer).
 			TokenType.NUMBER -> {
-				if (num_literal_is_float(tok.text)) yield self.literal(LiteralKind.FLOAT, tok.text, line, col);
-				yield self.literal(LiteralKind.INT, tok.text, line, col);
+				if (num_literal_is_float(tok.text)) yield self.node(NodeData.LiteralExpr(LiteralKind.FLOAT, tok.text), line, col);
+				yield self.node(NodeData.LiteralExpr(LiteralKind.INT, tok.text), line, col);
 			}
 			TokenType.STRING -> self.parse_string_literal(tok, line, col);
-			TokenType.CHAR -> self.literal(LiteralKind.CHAR, tok.text, line, col);
-			TokenType.KW_TRUE -> self.literal(LiteralKind.BOOL, "true", line, col);
-			TokenType.KW_FALSE -> self.literal(LiteralKind.BOOL, "false", line, col);
-			TokenType.KW_NULL -> self.literal(LiteralKind.NULL_VAL, "null", line, col);
-			TokenType.IDENTIFIER, TokenType.KW_OP -> self.identifier(tok.text, line, col);
+			TokenType.CHAR -> self.node(NodeData.LiteralExpr(LiteralKind.CHAR, tok.text), line, col);
+			TokenType.KW_TRUE -> self.node(NodeData.LiteralExpr(LiteralKind.BOOL, "true"), line, col);
+			TokenType.KW_FALSE -> self.node(NodeData.LiteralExpr(LiteralKind.BOOL, "false"), line, col);
+			TokenType.KW_NULL -> self.node(NodeData.LiteralExpr(LiteralKind.NULL_VAL, "null"), line, col);
+			TokenType.IDENTIFIER, TokenType.KW_OP -> self.node(NodeData.IdentifierExpr(tok.text), line, col);
 
 			// Grouping: (expr)
 			TokenType.OPEN_PAREN -> {
 				val inner = self.parse_expression(Precedence.NONE);
 				self.consume(TokenType.CLOSE_PAREN, "Expected ')' after grouping expression");
-				yield self.group(inner, line, col);
+				yield self.node(NodeData.GroupExpr(inner), line, col);
 			}
 
 			// Array Literal: [a, b, c]
@@ -249,14 +249,14 @@ impl Parser {
 					}
 				}
 				self.consume(TokenType.CLOSE_BRACKET, "Expected ']' after array literal");
-				yield self.array_literal(elements, line, col);
+				yield self.node(NodeData.ArrayLiteralExpr(elements, "", null), line, col);
 			}
 
 			// Prefix Unary: -, !, *, &
 			TokenType.MINUS, TokenType.BANG,
 			TokenType.STAR, TokenType.AMPERSAND -> {
 				val operand = self.parse_expression(Precedence.UNARY);
-				yield self.unary(tok.type, operand, line, col);
+				yield self.node(NodeData.UnaryExpr(tok.type, operand, false), line, col);
 			}
 
 			// Type pattern: is Type [as [var|val|&] alias]
@@ -276,7 +276,7 @@ impl Parser {
 					val alias_tok = self.consume(TokenType.IDENTIFIER, "Expected identifier after 'as'");
 					alias = alias_tok.text;
 				}
-				val is_node = self.is_expr(null, target_type, line, col);
+				val is_node = self.node(NodeData.IsExpr(null, target_type, "", "", "", false, false, "", false, ""), line, col);
 				if (!alias.empty() && is_node is IsExpr as is_expr) {
 					is_expr.alias = alias;
 					is_expr.mutable = mutable;
@@ -295,7 +295,7 @@ impl Parser {
 				self.consume(TokenType.KW_ELSE, "Expected 'else' in if expression");
 				val else_branch = self.parse_if_expr_branch();
 
-				yield self.if_expr(condition, then_branch, else_branch, line, col);
+				yield self.node(NodeData.IfExpr(condition, then_branch, else_branch), line, col);
 			}
 
 			// When Expression: when (cond) { val1 -> expr1, else -> expr2 }
@@ -341,12 +341,12 @@ impl Parser {
 				}
 
 				self.consume(TokenType.CLOSE_BRACE, "Expected '}' after when arms");
-				yield self.when_expr(condition, arms, line, col);
+				yield self.node(NodeData.WhenExpr(condition, arms), line, col);
 			}
 
 			else -> {
 				self.error(tok, "Expected expression");
-				yield self.identifier("<error>", line, col);
+				yield self.node(NodeData.IdentifierExpr("<error>"), line, col);
 			}
 		};
 	}
@@ -360,17 +360,17 @@ impl Parser {
 			// 1. Postfix update: left++, left--
 			TokenType.PLUS_PLUS -> {
 				self.advance();
-				return self.update(TokenType.PLUS_PLUS, left, line, col);
+				return self.node(NodeData.UpdateExpr(TokenType.PLUS_PLUS, left), line, col);
 			}
 			TokenType.MINUS_MINUS -> {
 				self.advance();
-				return self.update(TokenType.MINUS_MINUS, left, line, col);
+				return self.node(NodeData.UpdateExpr(TokenType.MINUS_MINUS, left), line, col);
 			}
 			// Postfix force unwrap: left!
 			TokenType.BANG -> {
 				if (self.peek_at(1).type != TokenType.KW_IN) {
 					self.advance();
-					return self.unary(TokenType.BANG, left, line, col, true);
+					return self.node(NodeData.UnaryExpr(TokenType.BANG, left, true), line, col);
 				}
 			}
 			// 2. Assignment: left = right, left += right, ... (right-associative)
@@ -381,7 +381,7 @@ impl Parser {
 				// Right-associative: the RHS is parsed at the loosest level, so a
 				// nested `=` binds inside this one.
 				val right = self.parse_expression(Precedence.NONE);
-				return self.compound_assign(op_tok.type, left, right, line, col);
+				return self.node(NodeData.AssignExpr(left, op_tok.type, right), line, col);
 			}
 		}
 
@@ -425,24 +425,24 @@ impl Parser {
 					else -> self.parse_expression(Precedence.ASSIGN);
 				};
 
-				yield self.binary(TokenType.QUESTION_COLON, left, right, line, col);
+				yield self.node(NodeData.BinaryExpr(left, TokenType.QUESTION_COLON, right), line, col);
 			}
 
 			// 3. Member Access: left.member or left?.member
 			self.match_token(TokenType.DOT) -> {
 				val member_tok = self.consume(TokenType.IDENTIFIER, "Expected identifier after '.'");
-				yield self.member(left, member_tok.text, line, col);
+				yield self.node(NodeData.MemberExpr(left, member_tok.text, false), line, col);
 			}
 			self.match_token(TokenType.QUESTION_DOT) -> {
 				val member_tok = self.consume(TokenType.IDENTIFIER, "Expected identifier after '?.'");
-				yield self.safe_member(left, member_tok.text, line, col);
+				yield self.node(NodeData.MemberExpr(left, member_tok.text, true), line, col);
 			}
 
 			// 3. Index Access: left[index]
 			self.match_token(TokenType.OPEN_BRACKET) -> {
 				val index = self.parse_expression(Precedence.NONE);
 				self.consume(TokenType.CLOSE_BRACKET, "Expected ']' after array index");
-				yield self.index(left, index, line, col);
+				yield self.node(NodeData.IndexExpr(left, index), line, col);
 			}
 
 			// 4. Type Cast: left as Type
@@ -451,7 +451,7 @@ impl Parser {
 					self.error(self.peek(), "Safe cast 'as?' has been removed; use 'is' with smart casting instead");
 				}
 				val target_type = self.parse_type();
-				yield self.cast(left, target_type, line, col);
+				yield self.node(NodeData.CastExpr(left, target_type), line, col);
 			}
 
 			// Type Test: left is Type [as [var|val|&] alias]
@@ -471,7 +471,7 @@ impl Parser {
 					val alias_tok = self.consume(TokenType.IDENTIFIER, "Expected identifier after 'as'");
 					alias = alias_tok.text;
 				}
-				val is_node = self.is_expr(left, target_type, line, col);
+				val is_node = self.node(NodeData.IsExpr(left, target_type, "", "", "", false, false, "", false, ""), line, col);
 				if (!alias.empty() && is_node is IsExpr as is_expr) {
 					is_expr.alias = alias;
 					is_expr.mutable = mutable;
@@ -482,7 +482,7 @@ impl Parser {
 			// In test: left in right
 			self.match_token(TokenType.KW_IN) -> {
 				val right = self.parse_expression(prec);
-				yield self.binary(TokenType.KW_IN, left, right, line, col);
+				yield self.node(NodeData.BinaryExpr(left, TokenType.KW_IN, right), line, col);
 			}
 
 			// Not-in test: left !in right
@@ -490,8 +490,8 @@ impl Parser {
 				self.advance(); // consume '!'
 				self.advance(); // consume 'in'
 				val right = self.parse_expression(prec);
-				val in_expr = self.binary(TokenType.KW_IN, left, right, line, col);
-				yield self.unary(TokenType.BANG, in_expr, line, col);
+				val in_expr = self.node(NodeData.BinaryExpr(left, TokenType.KW_IN, right), line, col);
+				yield self.node(NodeData.UnaryExpr(TokenType.BANG, in_expr, false), line, col);
 			}
 
 			// 5. Generic Call: left<T1, T2>(arg1, arg2)
@@ -511,7 +511,7 @@ impl Parser {
 					}
 				}
 				self.consume(TokenType.CLOSE_PAREN, "Expected ')' after function arguments");
-				yield self.call(left, args, type_args, line, col);
+				yield self.node(NodeData.CallExpr(left, args, type_args), line, col);
 			}
 
 			// 6. Normal Call: left(arg1, arg2)
@@ -524,14 +524,14 @@ impl Parser {
 					}
 				}
 				self.consume(TokenType.CLOSE_PAREN, "Expected ')' after function arguments");
-				yield self.call(left, args, List<*AstNode>(), line, col);
+				yield self.node(NodeData.CallExpr(left, args, List<*AstNode>()), line, col);
 			}
 
 			// 7. Binary Operators: +, -, *, /, %, ==, !=, <, <=, >, >=, &&, ||
 			else -> {
 				val op_tok = self.advance();
 				val right = self.parse_expression(prec);
-				yield self.binary(op_tok.type, left, right, line, col);
+				yield self.node(NodeData.BinaryExpr(left, op_tok.type, right), line, col);
 			}
 		};
 	}
@@ -690,7 +690,7 @@ impl Parser {
 
 		if (!self.check(TokenType.STRING)) {
 			if (str_has_hole(tok.text)) return self.parse_interp_string(tok.text, line, col);
-			return self.literal(LiteralKind.STRING, normalize_esc_dollar(tok.text), line, col);
+			return self.node(NodeData.LiteralExpr(LiteralKind.STRING, normalize_esc_dollar(tok.text)), line, col);
 		}
 
 		var combined_inner = "";
@@ -705,11 +705,11 @@ impl Parser {
 		}
 		val combined = "\"${combined_inner}\"";
 		if (str_has_hole(combined)) return self.parse_interp_string(combined, line, col);
-		return self.literal(LiteralKind.STRING, normalize_esc_dollar(combined), line, col);
+		return self.node(NodeData.LiteralExpr(LiteralKind.STRING, normalize_esc_dollar(combined)), line, col);
 	}
 
 	pub fn parse_multiline_string(var self, text: str, line: usz, col: usz): *AstNode {
-		if (text.len < 6) return self.literal(LiteralKind.STRING, "\"\"", line, col);
+		if (text.len < 6) return self.node(NodeData.LiteralExpr(LiteralKind.STRING, "\"\""), line, col);
 		val inner = text.slice(3, text.len - 3);
 		val trimmed = multiline_trim_indent(inner);
 
@@ -718,7 +718,7 @@ impl Parser {
 		}
 
 		val c_literal = multiline_escape_for_c(trimmed);
-		return self.literal(LiteralKind.STRING, c_literal, line, col);
+		return self.node(NodeData.LiteralExpr(LiteralKind.STRING, c_literal), line, col);
 	}
 
 	pub fn parse_interp_multiline(var self, text: str, line: usz, col: usz): *AstNode {
@@ -781,7 +781,7 @@ impl Parser {
 			}
 			if (c == '$' && i + 1 < end && text[i + 1] == '{') {
 				if (has_lit) {
-					parts += InterpPart.Literal(self.literal(LiteralKind.STRING, "\"${lit.to_str()}\"", line, col));
+					parts += InterpPart.Literal(self.node(NodeData.LiteralExpr(LiteralKind.STRING, "\"${lit.to_str()}\""), line, col));
 					lit.clear();
 					has_lit = false;
 				}
@@ -789,7 +789,7 @@ impl Parser {
 				val h_end = interp_find_close(text, h_start);
 				if (h_end < 0) {
 					self.errors += "Unterminated interpolation hole in multiline string literal";
-					return self.literal(LiteralKind.STRING, "\"\"", line, col);
+					return self.node(NodeData.LiteralExpr(LiteralKind.STRING, "\"\""), line, col);
 				}
 				val src = text.slice(h_start, h_end as usz);
 				var sub_lexer = Lexer(src);
@@ -811,8 +811,8 @@ impl Parser {
 			i++;
 		}
 
-		if (has_lit) parts += InterpPart.Literal(self.literal(LiteralKind.STRING, "\"${lit.to_str()}\"", line, col));
-		return self.interp(parts, line, col);
+		if (has_lit) parts += InterpPart.Literal(self.node(NodeData.LiteralExpr(LiteralKind.STRING, "\"${lit.to_str()}\""), line, col));
+		return self.node(NodeData.InterpExpr(parts), line, col);
 	}
 
 	pub fn parse_interp_string(var self, text: str, line: usz, col: usz): *AstNode {
@@ -847,7 +847,7 @@ impl Parser {
 			}
 			if (c == '$' && i + 1 < end && text[i + 1] == '{') {
 				if (has_lit) {
-					parts += InterpPart.Literal(self.literal(LiteralKind.STRING, "\"${lit.to_str()}\"", line, col));
+					parts += InterpPart.Literal(self.node(NodeData.LiteralExpr(LiteralKind.STRING, "\"${lit.to_str()}\""), line, col));
 					lit.clear();
 					has_lit = false;
 				}
@@ -855,7 +855,7 @@ impl Parser {
 				val h_end = interp_find_close(text, h_start);
 				if (h_end < 0) {
 					self.errors += "Unterminated interpolation hole in string literal";
-					return self.literal(LiteralKind.STRING, text, line, col);
+					return self.node(NodeData.LiteralExpr(LiteralKind.STRING, text), line, col);
 				}
 				val src = text.slice(h_start, h_end);
 				var sub_lexer = Lexer(src);
@@ -877,8 +877,8 @@ impl Parser {
 			i++;
 		}
 
-		if (has_lit) parts += InterpPart.Literal(self.literal(LiteralKind.STRING, "\"${lit.to_str()}\"", line, col));
-		return self.interp(parts, line, col);
+		if (has_lit) parts += InterpPart.Literal(self.node(NodeData.LiteralExpr(LiteralKind.STRING, "\"${lit.to_str()}\""), line, col));
+		return self.node(NodeData.InterpExpr(parts), line, col);
 	}
 
 }

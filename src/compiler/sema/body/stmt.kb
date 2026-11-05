@@ -378,9 +378,10 @@ impl BodyPass {
 				val prefix = "${tmpl.module.mangle_symbol(tmpl.name)}_";
 				val s = var_ty.as_struct();
 				if (!s.c_name.starts_with(prefix)) return null;
-				return self.arena.call(
-					self.arena.identifier(s.c_name, init_node.line, init_node.col),
-					call.args, List<*AstNode>(), init_node.line, init_node.col
+				val callee = self.arena.node(NodeData.IdentifierExpr(s.c_name), init_node.line, init_node.col);
+				return self.arena.node(
+					NodeData.CallExpr(callee, call.args, List<*AstNode>()),
+					init_node.line, init_node.col
 				);
 			}
 		}

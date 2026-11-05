@@ -111,79 +111,63 @@ impl DeclPass {
 
 		val target = node;
 		var out = when (target) {
-			is LiteralExpr as l -> self.arena.literal(
-				l.literal_kind, l.raw_text,
-				node.line, node.col
-			);
+			is LiteralExpr as l -> self.arena.node(NodeData.LiteralExpr(
+				l.literal_kind, l.raw_text
+			), node.line, node.col);
 
-			is IdentifierExpr as id -> self.arena.identifier(
-				// An identifier the checker resolved to a mangled C name (imports,
-				// symbols from another module) carries that name in the instance's
-				// side table; the shared template node keeps its source name.
-				if (e?.has_ident_name) e.ident_name else id.name,
-				node.line, node.col
-			);
+			is IdentifierExpr as id -> self.arena.node(NodeData.IdentifierExpr(
+				if (e?.has_ident_name) e.ident_name else id.name
+			), node.line, node.col);
 
-			is BinaryExpr as b -> self.arena.binary(
-				b.op,
+			is BinaryExpr as b -> self.arena.node(NodeData.BinaryExpr(
 				self.clone_expr(b.left, subst),
-				self.clone_expr(b.right, subst),
-				node.line, node.col
-			);
+				b.op,
+				self.clone_expr(b.right, subst)
+			), node.line, node.col);
 
-			is UnaryExpr as u -> self.arena.unary(
-				u.op, self.clone_expr(u.operand, subst),
-				node.line, node.col, u.is_postfix
-			);
+			is UnaryExpr as u -> self.arena.node(NodeData.UnaryExpr(
+				u.op, self.clone_expr(u.operand, subst), u.is_postfix
+			), node.line, node.col);
 
 			is CallExpr -> self.clone_call_expr(node!, subst);
 
 			is MemberExpr as m -> {
 				val obj_src = e?.obj_replace ?: m.object;
 				val cloned_obj = self.clone_expr(obj_src, subst);
-				val res = if (m.is_safe)
-					self.arena.safe_member(cloned_obj, m.member, node.line, node.col)
-				else
-					self.arena.member(cloned_obj, m.member, node.line, node.col);
+				val res = self.arena.node(NodeData.MemberExpr(cloned_obj, m.member, m.is_safe), node.line, node.col);
 				yield res;
 			}
 
-			is IndexExpr as ix -> self.arena.index(
+			is IndexExpr as ix -> self.arena.node(NodeData.IndexExpr(
 				self.clone_expr(ix.target, subst),
-				self.clone_expr(ix.index, subst),
-				node.line, node.col
-			);
+				self.clone_expr(ix.index, subst)
+			), node.line, node.col);
 
-			is AssignExpr as a -> self.arena.compound_assign(
-				a.op,
+			is AssignExpr as a -> self.arena.node(NodeData.AssignExpr(
 				self.clone_expr(a.target, subst),
-				self.clone_expr(a.value, subst),
-				node.line, node.col
-			);
+				a.op,
+				self.clone_expr(a.value, subst)
+			), node.line, node.col);
 
-			is UpdateExpr as u -> self.arena.update(
+			is UpdateExpr as u -> self.arena.node(NodeData.UpdateExpr(
 				u.op,
-				self.clone_expr(u.target, subst),
-				node.line, node.col
-			);
+				self.clone_expr(u.target, subst)
+			), node.line, node.col);
 
-			is CastExpr as cst -> self.arena.cast(
+			is CastExpr as cst -> self.arena.node(NodeData.CastExpr(
 				if (cst.expr != null) self.clone_expr(cst.expr!, subst) else null,
-				self.clone_type(cst.target_type, subst),
-				node.line, node.col
-			);
+				self.clone_type(cst.target_type, subst)
+			), node.line, node.col);
 
-			is GroupExpr as g -> self.arena.group(
-				self.clone_expr(g.expr, subst),
-				node.line, node.col
-			);
+			is GroupExpr as g -> self.arena.node(NodeData.GroupExpr(
+				self.clone_expr(g.expr, subst)
+			), node.line, node.col);
 
-			is IfExpr as ie -> self.arena.if_expr(
+			is IfExpr as ie -> self.arena.node(NodeData.IfExpr(
 				self.clone_expr(ie.condition, subst),
 				self.clone_expr(ie.then_branch, subst),
-				self.clone_expr(ie.else_branch, subst),
-				node.line, node.col
-			);
+				self.clone_expr(ie.else_branch, subst)
+			), node.line, node.col);
 
 			is ArrayLiteralExpr as al -> {
 				var lname = al.list_struct_name;
@@ -192,27 +176,24 @@ impl DeclPass {
 					if (e.has_list_name) lname = e.list_name;
 					if (e.has_elem_node) enode = self.clone_type(e.elem_node!, subst);
 				}
-				yield self.arena.list_literal(
+				yield self.arena.node(NodeData.ArrayLiteralExpr(
 					self.clone_expr_list(al.elements, subst),
-					lname, enode,
-					node.line, node.col
-				);
+					lname, enode
+				), node.line, node.col);
 			}
 
-			is WhenExpr as we -> self.arena.when_expr(
+			is WhenExpr as we -> self.arena.node(NodeData.WhenExpr(
 				if (we.condition != null) self.clone_expr(we.condition!, subst) else null,
-				self.clone_when_arms(node!, subst),
-				node.line, node.col
-			);
+				self.clone_when_arms(node!, subst)
+			), node.line, node.col);
 
-			is InterpExpr -> self.arena.interp(
-				self.clone_interp_parts(node!, subst),
-				node.line, node.col
-			);
+			is InterpExpr -> self.arena.node(NodeData.InterpExpr(
+				self.clone_interp_parts(node!, subst)
+			), node.line, node.col);
 
 			is IsExpr as is_e -> {
 				val expr_clone = if (is_e.expr != null) self.clone_expr(is_e.expr!, subst) else null;
-				val res_is = self.arena.is_expr(expr_clone, self.clone_type(is_e.target_type, subst), node.line, node.col);
+				val res_is = self.arena.node(NodeData.IsExpr(expr_clone, self.clone_type(is_e.target_type, subst), "", "", "", false, false, "", false, ""), node.line, node.col);
 				if (!is_e.alias.empty() && res_is is IsExpr as res_e) {
 					res_e.alias = is_e.alias;
 					res_e.mutable = is_e.mutable;
@@ -234,7 +215,7 @@ impl DeclPass {
 				sop.param_index, sop.size_text
 			), node.line, node.col);
 
-			else -> self.arena.identifier("<unsupported-expr>", node.line, node.col);
+			else -> self.arena.node(NodeData.IdentifierExpr("<unsupported-expr>"), node.line, node.col);
 		};
 
 		// Carry this instance's decisions onto the fresh node.
@@ -254,7 +235,7 @@ impl DeclPass {
 
 		if (node is CallExpr as c) {
 			val args = self.clone_expr_list(c.args, subst);
-			return self.arena.call(self.clone_expr(c.callee, subst), args, List<*AstNode>(), node.line, node.col);
+			return self.arena.node(NodeData.CallExpr(self.clone_expr(c.callee, subst), args, List<*AstNode>()), node.line, node.col);
 		}
 		return node;
 	}
@@ -267,7 +248,7 @@ impl DeclPass {
 			if (c.callee is MemberExpr as m) {
 				if (m.member == "size" && m.object is IdentifierExpr as obj_id) {
 					val sa = subst?.lookup(obj_id.name) ?: return null;
-					return self.arena.literal(LiteralKind.INT, "${self.ast_type_size(sa)}", node.line, node.col);
+					return self.arena.node(NodeData.LiteralExpr(LiteralKind.INT, "${self.ast_type_size(sa)}"), node.line, node.col);
 				}
 			}
 		}
@@ -302,22 +283,22 @@ impl DeclPass {
 			if (!is_static) new_args += mem_obj;
 			for (a in c.args) new_args += self.clone_expr(a, subst);
 			val cname = self.instantiate_fn(ft!, targs);
-			val call_node = self.arena.call(
-				self.arena.identifier(cname, node.line, node.col),
-				new_args, List<*AstNode>(),
+			val callee = self.arena.node(NodeData.IdentifierExpr(cname), node.line, node.col);
+			val call_node = self.arena.node(
+				NodeData.CallExpr(callee, new_args, List<*AstNode>()),
 				node.line, node.col
 			);
 
 			if (!is_static && mem.is_safe) {
-				val cond = self.arena.binary(
-					TokenType.BANG_EQUAL, mem_obj,
-					self.arena.literal(LiteralKind.NULL_VAL, "null", node.line, node.col),
+				val null_lit = self.arena.node(NodeData.LiteralExpr(LiteralKind.NULL_VAL, "null"), node.line, node.col);
+				val cond = self.arena.node(
+					NodeData.BinaryExpr(mem_obj, TokenType.BANG_EQUAL, null_lit),
 					node.line, node.col
 				);
 
-				return self.arena.if_expr(
-					cond, call_node,
-					self.arena.literal(LiteralKind.NULL_VAL, "null", node.line, node.col),
+				val else_null = self.arena.node(NodeData.LiteralExpr(LiteralKind.NULL_VAL, "null"), node.line, node.col);
+				return self.arena.node(
+					NodeData.IfExpr(cond, call_node, else_null),
 					node.line, node.col
 				);
 			}
@@ -331,9 +312,10 @@ impl DeclPass {
 				val cname = self.instantiate_fn(ft, targs);
 				var cargs = List<*AstNode>();
 				for (a in c.args) cargs += self.clone_expr(a, subst);
-				return self.arena.call(
-					self.arena.identifier(cname, node.line, node.col),
-					cargs, List<*AstNode>(), node.line, node.col
+				val callee = self.arena.node(NodeData.IdentifierExpr(cname), node.line, node.col);
+				return self.arena.node(
+					NodeData.CallExpr(callee, cargs, List<*AstNode>()),
+					node.line, node.col
 				);
 			}
 
@@ -343,9 +325,10 @@ impl DeclPass {
 				val cty = self.instantiate_struct(st, targs);
 				var cargs = List<*AstNode>();
 				for (a in c.args) cargs += self.clone_expr(a, subst);
-				return self.arena.call(
-					self.arena.identifier(cty.as_struct().name, node.line, node.col),
-					cargs, List<*AstNode>(), node.line, node.col
+				val callee = self.arena.node(NodeData.IdentifierExpr(cty.as_struct().name), node.line, node.col);
+				return self.arena.node(
+					NodeData.CallExpr(callee, cargs, List<*AstNode>()),
+					node.line, node.col
 				);
 			}
 		}
