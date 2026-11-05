@@ -11093,7 +11093,6 @@ void compiler__sema__decl__DeclPass_register_template(compiler__sema__decl__Decl
                     {
                         compiler__ast__NodeData__FnDecl* f = NULL;
                         if ((m != NULL && m->data.tag == compiler__ast__NodeData__FnDecl__TAG && (f = (compiler__ast__NodeData__FnDecl*)(&(m)->data.u.FnDecl), 1)) && (f->type_params.len > 0)) {
-                            compiler__ast__NodeData__FnDecl* f_mut = (compiler__ast__NodeData__FnDecl*)f;
                             {
                                 size_t __for_e = f->params.len;
                                 size_t __for_i = __for_e;
@@ -11112,7 +11111,7 @@ void compiler__sema__decl__DeclPass_register_template(compiler__sema__decl__Decl
                                         compiler__sema__Type* prim = compiler__sema__resolve_primitive_name(self->symtab.prims, im->struct_name);
                                         compiler__ast__AstNode* named = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 1, .u.NamedType = { im->struct_name, std__collections__List_ptr_compiler__ast__AstNode_init(4) } }, m->line, m->col);
                                         compiler__ast__AstNode* self_ty_node = ((prim != NULL) ? named : std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 2, .u.PointerType = { p.mutable, named } }, m->line, m->col));
-                                        std__collections__List_compiler__ast__Param_set(&f_mut->params, i, (compiler__ast__Param){ p.name, self_ty_node, p.mutable, p.has_val, p.default_val });
+                                        std__collections__List_compiler__ast__Param_set(&f->params, i, (compiler__ast__Param){ p.name, self_ty_node, p.mutable, p.has_val, p.default_val });
                                     }
                                     if (__for_up) {
                                         __for_go = ((__for_i + 1) < __for_e);
@@ -11532,16 +11531,14 @@ void compiler__sema__decl__DeclPass_propagate_target_type(compiler__sema__decl__
                                             __for_i = (__for_i + 1);
                                         }
                                     }
-                                    compiler__ast__NodeData__CallExpr* call_mut = (compiler__ast__NodeData__CallExpr*)call;
-                                    call_mut->type_args = new_targs;
+                                    call->type_args = new_targs;
                                 }
                             } else {
                                 compiler__sema__GenTemplate* tmpl = compiler__sema__decl__DeclPass_find_struct_template(self, cid->name);
                                 if (tmpl != NULL) {
                                     kobel_str prefix = kobel_concat(str_mangle_symbol(tmpl->module, tmpl->name), KOBEL_STR("_"));
                                     if (str_starts_with(nt->name, prefix)) {
-                                        compiler__ast__NodeData__IdentifierExpr* cid_mut = (compiler__ast__NodeData__IdentifierExpr*)cid;
-                                        cid_mut->name = nt->name;
+                                        cid->name = nt->name;
                                     }
                                 }
                             }
@@ -11644,15 +11641,13 @@ void compiler__sema__decl__DeclPass_rewrite_call_target(compiler__sema__decl__De
             compiler__sema__GenTemplate* ft = compiler__sema__decl__DeclPass_find_fn_template(self, cid->name);
             if (ft != NULL) {
                 kobel_str cname = compiler__sema__decl__DeclPass_instantiate_fn(self, ft, c->type_args);
-                compiler__ast__NodeData__IdentifierExpr* cid_mut = (compiler__ast__NodeData__IdentifierExpr*)cid;
-                cid_mut->name = cname;
+                cid->name = cname;
                 c->type_args = std__collections__List_ptr_compiler__ast__AstNode_init(4);
             } else {
                 compiler__sema__GenTemplate* st = compiler__sema__decl__DeclPass_find_struct_template(self, cid->name);
                 if (st != NULL) {
                     compiler__sema__Type* cty = compiler__sema__decl__DeclPass_instantiate_struct(self, st, c->type_args);
-                    compiler__ast__NodeData__IdentifierExpr* cid_mut = (compiler__ast__NodeData__IdentifierExpr*)cid;
-                    cid_mut->name = (*compiler__sema__Type_as_struct(cty)).name;
+                    cid->name = (*compiler__sema__Type_as_struct(cty)).name;
                     c->type_args = std__collections__List_ptr_compiler__ast__AstNode_init(4);
                 }
             }
@@ -11664,8 +11659,7 @@ bool compiler__sema__decl__DeclPass_rewrite_expr_generics(compiler__sema__decl__
     compiler__ast__AstNode* cur = node;
     if (cur != NULL && cur->data.tag == compiler__ast__NodeData__CallExpr__TAG) {
         compiler__ast__NodeData__CallExpr* c = (compiler__ast__NodeData__CallExpr*)(&(cur)->data.u.CallExpr);
-        compiler__ast__NodeData__CallExpr* c_mut = (compiler__ast__NodeData__CallExpr*)c;
-        compiler__sema__decl__DeclPass_rewrite_call_target(self, node, c_mut);
+        compiler__sema__decl__DeclPass_rewrite_call_target(self, node, c);
         compiler__sema__decl__DeclPass_rewrite_generics(self, c->callee);
         {
             size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&c->args);

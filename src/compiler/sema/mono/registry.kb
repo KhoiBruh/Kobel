@@ -51,8 +51,7 @@ impl DeclPass {
 					self.symtab.gen.impl_templates += self.gen_template(im.struct_name, node, true);
 				} else {
 					for (m in im.methods) {
-						if (m is FnDecl as f && f.type_params.len > 0) {
-							val f_mut = f as &FnDecl;
+						if (m is FnDecl as var f && f.type_params.len > 0) {
 							for (i in 0..<f.params.len) {
 								val p = f.params[i];
 								if (p.name == "self" && p.type_node == null) {
@@ -60,7 +59,7 @@ impl DeclPass {
 									val named = self.arena.node(NodeData.NamedType(im.struct_name, List<*AstNode>()), m.line, m.col);
 									val self_ty_node = if (prim != null) named
 										else self.arena.node(NodeData.PointerType(p.mutable, named), m.line, m.col);
-									f_mut.params[i] = Param(p.name, self_ty_node, p.mutable, p.has_val, p.default_val);
+									f.params[i] = Param(p.name, self_ty_node, p.mutable, p.has_val, p.default_val);
 								}
 							}
 							self.symtab.gen.fn_templates += self.gen_template(f.name, m, true, im.struct_name);

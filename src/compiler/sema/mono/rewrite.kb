@@ -38,24 +38,22 @@ impl DeclPass {
 			if (cur == null) return;
 
 			when (cur) {
-				is CallExpr as call -> {
+				is CallExpr as var call -> {
 					val callee = call.callee;
-					if (callee is IdentifierExpr as cid) {
+					if (callee is IdentifierExpr as var cid) {
 						if (call.type_args.empty()) {
 							if (nt.type_args.len > 0) {
 								if (cid.name == nt.name) {
 									var new_targs = List<*AstNode>();
 									for (ta in nt.type_args) new_targs += ta;
-									val call_mut = call as &CallExpr;
-									call_mut.type_args = new_targs;
+									call.type_args = new_targs;
 								}
 							} else {
 								val tmpl = self.find_struct_template(cid.name);
 								if (tmpl != null) {
 									val prefix = "${tmpl.module.mangle_symbol(tmpl.name)}_";
 									if (nt.name.starts_with(prefix)) {
-										val cid_mut = cid as &IdentifierExpr;
-										cid_mut.name = nt.name;
+										cid.name = nt.name;
 									}
 								}
 							}
@@ -129,19 +127,17 @@ impl DeclPass {
 		if (c.type_args.empty()) return;
 		val callee = c.callee;
 
-		if (callee is IdentifierExpr as cid) {
+		if (callee is IdentifierExpr as var cid) {
 			val ft = self.find_fn_template(cid.name);
 			if (ft != null) {
 				val cname = self.instantiate_fn(ft, c.type_args);
-				val cid_mut = cid as &IdentifierExpr;
-				cid_mut.name = cname;
+				cid.name = cname;
 				c.type_args = List<*AstNode>();
 			} else {
 				val st = self.find_struct_template(cid.name);
 				if (st != null) {
 					val cty = self.instantiate_struct(st, c.type_args);
-					val cid_mut = cid as &IdentifierExpr;
-					cid_mut.name = cty.as_struct().name;
+					cid.name = cty.as_struct().name;
 					c.type_args = List<*AstNode>();
 				}
 			}
@@ -151,9 +147,8 @@ impl DeclPass {
 	fn rewrite_expr_generics(var self, node: *AstNode): bool {
 		val cur = node;
 		return when (cur) {
-			is CallExpr as c -> {
-				val c_mut = c as &CallExpr;
-				self.rewrite_call_target(node, c_mut);
+			is CallExpr as var c -> {
+				self.rewrite_call_target(node, c);
 				self.rewrite_generics(c.callee);
 				for (a in c.args) self.rewrite_generics(a);
 				yield true;
