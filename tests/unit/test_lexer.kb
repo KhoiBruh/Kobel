@@ -250,6 +250,72 @@ fn test_question_operators(): bool {
 	return true;
 }
 
+fn test_token_spans_and_helpers(): bool {
+	val code = "val msg = \"\"\"\nline1\nline2\n\"\"\";\nvar n = 42;";
+	var lex = Lexer(code, 7);
+	val tokens = lex.tokenize();
+	defer tokens.free();
+
+	if (!lex.errors.empty()) return false;
+
+	// `val` at file 7, line 1, col 1, length 3
+	val t_val = tokens[0];
+	if (!t_val.is_keyword() || t_val.is_literal()) return false;
+	if (
+		t_val.span.file_id != 7
+		|| t_val.span.line != 1
+		|| t_val.span.col != 1
+		|| t_val.span.length != 3
+	) return false;
+
+	// `=` at line 1, col 9, length 1
+	val t_eq = tokens[2];
+	if (!t_eq.is_assignment_op()) return false;
+
+	// Multiline string starts at line 1, col 11 (not line 4!)
+	val t_str = tokens[3];
+	if (!t_str.is_literal()) return false;
+	if (
+		t_str.line != 1
+		|| t_str.col != 11
+		|| t_str.span.line != 1
+		|| t_str.span.col != 11
+	) return false;
+
+	// `var` after multiline string is on line 5, col 1
+	val t_var = tokens[5];
+	if (t_var.line != 5 || t_var.col != 1 || t_var.span.line != 5) return false;
+
+	return true;
+}
+
+fn test_lexical_diagnostics(): bool {
+	var lex1 = Lexer("\"unterminated");
+	val t1 = lex1.tokenize();
+	defer t1.free();
+	val tok1 = t1[0];
+	if (lex1.errors.len != 1 || !tok1.is_unknown()) return false;
+
+	var lex2 = Lexer("/* unclosed comment");
+	val t2 = lex2.tokenize();
+	defer t2.free();
+	if (lex2.errors.len != 1) return false;
+
+	var lex3 = Lexer("''");
+	val t3 = lex3.tokenize();
+	defer t3.free();
+	val tok3 = t3[0];
+	if (lex3.errors.len != 1 || !tok3.is_unknown()) return false;
+
+	var lex4 = Lexer("@");
+	val t4 = lex4.tokenize();
+	defer t4.free();
+	val tok4 = t4[0];
+	if (lex4.errors.len != 1 || !tok4.is_unknown()) return false;
+
+	return true;
+}
+
 fn main(): i32 {
 	println("[RUNNING] Bootstrap Lexer tests...");
 
@@ -306,6 +372,16 @@ fn main(): i32 {
 		return 1;
 	}
 	println("  [PASS] test_bom_prefix");
+	if (!test_token_spans_and_helpers()) {
+		println("  [FAIL] test_token_spans_and_helpers");
+		return 1;
+	}
+	println("  [PASS] test_token_spans_and_helpers");
+	if (!test_lexical_diagnostics()) {
+		println("  [FAIL] test_lexical_diagnostics");
+		return 1;
+	}
+	println("  [PASS] test_lexical_diagnostics");
 
 	println("[ALL PASSED] Bootstrap Lexer passed all tests successfully!");
 	return 0;

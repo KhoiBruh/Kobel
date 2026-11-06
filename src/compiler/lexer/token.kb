@@ -3,8 +3,20 @@ mod compiler.lexer;
 use std.traits.*;
 use std.string.*;
 
+use compiler.core.Span;
+
+/*
+ * ============================================================================
+ * compiler.lexer.token — Lexical token types and token representation
+ *
+ * Every token carries its `TokenType`, raw slice `text`, and source `Span`
+ * (file_id, 1-based line/column, and byte length), along with `line` and `col`
+ * for direct access.
+ * ============================================================================
+ */
+
 pub enum TokenType {
-	// Single syntax
+	// Single-character punctuation & operators
 	SEMI_COLON,    // ;
 	COLON,         // :
 	COMMA,         // ,
@@ -27,7 +39,7 @@ pub enum TokenType {
 	AMPERSAND,     // &
 	QUESTION,      // ?
 
-	// Double syntax
+	// Multi-character operators & punctuation
 	EQUAL_EQUAL,   // ==
 	BANG_EQUAL,    // !=
 	LESS_EQUAL,    // <=
@@ -47,7 +59,7 @@ pub enum TokenType {
 	QUESTION_COLON,// ?:
 	QUESTION_DOT,  // ?.
 
-	// Literals
+	// Literals & identifiers
 	CHAR,
 	NUMBER,
 	STRING,
@@ -82,19 +94,60 @@ pub enum TokenType {
 	KW_YIELD,
 	KW_OP,
 	KW_DEFER,
+	KW_IS,
+	KW_INIT,
 
 	// Specials
 	END_OF_FILE,
-	UNKNOWN,
-	KW_IS,
-	KW_INIT
+	UNKNOWN
 }
 
 pub struct Token {
 	pub type: TokenType,
 	pub text: str,
 	pub line: usz,
-	pub col: usz
+	pub col: usz,
+	pub span: Span = Span.empty()
+}
+
+impl Token {
+
+	pub init(type: TokenType, text: str, line: usz, col: usz)
+		=> Self(type, text, line, col, Span(0, line as u32, col as u32, text.len as u32));
+
+	pub init(type: TokenType, text: str, line: usz, col: usz, span: Span)
+		=> Self(type, text, line, col, span);
+
+	pub fn is_eof(val self) => self.type == TokenType.END_OF_FILE;
+
+	pub fn is_unknown(val self) => self.type == TokenType.UNKNOWN;
+
+	pub fn is_keyword(val self): bool => when (self.type) {
+		TokenType.KW_EXTERN, TokenType.KW_STRUCT, TokenType.KW_ENUM,
+		TokenType.KW_FN, TokenType.KW_RETURN, TokenType.KW_CONST,
+		TokenType.KW_NULL, TokenType.KW_TRUE, TokenType.KW_FALSE,
+		TokenType.KW_VAL, TokenType.KW_VAR, TokenType.KW_AS,
+		TokenType.KW_WHILE, TokenType.KW_BREAK, TokenType.KW_CONTINUE,
+		TokenType.KW_IF, TokenType.KW_ELSE, TokenType.KW_WHEN,
+		TokenType.KW_MOD, TokenType.KW_USE, TokenType.KW_PUB,
+		TokenType.KW_TRAIT, TokenType.KW_IMPL, TokenType.KW_FOR,
+		TokenType.KW_IN, TokenType.KW_YIELD, TokenType.KW_OP,
+		TokenType.KW_DEFER, TokenType.KW_IS, TokenType.KW_INIT -> true;
+		else -> false;
+	};
+
+	pub fn is_literal(val self): bool => when (self.type) {
+		TokenType.CHAR, TokenType.NUMBER, TokenType.STRING,
+		TokenType.KW_TRUE, TokenType.KW_FALSE, TokenType.KW_NULL -> true;
+		else -> false;
+	};
+
+	pub fn is_assignment_op(val self): bool => when (self.type) {
+		TokenType.EQUAL, TokenType.PLUS_EQUAL, TokenType.MINUS_EQUAL,
+		TokenType.STAR_EQUAL, TokenType.SLASH_EQUAL, TokenType.PERCENT_EQUAL -> true;
+		else -> false;
+	};
+
 }
 
 impl Stringer for Token {

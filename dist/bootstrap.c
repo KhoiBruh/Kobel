@@ -465,18 +465,12 @@ struct compiler__core__Span {
     size_t length;
 };
 
-struct compiler__lexer__Lexer {
-    kobel_str src;
-    size_t cursor;
-    size_t line;
-    size_t col;
-};
-
 struct compiler__lexer__Token {
     compiler__lexer__TokenType type;
     kobel_str text;
     size_t line;
     size_t col;
+    compiler__core__Span span;
 };
 
 struct compiler__ast__Param {
@@ -1030,6 +1024,15 @@ struct compiler__core__SourceMap {
     std__collections__List_compiler__core__SourceFile files;
     std__collections__HashMap_str_u32 path_index;
     std__collections__HashMap_str_u32 module_index;
+};
+
+struct compiler__lexer__Lexer {
+    kobel_str src;
+    size_t cursor;
+    size_t line;
+    size_t col;
+    uint32_t file_id;
+    std__collections__List_str errors;
 };
 
 struct compiler__ast__GenericParam {
@@ -2198,14 +2201,17 @@ kobel_str compiler__driver__snap_name(kobel_str path);
 int32_t compiler__driver__cmd_snap(kobel_str manifest_path, bool update);
 int32_t compiler__driver__cmd_fixpoint(kobel_str manifest_path);
 compiler__lexer__TokenType compiler__lexer__lookup_keyword(kobel_str text);
-compiler__lexer__Lexer compiler__lexer__Lexer_init(kobel_str src);
+kobel_str compiler__lexer__strip_utf8_bom(kobel_str src);
+compiler__lexer__Lexer compiler__lexer__Lexer_init(kobel_str src, uint32_t file_id);
 bool compiler__lexer__Lexer_is_end(compiler__lexer__Lexer* self);
 char compiler__lexer__Lexer_peek(compiler__lexer__Lexer* self);
 char compiler__lexer__Lexer_peek_at(compiler__lexer__Lexer* self, size_t offset);
 kobel_str compiler__lexer__Lexer_sub(compiler__lexer__Lexer* self, size_t start);
 char compiler__lexer__Lexer_next(compiler__lexer__Lexer* self);
 bool compiler__lexer__Lexer_match(compiler__lexer__Lexer* self, char expected);
+void compiler__lexer__Lexer_record_error(compiler__lexer__Lexer* self, size_t line, size_t col, kobel_str msg);
 compiler__lexer__Token compiler__lexer__Lexer_make_token(compiler__lexer__Lexer* self, compiler__lexer__TokenType type, size_t start_cursor, size_t start_col);
+compiler__lexer__Token compiler__lexer__Lexer_make_token_at(compiler__lexer__Lexer* self, compiler__lexer__TokenType type, size_t start_cursor, size_t start_line, size_t start_col);
 void compiler__lexer__Lexer_newline(compiler__lexer__Lexer* self);
 void compiler__lexer__Lexer_skip_space(compiler__lexer__Lexer* self);
 compiler__lexer__Token compiler__lexer__Lexer_scan_identifier(compiler__lexer__Lexer* self, size_t start_cursor, size_t start_col);
@@ -2220,6 +2226,13 @@ void compiler__lexer__Lexer_skip_char_raw(compiler__lexer__Lexer* self);
 compiler__lexer__Token compiler__lexer__Lexer_scan_char(compiler__lexer__Lexer* self, size_t start_cursor, size_t start_col);
 compiler__lexer__Token compiler__lexer__Lexer_next_token(compiler__lexer__Lexer* self);
 std__collections__List_compiler__lexer__Token compiler__lexer__Lexer_tokenize(compiler__lexer__Lexer* self);
+compiler__lexer__Token compiler__lexer__Token_init_4(compiler__lexer__TokenType type, kobel_str text, size_t line, size_t col);
+compiler__lexer__Token compiler__lexer__Token_init_5(compiler__lexer__TokenType type, kobel_str text, size_t line, size_t col, compiler__core__Span span);
+bool compiler__lexer__Token_is_eof(compiler__lexer__Token* self);
+bool compiler__lexer__Token_is_unknown(compiler__lexer__Token* self);
+bool compiler__lexer__Token_is_keyword(compiler__lexer__Token* self);
+bool compiler__lexer__Token_is_literal(compiler__lexer__Token* self);
+bool compiler__lexer__Token_is_assignment_op(compiler__lexer__Token* self);
 kobel_str compiler__lexer__Token_to_str(compiler__lexer__Token* self);
 kobel_str compiler__ast__NodeData__Program_declared_module_name(compiler__ast__NodeData__Program* self);
 size_t compiler__ast__NodeData__ExternBlock_count(compiler__ast__NodeData__ExternBlock* self);
@@ -7341,17 +7354,20 @@ int32_t compiler__driver__cmd_fixpoint(kobel_str manifest_path) {
 }
 
 compiler__lexer__TokenType compiler__lexer__lookup_keyword(kobel_str text) {
-    return (kobel_streq(text, KOBEL_STR("extern")) ? 43 : (kobel_streq(text, KOBEL_STR("struct")) ? 44 : (kobel_streq(text, KOBEL_STR("enum")) ? 45 : (kobel_streq(text, KOBEL_STR("fn")) ? 46 : (kobel_streq(text, KOBEL_STR("return")) ? 47 : (kobel_streq(text, KOBEL_STR("const")) ? 48 : (kobel_streq(text, KOBEL_STR("null")) ? 49 : (kobel_streq(text, KOBEL_STR("true")) ? 50 : (kobel_streq(text, KOBEL_STR("false")) ? 51 : (kobel_streq(text, KOBEL_STR("val")) ? 52 : (kobel_streq(text, KOBEL_STR("var")) ? 53 : (kobel_streq(text, KOBEL_STR("as")) ? 54 : (kobel_streq(text, KOBEL_STR("while")) ? 55 : (kobel_streq(text, KOBEL_STR("break")) ? 56 : (kobel_streq(text, KOBEL_STR("continue")) ? 57 : (kobel_streq(text, KOBEL_STR("if")) ? 58 : (kobel_streq(text, KOBEL_STR("else")) ? 59 : (kobel_streq(text, KOBEL_STR("when")) ? 60 : (kobel_streq(text, KOBEL_STR("mod")) ? 61 : (kobel_streq(text, KOBEL_STR("use")) ? 62 : (kobel_streq(text, KOBEL_STR("pub")) ? 63 : (kobel_streq(text, KOBEL_STR("trait")) ? 64 : (kobel_streq(text, KOBEL_STR("impl")) ? 65 : (kobel_streq(text, KOBEL_STR("for")) ? 66 : (kobel_streq(text, KOBEL_STR("in")) ? 67 : (kobel_streq(text, KOBEL_STR("yield")) ? 68 : (kobel_streq(text, KOBEL_STR("is")) ? 73 : (kobel_streq(text, KOBEL_STR("init")) ? 74 : (kobel_streq(text, KOBEL_STR("op")) ? 69 : (kobel_streq(text, KOBEL_STR("defer")) ? 70 : 42))))))))))))))))))))))))))))));
+    return (kobel_streq(text, KOBEL_STR("extern")) ? 43 : (kobel_streq(text, KOBEL_STR("struct")) ? 44 : (kobel_streq(text, KOBEL_STR("enum")) ? 45 : (kobel_streq(text, KOBEL_STR("fn")) ? 46 : (kobel_streq(text, KOBEL_STR("return")) ? 47 : (kobel_streq(text, KOBEL_STR("const")) ? 48 : (kobel_streq(text, KOBEL_STR("null")) ? 49 : (kobel_streq(text, KOBEL_STR("true")) ? 50 : (kobel_streq(text, KOBEL_STR("false")) ? 51 : (kobel_streq(text, KOBEL_STR("val")) ? 52 : (kobel_streq(text, KOBEL_STR("var")) ? 53 : (kobel_streq(text, KOBEL_STR("as")) ? 54 : (kobel_streq(text, KOBEL_STR("while")) ? 55 : (kobel_streq(text, KOBEL_STR("break")) ? 56 : (kobel_streq(text, KOBEL_STR("continue")) ? 57 : (kobel_streq(text, KOBEL_STR("if")) ? 58 : (kobel_streq(text, KOBEL_STR("else")) ? 59 : (kobel_streq(text, KOBEL_STR("when")) ? 60 : (kobel_streq(text, KOBEL_STR("mod")) ? 61 : (kobel_streq(text, KOBEL_STR("use")) ? 62 : (kobel_streq(text, KOBEL_STR("pub")) ? 63 : (kobel_streq(text, KOBEL_STR("trait")) ? 64 : (kobel_streq(text, KOBEL_STR("impl")) ? 65 : (kobel_streq(text, KOBEL_STR("for")) ? 66 : (kobel_streq(text, KOBEL_STR("in")) ? 67 : (kobel_streq(text, KOBEL_STR("yield")) ? 68 : (kobel_streq(text, KOBEL_STR("is")) ? 71 : (kobel_streq(text, KOBEL_STR("init")) ? 72 : (kobel_streq(text, KOBEL_STR("op")) ? 69 : (kobel_streq(text, KOBEL_STR("defer")) ? 70 : 42))))))))))))))))))))))))))))));
 }
 
-compiler__lexer__Lexer compiler__lexer__Lexer_init(kobel_str src) {
-    kobel_str s = src;
-    if (s.len >= 3) {
-        if (((((int32_t)(uint8_t)(s.data[0])) == 239) && (((int32_t)(uint8_t)(s.data[1])) == 187)) && (((int32_t)(uint8_t)(s.data[2])) == 191)) {
-            s = kobel_slice(s, 3, s.len);
+kobel_str compiler__lexer__strip_utf8_bom(kobel_str src) {
+    if (src.len >= 3) {
+        if (((((int32_t)(uint8_t)(src.data[0])) == 239) && (((int32_t)(uint8_t)(src.data[1])) == 187)) && (((int32_t)(uint8_t)(src.data[2])) == 191)) {
+            return kobel_slice(src, 3, src.len);
         }
     }
-    return (compiler__lexer__Lexer){ s, 0, 1, 1 };
+    return src;
+}
+
+compiler__lexer__Lexer compiler__lexer__Lexer_init(kobel_str src, uint32_t file_id) {
+    return (compiler__lexer__Lexer){ compiler__lexer__strip_utf8_bom(src), 0, 1, 1, file_id, std__collections__List_str_init(4) };
 }
 
 bool compiler__lexer__Lexer_is_end(compiler__lexer__Lexer* self) {
@@ -7396,8 +7412,18 @@ bool compiler__lexer__Lexer_match(compiler__lexer__Lexer* self, char expected) {
     return true;
 }
 
+void compiler__lexer__Lexer_record_error(compiler__lexer__Lexer* self, size_t line, size_t col, kobel_str msg) {
+    std__collections__List_str_plus_assign(&self->errors, kobel_concat(kobel_concat5(KOBEL_STR("Line "), usz_to_str(line), KOBEL_STR(", Column "), usz_to_str(col), KOBEL_STR(": ")), msg));
+}
+
 compiler__lexer__Token compiler__lexer__Lexer_make_token(compiler__lexer__Lexer* self, compiler__lexer__TokenType type, size_t start_cursor, size_t start_col) {
-    return (compiler__lexer__Token){ type, compiler__lexer__Lexer_sub(self, start_cursor), self->line, start_col };
+    return compiler__lexer__Lexer_make_token_at(self, type, start_cursor, self->line, start_col);
+}
+
+compiler__lexer__Token compiler__lexer__Lexer_make_token_at(compiler__lexer__Lexer* self, compiler__lexer__TokenType type, size_t start_cursor, size_t start_line, size_t start_col) {
+    kobel_str text = compiler__lexer__Lexer_sub(self, start_cursor);
+    compiler__core__Span sp = compiler__core__Span_init(self->file_id, (uint32_t)start_line, (uint32_t)start_col, (uint32_t)text.len);
+    return compiler__lexer__Token_init_5(type, text, start_line, start_col, sp);
 }
 
 void compiler__lexer__Lexer_newline(compiler__lexer__Lexer* self) {
@@ -7438,7 +7464,8 @@ compiler__lexer__Token compiler__lexer__Lexer_scan_identifier(compiler__lexer__L
     }
     kobel_str text = compiler__lexer__Lexer_sub(self, start_cursor);
     compiler__lexer__TokenType kw = compiler__lexer__lookup_keyword(text);
-    return (compiler__lexer__Token){ kw, text, self->line, start_col };
+    compiler__core__Span sp = compiler__core__Span_init(self->file_id, (uint32_t)self->line, (uint32_t)start_col, (uint32_t)text.len);
+    return compiler__lexer__Token_init_5(kw, text, self->line, start_col, sp);
 }
 
 void compiler__lexer__Lexer_scan_decimal_digits_and_fraction(compiler__lexer__Lexer* self) {
@@ -7529,6 +7556,7 @@ compiler__lexer__Token compiler__lexer__Lexer_scan_number(compiler__lexer__Lexer
 }
 
 compiler__lexer__Token compiler__lexer__Lexer_scan_string(compiler__lexer__Lexer* self, size_t start_cursor, size_t start_col) {
+    size_t start_line = self->line;
     bool closed = false;
     while (!compiler__lexer__Lexer_is_end(self)) {
         char c = compiler__lexer__Lexer_peek(self);
@@ -7561,12 +7589,14 @@ compiler__lexer__Token compiler__lexer__Lexer_scan_string(compiler__lexer__Lexer
         compiler__lexer__Lexer_next(self);
     }
     if (!closed) {
-        return compiler__lexer__Lexer_make_token(self, 72, start_cursor, start_col);
+        compiler__lexer__Lexer_record_error(self, start_line, start_col, KOBEL_STR("Unterminated string literal"));
+        return compiler__lexer__Lexer_make_token_at(self, 74, start_cursor, start_line, start_col);
     }
-    return compiler__lexer__Lexer_make_token(self, 41, start_cursor, start_col);
+    return compiler__lexer__Lexer_make_token_at(self, 41, start_cursor, start_line, start_col);
 }
 
 compiler__lexer__Token compiler__lexer__Lexer_scan_multiline_string(compiler__lexer__Lexer* self, size_t start_cursor, size_t start_col) {
+    size_t start_line = self->line;
     bool closed = false;
     while (!compiler__lexer__Lexer_is_end(self)) {
         char c = compiler__lexer__Lexer_peek(self);
@@ -7601,9 +7631,10 @@ compiler__lexer__Token compiler__lexer__Lexer_scan_multiline_string(compiler__le
         compiler__lexer__Lexer_next(self);
     }
     if (!closed) {
-        return compiler__lexer__Lexer_make_token(self, 72, start_cursor, start_col);
+        compiler__lexer__Lexer_record_error(self, start_line, start_col, KOBEL_STR("Unterminated multiline string literal"));
+        return compiler__lexer__Lexer_make_token_at(self, 74, start_cursor, start_line, start_col);
     }
-    return compiler__lexer__Lexer_make_token(self, 41, start_cursor, start_col);
+    return compiler__lexer__Lexer_make_token_at(self, 41, start_cursor, start_line, start_col);
 }
 
 void compiler__lexer__Lexer_skip_hole(compiler__lexer__Lexer* self) {
@@ -7717,6 +7748,7 @@ void compiler__lexer__Lexer_skip_char_raw(compiler__lexer__Lexer* self) {
             continue;
         }
         if (c == '\'') {
+            compiler__lexer__Lexer_next(self);
             return;
         }
         compiler__lexer__Lexer_next(self);
@@ -7724,25 +7756,37 @@ void compiler__lexer__Lexer_skip_char_raw(compiler__lexer__Lexer* self) {
 }
 
 compiler__lexer__Token compiler__lexer__Lexer_scan_char(compiler__lexer__Lexer* self, size_t start_cursor, size_t start_col) {
-    if (!compiler__lexer__Lexer_is_end(self)) {
-        if (compiler__lexer__Lexer_peek(self) == '\\') {
+    size_t start_line = self->line;
+    if (compiler__lexer__Lexer_is_end(self) || (compiler__lexer__Lexer_peek(self) == '\'')) {
+        if (!compiler__lexer__Lexer_is_end(self) && (compiler__lexer__Lexer_peek(self) == '\'')) {
             compiler__lexer__Lexer_next(self);
         }
-        compiler__lexer__Lexer_next(self);
-        if (compiler__lexer__Lexer_peek(self) == '\'') {
-            compiler__lexer__Lexer_next(self);
-        }
+        compiler__lexer__Lexer_record_error(self, start_line, start_col, KOBEL_STR("Empty or unterminated character literal"));
+        return compiler__lexer__Lexer_make_token_at(self, 74, start_cursor, start_line, start_col);
     }
-    return compiler__lexer__Lexer_make_token(self, 39, start_cursor, start_col);
+    if (compiler__lexer__Lexer_peek(self) == '\\') {
+        compiler__lexer__Lexer_next(self);
+    }
+    if (!compiler__lexer__Lexer_is_end(self)) {
+        compiler__lexer__Lexer_next(self);
+    }
+    if (compiler__lexer__Lexer_peek(self) == '\'') {
+        compiler__lexer__Lexer_next(self);
+        return compiler__lexer__Lexer_make_token_at(self, 39, start_cursor, start_line, start_col);
+    }
+    compiler__lexer__Lexer_record_error(self, start_line, start_col, KOBEL_STR("Unterminated character literal"));
+    return compiler__lexer__Lexer_make_token_at(self, 74, start_cursor, start_line, start_col);
 }
 
 compiler__lexer__Token compiler__lexer__Lexer_next_token(compiler__lexer__Lexer* self) {
     while (true) {
         compiler__lexer__Lexer_skip_space(self);
         if (compiler__lexer__Lexer_is_end(self)) {
-            return (compiler__lexer__Token){ 71, KOBEL_STR(""), self->line, self->col };
+            compiler__core__Span eof_sp = compiler__core__Span_init(self->file_id, (uint32_t)self->line, (uint32_t)self->col, 0);
+            return compiler__lexer__Token_init_5(73, KOBEL_STR(""), self->line, self->col, eof_sp);
         }
         size_t start_cursor = self->cursor;
+        size_t start_line = self->line;
         size_t start_col = self->col;
         char c = compiler__lexer__Lexer_next(self);
         if (c == ',') {
@@ -7822,6 +7866,7 @@ compiler__lexer__Token compiler__lexer__Lexer_next_token(compiler__lexer__Lexer*
                 continue;
             }
             if (compiler__lexer__Lexer_match(self, '*')) {
+                bool closed_comment = false;
                 while (!compiler__lexer__Lexer_is_end(self)) {
                     if ((compiler__lexer__Lexer_peek(self) == '\r') || (compiler__lexer__Lexer_peek(self) == '\n')) {
                         compiler__lexer__Lexer_newline(self);
@@ -7830,9 +7875,13 @@ compiler__lexer__Token compiler__lexer__Lexer_next_token(compiler__lexer__Lexer*
                     if (((compiler__lexer__Lexer_peek(self) == '*') && ((self->cursor + 1) < self->src.len)) && (self->src.data[(self->cursor + 1)] == '/')) {
                         compiler__lexer__Lexer_next(self);
                         compiler__lexer__Lexer_next(self);
+                        closed_comment = true;
                         break;
                     }
                     compiler__lexer__Lexer_next(self);
+                }
+                if (!closed_comment) {
+                    compiler__lexer__Lexer_record_error(self, start_line, start_col, KOBEL_STR("Unterminated block comment"));
                 }
                 continue;
             }
@@ -7864,7 +7913,8 @@ compiler__lexer__Token compiler__lexer__Lexer_next_token(compiler__lexer__Lexer*
             if (compiler__lexer__Lexer_match(self, '|')) {
                 return compiler__lexer__Lexer_make_token(self, 26, start_cursor, start_col);
             }
-            return compiler__lexer__Lexer_make_token(self, 72, start_cursor, start_col);
+            compiler__lexer__Lexer_record_error(self, start_line, start_col, KOBEL_STR("Unexpected character '|'"));
+            return compiler__lexer__Lexer_make_token_at(self, 74, start_cursor, start_line, start_col);
         } else if (c == '?') {
             if (compiler__lexer__Lexer_match(self, ':')) {
                 return compiler__lexer__Lexer_make_token(self, 37, start_cursor, start_col);
@@ -7880,10 +7930,12 @@ compiler__lexer__Token compiler__lexer__Lexer_next_token(compiler__lexer__Lexer*
             if (char_is_digit(c)) {
                 return compiler__lexer__Lexer_scan_number(self, start_cursor, start_col);
             }
-            return compiler__lexer__Lexer_make_token(self, 72, start_cursor, start_col);
+            compiler__lexer__Lexer_record_error(self, start_line, start_col, kobel_concat3(KOBEL_STR("Unexpected character '"), char_to_str(c), KOBEL_STR("'")));
+            return compiler__lexer__Lexer_make_token_at(self, 74, start_cursor, start_line, start_col);
         }
     }
-    return (compiler__lexer__Token){ 72, KOBEL_STR(""), self->line, self->col };
+    compiler__core__Span unk_sp = compiler__core__Span_init(self->file_id, (uint32_t)self->line, (uint32_t)self->col, 0);
+    return compiler__lexer__Token_init_5(74, KOBEL_STR(""), self->line, self->col, unk_sp);
 }
 
 std__collections__List_compiler__lexer__Token compiler__lexer__Lexer_tokenize(compiler__lexer__Lexer* self) {
@@ -7891,11 +7943,39 @@ std__collections__List_compiler__lexer__Token compiler__lexer__Lexer_tokenize(co
     while (true) {
         compiler__lexer__Token tok = compiler__lexer__Lexer_next_token(self);
         std__collections__List_compiler__lexer__Token_plus_assign(&tokens, tok);
-        if (tok.type == 71) {
+        if (tok.type == 73) {
             break;
         }
     }
     return tokens;
+}
+
+compiler__lexer__Token compiler__lexer__Token_init_4(compiler__lexer__TokenType type, kobel_str text, size_t line, size_t col) {
+    return (compiler__lexer__Token){ type, text, line, col, compiler__core__Span_init(0, (uint32_t)line, (uint32_t)col, (uint32_t)text.len) };
+}
+
+compiler__lexer__Token compiler__lexer__Token_init_5(compiler__lexer__TokenType type, kobel_str text, size_t line, size_t col, compiler__core__Span span) {
+    return (compiler__lexer__Token){ type, text, line, col, span };
+}
+
+bool compiler__lexer__Token_is_eof(compiler__lexer__Token* self) {
+    return (self->type == 73);
+}
+
+bool compiler__lexer__Token_is_unknown(compiler__lexer__Token* self) {
+    return (self->type == 74);
+}
+
+bool compiler__lexer__Token_is_keyword(compiler__lexer__Token* self) {
+    return (self->type == 43 || self->type == 44 || self->type == 45 || self->type == 46 || self->type == 47 || self->type == 48 || self->type == 49 || self->type == 50 || self->type == 51 || self->type == 52 || self->type == 53 || self->type == 54 || self->type == 55 || self->type == 56 || self->type == 57 || self->type == 58 || self->type == 59 || self->type == 60 || self->type == 61 || self->type == 62 || self->type == 63 || self->type == 64 || self->type == 65 || self->type == 66 || self->type == 67 || self->type == 68 || self->type == 69 || self->type == 70 || self->type == 71 || self->type == 72 ? true : false);
+}
+
+bool compiler__lexer__Token_is_literal(compiler__lexer__Token* self) {
+    return (self->type == 39 || self->type == 40 || self->type == 41 || self->type == 50 || self->type == 51 || self->type == 49 ? true : false);
+}
+
+bool compiler__lexer__Token_is_assignment_op(compiler__lexer__Token* self) {
+    return (self->type == 5 || self->type == 32 || self->type == 33 || self->type == 34 || self->type == 35 || self->type == 36 ? true : false);
 }
 
 kobel_str compiler__lexer__Token_to_str(compiler__lexer__Token* self) {
@@ -8265,7 +8345,7 @@ compiler__ast__AstNode* compiler__parser__Parser_parse_trait_decl(compiler__pars
             std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&methods, compiler__parser__Parser_parse_fn_decl(self, m_pub));
         } else if (compiler__parser__Parser_check(self, 69)) {
             std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&methods, compiler__parser__Parser_parse_op_decl(self, m_pub));
-        } else if (compiler__parser__Parser_check(self, 74)) {
+        } else if (compiler__parser__Parser_check(self, 72)) {
             std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&methods, compiler__parser__Parser_parse_init_decl(self, m_pub));
         } else {
             compiler__lexer__Token tok = compiler__parser__Parser_peek(self);
@@ -8312,7 +8392,7 @@ compiler__ast__AstNode* compiler__parser__Parser_parse_impl_decl(compiler__parse
             std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&methods, compiler__parser__Parser_parse_fn_decl(self, m_pub));
         } else if (compiler__parser__Parser_check(self, 69)) {
             std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&methods, compiler__parser__Parser_parse_op_decl(self, m_pub));
-        } else if (compiler__parser__Parser_check(self, 74)) {
+        } else if (compiler__parser__Parser_check(self, 72)) {
             std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&methods, compiler__parser__Parser_parse_init_decl(self, m_pub));
         } else {
             compiler__lexer__Token tok = compiler__parser__Parser_peek(self);
@@ -8734,7 +8814,7 @@ compiler__parser__Precedence compiler__parser__Parser_get_infix_precedence(compi
         return 4;
     } else if (t == 21 || t == 22) {
         return 5;
-    } else if (t == 23 || t == 11 || t == 24 || t == 73 || t == 67) {
+    } else if (t == 23 || t == 11 || t == 24 || t == 71 || t == 67) {
         return 6;
     } else if (t == 4) {
         if (compiler__parser__Parser_peek_at(self, 1).type == 67) {
@@ -8800,7 +8880,7 @@ compiler__ast__AstNode* compiler__parser__Parser_parse_prefix(compiler__parser__
     } else if (tok.type == 7 || tok.type == 4 || tok.type == 8 || tok.type == 19) {
         compiler__ast__AstNode* operand = compiler__parser__Parser_parse_expression(self, 9);
         return compiler__parser__Parser_node(self, (compiler__ast__NodeData){ .tag = 8, .u.UnaryExpr = { tok.type, operand, false } }, line, col);
-    } else if (tok.type == 73) {
+    } else if (tok.type == 71) {
         compiler__ast__AstNode* target_type = compiler__parser__Parser_parse_type(self);
         kobel_str alias = KOBEL_STR("");
         bool mutable = false;
@@ -8940,7 +9020,7 @@ compiler__ast__AstNode* compiler__parser__Parser_parse_infix(compiler__parser__P
         }
         compiler__ast__AstNode* target_type = compiler__parser__Parser_parse_type(self);
         return compiler__parser__Parser_node(self, (compiler__ast__NodeData){ .tag = 14, .u.CastExpr = { left, target_type } }, line, col);
-    } else if (compiler__parser__Parser_match_token(self, 73)) {
+    } else if (compiler__parser__Parser_match_token(self, 71)) {
         compiler__ast__AstNode* target_type = compiler__parser__Parser_parse_type(self);
         kobel_str alias = KOBEL_STR("");
         bool mutable = false;
@@ -9243,7 +9323,7 @@ compiler__ast__AstNode* compiler__parser__Parser_parse_interp_multiline(compiler
                 }
             }
             kobel_str src = kobel_slice(text, h_start, (size_t)h_end);
-            compiler__lexer__Lexer sub_lexer = compiler__lexer__Lexer_init(src);
+            compiler__lexer__Lexer sub_lexer = compiler__lexer__Lexer_init(src, 0);
             std__collections__List_compiler__lexer__Token sub_tokens = compiler__lexer__Lexer_tokenize(&sub_lexer);
             compiler__parser__Parser sub = compiler__parser__Parser_init(sub_tokens);
             sub.arena = self->arena;
@@ -9322,7 +9402,7 @@ compiler__ast__AstNode* compiler__parser__Parser_parse_interp_string(compiler__p
                 }
             }
             kobel_str src = kobel_slice(text, h_start, h_end);
-            compiler__lexer__Lexer sub_lexer = compiler__lexer__Lexer_init(src);
+            compiler__lexer__Lexer sub_lexer = compiler__lexer__Lexer_init(src, 0);
             std__collections__List_compiler__lexer__Token sub_tokens = compiler__lexer__Lexer_tokenize(&sub_lexer);
             compiler__parser__Parser sub = compiler__parser__Parser_init(sub_tokens);
             sub.arena = self->arena;
@@ -9370,7 +9450,7 @@ bool compiler__parser__Parser_is_end(compiler__parser__Parser* self) {
         return true;
     }
     compiler__lexer__Token tok = std__collections__List_compiler__lexer__Token_get(&self->tokens, self->current);
-    return (tok.type == 71);
+    return (tok.type == 73);
 }
 
 compiler__lexer__Token compiler__parser__Parser_peek(compiler__parser__Parser* self) {
@@ -9470,7 +9550,7 @@ bool compiler__parser__Parser_is_generic_args_ahead(compiler__parser__Parser* se
                 if (depth == 0) {
                     return (((i + 1) < self->tokens.len) && (std__collections__List_compiler__lexer__Token_get(&self->tokens, (i + 1)).type == 15));
                 }
-            } else if (tok.type == 0 || tok.type == 17 || tok.type == 18 || tok.type == 71) {
+            } else if (tok.type == 0 || tok.type == 17 || tok.type == 18 || tok.type == 73) {
                 return false;
             }
             if (__for_up) {
@@ -9820,8 +9900,20 @@ size_t compiler__loader__ModuleLoader_count(compiler__loader__ModuleLoader* self
 }
 
 compiler__ast__AstNode* compiler__loader__ModuleLoader_parse_source(compiler__loader__ModuleLoader* self, kobel_str path, kobel_str source) {
-    compiler__lexer__Lexer lexer = compiler__lexer__Lexer_init(source);
+    compiler__lexer__Lexer lexer = compiler__lexer__Lexer_init(source, 0);
     std__collections__List_compiler__lexer__Token tokens = compiler__lexer__Lexer_tokenize(&lexer);
+    if (!std__collections__List_str_empty(&lexer.errors)) {
+        {
+            size_t __for_n = std__collections__List_str_count(&lexer.errors);
+            size_t __for_i = 0;
+            while (__for_i < __for_n) {
+                kobel_str msg = std__collections__List_str_at(&lexer.errors, __for_i);
+                std__collections__List_str_plus_assign(&self->errors, kobel_concat3(path, KOBEL_STR(": "), msg));
+                __for_i = (__for_i + 1);
+            }
+        }
+        return NULL;
+    }
     compiler__parser__Parser parser = compiler__parser__Parser_init(tokens);
     compiler__ast__AstNode* prog = compiler__parser__Parser_parse_program(&parser);
     if (!std__collections__List_str_empty(&parser.errors)) {
@@ -25710,7 +25802,7 @@ void fmt__Formatter_format_program(fmt__Formatter* self, compiler__ast__AstNode*
 kobel_str fmt__format_source(kobel_str src, fmt__FormatOptions options) {
     std__collections__List_fmt__Comment comments = fmt__Comment_extract(src);
     fmt__CommentTable comment_table = (fmt__CommentTable){ comments, 0 };
-    compiler__lexer__Lexer lex = compiler__lexer__Lexer_init(src);
+    compiler__lexer__Lexer lex = compiler__lexer__Lexer_init(src, 0);
     std__collections__List_compiler__lexer__Token tokens = compiler__lexer__Lexer_tokenize(&lex);
     compiler__parser__Parser parser = compiler__parser__Parser_init(tokens);
     compiler__ast__AstNode* program = compiler__parser__Parser_parse_program(&parser);
@@ -25900,7 +25992,7 @@ compiler__lexer__Token lsp__find_token_at(std__collections__List_compiler__lexer
             __for_i = (__for_i + 1);
         }
     }
-    return (compiler__lexer__Token){ 72, KOBEL_STR(""), 0, 0 };
+    return compiler__lexer__Token_init_4(74, KOBEL_STR(""), 0, 0);
 }
 
 kobel_str lsp__keyword_hover(kobel_str kw) {
@@ -25919,14 +26011,14 @@ void lsp__add_completion_item(lsp__JsonValue* arr, kobel_str label, int64_t kind
 
 lsp__AnalysisResult lsp__AnalysisResult_init(kobel_str path, kobel_str source, kobel_str workspace_root) {
     std__collections__List_lsp__LspDiagnostic diagnostics = std__collections__List_lsp__LspDiagnostic_init(4);
-    compiler__lexer__Lexer lexer = compiler__lexer__Lexer_init(source);
+    compiler__lexer__Lexer lexer = compiler__lexer__Lexer_init(source, 0);
     std__collections__List_compiler__lexer__Token tokens = compiler__lexer__Lexer_tokenize(&lexer);
     {
         size_t __for_n = std__collections__List_compiler__lexer__Token_count(&tokens);
         size_t __for_i = 0;
         while (__for_i < __for_n) {
             compiler__lexer__Token tok = std__collections__List_compiler__lexer__Token_at(&tokens, __for_i);
-            if (tok.type == 72) {
+            if (tok.type == 74) {
                 size_t l0 = ((tok.line > 0) ? (tok.line - 1) : 0);
                 size_t c0 = ((tok.col > 0) ? (tok.col - 1) : 0);
                 std__collections__List_lsp__LspDiagnostic_plus_assign(&diagnostics, (lsp__LspDiagnostic){ l0, c0, l0, (c0 + 1), 1, KOBEL_STR("Unrecognized character or syntax") });
@@ -26028,7 +26120,7 @@ lsp__JsonValue* lsp__AnalysisResult_hover_at(lsp__AnalysisResult* self, size_t l
     size_t target_line = (line0 + 1);
     size_t target_col = (col0 + 1);
     compiler__lexer__Token tok = lsp__find_token_at(self->tokens, target_line, target_col);
-    if ((tok.type == 72) || str_empty(tok.text)) {
+    if ((tok.type == 74) || str_empty(tok.text)) {
         return lsp__JsonValue_null_val();
     }
     kobel_str kw_doc = lsp__keyword_hover(tok.text);
@@ -26156,7 +26248,7 @@ lsp__JsonValue* lsp__AnalysisResult_complete_at(lsp__AnalysisResult* self) {
 }
 
 lsp__JsonValue* lsp__AnalysisResult_document_symbols(kobel_str source) {
-    compiler__lexer__Lexer lexer = compiler__lexer__Lexer_init(source);
+    compiler__lexer__Lexer lexer = compiler__lexer__Lexer_init(source, 0);
     std__collections__List_compiler__lexer__Token tokens = compiler__lexer__Lexer_tokenize(&lexer);
     compiler__parser__Parser parser = compiler__parser__Parser_init(tokens);
     lsp__JsonValue* arr = lsp__JsonValue_arr();
@@ -33777,7 +33869,7 @@ intptr_t std__collections__List_compiler__lexer__Token_index_of(std__collections
         }
         while (__for_go) {
             size_t i = __for_i;
-            if (kobel_memeq(&self->data[i], &value, 40)) {
+            if (kobel_memeq(&self->data[i], &value, 72)) {
                 return i;
             }
             if (__for_up) {
@@ -33803,7 +33895,7 @@ intptr_t std__collections__List_compiler__lexer__Token_last_index_of(std__collec
     }
     size_t i = (self->len - 1);
     while (true) {
-        if (kobel_memeq(&self->data[i], &value, 40)) {
+        if (kobel_memeq(&self->data[i], &value, 72)) {
             return i;
         }
         if (i == 0) {
@@ -33839,7 +33931,7 @@ size_t std__collections__List_compiler__lexer__Token_remove_all(std__collections
         }
         while (__for_go) {
             size_t i = __for_i;
-            if (kobel_memeq(&self->data[i], &value, 40)) {
+            if (kobel_memeq(&self->data[i], &value, 72)) {
                 removed++;
             } else {
                 if (write != i) {
@@ -44899,11 +44991,11 @@ compiler__ast__EnumField* std__memory__Heap_resize_compiler__ast__EnumField(comp
 }
 
 compiler__lexer__Token* std__memory__Heap_create_array_compiler__lexer__Token(size_t count) {
-    return (compiler__lexer__Token*)malloc((count * 40));
+    return (compiler__lexer__Token*)malloc((count * 72));
 }
 
 compiler__lexer__Token* std__memory__Heap_resize_compiler__lexer__Token(compiler__lexer__Token* ptr, size_t count) {
-    return (compiler__lexer__Token*)realloc((uint8_t*)ptr, (count * 40));
+    return (compiler__lexer__Token*)realloc((uint8_t*)ptr, (count * 72));
 }
 
 compiler__loader__LoadedModule* std__memory__Heap_create_array_compiler__loader__LoadedModule(size_t count) {

@@ -92,7 +92,7 @@ use compiler.sema.types.Type;
 ### 2. Formatting
 
 - Tabs for indentation, K&R braces (opening brace on the same line), max width 100 (see `FormatOptions` in `src/fmt/options.kb`).
-- Braces always required, even for single-line bodies. One statement per line.
+- Braces may be omitted for short single-line bodies (`if (cond) return x;`), or when a multi-line condition closes with `) return x;` on the closing line. Multi-line bodies always require braces. One statement per line.
 
 ```kobel
 // CORRECT

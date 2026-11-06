@@ -3,6 +3,18 @@ mod compiler.lexer;
 use std.ascii.*;
 use std.collections.*;
 
+use compiler.core.Span;
+
+/*
+ * ============================================================================
+ * compiler.lexer.lexer — Lexical scanner for Kobel source code
+ *
+ * Scans UTF-8 source text into a stream of `Token` values, tracking exact
+ * source `Span` coordinates (file_id, start line, start column, byte length)
+ * and collecting lexical errors in `errors: List<str>`.
+ * ============================================================================
+ */
+
 pub fn lookup_keyword(text: str) => when (text) {
 	"extern" -> TokenType.KW_EXTERN;
 	"struct" -> TokenType.KW_STRUCT;
@@ -37,31 +49,39 @@ pub fn lookup_keyword(text: str) => when (text) {
 	else -> TokenType.IDENTIFIER;
 };
 
+fn strip_utf8_bom(src: str): str {
+	if (src.len >= 3) {
+		/*
+		 * `EF BB BF`, the UTF-8 BOM (spelled in decimal because a hex literal
+		 * ending in B/D/F is parsed as a float/byte suffix).
+		 */
+		if (
+			src[0].code() == 239
+			&& src[1].code() == 187
+			&& src[2].code() == 191
+		) return src.slice(3, src.len);
+	}
+	return src;
+}
+
 pub struct Lexer {
 	pub src: str,
 	pub cursor: usz = 0,
 	pub line: usz = 1,
-	pub col: usz = 1
+	pub col: usz = 1,
+	pub file_id: u32 = 0,
+	pub errors: List<str> = List()
 }
 
 impl Lexer {
 
-	// A source file may open with a UTF-8 BOM (Windows editors add one). It is not
-	// part of the language, so drop it before the first token instead of letting it
-	// lex as an unknown token at line 1 column 1.
-	pub init(src: str) {
-		var s = src;
-		if (s.len >= 3) {
-			// `EF BB BF`, the UTF-8 BOM (spelled in decimal because a hex literal
-			// ending in B/D/F is not usable yet, see the literal-suffix bug).
-			if (
-				s[0].code() == 239 &&
-				s[1].code() == 187 &&
-				s[2].code() == 191
-			) s = s.slice(3, s.len);
-		}
-		return Self(s, 0, 1, 1);
-	}
+	/*
+	 * A source file may open with a UTF-8 BOM (Windows editors add one). It is not
+	 * part of the language, so drop it before the first token instead of letting it
+	 * lex as an unknown token at line 1 column 1.
+	 */
+	pub init(src: str, file_id: u32 = 0)
+		=> Self(strip_utf8_bom(src), 0, 1, 1, file_id, List<str>());
 
 	pub fn is_end(val self) => self.cursor >= self.src.len;
 
@@ -91,10 +111,23 @@ impl Lexer {
 		return true;
 	}
 
+	pub fn record_error(var self, line: usz, col: usz, msg: str) {
+		self.errors += "Line ${line}, Column ${col}: ${msg}";
+	}
+
 	pub fn make_token(
 		val self, type: TokenType,
 		start_cursor: usz, start_col: usz
-	) => Token(type, self.sub(start_cursor), self.line, start_col);
+	) => self.make_token_at(type, start_cursor, self.line, start_col);
+
+	pub fn make_token_at(
+		val self, type: TokenType,
+		start_cursor: usz, start_line: usz, start_col: usz
+	): Token {
+		val text = self.sub(start_cursor);
+		val sp = Span(self.file_id, start_line as u32, start_col as u32, text.len as u32);
+		return Token(type, text, start_line, start_col, sp);
+	}
 
 	pub fn newline(var self) {
 		val c = self.peek();
@@ -122,7 +155,8 @@ impl Lexer {
 		}
 		val text = self.sub(start_cursor);
 		val kw = lookup_keyword(text);
-		return Token(kw, text, self.line, start_col);
+		val sp = Span(self.file_id, self.line as u32, start_col as u32, text.len as u32);
+		return Token(kw, text, self.line, start_col, sp);
 	}
 
 	pub fn scan_decimal_digits_and_fraction(var self) {
@@ -132,9 +166,9 @@ impl Lexer {
 		}
 
 		if (
-			self.peek() == '.' &&
-			self.cursor + 1 < self.src.len &&
-			self.src[self.cursor + 1].is_digit()
+			self.peek() == '.'
+			&& self.cursor + 1 < self.src.len
+			&& self.src[self.cursor + 1].is_digit()
 		) {
 			self.next(); // consume '.'
 			while (!self.is_end()) {
@@ -182,7 +216,7 @@ impl Lexer {
 			}
 		}
 
-		// Optional type suffixes: S, L, B, Z, U, US, UL, UB, , D, F
+		// Optional type suffixes: S, L, B, Z, U, US, UL, UB, UZ, D, F
 		if (!self.is_end()) {
 			val c1 = self.peek();
 			if (c1 == 'U' && self.cursor + 1 < self.src.len) {
@@ -203,6 +237,7 @@ impl Lexer {
 	}
 
 	pub fn scan_string(var self, start_cursor: usz, start_col: usz): Token {
+		val start_line = self.line;
 		var closed = false;
 		while (!self.is_end()) {
 			val c = self.peek();
@@ -224,9 +259,11 @@ impl Lexer {
 				self.newline();
 				continue;
 			}
-			// `${...}` is an interpolation hole: skip it (nesting-aware) so the
-			// closing quote of the string is found correctly. Where the braces
-			// are, and what the hole contains, is the parser's business.
+			/*
+			 * `${...}` is an interpolation hole: skip it (nesting-aware) so the
+			 * closing quote of the string is found correctly. Where the braces
+			 * are, and what the hole contains, is the parser's business.
+			 */
 			if (c == '$' && self.peek_at(1) == '{') {
 				self.next(); // '$'
 				self.skip_hole();
@@ -234,11 +271,15 @@ impl Lexer {
 			}
 			self.next();
 		}
-		if (!closed) return self.make_token(TokenType.UNKNOWN, start_cursor, start_col);
-		return self.make_token(TokenType.STRING, start_cursor, start_col);
+		if (!closed) {
+			self.record_error(start_line, start_col, "Unterminated string literal");
+			return self.make_token_at(TokenType.UNKNOWN, start_cursor, start_line, start_col);
+		}
+		return self.make_token_at(TokenType.STRING, start_cursor, start_line, start_col);
 	}
 
 	pub fn scan_multiline_string(var self, start_cursor: usz, start_col: usz): Token {
+		val start_line = self.line;
 		var closed = false;
 		while (!self.is_end()) {
 			val c = self.peek();
@@ -269,13 +310,18 @@ impl Lexer {
 			}
 			self.next();
 		}
-		if (!closed) return self.make_token(TokenType.UNKNOWN, start_cursor, start_col);
-		return self.make_token(TokenType.STRING, start_cursor, start_col);
+		if (!closed) {
+			self.record_error(start_line, start_col, "Unterminated multiline string literal");
+			return self.make_token_at(TokenType.UNKNOWN, start_cursor, start_line, start_col);
+		}
+		return self.make_token_at(TokenType.STRING, start_cursor, start_line, start_col);
 	}
 
-	// Consumes a `${ ... }` hole body; the cursor sits on the '{'.
-	// Nested braces, string literals, char literals and nested `${...}` are all
-	// honoured so the matching '}' is the right one.
+	/*
+	 * Consumes a `${ ... }` hole body; the cursor sits on the '{'.
+	 * Nested braces, string literals, char literals and nested `${...}` are all
+	 * honoured so the matching '}' is the right one.
+	 */
 	pub fn skip_hole(var self) {
 		var depth = 0;
 		while (!self.is_end()) {
@@ -347,8 +393,10 @@ impl Lexer {
 		}
 	}
 
-	// Skips a string literal that starts on the current '"' (may itself be
-	// interpolated).
+	/*
+	 * Skips a string literal that starts on the current '"' (may itself be
+	 * interpolated).
+	 */
 	pub fn skip_string_raw(var self) {
 		self.next(); // opening quote
 		while (!self.is_end()) {
@@ -385,26 +433,41 @@ impl Lexer {
 				if (!self.is_end()) self.next();
 				continue;
 			}
-			if (c == '\'') return;
+			if (c == '\'') {
+				self.next();
+				return;
+			}
 			self.next();
 		}
 	}
 
 	pub fn scan_char(var self, start_cursor: usz, start_col: usz): Token {
-		if (!self.is_end()) {
-			if (self.peek() == '\\') self.next();
-			self.next();
-			if (self.peek() == '\'') self.next();
+		val start_line = self.line;
+		if (self.is_end() || self.peek() == '\'') {
+			if (!self.is_end() && self.peek() == '\'') self.next();
+			self.record_error(start_line, start_col, "Empty or unterminated character literal");
+			return self.make_token_at(TokenType.UNKNOWN, start_cursor, start_line, start_col);
 		}
-		return self.make_token(TokenType.CHAR, start_cursor, start_col);
+		if (self.peek() == '\\') self.next();
+		if (!self.is_end()) self.next();
+		if (self.peek() == '\'') {
+			self.next();
+			return self.make_token_at(TokenType.CHAR, start_cursor, start_line, start_col);
+		}
+		self.record_error(start_line, start_col, "Unterminated character literal");
+		return self.make_token_at(TokenType.UNKNOWN, start_cursor, start_line, start_col);
 	}
 
 	pub fn next_token(var self): Token {
 		while (true) {
 			self.skip_space();
-			if (self.is_end()) return Token(TokenType.END_OF_FILE, "", self.line, self.col);
+			if (self.is_end()) {
+				val eof_sp = Span(self.file_id, self.line as u32, self.col as u32, 0);
+				return Token(TokenType.END_OF_FILE, "", self.line, self.col, eof_sp);
+			}
 
 			val start_cursor = self.cursor;
+			val start_line = self.line;
 			val start_col = self.col;
 			val c = self.next();
 
@@ -461,28 +524,33 @@ impl Lexer {
 				'/' -> {
 					if (self.match('/')) {
 						while (
-							!self.is_end() &&
-							self.peek() != '\n' &&
-							self.peek() != '\r'
+							!self.is_end()
+							&& self.peek() != '\n'
+							&& self.peek() != '\r'
 						) self.next();
 						continue;
 					}
 					if (self.match('*')) {
+						var closed_comment = false;
 						while (!self.is_end()) {
 							if (self.peek() == '\r' || self.peek() == '\n') {
 								self.newline();
 								continue;
 							}
 							if (
-								self.peek() == '*' &&
-								self.cursor + 1 < self.src.len &&
-								self.src[self.cursor + 1] == '/'
+								self.peek() == '*'
+								&& self.cursor + 1 < self.src.len
+								&& self.src[self.cursor + 1] == '/'
 							) {
 								self.next(); // '*'
 								self.next(); // '/'
+								closed_comment = true;
 								break;
 							}
 							self.next();
+						}
+						if (!closed_comment) {
+							self.record_error(start_line, start_col, "Unterminated block comment");
 						}
 						continue;
 					}
@@ -512,7 +580,8 @@ impl Lexer {
 
 				'|' -> {
 					if (self.match('|')) yield self.make_token(TokenType.OR_OR, start_cursor, start_col);
-					yield self.make_token(TokenType.UNKNOWN, start_cursor, start_col);
+					self.record_error(start_line, start_col, "Unexpected character '|'");
+					yield self.make_token_at(TokenType.UNKNOWN, start_cursor, start_line, start_col);
 				}
 
 				'?' -> {
@@ -524,12 +593,14 @@ impl Lexer {
 				else -> {
 					if (c.is_alpha() || c == '_') yield self.scan_identifier(start_cursor, start_col);
 					if (c.is_digit()) yield self.scan_number(start_cursor, start_col);
-					yield self.make_token(TokenType.UNKNOWN, start_cursor, start_col);
+					self.record_error(start_line, start_col, "Unexpected character '${c}'");
+					yield self.make_token_at(TokenType.UNKNOWN, start_cursor, start_line, start_col);
 				}
 			};
 		}
 
-		return Token(TokenType.UNKNOWN, "", self.line, self.col);
+		val unk_sp = Span(self.file_id, self.line as u32, self.col as u32, 0);
+		return Token(TokenType.UNKNOWN, "", self.line, self.col, unk_sp);
 	}
 
 	pub fn tokenize(var self): List<Token> {
@@ -541,4 +612,5 @@ impl Lexer {
 		}
 		return tokens;
 	}
+
 }
