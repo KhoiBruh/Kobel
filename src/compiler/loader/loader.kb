@@ -43,7 +43,7 @@ pub struct ModuleLoader {
 	pub ordered: List<LoadedModule>,
 	pub errors: List<str>,
 	pub arena: Arena,
-	known: HashSet
+	known: HashSet<str>
 }
 
 pub fn detect_project_root(start_dir: str): str {
@@ -97,7 +97,7 @@ impl ModuleLoader {
 			List<LoadedModule>(),
 			List<str>(),
 			Arena(524288),
-			HashSet()
+			HashSet<str>()
 		);
 	}
 

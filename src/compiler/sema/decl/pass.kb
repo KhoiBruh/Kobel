@@ -514,7 +514,7 @@ impl DeclPass {
 // visited first, so a method declared in a derived trait replaces a same-named
 // inherited one. `seen` stops a cycle in a mis-declared `trait A : B` /
 // `trait B : A` chain.
-	pub fn trait_effective(var self, t: *TraitInfo?, out: &List<*TraitMethod>, seen: &HashSet) {
+	pub fn trait_effective(var self, t: *TraitInfo?, out: &List<*TraitMethod>, seen: &HashSet<str>) {
 		if (t == null) return;
 		if (t.name in seen) return;
 		seen += t.name;
@@ -591,7 +591,7 @@ impl DeclPass {
 		// A trait inherits every method of its base traits, so the contract covers
 // the flattened set rather than just the methods written in this trait.
 		var effective = List<*TraitMethod>();
-		var seen = HashSet();
+		var seen = HashSet<str>();
 		self.trait_effective(t, &effective, &seen);
 
 		for (tm in effective) {

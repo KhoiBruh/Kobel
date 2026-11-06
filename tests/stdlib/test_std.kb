@@ -167,8 +167,9 @@ fn test_collections(): bool {
 
 	// 3. StringBuilder
 	{
-		var sb: StringBuilder = StringBuilder();
+		var sb: StringBuilder = StringBuilder(64);
 		defer sb.free();
+		sb.reserve(128);
 		if (!sb.empty()) return false;
 		sb += "Kobel";
 		if (sb.empty()) return false;
@@ -179,6 +180,7 @@ fn test_collections(): bool {
 		sb += " ";
 		sb += true;
 		sb.append_line("!");
+		if (sb.as_view() != "Kobel Compiler v1 true!\n") return false;
 		val result_str: str = sb.to_str();
 		if (result_str != "Kobel Compiler v1 true!\n") return false;
 		if (sb.last_char() != '\n') return false;
@@ -197,9 +199,9 @@ fn test_collections(): bool {
 		if (sb2.len != 100 || sb2.last_char() != 'x') return false;
 	}
 
-	// 5. HashSet
+	// 5. HashSet<T>
 	{
-		var set: HashSet = HashSet();
+		var set: HashSet<str> = HashSet<str>();
 		defer set.free();
 		if (!set.empty() || set.count() != 0) return false;
 		if (!set.add("apple")) return false;
@@ -212,11 +214,26 @@ fn test_collections(): bool {
 			defer set_list.free();
 			if (set_list.len != 2) return false;
 		}
+		{
+			val cloned = set.clone();
+			defer cloned.free();
+			if (cloned.len != 2 || !("apple" in cloned) || !("banana" in cloned)) return false;
+		}
 		if (!set.remove("apple")) return false;
 		if ("apple" in set) return false;
 		if (set.len != 1) return false;
 		set.clear();
 		if (!set.empty() || set.len != 0) return false;
+
+		var iset = HashSet<i32>(8);
+		defer iset.free();
+		iset.reserve(32);
+		iset += 10;
+		iset += 20;
+		iset += 30;
+		iset += 10;
+		if (iset.len != 3 || !(10 in iset) || !(20 in iset) || !(30 in iset)) return false;
+		if (!iset.remove(20) || (20 in iset) || iset.len != 2) return false;
 	}
 
 	// 6. str.replace_char & str.join

@@ -95,7 +95,7 @@ impl CCodeGen {
 			// declared later in the program. A payload enum emits its variant structs
 			// together with its tag/union struct, and may itself be embedded by value.
 			var items = List<*AstNode>();
-			var pending = HashSet();
+			var pending = HashSet<str>();
 			defer pending.free();
 			for (decl in prog) {
 				if (decl_is_template(decl)) continue;
@@ -112,7 +112,7 @@ impl CCodeGen {
 				}
 			}
 			var order = List<*AstNode>();
-			var emitted = HashSet();
+			var emitted = HashSet<str>();
 			defer emitted.free();
 			while (!items.empty()) {
 				var next = List<*AstNode>();

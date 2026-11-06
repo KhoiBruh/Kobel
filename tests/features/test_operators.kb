@@ -209,7 +209,7 @@ fn test_hash_map_ops() {
 }
 
 fn test_hash_set_ops() {
-	var set = HashSet();
+	var set = HashSet<str>();
 	defer set.free();
 
 	// Test op plus_assign: set += key
@@ -254,7 +254,7 @@ fn test_string_builder_ops() {
 	assert_true(sb[0] == 'h', "sb[0] after set == 'h'");
 }
 
-fn append_via_ptr(sb: &StringBuilder, list: &List<i32>, set: &HashSet, map: &HashMap<str, i32>) {
+fn append_via_ptr(sb: &StringBuilder, list: &List<i32>, set: &HashSet<str>, map: &HashMap<str, i32>) {
 	sb += "ptr";
 	sb += '_';
 	sb += 99;
@@ -268,7 +268,7 @@ fn test_pointer_receiver_ops() {
 	defer sb.free();
 	var list = List<i32>();
 	defer list.free();
-	var set = HashSet();
+	var set = HashSet<str>();
 	defer set.free();
 	var map = HashMap<str, i32>();
 	defer map.free();

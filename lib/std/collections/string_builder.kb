@@ -9,7 +9,15 @@ extern "libc" {
 	fn memset(dst: &u8, c: i32, n: usz): *none;
 }
 
-// `len` is the public size accessor; the buffer and capacity are internal.
+/*
+ * ============================================================================
+ * StringBuilder — growable UTF-8 / ASCII byte buffer for string construction
+ *
+ * `len` is the public byte length; `buf` and `cap` are internal. Always keeps
+ * at least one spare byte beyond `len` so `as_view()` can NUL-terminate in
+ * place without reallocating.
+ * ============================================================================
+ */
 pub struct StringBuilder {
 	buf: &u8,
 	pub len: usz,
@@ -18,10 +26,16 @@ pub struct StringBuilder {
 
 impl StringBuilder {
 
-	pub init() {
-		val init_cap = 32;
-		val raw = Heap.create_array<u8>(init_cap);
-		return Self(raw, 0, init_cap);
+	pub init(init_cap: usz = 32) {
+		var cap = init_cap;
+		if (cap < 16) cap = 16;
+		val raw = Heap.create_array<u8>(cap);
+		return Self(raw, 0, cap);
+	}
+
+	pub fn reserve(var self, additional: usz) {
+		val needed = self.len + additional + 1;
+		if (needed >= self.cap) self.grow(needed);
 	}
 
 	pub fn append_char(var self, c: char) {
@@ -38,33 +52,44 @@ impl StringBuilder {
 		self.len += s_len;
 	}
 
-	pub fn append_i64(var self, n: i64) {
-		var v = n;
-		if (v == 0) {
+	pub fn append_u64(var self, n: u64) {
+		if (n == 0) {
 			self += '0';
 			return;
 		}
-		if (v < 0) {
-			self += '-';
-			v = -v;
-		}
 
-		// Emit from the most significant digit: find that digit's place value
-		// first, then peel digits off one at a time (no temporary array needed).
+		/*
+		 * Emit from the most significant digit: find that digit's place value
+		 * first, then peel digits off one at a time (no temporary array needed).
+		 */
 		var place = 1;
-		var probe = v;
+		var probe = n;
 		while (probe >= 10) {
 			probe /= 10;
 			place *= 10;
 		}
 
-		var rest = v;
+		var rest = n;
 		while (place > 0) {
 			val digit = rest / place;
-			self += char(digit + 48);
+			self += char((digit + 48) as u8);
 			rest -= digit * place;
 			place /= 10;
 		}
+	}
+
+	pub fn append_u32(var self, n: u32) => self.append_u64(n as u64);
+
+	pub fn append_usz(var self, n: usz) => self.append_u64(n as u64);
+
+	pub fn append_i64(var self, n: i64) {
+		if (n < 0) {
+			self += '-';
+			val mag = (0 - (n + 1)) as u64 + 1;
+			self.append_u64(mag);
+			return;
+		}
+		self.append_u64(n as u64);
 	}
 
 	pub fn append_i32(var self, n: i32) => self.append_i64(n);
@@ -80,13 +105,15 @@ impl StringBuilder {
 	pub fn append_repeat(var self, c: char, n: usz) {
 		if (n == 0) return;
 		if (self.len + n + 1 >= self.cap) self.grow(self.len + n + 1);
-		memset(&self.buf[self.len], c.code() as i32, n);
+		memset(&self.buf[self.len], c.code(), n);
 		self.len += n;
 	}
 
-	// Escapes the sequences C string literals and JSON strings share (backslash,
-	// quote, `\n`, `\r`, `\t`); every other byte is copied verbatim. Callers that
-	// need strict JSON must escape control bytes < 0x20 themselves.
+	/*
+	 * Escapes the sequences C string literals and JSON strings share (backslash,
+	 * quote, `\n`, `\r`, `\t`); every other byte is copied verbatim. Callers that
+	 * need strict JSON must escape control bytes < 0x20 themselves.
+	 */
 	pub fn append_escaped(var self, s: str) {
 		for (i in 0..<s.len) {
 			val c = s[i];
@@ -107,8 +134,18 @@ impl StringBuilder {
 
 	pub fn clear(var self) => self.len = 0;
 
+	/*
+	 * Returns a zero-copy `str` view over the builder's current buffer after
+	 * writing a trailing NUL byte. Valid until the next mutating operation or
+	 * `free()`.
+	 */
+	pub fn as_view(val self): str {
+		self.buf[self.len] = 0;
+		return str_from_bytes(self.buf, self.len);
+	}
+
 	fn grow(var self, min_cap: usz) {
-		var new_cap = self.cap * 2;
+		var new_cap = if (self.cap < 16) 16 else self.cap * 2;
 		while (new_cap < min_cap) new_cap *= 2;
 		val new_raw = Heap.resize<u8>(self.buf, new_cap);
 		self.buf = new_raw;
@@ -125,7 +162,11 @@ impl StringBuilder {
 
 	pub op plus_assign(var self, n: i32) => self.append_i32(n);
 
-	pub op plus_assign(var self, n: usz) => self.append_i64(n as i64);
+	pub op plus_assign(var self, n: u64) => self.append_u64(n);
+
+	pub op plus_assign(var self, n: u32) => self.append_u32(n);
+
+	pub op plus_assign(var self, n: usz) => self.append_usz(n);
 
 	pub op plus_assign(var self, b: bool) => self.append_bool(b);
 
@@ -145,7 +186,9 @@ impl Iterable for StringBuilder {
 impl Stringer for StringBuilder {
 	pub fn to_str(val self): str {
 		val str_data = Heap.create_array<u8>(self.len + 1);
-		if (self.len > 0) memcpy(str_data, self.buf, self.len);
+		if (self.len > 0) {
+			memcpy(str_data, self.buf, self.len);
+		}
 		str_data[self.len] = 0;
 		return str_from_bytes(str_data, self.len);
 	}

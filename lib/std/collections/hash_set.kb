@@ -3,21 +3,30 @@ mod std.collections;
 use std.memory.*;
 use std.traits.*;
 
-// `len` is the public size accessor; the storage is internal.
-pub struct HashSet {
-	keys: &str,
+/*
+ * ============================================================================
+ * HashSet<T: Hash> — open-addressed hash set with Robin Hood backward-shift
+ * deletion.
+ *
+ * Uses linear probing without tombstones. `len` is the public element count;
+ * the backing arrays and capacity are internal.
+ * ============================================================================
+ */
+pub struct HashSet<T: Hash> {
+	keys: &T,
 	hashes: &usz,
 	occupied: &bool,
 	pub len: usz = 0,
 	cap: usz = 0
 }
 
-impl HashSet {
+impl HashSet<T: Hash> {
 
 	pub init(init_cap: usz = 16) {
 		var cap = init_cap;
 		if (cap < 8) cap = 8;
-		val keys = Heap.create_array<str>(cap);
+
+		val keys = Heap.create_array<T>(cap);
 		val hashes = Heap.create_array<usz>(cap);
 		val occ = Heap.create_array<bool>(cap);
 
@@ -30,7 +39,7 @@ impl HashSet {
 		return self.cap + to - from;
 	}
 
-	pub fn add(var self, key: str): bool {
+	pub fn add(var self, key: T): bool {
 		if (self.cap == 0 || self.len * 10 >= self.cap * 7) self.grow();
 
 		val h = key.hash();
@@ -48,7 +57,7 @@ impl HashSet {
 		return true;
 	}
 
-	pub fn remove(var self, key: str): bool {
+	pub fn remove(var self, key: T): bool {
 		if (self.len == 0 || self.cap == 0) return false;
 
 		val h = key.hash();
@@ -77,17 +86,46 @@ impl HashSet {
 	}
 
 	pub fn clear(var self) {
-		if (self.cap > 0) {
-			for (i in 0..<self.cap) self.occupied[i] = false;
-		}
+		if (self.cap > 0) for (i in 0..<self.cap) self.occupied[i] = false;
 		self.len = 0;
 	}
 
 	pub fn empty(val self) => self.len == 0;
 
-	pub fn to_list(val self): List<str> {
-		var res = List<str>();
+	pub fn reserve(var self, min_elements: usz) {
+		while (
+			self.cap == 0
+			|| min_elements * 10 >= self.cap * 7
+		) self.grow();
+	}
+
+	pub fn extend(var self, other: Self) {
+		if (other.cap == 0) return;
+		for (i in 0..<other.cap) {
+			if (other.occupied[i]) self.add(other.keys[i]);
+		}
+	}
+
+	pub fn clone(val self): Self {
+		val cap = if (self.cap >= 8) self.cap else 16;
+		val keys = Heap.create_array<T>(cap);
+		val hashes = Heap.create_array<usz>(cap);
+		val occ = Heap.create_array<bool>(cap);
+		for (i in 0..<cap) occ[i] = false;
+
+		var res = Self(keys, hashes, occ, 0, cap);
+		if (self.cap > 0) {
+			for (i in 0..<self.cap) {
+				if (self.occupied[i]) res.add(self.keys[i]);
+			}
+		}
+		return res;
+	}
+
+	pub fn to_list(val self): List<T> {
+		var res = List<T>();
 		if (self.cap == 0) return res;
+
 		for (i in 0..<self.cap) {
 			if (self.occupied[i]) res += self.keys[i];
 		}
@@ -101,7 +139,7 @@ impl HashSet {
 		val old_occ = self.occupied;
 
 		val new_cap = if (old_cap < 8) 16 else old_cap * 2;
-		val keys = Heap.create_array<str>(new_cap);
+		val keys = Heap.create_array<T>(new_cap);
 		val hashes = Heap.create_array<usz>(new_cap);
 		val new_occ = Heap.create_array<bool>(new_cap);
 
@@ -112,14 +150,14 @@ impl HashSet {
 				if (old_occ[i]) {
 					val h = old_hashes[i];
 					var idx = h % new_cap;
-					while (new_occ[idx]) {
-						idx = (idx + 1) % new_cap;
-					}
+					while (new_occ[idx]) idx = (idx + 1) % new_cap;
+
 					keys[idx] = old_keys[i];
 					hashes[idx] = h;
 					new_occ[idx] = true;
 				}
 			}
+
 			Heap.free(old_keys);
 			Heap.free(old_hashes);
 			Heap.free(old_occ);
@@ -139,9 +177,9 @@ impl HashSet {
 		}
 	}
 
-	pub op plus_assign(var self, key: str) => self.add(key);
+	pub op plus_assign(var self, key: T) => self.add(key);
 
-	pub op contains(val self, key: str): bool {
+	pub op contains(val self, key: T): bool {
 		if (self.len == 0 || self.cap == 0) return false;
 		val h = key.hash();
 		var idx = h % self.cap;
@@ -156,12 +194,12 @@ impl HashSet {
 
 }
 
-// `for (key in set)` walks the set keys.
-impl Iterable for HashSet {
+// `for (key in set)` walks the occupied set keys.
+impl Iterable for HashSet<T: Hash> {
 
 	pub fn count(val self) => self.len;
 
-	pub fn at(val self, i: usz): str {
+	pub fn at(val self, i: usz): T {
 		var seen = 0;
 		for (idx in 0..<self.cap) {
 			if (self.occupied[idx]) {
@@ -170,7 +208,7 @@ impl Iterable for HashSet {
 			}
 		}
 
-		return "";
+		return self.keys[0];
 	}
 
 }

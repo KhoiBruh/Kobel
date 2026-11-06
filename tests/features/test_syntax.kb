@@ -592,7 +592,7 @@ fn test_in_operator(): bool {
 	if ("k2" in map) return false;
 
 	// 4. in HashSet
-	var set = HashSet();
+	var set = HashSet<str>();
 	defer set.free();
 	set += "alpha";
 	if ("alpha" !in set) return false;
