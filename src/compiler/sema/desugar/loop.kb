@@ -127,7 +127,7 @@ impl Arena {
 				stmts += self.node(NodeData.ContinueStmt, node.line, node.col);
 				val block = self.loop_block(stmts, node.line, node.col);
 				if (bp != null) bp.set_resolved(node!, block);
-				else node.resolved_node = block;
+
 			}
 		}
 	}

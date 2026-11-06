@@ -2,16 +2,50 @@ mod compiler.ast;
 
 use std.memory.Arena;
 use std.collections.List;
+use std.traits.Hash;
+
+use compiler.core.Span;
 use compiler.lexer.*;
 
-// The payload of an `AstNode`: one variant per node shape, checked by the
-// type system instead of reinterpreted through a `*u8`.
+/*
+ * ============================================================================
+ * compiler.ast.node — Pure syntax tree node and strongly-typed NodeId
+ *
+ * `AstNode` is strictly syntactic: it stores only its `NodeId`, source `Span`
+ * (and `line`/`col`), and `NodeData` variant payload. All semantic analysis
+ * results (types, resolved methods, lowered replacements, generic instances)
+ * live in `SemanticTable` side-tables in the semantic layer, never as untyped
+ * pointers on `AstNode`.
+ * ============================================================================
+ */
+
+pub struct NodeId {
+	pub id: u32 = 0
+}
+
+impl NodeId {
+
+	pub fn invalid() => NodeId(0);
+
+	pub fn is_valid(val self) => self.id != 0;
+
+	pub op equals(val self, other: NodeId) => self.id == other.id;
+
+}
+
+impl Hash for NodeId {
+	pub fn hash(val self): u64 => self.id.hash();
+}
+
 pub enum NodeData {
 	NONE,
+	// Type annotations
 	NamedType(name: str, type_args: List<*AstNode>),
 	PointerType(mutable: bool, pointee: *AstNode),
 	ArrayType(element_type: *AstNode, size: usz),
 	NullableType(inner_type: *AstNode),
+
+	// Expressions
 	LiteralExpr(literal_kind: LiteralKind, raw_text: str),
 	IdentifierExpr(name: str),
 	BinaryExpr(left: *AstNode, op: TokenType, right: *AstNode),
@@ -27,10 +61,12 @@ pub enum NodeData {
 	IfExpr(condition: *AstNode, then_branch: *AstNode, else_branch: *AstNode),
 	WhenExpr(condition: *AstNode?, arms: List<WhenArm>),
 	InterpExpr(parts: List<InterpPart>),
-	IsExpr(expr: *AstNode?, target_type: *AstNode, alias: str, tag_field: str, base_c_name: str, is_ptr: bool, mutable: bool, payload_path: str, payload_ptr: bool, tag_const: str),
+	IsExpr(expr: *AstNode?, target_type: *AstNode, alias: str, mutable: bool),
 	StructCtorExpr(c_name: str, args: List<*AstNode>),
 	EnumCtorExpr(c_name: str, tag_field: str, tag_value: i64, payload_path: str, args: List<*AstNode>),
 	SizeOfParam(param_index: usz, size_text: str),
+
+	// Statements
 	BlockStmt(statements: List<*AstNode>),
 	ExprStmt(expr: *AstNode),
 	VarDeclStmt(mutable: bool, name: str, type_annotation: *AstNode?, initializer: *AstNode?),
@@ -40,9 +76,11 @@ pub enum NodeData {
 	ReturnStmt(value: *AstNode?),
 	BreakStmt,
 	ContinueStmt,
-	WhenStmt(condition: *AstNode?, arms: List<WhenStmtArm>),
+	WhenStmt(condition: *AstNode?, arms: List<WhenArm>),
 	YieldStmt(value: *AstNode?),
 	DeferStmt(body: *AstNode),
+
+	// Declarations
 	ModuleDecl(path: List<str>, full_path: str),
 	UseDecl(path: List<str>, full_path: str, symbol_name: str, alias: str, wildcard: bool),
 	FnDecl(name: str, type_params: List<GenericParam>, params: List<Param>, return_type: *AstNode?, body: *AstNode?, public: bool, operator: bool, initializer: bool, module: str),
@@ -52,34 +90,33 @@ pub enum NodeData {
 	EnumDecl(name: str, underlying_type: *AstNode?, members: List<EnumMember>, public: bool),
 	ConstDecl(name: str, type_node: *AstNode?, value: *AstNode?, public: bool),
 	ExternBlock(abi: str, declarations: List<*AstNode>),
-	Program(declarations: List<*AstNode>),
+	Program(declarations: List<*AstNode>)
 }
 
 pub struct AstNode {
 	pub line: usz,
 	pub col: usz,
 	pub data: NodeData,
-	// Resolved semantic type of an expression (the compiler's `*Type`, kept
-	// untyped so `ast` stays a leaf). Sema fills it; codegen and `lower` read it.
-	// Null on declarations and on nodes that desugaring synthesises.
-	pub type_ptr: *u8? = null,
-	// Method or operator the checker picked for this node (`*MethodInfo`, again
-	// untyped). `lower` needs it to spell the C call without repeating the
-	// overload/trait resolution the checker already did.
-	pub resolved_method: *u8? = null,
-	// A leaf the checker resolved directly: an enum member becomes an integer
-	// literal, a struct constant becomes its mangled identifier. `lower` uses it
-	// as the node's replacement.
-	pub resolved_node: *AstNode? = null,
-	// For a function/method *instance* (a generic function whose body shares the
-	// template's AST), the `InstanceRecord` that carries this declaration's
-	// per-instance annotations. Null for ordinary declarations and templates.
-	pub instance: *u8? = null
+	pub id: NodeId = NodeId(0),
+	pub span: Span = Span.empty()
 }
 
 impl Arena {
+
 	pub fn node(
 		var self, data: NodeData,
 		line: usz = 0, col: usz = 0
-	): *AstNode => self.create_val(AstNode(line, col, data));
+	): *AstNode {
+		val sp = Span(0, line as u32, col as u32, 0);
+		var n = self.create_val(AstNode(line, col, data, NodeId(0), sp));
+		val raw_id = (n.addr() / 8) as u32;
+		n.id = NodeId(if (raw_id == 0) 1U else raw_id);
+		return n;
+	}
+
+	pub fn node_spanned(
+		var self, data: NodeData,
+		span: Span, id: NodeId = NodeId(0)
+	): *AstNode => self.create_val(AstNode(span.line as usz, span.col as usz, data, id, span));
+
 }

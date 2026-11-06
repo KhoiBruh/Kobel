@@ -320,10 +320,8 @@ impl BodyPass {
 			tag_const_c_name = tag_const_sym.c_name;
 		}
 
-		is_e.tag_field = tag_field_name;
-		is_e.tag_const = tag_const_c_name;
-		is_e.base_c_name = base_s.c_name;
-		is_e.is_ptr = is_ptr;
+		var payload_path = "";
+		var payload_ptr = false;
 
 		if (is_payload_data) {
 			var is_inner_ptr = true;
@@ -342,11 +340,11 @@ impl BodyPass {
 			}
 
 			if (is_inner_ptr) {
-				is_e.payload_path = "data.u.${member_name}.inner";
-				is_e.payload_ptr = true;
+				payload_path = "data.u.${member_name}.inner";
+				payload_ptr = true;
 			} else {
-				is_e.payload_path = "data.u.${member_name}";
-				is_e.payload_ptr = false;
+				payload_path = "data.u.${member_name}";
+				payload_ptr = false;
 			}
 		}
 
@@ -356,14 +354,19 @@ impl BodyPass {
 		if (enum_info?.is_payload) {
 			for (m in enum_info.members) {
 				if (m.payload_ty != null && m.payload_ty.equals(target_ty)) {
-					is_e.payload_path = m.payload_path;
+					payload_path = m.payload_path;
 				}
 			}
 		}
 
+		self.set_is_pattern(
+			is_node,
+			IsPatternInfo(tag_field_name, base_s.c_name, is_ptr, payload_path, payload_ptr, tag_const_c_name)
+		);
+
 		// The binding of an inline payload is a pointer to the variant struct, even
 		// when the subject itself is a value: the backend takes its address.
-		if (!is_e.payload_path.empty()) {
+		if (!payload_path.empty()) {
 			return self.arena.pointer_type(target_ty, is_e.mutable || (is_ptr && subj_mutable));
 		}
 

@@ -131,7 +131,7 @@ impl Parser {
 		}
 		self.consume(TokenType.OPEN_BRACE, "Expected '{' before when statement arms");
 
-		var arms = List<WhenStmtArm>();
+		var arms = List<WhenArm>();
 		while (!self.check(TokenType.CLOSE_BRACE) && !self.is_end()) {
 			val arm_line = self.peek().line;
 			val arm_col = self.peek().col;
@@ -148,7 +148,7 @@ impl Parser {
 
 			self.consume(TokenType.ARROW, "Expected '->' after when arm pattern");
 			val body = self.parse_statement();
-			arms += WhenStmtArm(patterns, is_else, body, arm_line, arm_col);
+			arms += WhenArm(patterns, is_else, body, arm_line, arm_col);
 
 			if (self.check(TokenType.COMMA)) {
 				self.error(self.peek(), "Expected ';' after when arm, not ',' (commas are only allowed for grouping conditions before '->')");

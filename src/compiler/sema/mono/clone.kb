@@ -193,7 +193,7 @@ impl DeclPass {
 
 			is IsExpr as is_e -> {
 				val expr_clone = if (is_e.expr != null) self.clone_expr(is_e.expr!, subst) else null;
-				val res_is = self.arena.node(NodeData.IsExpr(expr_clone, self.clone_type(is_e.target_type, subst), "", "", "", false, false, "", false, ""), node.line, node.col);
+				val res_is = self.arena.node(NodeData.IsExpr(expr_clone, self.clone_type(is_e.target_type, subst), is_e.alias, is_e.mutable), node.line, node.col);
 				if (!is_e.alias.empty() && res_is is IsExpr as res_e) {
 					res_e.alias = is_e.alias;
 					res_e.mutable = is_e.mutable;
@@ -220,8 +220,11 @@ impl DeclPass {
 
 		// Carry this instance's decisions onto the fresh node.
 		if (e != null) {
-			if (e.ty != null) out.type_ptr = e.ty as *u8;
-			if (e.method != null) out.resolved_method = e.method;
+			if (e.ty != null) self.symtab.set_node_type(out, e.ty);
+			if (e.method != null) self.symtab.set_resolved_method(out, e.method);
+			if (e.has_is_info) self.symtab.set_is_pattern(out, e.is_info);
+		} else if (self.symtab.has_is_pattern(node)) {
+			self.symtab.set_is_pattern(out, self.symtab.get_is_pattern(node));
 		}
 		return out;
 	}
@@ -456,11 +459,11 @@ impl DeclPass {
 			is ContinueStmt -> self.arena.node(NodeData.ContinueStmt, node.line, node.col);
 
 			is WhenStmt as w -> {
-				var arms = List<WhenStmtArm>();
+				var arms = List<WhenArm>();
 				for (arm in w.arms) {
 					var pats = List<*AstNode>();
 					for (pat in arm.patterns) pats += self.clone_expr(pat, subst);
-					arms += WhenStmtArm(pats, arm.is_else, self.clone_stmt(arm.body, subst), arm.line, arm.col);
+					arms += WhenArm(pats, arm.is_else, self.clone_stmt(arm.body, subst), arm.line, arm.col);
 				}
 				yield self.arena.node(NodeData.WhenStmt(if (w.condition != null) self.clone_expr(w.condition!, subst) else null, arms), node.line, node.col);
 			}

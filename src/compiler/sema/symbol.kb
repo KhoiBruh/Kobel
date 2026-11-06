@@ -215,7 +215,17 @@ pub struct SymbolTable {
 	pub assoc_types: HashMap<str, *Type> = HashMap(),
 	pub gen: GenericReg = GenericReg(),
 	// Canonical primitive types, built on first use from this table's arena.
-	pub prims: *PrimTypes? = null
+	pub prims: *PrimTypes? = null,
+	// Shared semantic side-tables for AST nodes (types, bound methods, replacements, instances, patterns).
+	pub sem: *SemanticTable? = null
+}
+
+pub struct SemanticTable {
+	pub node_types: HashMap<usz, *Type> = HashMap(),
+	pub resolved_methods: HashMap<usz, *MethodInfo> = HashMap(),
+	pub resolved_nodes: HashMap<usz, *AstNode> = HashMap(),
+	pub node_instances: HashMap<usz, *InstanceRecord> = HashMap(),
+	pub is_patterns: HashMap<usz, IsPatternInfo> = HashMap()
 }
 
 impl SymbolTable {
@@ -224,10 +234,76 @@ impl SymbolTable {
 		var arena = Arena();
 		val root_scope = arena.create_val(Scope());
 		var st = Self(root_scope, arena);
-		// Build the canonical primitives eagerly so every copy of this table
-		// shares the same type instances.
+		// Build the canonical primitives and semantic side-tables eagerly so every
+		// copy of this table shares the same instances.
 		st.prims = arena.create_val(PrimTypes(&arena));
+		st.sem = arena.create_val(SemanticTable());
 		return st;
+	}
+
+	pub fn set_node_type(val self, node: *AstNode?, ty: *Type?) {
+		if (node == null || ty == null || self.sem == null) return;
+		var s = self.sem!;
+		s.node_types[node.addr()] = ty!;
+	}
+
+	pub fn get_node_type(val self, node: *AstNode?): *Type? {
+		if (node == null || self.sem == null) return null;
+		val p = self.sem!.node_types.get(node.addr()) ?: return null;
+		return *p;
+	}
+
+	pub fn set_resolved_method(val self, node: *AstNode?, mi: *MethodInfo?) {
+		if (node == null || mi == null || self.sem == null) return;
+		var s = self.sem!;
+		s.resolved_methods[node.addr()] = mi!;
+	}
+
+	pub fn get_resolved_method(val self, node: *AstNode?): *MethodInfo? {
+		if (node == null || self.sem == null) return null;
+		val p = self.sem!.resolved_methods.get(node.addr()) ?: return null;
+		return *p;
+	}
+
+	pub fn set_resolved_node(val self, node: *AstNode?, r: *AstNode?) {
+		if (node == null || r == null || self.sem == null) return;
+		var s = self.sem!;
+		s.resolved_nodes[node.addr()] = r!;
+	}
+
+	pub fn get_resolved_node(val self, node: *AstNode?): *AstNode? {
+		if (node == null || self.sem == null) return null;
+		val p = self.sem!.resolved_nodes.get(node.addr()) ?: return null;
+		return *p;
+	}
+
+	pub fn set_node_instance(val self, node: *AstNode?, rec: *InstanceRecord?) {
+		if (node == null || rec == null || self.sem == null) return;
+		var s = self.sem!;
+		s.node_instances[node.addr()] = rec!;
+	}
+
+	pub fn get_node_instance(val self, node: *AstNode?): *InstanceRecord? {
+		if (node == null || self.sem == null) return null;
+		val p = self.sem!.node_instances.get(node.addr()) ?: return null;
+		return *p;
+	}
+
+	pub fn set_is_pattern(val self, node: *AstNode?, info: IsPatternInfo) {
+		if (node == null || self.sem == null) return;
+		var s = self.sem!;
+		s.is_patterns[node.addr()] = info;
+	}
+
+	pub fn has_is_pattern(val self, node: *AstNode?): bool {
+		if (node == null || self.sem == null) return false;
+		return self.sem!.is_patterns.get(node.addr()) != null;
+	}
+
+	pub fn get_is_pattern(val self, node: *AstNode?): IsPatternInfo {
+		if (node == null || self.sem == null) return IsPatternInfo();
+		val p = self.sem!.is_patterns.get(node.addr()) ?: return IsPatternInfo();
+		return *p;
 	}
 
 	// Register a method of a built-in type on its canonical instance.

@@ -203,6 +203,7 @@ typedef struct compiler__ast__InterpPart__Literal compiler__ast__InterpPart__Lit
 #define compiler__ast__InterpPart__Literal__TAG 0
 typedef struct compiler__ast__InterpPart__Hole compiler__ast__InterpPart__Hole;
 #define compiler__ast__InterpPart__Hole__TAG 1
+typedef struct compiler__ast__NodeId compiler__ast__NodeId;
 typedef struct compiler__ast__NodeData compiler__ast__NodeData;
 typedef struct compiler__ast__NodeData__NONE compiler__ast__NodeData__NONE;
 #define compiler__ast__NodeData__NONE__TAG 0
@@ -297,7 +298,6 @@ typedef struct compiler__ast__NodeData__ExternBlock compiler__ast__NodeData__Ext
 typedef struct compiler__ast__NodeData__Program compiler__ast__NodeData__Program;
 #define compiler__ast__NodeData__Program__TAG 45
 typedef struct compiler__ast__AstNode compiler__ast__AstNode;
-typedef struct compiler__ast__WhenStmtArm compiler__ast__WhenStmtArm;
 typedef int32_t compiler__parser__Precedence;
 typedef struct compiler__parser__Parser compiler__parser__Parser;
 typedef struct compiler__loader__LoadedModule compiler__loader__LoadedModule;
@@ -306,6 +306,7 @@ typedef struct compiler__loader__ModuleLoader compiler__loader__ModuleLoader;
 typedef struct compiler__sema__EnumMemberInfo compiler__sema__EnumMemberInfo;
 typedef struct compiler__sema__EnumInfo compiler__sema__EnumInfo;
 typedef int32_t compiler__sema__InstanceKind;
+typedef struct compiler__sema__IsPatternInfo compiler__sema__IsPatternInfo;
 typedef struct compiler__sema__AnnEntry compiler__sema__AnnEntry;
 typedef struct compiler__sema__InstanceRecord compiler__sema__InstanceRecord;
 typedef struct compiler__sema__decl__DeclPass compiler__sema__decl__DeclPass;
@@ -323,6 +324,7 @@ typedef struct compiler__sema__ImportBinding compiler__sema__ImportBinding;
 typedef struct compiler__sema__ModuleScope compiler__sema__ModuleScope;
 typedef struct compiler__sema__GenericReg compiler__sema__GenericReg;
 typedef struct compiler__sema__SymbolTable compiler__sema__SymbolTable;
+typedef struct compiler__sema__SemanticTable compiler__sema__SemanticTable;
 typedef int32_t compiler__sema__TemplateKind;
 typedef struct compiler__sema__GenTemplate compiler__sema__GenTemplate;
 typedef struct compiler__sema__GenSubst compiler__sema__GenSubst;
@@ -365,7 +367,6 @@ typedef kobel_str lsp__Method;
 typedef struct std__collections__List_ptr_compiler__ast__AstNode std__collections__List_ptr_compiler__ast__AstNode;
 typedef struct std__collections__List_compiler__ast__WhenArm std__collections__List_compiler__ast__WhenArm;
 typedef struct std__collections__List_compiler__ast__InterpPart std__collections__List_compiler__ast__InterpPart;
-typedef struct std__collections__List_compiler__ast__WhenStmtArm std__collections__List_compiler__ast__WhenStmtArm;
 typedef struct std__collections__List_str std__collections__List_str;
 typedef struct std__collections__List_compiler__ast__GenericParam std__collections__List_compiler__ast__GenericParam;
 typedef struct std__collections__List_compiler__ast__Param std__collections__List_compiler__ast__Param;
@@ -403,6 +404,12 @@ typedef struct std__collections__List_ptr_compiler__sema__TraitInfo std__collect
 typedef struct std__collections__HashMap_str_ptr_compiler__sema__TraitInfo std__collections__HashMap_str_ptr_compiler__sema__TraitInfo;
 typedef struct std__collections__HashMap_str_compiler__sema__ImportBinding std__collections__HashMap_str_compiler__sema__ImportBinding;
 typedef struct std__collections__HashMap_str_ptr_compiler__sema__Type std__collections__HashMap_str_ptr_compiler__sema__Type;
+typedef struct std__collections__HashMap_usz_ptr_compiler__sema__Type std__collections__HashMap_usz_ptr_compiler__sema__Type;
+typedef struct std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo;
+typedef struct std__collections__HashMap_usz_ptr_compiler__ast__AstNode std__collections__HashMap_usz_ptr_compiler__ast__AstNode;
+typedef struct std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord;
+typedef struct std__collections__List_compiler__sema__IsPatternInfo std__collections__List_compiler__sema__IsPatternInfo;
+typedef struct std__collections__HashMap_usz_compiler__sema__IsPatternInfo std__collections__HashMap_usz_compiler__sema__IsPatternInfo;
 typedef struct std__collections__List_bool std__collections__List_bool;
 typedef struct std__collections__List_fmt__Comment std__collections__List_fmt__Comment;
 typedef struct std__collections__List_lsp__LspDiagnostic std__collections__List_lsp__LspDiagnostic;
@@ -512,6 +519,10 @@ struct compiler__ast__InterpPart {
     } u;
 };
 
+struct compiler__ast__NodeId {
+    uint32_t id;
+};
+
 struct compiler__loader__LoadedModule {
     kobel_str name;
     kobel_str path;
@@ -533,11 +544,22 @@ struct compiler__sema__EnumMemberInfo {
     compiler__ast__LiteralKind lit_kind;
 };
 
+struct compiler__sema__IsPatternInfo {
+    kobel_str tag_field;
+    kobel_str base_c_name;
+    bool is_ptr;
+    kobel_str payload_path;
+    bool payload_ptr;
+    kobel_str tag_const;
+};
+
 struct compiler__sema__AnnEntry {
     compiler__ast__AstNode* node;
     compiler__sema__Type* ty;
-    uint8_t* method;
+    compiler__sema__MethodInfo* method;
     compiler__ast__AstNode* resolved;
+    compiler__sema__IsPatternInfo is_info;
+    bool has_is_info;
     kobel_str list_name;
     bool has_list_name;
     compiler__ast__AstNode* elem_node;
@@ -667,12 +689,6 @@ struct std__collections__List_compiler__ast__WhenArm {
 
 struct std__collections__List_compiler__ast__InterpPart {
     compiler__ast__InterpPart* data;
-    size_t len;
-    size_t cap;
-};
-
-struct std__collections__List_compiler__ast__WhenStmtArm {
-    compiler__ast__WhenStmtArm* data;
     size_t len;
     size_t cap;
 };
@@ -931,6 +947,57 @@ struct std__collections__HashMap_str_ptr_compiler__sema__Type {
     size_t cap;
 };
 
+struct std__collections__HashMap_usz_ptr_compiler__sema__Type {
+    size_t* keys;
+    compiler__sema__Type** values;
+    size_t* hashes;
+    bool* occupied;
+    size_t len;
+    size_t cap;
+};
+
+struct std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo {
+    size_t* keys;
+    compiler__sema__MethodInfo** values;
+    size_t* hashes;
+    bool* occupied;
+    size_t len;
+    size_t cap;
+};
+
+struct std__collections__HashMap_usz_ptr_compiler__ast__AstNode {
+    size_t* keys;
+    compiler__ast__AstNode** values;
+    size_t* hashes;
+    bool* occupied;
+    size_t len;
+    size_t cap;
+};
+
+struct std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord {
+    size_t* keys;
+    compiler__sema__InstanceRecord** values;
+    size_t* hashes;
+    bool* occupied;
+    size_t len;
+    size_t cap;
+};
+
+struct std__collections__List_compiler__sema__IsPatternInfo {
+    compiler__sema__IsPatternInfo* data;
+    size_t len;
+    size_t cap;
+};
+
+struct std__collections__HashMap_usz_compiler__sema__IsPatternInfo {
+    size_t* keys;
+    compiler__sema__IsPatternInfo* values;
+    size_t* hashes;
+    bool* occupied;
+    size_t len;
+    size_t cap;
+};
+
 struct std__collections__List_bool {
     bool* data;
     size_t len;
@@ -1142,13 +1209,7 @@ struct compiler__ast__NodeData__IsExpr {
     compiler__ast__AstNode* expr;
     compiler__ast__AstNode* target_type;
     kobel_str alias;
-    kobel_str tag_field;
-    kobel_str base_c_name;
-    bool is_ptr;
     bool mutable;
-    kobel_str payload_path;
-    bool payload_ptr;
-    kobel_str tag_const;
 };
 struct compiler__ast__NodeData__StructCtorExpr {
     kobel_str c_name;
@@ -1207,7 +1268,7 @@ struct compiler__ast__NodeData__ContinueStmt {
 };
 struct compiler__ast__NodeData__WhenStmt {
     compiler__ast__AstNode* condition;
-    std__collections__List_compiler__ast__WhenStmtArm arms;
+    std__collections__List_compiler__ast__WhenArm arms;
 };
 struct compiler__ast__NodeData__YieldStmt {
     compiler__ast__AstNode* value;
@@ -1335,18 +1396,8 @@ struct compiler__ast__AstNode {
     size_t line;
     size_t col;
     compiler__ast__NodeData data;
-    uint8_t* type_ptr;
-    uint8_t* resolved_method;
-    compiler__ast__AstNode* resolved_node;
-    uint8_t* instance;
-};
-
-struct compiler__ast__WhenStmtArm {
-    std__collections__List_ptr_compiler__ast__AstNode patterns;
-    bool is_else;
-    compiler__ast__AstNode* body;
-    size_t line;
-    size_t col;
+    compiler__ast__NodeId id;
+    compiler__core__Span span;
 };
 
 struct compiler__parser__Parser {
@@ -1444,6 +1495,15 @@ struct compiler__sema__SymbolTable {
     std__collections__HashMap_str_ptr_compiler__sema__Type assoc_types;
     compiler__sema__GenericReg gen;
     compiler__sema__PrimTypes* prims;
+    compiler__sema__SemanticTable* sem;
+};
+
+struct compiler__sema__SemanticTable {
+    std__collections__HashMap_usz_ptr_compiler__sema__Type node_types;
+    std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo resolved_methods;
+    std__collections__HashMap_usz_ptr_compiler__ast__AstNode resolved_nodes;
+    std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord node_instances;
+    std__collections__HashMap_usz_compiler__sema__IsPatternInfo is_patterns;
 };
 
 struct compiler__sema__GenSubst {
@@ -1515,6 +1575,7 @@ struct compiler__codegen__CCodeGen {
     std__collections__List_usz scope_starts;
     std__collections__List_bool scope_jumped;
     std__collections__List_usz loop_defer_depths;
+    compiler__sema__SymbolTable* symtab;
 };
 
 struct compiler__driver__CompileOptions {
@@ -1634,16 +1695,6 @@ static inline std__collections__List_ptr_compiler__ast__AstNode std__collections
 	void* data = malloc(cap * elem_size);
 	if (n > 0 && src != NULL) memcpy(data, src, n * elem_size);
 	std__collections__List_compiler__ast__InterpPart l;
-	l.data = data;
-	l.len = n;
-	l.cap = cap;
-	return l;
-}static inline std__collections__List_compiler__ast__WhenStmtArm std__collections__List_compiler__ast__WhenStmtArm_from_array(const void* src, size_t n) {
-	size_t elem_size = sizeof(*(((std__collections__List_compiler__ast__WhenStmtArm*)0)->data));
-	size_t cap = (n < 4) ? 4 : n;
-	void* data = malloc(cap * elem_size);
-	if (n > 0 && src != NULL) memcpy(data, src, n * elem_size);
-	std__collections__List_compiler__ast__WhenStmtArm l;
 	l.data = data;
 	l.len = n;
 	l.cap = cap;
@@ -1904,6 +1955,16 @@ static inline std__collections__List_ptr_compiler__ast__AstNode std__collections
 	void* data = malloc(cap * elem_size);
 	if (n > 0 && src != NULL) memcpy(data, src, n * elem_size);
 	std__collections__List_ptr_compiler__sema__TraitInfo l;
+	l.data = data;
+	l.len = n;
+	l.cap = cap;
+	return l;
+}static inline std__collections__List_compiler__sema__IsPatternInfo std__collections__List_compiler__sema__IsPatternInfo_from_array(const void* src, size_t n) {
+	size_t elem_size = sizeof(*(((std__collections__List_compiler__sema__IsPatternInfo*)0)->data));
+	size_t cap = (n < 4) ? 4 : n;
+	void* data = malloc(cap * elem_size);
+	if (n > 0 && src != NULL) memcpy(data, src, n * elem_size);
+	std__collections__List_compiler__sema__IsPatternInfo l;
 	l.data = data;
 	l.len = n;
 	l.cap = cap;
@@ -2240,7 +2301,17 @@ compiler__ast__AstNode* compiler__ast__NodeData__ExternBlock_at(compiler__ast__N
 size_t compiler__ast__NodeData__Program_count(compiler__ast__NodeData__Program* self);
 compiler__ast__AstNode* compiler__ast__NodeData__Program_at(compiler__ast__NodeData__Program* self, size_t i);
 bool compiler__ast__decl_is_template(compiler__ast__AstNode* node);
+compiler__ast__NodeId compiler__ast__NodeId_invalid(void);
+bool compiler__ast__NodeId_is_valid(compiler__ast__NodeId* self);
+bool compiler__ast__NodeId_equals(compiler__ast__NodeId* self, compiler__ast__NodeId other);
+uint64_t compiler__ast__NodeId_hash(compiler__ast__NodeId* self);
 compiler__ast__AstNode* std__memory__Arena_node(std__memory__Arena* self, compiler__ast__NodeData data, size_t line, size_t col);
+compiler__ast__AstNode* std__memory__Arena_node_spanned(std__memory__Arena* self, compiler__ast__NodeData data, compiler__core__Span span, compiler__ast__NodeId id);
+bool compiler__ast__AstNode_is_statement(compiler__ast__AstNode* self);
+bool compiler__ast__AstNode_is_control_flow(compiler__ast__AstNode* self);
+bool compiler__ast__AstNode_is_declaration(compiler__ast__AstNode* self);
+bool compiler__ast__AstNode_is_type_node(compiler__ast__AstNode* self);
+bool compiler__ast__AstNode_is_expression(compiler__ast__AstNode* self);
 bool compiler__parser__Parser_is_valid_op_name(compiler__parser__Parser* self, kobel_str name);
 std__collections__List_compiler__ast__GenericParam compiler__parser__Parser_parse_generic_params(compiler__parser__Parser* self);
 compiler__ast__AstNode* compiler__parser__Parser_parse_fn_decl(compiler__parser__Parser* self, bool public);
@@ -2485,6 +2556,7 @@ compiler__sema__Type* compiler__sema__body__BodyPass_check_expr(compiler__sema__
 void compiler__sema__body__BodyPass_annotate_type(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__sema__Type* ty);
 void compiler__sema__body__BodyPass_set_resolved(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__AstNode* r);
 void compiler__sema__body__BodyPass_set_method(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__sema__MethodInfo* mi);
+void compiler__sema__body__BodyPass_set_is_pattern(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__sema__IsPatternInfo info);
 void compiler__sema__body__BodyPass_set_ann_ty(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__sema__Type* ty);
 void compiler__sema__body__BodyPass_set_ann_var_ty(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__sema__Type* ty);
 void compiler__sema__body__BodyPass_set_ann_obj(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__AstNode* obj);
@@ -2624,6 +2696,17 @@ void compiler__sema__GenericReg_add_record(compiler__sema__GenericReg* self, com
 compiler__sema__InstanceRecord* compiler__sema__GenericReg_find_instance_record(compiler__sema__GenericReg* self, compiler__sema__GenTemplate* tmpl, std__collections__List_ptr_compiler__sema__Type args, compiler__sema__InstanceKind kind);
 compiler__sema__InstanceRecord* compiler__sema__GenericReg_find_record_by_cname(compiler__sema__GenericReg* self, kobel_str cname);
 compiler__sema__SymbolTable compiler__sema__SymbolTable_init(void);
+void compiler__sema__SymbolTable_set_node_type(compiler__sema__SymbolTable* self, compiler__ast__AstNode* node, compiler__sema__Type* ty);
+compiler__sema__Type* compiler__sema__SymbolTable_get_node_type(compiler__sema__SymbolTable* self, compiler__ast__AstNode* node);
+void compiler__sema__SymbolTable_set_resolved_method(compiler__sema__SymbolTable* self, compiler__ast__AstNode* node, compiler__sema__MethodInfo* mi);
+compiler__sema__MethodInfo* compiler__sema__SymbolTable_get_resolved_method(compiler__sema__SymbolTable* self, compiler__ast__AstNode* node);
+void compiler__sema__SymbolTable_set_resolved_node(compiler__sema__SymbolTable* self, compiler__ast__AstNode* node, compiler__ast__AstNode* r);
+compiler__ast__AstNode* compiler__sema__SymbolTable_get_resolved_node(compiler__sema__SymbolTable* self, compiler__ast__AstNode* node);
+void compiler__sema__SymbolTable_set_node_instance(compiler__sema__SymbolTable* self, compiler__ast__AstNode* node, compiler__sema__InstanceRecord* rec);
+compiler__sema__InstanceRecord* compiler__sema__SymbolTable_get_node_instance(compiler__sema__SymbolTable* self, compiler__ast__AstNode* node);
+void compiler__sema__SymbolTable_set_is_pattern(compiler__sema__SymbolTable* self, compiler__ast__AstNode* node, compiler__sema__IsPatternInfo info);
+bool compiler__sema__SymbolTable_has_is_pattern(compiler__sema__SymbolTable* self, compiler__ast__AstNode* node);
+compiler__sema__IsPatternInfo compiler__sema__SymbolTable_get_is_pattern(compiler__sema__SymbolTable* self, compiler__ast__AstNode* node);
 void compiler__sema__SymbolTable_register_prim_method(compiler__sema__SymbolTable* self, compiler__sema__Type* prim, compiler__sema__MethodInfo* mi);
 compiler__sema__MethodInfo* compiler__sema__SymbolTable_find_prim_method(compiler__sema__SymbolTable* self, compiler__sema__DataType kind, kobel_str name);
 compiler__sema__MethodInfo* compiler__sema__SymbolTable_find_prim_method_arity(compiler__sema__SymbolTable* self, compiler__sema__DataType kind, kobel_str name, size_t argc);
@@ -2703,7 +2786,9 @@ void compiler__sema__Type_layout_struct(compiler__sema__Type* self);
 bool compiler__sema__Type_equals(compiler__sema__Type* self, compiler__sema__Type* b);
 bool compiler__sema__Type_can_assign(compiler__sema__Type* self, compiler__sema__Type* source);
 kobel_str compiler__sema__Type_to_str(compiler__sema__Type* self);
-compiler__codegen__CCodeGen compiler__codegen__CCodeGen_init(void);
+compiler__codegen__CCodeGen compiler__codegen__CCodeGen_init(compiler__sema__SymbolTable* symtab);
+compiler__sema__Type* compiler__codegen__CCodeGen_node_type(compiler__codegen__CCodeGen* self, compiler__ast__AstNode* node);
+compiler__sema__IsPatternInfo compiler__codegen__CCodeGen_is_pattern_info(compiler__codegen__CCodeGen* self, compiler__ast__AstNode* node);
 void compiler__codegen__CCodeGen_enter_defer_scope(compiler__codegen__CCodeGen* self);
 void compiler__codegen__CCodeGen_add_defer(compiler__codegen__CCodeGen* self, compiler__ast__AstNode* stmt);
 void compiler__codegen__CCodeGen_mark_current_scope_jumped(compiler__codegen__CCodeGen* self);
@@ -2729,7 +2814,7 @@ kobel_str compiler__codegen__CCodeGen_gen_assign_expr(compiler__codegen__CCodeGe
 kobel_str compiler__codegen__CCodeGen_gen_when_expr(compiler__codegen__CCodeGen* self, compiler__ast__NodeData__WhenExpr* we);
 kobel_str compiler__codegen__CCodeGen_gen_tag_test(compiler__codegen__CCodeGen* self, kobel_str subject, bool is_ptr, kobel_str tag_field, kobel_str tag_const);
 kobel_str compiler__codegen__CCodeGen_gen_cast_expr(compiler__codegen__CCodeGen* self, compiler__ast__NodeData__CastExpr* cst);
-kobel_str compiler__codegen__CCodeGen_gen_is_expr(compiler__codegen__CCodeGen* self, compiler__ast__NodeData__IsExpr* is_e);
+kobel_str compiler__codegen__CCodeGen_gen_is_expr(compiler__codegen__CCodeGen* self, compiler__ast__AstNode* ast_node, compiler__ast__NodeData__IsExpr* is_e);
 kobel_str compiler__codegen__CCodeGen_gen_when_test(compiler__codegen__CCodeGen* self, kobel_str cond, std__collections__List_ptr_compiler__ast__AstNode patterns);
 kobel_str compiler__codegen__CCodeGen_c_type_of(compiler__codegen__CCodeGen* self, compiler__ast__AstNode* expr);
 kobel_str compiler__codegen__CCodeGen_c_type_or(compiler__codegen__CCodeGen* self, compiler__ast__AstNode* expr, kobel_str fallback);
@@ -2764,7 +2849,7 @@ void compiler__codegen__CCodeGen_gen_elvis_jump_stmt(compiler__codegen__CCodeGen
 void compiler__codegen__CCodeGen_gen_yield_stmt(compiler__codegen__CCodeGen* self, compiler__ast__NodeData__YieldStmt* ys);
 kobel_str compiler__codegen__CCodeGen_when_arm_binding(compiler__codegen__CCodeGen* self, std__collections__List_ptr_compiler__ast__AstNode patterns, compiler__ast__AstNode* cond);
 void compiler__codegen__CCodeGen_gen_when_stmt(compiler__codegen__CCodeGen* self, compiler__ast__NodeData__WhenStmt* ws);
-kobel_str compiler__codegen__CCodeGen_gen_smart_cast_decl(compiler__codegen__CCodeGen* self, compiler__ast__NodeData__IsExpr* is_e, compiler__ast__AstNode* subject, kobel_str var_name, size_t ind_level);
+kobel_str compiler__codegen__CCodeGen_gen_smart_cast_decl(compiler__codegen__CCodeGen* self, compiler__ast__AstNode* is_node, compiler__ast__NodeData__IsExpr* is_e, compiler__ast__AstNode* subject, kobel_str var_name, size_t ind_level);
 void compiler__codegen__CCodeGen_gen_when_with_target(compiler__codegen__CCodeGen* self, compiler__ast__NodeData__WhenExpr* we, kobel_str target_name, bool is_ret);
 bool compiler__codegen__ws_is_id(compiler__ast__AstNode* node);
 bool compiler__codegen__is_jump_or_block(compiler__ast__AstNode* node);
@@ -2971,34 +3056,6 @@ compiler__ast__InterpPart std__collections__List_compiler__ast__InterpPart_get(s
 bool std__collections__List_compiler__ast__InterpPart_contains(std__collections__List_compiler__ast__InterpPart* self, compiler__ast__InterpPart value);
 compiler__ast__InterpPart std__collections__List_compiler__ast__InterpPart_set(std__collections__List_compiler__ast__InterpPart* self, size_t index, compiler__ast__InterpPart value);
 void std__collections__List_compiler__ast__InterpPart_plus_assign(std__collections__List_compiler__ast__InterpPart* self, compiler__ast__InterpPart value);
-size_t std__collections__List_compiler__ast__WhenStmtArm_count(std__collections__List_compiler__ast__WhenStmtArm* self);
-compiler__ast__WhenStmtArm std__collections__List_compiler__ast__WhenStmtArm_at(std__collections__List_compiler__ast__WhenStmtArm* self, size_t i);
-std__collections__List_compiler__ast__WhenStmtArm std__collections__List_compiler__ast__WhenStmtArm_init(size_t cap);
-compiler__ast__WhenStmtArm std__collections__List_compiler__ast__WhenStmtArm_first(std__collections__List_compiler__ast__WhenStmtArm* self);
-compiler__ast__WhenStmtArm std__collections__List_compiler__ast__WhenStmtArm_last(std__collections__List_compiler__ast__WhenStmtArm* self);
-bool std__collections__List_compiler__ast__WhenStmtArm_empty(std__collections__List_compiler__ast__WhenStmtArm* self);
-void std__collections__List_compiler__ast__WhenStmtArm_add(std__collections__List_compiler__ast__WhenStmtArm* self, compiler__ast__WhenStmtArm value);
-compiler__ast__WhenStmtArm std__collections__List_compiler__ast__WhenStmtArm_pop(std__collections__List_compiler__ast__WhenStmtArm* self);
-void std__collections__List_compiler__ast__WhenStmtArm_extend(std__collections__List_compiler__ast__WhenStmtArm* self, std__collections__List_compiler__ast__WhenStmtArm other);
-size_t std__collections__List_compiler__ast__WhenStmtArm_clear(std__collections__List_compiler__ast__WhenStmtArm* self);
-void std__collections__List_compiler__ast__WhenStmtArm_grow(std__collections__List_compiler__ast__WhenStmtArm* self);
-void std__collections__List_compiler__ast__WhenStmtArm_reserve(std__collections__List_compiler__ast__WhenStmtArm* self, size_t min_cap);
-compiler__ast__WhenStmtArm std__collections__List_compiler__ast__WhenStmtArm_remove_at(std__collections__List_compiler__ast__WhenStmtArm* self, size_t index);
-void std__collections__List_compiler__ast__WhenStmtArm_insert(std__collections__List_compiler__ast__WhenStmtArm* self, size_t index, compiler__ast__WhenStmtArm value);
-std__collections__List_compiler__ast__WhenStmtArm std__collections__List_compiler__ast__WhenStmtArm_clone(std__collections__List_compiler__ast__WhenStmtArm* self);
-compiler__ast__WhenStmtArm std__collections__List_compiler__ast__WhenStmtArm_pop_or(std__collections__List_compiler__ast__WhenStmtArm* self, compiler__ast__WhenStmtArm value);
-void std__collections__List_compiler__ast__WhenStmtArm_swap(std__collections__List_compiler__ast__WhenStmtArm* self, size_t a, size_t b);
-void std__collections__List_compiler__ast__WhenStmtArm_reverse(std__collections__List_compiler__ast__WhenStmtArm* self);
-std__collections__List_compiler__ast__WhenStmtArm std__collections__List_compiler__ast__WhenStmtArm_sub(std__collections__List_compiler__ast__WhenStmtArm* self, size_t start, size_t count);
-intptr_t std__collections__List_compiler__ast__WhenStmtArm_index_of(std__collections__List_compiler__ast__WhenStmtArm* self, compiler__ast__WhenStmtArm value);
-intptr_t std__collections__List_compiler__ast__WhenStmtArm_last_index_of(std__collections__List_compiler__ast__WhenStmtArm* self, compiler__ast__WhenStmtArm value);
-bool std__collections__List_compiler__ast__WhenStmtArm_remove(std__collections__List_compiler__ast__WhenStmtArm* self, compiler__ast__WhenStmtArm value);
-size_t std__collections__List_compiler__ast__WhenStmtArm_remove_all(std__collections__List_compiler__ast__WhenStmtArm* self, compiler__ast__WhenStmtArm value);
-void std__collections__List_compiler__ast__WhenStmtArm_free(std__collections__List_compiler__ast__WhenStmtArm* self);
-compiler__ast__WhenStmtArm std__collections__List_compiler__ast__WhenStmtArm_get(std__collections__List_compiler__ast__WhenStmtArm* self, size_t index);
-bool std__collections__List_compiler__ast__WhenStmtArm_contains(std__collections__List_compiler__ast__WhenStmtArm* self, compiler__ast__WhenStmtArm value);
-compiler__ast__WhenStmtArm std__collections__List_compiler__ast__WhenStmtArm_set(std__collections__List_compiler__ast__WhenStmtArm* self, size_t index, compiler__ast__WhenStmtArm value);
-void std__collections__List_compiler__ast__WhenStmtArm_plus_assign(std__collections__List_compiler__ast__WhenStmtArm* self, compiler__ast__WhenStmtArm value);
 size_t std__collections__List_str_count(std__collections__List_str* self);
 kobel_str std__collections__List_str_at(std__collections__List_str* self, size_t i);
 std__collections__List_str std__collections__List_str_init(size_t cap);
@@ -3883,6 +3940,104 @@ void std__collections__HashMap_str_ptr_compiler__sema__Type_free(std__collection
 void std__collections__HashMap_str_ptr_compiler__sema__Type_set(std__collections__HashMap_str_ptr_compiler__sema__Type* self, kobel_str key, compiler__sema__Type* value);
 compiler__sema__Type** std__collections__HashMap_str_ptr_compiler__sema__Type_get(std__collections__HashMap_str_ptr_compiler__sema__Type* self, kobel_str key);
 bool std__collections__HashMap_str_ptr_compiler__sema__Type_contains(std__collections__HashMap_str_ptr_compiler__sema__Type* self, kobel_str key);
+std__collections__HashMap_usz_ptr_compiler__sema__Type std__collections__HashMap_usz_ptr_compiler__sema__Type_init(size_t init_cap);
+size_t std__collections__HashMap_usz_ptr_compiler__sema__Type_dist(std__collections__HashMap_usz_ptr_compiler__sema__Type* self, size_t from, size_t to);
+compiler__sema__Type* std__collections__HashMap_usz_ptr_compiler__sema__Type_get_or(std__collections__HashMap_usz_ptr_compiler__sema__Type* self, size_t key, compiler__sema__Type* value);
+bool std__collections__HashMap_usz_ptr_compiler__sema__Type_remove(std__collections__HashMap_usz_ptr_compiler__sema__Type* self, size_t key);
+void std__collections__HashMap_usz_ptr_compiler__sema__Type_clear(std__collections__HashMap_usz_ptr_compiler__sema__Type* self);
+bool std__collections__HashMap_usz_ptr_compiler__sema__Type_empty(std__collections__HashMap_usz_ptr_compiler__sema__Type* self);
+size_t std__collections__HashMap_usz_ptr_compiler__sema__Type_count(std__collections__HashMap_usz_ptr_compiler__sema__Type* self);
+std__collections__List_usz std__collections__HashMap_usz_ptr_compiler__sema__Type_keys(std__collections__HashMap_usz_ptr_compiler__sema__Type* self);
+std__collections__List_ptr_compiler__sema__Type std__collections__HashMap_usz_ptr_compiler__sema__Type_values(std__collections__HashMap_usz_ptr_compiler__sema__Type* self);
+void std__collections__HashMap_usz_ptr_compiler__sema__Type_grow(std__collections__HashMap_usz_ptr_compiler__sema__Type* self);
+void std__collections__HashMap_usz_ptr_compiler__sema__Type_free(std__collections__HashMap_usz_ptr_compiler__sema__Type* self);
+void std__collections__HashMap_usz_ptr_compiler__sema__Type_set(std__collections__HashMap_usz_ptr_compiler__sema__Type* self, size_t key, compiler__sema__Type* value);
+compiler__sema__Type** std__collections__HashMap_usz_ptr_compiler__sema__Type_get(std__collections__HashMap_usz_ptr_compiler__sema__Type* self, size_t key);
+bool std__collections__HashMap_usz_ptr_compiler__sema__Type_contains(std__collections__HashMap_usz_ptr_compiler__sema__Type* self, size_t key);
+std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo_init(size_t init_cap);
+size_t std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo_dist(std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo* self, size_t from, size_t to);
+compiler__sema__MethodInfo* std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo_get_or(std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo* self, size_t key, compiler__sema__MethodInfo* value);
+bool std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo_remove(std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo* self, size_t key);
+void std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo_clear(std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo* self);
+bool std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo_empty(std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo* self);
+size_t std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo_count(std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo* self);
+std__collections__List_usz std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo_keys(std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo* self);
+std__collections__List_ptr_compiler__sema__MethodInfo std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo_values(std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo* self);
+void std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo_grow(std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo* self);
+void std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo_free(std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo* self);
+void std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo_set(std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo* self, size_t key, compiler__sema__MethodInfo* value);
+compiler__sema__MethodInfo** std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo_get(std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo* self, size_t key);
+bool std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo_contains(std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo* self, size_t key);
+std__collections__HashMap_usz_ptr_compiler__ast__AstNode std__collections__HashMap_usz_ptr_compiler__ast__AstNode_init(size_t init_cap);
+size_t std__collections__HashMap_usz_ptr_compiler__ast__AstNode_dist(std__collections__HashMap_usz_ptr_compiler__ast__AstNode* self, size_t from, size_t to);
+compiler__ast__AstNode* std__collections__HashMap_usz_ptr_compiler__ast__AstNode_get_or(std__collections__HashMap_usz_ptr_compiler__ast__AstNode* self, size_t key, compiler__ast__AstNode* value);
+bool std__collections__HashMap_usz_ptr_compiler__ast__AstNode_remove(std__collections__HashMap_usz_ptr_compiler__ast__AstNode* self, size_t key);
+void std__collections__HashMap_usz_ptr_compiler__ast__AstNode_clear(std__collections__HashMap_usz_ptr_compiler__ast__AstNode* self);
+bool std__collections__HashMap_usz_ptr_compiler__ast__AstNode_empty(std__collections__HashMap_usz_ptr_compiler__ast__AstNode* self);
+size_t std__collections__HashMap_usz_ptr_compiler__ast__AstNode_count(std__collections__HashMap_usz_ptr_compiler__ast__AstNode* self);
+std__collections__List_usz std__collections__HashMap_usz_ptr_compiler__ast__AstNode_keys(std__collections__HashMap_usz_ptr_compiler__ast__AstNode* self);
+std__collections__List_ptr_compiler__ast__AstNode std__collections__HashMap_usz_ptr_compiler__ast__AstNode_values(std__collections__HashMap_usz_ptr_compiler__ast__AstNode* self);
+void std__collections__HashMap_usz_ptr_compiler__ast__AstNode_grow(std__collections__HashMap_usz_ptr_compiler__ast__AstNode* self);
+void std__collections__HashMap_usz_ptr_compiler__ast__AstNode_free(std__collections__HashMap_usz_ptr_compiler__ast__AstNode* self);
+void std__collections__HashMap_usz_ptr_compiler__ast__AstNode_set(std__collections__HashMap_usz_ptr_compiler__ast__AstNode* self, size_t key, compiler__ast__AstNode* value);
+compiler__ast__AstNode** std__collections__HashMap_usz_ptr_compiler__ast__AstNode_get(std__collections__HashMap_usz_ptr_compiler__ast__AstNode* self, size_t key);
+bool std__collections__HashMap_usz_ptr_compiler__ast__AstNode_contains(std__collections__HashMap_usz_ptr_compiler__ast__AstNode* self, size_t key);
+std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord_init(size_t init_cap);
+size_t std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord_dist(std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord* self, size_t from, size_t to);
+compiler__sema__InstanceRecord* std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord_get_or(std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord* self, size_t key, compiler__sema__InstanceRecord* value);
+bool std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord_remove(std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord* self, size_t key);
+void std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord_clear(std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord* self);
+bool std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord_empty(std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord* self);
+size_t std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord_count(std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord* self);
+std__collections__List_usz std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord_keys(std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord* self);
+std__collections__List_ptr_compiler__sema__InstanceRecord std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord_values(std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord* self);
+void std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord_grow(std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord* self);
+void std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord_free(std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord* self);
+void std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord_set(std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord* self, size_t key, compiler__sema__InstanceRecord* value);
+compiler__sema__InstanceRecord** std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord_get(std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord* self, size_t key);
+bool std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord_contains(std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord* self, size_t key);
+size_t std__collections__List_compiler__sema__IsPatternInfo_count(std__collections__List_compiler__sema__IsPatternInfo* self);
+compiler__sema__IsPatternInfo std__collections__List_compiler__sema__IsPatternInfo_at(std__collections__List_compiler__sema__IsPatternInfo* self, size_t i);
+std__collections__List_compiler__sema__IsPatternInfo std__collections__List_compiler__sema__IsPatternInfo_init(size_t cap);
+compiler__sema__IsPatternInfo std__collections__List_compiler__sema__IsPatternInfo_first(std__collections__List_compiler__sema__IsPatternInfo* self);
+compiler__sema__IsPatternInfo std__collections__List_compiler__sema__IsPatternInfo_last(std__collections__List_compiler__sema__IsPatternInfo* self);
+bool std__collections__List_compiler__sema__IsPatternInfo_empty(std__collections__List_compiler__sema__IsPatternInfo* self);
+void std__collections__List_compiler__sema__IsPatternInfo_add(std__collections__List_compiler__sema__IsPatternInfo* self, compiler__sema__IsPatternInfo value);
+compiler__sema__IsPatternInfo std__collections__List_compiler__sema__IsPatternInfo_pop(std__collections__List_compiler__sema__IsPatternInfo* self);
+void std__collections__List_compiler__sema__IsPatternInfo_extend(std__collections__List_compiler__sema__IsPatternInfo* self, std__collections__List_compiler__sema__IsPatternInfo other);
+size_t std__collections__List_compiler__sema__IsPatternInfo_clear(std__collections__List_compiler__sema__IsPatternInfo* self);
+void std__collections__List_compiler__sema__IsPatternInfo_grow(std__collections__List_compiler__sema__IsPatternInfo* self);
+void std__collections__List_compiler__sema__IsPatternInfo_reserve(std__collections__List_compiler__sema__IsPatternInfo* self, size_t min_cap);
+compiler__sema__IsPatternInfo std__collections__List_compiler__sema__IsPatternInfo_remove_at(std__collections__List_compiler__sema__IsPatternInfo* self, size_t index);
+void std__collections__List_compiler__sema__IsPatternInfo_insert(std__collections__List_compiler__sema__IsPatternInfo* self, size_t index, compiler__sema__IsPatternInfo value);
+std__collections__List_compiler__sema__IsPatternInfo std__collections__List_compiler__sema__IsPatternInfo_clone(std__collections__List_compiler__sema__IsPatternInfo* self);
+compiler__sema__IsPatternInfo std__collections__List_compiler__sema__IsPatternInfo_pop_or(std__collections__List_compiler__sema__IsPatternInfo* self, compiler__sema__IsPatternInfo value);
+void std__collections__List_compiler__sema__IsPatternInfo_swap(std__collections__List_compiler__sema__IsPatternInfo* self, size_t a, size_t b);
+void std__collections__List_compiler__sema__IsPatternInfo_reverse(std__collections__List_compiler__sema__IsPatternInfo* self);
+std__collections__List_compiler__sema__IsPatternInfo std__collections__List_compiler__sema__IsPatternInfo_sub(std__collections__List_compiler__sema__IsPatternInfo* self, size_t start, size_t count);
+intptr_t std__collections__List_compiler__sema__IsPatternInfo_index_of(std__collections__List_compiler__sema__IsPatternInfo* self, compiler__sema__IsPatternInfo value);
+intptr_t std__collections__List_compiler__sema__IsPatternInfo_last_index_of(std__collections__List_compiler__sema__IsPatternInfo* self, compiler__sema__IsPatternInfo value);
+bool std__collections__List_compiler__sema__IsPatternInfo_remove(std__collections__List_compiler__sema__IsPatternInfo* self, compiler__sema__IsPatternInfo value);
+size_t std__collections__List_compiler__sema__IsPatternInfo_remove_all(std__collections__List_compiler__sema__IsPatternInfo* self, compiler__sema__IsPatternInfo value);
+void std__collections__List_compiler__sema__IsPatternInfo_free(std__collections__List_compiler__sema__IsPatternInfo* self);
+compiler__sema__IsPatternInfo std__collections__List_compiler__sema__IsPatternInfo_get(std__collections__List_compiler__sema__IsPatternInfo* self, size_t index);
+bool std__collections__List_compiler__sema__IsPatternInfo_contains(std__collections__List_compiler__sema__IsPatternInfo* self, compiler__sema__IsPatternInfo value);
+compiler__sema__IsPatternInfo std__collections__List_compiler__sema__IsPatternInfo_set(std__collections__List_compiler__sema__IsPatternInfo* self, size_t index, compiler__sema__IsPatternInfo value);
+void std__collections__List_compiler__sema__IsPatternInfo_plus_assign(std__collections__List_compiler__sema__IsPatternInfo* self, compiler__sema__IsPatternInfo value);
+std__collections__HashMap_usz_compiler__sema__IsPatternInfo std__collections__HashMap_usz_compiler__sema__IsPatternInfo_init(size_t init_cap);
+size_t std__collections__HashMap_usz_compiler__sema__IsPatternInfo_dist(std__collections__HashMap_usz_compiler__sema__IsPatternInfo* self, size_t from, size_t to);
+compiler__sema__IsPatternInfo std__collections__HashMap_usz_compiler__sema__IsPatternInfo_get_or(std__collections__HashMap_usz_compiler__sema__IsPatternInfo* self, size_t key, compiler__sema__IsPatternInfo value);
+bool std__collections__HashMap_usz_compiler__sema__IsPatternInfo_remove(std__collections__HashMap_usz_compiler__sema__IsPatternInfo* self, size_t key);
+void std__collections__HashMap_usz_compiler__sema__IsPatternInfo_clear(std__collections__HashMap_usz_compiler__sema__IsPatternInfo* self);
+bool std__collections__HashMap_usz_compiler__sema__IsPatternInfo_empty(std__collections__HashMap_usz_compiler__sema__IsPatternInfo* self);
+size_t std__collections__HashMap_usz_compiler__sema__IsPatternInfo_count(std__collections__HashMap_usz_compiler__sema__IsPatternInfo* self);
+std__collections__List_usz std__collections__HashMap_usz_compiler__sema__IsPatternInfo_keys(std__collections__HashMap_usz_compiler__sema__IsPatternInfo* self);
+std__collections__List_compiler__sema__IsPatternInfo std__collections__HashMap_usz_compiler__sema__IsPatternInfo_values(std__collections__HashMap_usz_compiler__sema__IsPatternInfo* self);
+void std__collections__HashMap_usz_compiler__sema__IsPatternInfo_grow(std__collections__HashMap_usz_compiler__sema__IsPatternInfo* self);
+void std__collections__HashMap_usz_compiler__sema__IsPatternInfo_free(std__collections__HashMap_usz_compiler__sema__IsPatternInfo* self);
+void std__collections__HashMap_usz_compiler__sema__IsPatternInfo_set(std__collections__HashMap_usz_compiler__sema__IsPatternInfo* self, size_t key, compiler__sema__IsPatternInfo value);
+compiler__sema__IsPatternInfo* std__collections__HashMap_usz_compiler__sema__IsPatternInfo_get(std__collections__HashMap_usz_compiler__sema__IsPatternInfo* self, size_t key);
+bool std__collections__HashMap_usz_compiler__sema__IsPatternInfo_contains(std__collections__HashMap_usz_compiler__sema__IsPatternInfo* self, size_t key);
 size_t std__collections__List_bool_count(std__collections__List_bool* self);
 bool std__collections__List_bool_at(std__collections__List_bool* self, size_t i);
 std__collections__List_bool std__collections__List_bool_init(size_t cap);
@@ -4126,7 +4281,6 @@ compiler__sema__Type* std__memory__Arena_create_val_compiler__sema__Type(std__me
 void std__memory__Heap_free_ptr_compiler__ast__AstNode(compiler__ast__AstNode** ptr);
 void std__memory__Heap_free_compiler__ast__WhenArm(compiler__ast__WhenArm* ptr);
 void std__memory__Heap_free_compiler__ast__InterpPart(compiler__ast__InterpPart* ptr);
-void std__memory__Heap_free_compiler__ast__WhenStmtArm(compiler__ast__WhenStmtArm* ptr);
 void std__memory__Heap_free_str(kobel_str* ptr);
 void std__memory__Heap_free_compiler__ast__GenericParam(compiler__ast__GenericParam* ptr);
 void std__memory__Heap_free_compiler__ast__Param(compiler__ast__Param* ptr);
@@ -4153,6 +4307,7 @@ void std__memory__Heap_free_ptr_compiler__sema__ModuleScope(compiler__sema__Modu
 void std__memory__Heap_free_compiler__sema__ImportBinding(compiler__sema__ImportBinding* ptr);
 void std__memory__Heap_free_ptr_compiler__sema__EnumInfo(compiler__sema__EnumInfo** ptr);
 void std__memory__Heap_free_ptr_compiler__sema__TraitInfo(compiler__sema__TraitInfo** ptr);
+void std__memory__Heap_free_compiler__sema__IsPatternInfo(compiler__sema__IsPatternInfo* ptr);
 void std__memory__Heap_free_bool(bool* ptr);
 void std__memory__Heap_free_fmt__Comment(fmt__Comment* ptr);
 void std__memory__Heap_free_lsp__LspDiagnostic(lsp__LspDiagnostic* ptr);
@@ -4181,6 +4336,7 @@ compiler__sema__PrimMethods* std__memory__Arena_create_val_compiler__sema__PrimM
 compiler__sema__StructType* std__memory__Arena_create_val_compiler__sema__StructType(std__memory__Arena* self, compiler__sema__StructType value);
 compiler__sema__Scope* std__memory__Arena_create_val_compiler__sema__Scope(std__memory__Arena* self, compiler__sema__Scope value);
 compiler__sema__PrimTypes* std__memory__Arena_create_val_compiler__sema__PrimTypes(std__memory__Arena* self, compiler__sema__PrimTypes value);
+compiler__sema__SemanticTable* std__memory__Arena_create_val_compiler__sema__SemanticTable(std__memory__Arena* self, compiler__sema__SemanticTable value);
 compiler__sema__ModuleScope* std__memory__Arena_create_val_compiler__sema__ModuleScope(std__memory__Arena* self, compiler__sema__ModuleScope value);
 lsp__JsonValue* std__memory__Heap_create_lsp__JsonValue(void);
 compiler__ast__AstNode** std__memory__Heap_create_array_ptr_compiler__ast__AstNode(size_t count);
@@ -4189,8 +4345,6 @@ compiler__ast__WhenArm* std__memory__Heap_create_array_compiler__ast__WhenArm(si
 compiler__ast__WhenArm* std__memory__Heap_resize_compiler__ast__WhenArm(compiler__ast__WhenArm* ptr, size_t count);
 compiler__ast__InterpPart* std__memory__Heap_create_array_compiler__ast__InterpPart(size_t count);
 compiler__ast__InterpPart* std__memory__Heap_resize_compiler__ast__InterpPart(compiler__ast__InterpPart* ptr, size_t count);
-compiler__ast__WhenStmtArm* std__memory__Heap_create_array_compiler__ast__WhenStmtArm(size_t count);
-compiler__ast__WhenStmtArm* std__memory__Heap_resize_compiler__ast__WhenStmtArm(compiler__ast__WhenStmtArm* ptr, size_t count);
 kobel_str* std__memory__Heap_create_array_str(size_t count);
 kobel_str* std__memory__Heap_resize_str(kobel_str* ptr, size_t count);
 compiler__ast__GenericParam* std__memory__Heap_create_array_compiler__ast__GenericParam(size_t count);
@@ -4244,6 +4398,8 @@ compiler__sema__EnumInfo** std__memory__Heap_create_array_ptr_compiler__sema__En
 compiler__sema__EnumInfo** std__memory__Heap_resize_ptr_compiler__sema__EnumInfo(compiler__sema__EnumInfo** ptr, size_t count);
 compiler__sema__TraitInfo** std__memory__Heap_create_array_ptr_compiler__sema__TraitInfo(size_t count);
 compiler__sema__TraitInfo** std__memory__Heap_resize_ptr_compiler__sema__TraitInfo(compiler__sema__TraitInfo** ptr, size_t count);
+compiler__sema__IsPatternInfo* std__memory__Heap_create_array_compiler__sema__IsPatternInfo(size_t count);
+compiler__sema__IsPatternInfo* std__memory__Heap_resize_compiler__sema__IsPatternInfo(compiler__sema__IsPatternInfo* ptr, size_t count);
 bool* std__memory__Heap_resize_bool(bool* ptr, size_t count);
 fmt__Comment* std__memory__Heap_create_array_fmt__Comment(size_t count);
 fmt__Comment* std__memory__Heap_resize_fmt__Comment(fmt__Comment* ptr, size_t count);
@@ -4276,6 +4432,7 @@ compiler__sema__PrimMethods* std__memory__Arena_create_compiler__sema__PrimMetho
 compiler__sema__StructType* std__memory__Arena_create_compiler__sema__StructType(std__memory__Arena* self);
 compiler__sema__Scope* std__memory__Arena_create_compiler__sema__Scope(std__memory__Arena* self);
 compiler__sema__PrimTypes* std__memory__Arena_create_compiler__sema__PrimTypes(std__memory__Arena* self);
+compiler__sema__SemanticTable* std__memory__Arena_create_compiler__sema__SemanticTable(std__memory__Arena* self);
 compiler__sema__ModuleScope* std__memory__Arena_create_compiler__sema__ModuleScope(std__memory__Arena* self);
 
 size_t std__traits__hash_int(size_t n) {
@@ -8030,8 +8187,68 @@ bool compiler__ast__decl_is_template(compiler__ast__AstNode* node) {
     }
 }
 
+compiler__ast__NodeId compiler__ast__NodeId_invalid(void) {
+    return (compiler__ast__NodeId){ 0 };
+}
+
+bool compiler__ast__NodeId_is_valid(compiler__ast__NodeId* self) {
+    return (self->id != 0);
+}
+
+bool compiler__ast__NodeId_equals(compiler__ast__NodeId* self, compiler__ast__NodeId other) {
+    return (self->id == other.id);
+}
+
+uint64_t compiler__ast__NodeId_hash(compiler__ast__NodeId* self) {
+    return u32_hash(self->id);
+}
+
 compiler__ast__AstNode* std__memory__Arena_node(std__memory__Arena* self, compiler__ast__NodeData data, size_t line, size_t col) {
-    return std__memory__Arena_create_val_compiler__ast__AstNode(self, (compiler__ast__AstNode){ line, col, data, NULL, NULL, NULL, NULL });
+    compiler__core__Span sp = compiler__core__Span_init(0, (uint32_t)line, (uint32_t)col, 0);
+    compiler__ast__AstNode* n = std__memory__Arena_create_val_compiler__ast__AstNode(self, (compiler__ast__AstNode){ line, col, data, (compiler__ast__NodeId){ 0 }, sp });
+    uint32_t raw_id = (uint32_t)(((uintptr_t)(n)) / 8);
+    n->id = (compiler__ast__NodeId){ ((raw_id == 0) ? 1U : raw_id) };
+    return n;
+}
+
+compiler__ast__AstNode* std__memory__Arena_node_spanned(std__memory__Arena* self, compiler__ast__NodeData data, compiler__core__Span span, compiler__ast__NodeId id) {
+    return std__memory__Arena_create_val_compiler__ast__AstNode(self, (compiler__ast__AstNode){ (size_t)span.line, (size_t)span.col, data, id, span });
+}
+
+bool compiler__ast__AstNode_is_statement(compiler__ast__AstNode* self) {
+    if (self != NULL && self->data.tag == compiler__ast__NodeData__BlockStmt__TAG || self != NULL && self->data.tag == compiler__ast__NodeData__ExprStmt__TAG || self != NULL && self->data.tag == compiler__ast__NodeData__VarDeclStmt__TAG || self != NULL && self->data.tag == compiler__ast__NodeData__IfStmt__TAG || self != NULL && self->data.tag == compiler__ast__NodeData__WhileStmt__TAG || self != NULL && self->data.tag == compiler__ast__NodeData__ForStmt__TAG || self != NULL && self->data.tag == compiler__ast__NodeData__ReturnStmt__TAG || self != NULL && self->data.tag == compiler__ast__NodeData__BreakStmt__TAG || self != NULL && self->data.tag == compiler__ast__NodeData__ContinueStmt__TAG || self != NULL && self->data.tag == compiler__ast__NodeData__WhenStmt__TAG || self != NULL && self->data.tag == compiler__ast__NodeData__YieldStmt__TAG || self != NULL && self->data.tag == compiler__ast__NodeData__DeferStmt__TAG) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+bool compiler__ast__AstNode_is_control_flow(compiler__ast__AstNode* self) {
+    if (self != NULL && self->data.tag == compiler__ast__NodeData__ReturnStmt__TAG || self != NULL && self->data.tag == compiler__ast__NodeData__BreakStmt__TAG || self != NULL && self->data.tag == compiler__ast__NodeData__ContinueStmt__TAG || self != NULL && self->data.tag == compiler__ast__NodeData__YieldStmt__TAG || self != NULL && self->data.tag == compiler__ast__NodeData__BlockStmt__TAG) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+bool compiler__ast__AstNode_is_declaration(compiler__ast__AstNode* self) {
+    if (self != NULL && self->data.tag == compiler__ast__NodeData__ModuleDecl__TAG || self != NULL && self->data.tag == compiler__ast__NodeData__UseDecl__TAG || self != NULL && self->data.tag == compiler__ast__NodeData__FnDecl__TAG || self != NULL && self->data.tag == compiler__ast__NodeData__StructDecl__TAG || self != NULL && self->data.tag == compiler__ast__NodeData__TraitDecl__TAG || self != NULL && self->data.tag == compiler__ast__NodeData__ImplDecl__TAG || self != NULL && self->data.tag == compiler__ast__NodeData__EnumDecl__TAG || self != NULL && self->data.tag == compiler__ast__NodeData__ConstDecl__TAG || self != NULL && self->data.tag == compiler__ast__NodeData__ExternBlock__TAG || self != NULL && self->data.tag == compiler__ast__NodeData__Program__TAG) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+bool compiler__ast__AstNode_is_type_node(compiler__ast__AstNode* self) {
+    if (self != NULL && self->data.tag == compiler__ast__NodeData__NamedType__TAG || self != NULL && self->data.tag == compiler__ast__NodeData__PointerType__TAG || self != NULL && self->data.tag == compiler__ast__NodeData__ArrayType__TAG || self != NULL && self->data.tag == compiler__ast__NodeData__NullableType__TAG) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+bool compiler__ast__AstNode_is_expression(compiler__ast__AstNode* self) {
+    return ((!compiler__ast__AstNode_is_statement(self) && !compiler__ast__AstNode_is_declaration(self)) && !compiler__ast__AstNode_is_type_node(self));
 }
 
 bool compiler__parser__Parser_is_valid_op_name(compiler__parser__Parser* self, kobel_str name) {
@@ -8094,11 +8311,11 @@ compiler__ast__AstNode* compiler__parser__Parser_parse_fn_decl(compiler__parser_
         } else if (!kobel_streq(pname.text, KOBEL_STR("self"))) {
             compiler__parser__Parser_consume(self, 1, KOBEL_STR("Expected ':' after parameter name"));
             ptype = compiler__parser__Parser_parse_type(self);
-            goto __when_end_4;
+            goto __when_end_8;
         } else {
             ptype = NULL;
         }
-        __when_end_4:;
+        __when_end_8:;
         compiler__ast__AstNode* p_default = (compiler__parser__Parser_match_token(self, 5) ? compiler__parser__Parser_parse_expression(self, 0) : NULL);
         std__collections__List_compiler__ast__Param_plus_assign(&params, (compiler__ast__Param){ pname.text, ptype, mutable, has_val, p_default });
         while (compiler__parser__Parser_match_token(self, 2)) {
@@ -8126,15 +8343,15 @@ compiler__ast__AstNode* compiler__parser__Parser_parse_fn_decl(compiler__parser_
         compiler__ast__AstNode* expr = compiler__parser__Parser_parse_expression(self, 0);
         compiler__parser__Parser_consume(self, 0, KOBEL_STR("Expected ';' after expression body"));
         body = compiler__parser__Parser_node(self, (compiler__ast__NodeData){ .tag = 25, .u.ExprStmt = { expr } }, expr->line, expr->col);
-        goto __when_end_5;
+        goto __when_end_9;
     } else if (compiler__parser__Parser_check(self, 17)) {
         body = compiler__parser__Parser_parse_block_stmt(self);
     } else {
         compiler__parser__Parser_consume(self, 0, KOBEL_STR("Expected ';' or '{' for function body"));
         body = NULL;
-        goto __when_end_5;
+        goto __when_end_9;
     }
-    __when_end_5:;
+    __when_end_9:;
     return compiler__parser__Parser_node(self, (compiler__ast__NodeData){ .tag = 38, .u.FnDecl = { name_tok.text, type_params, params, return_type, body, public, false, false, KOBEL_STR("") } }, kw.line, kw.col);
 }
 
@@ -8164,11 +8381,11 @@ compiler__ast__AstNode* compiler__parser__Parser_parse_op_decl(compiler__parser_
         } else if (!kobel_streq(pname.text, KOBEL_STR("self"))) {
             compiler__parser__Parser_consume(self, 1, KOBEL_STR("Expected ':' after parameter name"));
             ptype = compiler__parser__Parser_parse_type(self);
-            goto __when_end_6;
+            goto __when_end_10;
         } else {
             ptype = NULL;
         }
-        __when_end_6:;
+        __when_end_10:;
         compiler__ast__AstNode* p_default = (compiler__parser__Parser_match_token(self, 5) ? compiler__parser__Parser_parse_expression(self, 0) : NULL);
         std__collections__List_compiler__ast__Param_plus_assign(&params, (compiler__ast__Param){ pname.text, ptype, mutable, has_val, p_default });
         while (compiler__parser__Parser_match_token(self, 2)) {
@@ -8196,15 +8413,15 @@ compiler__ast__AstNode* compiler__parser__Parser_parse_op_decl(compiler__parser_
         compiler__ast__AstNode* expr = compiler__parser__Parser_parse_expression(self, 0);
         compiler__parser__Parser_consume(self, 0, KOBEL_STR("Expected ';' after expression body"));
         body = compiler__parser__Parser_node(self, (compiler__ast__NodeData){ .tag = 25, .u.ExprStmt = { expr } }, expr->line, expr->col);
-        goto __when_end_7;
+        goto __when_end_11;
     } else if (compiler__parser__Parser_check(self, 17)) {
         body = compiler__parser__Parser_parse_block_stmt(self);
     } else {
         compiler__parser__Parser_consume(self, 0, KOBEL_STR("Expected ';' or '{' for operator body"));
         body = NULL;
-        goto __when_end_7;
+        goto __when_end_11;
     }
-    __when_end_7:;
+    __when_end_11:;
     return compiler__parser__Parser_node(self, (compiler__ast__NodeData){ .tag = 38, .u.FnDecl = { op_name, type_params, params, return_type, body, public, true, false, KOBEL_STR("") } }, kw.line, kw.col);
 }
 
@@ -8254,15 +8471,15 @@ compiler__ast__AstNode* compiler__parser__Parser_parse_init_decl(compiler__parse
         compiler__ast__AstNode* expr = compiler__parser__Parser_parse_expression(self, 0);
         compiler__parser__Parser_consume(self, 0, KOBEL_STR("Expected ';' after expression body"));
         body = compiler__parser__Parser_node(self, (compiler__ast__NodeData){ .tag = 25, .u.ExprStmt = { expr } }, expr->line, expr->col);
-        goto __when_end_8;
+        goto __when_end_12;
     } else if (compiler__parser__Parser_check(self, 17)) {
         body = compiler__parser__Parser_parse_block_stmt(self);
     } else {
         compiler__parser__Parser_consume(self, 0, KOBEL_STR("Expected ';' or '{' for constructor body"));
         body = NULL;
-        goto __when_end_8;
+        goto __when_end_12;
     }
-    __when_end_8:;
+    __when_end_12:;
     return compiler__parser__Parser_node(self, (compiler__ast__NodeData){ .tag = 38, .u.FnDecl = { KOBEL_STR("init"), type_params, params, return_type, body, public, false, true, KOBEL_STR("") } }, kw.line, kw.col);
 }
 
@@ -8896,7 +9113,7 @@ compiler__ast__AstNode* compiler__parser__Parser_parse_prefix(compiler__parser__
             compiler__lexer__Token alias_tok = compiler__parser__Parser_consume(self, 42, KOBEL_STR("Expected identifier after 'as'"));
             alias = alias_tok.text;
         }
-        compiler__ast__AstNode* is_node = compiler__parser__Parser_node(self, (compiler__ast__NodeData){ .tag = 20, .u.IsExpr = { NULL, target_type, KOBEL_STR(""), KOBEL_STR(""), KOBEL_STR(""), false, false, KOBEL_STR(""), false, KOBEL_STR("") } }, line, col);
+        compiler__ast__AstNode* is_node = compiler__parser__Parser_node(self, (compiler__ast__NodeData){ .tag = 20, .u.IsExpr = { NULL, target_type, alias, mutable } }, line, col);
         {
             compiler__ast__NodeData__IsExpr* is_expr = NULL;
             if (!str_empty(alias) && (is_node != NULL && is_node->data.tag == compiler__ast__NodeData__IsExpr__TAG && (is_expr = (compiler__ast__NodeData__IsExpr*)(&(is_node)->data.u.IsExpr), 1))) {
@@ -8982,27 +9199,27 @@ compiler__ast__AstNode* compiler__parser__Parser_parse_infix(compiler__parser__P
             size_t kw_col = compiler__parser__Parser_previous(self).col;
             compiler__ast__AstNode* value = (((!compiler__parser__Parser_check(self, 0) && !compiler__parser__Parser_check(self, 18)) && !compiler__parser__Parser_check(self, 16)) ? compiler__parser__Parser_parse_expression(self, 0) : NULL);
             right = compiler__parser__Parser_node(self, (compiler__ast__NodeData){ .tag = 30, .u.ReturnStmt = { value } }, kw_line, kw_col);
-            goto __when_end_13;
+            goto __when_end_17;
         } else if (compiler__parser__Parser_match_token(self, 56)) {
             size_t kw_line = compiler__parser__Parser_previous(self).line;
             size_t kw_col = compiler__parser__Parser_previous(self).col;
             right = compiler__parser__Parser_node(self, (compiler__ast__NodeData){ .tag = 31 }, kw_line, kw_col);
-            goto __when_end_13;
+            goto __when_end_17;
         } else if (compiler__parser__Parser_match_token(self, 57)) {
             size_t kw_line = compiler__parser__Parser_previous(self).line;
             size_t kw_col = compiler__parser__Parser_previous(self).col;
             right = compiler__parser__Parser_node(self, (compiler__ast__NodeData){ .tag = 32 }, kw_line, kw_col);
-            goto __when_end_13;
+            goto __when_end_17;
         } else if (compiler__parser__Parser_match_token(self, 68)) {
             size_t kw_line = compiler__parser__Parser_previous(self).line;
             size_t kw_col = compiler__parser__Parser_previous(self).col;
             compiler__ast__AstNode* value = (((!compiler__parser__Parser_check(self, 0) && !compiler__parser__Parser_check(self, 18)) && !compiler__parser__Parser_check(self, 16)) ? compiler__parser__Parser_parse_expression(self, 0) : NULL);
             right = compiler__parser__Parser_node(self, (compiler__ast__NodeData){ .tag = 34, .u.YieldStmt = { value } }, kw_line, kw_col);
-            goto __when_end_13;
+            goto __when_end_17;
         } else {
             right = compiler__parser__Parser_parse_expression(self, 1);
         }
-        __when_end_13:;
+        __when_end_17:;
         return compiler__parser__Parser_node(self, (compiler__ast__NodeData){ .tag = 7, .u.BinaryExpr = { left, 37, right } }, line, col);
     } else if (compiler__parser__Parser_match_token(self, 3)) {
         compiler__lexer__Token member_tok = compiler__parser__Parser_consume(self, 42, KOBEL_STR("Expected identifier after '.'"));
@@ -9036,7 +9253,7 @@ compiler__ast__AstNode* compiler__parser__Parser_parse_infix(compiler__parser__P
             compiler__lexer__Token alias_tok = compiler__parser__Parser_consume(self, 42, KOBEL_STR("Expected identifier after 'as'"));
             alias = alias_tok.text;
         }
-        compiler__ast__AstNode* is_node = compiler__parser__Parser_node(self, (compiler__ast__NodeData){ .tag = 20, .u.IsExpr = { left, target_type, KOBEL_STR(""), KOBEL_STR(""), KOBEL_STR(""), false, false, KOBEL_STR(""), false, KOBEL_STR("") } }, line, col);
+        compiler__ast__AstNode* is_node = compiler__parser__Parser_node(self, (compiler__ast__NodeData){ .tag = 20, .u.IsExpr = { left, target_type, alias, mutable } }, line, col);
         {
             compiler__ast__NodeData__IsExpr* is_expr = NULL;
             if (!str_empty(alias) && (is_node != NULL && is_node->data.tag == compiler__ast__NodeData__IsExpr__TAG && (is_expr = (compiler__ast__NodeData__IsExpr*)(&(is_node)->data.u.IsExpr), 1))) {
@@ -9659,7 +9876,7 @@ compiler__ast__AstNode* compiler__parser__Parser_parse_when_stmt(compiler__parse
         compiler__parser__Parser_consume(self, 16, KOBEL_STR("Expected ')' after when condition"));
     }
     compiler__parser__Parser_consume(self, 17, KOBEL_STR("Expected '{' before when statement arms"));
-    std__collections__List_compiler__ast__WhenStmtArm arms = std__collections__List_compiler__ast__WhenStmtArm_init(4);
+    std__collections__List_compiler__ast__WhenArm arms = std__collections__List_compiler__ast__WhenArm_init(4);
     while (!compiler__parser__Parser_check(self, 18) && !compiler__parser__Parser_is_end(self)) {
         size_t arm_line = compiler__parser__Parser_peek(self).line;
         size_t arm_col = compiler__parser__Parser_peek(self).col;
@@ -9675,7 +9892,7 @@ compiler__ast__AstNode* compiler__parser__Parser_parse_when_stmt(compiler__parse
         }
         compiler__parser__Parser_consume(self, 28, KOBEL_STR("Expected '->' after when arm pattern"));
         compiler__ast__AstNode* body = compiler__parser__Parser_parse_statement(self);
-        std__collections__List_compiler__ast__WhenStmtArm_plus_assign(&arms, (compiler__ast__WhenStmtArm){ patterns, is_else, body, arm_line, arm_col });
+        std__collections__List_compiler__ast__WhenArm_plus_assign(&arms, (compiler__ast__WhenArm){ patterns, is_else, body, arm_line, arm_col });
         if (compiler__parser__Parser_check(self, 2)) {
             compiler__parser__Parser_error(self, compiler__parser__Parser_peek(self), KOBEL_STR("Expected ';' after when arm, not ',' (commas are only allowed for grouping conditions before '->')"));
             compiler__parser__Parser_advance(self);
@@ -10468,7 +10685,7 @@ compiler__ast__AstNode* compiler__sema__decl__DeclPass_clone_expr(compiler__sema
         compiler__ast__AstNode* cloned_obj = compiler__sema__decl__DeclPass_clone_expr(self, obj_src, subst);
         compiler__ast__AstNode* res = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 10, .u.MemberExpr = { cloned_obj, m->member, m->is_safe } }, node->line, node->col);
         out = res;
-        goto __when_end_17;
+        goto __when_end_21;
     } else if (target != NULL && target->data.tag == compiler__ast__NodeData__IndexExpr__TAG) {
         compiler__ast__NodeData__IndexExpr* ix = (compiler__ast__NodeData__IndexExpr*)(&(target)->data.u.IndexExpr);
         out = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 11, .u.IndexExpr = { compiler__sema__decl__DeclPass_clone_expr(self, ix->target, subst), compiler__sema__decl__DeclPass_clone_expr(self, ix->index, subst) } }, node->line, node->col);
@@ -10500,7 +10717,7 @@ compiler__ast__AstNode* compiler__sema__decl__DeclPass_clone_expr(compiler__sema
             }
         }
         out = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 16, .u.ArrayLiteralExpr = { compiler__sema__decl__DeclPass_clone_expr_list(self, al->elements, subst), lname, enode } }, node->line, node->col);
-        goto __when_end_17;
+        goto __when_end_21;
     } else if (target != NULL && target->data.tag == compiler__ast__NodeData__WhenExpr__TAG) {
         compiler__ast__NodeData__WhenExpr* we = (compiler__ast__NodeData__WhenExpr*)(&(target)->data.u.WhenExpr);
         out = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 18, .u.WhenExpr = { ((we->condition != NULL) ? compiler__sema__decl__DeclPass_clone_expr(self, we->condition, subst) : NULL), compiler__sema__decl__DeclPass_clone_when_arms(self, node, subst) } }, node->line, node->col);
@@ -10511,7 +10728,7 @@ compiler__ast__AstNode* compiler__sema__decl__DeclPass_clone_expr(compiler__sema
     } else if (target != NULL && target->data.tag == compiler__ast__NodeData__IsExpr__TAG) {
         compiler__ast__NodeData__IsExpr* is_e = (compiler__ast__NodeData__IsExpr*)(&(target)->data.u.IsExpr);
         compiler__ast__AstNode* expr_clone = ((is_e->expr != NULL) ? compiler__sema__decl__DeclPass_clone_expr(self, is_e->expr, subst) : NULL);
-        compiler__ast__AstNode* res_is = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 20, .u.IsExpr = { expr_clone, compiler__sema__decl__DeclPass_clone_type(self, is_e->target_type, subst), KOBEL_STR(""), KOBEL_STR(""), KOBEL_STR(""), false, false, KOBEL_STR(""), false, KOBEL_STR("") } }, node->line, node->col);
+        compiler__ast__AstNode* res_is = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 20, .u.IsExpr = { expr_clone, compiler__sema__decl__DeclPass_clone_type(self, is_e->target_type, subst), is_e->alias, is_e->mutable } }, node->line, node->col);
         {
             compiler__ast__NodeData__IsExpr* res_e = NULL;
             if (!str_empty(is_e->alias) && (res_is != NULL && res_is->data.tag == compiler__ast__NodeData__IsExpr__TAG && (res_e = (compiler__ast__NodeData__IsExpr*)(&(res_is)->data.u.IsExpr), 1))) {
@@ -10520,7 +10737,7 @@ compiler__ast__AstNode* compiler__sema__decl__DeclPass_clone_expr(compiler__sema
             }
         }
         out = res_is;
-        goto __when_end_17;
+        goto __when_end_21;
     } else if (target != NULL && target->data.tag == compiler__ast__NodeData__StructCtorExpr__TAG) {
         compiler__ast__NodeData__StructCtorExpr* sc = (compiler__ast__NodeData__StructCtorExpr*)(&(target)->data.u.StructCtorExpr);
         out = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 21, .u.StructCtorExpr = { sc->c_name, compiler__sema__decl__DeclPass_clone_expr_list(self, sc->args, subst) } }, node->line, node->col);
@@ -10533,14 +10750,19 @@ compiler__ast__AstNode* compiler__sema__decl__DeclPass_clone_expr(compiler__sema
     } else {
         out = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 6, .u.IdentifierExpr = { KOBEL_STR("<unsupported-expr>") } }, node->line, node->col);
     }
-    __when_end_17:;
+    __when_end_21:;
     if (e != NULL) {
         if (e->ty != NULL) {
-            out->type_ptr = (uint8_t*)e->ty;
+            compiler__sema__SymbolTable_set_node_type(&self->symtab, out, e->ty);
         }
         if (e->method != NULL) {
-            out->resolved_method = e->method;
+            compiler__sema__SymbolTable_set_resolved_method(&self->symtab, out, e->method);
         }
+        if (e->has_is_info) {
+            compiler__sema__SymbolTable_set_is_pattern(&self->symtab, out, e->is_info);
+        }
+    } else if (compiler__sema__SymbolTable_has_is_pattern(&self->symtab, node)) {
+        compiler__sema__SymbolTable_set_is_pattern(&self->symtab, out, compiler__sema__SymbolTable_get_is_pattern(&self->symtab, node));
     }
     return out;
 }
@@ -10826,12 +11048,12 @@ compiler__ast__AstNode* compiler__sema__decl__DeclPass_clone_stmt(compiler__sema
         return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 32 }, node->line, node->col);
     } else if (target != NULL && target->data.tag == compiler__ast__NodeData__WhenStmt__TAG) {
         compiler__ast__NodeData__WhenStmt* w = (compiler__ast__NodeData__WhenStmt*)(&(target)->data.u.WhenStmt);
-        std__collections__List_compiler__ast__WhenStmtArm arms = std__collections__List_compiler__ast__WhenStmtArm_init(4);
+        std__collections__List_compiler__ast__WhenArm arms = std__collections__List_compiler__ast__WhenArm_init(4);
         {
-            size_t __for_n = std__collections__List_compiler__ast__WhenStmtArm_count(&w->arms);
+            size_t __for_n = std__collections__List_compiler__ast__WhenArm_count(&w->arms);
             size_t __for_i = 0;
             while (__for_i < __for_n) {
-                compiler__ast__WhenStmtArm arm = std__collections__List_compiler__ast__WhenStmtArm_at(&w->arms, __for_i);
+                compiler__ast__WhenArm arm = std__collections__List_compiler__ast__WhenArm_at(&w->arms, __for_i);
                 std__collections__List_ptr_compiler__ast__AstNode pats = std__collections__List_ptr_compiler__ast__AstNode_init(4);
                 {
                     size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&arm.patterns);
@@ -10842,7 +11064,7 @@ compiler__ast__AstNode* compiler__sema__decl__DeclPass_clone_stmt(compiler__sema
                         __for_i = (__for_i + 1);
                     }
                 }
-                std__collections__List_compiler__ast__WhenStmtArm_plus_assign(&arms, (compiler__ast__WhenStmtArm){ pats, arm.is_else, compiler__sema__decl__DeclPass_clone_stmt(self, arm.body, subst), arm.line, arm.col });
+                std__collections__List_compiler__ast__WhenArm_plus_assign(&arms, (compiler__ast__WhenArm){ pats, arm.is_else, compiler__sema__decl__DeclPass_clone_stmt(self, arm.body, subst), arm.line, arm.col });
                 __for_i = (__for_i + 1);
             }
         }
@@ -10988,7 +11210,7 @@ compiler__sema__Type* compiler__sema__decl__DeclPass_instantiate_struct(compiler
                                             compiler__ast__AstNode* mview = compiler__sema__decl__DeclPass_make_fn_view(self, m, impl_tmpl, args, arg_asts, mf->name);
                                             compiler__sema__InstanceRecord* mrec = std__memory__Arena_create_val_compiler__sema__InstanceRecord(&self->arena, (compiler__sema__InstanceRecord){ 1, impl_tmpl, args, cname, mview, std__collections__HashMap_usz_ptr_compiler__sema__AnnEntry_init(16), NULL });
                                             mrec->sig = compiler__sema__decl__DeclPass_make_fn_sig(self, m, impl_tmpl, args, s_type);
-                                            mview->instance = (uint8_t*)mrec;
+                                            compiler__sema__SymbolTable_set_node_instance(&self->symtab, mview, mrec);
                                             std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&methods, mview);
                                         }
                                     }
@@ -11274,7 +11496,7 @@ kobel_str compiler__sema__decl__DeclPass_instantiate_fn(compiler__sema__decl__De
     compiler__sema__decl__DeclPass_queue_decl(self, tmpl->module, view);
     compiler__sema__InstanceRecord* rec = std__memory__Arena_create_val_compiler__sema__InstanceRecord(&self->arena, (compiler__sema__InstanceRecord){ 1, tmpl, args, cname, view, std__collections__HashMap_usz_ptr_compiler__sema__AnnEntry_init(16), NULL });
     rec->sig = sig;
-    view->instance = (uint8_t*)rec;
+    compiler__sema__SymbolTable_set_node_instance(&self->symtab, view, rec);
     compiler__sema__GenericReg_add_record(&self->symtab.gen, rec);
     compiler__sema__decl__DeclPass_leave_module(self, prev_mod);
     return cname;
@@ -12072,10 +12294,10 @@ bool compiler__sema__decl__DeclPass_rewrite_stmt_generics(compiler__sema__decl__
         compiler__ast__NodeData__WhenStmt* w = (compiler__ast__NodeData__WhenStmt*)(&(cur)->data.u.WhenStmt);
         compiler__sema__decl__DeclPass_rewrite_generics(self, w->condition);
         {
-            size_t __for_n = std__collections__List_compiler__ast__WhenStmtArm_count(&w->arms);
+            size_t __for_n = std__collections__List_compiler__ast__WhenArm_count(&w->arms);
             size_t __for_i = 0;
             while (__for_i < __for_n) {
-                compiler__ast__WhenStmtArm arm = std__collections__List_compiler__ast__WhenStmtArm_at(&w->arms, __for_i);
+                compiler__ast__WhenArm arm = std__collections__List_compiler__ast__WhenArm_at(&w->arms, __for_i);
                 {
                     size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&arm.patterns);
                     size_t __for_i = 0;
@@ -13273,7 +13495,7 @@ void compiler__sema__decl__DeclPass_collect_impl(compiler__sema__decl__DeclPass*
                                 }
                             }
                             compiler__sema__Type* ret_type = ((f->return_type != NULL) ? compiler__sema__decl__DeclPass_resolve_ast_type(self, f->return_type) : (compiler__sema__decl__DeclPass_infer_decl_return_type(self, f) != NULL ? compiler__sema__decl__DeclPass_infer_decl_return_type(self, f) : compiler__sema__PrimTypes_t_none(compiler__sema__decl__DeclPass_prims(self))));
-                            compiler__sema__Type* rec_sig = (((compiler__sema__InstanceRecord*)m_node->instance) != NULL ? ((compiler__sema__InstanceRecord*)m_node->instance)->sig : NULL);
+                            compiler__sema__Type* rec_sig = (compiler__sema__SymbolTable_get_node_instance(&self->symtab, m_node) != NULL ? compiler__sema__SymbolTable_get_node_instance(&self->symtab, m_node)->sig : NULL);
                             compiler__sema__Type* fn_type = rec_sig;
                             if (fn_type == NULL) fn_type = std__memory__Arena_fn_type(&self->arena, param_types, ret_type);
                             kobel_str m_c_name = compiler__sema__decl__method_c_name(kobel_concat3(st_c_name, KOBEL_STR("_"), f->name), param_types.len, std__collections__List_str_contains(&overloaded, f->name), used_names);
@@ -13442,10 +13664,10 @@ void compiler__sema__decl__DeclPass_collect_return_exprs(compiler__sema__decl__D
         }
     } else if (stmt != NULL && stmt->data.tag == compiler__ast__NodeData__WhenStmt__TAG) {
         compiler__ast__NodeData__WhenStmt* ws = (compiler__ast__NodeData__WhenStmt*)(&(stmt)->data.u.WhenStmt);
-        size_t __for_n = std__collections__List_compiler__ast__WhenStmtArm_count(&ws->arms);
+        size_t __for_n = std__collections__List_compiler__ast__WhenArm_count(&ws->arms);
         size_t __for_i = 0;
         while (__for_i < __for_n) {
-            compiler__ast__WhenStmtArm arm = std__collections__List_compiler__ast__WhenStmtArm_at(&ws->arms, __for_i);
+            compiler__ast__WhenArm arm = std__collections__List_compiler__ast__WhenArm_at(&ws->arms, __for_i);
             compiler__sema__decl__DeclPass_collect_return_exprs(self, arm.body, out_returns);
             __for_i = (__for_i + 1);
         }
@@ -16603,6 +16825,7 @@ compiler__sema__body__BodyPass compiler__sema__body__BodyPass_init_2(compiler__s
     bp.decl = decl;
     bp.has_decl = true;
     bp.symtab.prims = decl.symtab.prims;
+    bp.symtab.sem = decl.symtab.sem;
     return bp;
 }
 
@@ -16751,23 +16974,32 @@ void compiler__sema__body__BodyPass_annotate_type(compiler__sema__body__BodyPass
         (*compiler__sema__body__BodyPass_ann_entry(self, node)).ty = ty;
         return;
     }
-    node->type_ptr = (uint8_t*)ty;
+    compiler__sema__SymbolTable_set_node_type(&self->symtab, node, ty);
 }
 
 void compiler__sema__body__BodyPass_set_resolved(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__AstNode* r) {
     if (self->current_rec != NULL) {
         (*compiler__sema__body__BodyPass_ann_entry(self, node)).resolved = r;
     } else {
-        node->resolved_node = r;
+        compiler__sema__SymbolTable_set_resolved_node(&self->symtab, node, r);
     }
 }
 
 void compiler__sema__body__BodyPass_set_method(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__sema__MethodInfo* mi) {
     if (self->current_rec != NULL) {
-        (*compiler__sema__body__BodyPass_ann_entry(self, node)).method = (uint8_t*)mi;
+        (*compiler__sema__body__BodyPass_ann_entry(self, node)).method = mi;
     } else {
-        node->resolved_method = (uint8_t*)mi;
+        compiler__sema__SymbolTable_set_resolved_method(&self->symtab, node, mi);
     }
+}
+
+void compiler__sema__body__BodyPass_set_is_pattern(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__sema__IsPatternInfo info) {
+    if (self->current_rec != NULL) {
+        compiler__sema__AnnEntry* e = compiler__sema__body__BodyPass_ann_entry(self, node);
+        e->is_info = info;
+        e->has_is_info = true;
+    }
+    compiler__sema__SymbolTable_set_is_pattern(&self->symtab, node, info);
 }
 
 void compiler__sema__body__BodyPass_set_ann_ty(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__sema__Type* ty) {
@@ -16819,7 +17051,7 @@ compiler__sema__AnnEntry* compiler__sema__body__BodyPass_ann_entry(compiler__sem
     if (ex != NULL) {
         return ex;
     }
-    compiler__sema__AnnEntry* e = std__memory__Arena_create_val_compiler__sema__AnnEntry(&self->arena, (compiler__sema__AnnEntry){ node, NULL, NULL, NULL, KOBEL_STR(""), false, NULL, false, NULL, NULL, NULL, KOBEL_STR(""), false });
+    compiler__sema__AnnEntry* e = std__memory__Arena_create_val_compiler__sema__AnnEntry(&self->arena, (compiler__sema__AnnEntry){ node, NULL, NULL, NULL, (compiler__sema__IsPatternInfo){ KOBEL_STR(""), KOBEL_STR(""), false, KOBEL_STR(""), false, KOBEL_STR("") }, false, KOBEL_STR(""), false, NULL, false, NULL, NULL, NULL, KOBEL_STR(""), false });
     std__collections__HashMap_usz_ptr_compiler__sema__AnnEntry_set(&rec->ann_map, ((uintptr_t)(node)), e);
     return e;
 }
@@ -17481,10 +17713,8 @@ compiler__sema__Type* compiler__sema__body__BodyPass_check_is_pattern(compiler__
                 }
                 tag_const_c_name = tag_const_sym->c_name;
             }
-            is_e->tag_field = tag_field_name;
-            is_e->tag_const = tag_const_c_name;
-            is_e->base_c_name = base_s->c_name;
-            is_e->is_ptr = is_ptr;
+            kobel_str payload_path = KOBEL_STR("");
+            bool payload_ptr = false;
             if (is_payload_data) {
                 bool is_inner_ptr = true;
                 kobel_str member_name = target_s->name;
@@ -17511,11 +17741,11 @@ compiler__sema__Type* compiler__sema__body__BodyPass_check_is_pattern(compiler__
                     }
                 }
                 if (is_inner_ptr) {
-                    is_e->payload_path = kobel_concat3(KOBEL_STR("data.u."), member_name, KOBEL_STR(".inner"));
-                    is_e->payload_ptr = true;
+                    payload_path = kobel_concat3(KOBEL_STR("data.u."), member_name, KOBEL_STR(".inner"));
+                    payload_ptr = true;
                 } else {
-                    is_e->payload_path = kobel_concat(KOBEL_STR("data.u."), member_name);
-                    is_e->payload_ptr = false;
+                    payload_path = kobel_concat(KOBEL_STR("data.u."), member_name);
+                    payload_ptr = false;
                 }
             }
             compiler__sema__EnumInfo* enum_info = compiler__sema__SymbolTable_find_enum_info(&self->symtab, base_s->name);
@@ -17526,13 +17756,14 @@ compiler__sema__Type* compiler__sema__body__BodyPass_check_is_pattern(compiler__
                     while (__for_i < __for_n) {
                         compiler__sema__EnumMemberInfo* m = std__collections__List_ptr_compiler__sema__EnumMemberInfo_at(&enum_info->members, __for_i);
                         if ((m->payload_ty != NULL) && compiler__sema__Type_equals(m->payload_ty, target_ty)) {
-                            is_e->payload_path = m->payload_path;
+                            payload_path = m->payload_path;
                         }
                         __for_i = (__for_i + 1);
                     }
                 }
             }
-            if (!str_empty(is_e->payload_path)) {
+            compiler__sema__body__BodyPass_set_is_pattern(self, is_node, (compiler__sema__IsPatternInfo){ tag_field_name, base_s->c_name, is_ptr, payload_path, payload_ptr, tag_const_c_name });
+            if (!str_empty(payload_path)) {
                 return std__memory__Arena_pointer_type(&self->arena, target_ty, (is_e->mutable || (is_ptr && subj_mutable)));
             }
             if (is_ptr) {
@@ -17617,7 +17848,7 @@ void compiler__sema__body__BodyPass_check_fn(compiler__sema__body__BodyPass* sel
                     self_ty = (*compiler__sema__Type_as_pointer(p0)).pointee;
                 }
             }
-            compiler__sema__InstanceRecord* rec = (compiler__sema__InstanceRecord*)fn_node->instance;
+            compiler__sema__InstanceRecord* rec = compiler__sema__SymbolTable_get_node_instance(&self->symtab, fn_node);
             compiler__sema__InstanceRecord* saved_rec = compiler__sema__body__BodyPass_push_instance(self, rec);
             if (self_ty == NULL) {
                 compiler__sema__body__BodyPass_check_fn_body(self, fn_node, sym->type_ptr);
@@ -17808,7 +18039,7 @@ void compiler__sema__body__BodyPass_check_impl(compiler__sema__body__BodyPass* s
                                 __for_i = (__for_i + 1);
                                 continue;
                             }
-                            compiler__sema__InstanceRecord* rec = (compiler__sema__InstanceRecord*)m_node->instance;
+                            compiler__sema__InstanceRecord* rec = compiler__sema__SymbolTable_get_node_instance(&self->symtab, m_node);
                             compiler__sema__InstanceRecord* saved_rec = compiler__sema__body__BodyPass_push_instance(self, rec);
                             compiler__sema__body__BodyPass_check_fn_body(self, m_node, mi->fn_type);
                             compiler__sema__body__BodyPass_pop_instance(self, saved_rec, rec);
@@ -17829,6 +18060,7 @@ void compiler__sema__body__BodyPass_check_program(compiler__sema__body__BodyPass
         compiler__sema__decl__DeclPass_collect_program(&decl_p, program_node);
         self->symtab = decl_p.symtab;
         self->symtab.prims = decl_p.symtab.prims;
+        self->symtab.sem = decl_p.symtab.sem;
         self->decl = decl_p;
         self->has_decl = true;
         {
@@ -18208,7 +18440,7 @@ bool compiler__sema__body__BodyPass_try_infer_arrow(compiler__sema__body__BodyPa
                     }
                 }
             }
-            compiler__sema__InstanceRecord* rec = (compiler__sema__InstanceRecord*)(*c->node).instance;
+            compiler__sema__InstanceRecord* rec = compiler__sema__SymbolTable_get_node_instance(&self->symtab, c->node);
             compiler__sema__InstanceRecord* saved_rec = compiler__sema__body__BodyPass_push_instance(self, rec);
             compiler__ast__AstNode* body_expr = NULL;
             {
@@ -18674,10 +18906,10 @@ void compiler__sema__body__BodyPass_check_when_stmt(compiler__sema__body__BodyPa
         if ((node != NULL && node->data.tag == compiler__ast__NodeData__WhenStmt__TAG && (ws = (compiler__ast__NodeData__WhenStmt*)(&(node)->data.u.WhenStmt), 1))) {
             compiler__sema__Type* cond_ty = ((ws->condition != NULL) ? compiler__sema__body__BodyPass_check_expr(self, ws->condition, NULL) : NULL);
             {
-                size_t __for_n = std__collections__List_compiler__ast__WhenStmtArm_count(&ws->arms);
+                size_t __for_n = std__collections__List_compiler__ast__WhenArm_count(&ws->arms);
                 size_t __for_i = 0;
                 while (__for_i < __for_n) {
-                    compiler__ast__WhenStmtArm arm = std__collections__List_compiler__ast__WhenStmtArm_at(&ws->arms, __for_i);
+                    compiler__ast__WhenArm arm = std__collections__List_compiler__ast__WhenArm_at(&ws->arms, __for_i);
                     compiler__sema__Type* smart_cast_ty = compiler__sema__body__BodyPass_resolve_arm_patterns(self, arm.patterns, ws->condition, cond_ty);
                     kobel_str sym = compiler__sema__body__BodyPass_arm_smart_cast_sym(self, arm.patterns, ws->condition);
                     bool mutable = compiler__sema__body__BodyPass_arm_smart_cast_mutable(self, arm.patterns, ws->condition);
@@ -18902,10 +19134,10 @@ void std__memory__Arena_for_inject_step(std__memory__Arena* self, compiler__ast_
     } else if (target != NULL && target->data.tag == compiler__ast__NodeData__WhenStmt__TAG) {
         void* __orig_target = (void*)target;
         compiler__ast__NodeData__WhenStmt* target = (compiler__ast__NodeData__WhenStmt*)((&((compiler__ast__AstNode*)__orig_target)->data.u.WhenStmt));
-        size_t __for_n = std__collections__List_compiler__ast__WhenStmtArm_count(&target->arms);
+        size_t __for_n = std__collections__List_compiler__ast__WhenArm_count(&target->arms);
         size_t __for_i = 0;
         while (__for_i < __for_n) {
-            compiler__ast__WhenStmtArm arm = std__collections__List_compiler__ast__WhenStmtArm_at(&target->arms, __for_i);
+            compiler__ast__WhenArm arm = std__collections__List_compiler__ast__WhenArm_at(&target->arms, __for_i);
             std__memory__Arena_for_inject_step(self, arm.body, step, bp);
             __for_i = (__for_i + 1);
         }
@@ -18934,8 +19166,6 @@ void std__memory__Arena_for_inject_step(std__memory__Arena* self, compiler__ast_
         compiler__ast__AstNode* block = std__memory__Arena_loop_block(self, stmts, node->line, node->col);
         if (bp != NULL) {
             compiler__sema__body__BodyPass_set_resolved(bp, node, block);
-        } else {
-            node->resolved_node = block;
         }
     }
 }
@@ -19078,7 +19308,7 @@ void compiler__sema__body__BodyPass_lower_program(compiler__sema__body__BodyPass
                             __for_i = (__for_i + 1);
                             continue;
                         }
-                        compiler__sema__InstanceRecord* rec = (compiler__sema__InstanceRecord*)decl->instance;
+                        compiler__sema__InstanceRecord* rec = compiler__sema__SymbolTable_get_node_instance(&self->symtab, decl);
                         if (rec != NULL) {
                             f->body = compiler__sema__body__BodyPass_lower_stmt(self, compiler__sema__decl__DeclPass_materialize_body(&self->decl, rec));
                         } else if (f->body != NULL) {
@@ -19118,7 +19348,7 @@ void compiler__sema__body__BodyPass_lower_program(compiler__sema__body__BodyPass
                                             }
                                             continue;
                                         }
-                                        compiler__sema__InstanceRecord* rec = (compiler__sema__InstanceRecord*)m->instance;
+                                        compiler__sema__InstanceRecord* rec = compiler__sema__SymbolTable_get_node_instance(&self->symtab, m);
                                         if (rec != NULL) {
                                             mf->body = compiler__sema__body__BodyPass_lower_stmt(self, compiler__sema__decl__DeclPass_materialize_body(&self->decl, rec));
                                         } else if (mf->body != NULL) {
@@ -19157,8 +19387,9 @@ compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_stmt(compiler__sema
     if (node == NULL) {
         return (compiler__ast__AstNode*)NULL;
     }
-    if (node->resolved_node != NULL) {
-        return compiler__sema__body__BodyPass_lower_stmt(self, node->resolved_node);
+    compiler__ast__AstNode* res_stmt = compiler__sema__SymbolTable_get_resolved_node(&self->symtab, node);
+    if (res_stmt != NULL) {
+        return compiler__sema__body__BodyPass_lower_stmt(self, res_stmt);
     }
     if (node != NULL && node->data.tag == compiler__ast__NodeData__BlockStmt__TAG) {
         compiler__ast__NodeData__BlockStmt* blk = (compiler__ast__NodeData__BlockStmt*)(&(node)->data.u.BlockStmt);
@@ -19244,7 +19475,7 @@ compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_stmt(compiler__sema
             }
             while (__for_go) {
                 size_t i = __for_i;
-                compiler__ast__WhenStmtArm arm = std__collections__List_compiler__ast__WhenStmtArm_get(&ws->arms, i);
+                compiler__ast__WhenArm arm = std__collections__List_compiler__ast__WhenArm_get(&ws->arms, i);
                 arm.body = compiler__sema__body__BodyPass_lower_stmt(self, arm.body);
                 {
                     size_t __for_e = arm.patterns.len;
@@ -19274,7 +19505,7 @@ compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_stmt(compiler__sema
                         }
                     }
                 }
-                std__collections__List_compiler__ast__WhenStmtArm_set(&ws->arms, i, arm);
+                std__collections__List_compiler__ast__WhenArm_set(&ws->arms, i, arm);
                 if (__for_up) {
                     __for_go = ((__for_i + 1) < __for_e);
                 } else {
@@ -19305,8 +19536,9 @@ compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_expr(compiler__sema
     if (node == NULL) {
         return (compiler__ast__AstNode*)NULL;
     }
-    if (node->resolved_node != NULL) {
-        return compiler__sema__body__BodyPass_lowered(self, node, compiler__sema__body__BodyPass_lower_expr(self, node->resolved_node));
+    compiler__ast__AstNode* res_expr = compiler__sema__SymbolTable_get_resolved_node(&self->symtab, node);
+    if (res_expr != NULL) {
+        return compiler__sema__body__BodyPass_lowered(self, node, compiler__sema__body__BodyPass_lower_expr(self, res_expr));
     }
     compiler__ast__AstNode* out = node;
     if (node != NULL && node->data.tag == compiler__ast__NodeData__BinaryExpr__TAG) {
@@ -19349,7 +19581,7 @@ compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_expr(compiler__sema
                 }
             }
         }
-        if (node->resolved_method != NULL) {
+        if (compiler__sema__SymbolTable_get_resolved_method(&self->symtab, node) != NULL) {
             out = compiler__sema__body__BodyPass_lower_bound_call(self, node, c);
         } else {
             out = compiler__sema__body__BodyPass_lower_call(self, node, c);
@@ -19595,7 +19827,10 @@ compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_arm_body(compiler__
 }
 
 compiler__ast__AstNode* compiler__sema__body__BodyPass_lowered(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* original, compiler__ast__AstNode* replacement) {
-    replacement->type_ptr = original->type_ptr;
+    compiler__sema__Type* orig_ty = compiler__sema__SymbolTable_get_node_type(&self->symtab, original);
+    if (orig_ty != NULL) {
+        compiler__sema__SymbolTable_set_node_type(&self->symtab, replacement, orig_ty);
+    }
     return replacement;
 }
 
@@ -19616,8 +19851,8 @@ compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_binary(compiler__se
             return compiler__sema__body__BodyPass_lowered(self, node, eq);
         }
     }
-    if ((bin->op == 67) && (node->resolved_method != NULL)) {
-        compiler__sema__MethodInfo* mi = (compiler__sema__MethodInfo*)node->resolved_method;
+    if ((bin->op == 67) && (compiler__sema__SymbolTable_get_resolved_method(&self->symtab, node) != NULL)) {
+        compiler__sema__MethodInfo* mi = compiler__sema__SymbolTable_get_resolved_method(&self->symtab, node);
         compiler__sema__Type* right_ty = compiler__sema__body__BodyPass_type_of(self, bin->right);
         bool r_is_ptr = (right_ty != NULL && right_ty->kind == 16);
         std__collections__List_ptr_compiler__ast__AstNode args = std__collections__List_ptr_compiler__ast__AstNode_init(4);
@@ -19631,8 +19866,8 @@ compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_binary(compiler__se
         compiler__ast__AstNode* call = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 9, .u.CallExpr = { callee, args, std__collections__List_ptr_compiler__ast__AstNode_init(4) } }, node->line, node->col);
         return compiler__sema__body__BodyPass_lowered(self, node, call);
     }
-    if (node->resolved_method != NULL) {
-        compiler__sema__MethodInfo* mi = (compiler__sema__MethodInfo*)node->resolved_method;
+    if (compiler__sema__SymbolTable_get_resolved_method(&self->symtab, node) != NULL) {
+        compiler__sema__MethodInfo* mi = compiler__sema__SymbolTable_get_resolved_method(&self->symtab, node);
         std__collections__List_ptr_compiler__ast__AstNode args = std__collections__List_ptr_compiler__ast__AstNode_init(4);
         std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&args, std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 8, .u.UnaryExpr = { 19, bin->left, false } }, node->line, node->col));
         std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&args, bin->right);
@@ -19654,8 +19889,8 @@ compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_binary(compiler__se
 }
 
 compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_assign(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__AssignExpr* asgn) {
-    if (node->resolved_method != NULL) {
-        compiler__sema__MethodInfo* mi = (compiler__sema__MethodInfo*)node->resolved_method;
+    if (compiler__sema__SymbolTable_get_resolved_method(&self->symtab, node) != NULL) {
+        compiler__sema__MethodInfo* mi = compiler__sema__SymbolTable_get_resolved_method(&self->symtab, node);
         compiler__sema__Type* target_ty = compiler__sema__body__BodyPass_type_of(self, asgn->target);
         bool t_is_ptr = (target_ty != NULL && target_ty->kind == 16);
         std__collections__List_ptr_compiler__ast__AstNode args = std__collections__List_ptr_compiler__ast__AstNode_init(4);
@@ -19676,7 +19911,10 @@ compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_assign(compiler__se
         return node;
     }
     compiler__ast__AstNode* cat = std__memory__Arena_interp_concat(&self->arena, asgn->target, asgn->value, node->line, node->col);
-    cat->type_ptr = node->type_ptr;
+    compiler__sema__Type* cat_ty = compiler__sema__SymbolTable_get_node_type(&self->symtab, node);
+    if (cat_ty != NULL) {
+        compiler__sema__SymbolTable_set_node_type(&self->symtab, cat, cat_ty);
+    }
     asgn->value = cat;
     asgn->op = 5;
     return node;
@@ -19796,10 +20034,10 @@ compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_member(compiler__se
 }
 
 compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_unary(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__UnaryExpr* un) {
-    if (node->resolved_method == NULL) {
+    if (compiler__sema__SymbolTable_get_resolved_method(&self->symtab, node) == NULL) {
         return node;
     }
-    compiler__sema__MethodInfo* mi = (compiler__sema__MethodInfo*)node->resolved_method;
+    compiler__sema__MethodInfo* mi = compiler__sema__SymbolTable_get_resolved_method(&self->symtab, node);
     std__collections__List_ptr_compiler__ast__AstNode args = std__collections__List_ptr_compiler__ast__AstNode_init(4);
     std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&args, std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 8, .u.UnaryExpr = { 19, un->operand, false } }, node->line, node->col));
     compiler__ast__AstNode* callee = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 6, .u.IdentifierExpr = { mi->c_name } }, node->line, node->col);
@@ -19808,10 +20046,10 @@ compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_unary(compiler__sem
 }
 
 compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_index(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__IndexExpr* idx) {
-    if (node->resolved_method == NULL) {
+    if (compiler__sema__SymbolTable_get_resolved_method(&self->symtab, node) == NULL) {
         return node;
     }
-    compiler__sema__MethodInfo* mi = (compiler__sema__MethodInfo*)node->resolved_method;
+    compiler__sema__MethodInfo* mi = compiler__sema__SymbolTable_get_resolved_method(&self->symtab, node);
     compiler__sema__Type* target_ty = compiler__sema__body__BodyPass_type_of(self, idx->target);
     bool t_is_ptr = (target_ty != NULL && target_ty->kind == 16);
     std__collections__List_ptr_compiler__ast__AstNode args = std__collections__List_ptr_compiler__ast__AstNode_init(4);
@@ -19834,7 +20072,7 @@ compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_bound_call(compiler
     if ((callee != NULL && callee->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG)) {
         void* __orig_callee = (void*)callee;
         compiler__ast__NodeData__IdentifierExpr* callee = (compiler__ast__NodeData__IdentifierExpr*)((&((compiler__ast__AstNode*)__orig_callee)->data.u.IdentifierExpr));
-        compiler__sema__MethodInfo* new_mi = (compiler__sema__MethodInfo*)node->resolved_method;
+        compiler__sema__MethodInfo* new_mi = compiler__sema__SymbolTable_get_resolved_method(&self->symtab, node);
         std__collections__List_ptr_compiler__ast__AstNode ctor_args = std__collections__List_ptr_compiler__ast__AstNode_init(4);
         {
             size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&call->args);
@@ -19852,7 +20090,7 @@ compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_bound_call(compiler
     {
         compiler__ast__NodeData__MemberExpr* mem = NULL;
         if ((callee != NULL && callee->data.tag == compiler__ast__NodeData__MemberExpr__TAG && (mem = (compiler__ast__NodeData__MemberExpr*)(&(callee)->data.u.MemberExpr), 1))) {
-            compiler__sema__MethodInfo* mi = (compiler__sema__MethodInfo*)node->resolved_method;
+            compiler__sema__MethodInfo* mi = compiler__sema__SymbolTable_get_resolved_method(&self->symtab, node);
             if (mi->is_static) {
                 std__collections__List_ptr_compiler__ast__AstNode static_args = std__collections__List_ptr_compiler__ast__AstNode_init(4);
                 {
@@ -19965,7 +20203,7 @@ compiler__sema__Type* compiler__sema__body__BodyPass_type_of(compiler__sema__bod
     if (cur == NULL) {
         return NULL;
     }
-    return (compiler__sema__Type*)cur->type_ptr;
+    return compiler__sema__SymbolTable_get_node_type(&self->symtab, cur);
 }
 
 bool compiler__sema__body__BodyPass_is_str_expr(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node) {
@@ -20555,9 +20793,112 @@ compiler__sema__InstanceRecord* compiler__sema__GenericReg_find_record_by_cname(
 compiler__sema__SymbolTable compiler__sema__SymbolTable_init(void) {
     std__memory__Arena arena = std__memory__Arena_init(65536);
     compiler__sema__Scope* root_scope = std__memory__Arena_create_val_compiler__sema__Scope(&arena, (compiler__sema__Scope){ NULL, std__collections__List_ptr_compiler__sema__Symbol_init(4), false });
-    compiler__sema__SymbolTable st = (compiler__sema__SymbolTable){ root_scope, arena, KOBEL_STR(""), std__collections__List_ptr_compiler__sema__ModuleScope_init(4), std__collections__HashMap_str_ptr_compiler__sema__ModuleScope_init(16), std__collections__List_compiler__sema__ImportBinding_init(4), std__collections__List_ptr_compiler__sema__EnumInfo_init(4), std__collections__HashMap_str_ptr_compiler__sema__EnumInfo_init(16), std__collections__List_ptr_compiler__sema__TraitInfo_init(4), std__collections__HashMap_str_ptr_compiler__sema__TraitInfo_init(16), std__collections__HashMap_str_ptr_compiler__sema__Symbol_init(16), std__collections__HashMap_str_ptr_compiler__sema__Symbol_init(16), std__collections__HashMap_str_compiler__sema__ImportBinding_init(16), std__collections__List_str_init(4), std__collections__List_str_init(4), std__collections__HashMap_str_ptr_compiler__sema__Type_init(16), (compiler__sema__GenericReg){ std__collections__List_ptr_compiler__sema__GenTemplate_init(4), std__collections__List_ptr_compiler__sema__GenTemplate_init(4), std__collections__List_ptr_compiler__sema__GenTemplate_init(4), std__collections__HashMap_str_ptr_compiler__sema__Symbol_init(16), std__collections__List_ptr_compiler__sema__InstanceRecord_init(4), std__collections__HashMap_str_ptr_compiler__sema__InstanceRecord_init(16), std__collections__List_ptr_compiler__ast__AstNode_init(4) }, NULL };
+    compiler__sema__SymbolTable st = (compiler__sema__SymbolTable){ root_scope, arena, KOBEL_STR(""), std__collections__List_ptr_compiler__sema__ModuleScope_init(4), std__collections__HashMap_str_ptr_compiler__sema__ModuleScope_init(16), std__collections__List_compiler__sema__ImportBinding_init(4), std__collections__List_ptr_compiler__sema__EnumInfo_init(4), std__collections__HashMap_str_ptr_compiler__sema__EnumInfo_init(16), std__collections__List_ptr_compiler__sema__TraitInfo_init(4), std__collections__HashMap_str_ptr_compiler__sema__TraitInfo_init(16), std__collections__HashMap_str_ptr_compiler__sema__Symbol_init(16), std__collections__HashMap_str_ptr_compiler__sema__Symbol_init(16), std__collections__HashMap_str_compiler__sema__ImportBinding_init(16), std__collections__List_str_init(4), std__collections__List_str_init(4), std__collections__HashMap_str_ptr_compiler__sema__Type_init(16), (compiler__sema__GenericReg){ std__collections__List_ptr_compiler__sema__GenTemplate_init(4), std__collections__List_ptr_compiler__sema__GenTemplate_init(4), std__collections__List_ptr_compiler__sema__GenTemplate_init(4), std__collections__HashMap_str_ptr_compiler__sema__Symbol_init(16), std__collections__List_ptr_compiler__sema__InstanceRecord_init(4), std__collections__HashMap_str_ptr_compiler__sema__InstanceRecord_init(16), std__collections__List_ptr_compiler__ast__AstNode_init(4) }, NULL, NULL };
     st.prims = std__memory__Arena_create_val_compiler__sema__PrimTypes(&arena, compiler__sema__PrimTypes_init(&arena));
+    st.sem = std__memory__Arena_create_val_compiler__sema__SemanticTable(&arena, (compiler__sema__SemanticTable){ std__collections__HashMap_usz_ptr_compiler__sema__Type_init(16), std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo_init(16), std__collections__HashMap_usz_ptr_compiler__ast__AstNode_init(16), std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord_init(16), std__collections__HashMap_usz_compiler__sema__IsPatternInfo_init(16) });
     return st;
+}
+
+void compiler__sema__SymbolTable_set_node_type(compiler__sema__SymbolTable* self, compiler__ast__AstNode* node, compiler__sema__Type* ty) {
+    if (((node == NULL) || (ty == NULL)) || (self->sem == NULL)) {
+        return;
+    }
+    compiler__sema__SemanticTable* s = self->sem;
+    std__collections__HashMap_usz_ptr_compiler__sema__Type_set(&s->node_types, ((uintptr_t)(node)), ty);
+}
+
+compiler__sema__Type* compiler__sema__SymbolTable_get_node_type(compiler__sema__SymbolTable* self, compiler__ast__AstNode* node) {
+    if ((node == NULL) || (self->sem == NULL)) {
+        return NULL;
+    }
+    compiler__sema__Type** p = std__collections__HashMap_usz_ptr_compiler__sema__Type_get(&(*self->sem).node_types, ((uintptr_t)(node)));
+    if (p == NULL) {
+        return NULL;
+    }
+    return *p;
+}
+
+void compiler__sema__SymbolTable_set_resolved_method(compiler__sema__SymbolTable* self, compiler__ast__AstNode* node, compiler__sema__MethodInfo* mi) {
+    if (((node == NULL) || (mi == NULL)) || (self->sem == NULL)) {
+        return;
+    }
+    compiler__sema__SemanticTable* s = self->sem;
+    std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo_set(&s->resolved_methods, ((uintptr_t)(node)), mi);
+}
+
+compiler__sema__MethodInfo* compiler__sema__SymbolTable_get_resolved_method(compiler__sema__SymbolTable* self, compiler__ast__AstNode* node) {
+    if ((node == NULL) || (self->sem == NULL)) {
+        return NULL;
+    }
+    compiler__sema__MethodInfo** p = std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo_get(&(*self->sem).resolved_methods, ((uintptr_t)(node)));
+    if (p == NULL) {
+        return NULL;
+    }
+    return *p;
+}
+
+void compiler__sema__SymbolTable_set_resolved_node(compiler__sema__SymbolTable* self, compiler__ast__AstNode* node, compiler__ast__AstNode* r) {
+    if (((node == NULL) || (r == NULL)) || (self->sem == NULL)) {
+        return;
+    }
+    compiler__sema__SemanticTable* s = self->sem;
+    std__collections__HashMap_usz_ptr_compiler__ast__AstNode_set(&s->resolved_nodes, ((uintptr_t)(node)), r);
+}
+
+compiler__ast__AstNode* compiler__sema__SymbolTable_get_resolved_node(compiler__sema__SymbolTable* self, compiler__ast__AstNode* node) {
+    if ((node == NULL) || (self->sem == NULL)) {
+        return NULL;
+    }
+    compiler__ast__AstNode** p = std__collections__HashMap_usz_ptr_compiler__ast__AstNode_get(&(*self->sem).resolved_nodes, ((uintptr_t)(node)));
+    if (p == NULL) {
+        return NULL;
+    }
+    return *p;
+}
+
+void compiler__sema__SymbolTable_set_node_instance(compiler__sema__SymbolTable* self, compiler__ast__AstNode* node, compiler__sema__InstanceRecord* rec) {
+    if (((node == NULL) || (rec == NULL)) || (self->sem == NULL)) {
+        return;
+    }
+    compiler__sema__SemanticTable* s = self->sem;
+    std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord_set(&s->node_instances, ((uintptr_t)(node)), rec);
+}
+
+compiler__sema__InstanceRecord* compiler__sema__SymbolTable_get_node_instance(compiler__sema__SymbolTable* self, compiler__ast__AstNode* node) {
+    if ((node == NULL) || (self->sem == NULL)) {
+        return NULL;
+    }
+    compiler__sema__InstanceRecord** p = std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord_get(&(*self->sem).node_instances, ((uintptr_t)(node)));
+    if (p == NULL) {
+        return NULL;
+    }
+    return *p;
+}
+
+void compiler__sema__SymbolTable_set_is_pattern(compiler__sema__SymbolTable* self, compiler__ast__AstNode* node, compiler__sema__IsPatternInfo info) {
+    if ((node == NULL) || (self->sem == NULL)) {
+        return;
+    }
+    compiler__sema__SemanticTable* s = self->sem;
+    std__collections__HashMap_usz_compiler__sema__IsPatternInfo_set(&s->is_patterns, ((uintptr_t)(node)), info);
+}
+
+bool compiler__sema__SymbolTable_has_is_pattern(compiler__sema__SymbolTable* self, compiler__ast__AstNode* node) {
+    if ((node == NULL) || (self->sem == NULL)) {
+        return false;
+    }
+    return (std__collections__HashMap_usz_compiler__sema__IsPatternInfo_get(&(*self->sem).is_patterns, ((uintptr_t)(node))) != NULL);
+}
+
+compiler__sema__IsPatternInfo compiler__sema__SymbolTable_get_is_pattern(compiler__sema__SymbolTable* self, compiler__ast__AstNode* node) {
+    if ((node == NULL) || (self->sem == NULL)) {
+        return (compiler__sema__IsPatternInfo){ KOBEL_STR(""), KOBEL_STR(""), false, KOBEL_STR(""), false, KOBEL_STR("") };
+    }
+    compiler__sema__IsPatternInfo* p = std__collections__HashMap_usz_compiler__sema__IsPatternInfo_get(&(*self->sem).is_patterns, ((uintptr_t)(node)));
+    if (p == NULL) {
+        return (compiler__sema__IsPatternInfo){ KOBEL_STR(""), KOBEL_STR(""), false, KOBEL_STR(""), false, KOBEL_STR("") };
+    }
+    return *p;
 }
 
 void compiler__sema__SymbolTable_register_prim_method(compiler__sema__SymbolTable* self, compiler__sema__Type* prim, compiler__sema__MethodInfo* mi) {
@@ -21521,8 +21862,24 @@ kobel_str compiler__sema__Type_to_str(compiler__sema__Type* self) {
     }
 }
 
-compiler__codegen__CCodeGen compiler__codegen__CCodeGen_init(void) {
-    return (compiler__codegen__CCodeGen){ std__string__StringBuilder_init(32), 0, std__collections__List_str_init(4), KOBEL_STR(""), KOBEL_STR(""), false, KOBEL_STR(""), KOBEL_STR(""), 0, std__collections__List_ptr_compiler__ast__AstNode_init(4), std__collections__List_usz_init(4), std__collections__List_bool_init(4), std__collections__List_usz_init(4) };
+compiler__codegen__CCodeGen compiler__codegen__CCodeGen_init(compiler__sema__SymbolTable* symtab) {
+    compiler__codegen__CCodeGen cg = (compiler__codegen__CCodeGen){ std__string__StringBuilder_init(32), 0, std__collections__List_str_init(4), KOBEL_STR(""), KOBEL_STR(""), false, KOBEL_STR(""), KOBEL_STR(""), 0, std__collections__List_ptr_compiler__ast__AstNode_init(4), std__collections__List_usz_init(4), std__collections__List_bool_init(4), std__collections__List_usz_init(4), NULL };
+    cg.symtab = symtab;
+    return cg;
+}
+
+compiler__sema__Type* compiler__codegen__CCodeGen_node_type(compiler__codegen__CCodeGen* self, compiler__ast__AstNode* node) {
+    if ((node == NULL) || (self->symtab == NULL)) {
+        return NULL;
+    }
+    return compiler__sema__SymbolTable_get_node_type(self->symtab, node);
+}
+
+compiler__sema__IsPatternInfo compiler__codegen__CCodeGen_is_pattern_info(compiler__codegen__CCodeGen* self, compiler__ast__AstNode* node) {
+    if ((node == NULL) || (self->symtab == NULL)) {
+        return (compiler__sema__IsPatternInfo){ KOBEL_STR(""), KOBEL_STR(""), false, KOBEL_STR(""), false, KOBEL_STR("") };
+    }
+    return compiler__sema__SymbolTable_get_is_pattern(self->symtab, node);
 }
 
 void compiler__codegen__CCodeGen_enter_defer_scope(compiler__codegen__CCodeGen* self) {
@@ -21738,7 +22095,7 @@ kobel_str compiler__codegen__CCodeGen_gen_expr(compiler__codegen__CCodeGen* self
     } else if (node != NULL && node->data.tag == compiler__ast__NodeData__IsExpr__TAG) {
         void* __orig_node = (void*)node;
         compiler__ast__NodeData__IsExpr* node = (compiler__ast__NodeData__IsExpr*)((&((compiler__ast__AstNode*)__orig_node)->data.u.IsExpr));
-        return compiler__codegen__CCodeGen_gen_is_expr(self, node);
+        return compiler__codegen__CCodeGen_gen_is_expr(self, ast_node, node);
     } else if (node != NULL && node->data.tag == compiler__ast__NodeData__StructCtorExpr__TAG) {
         void* __orig_node = (void*)node;
         compiler__ast__NodeData__StructCtorExpr* node = (compiler__ast__NodeData__StructCtorExpr*)((&((compiler__ast__AstNode*)__orig_node)->data.u.StructCtorExpr));
@@ -21789,7 +22146,7 @@ kobel_str compiler__codegen__CCodeGen_gen_literal_expr(compiler__codegen__CCodeG
     } else if (lit->literal_kind == 2) {
         return lit->raw_text;
     } else if (lit->literal_kind == 4) {
-        compiler__sema__Type* lit_ty = (compiler__sema__Type*)ast_node->type_ptr;
+        compiler__sema__Type* lit_ty = compiler__codegen__CCodeGen_node_type(self, ast_node);
         bool is_ptr_lit = ((lit_ty != NULL) && (lit_ty->kind == 16));
         kobel_str quoted = (((lit->raw_text.len >= 2) && (lit->raw_text.data[0] == '"')) ? lit->raw_text : kobel_concat3(KOBEL_STR("\""), lit->raw_text, KOBEL_STR("\"")));
         if (is_ptr_lit) {
@@ -22015,7 +22372,7 @@ kobel_str compiler__codegen__CCodeGen_gen_member_expr(compiler__codegen__CCodeGe
     }
     kobel_str obj_str = (compiler__codegen__expr_needs_parens_for_member(obj_node) ? kobel_concat3(KOBEL_STR("("), obj, KOBEL_STR(")")) : obj);
     if (mem->is_safe) {
-        compiler__sema__Type* mem_ty = (compiler__sema__Type*)ast_node->type_ptr;
+        compiler__sema__Type* mem_ty = compiler__codegen__CCodeGen_node_type(self, ast_node);
         if (mem_ty != NULL) {
             compiler__sema__DataType mk = mem_ty->kind;
             if (mk == 1) {
@@ -22032,7 +22389,7 @@ kobel_str compiler__codegen__CCodeGen_gen_member_expr(compiler__codegen__CCodeGe
             }
         }
         compiler__ast__AstNode* unwrapped_obj = compiler__codegen__unwrap_group_expr(obj_node);
-        compiler__sema__Type* obj_ty = ((unwrapped_obj != NULL) ? (compiler__sema__Type*)unwrapped_obj->type_ptr : (compiler__sema__Type*)NULL);
+        compiler__sema__Type* obj_ty = compiler__codegen__CCodeGen_node_type(self, unwrapped_obj);
         if (obj_ty != NULL) {
             compiler__sema__Type* inner = obj_ty;
             if (inner->kind == 16) {
@@ -22122,18 +22479,19 @@ kobel_str compiler__codegen__CCodeGen_gen_cast_expr(compiler__codegen__CCodeGen*
     return kobel_concat4(KOBEL_STR("("), ty, KOBEL_STR(")"), compiler__codegen__CCodeGen_gen_expr(self, cst->expr));
 }
 
-kobel_str compiler__codegen__CCodeGen_gen_is_expr(compiler__codegen__CCodeGen* self, compiler__ast__NodeData__IsExpr* is_e) {
+kobel_str compiler__codegen__CCodeGen_gen_is_expr(compiler__codegen__CCodeGen* self, compiler__ast__AstNode* ast_node, compiler__ast__NodeData__IsExpr* is_e) {
+    compiler__sema__IsPatternInfo pat_info = compiler__codegen__CCodeGen_is_pattern_info(self, ast_node);
     kobel_str obj = ((is_e->expr != NULL) ? compiler__codegen__CCodeGen_gen_expr(self, is_e->expr) : KOBEL_STR(""));
     kobel_str target_name = compiler__codegen__c_type_from_ast(is_e->target_type);
-    kobel_str tag_field = is_e->tag_field;
+    kobel_str tag_field = pat_info.tag_field;
     if (str_empty(tag_field)) {
         tag_field = KOBEL_STR("tag");
     }
     kobel_str obj_str = (((is_e->expr != NULL) && compiler__codegen__expr_needs_parens_for_member(is_e->expr)) ? kobel_concat3(KOBEL_STR("("), obj, KOBEL_STR(")")) : obj);
-    kobel_str tag_const = (str_empty(is_e->tag_const) ? kobel_concat(target_name, KOBEL_STR("__TAG")) : is_e->tag_const);
-    kobel_str tag_test = compiler__codegen__CCodeGen_gen_tag_test(self, obj_str, is_e->is_ptr, tag_field, tag_const);
+    kobel_str tag_const = (str_empty(pat_info.tag_const) ? kobel_concat(target_name, KOBEL_STR("__TAG")) : pat_info.tag_const);
+    kobel_str tag_test = compiler__codegen__CCodeGen_gen_tag_test(self, obj_str, pat_info.is_ptr, tag_field, tag_const);
     if (!str_empty(is_e->alias)) {
-        kobel_str cast_val = (is_e->is_ptr ? (!str_empty(is_e->payload_path) ? (is_e->payload_ptr ? kobel_concat3(obj_str, KOBEL_STR("->"), is_e->payload_path) : kobel_concat3(kobel_concat5(KOBEL_STR("("), target_name, KOBEL_STR("*)(&("), obj_str, KOBEL_STR(")->")), is_e->payload_path, KOBEL_STR(")"))) : kobel_concat4(KOBEL_STR("("), target_name, KOBEL_STR("*)"), obj_str)) : (!str_empty(is_e->payload_path) ? (is_e->payload_ptr ? kobel_concat3(obj_str, KOBEL_STR("."), is_e->payload_path) : kobel_concat3(kobel_concat5(KOBEL_STR("("), target_name, KOBEL_STR("*)(&("), obj_str, KOBEL_STR(").")), is_e->payload_path, KOBEL_STR(")"))) : kobel_concat4(KOBEL_STR("("), target_name, KOBEL_STR("*)&"), obj_str)));
+        kobel_str cast_val = (pat_info.is_ptr ? (!str_empty(pat_info.payload_path) ? (pat_info.payload_ptr ? kobel_concat3(obj_str, KOBEL_STR("->"), pat_info.payload_path) : kobel_concat3(kobel_concat5(KOBEL_STR("("), target_name, KOBEL_STR("*)(&("), obj_str, KOBEL_STR(")->")), pat_info.payload_path, KOBEL_STR(")"))) : kobel_concat4(KOBEL_STR("("), target_name, KOBEL_STR("*)"), obj_str)) : (!str_empty(pat_info.payload_path) ? (pat_info.payload_ptr ? kobel_concat3(obj_str, KOBEL_STR("."), pat_info.payload_path) : kobel_concat3(kobel_concat5(KOBEL_STR("("), target_name, KOBEL_STR("*)(&("), obj_str, KOBEL_STR(").")), pat_info.payload_path, KOBEL_STR(")"))) : kobel_concat4(KOBEL_STR("("), target_name, KOBEL_STR("*)&"), obj_str)));
         return kobel_concat3(kobel_concat5(KOBEL_STR("("), tag_test, KOBEL_STR(" && ("), is_e->alias, KOBEL_STR(" = ")), cast_val, KOBEL_STR(", 1))"));
     }
     return kobel_concat3(KOBEL_STR("("), tag_test, KOBEL_STR(")"));
@@ -22162,13 +22520,14 @@ kobel_str compiler__codegen__CCodeGen_gen_when_test(compiler__codegen__CCodeGen*
                 if (str_empty(cond)) {
                     test = compiler__codegen__CCodeGen_gen_expr(self, p);
                 } else if ((p != NULL && p->data.tag == compiler__ast__NodeData__IsExpr__TAG && (is_e = (compiler__ast__NodeData__IsExpr*)(&(p)->data.u.IsExpr), 1))) {
+                    compiler__sema__IsPatternInfo pat_info = compiler__codegen__CCodeGen_is_pattern_info(self, p);
                     kobel_str target_name = compiler__codegen__c_type_from_ast(is_e->target_type);
-                    kobel_str tag_field = is_e->tag_field;
+                    kobel_str tag_field = pat_info.tag_field;
                     if (str_empty(tag_field)) {
                         tag_field = KOBEL_STR("tag");
                     }
-                    kobel_str tag_const = (str_empty(is_e->tag_const) ? kobel_concat(target_name, KOBEL_STR("__TAG")) : is_e->tag_const);
-                    test = compiler__codegen__CCodeGen_gen_tag_test(self, cond, is_e->is_ptr, tag_field, tag_const);
+                    kobel_str tag_const = (str_empty(pat_info.tag_const) ? kobel_concat(target_name, KOBEL_STR("__TAG")) : pat_info.tag_const);
+                    test = compiler__codegen__CCodeGen_gen_tag_test(self, cond, pat_info.is_ptr, tag_field, tag_const);
                 } else if ((p != NULL && p->data.tag == compiler__ast__NodeData__LiteralExpr__TAG && (lit = (compiler__ast__NodeData__LiteralExpr*)(&(p)->data.u.LiteralExpr), 1))) {
                     if (lit->literal_kind == 4) {
                         test = kobel_concat5(KOBEL_STR("kobel_streq("), cond, KOBEL_STR(", "), compiler__codegen__CCodeGen_gen_expr(self, p), KOBEL_STR(")"));
@@ -22203,10 +22562,7 @@ kobel_str compiler__codegen__CCodeGen_gen_when_test(compiler__codegen__CCodeGen*
 }
 
 kobel_str compiler__codegen__CCodeGen_c_type_of(compiler__codegen__CCodeGen* self, compiler__ast__AstNode* expr) {
-    if (expr == NULL) {
-        return KOBEL_STR("");
-    }
-    compiler__sema__Type* ty = (compiler__sema__Type*)expr->type_ptr;
+    compiler__sema__Type* ty = compiler__codegen__CCodeGen_node_type(self, expr);
     if (ty == NULL) {
         return KOBEL_STR("");
     }
@@ -22222,10 +22578,7 @@ kobel_str compiler__codegen__CCodeGen_c_type_or(compiler__codegen__CCodeGen* sel
 }
 
 bool compiler__codegen__CCodeGen_is_pointer_value(compiler__codegen__CCodeGen* self, compiler__ast__AstNode* node) {
-    if (node == NULL) {
-        return false;
-    }
-    compiler__sema__Type* ty = (compiler__sema__Type*)node->type_ptr;
+    compiler__sema__Type* ty = compiler__codegen__CCodeGen_node_type(self, node);
     if (ty == NULL) {
         return false;
     }
@@ -22233,10 +22586,7 @@ bool compiler__codegen__CCodeGen_is_pointer_value(compiler__codegen__CCodeGen* s
 }
 
 bool compiler__codegen__CCodeGen_is_str_value(compiler__codegen__CCodeGen* self, compiler__ast__AstNode* node) {
-    if (node == NULL) {
-        return false;
-    }
-    compiler__sema__Type* ty = (compiler__sema__Type*)node->type_ptr;
+    compiler__sema__Type* ty = compiler__codegen__CCodeGen_node_type(self, node);
     if (ty == NULL) {
         return false;
     }
@@ -22244,10 +22594,7 @@ bool compiler__codegen__CCodeGen_is_str_value(compiler__codegen__CCodeGen* self,
 }
 
 bool compiler__codegen__CCodeGen_is_char_value(compiler__codegen__CCodeGen* self, compiler__ast__AstNode* node) {
-    if (node == NULL) {
-        return false;
-    }
-    compiler__sema__Type* ty = (compiler__sema__Type*)node->type_ptr;
+    compiler__sema__Type* ty = compiler__codegen__CCodeGen_node_type(self, node);
     if (ty == NULL) {
         return false;
     }
@@ -23395,7 +23742,7 @@ void compiler__codegen__CCodeGen_gen_if_stmt(compiler__codegen__CCodeGen* self, 
         compiler__ast__NodeData__IsExpr* is_e = NULL;
         compiler__ast__NodeData__IdentifierExpr* id = NULL;
         if (((cond != NULL && cond->data.tag == compiler__ast__NodeData__IsExpr__TAG && (is_e = (compiler__ast__NodeData__IsExpr*)(&(cond)->data.u.IsExpr), 1)) && str_empty(is_e->alias)) && (is_e->expr != NULL && is_e->expr->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (id = (compiler__ast__NodeData__IdentifierExpr*)(&(is_e->expr)->data.u.IdentifierExpr), 1))) {
-            cast_decl = compiler__codegen__CCodeGen_gen_smart_cast_decl(self, is_e, is_e->expr, id->name, (self->indent_level + 1));
+            cast_decl = compiler__codegen__CCodeGen_gen_smart_cast_decl(self, cond, is_e, is_e->expr, id->name, (self->indent_level + 1));
         }
     }
     kobel_str ind = compiler__codegen__get_indent(self->indent_level);
@@ -23454,7 +23801,7 @@ void compiler__codegen__CCodeGen_gen_if_stmt(compiler__codegen__CCodeGen* self, 
                     compiler__ast__NodeData__IsExpr* elif_is_e = NULL;
                     compiler__ast__NodeData__IdentifierExpr* id = NULL;
                     if (((elif_cond != NULL && elif_cond->data.tag == compiler__ast__NodeData__IsExpr__TAG && (elif_is_e = (compiler__ast__NodeData__IsExpr*)(&(elif_cond)->data.u.IsExpr), 1)) && str_empty(elif_is_e->alias)) && (elif_is_e->expr != NULL && elif_is_e->expr->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (id = (compiler__ast__NodeData__IdentifierExpr*)(&(elif_is_e->expr)->data.u.IdentifierExpr), 1))) {
-                        elif_cast = compiler__codegen__CCodeGen_gen_smart_cast_decl(self, elif_is_e, elif_is_e->expr, id->name, (self->indent_level + 1));
+                        elif_cast = compiler__codegen__CCodeGen_gen_smart_cast_decl(self, elif_cond, elif_is_e, elif_is_e->expr, id->name, (self->indent_level + 1));
                     }
                 }
                 std__string__StringBuilder_plus_assign_2(&self->out, if_ind);
@@ -23933,10 +24280,10 @@ void compiler__codegen__CCodeGen_gen_when_stmt(compiler__codegen__CCodeGen* self
     kobel_str ind = compiler__codegen__get_indent(self->indent_level);
     bool first = true;
     {
-        size_t __for_n = std__collections__List_compiler__ast__WhenStmtArm_count(&ws->arms);
+        size_t __for_n = std__collections__List_compiler__ast__WhenArm_count(&ws->arms);
         size_t __for_i = 0;
         while (__for_i < __for_n) {
-            compiler__ast__WhenStmtArm arm = std__collections__List_compiler__ast__WhenStmtArm_at(&ws->arms, __for_i);
+            compiler__ast__WhenArm arm = std__collections__List_compiler__ast__WhenArm_at(&ws->arms, __for_i);
             kobel_str cast_decl = KOBEL_STR("");
             kobel_str bound = compiler__codegen__CCodeGen_when_arm_binding(self, arm.patterns, ws->condition);
             if (!str_empty(bound)) {
@@ -23951,7 +24298,7 @@ void compiler__codegen__CCodeGen_gen_when_stmt(compiler__codegen__CCodeGen* self
                                 subj_expr = id->name;
                             }
                         }
-                        cast_decl = compiler__codegen__CCodeGen_gen_smart_cast_decl(self, is_e, is_e->expr, subj_expr, (self->indent_level + 1));
+                        cast_decl = compiler__codegen__CCodeGen_gen_smart_cast_decl(self, pat_node, is_e, is_e->expr, subj_expr, (self->indent_level + 1));
                     }
                 }
             }
@@ -23983,33 +24330,34 @@ void compiler__codegen__CCodeGen_gen_when_stmt(compiler__codegen__CCodeGen* self
     }
 }
 
-kobel_str compiler__codegen__CCodeGen_gen_smart_cast_decl(compiler__codegen__CCodeGen* self, compiler__ast__NodeData__IsExpr* is_e, compiler__ast__AstNode* subject, kobel_str var_name, size_t ind_level) {
+kobel_str compiler__codegen__CCodeGen_gen_smart_cast_decl(compiler__codegen__CCodeGen* self, compiler__ast__AstNode* is_node, compiler__ast__NodeData__IsExpr* is_e, compiler__ast__AstNode* subject, kobel_str var_name, size_t ind_level) {
+    compiler__sema__IsPatternInfo pat_info = compiler__codegen__CCodeGen_is_pattern_info(self, is_node);
     kobel_str target_name = compiler__codegen__c_type_from_ast(is_e->target_type);
     kobel_str bound_name = (!str_empty(is_e->alias) ? is_e->alias : var_name);
-    bool is_ptr = (is_e->is_ptr ? true : compiler__codegen__CCodeGen_is_pointer_value(self, subject));
+    bool is_ptr = (pat_info.is_ptr ? true : compiler__codegen__CCodeGen_is_pointer_value(self, subject));
     kobel_str next_ind = compiler__codegen__get_indent(ind_level);
     if (!str_empty(is_e->alias)) {
         if (is_ptr) {
-            if (!str_empty(is_e->payload_path)) {
-                if (is_e->payload_ptr) {
-                    return kobel_concat4(kobel_concat5(target_name, KOBEL_STR("* "), bound_name, KOBEL_STR(" = ("), var_name), KOBEL_STR(")->"), is_e->payload_path, KOBEL_STR(";"));
+            if (!str_empty(pat_info.payload_path)) {
+                if (pat_info.payload_ptr) {
+                    return kobel_concat4(kobel_concat5(target_name, KOBEL_STR("* "), bound_name, KOBEL_STR(" = ("), var_name), KOBEL_STR(")->"), pat_info.payload_path, KOBEL_STR(";"));
                 }
-                return kobel_concat(kobel_concat5(kobel_concat5(target_name, KOBEL_STR("* "), bound_name, KOBEL_STR(" = ("), target_name), KOBEL_STR("*)(&("), var_name, KOBEL_STR(")->"), is_e->payload_path), KOBEL_STR(");"));
+                return kobel_concat(kobel_concat5(kobel_concat5(target_name, KOBEL_STR("* "), bound_name, KOBEL_STR(" = ("), target_name), KOBEL_STR("*)(&("), var_name, KOBEL_STR(")->"), pat_info.payload_path), KOBEL_STR(");"));
             }
             return kobel_concat4(kobel_concat5(target_name, KOBEL_STR("* "), bound_name, KOBEL_STR(" = ("), target_name), KOBEL_STR("*)"), var_name, KOBEL_STR(";"));
         } else {
-            if (!str_empty(is_e->payload_path)) {
-                if (is_e->payload_ptr) {
-                    return kobel_concat4(kobel_concat5(target_name, KOBEL_STR("* "), bound_name, KOBEL_STR(" = ("), var_name), KOBEL_STR(")."), is_e->payload_path, KOBEL_STR(";"));
+            if (!str_empty(pat_info.payload_path)) {
+                if (pat_info.payload_ptr) {
+                    return kobel_concat4(kobel_concat5(target_name, KOBEL_STR("* "), bound_name, KOBEL_STR(" = ("), var_name), KOBEL_STR(")."), pat_info.payload_path, KOBEL_STR(";"));
                 }
-                return kobel_concat(kobel_concat5(kobel_concat5(target_name, KOBEL_STR("* "), bound_name, KOBEL_STR(" = ("), target_name), KOBEL_STR("*)(&("), var_name, KOBEL_STR(")."), is_e->payload_path), KOBEL_STR(");"));
+                return kobel_concat(kobel_concat5(kobel_concat5(target_name, KOBEL_STR("* "), bound_name, KOBEL_STR(" = ("), target_name), KOBEL_STR("*)(&("), var_name, KOBEL_STR(")."), pat_info.payload_path), KOBEL_STR(");"));
             }
             return kobel_concat4(kobel_concat5(target_name, KOBEL_STR("* "), bound_name, KOBEL_STR(" = ("), target_name), KOBEL_STR("*)&"), var_name, KOBEL_STR(";"));
         }
     } else {
-        if (!str_empty(is_e->payload_path)) {
+        if (!str_empty(pat_info.payload_path)) {
             kobel_str src = (is_ptr ? var_name : kobel_concat(KOBEL_STR("&"), var_name));
-            kobel_str bound = (is_e->payload_ptr ? kobel_concat(kobel_concat5(KOBEL_STR("(("), is_e->base_c_name, KOBEL_STR("*)__orig_"), var_name, KOBEL_STR(")->")), is_e->payload_path) : kobel_concat3(kobel_concat5(KOBEL_STR("(&(("), is_e->base_c_name, KOBEL_STR("*)__orig_"), var_name, KOBEL_STR(")->")), is_e->payload_path, KOBEL_STR(")")));
+            kobel_str bound = (pat_info.payload_ptr ? kobel_concat(kobel_concat5(KOBEL_STR("(("), pat_info.base_c_name, KOBEL_STR("*)__orig_"), var_name, KOBEL_STR(")->")), pat_info.payload_path) : kobel_concat3(kobel_concat5(KOBEL_STR("(&(("), pat_info.base_c_name, KOBEL_STR("*)__orig_"), var_name, KOBEL_STR(")->")), pat_info.payload_path, KOBEL_STR(")")));
             return kobel_concat(kobel_concat5(kobel_concat5(kobel_concat5(KOBEL_STR("void* __orig_"), var_name, KOBEL_STR(" = (void*)"), src, KOBEL_STR(";\n")), next_ind, target_name, KOBEL_STR("* "), var_name), KOBEL_STR(" = ("), target_name, KOBEL_STR("*)("), bound), KOBEL_STR(");"));
         }
         if (is_ptr) {
@@ -24065,7 +24413,7 @@ void compiler__codegen__CCodeGen_gen_when_with_target(compiler__codegen__CCodeGe
                                 subj_expr = id->name;
                             }
                         }
-                        cast_decl = compiler__codegen__CCodeGen_gen_smart_cast_decl(self, is_e, is_e->expr, subj_expr, (self->indent_level + 1));
+                        cast_decl = compiler__codegen__CCodeGen_gen_smart_cast_decl(self, pat_node, is_e, is_e->expr, subj_expr, (self->indent_level + 1));
                     }
                 }
             }
@@ -24355,7 +24703,7 @@ int32_t compiler__driver__CompileOptions_compile(compiler__driver__CompileOption
     if (!self->quiet) {
         std__io__println(KOBEL_STR("[4/4] Generating C99 code..."));
     }
-    compiler__codegen__CCodeGen codegen = compiler__codegen__CCodeGen_init();
+    compiler__codegen__CCodeGen codegen = compiler__codegen__CCodeGen_init(&body_p.symtab);
     kobel_str c_code = compiler__codegen__CCodeGen_gen_program(&codegen, prog);
     if (self->only_emit_c) {
         bool ok = std__filesystem__File_write(self->emit_c_path, c_code);
@@ -25268,10 +25616,10 @@ void fmt__Formatter_format_stmt(fmt__Formatter* self, compiler__ast__AstNode* no
         }
         fmt__FormatBuffer_indent(&self->buf);
         {
-            size_t __for_n = std__collections__List_compiler__ast__WhenStmtArm_count(&ws->arms);
+            size_t __for_n = std__collections__List_compiler__ast__WhenArm_count(&ws->arms);
             size_t __for_i = 0;
             while (__for_i < __for_n) {
-                compiler__ast__WhenStmtArm arm = std__collections__List_compiler__ast__WhenStmtArm_at(&ws->arms, __for_i);
+                compiler__ast__WhenArm arm = std__collections__List_compiler__ast__WhenArm_at(&ws->arms, __for_i);
                 fmt__FormatBuffer_newline(&self->buf);
                 if (arm.is_else) {
                     fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR("else -> "));
@@ -28470,341 +28818,6 @@ compiler__ast__InterpPart std__collections__List_compiler__ast__InterpPart_set(s
 
 void std__collections__List_compiler__ast__InterpPart_plus_assign(std__collections__List_compiler__ast__InterpPart* self, compiler__ast__InterpPart value) {
     std__collections__List_compiler__ast__InterpPart_add(self, value);
-}
-
-size_t std__collections__List_compiler__ast__WhenStmtArm_count(std__collections__List_compiler__ast__WhenStmtArm* self) {
-    return self->len;
-}
-
-compiler__ast__WhenStmtArm std__collections__List_compiler__ast__WhenStmtArm_at(std__collections__List_compiler__ast__WhenStmtArm* self, size_t i) {
-    return self->data[i];
-}
-
-std__collections__List_compiler__ast__WhenStmtArm std__collections__List_compiler__ast__WhenStmtArm_init(size_t cap) {
-    return (std__collections__List_compiler__ast__WhenStmtArm){ std__memory__Heap_create_array_compiler__ast__WhenStmtArm(cap), 0, cap };
-}
-
-compiler__ast__WhenStmtArm std__collections__List_compiler__ast__WhenStmtArm_first(std__collections__List_compiler__ast__WhenStmtArm* self) {
-    return self->data[0];
-}
-
-compiler__ast__WhenStmtArm std__collections__List_compiler__ast__WhenStmtArm_last(std__collections__List_compiler__ast__WhenStmtArm* self) {
-    return self->data[(self->len - 1)];
-}
-
-bool std__collections__List_compiler__ast__WhenStmtArm_empty(std__collections__List_compiler__ast__WhenStmtArm* self) {
-    return (self->len == 0);
-}
-
-void std__collections__List_compiler__ast__WhenStmtArm_add(std__collections__List_compiler__ast__WhenStmtArm* self, compiler__ast__WhenStmtArm value) {
-    if (self->len == self->cap) {
-        std__collections__List_compiler__ast__WhenStmtArm_grow(self);
-    }
-    self->data[self->len] = value;
-    self->len++;
-}
-
-compiler__ast__WhenStmtArm std__collections__List_compiler__ast__WhenStmtArm_pop(std__collections__List_compiler__ast__WhenStmtArm* self) {
-    self->len--;
-    return self->data[self->len];
-}
-
-void std__collections__List_compiler__ast__WhenStmtArm_extend(std__collections__List_compiler__ast__WhenStmtArm* self, std__collections__List_compiler__ast__WhenStmtArm other) {
-    {
-        size_t __for_n = std__collections__List_compiler__ast__WhenStmtArm_count(&other);
-        size_t __for_i = 0;
-        while (__for_i < __for_n) {
-            compiler__ast__WhenStmtArm data = std__collections__List_compiler__ast__WhenStmtArm_at(&other, __for_i);
-            std__collections__List_compiler__ast__WhenStmtArm_plus_assign(self, data);
-            __for_i = (__for_i + 1);
-        }
-    }
-}
-
-size_t std__collections__List_compiler__ast__WhenStmtArm_clear(std__collections__List_compiler__ast__WhenStmtArm* self) {
-    return self->len = 0;
-}
-
-void std__collections__List_compiler__ast__WhenStmtArm_grow(std__collections__List_compiler__ast__WhenStmtArm* self) {
-    size_t new_cap = (self->cap * 2);
-    self->data = std__memory__Heap_resize_compiler__ast__WhenStmtArm(self->data, new_cap);
-    self->cap = new_cap;
-}
-
-void std__collections__List_compiler__ast__WhenStmtArm_reserve(std__collections__List_compiler__ast__WhenStmtArm* self, size_t min_cap) {
-    if (min_cap > self->cap) {
-        size_t new_cap = self->cap;
-        while (new_cap < min_cap) {
-            new_cap *= 2;
-        }
-        self->data = std__memory__Heap_resize_compiler__ast__WhenStmtArm(self->data, new_cap);
-        self->cap = new_cap;
-    }
-}
-
-compiler__ast__WhenStmtArm std__collections__List_compiler__ast__WhenStmtArm_remove_at(std__collections__List_compiler__ast__WhenStmtArm* self, size_t index) {
-    compiler__ast__WhenStmtArm item = self->data[index];
-    {
-        size_t __for_e = (self->len - 1);
-        size_t __for_i = __for_e;
-        __for_i = index;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            __for_go = (__for_i < __for_e);
-        } else {
-            __for_go = (__for_i > __for_e);
-        }
-        while (__for_go) {
-            size_t i = __for_i;
-            self->data[i] = self->data[(i + 1)];
-            if (__for_up) {
-                __for_go = ((__for_i + 1) < __for_e);
-            } else {
-                __for_go = ((__for_i - 1) > __for_e);
-            }
-            if (__for_go) {
-                if (__for_up) {
-                    __for_i = (__for_i + 1);
-                } else {
-                    __for_i = (__for_i - 1);
-                }
-            }
-        }
-    }
-    self->len--;
-    return item;
-}
-
-void std__collections__List_compiler__ast__WhenStmtArm_insert(std__collections__List_compiler__ast__WhenStmtArm* self, size_t index, compiler__ast__WhenStmtArm value) {
-    if (self->len == self->cap) {
-        std__collections__List_compiler__ast__WhenStmtArm_grow(self);
-    }
-    size_t i = self->len;
-    while (i > index) {
-        self->data[i] = self->data[(i - 1)];
-        i--;
-    }
-    self->data[index] = value;
-    self->len++;
-}
-
-std__collections__List_compiler__ast__WhenStmtArm std__collections__List_compiler__ast__WhenStmtArm_clone(std__collections__List_compiler__ast__WhenStmtArm* self) {
-    size_t cap = ((self->cap > 0) ? self->cap : 4);
-    std__collections__List_compiler__ast__WhenStmtArm res = (std__collections__List_compiler__ast__WhenStmtArm){ std__memory__Heap_create_array_compiler__ast__WhenStmtArm(cap), 0, cap };
-    {
-        size_t __for_e = self->len;
-        size_t __for_i = __for_e;
-        __for_i = 0;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            __for_go = (__for_i < __for_e);
-        } else {
-            __for_go = (__for_i > __for_e);
-        }
-        while (__for_go) {
-            size_t i = __for_i;
-            std__collections__List_compiler__ast__WhenStmtArm_plus_assign(&res, self->data[i]);
-            if (__for_up) {
-                __for_go = ((__for_i + 1) < __for_e);
-            } else {
-                __for_go = ((__for_i - 1) > __for_e);
-            }
-            if (__for_go) {
-                if (__for_up) {
-                    __for_i = (__for_i + 1);
-                } else {
-                    __for_i = (__for_i - 1);
-                }
-            }
-        }
-    }
-    return res;
-}
-
-compiler__ast__WhenStmtArm std__collections__List_compiler__ast__WhenStmtArm_pop_or(std__collections__List_compiler__ast__WhenStmtArm* self, compiler__ast__WhenStmtArm value) {
-    return ((self->len == 0) ? value : std__collections__List_compiler__ast__WhenStmtArm_pop(self));
-}
-
-void std__collections__List_compiler__ast__WhenStmtArm_swap(std__collections__List_compiler__ast__WhenStmtArm* self, size_t a, size_t b) {
-    compiler__ast__WhenStmtArm tmp = self->data[a];
-    self->data[a] = self->data[b];
-    self->data[b] = tmp;
-}
-
-void std__collections__List_compiler__ast__WhenStmtArm_reverse(std__collections__List_compiler__ast__WhenStmtArm* self) {
-    if (self->len <= 1) {
-        return;
-    }
-    int32_t left = 0;
-    size_t right = (self->len - 1);
-    while (left < right) {
-        compiler__ast__WhenStmtArm tmp = self->data[left];
-        self->data[left] = self->data[right];
-        self->data[right] = tmp;
-        left++;
-        right--;
-    }
-}
-
-std__collections__List_compiler__ast__WhenStmtArm std__collections__List_compiler__ast__WhenStmtArm_sub(std__collections__List_compiler__ast__WhenStmtArm* self, size_t start, size_t count) {
-    std__collections__List_compiler__ast__WhenStmtArm res = (std__collections__List_compiler__ast__WhenStmtArm){ std__memory__Heap_create_array_compiler__ast__WhenStmtArm(count), 0, count };
-    if (start >= self->len) {
-        return res;
-    }
-    size_t end = (((start + count) > self->len) ? self->len : (start + count));
-    {
-        size_t __for_e = end;
-        size_t __for_i = __for_e;
-        __for_i = start;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            __for_go = (__for_i < __for_e);
-        } else {
-            __for_go = (__for_i > __for_e);
-        }
-        while (__for_go) {
-            size_t i = __for_i;
-            std__collections__List_compiler__ast__WhenStmtArm_plus_assign(&res, self->data[i]);
-            if (__for_up) {
-                __for_go = ((__for_i + 1) < __for_e);
-            } else {
-                __for_go = ((__for_i - 1) > __for_e);
-            }
-            if (__for_go) {
-                if (__for_up) {
-                    __for_i = (__for_i + 1);
-                } else {
-                    __for_i = (__for_i - 1);
-                }
-            }
-        }
-    }
-    return res;
-}
-
-intptr_t std__collections__List_compiler__ast__WhenStmtArm_index_of(std__collections__List_compiler__ast__WhenStmtArm* self, compiler__ast__WhenStmtArm value) {
-    {
-        size_t __for_e = self->len;
-        size_t __for_i = __for_e;
-        __for_i = 0;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            __for_go = (__for_i < __for_e);
-        } else {
-            __for_go = (__for_i > __for_e);
-        }
-        while (__for_go) {
-            size_t i = __for_i;
-            if (kobel_memeq(&self->data[i], &value, 56)) {
-                return i;
-            }
-            if (__for_up) {
-                __for_go = ((__for_i + 1) < __for_e);
-            } else {
-                __for_go = ((__for_i - 1) > __for_e);
-            }
-            if (__for_go) {
-                if (__for_up) {
-                    __for_i = (__for_i + 1);
-                } else {
-                    __for_i = (__for_i - 1);
-                }
-            }
-        }
-    }
-    return -1;
-}
-
-intptr_t std__collections__List_compiler__ast__WhenStmtArm_last_index_of(std__collections__List_compiler__ast__WhenStmtArm* self, compiler__ast__WhenStmtArm value) {
-    if (self->len == 0) {
-        return -1;
-    }
-    size_t i = (self->len - 1);
-    while (true) {
-        if (kobel_memeq(&self->data[i], &value, 56)) {
-            return i;
-        }
-        if (i == 0) {
-            break;
-        }
-        i--;
-    }
-    return -1;
-}
-
-bool std__collections__List_compiler__ast__WhenStmtArm_remove(std__collections__List_compiler__ast__WhenStmtArm* self, compiler__ast__WhenStmtArm value) {
-    intptr_t idx = std__collections__List_compiler__ast__WhenStmtArm_index_of(self, value);
-    if (idx < 0) {
-        return false;
-    }
-    std__collections__List_compiler__ast__WhenStmtArm_remove_at(self, (size_t)idx);
-    return true;
-}
-
-size_t std__collections__List_compiler__ast__WhenStmtArm_remove_all(std__collections__List_compiler__ast__WhenStmtArm* self, compiler__ast__WhenStmtArm value) {
-    int32_t write = 0;
-    int32_t removed = 0;
-    {
-        size_t __for_e = self->len;
-        size_t __for_i = __for_e;
-        __for_i = 0;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            __for_go = (__for_i < __for_e);
-        } else {
-            __for_go = (__for_i > __for_e);
-        }
-        while (__for_go) {
-            size_t i = __for_i;
-            if (kobel_memeq(&self->data[i], &value, 56)) {
-                removed++;
-            } else {
-                if (write != i) {
-                    self->data[write] = self->data[i];
-                }
-                write++;
-            }
-            if (__for_up) {
-                __for_go = ((__for_i + 1) < __for_e);
-            } else {
-                __for_go = ((__for_i - 1) > __for_e);
-            }
-            if (__for_go) {
-                if (__for_up) {
-                    __for_i = (__for_i + 1);
-                } else {
-                    __for_i = (__for_i - 1);
-                }
-            }
-        }
-    }
-    self->len = write;
-    return removed;
-}
-
-void std__collections__List_compiler__ast__WhenStmtArm_free(std__collections__List_compiler__ast__WhenStmtArm* self) {
-    std__memory__Heap_free_compiler__ast__WhenStmtArm(self->data);
-}
-
-compiler__ast__WhenStmtArm std__collections__List_compiler__ast__WhenStmtArm_get(std__collections__List_compiler__ast__WhenStmtArm* self, size_t index) {
-    return self->data[index];
-}
-
-bool std__collections__List_compiler__ast__WhenStmtArm_contains(std__collections__List_compiler__ast__WhenStmtArm* self, compiler__ast__WhenStmtArm value) {
-    return (std__collections__List_compiler__ast__WhenStmtArm_index_of(self, value) != -1);
-}
-
-compiler__ast__WhenStmtArm std__collections__List_compiler__ast__WhenStmtArm_set(std__collections__List_compiler__ast__WhenStmtArm* self, size_t index, compiler__ast__WhenStmtArm value) {
-    return self->data[index] = value;
-}
-
-void std__collections__List_compiler__ast__WhenStmtArm_plus_assign(std__collections__List_compiler__ast__WhenStmtArm* self, compiler__ast__WhenStmtArm value) {
-    std__collections__List_compiler__ast__WhenStmtArm_add(self, value);
 }
 
 size_t std__collections__List_str_count(std__collections__List_str* self) {
@@ -41539,6 +41552,2136 @@ bool std__collections__HashMap_str_ptr_compiler__sema__Type_contains(std__collec
     return false;
 }
 
+std__collections__HashMap_usz_ptr_compiler__sema__Type std__collections__HashMap_usz_ptr_compiler__sema__Type_init(size_t init_cap) {
+    size_t cap = init_cap;
+    if (cap < 8) {
+        cap = 8;
+    }
+    size_t* keys = std__memory__Heap_create_array_usz(cap);
+    compiler__sema__Type** values = std__memory__Heap_create_array_ptr_compiler__sema__Type(cap);
+    size_t* hashes = std__memory__Heap_create_array_usz(cap);
+    bool* occ = std__memory__Heap_create_array_bool(cap);
+    {
+        size_t __for_e = cap;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            occ[i] = false;
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return (std__collections__HashMap_usz_ptr_compiler__sema__Type){ keys, values, hashes, occ, 0, cap };
+}
+
+size_t std__collections__HashMap_usz_ptr_compiler__sema__Type_dist(std__collections__HashMap_usz_ptr_compiler__sema__Type* self, size_t from, size_t to) {
+    if (to >= from) {
+        return (to - from);
+    }
+    return ((self->cap + to) - from);
+}
+
+compiler__sema__Type* std__collections__HashMap_usz_ptr_compiler__sema__Type_get_or(std__collections__HashMap_usz_ptr_compiler__sema__Type* self, size_t key, compiler__sema__Type* value) {
+    if ((self->len == 0) || (self->cap == 0)) {
+        return value;
+    }
+    size_t h = usz_hash(key);
+    size_t idx = (h % self->cap);
+    while (self->occupied[idx]) {
+        if ((self->hashes[idx] == h) && (self->keys[idx] == key)) {
+            return self->values[idx];
+        }
+        idx = ((idx + 1) % self->cap);
+    }
+    return value;
+}
+
+bool std__collections__HashMap_usz_ptr_compiler__sema__Type_remove(std__collections__HashMap_usz_ptr_compiler__sema__Type* self, size_t key) {
+    if ((self->len == 0) || (self->cap == 0)) {
+        return false;
+    }
+    size_t h = usz_hash(key);
+    size_t idx = (h % self->cap);
+    while (self->occupied[idx]) {
+        if ((self->hashes[idx] == h) && (self->keys[idx] == key)) {
+            size_t i = idx;
+            size_t j = ((idx + 1) % self->cap);
+            while (self->occupied[j]) {
+                size_t k = (self->hashes[j] % self->cap);
+                if (std__collections__HashMap_usz_ptr_compiler__sema__Type_dist(self, k, i) < std__collections__HashMap_usz_ptr_compiler__sema__Type_dist(self, k, j)) {
+                    self->keys[i] = self->keys[j];
+                    self->values[i] = self->values[j];
+                    self->hashes[i] = self->hashes[j];
+                    i = j;
+                }
+                j = ((j + 1) % self->cap);
+            }
+            self->occupied[i] = false;
+            self->len--;
+            return true;
+        }
+        idx = ((idx + 1) % self->cap);
+    }
+    return false;
+}
+
+void std__collections__HashMap_usz_ptr_compiler__sema__Type_clear(std__collections__HashMap_usz_ptr_compiler__sema__Type* self) {
+    if (self->cap <= 0) {
+        return;
+    }
+    {
+        size_t __for_e = self->cap;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            self->occupied[i] = false;
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    self->len = 0;
+}
+
+bool std__collections__HashMap_usz_ptr_compiler__sema__Type_empty(std__collections__HashMap_usz_ptr_compiler__sema__Type* self) {
+    return (self->len == 0);
+}
+
+size_t std__collections__HashMap_usz_ptr_compiler__sema__Type_count(std__collections__HashMap_usz_ptr_compiler__sema__Type* self) {
+    return self->len;
+}
+
+std__collections__List_usz std__collections__HashMap_usz_ptr_compiler__sema__Type_keys(std__collections__HashMap_usz_ptr_compiler__sema__Type* self) {
+    std__collections__List_usz res = std__collections__List_usz_init(4);
+    if (self->cap == 0) {
+        return res;
+    }
+    {
+        size_t __for_e = self->cap;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            if (self->occupied[i]) {
+                std__collections__List_usz_plus_assign(&res, self->keys[i]);
+            }
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return res;
+}
+
+std__collections__List_ptr_compiler__sema__Type std__collections__HashMap_usz_ptr_compiler__sema__Type_values(std__collections__HashMap_usz_ptr_compiler__sema__Type* self) {
+    std__collections__List_ptr_compiler__sema__Type res = std__collections__List_ptr_compiler__sema__Type_init(4);
+    if (self->cap == 0) {
+        return res;
+    }
+    {
+        size_t __for_e = self->cap;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            if (self->occupied[i]) {
+                std__collections__List_ptr_compiler__sema__Type_plus_assign(&res, self->values[i]);
+            }
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return res;
+}
+
+void std__collections__HashMap_usz_ptr_compiler__sema__Type_grow(std__collections__HashMap_usz_ptr_compiler__sema__Type* self) {
+    size_t old_cap = self->cap;
+    size_t* old_keys = self->keys;
+    compiler__sema__Type** old_vals = self->values;
+    size_t* old_hashes = self->hashes;
+    bool* old_occ = self->occupied;
+    size_t new_cap = ((old_cap < 8) ? 16 : (old_cap * 2));
+    size_t* keys = std__memory__Heap_create_array_usz(new_cap);
+    compiler__sema__Type** values = std__memory__Heap_create_array_ptr_compiler__sema__Type(new_cap);
+    size_t* hashes = std__memory__Heap_create_array_usz(new_cap);
+    bool* new_occ = std__memory__Heap_create_array_bool(new_cap);
+    {
+        size_t __for_e = new_cap;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t j = __for_i;
+            new_occ[j] = false;
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    if (old_cap > 0) {
+        {
+            size_t __for_e = old_cap;
+            size_t __for_i = __for_e;
+            __for_i = 0;
+            bool __for_up = (__for_i <= __for_e);
+            bool __for_go = false;
+            if (__for_up) {
+                __for_go = (__for_i < __for_e);
+            } else {
+                __for_go = (__for_i > __for_e);
+            }
+            while (__for_go) {
+                size_t i = __for_i;
+                if (old_occ[i]) {
+                    size_t h = old_hashes[i];
+                    size_t idx = (h % new_cap);
+                    while (new_occ[idx]) {
+                        idx = ((idx + 1) % new_cap);
+                    }
+                    keys[idx] = old_keys[i];
+                    values[idx] = old_vals[i];
+                    hashes[idx] = h;
+                    new_occ[idx] = true;
+                }
+                if (__for_up) {
+                    __for_go = ((__for_i + 1) < __for_e);
+                } else {
+                    __for_go = ((__for_i - 1) > __for_e);
+                }
+                if (__for_go) {
+                    if (__for_up) {
+                        __for_i = (__for_i + 1);
+                    } else {
+                        __for_i = (__for_i - 1);
+                    }
+                }
+            }
+        }
+        std__memory__Heap_free_usz(old_keys);
+        std__memory__Heap_free_ptr_compiler__sema__Type(old_vals);
+        std__memory__Heap_free_usz(old_hashes);
+        std__memory__Heap_free_bool(old_occ);
+    }
+    self->keys = keys;
+    self->values = values;
+    self->hashes = hashes;
+    self->occupied = new_occ;
+    self->cap = new_cap;
+}
+
+void std__collections__HashMap_usz_ptr_compiler__sema__Type_free(std__collections__HashMap_usz_ptr_compiler__sema__Type* self) {
+    if (self->cap > 0) {
+        std__memory__Heap_free_usz(self->keys);
+        std__memory__Heap_free_ptr_compiler__sema__Type(self->values);
+        std__memory__Heap_free_usz(self->hashes);
+        std__memory__Heap_free_bool(self->occupied);
+    }
+}
+
+void std__collections__HashMap_usz_ptr_compiler__sema__Type_set(std__collections__HashMap_usz_ptr_compiler__sema__Type* self, size_t key, compiler__sema__Type* value) {
+    if ((self->cap == 0) || ((self->len * 10) >= (self->cap * 7))) {
+        std__collections__HashMap_usz_ptr_compiler__sema__Type_grow(self);
+    }
+    size_t h = usz_hash(key);
+    size_t idx = (h % self->cap);
+    while (self->occupied[idx]) {
+        if ((self->hashes[idx] == h) && (self->keys[idx] == key)) {
+            self->values[idx] = value;
+            return;
+        }
+        idx = ((idx + 1) % self->cap);
+    }
+    self->keys[idx] = key;
+    self->values[idx] = value;
+    self->hashes[idx] = h;
+    self->occupied[idx] = true;
+    self->len++;
+}
+
+compiler__sema__Type** std__collections__HashMap_usz_ptr_compiler__sema__Type_get(std__collections__HashMap_usz_ptr_compiler__sema__Type* self, size_t key) {
+    if ((self->len == 0) || (self->cap == 0)) {
+        return NULL;
+    }
+    size_t h = usz_hash(key);
+    size_t idx = (h % self->cap);
+    while (self->occupied[idx]) {
+        if ((self->hashes[idx] == h) && (self->keys[idx] == key)) {
+            return &self->values[idx];
+        }
+        idx = ((idx + 1) % self->cap);
+    }
+    return NULL;
+}
+
+bool std__collections__HashMap_usz_ptr_compiler__sema__Type_contains(std__collections__HashMap_usz_ptr_compiler__sema__Type* self, size_t key) {
+    if ((self->len == 0) || (self->cap == 0)) {
+        return false;
+    }
+    size_t h = usz_hash(key);
+    size_t idx = (h % self->cap);
+    while (self->occupied[idx]) {
+        if ((self->hashes[idx] == h) && (self->keys[idx] == key)) {
+            return true;
+        }
+        idx = ((idx + 1) % self->cap);
+    }
+    return false;
+}
+
+std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo_init(size_t init_cap) {
+    size_t cap = init_cap;
+    if (cap < 8) {
+        cap = 8;
+    }
+    size_t* keys = std__memory__Heap_create_array_usz(cap);
+    compiler__sema__MethodInfo** values = std__memory__Heap_create_array_ptr_compiler__sema__MethodInfo(cap);
+    size_t* hashes = std__memory__Heap_create_array_usz(cap);
+    bool* occ = std__memory__Heap_create_array_bool(cap);
+    {
+        size_t __for_e = cap;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            occ[i] = false;
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return (std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo){ keys, values, hashes, occ, 0, cap };
+}
+
+size_t std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo_dist(std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo* self, size_t from, size_t to) {
+    if (to >= from) {
+        return (to - from);
+    }
+    return ((self->cap + to) - from);
+}
+
+compiler__sema__MethodInfo* std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo_get_or(std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo* self, size_t key, compiler__sema__MethodInfo* value) {
+    if ((self->len == 0) || (self->cap == 0)) {
+        return value;
+    }
+    size_t h = usz_hash(key);
+    size_t idx = (h % self->cap);
+    while (self->occupied[idx]) {
+        if ((self->hashes[idx] == h) && (self->keys[idx] == key)) {
+            return self->values[idx];
+        }
+        idx = ((idx + 1) % self->cap);
+    }
+    return value;
+}
+
+bool std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo_remove(std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo* self, size_t key) {
+    if ((self->len == 0) || (self->cap == 0)) {
+        return false;
+    }
+    size_t h = usz_hash(key);
+    size_t idx = (h % self->cap);
+    while (self->occupied[idx]) {
+        if ((self->hashes[idx] == h) && (self->keys[idx] == key)) {
+            size_t i = idx;
+            size_t j = ((idx + 1) % self->cap);
+            while (self->occupied[j]) {
+                size_t k = (self->hashes[j] % self->cap);
+                if (std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo_dist(self, k, i) < std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo_dist(self, k, j)) {
+                    self->keys[i] = self->keys[j];
+                    self->values[i] = self->values[j];
+                    self->hashes[i] = self->hashes[j];
+                    i = j;
+                }
+                j = ((j + 1) % self->cap);
+            }
+            self->occupied[i] = false;
+            self->len--;
+            return true;
+        }
+        idx = ((idx + 1) % self->cap);
+    }
+    return false;
+}
+
+void std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo_clear(std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo* self) {
+    if (self->cap <= 0) {
+        return;
+    }
+    {
+        size_t __for_e = self->cap;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            self->occupied[i] = false;
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    self->len = 0;
+}
+
+bool std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo_empty(std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo* self) {
+    return (self->len == 0);
+}
+
+size_t std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo_count(std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo* self) {
+    return self->len;
+}
+
+std__collections__List_usz std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo_keys(std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo* self) {
+    std__collections__List_usz res = std__collections__List_usz_init(4);
+    if (self->cap == 0) {
+        return res;
+    }
+    {
+        size_t __for_e = self->cap;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            if (self->occupied[i]) {
+                std__collections__List_usz_plus_assign(&res, self->keys[i]);
+            }
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return res;
+}
+
+std__collections__List_ptr_compiler__sema__MethodInfo std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo_values(std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo* self) {
+    std__collections__List_ptr_compiler__sema__MethodInfo res = std__collections__List_ptr_compiler__sema__MethodInfo_init(4);
+    if (self->cap == 0) {
+        return res;
+    }
+    {
+        size_t __for_e = self->cap;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            if (self->occupied[i]) {
+                std__collections__List_ptr_compiler__sema__MethodInfo_plus_assign(&res, self->values[i]);
+            }
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return res;
+}
+
+void std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo_grow(std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo* self) {
+    size_t old_cap = self->cap;
+    size_t* old_keys = self->keys;
+    compiler__sema__MethodInfo** old_vals = self->values;
+    size_t* old_hashes = self->hashes;
+    bool* old_occ = self->occupied;
+    size_t new_cap = ((old_cap < 8) ? 16 : (old_cap * 2));
+    size_t* keys = std__memory__Heap_create_array_usz(new_cap);
+    compiler__sema__MethodInfo** values = std__memory__Heap_create_array_ptr_compiler__sema__MethodInfo(new_cap);
+    size_t* hashes = std__memory__Heap_create_array_usz(new_cap);
+    bool* new_occ = std__memory__Heap_create_array_bool(new_cap);
+    {
+        size_t __for_e = new_cap;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t j = __for_i;
+            new_occ[j] = false;
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    if (old_cap > 0) {
+        {
+            size_t __for_e = old_cap;
+            size_t __for_i = __for_e;
+            __for_i = 0;
+            bool __for_up = (__for_i <= __for_e);
+            bool __for_go = false;
+            if (__for_up) {
+                __for_go = (__for_i < __for_e);
+            } else {
+                __for_go = (__for_i > __for_e);
+            }
+            while (__for_go) {
+                size_t i = __for_i;
+                if (old_occ[i]) {
+                    size_t h = old_hashes[i];
+                    size_t idx = (h % new_cap);
+                    while (new_occ[idx]) {
+                        idx = ((idx + 1) % new_cap);
+                    }
+                    keys[idx] = old_keys[i];
+                    values[idx] = old_vals[i];
+                    hashes[idx] = h;
+                    new_occ[idx] = true;
+                }
+                if (__for_up) {
+                    __for_go = ((__for_i + 1) < __for_e);
+                } else {
+                    __for_go = ((__for_i - 1) > __for_e);
+                }
+                if (__for_go) {
+                    if (__for_up) {
+                        __for_i = (__for_i + 1);
+                    } else {
+                        __for_i = (__for_i - 1);
+                    }
+                }
+            }
+        }
+        std__memory__Heap_free_usz(old_keys);
+        std__memory__Heap_free_ptr_compiler__sema__MethodInfo(old_vals);
+        std__memory__Heap_free_usz(old_hashes);
+        std__memory__Heap_free_bool(old_occ);
+    }
+    self->keys = keys;
+    self->values = values;
+    self->hashes = hashes;
+    self->occupied = new_occ;
+    self->cap = new_cap;
+}
+
+void std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo_free(std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo* self) {
+    if (self->cap > 0) {
+        std__memory__Heap_free_usz(self->keys);
+        std__memory__Heap_free_ptr_compiler__sema__MethodInfo(self->values);
+        std__memory__Heap_free_usz(self->hashes);
+        std__memory__Heap_free_bool(self->occupied);
+    }
+}
+
+void std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo_set(std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo* self, size_t key, compiler__sema__MethodInfo* value) {
+    if ((self->cap == 0) || ((self->len * 10) >= (self->cap * 7))) {
+        std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo_grow(self);
+    }
+    size_t h = usz_hash(key);
+    size_t idx = (h % self->cap);
+    while (self->occupied[idx]) {
+        if ((self->hashes[idx] == h) && (self->keys[idx] == key)) {
+            self->values[idx] = value;
+            return;
+        }
+        idx = ((idx + 1) % self->cap);
+    }
+    self->keys[idx] = key;
+    self->values[idx] = value;
+    self->hashes[idx] = h;
+    self->occupied[idx] = true;
+    self->len++;
+}
+
+compiler__sema__MethodInfo** std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo_get(std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo* self, size_t key) {
+    if ((self->len == 0) || (self->cap == 0)) {
+        return NULL;
+    }
+    size_t h = usz_hash(key);
+    size_t idx = (h % self->cap);
+    while (self->occupied[idx]) {
+        if ((self->hashes[idx] == h) && (self->keys[idx] == key)) {
+            return &self->values[idx];
+        }
+        idx = ((idx + 1) % self->cap);
+    }
+    return NULL;
+}
+
+bool std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo_contains(std__collections__HashMap_usz_ptr_compiler__sema__MethodInfo* self, size_t key) {
+    if ((self->len == 0) || (self->cap == 0)) {
+        return false;
+    }
+    size_t h = usz_hash(key);
+    size_t idx = (h % self->cap);
+    while (self->occupied[idx]) {
+        if ((self->hashes[idx] == h) && (self->keys[idx] == key)) {
+            return true;
+        }
+        idx = ((idx + 1) % self->cap);
+    }
+    return false;
+}
+
+std__collections__HashMap_usz_ptr_compiler__ast__AstNode std__collections__HashMap_usz_ptr_compiler__ast__AstNode_init(size_t init_cap) {
+    size_t cap = init_cap;
+    if (cap < 8) {
+        cap = 8;
+    }
+    size_t* keys = std__memory__Heap_create_array_usz(cap);
+    compiler__ast__AstNode** values = std__memory__Heap_create_array_ptr_compiler__ast__AstNode(cap);
+    size_t* hashes = std__memory__Heap_create_array_usz(cap);
+    bool* occ = std__memory__Heap_create_array_bool(cap);
+    {
+        size_t __for_e = cap;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            occ[i] = false;
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return (std__collections__HashMap_usz_ptr_compiler__ast__AstNode){ keys, values, hashes, occ, 0, cap };
+}
+
+size_t std__collections__HashMap_usz_ptr_compiler__ast__AstNode_dist(std__collections__HashMap_usz_ptr_compiler__ast__AstNode* self, size_t from, size_t to) {
+    if (to >= from) {
+        return (to - from);
+    }
+    return ((self->cap + to) - from);
+}
+
+compiler__ast__AstNode* std__collections__HashMap_usz_ptr_compiler__ast__AstNode_get_or(std__collections__HashMap_usz_ptr_compiler__ast__AstNode* self, size_t key, compiler__ast__AstNode* value) {
+    if ((self->len == 0) || (self->cap == 0)) {
+        return value;
+    }
+    size_t h = usz_hash(key);
+    size_t idx = (h % self->cap);
+    while (self->occupied[idx]) {
+        if ((self->hashes[idx] == h) && (self->keys[idx] == key)) {
+            return self->values[idx];
+        }
+        idx = ((idx + 1) % self->cap);
+    }
+    return value;
+}
+
+bool std__collections__HashMap_usz_ptr_compiler__ast__AstNode_remove(std__collections__HashMap_usz_ptr_compiler__ast__AstNode* self, size_t key) {
+    if ((self->len == 0) || (self->cap == 0)) {
+        return false;
+    }
+    size_t h = usz_hash(key);
+    size_t idx = (h % self->cap);
+    while (self->occupied[idx]) {
+        if ((self->hashes[idx] == h) && (self->keys[idx] == key)) {
+            size_t i = idx;
+            size_t j = ((idx + 1) % self->cap);
+            while (self->occupied[j]) {
+                size_t k = (self->hashes[j] % self->cap);
+                if (std__collections__HashMap_usz_ptr_compiler__ast__AstNode_dist(self, k, i) < std__collections__HashMap_usz_ptr_compiler__ast__AstNode_dist(self, k, j)) {
+                    self->keys[i] = self->keys[j];
+                    self->values[i] = self->values[j];
+                    self->hashes[i] = self->hashes[j];
+                    i = j;
+                }
+                j = ((j + 1) % self->cap);
+            }
+            self->occupied[i] = false;
+            self->len--;
+            return true;
+        }
+        idx = ((idx + 1) % self->cap);
+    }
+    return false;
+}
+
+void std__collections__HashMap_usz_ptr_compiler__ast__AstNode_clear(std__collections__HashMap_usz_ptr_compiler__ast__AstNode* self) {
+    if (self->cap <= 0) {
+        return;
+    }
+    {
+        size_t __for_e = self->cap;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            self->occupied[i] = false;
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    self->len = 0;
+}
+
+bool std__collections__HashMap_usz_ptr_compiler__ast__AstNode_empty(std__collections__HashMap_usz_ptr_compiler__ast__AstNode* self) {
+    return (self->len == 0);
+}
+
+size_t std__collections__HashMap_usz_ptr_compiler__ast__AstNode_count(std__collections__HashMap_usz_ptr_compiler__ast__AstNode* self) {
+    return self->len;
+}
+
+std__collections__List_usz std__collections__HashMap_usz_ptr_compiler__ast__AstNode_keys(std__collections__HashMap_usz_ptr_compiler__ast__AstNode* self) {
+    std__collections__List_usz res = std__collections__List_usz_init(4);
+    if (self->cap == 0) {
+        return res;
+    }
+    {
+        size_t __for_e = self->cap;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            if (self->occupied[i]) {
+                std__collections__List_usz_plus_assign(&res, self->keys[i]);
+            }
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return res;
+}
+
+std__collections__List_ptr_compiler__ast__AstNode std__collections__HashMap_usz_ptr_compiler__ast__AstNode_values(std__collections__HashMap_usz_ptr_compiler__ast__AstNode* self) {
+    std__collections__List_ptr_compiler__ast__AstNode res = std__collections__List_ptr_compiler__ast__AstNode_init(4);
+    if (self->cap == 0) {
+        return res;
+    }
+    {
+        size_t __for_e = self->cap;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            if (self->occupied[i]) {
+                std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&res, self->values[i]);
+            }
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return res;
+}
+
+void std__collections__HashMap_usz_ptr_compiler__ast__AstNode_grow(std__collections__HashMap_usz_ptr_compiler__ast__AstNode* self) {
+    size_t old_cap = self->cap;
+    size_t* old_keys = self->keys;
+    compiler__ast__AstNode** old_vals = self->values;
+    size_t* old_hashes = self->hashes;
+    bool* old_occ = self->occupied;
+    size_t new_cap = ((old_cap < 8) ? 16 : (old_cap * 2));
+    size_t* keys = std__memory__Heap_create_array_usz(new_cap);
+    compiler__ast__AstNode** values = std__memory__Heap_create_array_ptr_compiler__ast__AstNode(new_cap);
+    size_t* hashes = std__memory__Heap_create_array_usz(new_cap);
+    bool* new_occ = std__memory__Heap_create_array_bool(new_cap);
+    {
+        size_t __for_e = new_cap;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t j = __for_i;
+            new_occ[j] = false;
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    if (old_cap > 0) {
+        {
+            size_t __for_e = old_cap;
+            size_t __for_i = __for_e;
+            __for_i = 0;
+            bool __for_up = (__for_i <= __for_e);
+            bool __for_go = false;
+            if (__for_up) {
+                __for_go = (__for_i < __for_e);
+            } else {
+                __for_go = (__for_i > __for_e);
+            }
+            while (__for_go) {
+                size_t i = __for_i;
+                if (old_occ[i]) {
+                    size_t h = old_hashes[i];
+                    size_t idx = (h % new_cap);
+                    while (new_occ[idx]) {
+                        idx = ((idx + 1) % new_cap);
+                    }
+                    keys[idx] = old_keys[i];
+                    values[idx] = old_vals[i];
+                    hashes[idx] = h;
+                    new_occ[idx] = true;
+                }
+                if (__for_up) {
+                    __for_go = ((__for_i + 1) < __for_e);
+                } else {
+                    __for_go = ((__for_i - 1) > __for_e);
+                }
+                if (__for_go) {
+                    if (__for_up) {
+                        __for_i = (__for_i + 1);
+                    } else {
+                        __for_i = (__for_i - 1);
+                    }
+                }
+            }
+        }
+        std__memory__Heap_free_usz(old_keys);
+        std__memory__Heap_free_ptr_compiler__ast__AstNode(old_vals);
+        std__memory__Heap_free_usz(old_hashes);
+        std__memory__Heap_free_bool(old_occ);
+    }
+    self->keys = keys;
+    self->values = values;
+    self->hashes = hashes;
+    self->occupied = new_occ;
+    self->cap = new_cap;
+}
+
+void std__collections__HashMap_usz_ptr_compiler__ast__AstNode_free(std__collections__HashMap_usz_ptr_compiler__ast__AstNode* self) {
+    if (self->cap > 0) {
+        std__memory__Heap_free_usz(self->keys);
+        std__memory__Heap_free_ptr_compiler__ast__AstNode(self->values);
+        std__memory__Heap_free_usz(self->hashes);
+        std__memory__Heap_free_bool(self->occupied);
+    }
+}
+
+void std__collections__HashMap_usz_ptr_compiler__ast__AstNode_set(std__collections__HashMap_usz_ptr_compiler__ast__AstNode* self, size_t key, compiler__ast__AstNode* value) {
+    if ((self->cap == 0) || ((self->len * 10) >= (self->cap * 7))) {
+        std__collections__HashMap_usz_ptr_compiler__ast__AstNode_grow(self);
+    }
+    size_t h = usz_hash(key);
+    size_t idx = (h % self->cap);
+    while (self->occupied[idx]) {
+        if ((self->hashes[idx] == h) && (self->keys[idx] == key)) {
+            self->values[idx] = value;
+            return;
+        }
+        idx = ((idx + 1) % self->cap);
+    }
+    self->keys[idx] = key;
+    self->values[idx] = value;
+    self->hashes[idx] = h;
+    self->occupied[idx] = true;
+    self->len++;
+}
+
+compiler__ast__AstNode** std__collections__HashMap_usz_ptr_compiler__ast__AstNode_get(std__collections__HashMap_usz_ptr_compiler__ast__AstNode* self, size_t key) {
+    if ((self->len == 0) || (self->cap == 0)) {
+        return NULL;
+    }
+    size_t h = usz_hash(key);
+    size_t idx = (h % self->cap);
+    while (self->occupied[idx]) {
+        if ((self->hashes[idx] == h) && (self->keys[idx] == key)) {
+            return &self->values[idx];
+        }
+        idx = ((idx + 1) % self->cap);
+    }
+    return NULL;
+}
+
+bool std__collections__HashMap_usz_ptr_compiler__ast__AstNode_contains(std__collections__HashMap_usz_ptr_compiler__ast__AstNode* self, size_t key) {
+    if ((self->len == 0) || (self->cap == 0)) {
+        return false;
+    }
+    size_t h = usz_hash(key);
+    size_t idx = (h % self->cap);
+    while (self->occupied[idx]) {
+        if ((self->hashes[idx] == h) && (self->keys[idx] == key)) {
+            return true;
+        }
+        idx = ((idx + 1) % self->cap);
+    }
+    return false;
+}
+
+std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord_init(size_t init_cap) {
+    size_t cap = init_cap;
+    if (cap < 8) {
+        cap = 8;
+    }
+    size_t* keys = std__memory__Heap_create_array_usz(cap);
+    compiler__sema__InstanceRecord** values = std__memory__Heap_create_array_ptr_compiler__sema__InstanceRecord(cap);
+    size_t* hashes = std__memory__Heap_create_array_usz(cap);
+    bool* occ = std__memory__Heap_create_array_bool(cap);
+    {
+        size_t __for_e = cap;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            occ[i] = false;
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return (std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord){ keys, values, hashes, occ, 0, cap };
+}
+
+size_t std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord_dist(std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord* self, size_t from, size_t to) {
+    if (to >= from) {
+        return (to - from);
+    }
+    return ((self->cap + to) - from);
+}
+
+compiler__sema__InstanceRecord* std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord_get_or(std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord* self, size_t key, compiler__sema__InstanceRecord* value) {
+    if ((self->len == 0) || (self->cap == 0)) {
+        return value;
+    }
+    size_t h = usz_hash(key);
+    size_t idx = (h % self->cap);
+    while (self->occupied[idx]) {
+        if ((self->hashes[idx] == h) && (self->keys[idx] == key)) {
+            return self->values[idx];
+        }
+        idx = ((idx + 1) % self->cap);
+    }
+    return value;
+}
+
+bool std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord_remove(std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord* self, size_t key) {
+    if ((self->len == 0) || (self->cap == 0)) {
+        return false;
+    }
+    size_t h = usz_hash(key);
+    size_t idx = (h % self->cap);
+    while (self->occupied[idx]) {
+        if ((self->hashes[idx] == h) && (self->keys[idx] == key)) {
+            size_t i = idx;
+            size_t j = ((idx + 1) % self->cap);
+            while (self->occupied[j]) {
+                size_t k = (self->hashes[j] % self->cap);
+                if (std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord_dist(self, k, i) < std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord_dist(self, k, j)) {
+                    self->keys[i] = self->keys[j];
+                    self->values[i] = self->values[j];
+                    self->hashes[i] = self->hashes[j];
+                    i = j;
+                }
+                j = ((j + 1) % self->cap);
+            }
+            self->occupied[i] = false;
+            self->len--;
+            return true;
+        }
+        idx = ((idx + 1) % self->cap);
+    }
+    return false;
+}
+
+void std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord_clear(std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord* self) {
+    if (self->cap <= 0) {
+        return;
+    }
+    {
+        size_t __for_e = self->cap;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            self->occupied[i] = false;
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    self->len = 0;
+}
+
+bool std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord_empty(std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord* self) {
+    return (self->len == 0);
+}
+
+size_t std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord_count(std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord* self) {
+    return self->len;
+}
+
+std__collections__List_usz std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord_keys(std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord* self) {
+    std__collections__List_usz res = std__collections__List_usz_init(4);
+    if (self->cap == 0) {
+        return res;
+    }
+    {
+        size_t __for_e = self->cap;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            if (self->occupied[i]) {
+                std__collections__List_usz_plus_assign(&res, self->keys[i]);
+            }
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return res;
+}
+
+std__collections__List_ptr_compiler__sema__InstanceRecord std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord_values(std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord* self) {
+    std__collections__List_ptr_compiler__sema__InstanceRecord res = std__collections__List_ptr_compiler__sema__InstanceRecord_init(4);
+    if (self->cap == 0) {
+        return res;
+    }
+    {
+        size_t __for_e = self->cap;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            if (self->occupied[i]) {
+                std__collections__List_ptr_compiler__sema__InstanceRecord_plus_assign(&res, self->values[i]);
+            }
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return res;
+}
+
+void std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord_grow(std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord* self) {
+    size_t old_cap = self->cap;
+    size_t* old_keys = self->keys;
+    compiler__sema__InstanceRecord** old_vals = self->values;
+    size_t* old_hashes = self->hashes;
+    bool* old_occ = self->occupied;
+    size_t new_cap = ((old_cap < 8) ? 16 : (old_cap * 2));
+    size_t* keys = std__memory__Heap_create_array_usz(new_cap);
+    compiler__sema__InstanceRecord** values = std__memory__Heap_create_array_ptr_compiler__sema__InstanceRecord(new_cap);
+    size_t* hashes = std__memory__Heap_create_array_usz(new_cap);
+    bool* new_occ = std__memory__Heap_create_array_bool(new_cap);
+    {
+        size_t __for_e = new_cap;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t j = __for_i;
+            new_occ[j] = false;
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    if (old_cap > 0) {
+        {
+            size_t __for_e = old_cap;
+            size_t __for_i = __for_e;
+            __for_i = 0;
+            bool __for_up = (__for_i <= __for_e);
+            bool __for_go = false;
+            if (__for_up) {
+                __for_go = (__for_i < __for_e);
+            } else {
+                __for_go = (__for_i > __for_e);
+            }
+            while (__for_go) {
+                size_t i = __for_i;
+                if (old_occ[i]) {
+                    size_t h = old_hashes[i];
+                    size_t idx = (h % new_cap);
+                    while (new_occ[idx]) {
+                        idx = ((idx + 1) % new_cap);
+                    }
+                    keys[idx] = old_keys[i];
+                    values[idx] = old_vals[i];
+                    hashes[idx] = h;
+                    new_occ[idx] = true;
+                }
+                if (__for_up) {
+                    __for_go = ((__for_i + 1) < __for_e);
+                } else {
+                    __for_go = ((__for_i - 1) > __for_e);
+                }
+                if (__for_go) {
+                    if (__for_up) {
+                        __for_i = (__for_i + 1);
+                    } else {
+                        __for_i = (__for_i - 1);
+                    }
+                }
+            }
+        }
+        std__memory__Heap_free_usz(old_keys);
+        std__memory__Heap_free_ptr_compiler__sema__InstanceRecord(old_vals);
+        std__memory__Heap_free_usz(old_hashes);
+        std__memory__Heap_free_bool(old_occ);
+    }
+    self->keys = keys;
+    self->values = values;
+    self->hashes = hashes;
+    self->occupied = new_occ;
+    self->cap = new_cap;
+}
+
+void std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord_free(std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord* self) {
+    if (self->cap > 0) {
+        std__memory__Heap_free_usz(self->keys);
+        std__memory__Heap_free_ptr_compiler__sema__InstanceRecord(self->values);
+        std__memory__Heap_free_usz(self->hashes);
+        std__memory__Heap_free_bool(self->occupied);
+    }
+}
+
+void std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord_set(std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord* self, size_t key, compiler__sema__InstanceRecord* value) {
+    if ((self->cap == 0) || ((self->len * 10) >= (self->cap * 7))) {
+        std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord_grow(self);
+    }
+    size_t h = usz_hash(key);
+    size_t idx = (h % self->cap);
+    while (self->occupied[idx]) {
+        if ((self->hashes[idx] == h) && (self->keys[idx] == key)) {
+            self->values[idx] = value;
+            return;
+        }
+        idx = ((idx + 1) % self->cap);
+    }
+    self->keys[idx] = key;
+    self->values[idx] = value;
+    self->hashes[idx] = h;
+    self->occupied[idx] = true;
+    self->len++;
+}
+
+compiler__sema__InstanceRecord** std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord_get(std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord* self, size_t key) {
+    if ((self->len == 0) || (self->cap == 0)) {
+        return NULL;
+    }
+    size_t h = usz_hash(key);
+    size_t idx = (h % self->cap);
+    while (self->occupied[idx]) {
+        if ((self->hashes[idx] == h) && (self->keys[idx] == key)) {
+            return &self->values[idx];
+        }
+        idx = ((idx + 1) % self->cap);
+    }
+    return NULL;
+}
+
+bool std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord_contains(std__collections__HashMap_usz_ptr_compiler__sema__InstanceRecord* self, size_t key) {
+    if ((self->len == 0) || (self->cap == 0)) {
+        return false;
+    }
+    size_t h = usz_hash(key);
+    size_t idx = (h % self->cap);
+    while (self->occupied[idx]) {
+        if ((self->hashes[idx] == h) && (self->keys[idx] == key)) {
+            return true;
+        }
+        idx = ((idx + 1) % self->cap);
+    }
+    return false;
+}
+
+size_t std__collections__List_compiler__sema__IsPatternInfo_count(std__collections__List_compiler__sema__IsPatternInfo* self) {
+    return self->len;
+}
+
+compiler__sema__IsPatternInfo std__collections__List_compiler__sema__IsPatternInfo_at(std__collections__List_compiler__sema__IsPatternInfo* self, size_t i) {
+    return self->data[i];
+}
+
+std__collections__List_compiler__sema__IsPatternInfo std__collections__List_compiler__sema__IsPatternInfo_init(size_t cap) {
+    return (std__collections__List_compiler__sema__IsPatternInfo){ std__memory__Heap_create_array_compiler__sema__IsPatternInfo(cap), 0, cap };
+}
+
+compiler__sema__IsPatternInfo std__collections__List_compiler__sema__IsPatternInfo_first(std__collections__List_compiler__sema__IsPatternInfo* self) {
+    return self->data[0];
+}
+
+compiler__sema__IsPatternInfo std__collections__List_compiler__sema__IsPatternInfo_last(std__collections__List_compiler__sema__IsPatternInfo* self) {
+    return self->data[(self->len - 1)];
+}
+
+bool std__collections__List_compiler__sema__IsPatternInfo_empty(std__collections__List_compiler__sema__IsPatternInfo* self) {
+    return (self->len == 0);
+}
+
+void std__collections__List_compiler__sema__IsPatternInfo_add(std__collections__List_compiler__sema__IsPatternInfo* self, compiler__sema__IsPatternInfo value) {
+    if (self->len == self->cap) {
+        std__collections__List_compiler__sema__IsPatternInfo_grow(self);
+    }
+    self->data[self->len] = value;
+    self->len++;
+}
+
+compiler__sema__IsPatternInfo std__collections__List_compiler__sema__IsPatternInfo_pop(std__collections__List_compiler__sema__IsPatternInfo* self) {
+    self->len--;
+    return self->data[self->len];
+}
+
+void std__collections__List_compiler__sema__IsPatternInfo_extend(std__collections__List_compiler__sema__IsPatternInfo* self, std__collections__List_compiler__sema__IsPatternInfo other) {
+    {
+        size_t __for_n = std__collections__List_compiler__sema__IsPatternInfo_count(&other);
+        size_t __for_i = 0;
+        while (__for_i < __for_n) {
+            compiler__sema__IsPatternInfo data = std__collections__List_compiler__sema__IsPatternInfo_at(&other, __for_i);
+            std__collections__List_compiler__sema__IsPatternInfo_plus_assign(self, data);
+            __for_i = (__for_i + 1);
+        }
+    }
+}
+
+size_t std__collections__List_compiler__sema__IsPatternInfo_clear(std__collections__List_compiler__sema__IsPatternInfo* self) {
+    return self->len = 0;
+}
+
+void std__collections__List_compiler__sema__IsPatternInfo_grow(std__collections__List_compiler__sema__IsPatternInfo* self) {
+    size_t new_cap = (self->cap * 2);
+    self->data = std__memory__Heap_resize_compiler__sema__IsPatternInfo(self->data, new_cap);
+    self->cap = new_cap;
+}
+
+void std__collections__List_compiler__sema__IsPatternInfo_reserve(std__collections__List_compiler__sema__IsPatternInfo* self, size_t min_cap) {
+    if (min_cap > self->cap) {
+        size_t new_cap = self->cap;
+        while (new_cap < min_cap) {
+            new_cap *= 2;
+        }
+        self->data = std__memory__Heap_resize_compiler__sema__IsPatternInfo(self->data, new_cap);
+        self->cap = new_cap;
+    }
+}
+
+compiler__sema__IsPatternInfo std__collections__List_compiler__sema__IsPatternInfo_remove_at(std__collections__List_compiler__sema__IsPatternInfo* self, size_t index) {
+    compiler__sema__IsPatternInfo item = self->data[index];
+    {
+        size_t __for_e = (self->len - 1);
+        size_t __for_i = __for_e;
+        __for_i = index;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            self->data[i] = self->data[(i + 1)];
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    self->len--;
+    return item;
+}
+
+void std__collections__List_compiler__sema__IsPatternInfo_insert(std__collections__List_compiler__sema__IsPatternInfo* self, size_t index, compiler__sema__IsPatternInfo value) {
+    if (self->len == self->cap) {
+        std__collections__List_compiler__sema__IsPatternInfo_grow(self);
+    }
+    size_t i = self->len;
+    while (i > index) {
+        self->data[i] = self->data[(i - 1)];
+        i--;
+    }
+    self->data[index] = value;
+    self->len++;
+}
+
+std__collections__List_compiler__sema__IsPatternInfo std__collections__List_compiler__sema__IsPatternInfo_clone(std__collections__List_compiler__sema__IsPatternInfo* self) {
+    size_t cap = ((self->cap > 0) ? self->cap : 4);
+    std__collections__List_compiler__sema__IsPatternInfo res = (std__collections__List_compiler__sema__IsPatternInfo){ std__memory__Heap_create_array_compiler__sema__IsPatternInfo(cap), 0, cap };
+    {
+        size_t __for_e = self->len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            std__collections__List_compiler__sema__IsPatternInfo_plus_assign(&res, self->data[i]);
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return res;
+}
+
+compiler__sema__IsPatternInfo std__collections__List_compiler__sema__IsPatternInfo_pop_or(std__collections__List_compiler__sema__IsPatternInfo* self, compiler__sema__IsPatternInfo value) {
+    return ((self->len == 0) ? value : std__collections__List_compiler__sema__IsPatternInfo_pop(self));
+}
+
+void std__collections__List_compiler__sema__IsPatternInfo_swap(std__collections__List_compiler__sema__IsPatternInfo* self, size_t a, size_t b) {
+    compiler__sema__IsPatternInfo tmp = self->data[a];
+    self->data[a] = self->data[b];
+    self->data[b] = tmp;
+}
+
+void std__collections__List_compiler__sema__IsPatternInfo_reverse(std__collections__List_compiler__sema__IsPatternInfo* self) {
+    if (self->len <= 1) {
+        return;
+    }
+    int32_t left = 0;
+    size_t right = (self->len - 1);
+    while (left < right) {
+        compiler__sema__IsPatternInfo tmp = self->data[left];
+        self->data[left] = self->data[right];
+        self->data[right] = tmp;
+        left++;
+        right--;
+    }
+}
+
+std__collections__List_compiler__sema__IsPatternInfo std__collections__List_compiler__sema__IsPatternInfo_sub(std__collections__List_compiler__sema__IsPatternInfo* self, size_t start, size_t count) {
+    std__collections__List_compiler__sema__IsPatternInfo res = (std__collections__List_compiler__sema__IsPatternInfo){ std__memory__Heap_create_array_compiler__sema__IsPatternInfo(count), 0, count };
+    if (start >= self->len) {
+        return res;
+    }
+    size_t end = (((start + count) > self->len) ? self->len : (start + count));
+    {
+        size_t __for_e = end;
+        size_t __for_i = __for_e;
+        __for_i = start;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            std__collections__List_compiler__sema__IsPatternInfo_plus_assign(&res, self->data[i]);
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return res;
+}
+
+intptr_t std__collections__List_compiler__sema__IsPatternInfo_index_of(std__collections__List_compiler__sema__IsPatternInfo* self, compiler__sema__IsPatternInfo value) {
+    {
+        size_t __for_e = self->len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            if (kobel_memeq(&self->data[i], &value, 80)) {
+                return i;
+            }
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return -1;
+}
+
+intptr_t std__collections__List_compiler__sema__IsPatternInfo_last_index_of(std__collections__List_compiler__sema__IsPatternInfo* self, compiler__sema__IsPatternInfo value) {
+    if (self->len == 0) {
+        return -1;
+    }
+    size_t i = (self->len - 1);
+    while (true) {
+        if (kobel_memeq(&self->data[i], &value, 80)) {
+            return i;
+        }
+        if (i == 0) {
+            break;
+        }
+        i--;
+    }
+    return -1;
+}
+
+bool std__collections__List_compiler__sema__IsPatternInfo_remove(std__collections__List_compiler__sema__IsPatternInfo* self, compiler__sema__IsPatternInfo value) {
+    intptr_t idx = std__collections__List_compiler__sema__IsPatternInfo_index_of(self, value);
+    if (idx < 0) {
+        return false;
+    }
+    std__collections__List_compiler__sema__IsPatternInfo_remove_at(self, (size_t)idx);
+    return true;
+}
+
+size_t std__collections__List_compiler__sema__IsPatternInfo_remove_all(std__collections__List_compiler__sema__IsPatternInfo* self, compiler__sema__IsPatternInfo value) {
+    int32_t write = 0;
+    int32_t removed = 0;
+    {
+        size_t __for_e = self->len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            if (kobel_memeq(&self->data[i], &value, 80)) {
+                removed++;
+            } else {
+                if (write != i) {
+                    self->data[write] = self->data[i];
+                }
+                write++;
+            }
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    self->len = write;
+    return removed;
+}
+
+void std__collections__List_compiler__sema__IsPatternInfo_free(std__collections__List_compiler__sema__IsPatternInfo* self) {
+    std__memory__Heap_free_compiler__sema__IsPatternInfo(self->data);
+}
+
+compiler__sema__IsPatternInfo std__collections__List_compiler__sema__IsPatternInfo_get(std__collections__List_compiler__sema__IsPatternInfo* self, size_t index) {
+    return self->data[index];
+}
+
+bool std__collections__List_compiler__sema__IsPatternInfo_contains(std__collections__List_compiler__sema__IsPatternInfo* self, compiler__sema__IsPatternInfo value) {
+    return (std__collections__List_compiler__sema__IsPatternInfo_index_of(self, value) != -1);
+}
+
+compiler__sema__IsPatternInfo std__collections__List_compiler__sema__IsPatternInfo_set(std__collections__List_compiler__sema__IsPatternInfo* self, size_t index, compiler__sema__IsPatternInfo value) {
+    return self->data[index] = value;
+}
+
+void std__collections__List_compiler__sema__IsPatternInfo_plus_assign(std__collections__List_compiler__sema__IsPatternInfo* self, compiler__sema__IsPatternInfo value) {
+    std__collections__List_compiler__sema__IsPatternInfo_add(self, value);
+}
+
+std__collections__HashMap_usz_compiler__sema__IsPatternInfo std__collections__HashMap_usz_compiler__sema__IsPatternInfo_init(size_t init_cap) {
+    size_t cap = init_cap;
+    if (cap < 8) {
+        cap = 8;
+    }
+    size_t* keys = std__memory__Heap_create_array_usz(cap);
+    compiler__sema__IsPatternInfo* values = std__memory__Heap_create_array_compiler__sema__IsPatternInfo(cap);
+    size_t* hashes = std__memory__Heap_create_array_usz(cap);
+    bool* occ = std__memory__Heap_create_array_bool(cap);
+    {
+        size_t __for_e = cap;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            occ[i] = false;
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return (std__collections__HashMap_usz_compiler__sema__IsPatternInfo){ keys, values, hashes, occ, 0, cap };
+}
+
+size_t std__collections__HashMap_usz_compiler__sema__IsPatternInfo_dist(std__collections__HashMap_usz_compiler__sema__IsPatternInfo* self, size_t from, size_t to) {
+    if (to >= from) {
+        return (to - from);
+    }
+    return ((self->cap + to) - from);
+}
+
+compiler__sema__IsPatternInfo std__collections__HashMap_usz_compiler__sema__IsPatternInfo_get_or(std__collections__HashMap_usz_compiler__sema__IsPatternInfo* self, size_t key, compiler__sema__IsPatternInfo value) {
+    if ((self->len == 0) || (self->cap == 0)) {
+        return value;
+    }
+    size_t h = usz_hash(key);
+    size_t idx = (h % self->cap);
+    while (self->occupied[idx]) {
+        if ((self->hashes[idx] == h) && (self->keys[idx] == key)) {
+            return self->values[idx];
+        }
+        idx = ((idx + 1) % self->cap);
+    }
+    return value;
+}
+
+bool std__collections__HashMap_usz_compiler__sema__IsPatternInfo_remove(std__collections__HashMap_usz_compiler__sema__IsPatternInfo* self, size_t key) {
+    if ((self->len == 0) || (self->cap == 0)) {
+        return false;
+    }
+    size_t h = usz_hash(key);
+    size_t idx = (h % self->cap);
+    while (self->occupied[idx]) {
+        if ((self->hashes[idx] == h) && (self->keys[idx] == key)) {
+            size_t i = idx;
+            size_t j = ((idx + 1) % self->cap);
+            while (self->occupied[j]) {
+                size_t k = (self->hashes[j] % self->cap);
+                if (std__collections__HashMap_usz_compiler__sema__IsPatternInfo_dist(self, k, i) < std__collections__HashMap_usz_compiler__sema__IsPatternInfo_dist(self, k, j)) {
+                    self->keys[i] = self->keys[j];
+                    self->values[i] = self->values[j];
+                    self->hashes[i] = self->hashes[j];
+                    i = j;
+                }
+                j = ((j + 1) % self->cap);
+            }
+            self->occupied[i] = false;
+            self->len--;
+            return true;
+        }
+        idx = ((idx + 1) % self->cap);
+    }
+    return false;
+}
+
+void std__collections__HashMap_usz_compiler__sema__IsPatternInfo_clear(std__collections__HashMap_usz_compiler__sema__IsPatternInfo* self) {
+    if (self->cap <= 0) {
+        return;
+    }
+    {
+        size_t __for_e = self->cap;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            self->occupied[i] = false;
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    self->len = 0;
+}
+
+bool std__collections__HashMap_usz_compiler__sema__IsPatternInfo_empty(std__collections__HashMap_usz_compiler__sema__IsPatternInfo* self) {
+    return (self->len == 0);
+}
+
+size_t std__collections__HashMap_usz_compiler__sema__IsPatternInfo_count(std__collections__HashMap_usz_compiler__sema__IsPatternInfo* self) {
+    return self->len;
+}
+
+std__collections__List_usz std__collections__HashMap_usz_compiler__sema__IsPatternInfo_keys(std__collections__HashMap_usz_compiler__sema__IsPatternInfo* self) {
+    std__collections__List_usz res = std__collections__List_usz_init(4);
+    if (self->cap == 0) {
+        return res;
+    }
+    {
+        size_t __for_e = self->cap;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            if (self->occupied[i]) {
+                std__collections__List_usz_plus_assign(&res, self->keys[i]);
+            }
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return res;
+}
+
+std__collections__List_compiler__sema__IsPatternInfo std__collections__HashMap_usz_compiler__sema__IsPatternInfo_values(std__collections__HashMap_usz_compiler__sema__IsPatternInfo* self) {
+    std__collections__List_compiler__sema__IsPatternInfo res = std__collections__List_compiler__sema__IsPatternInfo_init(4);
+    if (self->cap == 0) {
+        return res;
+    }
+    {
+        size_t __for_e = self->cap;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            if (self->occupied[i]) {
+                std__collections__List_compiler__sema__IsPatternInfo_plus_assign(&res, self->values[i]);
+            }
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return res;
+}
+
+void std__collections__HashMap_usz_compiler__sema__IsPatternInfo_grow(std__collections__HashMap_usz_compiler__sema__IsPatternInfo* self) {
+    size_t old_cap = self->cap;
+    size_t* old_keys = self->keys;
+    compiler__sema__IsPatternInfo* old_vals = self->values;
+    size_t* old_hashes = self->hashes;
+    bool* old_occ = self->occupied;
+    size_t new_cap = ((old_cap < 8) ? 16 : (old_cap * 2));
+    size_t* keys = std__memory__Heap_create_array_usz(new_cap);
+    compiler__sema__IsPatternInfo* values = std__memory__Heap_create_array_compiler__sema__IsPatternInfo(new_cap);
+    size_t* hashes = std__memory__Heap_create_array_usz(new_cap);
+    bool* new_occ = std__memory__Heap_create_array_bool(new_cap);
+    {
+        size_t __for_e = new_cap;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t j = __for_i;
+            new_occ[j] = false;
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    if (old_cap > 0) {
+        {
+            size_t __for_e = old_cap;
+            size_t __for_i = __for_e;
+            __for_i = 0;
+            bool __for_up = (__for_i <= __for_e);
+            bool __for_go = false;
+            if (__for_up) {
+                __for_go = (__for_i < __for_e);
+            } else {
+                __for_go = (__for_i > __for_e);
+            }
+            while (__for_go) {
+                size_t i = __for_i;
+                if (old_occ[i]) {
+                    size_t h = old_hashes[i];
+                    size_t idx = (h % new_cap);
+                    while (new_occ[idx]) {
+                        idx = ((idx + 1) % new_cap);
+                    }
+                    keys[idx] = old_keys[i];
+                    values[idx] = old_vals[i];
+                    hashes[idx] = h;
+                    new_occ[idx] = true;
+                }
+                if (__for_up) {
+                    __for_go = ((__for_i + 1) < __for_e);
+                } else {
+                    __for_go = ((__for_i - 1) > __for_e);
+                }
+                if (__for_go) {
+                    if (__for_up) {
+                        __for_i = (__for_i + 1);
+                    } else {
+                        __for_i = (__for_i - 1);
+                    }
+                }
+            }
+        }
+        std__memory__Heap_free_usz(old_keys);
+        std__memory__Heap_free_compiler__sema__IsPatternInfo(old_vals);
+        std__memory__Heap_free_usz(old_hashes);
+        std__memory__Heap_free_bool(old_occ);
+    }
+    self->keys = keys;
+    self->values = values;
+    self->hashes = hashes;
+    self->occupied = new_occ;
+    self->cap = new_cap;
+}
+
+void std__collections__HashMap_usz_compiler__sema__IsPatternInfo_free(std__collections__HashMap_usz_compiler__sema__IsPatternInfo* self) {
+    if (self->cap > 0) {
+        std__memory__Heap_free_usz(self->keys);
+        std__memory__Heap_free_compiler__sema__IsPatternInfo(self->values);
+        std__memory__Heap_free_usz(self->hashes);
+        std__memory__Heap_free_bool(self->occupied);
+    }
+}
+
+void std__collections__HashMap_usz_compiler__sema__IsPatternInfo_set(std__collections__HashMap_usz_compiler__sema__IsPatternInfo* self, size_t key, compiler__sema__IsPatternInfo value) {
+    if ((self->cap == 0) || ((self->len * 10) >= (self->cap * 7))) {
+        std__collections__HashMap_usz_compiler__sema__IsPatternInfo_grow(self);
+    }
+    size_t h = usz_hash(key);
+    size_t idx = (h % self->cap);
+    while (self->occupied[idx]) {
+        if ((self->hashes[idx] == h) && (self->keys[idx] == key)) {
+            self->values[idx] = value;
+            return;
+        }
+        idx = ((idx + 1) % self->cap);
+    }
+    self->keys[idx] = key;
+    self->values[idx] = value;
+    self->hashes[idx] = h;
+    self->occupied[idx] = true;
+    self->len++;
+}
+
+compiler__sema__IsPatternInfo* std__collections__HashMap_usz_compiler__sema__IsPatternInfo_get(std__collections__HashMap_usz_compiler__sema__IsPatternInfo* self, size_t key) {
+    if ((self->len == 0) || (self->cap == 0)) {
+        return NULL;
+    }
+    size_t h = usz_hash(key);
+    size_t idx = (h % self->cap);
+    while (self->occupied[idx]) {
+        if ((self->hashes[idx] == h) && (self->keys[idx] == key)) {
+            return &self->values[idx];
+        }
+        idx = ((idx + 1) % self->cap);
+    }
+    return NULL;
+}
+
+bool std__collections__HashMap_usz_compiler__sema__IsPatternInfo_contains(std__collections__HashMap_usz_compiler__sema__IsPatternInfo* self, size_t key) {
+    if ((self->len == 0) || (self->cap == 0)) {
+        return false;
+    }
+    size_t h = usz_hash(key);
+    size_t idx = (h % self->cap);
+    while (self->occupied[idx]) {
+        if ((self->hashes[idx] == h) && (self->keys[idx] == key)) {
+            return true;
+        }
+        idx = ((idx + 1) % self->cap);
+    }
+    return false;
+}
+
 size_t std__collections__List_bool_count(std__collections__List_bool* self) {
     return self->len;
 }
@@ -44600,10 +46743,6 @@ void std__memory__Heap_free_compiler__ast__InterpPart(compiler__ast__InterpPart*
     free((uint8_t*)ptr);
 }
 
-void std__memory__Heap_free_compiler__ast__WhenStmtArm(compiler__ast__WhenStmtArm* ptr) {
-    free((uint8_t*)ptr);
-}
-
 void std__memory__Heap_free_str(kobel_str* ptr) {
     free((uint8_t*)ptr);
 }
@@ -44705,6 +46844,10 @@ void std__memory__Heap_free_ptr_compiler__sema__EnumInfo(compiler__sema__EnumInf
 }
 
 void std__memory__Heap_free_ptr_compiler__sema__TraitInfo(compiler__sema__TraitInfo** ptr) {
+    free((uint8_t*)ptr);
+}
+
+void std__memory__Heap_free_compiler__sema__IsPatternInfo(compiler__sema__IsPatternInfo* ptr) {
     free((uint8_t*)ptr);
 }
 
@@ -44852,6 +46995,12 @@ compiler__sema__PrimTypes* std__memory__Arena_create_val_compiler__sema__PrimTyp
     return ptr;
 }
 
+compiler__sema__SemanticTable* std__memory__Arena_create_val_compiler__sema__SemanticTable(std__memory__Arena* self, compiler__sema__SemanticTable value) {
+    compiler__sema__SemanticTable* ptr = std__memory__Arena_create_compiler__sema__SemanticTable(self);
+    (*(ptr) = value);
+    return ptr;
+}
+
 compiler__sema__ModuleScope* std__memory__Arena_create_val_compiler__sema__ModuleScope(std__memory__Arena* self, compiler__sema__ModuleScope value) {
     compiler__sema__ModuleScope* ptr = std__memory__Arena_create_compiler__sema__ModuleScope(self);
     (*(ptr) = value);
@@ -44884,14 +47033,6 @@ compiler__ast__InterpPart* std__memory__Heap_create_array_compiler__ast__InterpP
 
 compiler__ast__InterpPart* std__memory__Heap_resize_compiler__ast__InterpPart(compiler__ast__InterpPart* ptr, size_t count) {
     return (compiler__ast__InterpPart*)realloc((uint8_t*)ptr, (count * 16));
-}
-
-compiler__ast__WhenStmtArm* std__memory__Heap_create_array_compiler__ast__WhenStmtArm(size_t count) {
-    return (compiler__ast__WhenStmtArm*)malloc((count * 56));
-}
-
-compiler__ast__WhenStmtArm* std__memory__Heap_resize_compiler__ast__WhenStmtArm(compiler__ast__WhenStmtArm* ptr, size_t count) {
-    return (compiler__ast__WhenStmtArm*)realloc((uint8_t*)ptr, (count * 56));
 }
 
 kobel_str* std__memory__Heap_create_array_str(size_t count) {
@@ -45106,6 +47247,14 @@ compiler__sema__TraitInfo** std__memory__Heap_resize_ptr_compiler__sema__TraitIn
     return (compiler__sema__TraitInfo**)realloc((uint8_t*)ptr, (count * 8));
 }
 
+compiler__sema__IsPatternInfo* std__memory__Heap_create_array_compiler__sema__IsPatternInfo(size_t count) {
+    return (compiler__sema__IsPatternInfo*)malloc((count * 80));
+}
+
+compiler__sema__IsPatternInfo* std__memory__Heap_resize_compiler__sema__IsPatternInfo(compiler__sema__IsPatternInfo* ptr, size_t count) {
+    return (compiler__sema__IsPatternInfo*)realloc((uint8_t*)ptr, (count * 80));
+}
+
 bool* std__memory__Heap_resize_bool(bool* ptr, size_t count) {
     return (bool*)realloc((uint8_t*)ptr, (count * 1));
 }
@@ -45171,7 +47320,7 @@ compiler__sema__Type* std__memory__Arena_create_compiler__sema__Type(std__memory
 }
 
 compiler__ast__AstNode* std__memory__Arena_create_compiler__ast__AstNode(std__memory__Arena* self) {
-    return (compiler__ast__AstNode*)std__memory__Arena_alloc_bytes(self, 176, 8);
+    return (compiler__ast__AstNode*)std__memory__Arena_alloc_bytes(self, 184, 8);
 }
 
 compiler__sema__Symbol* std__memory__Arena_create_compiler__sema__Symbol(std__memory__Arena* self) {
@@ -45211,7 +47360,7 @@ compiler__sema__MethodInfo* std__memory__Arena_create_compiler__sema__MethodInfo
 }
 
 compiler__sema__AnnEntry* std__memory__Arena_create_compiler__sema__AnnEntry(std__memory__Arena* self) {
-    return (compiler__sema__AnnEntry*)std__memory__Arena_alloc_bytes(self, 120, 8);
+    return (compiler__sema__AnnEntry*)std__memory__Arena_alloc_bytes(self, 208, 8);
 }
 
 compiler__sema__body__ArrowCandidate* std__memory__Arena_create_compiler__sema__body__ArrowCandidate(std__memory__Arena* self) {
@@ -45232,6 +47381,10 @@ compiler__sema__Scope* std__memory__Arena_create_compiler__sema__Scope(std__memo
 
 compiler__sema__PrimTypes* std__memory__Arena_create_compiler__sema__PrimTypes(std__memory__Arena* self) {
     return (compiler__sema__PrimTypes*)std__memory__Arena_alloc_bytes(self, 24, 8);
+}
+
+compiler__sema__SemanticTable* std__memory__Arena_create_compiler__sema__SemanticTable(std__memory__Arena* self) {
+    return (compiler__sema__SemanticTable*)std__memory__Arena_alloc_bytes(self, 240, 8);
 }
 
 compiler__sema__ModuleScope* std__memory__Arena_create_compiler__sema__ModuleScope(std__memory__Arena* self) {

@@ -96,6 +96,7 @@ impl BodyPass {
 		bp.decl = decl;
 		bp.has_decl = true;
 		bp.symtab.prims = decl.symtab.prims;
+		bp.symtab.sem = decl.symtab.sem;
 		return bp;
 	}
 
@@ -265,7 +266,7 @@ impl BodyPass {
 			self.ann_entry(node).ty = ty;
 			return;
 		}
-		node.type_ptr = ty as *u8;
+		self.symtab.set_node_type(node, ty);
 	}
 
 	// --- instance annotation plumbing ---------------------------------------
@@ -274,12 +275,21 @@ impl BodyPass {
 
 	pub fn set_resolved(var self, node: *AstNode, r: *AstNode) {
 		if (self.current_rec != null) self.ann_entry(node).resolved = r;
-		else node.resolved_node = r;
+		else self.symtab.set_resolved_node(node, r);
 	}
 
 	pub fn set_method(var self, node: *AstNode, mi: *MethodInfo) {
-		if (self.current_rec != null) self.ann_entry(node).method = mi as *u8;
-		else node.resolved_method = mi as *u8;
+		if (self.current_rec != null) self.ann_entry(node).method = mi;
+		else self.symtab.set_resolved_method(node, mi);
+	}
+
+	pub fn set_is_pattern(var self, node: *AstNode, info: IsPatternInfo) {
+		if (self.current_rec != null) {
+			var e = self.ann_entry(node);
+			e.is_info = info;
+			e.has_is_info = true;
+		}
+		self.symtab.set_is_pattern(node, info);
 	}
 
 	pub fn set_ann_ty(var self, node: *AstNode, ty: *Type) {

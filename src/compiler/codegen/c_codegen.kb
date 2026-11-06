@@ -35,12 +35,27 @@ pub struct CCodeGen {
 	pub defer_nodes: List<*AstNode> = List(),
 	pub scope_starts: List<usz> = List(),
 	pub scope_jumped: List<bool> = List(),
-	pub loop_defer_depths: List<usz> = List()
+	pub loop_defer_depths: List<usz> = List(),
+	pub symtab: *SymbolTable? = null
 }
 
 impl CCodeGen {
 
-	pub init() => Self(StringBuilder());
+	pub init(symtab: *SymbolTable? = null) {
+		var cg = Self(StringBuilder());
+		cg.symtab = symtab;
+		return cg;
+	}
+
+	pub fn node_type(val self, node: *AstNode?): *Type? {
+		if (node == null || self.symtab == null) return null;
+		return self.symtab!.get_node_type(node);
+	}
+
+	pub fn is_pattern_info(val self, node: *AstNode?): IsPatternInfo {
+		if (node == null || self.symtab == null) return IsPatternInfo();
+		return self.symtab!.get_is_pattern(node);
+	}
 
 	pub fn enter_defer_scope(var self) {
 		self.scope_starts += self.defer_nodes.len;

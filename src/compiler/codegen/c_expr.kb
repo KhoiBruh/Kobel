@@ -93,7 +93,7 @@ impl CCodeGen {
 
 			is WhenExpr -> self.gen_when_expr(node);
 
-			is IsExpr -> self.gen_is_expr(node);
+			is IsExpr -> self.gen_is_expr(ast_node, node);
 
 			// A struct value built from its fields: `(Point){ 1, 2 }`.
 			is StructCtorExpr -> {
@@ -129,7 +129,7 @@ impl CCodeGen {
 			LiteralKind.FLOAT -> c_format_float_literal(lit.raw_text);
 			LiteralKind.BOOL -> lit.raw_text;
 			LiteralKind.STRING -> {
-				val lit_ty = ast_node.type_ptr as *Type;
+				val lit_ty = self.node_type(ast_node);
 				val is_ptr_lit = lit_ty != null && lit_ty.kind == DataType.POINTER;
 				val quoted = if (lit.raw_text.len >= 2 && lit.raw_text[0] == '"') lit.raw_text
 					else "\"${lit.raw_text}\"";
@@ -355,7 +355,7 @@ impl CCodeGen {
 		val raw_obj = obj_node; if (raw_obj is IdentifierExpr) is_ptr = self.c_type_of(obj_node).ends_with("*");
 		val obj_str = if (expr_needs_parens_for_member(obj_node)) "(${obj})" else obj;
 		if (mem.is_safe) {
-			val mem_ty = ast_node.type_ptr as *Type;
+			val mem_ty = self.node_type(ast_node);
 			if (mem_ty != null) {
 				val mk = mem_ty.kind;
 				if (mk == DataType.BOOL) {
@@ -372,7 +372,7 @@ impl CCodeGen {
 				}
 			}
 			val unwrapped_obj = unwrap_group_expr(obj_node);
-			val obj_ty = if (unwrapped_obj != null) unwrapped_obj.type_ptr as *Type else null as *Type;
+			val obj_ty = self.node_type(unwrapped_obj);
 			if (obj_ty != null) {
 				var inner = obj_ty;
 				if (inner.kind == DataType.POINTER) inner = inner.as_pointer().pointee;
@@ -462,26 +462,27 @@ impl CCodeGen {
 		return "(${ty})${self.gen_expr(cst.expr)}";
 	}
 
-	pub fn gen_is_expr(var self, is_e: *IsExpr): str {
+	pub fn gen_is_expr(var self, ast_node: *AstNode, is_e: *IsExpr): str {
+		val pat_info = self.is_pattern_info(ast_node);
 		val obj = if (is_e.expr != null) self.gen_expr(is_e.expr!) else "";
 		val target_name = c_type_from_ast(is_e.target_type);
-		var tag_field = is_e.tag_field;
+		var tag_field = pat_info.tag_field;
 		if (tag_field.empty()) tag_field = "tag";
 		val obj_str = if (is_e.expr != null && expr_needs_parens_for_member(is_e.expr!)) "(${obj})" else obj;
-		val tag_const = if (is_e.tag_const.empty()) "${target_name}__TAG" else is_e.tag_const;
-		val tag_test = self.gen_tag_test(obj_str, is_e.is_ptr, tag_field, tag_const);
+		val tag_const = if (pat_info.tag_const.empty()) "${target_name}__TAG" else pat_info.tag_const;
+		val tag_test = self.gen_tag_test(obj_str, pat_info.is_ptr, tag_field, tag_const);
 		if (!is_e.alias.empty()) {
-			val cast_val = if (is_e.is_ptr) {
-				if (!is_e.payload_path.empty()) {
-					if (is_e.payload_ptr) "${obj_str}->${is_e.payload_path}"
-					else "(${target_name}*)(&(${obj_str})->${is_e.payload_path})"
+			val cast_val = if (pat_info.is_ptr) {
+				if (!pat_info.payload_path.empty()) {
+					if (pat_info.payload_ptr) "${obj_str}->${pat_info.payload_path}"
+					else "(${target_name}*)(&(${obj_str})->${pat_info.payload_path})"
 				} else {
 					"(${target_name}*)${obj_str}"
 				}
 			} else {
-				if (!is_e.payload_path.empty()) {
-					if (is_e.payload_ptr) "${obj_str}.${is_e.payload_path}"
-					else "(${target_name}*)(&(${obj_str}).${is_e.payload_path})"
+				if (!pat_info.payload_path.empty()) {
+					if (pat_info.payload_ptr) "${obj_str}.${pat_info.payload_path}"
+					else "(${target_name}*)(&(${obj_str}).${pat_info.payload_path})"
 				} else {
 					"(${target_name}*)&${obj_str}"
 				}
@@ -502,11 +503,12 @@ impl CCodeGen {
 			if (cond.empty()) {
 				test = self.gen_expr(p);
 			} else if (p is IsExpr as is_e) {
+				val pat_info = self.is_pattern_info(p);
 				val target_name = c_type_from_ast(is_e.target_type);
-				var tag_field = is_e.tag_field;
+				var tag_field = pat_info.tag_field;
 				if (tag_field.empty()) tag_field = "tag";
-				val tag_const = if (is_e.tag_const.empty()) "${target_name}__TAG" else is_e.tag_const;
-				test = self.gen_tag_test(cond, is_e.is_ptr, tag_field, tag_const);
+				val tag_const = if (pat_info.tag_const.empty()) "${target_name}__TAG" else pat_info.tag_const;
+				test = self.gen_tag_test(cond, pat_info.is_ptr, tag_field, tag_const);
 			} else if (p is LiteralExpr as lit) {
 				if (lit.literal_kind == LiteralKind.STRING) {
 					test = "kobel_streq(${cond}, ${self.gen_expr(p)})";
@@ -528,9 +530,7 @@ impl CCodeGen {
 	// node, so the backend never re-derives a type from syntax or from variable
 	// names. Empty for nodes that desugaring synthesised and were never checked.
 	pub fn c_type_of(val self, expr: *AstNode): str {
-		if (expr == null) return "";
-		val ty = expr.type_ptr as *Type;
-		if (ty == null) return "";
+		val ty = self.node_type(expr) ?: return "";
 		return c_type_from_type(ty);
 	}
 
@@ -544,23 +544,17 @@ impl CCodeGen {
 	// True when the value is a pointer: a smart cast over a pointer casts the
 	// value itself, while a struct value has to be addressed.
 	pub fn is_pointer_value(val self, node: *AstNode): bool {
-		if (node == null) return false;
-		val ty = node.type_ptr as *Type;
-		if (ty == null) return false;
+		val ty = self.node_type(node) ?: return false;
 		return ty.kind == DataType.POINTER;
 	}
 
 	pub fn is_str_value(val self, node: *AstNode): bool {
-		if (node == null) return false;
-		val ty = node.type_ptr as *Type;
-		if (ty == null) return false;
+		val ty = self.node_type(node) ?: return false;
 		return ty.kind == DataType.STR;
 	}
 
 	fn is_char_value(val self, node: *AstNode): bool {
-		if (node == null) return false;
-		val ty = node.type_ptr as *Type;
-		if (ty == null) return false;
+		val ty = self.node_type(node) ?: return false;
 		return ty.kind == DataType.CHAR;
 	}
 

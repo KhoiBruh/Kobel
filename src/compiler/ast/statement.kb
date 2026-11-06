@@ -1,0 +1,41 @@
+mod compiler.ast;
+
+/*
+ * ============================================================================
+ * compiler.ast.statement — Statement and node category predicates
+ * ============================================================================
+ */
+
+impl AstNode {
+
+	pub fn is_statement(val self): bool => when (self) {
+		is BlockStmt, is ExprStmt, is VarDeclStmt,
+		is IfStmt, is WhileStmt, is ForStmt,
+		is ReturnStmt, is BreakStmt, is ContinueStmt,
+		is WhenStmt, is YieldStmt, is DeferStmt -> true;
+		else -> false;
+	};
+
+	pub fn is_control_flow(val self): bool => when (self) {
+		is ReturnStmt, is BreakStmt, is ContinueStmt,
+		is YieldStmt, is BlockStmt -> true;
+		else -> false;
+	};
+
+	pub fn is_declaration(val self): bool => when (self) {
+		is ModuleDecl, is UseDecl, is FnDecl,
+		is StructDecl, is TraitDecl, is ImplDecl,
+		is EnumDecl, is ConstDecl, is ExternBlock,
+		is Program -> true;
+		else -> false;
+	};
+
+	pub fn is_type_node(val self): bool => when (self) {
+		is NamedType, is PointerType, is ArrayType, is NullableType -> true;
+		else -> false;
+	};
+
+	pub fn is_expression(val self): bool
+		=> !self.is_statement() && !self.is_declaration() && !self.is_type_node();
+
+}

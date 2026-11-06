@@ -276,7 +276,7 @@ impl DeclPass {
 
 					// A function-instance method view owns its own FnType (built at view
 					// creation), so two instances never mutate a shared signature object.
-					val rec_sig = (m_node.instance as *InstanceRecord)?.sig;
+					val rec_sig = self.symtab.get_node_instance(m_node)?.sig;
 					val fn_type = rec_sig ?: self.arena.fn_type(param_types, ret_type);
 
 					// Two methods with the same name and arity still need distinct names.

@@ -331,7 +331,7 @@ impl Parser {
 					val alias_tok = self.consume(TokenType.IDENTIFIER, "Expected identifier after 'as'");
 					alias = alias_tok.text;
 				}
-				val is_node = self.node(NodeData.IsExpr(null, target_type, "", "", "", false, false, "", false, ""), line, col);
+				val is_node = self.node(NodeData.IsExpr(null, target_type, alias, mutable), line, col);
 				if (!alias.empty() && is_node is IsExpr as is_expr) {
 					is_expr.alias = alias;
 					is_expr.mutable = mutable;
@@ -526,7 +526,7 @@ impl Parser {
 					val alias_tok = self.consume(TokenType.IDENTIFIER, "Expected identifier after 'as'");
 					alias = alias_tok.text;
 				}
-				val is_node = self.node(NodeData.IsExpr(left, target_type, "", "", "", false, false, "", false, ""), line, col);
+				val is_node = self.node(NodeData.IsExpr(left, target_type, alias, mutable), line, col);
 				if (!alias.empty() && is_node is IsExpr as is_expr) {
 					is_expr.alias = alias;
 					is_expr.mutable = mutable;

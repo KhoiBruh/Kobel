@@ -231,6 +231,7 @@ fn test_arena_ast_methods(): bool {
 		} else return false;
 		if (bin_d.right is IdentifierExpr as br_id) {
 			if (br_id.name != "y") return false;
+			if (!m_bin.id.is_valid() || !m_bin.is_expression() || !fn_node.is_declaration()) return false;
 		} else return false;
 	} else return false;
 

@@ -34,7 +34,7 @@ impl BodyPass {
 				is FnDecl as var f -> {
 					// Templates are never lowered: instance bodies share their AST.
 					if (f.type_params.len > 0) continue;
-					val rec = decl.instance as *InstanceRecord;
+					val rec = self.symtab.get_node_instance(decl);
 					if (rec != null) f.body = self.lower_stmt(self.decl.materialize_body(rec));
 					else if (f.body != null) f.body = self.lower_stmt(f.body!);
 				}
@@ -43,7 +43,7 @@ impl BodyPass {
 						val m = im.methods[i];
 						if (m is FnDecl as var mf) {
 							if (mf.type_params.len > 0) continue;
-							val rec = m.instance as *InstanceRecord;
+							val rec = self.symtab.get_node_instance(m);
 							if (rec != null) mf.body = self.lower_stmt(self.decl.materialize_body(rec));
 							else if (mf.body != null) mf.body = self.lower_stmt(mf.body!);
 						}
@@ -63,7 +63,8 @@ impl BodyPass {
 		if (node == null) return null as *AstNode;
 		// `for` (and the continue step-injection) are built by the checker and
 		// installed here, so a statement node keeps its kind while being checked.
-		if (node.resolved_node != null) return self.lower_stmt(node.resolved_node!);
+		val res_stmt = self.symtab.get_resolved_node(node);
+		if (res_stmt != null) return self.lower_stmt(res_stmt);
 		when (node) {
 			is BlockStmt as var blk -> {
 				for (i in 0..<blk.statements.len) blk.statements[i] = self.lower_stmt(blk.statements[i]);
@@ -109,7 +110,8 @@ impl BodyPass {
 		if (node == null) return null as *AstNode;
 		// A node the checker already resolved (constant leaf, or a call it checked
 		// without installing): lower that instead, then carry this node's type.
-		if (node.resolved_node != null) return self.lowered(node, self.lower_expr(node.resolved_node!));
+		val res_expr = self.symtab.get_resolved_node(node);
+		if (res_expr != null) return self.lowered(node, self.lower_expr(res_expr));
 		var out = node;
 		when (node) {
 			is BinaryExpr as var b -> {
@@ -124,7 +126,7 @@ impl BodyPass {
 			is CallExpr as var c -> {
 				c.callee = self.lower_expr(c.callee);
 				for (i in 0..<c.args.len) c.args[i] = self.lower_expr(c.args[i]);
-				if (node.resolved_method != null) out = self.lower_bound_call(node, c);
+				if (self.symtab.get_resolved_method(node) != null) out = self.lower_bound_call(node, c);
 				else out = self.lower_call(node, c);
 			}
 			is MemberExpr as var m -> {
@@ -201,7 +203,8 @@ impl BodyPass {
 	// A replacement keeps the value's type, which the checker already stored on
 	// the original node; the backend reads it from the node it now sees.
 	fn lowered(val self, original: *AstNode, replacement: *AstNode): *AstNode {
-		replacement.type_ptr = original.type_ptr;
+		val orig_ty = self.symtab.get_node_type(original);
+		if (orig_ty != null) self.symtab.set_node_type(replacement, orig_ty);
 		return replacement;
 	}
 
@@ -229,8 +232,8 @@ impl BodyPass {
 
 		// `element in container` with a `contains` operator: the container is the
 		// receiver, so the call is `c_name(container, element)`.
-		if (bin.op == TokenType.KW_IN && node.resolved_method != null) {
-			val mi = node.resolved_method as *MethodInfo;
+		if (bin.op == TokenType.KW_IN && self.symtab.get_resolved_method(node) != null) {
+			val mi = self.symtab.get_resolved_method(node)!;
 			val right_ty = self.type_of(bin.right);
 			val r_is_ptr = right_ty?.kind == DataType.POINTER;
 			var args = List<*AstNode>();
@@ -243,8 +246,8 @@ impl BodyPass {
 		}
 
 		// An overloaded operator the checker picked: `c_name(&left, right)`.
-		if (node.resolved_method != null) {
-			val mi = node.resolved_method as *MethodInfo;
+		if (self.symtab.get_resolved_method(node) != null) {
+			val mi = self.symtab.get_resolved_method(node)!;
 			var args = List<*AstNode>();
 			args += self.arena.node(NodeData.UnaryExpr(TokenType.AMPERSAND, bin.left, false), node.line, node.col);
 			args += bin.right;
@@ -271,8 +274,8 @@ impl BodyPass {
 	// method call, and `s += str` keeps the assignment but wraps the right side in
 	// `kobel_concat(s, str)`.
 	fn lower_assign(var self, node: *AstNode, asgn: &AssignExpr): *AstNode {
-		if (node.resolved_method != null) {
-			val mi = node.resolved_method as *MethodInfo;
+		if (self.symtab.get_resolved_method(node) != null) {
+			val mi = self.symtab.get_resolved_method(node)!;
 			val target_ty = self.type_of(asgn.target);
 			val t_is_ptr = target_ty?.kind == DataType.POINTER;
 			var args = List<*AstNode>();
@@ -287,7 +290,8 @@ impl BodyPass {
 		if (asgn.op != TokenType.PLUS_EQUAL) return node;
 		if (!self.is_str_expr(asgn.target)) return node;
 		val cat = self.arena.interp_concat(asgn.target, asgn.value, node.line, node.col);
-		cat.type_ptr = node.type_ptr;
+		val cat_ty = self.symtab.get_node_type(node);
+		if (cat_ty != null) self.symtab.set_node_type(cat, cat_ty);
 		asgn.value = cat;
 		asgn.op = TokenType.EQUAL;
 		return node;
@@ -376,8 +380,8 @@ impl BodyPass {
 
 	// A bound unary operator: `-x` -> `c_name(&x)`.
 	fn lower_unary(var self, node: *AstNode, un: &UnaryExpr): *AstNode {
-		if (node.resolved_method == null) return node;
-		val mi = node.resolved_method as *MethodInfo;
+		if (self.symtab.get_resolved_method(node) == null) return node;
+		val mi = self.symtab.get_resolved_method(node)!;
 		var args = List<*AstNode>();
 		args += self.arena.node(NodeData.UnaryExpr(TokenType.AMPERSAND, un.operand, false), node.line, node.col);
 		val callee = self.arena.node(NodeData.IdentifierExpr(mi.c_name), node.line, node.col);
@@ -388,8 +392,8 @@ impl BodyPass {
 	// A bound index access: `list[i]` -> `c_name(&list, i)` (`c_name(list, i)`
 	// when the container is already a pointer).
 	fn lower_index(var self, node: *AstNode, idx: &IndexExpr): *AstNode {
-		if (node.resolved_method == null) return node;
-		val mi = node.resolved_method as *MethodInfo;
+		if (self.symtab.get_resolved_method(node) == null) return node;
+		val mi = self.symtab.get_resolved_method(node)!;
 		val target_ty = self.type_of(idx.target);
 		val t_is_ptr = target_ty?.kind == DataType.POINTER;
 		var args = List<*AstNode>();
@@ -412,7 +416,7 @@ impl BodyPass {
 		// A struct constructor (`Type(args)` resolved to its `new`): a plain call,
 		// no receiver to pass.
 		if (callee is IdentifierExpr) {
-			val new_mi = node.resolved_method as *MethodInfo;
+			val new_mi = self.symtab.get_resolved_method(node)!;
 			var ctor_args = List<*AstNode>();
 			for (arg in call.args) ctor_args += arg;
 			val fn_id = self.arena.node(NodeData.IdentifierExpr(new_mi.c_name), node.line, node.col);
@@ -424,7 +428,7 @@ impl BodyPass {
 		}
 
 		if (callee is MemberExpr as mem) {
-		val mi = node.resolved_method as *MethodInfo;
+		val mi = self.symtab.get_resolved_method(node)!;
 
 		if (mi.is_static) {
 			var static_args = List<*AstNode>();
@@ -522,7 +526,7 @@ impl BodyPass {
 			else break;
 		}
 		if (cur == null) return null;
-		return cur.type_ptr as *Type;
+		return self.symtab.get_node_type(cur);
 	}
 
 	fn is_str_expr(val self, node: *AstNode): bool {

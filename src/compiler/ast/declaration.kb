@@ -3,6 +3,14 @@ mod compiler.ast;
 use std.collections.List;
 use std.traits.Iterable;
 
+use compiler.core.Span;
+
+/*
+ * ============================================================================
+ * compiler.ast.declaration — AST structures for module and symbol declarations
+ * ============================================================================
+ */
+
 pub struct Param {
 	pub name: str,
 	pub type_node: *AstNode? = null,
@@ -40,8 +48,10 @@ pub struct EnumMember {
 	pub value: *AstNode? = null,
 	pub line: usz,
 	pub col: usz,
-	// Empty for a plain (integer) enum member; non-empty when the member carries
-	// data, which makes the whole declaration a payload enum.
+	/*
+	 * Empty for a plain (integer) enum member; non-empty when the member carries
+	 * data, which makes the whole declaration a payload enum.
+	 */
 	pub payload: List<EnumField> = List()
 }
 
@@ -62,9 +72,11 @@ impl Iterable for Program {
 	pub fn at(val self, i: usz) => self.declarations[i];
 }
 
-// Whether a declaration carries generic parameters (`struct S<T>`, `fn f<T>`,
-// `impl S<T>`). Lives here, next to the payload structs, so it reads their real
-// fields instead of type-punning the node payload.
+/*
+ * Whether a declaration carries generic parameters (`struct S<T>`, `fn f<T>`,
+ * `impl S<T>`). Lives here, next to the payload structs, so it reads their real
+ * fields directly.
+ */
 pub fn decl_is_template(node: *AstNode) => when (node) {
 	is StructDecl as s -> s.type_params.len > 0;
 	is FnDecl as f -> f.type_params.len > 0;

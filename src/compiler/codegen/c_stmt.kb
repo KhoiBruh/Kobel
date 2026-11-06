@@ -407,7 +407,7 @@ impl CCodeGen {
 			is_e.alias.empty() &&
 			is_e.expr is IdentifierExpr as id
 		) cast_decl = self.gen_smart_cast_decl(
-			is_e, is_e.expr!, id.name,
+			cond, is_e, is_e.expr!, id.name,
 			self.indent_level + 1
 		);
 
@@ -457,7 +457,7 @@ impl CCodeGen {
 					elif_is_e.alias.empty() &&
 					elif_is_e.expr is IdentifierExpr as id
 				) elif_cast = self.gen_smart_cast_decl(
-					elif_is_e, elif_is_e.expr!, id.name,
+					elif_cond, elif_is_e, elif_is_e.expr!, id.name,
 					self.indent_level + 1
 				);
 
@@ -899,7 +899,7 @@ impl CCodeGen {
 				if (pat_node is IsExpr as is_e) {
 					var subj_expr = self.gen_expr(ws.condition!);
 					if (ws.condition! is IdentifierExpr as id) subj_expr = id.name;
-					cast_decl = self.gen_smart_cast_decl(is_e, is_e.expr!, subj_expr, self.indent_level + 1);
+					cast_decl = self.gen_smart_cast_decl(pat_node, is_e, is_e.expr!, subj_expr, self.indent_level + 1);
 				}
 			}
 
@@ -929,33 +929,34 @@ impl CCodeGen {
 		}
 	}
 
-	pub fn gen_smart_cast_decl(val self, is_e: *IsExpr, subject: *AstNode, var_name: str, ind_level: usz): str {
+	pub fn gen_smart_cast_decl(val self, is_node: *AstNode, is_e: *IsExpr, subject: *AstNode, var_name: str, ind_level: usz): str {
+		val pat_info = self.is_pattern_info(is_node);
 		val target_name = c_type_from_ast(is_e.target_type);
 		val bound_name = if (!is_e.alias.empty()) is_e.alias else var_name;
-		val is_ptr = if (is_e.is_ptr) true else self.is_pointer_value(subject);
+		val is_ptr = if (pat_info.is_ptr) true else self.is_pointer_value(subject);
 		val next_ind = get_indent(ind_level);
 		if (!is_e.alias.empty()) {
 			if (is_ptr) {
-				if (!is_e.payload_path.empty()) {
-					if (is_e.payload_ptr) return "${target_name}* ${bound_name} = (${var_name})->${is_e.payload_path};";
+				if (!pat_info.payload_path.empty()) {
+					if (pat_info.payload_ptr) return "${target_name}* ${bound_name} = (${var_name})->${pat_info.payload_path};";
 					return "${target_name}* ${bound_name} = (${target_name}*)"
-							"(&(${var_name})->${is_e.payload_path});";
+							"(&(${var_name})->${pat_info.payload_path});";
 				}
 				return "${target_name}* ${bound_name} = (${target_name}*)${var_name};";
 			} else {
-				if (!is_e.payload_path.empty()) {
-					if (is_e.payload_ptr) return "${target_name}* ${bound_name} = (${var_name}).${is_e.payload_path};";
+				if (!pat_info.payload_path.empty()) {
+					if (pat_info.payload_ptr) return "${target_name}* ${bound_name} = (${var_name}).${pat_info.payload_path};";
 					return "${target_name}* ${bound_name} = (${target_name}*)"
-							"(&(${var_name}).${is_e.payload_path});";
+							"(&(${var_name}).${pat_info.payload_path});";
 				}
 				return "${target_name}* ${bound_name} = (${target_name}*)&${var_name};";
 			}
 		} else {
-			if (!is_e.payload_path.empty()) {
+			if (!pat_info.payload_path.empty()) {
 				val src = if (is_ptr) var_name else "&${var_name}";
-				val bound = if (is_e.payload_ptr)
-					"((${is_e.base_c_name}*)__orig_${var_name})->${is_e.payload_path}"
-					else "(&((${is_e.base_c_name}*)__orig_${var_name})->${is_e.payload_path})";
+				val bound = if (pat_info.payload_ptr)
+					"((${pat_info.base_c_name}*)__orig_${var_name})->${pat_info.payload_path}"
+					else "(&((${pat_info.base_c_name}*)__orig_${var_name})->${pat_info.payload_path})";
 				return "void* __orig_${var_name} = (void*)${src};"
 						"\n${next_ind}${target_name}* ${var_name} = (${target_name}*)(${bound});";
 			}
@@ -1004,7 +1005,7 @@ impl CCodeGen {
 				if (pat_node is IsExpr as is_e) {
 					var subj_expr = self.gen_expr(we.condition!);
 					if (we.condition is IdentifierExpr as id) subj_expr = id.name;
-					cast_decl = self.gen_smart_cast_decl(is_e, is_e.expr!, subj_expr, self.indent_level + 1);
+					cast_decl = self.gen_smart_cast_decl(pat_node, is_e, is_e.expr!, subj_expr, self.indent_level + 1);
 				}
 			}
 

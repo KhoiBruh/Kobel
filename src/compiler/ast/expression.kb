@@ -1,0 +1,40 @@
+mod compiler.ast;
+
+use std.collections.List;
+
+use compiler.core.Span;
+
+/*
+ * ============================================================================
+ * compiler.ast.expression — Expression literal kinds, pattern arms, and parts
+ * ============================================================================
+ */
+
+pub enum LiteralKind {
+	INT,
+	FLOAT,
+	BOOL,
+	CHAR,
+	STRING,
+	NULL_VAL
+}
+
+/*
+ * Unified branch arm for both `when` expressions and `when` statements.
+ */
+pub struct WhenArm {
+	pub patterns: List<*AstNode>,
+	pub is_else: bool,
+	pub body: *AstNode,
+	pub line: usz,
+	pub col: usz
+}
+
+/*
+ * One piece of an interpolated string: either a literal chunk (STRING literal)
+ * or a `${...}` hole expression.
+ */
+pub enum InterpPart {
+	Literal(node: *AstNode),
+	Hole(node: *AstNode)
+}

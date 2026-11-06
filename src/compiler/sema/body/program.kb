@@ -56,7 +56,7 @@ impl BodyPass {
 
 			// An instance body is the template's shared AST: decisions go to the
 			// instance's side table and type parameters resolve against its arguments.
-			val rec = fn_node.instance as *InstanceRecord;
+			val rec = self.symtab.get_node_instance(fn_node);
 			val saved_rec = self.push_instance(rec);
 
 			if (self_ty == null) {
@@ -203,7 +203,7 @@ impl BodyPass {
 					if (f.type_params.len > 0) continue;
 					val mi = st_info.find_method_c(f.name);
 					if (mi == null) continue;
-					val rec = m_node.instance as *InstanceRecord;
+					val rec = self.symtab.get_node_instance(m_node);
 					val saved_rec = self.push_instance(rec);
 					self.check_fn_body(m_node, mi.fn_type);
 					self.pop_instance(saved_rec, rec);
@@ -226,6 +226,7 @@ impl BodyPass {
 			// pass itself so `resolve_type` can reuse its resolver.
 			self.symtab = decl_p.symtab;
 			self.symtab.prims = decl_p.symtab.prims;
+			self.symtab.sem = decl_p.symtab.sem;
 			self.decl = decl_p;
 			self.has_decl = true;
 			for (msg in decl_p.errors) self.errors += msg;
@@ -467,7 +468,7 @@ impl BodyPass {
 				c.node.line, c.node.col, null
 			));
 		}
-		val rec = c.node.instance as *InstanceRecord;
+		val rec = self.symtab.get_node_instance(c.node);
 		val saved_rec = self.push_instance(rec);
 		var body_expr: *AstNode? = null;
 		if (f.body is ExprStmt as es) {

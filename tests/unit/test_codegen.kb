@@ -60,7 +60,7 @@ fn test_end_to_end_codegen() {
 	assert_eq_usz(bp.errors.len, 0, "Semantic analysis must have 0 errors");
 
 	// 4. Code Generation (C Backend)
-	var codegen = CCodeGen();
+	var codegen = CCodeGen(&bp.symtab);
 	val c_code = codegen.gen_program(prog);
 
 	assert_true(c_code.len > 100, "Generated C code must not be empty");

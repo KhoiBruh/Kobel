@@ -22,14 +22,26 @@ pub enum InstanceKind {
 	FUNCTION
 }
 
+// Resolved tag and payload access metadata for an `is` pattern expression.
+pub struct IsPatternInfo {
+	pub tag_field: str = "",
+	pub base_c_name: str = "",
+	pub is_ptr: bool = false,
+	pub payload_path: str = "",
+	pub payload_ptr: bool = false,
+	pub tag_const: str = ""
+}
+
 // One per-node annotation for a function/method instance whose body shares the
 // template's AST. The checker writes its decisions here instead of on the
 // shared node; materialization copies them onto the instance's own tree.
 pub struct AnnEntry {
 	pub node: *AstNode,
 	pub ty: *Type? = null,
-	pub method: *u8? = null,
+	pub method: *MethodInfo? = null,
 	pub resolved: *AstNode? = null,
+	pub is_info: IsPatternInfo = IsPatternInfo(),
+	pub has_is_info: bool = false,
 	// The checker would otherwise mutate the shared node in place; these fields
 	// record the per-instance values instead:
 	// - a coerced List literal's container C name and element type node,
