@@ -1,22 +1,29 @@
 mod std.system;
 
+use std.string.str_from_bytes;
+
 /*
  * ============================================================================
- * std.system.system — Operating system interface and environment utilities
+ * std.system — Operating system and environment variable queries
  * ============================================================================
  */
 
 extern "libc" {
-	fn system(cmd: *char): i32;
-	fn getenv(name: *char): *char;
+	fn getenv(name: *char): *char?;
+	fn strlen(s: *char): usz;
 }
 
 pub struct System;
 
 impl System {
-	pub fn exec(cmd: str) => system(cmd.c_str());
 
 	pub fn is_windows() => getenv("SystemRoot".c_str()) != null || getenv("WINDIR".c_str()) != null;
 
 	pub fn has_env(name: str): bool => getenv(name.c_str()) != null;
+
+	pub fn get_env(name: str): str {
+		val raw = getenv(name.c_str()) ?: return "";
+		return str_from_bytes(raw as &u8, strlen(raw));
+	}
+
 }

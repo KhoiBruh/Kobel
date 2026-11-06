@@ -347,8 +347,12 @@ fn test_system(): bool {
 	val win = System.is_windows();
 	if (win) {
 		if (!System.has_env("SystemRoot") && !System.has_env("WINDIR")) return false;
+		val sys_root = System.get_env("SystemRoot");
+		val win_dir = System.get_env("WINDIR");
+		if (sys_root.empty() && win_dir.empty()) return false;
 	}
 	if (System.has_env("__KOBEL_NON_EXISTENT_ENV_VAR_12345__")) return false;
+	if (!System.get_env("__KOBEL_NON_EXISTENT_ENV_VAR_12345__").empty()) return false;
 	return true;
 }
 

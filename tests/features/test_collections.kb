@@ -2,7 +2,7 @@ mod tests.features.test_collections;
 
 use std.io.*;
 use std.collections.*;
-use std.fmt.*;
+use std.traits.*;
 
 // ============================================================================
 // Feature Suite 2: Collections, Indexing, and String Formatting

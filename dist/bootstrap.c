@@ -177,6 +177,7 @@ typedef struct std__filesystem__File std__filesystem__File;
 typedef struct std__filesystem__Path std__filesystem__Path;
 typedef struct config__ProjectConfig config__ProjectConfig;
 typedef struct config__Toml config__Toml;
+typedef struct std__process__Process std__process__Process;
 typedef struct std__system__System std__system__System;
 typedef struct compiler__lexer__Lexer compiler__lexer__Lexer;
 typedef int32_t compiler__lexer__TokenType;
@@ -353,7 +354,6 @@ typedef struct lsp__DocumentStore lsp__DocumentStore;
 typedef int32_t lsp__JsonKind;
 typedef struct lsp__JsonValue lsp__JsonValue;
 typedef struct lsp__JsonParser lsp__JsonParser;
-typedef struct std__process__Process std__process__Process;
 typedef kobel_str lsp__Method;
 typedef struct std__collections__List_ptr_compiler__ast__AstNode std__collections__List_ptr_compiler__ast__AstNode;
 typedef struct std__collections__List_compiler__ast__WhenArm std__collections__List_compiler__ast__WhenArm;
@@ -1951,12 +1951,12 @@ uint8_t std__string__StringBuilder_set(std__string__StringBuilder* self, size_t 
 size_t std__string__StringBuilder_count(std__string__StringBuilder* self);
 char std__string__StringBuilder_at(std__string__StringBuilder* self, size_t i);
 kobel_str std__string__StringBuilder_to_str(std__string__StringBuilder* self);
-kobel_str std__string__fmt_u64(uint64_t n0);
-kobel_str std__string__fmt_i64(int64_t v);
-kobel_str std__string__fmt_char(char c);
-kobel_str std__string__fmt_bool(bool b);
-kobel_str std__string__fmt_zeros(size_t n);
-kobel_str std__string__fmt_f64(double v);
+kobel_str std__traits__fmt_u64(uint64_t n0);
+kobel_str std__traits__fmt_i64(int64_t v);
+kobel_str std__traits__fmt_char(char c);
+kobel_str std__traits__fmt_bool(bool b);
+kobel_str std__traits__fmt_zeros(size_t n);
+kobel_str std__traits__fmt_f64(double v);
 kobel_str bool_to_str(bool self);
 kobel_str char_to_str(char self);
 kobel_str str_to_str(kobel_str self);
@@ -2034,9 +2034,11 @@ kobel_str config__Toml_get_3(config__Toml* self, kobel_str key, kobel_str defaul
 kobel_str config__Toml_get_2(config__Toml* self, kobel_str key);
 void config__Toml_set(config__Toml* self, kobel_str key, kobel_str value);
 bool config__Toml_contains(config__Toml* self, kobel_str key);
-int32_t std__system__System_exec(kobel_str cmd);
+int32_t std__process__Process_exec(kobel_str cmd);
+void std__process__Process_exit(int32_t code);
 bool std__system__System_is_windows(void);
 bool std__system__System_has_env(kobel_str name);
+kobel_str std__system__System_get_env(kobel_str name);
 bool compiler__driver__str_before(kobel_str a, kobel_str b);
 void compiler__driver__collect_kb_files(kobel_str dir, kobel_str prefix, std__collections__List_str* out);
 kobel_str compiler__driver__compute_project_stamp(config__ProjectConfig cfg, kobel_str manifest_path);
@@ -2718,7 +2720,6 @@ void lsp__send_response(lsp__JsonValue* id, lsp__JsonValue* result);
 void lsp__send_error(lsp__JsonValue* id, int64_t code, kobel_str message);
 void lsp__send_notification(kobel_str method, lsp__JsonValue* params);
 kobel_str lsp__read_message(void);
-void std__process__Process_exit(int32_t code);
 void lsp__publish_doc_diagnostics(kobel_str uri, kobel_str text, kobel_str workspace_root);
 int32_t lsp__run_server(void);
 void main__print_usage(void);
@@ -4938,9 +4939,9 @@ kobel_str std__string__StringBuilder_to_str(std__string__StringBuilder* self) {
     return std__string__str_from_bytes(str_data, self->len);
 }
 
-kobel_str std__string__fmt_u64(uint64_t n0) {
+kobel_str std__traits__fmt_u64(uint64_t n0) {
     uint64_t n = n0;
-    int32_t digits = 1;
+    size_t digits = 1;
     uint64_t probe = n;
     while (probe >= 10) {
         probe /= 10;
@@ -4948,7 +4949,7 @@ kobel_str std__string__fmt_u64(uint64_t n0) {
     }
     uint8_t* buf = std__memory__Heap_create_array_u8((digits + 1));
     buf[digits] = 0;
-    int32_t i = digits;
+    size_t i = digits;
     while (i > 0) {
         i--;
         buf[i] = (uint8_t)(48 + (n % 10));
@@ -4957,25 +4958,26 @@ kobel_str std__string__fmt_u64(uint64_t n0) {
     return std__string__str_from_bytes(buf, digits);
 }
 
-kobel_str std__string__fmt_i64(int64_t v) {
+kobel_str std__traits__fmt_i64(int64_t v) {
     if (v < 0) {
-        return kobel_concat(KOBEL_STR("-"), std__string__fmt_u64((0 - v)));
+        uint64_t mag = ((uint64_t)(0 - (v + 1)) + 1);
+        return kobel_concat(KOBEL_STR("-"), std__traits__fmt_u64(mag));
     }
-    return std__string__fmt_u64(v);
+    return std__traits__fmt_u64((uint64_t)v);
 }
 
-kobel_str std__string__fmt_char(char c) {
+kobel_str std__traits__fmt_char(char c) {
     uint8_t* buf = std__memory__Heap_create_array_u8(2);
     buf[0] = ((int32_t)(uint8_t)(c));
     buf[1] = 0;
     return std__string__str_from_bytes(buf, 1);
 }
 
-kobel_str std__string__fmt_bool(bool b) {
+kobel_str std__traits__fmt_bool(bool b) {
     return (b ? KOBEL_STR("true") : KOBEL_STR("false"));
 }
 
-kobel_str std__string__fmt_zeros(size_t n) {
+kobel_str std__traits__fmt_zeros(size_t n) {
     if (n == 0) {
         return KOBEL_STR("");
     }
@@ -5012,7 +5014,7 @@ kobel_str std__string__fmt_zeros(size_t n) {
     return std__string__str_from_bytes(buf, n);
 }
 
-kobel_str std__string__fmt_f64(double v) {
+kobel_str std__traits__fmt_f64(double v) {
     if (v != v) {
         return KOBEL_STR("nan");
     }
@@ -5065,13 +5067,13 @@ kobel_str std__string__fmt_f64(double v) {
         ip++;
         frac = 0;
     }
-    kobel_str out = kobel_concat(sign, std__string__fmt_u64(ip));
+    kobel_str out = kobel_concat(sign, std__traits__fmt_u64(ip));
     if (frac == 0) {
         return out;
     }
-    kobel_str digits = std__string__fmt_u64(frac);
+    kobel_str digits = std__traits__fmt_u64(frac);
     if (digits.len < prec) {
-        digits = kobel_concat(std__string__fmt_zeros((prec - digits.len)), digits);
+        digits = kobel_concat(std__traits__fmt_zeros((prec - digits.len)), digits);
     }
     size_t end = digits.len;
     while (end > 0) {
@@ -5087,11 +5089,11 @@ kobel_str std__string__fmt_f64(double v) {
 }
 
 kobel_str bool_to_str(bool self) {
-    return std__string__fmt_bool(self);
+    return std__traits__fmt_bool(self);
 }
 
 kobel_str char_to_str(char self) {
-    return std__string__fmt_char(self);
+    return std__traits__fmt_char(self);
 }
 
 kobel_str str_to_str(kobel_str self) {
@@ -5099,51 +5101,51 @@ kobel_str str_to_str(kobel_str self) {
 }
 
 kobel_str i8_to_str(int8_t self) {
-    return std__string__fmt_i64(self);
+    return std__traits__fmt_i64(self);
 }
 
 kobel_str i16_to_str(int16_t self) {
-    return std__string__fmt_i64(self);
+    return std__traits__fmt_i64(self);
 }
 
 kobel_str i32_to_str(int32_t self) {
-    return std__string__fmt_i64(self);
+    return std__traits__fmt_i64(self);
 }
 
 kobel_str i64_to_str(int64_t self) {
-    return std__string__fmt_i64(self);
+    return std__traits__fmt_i64(self);
 }
 
 kobel_str isz_to_str(intptr_t self) {
-    return std__string__fmt_i64(self);
+    return std__traits__fmt_i64(self);
 }
 
 kobel_str u8_to_str(uint8_t self) {
-    return std__string__fmt_u64(self);
+    return std__traits__fmt_u64(self);
 }
 
 kobel_str u16_to_str(uint16_t self) {
-    return std__string__fmt_u64(self);
+    return std__traits__fmt_u64(self);
 }
 
 kobel_str u32_to_str(uint32_t self) {
-    return std__string__fmt_u64(self);
+    return std__traits__fmt_u64(self);
 }
 
 kobel_str u64_to_str(uint64_t self) {
-    return std__string__fmt_u64(self);
+    return std__traits__fmt_u64(self);
 }
 
 kobel_str usz_to_str(size_t self) {
-    return std__string__fmt_u64(self);
+    return std__traits__fmt_u64(self);
 }
 
 kobel_str f32_to_str(float self) {
-    return std__string__fmt_f64(self);
+    return std__traits__fmt_f64(self);
 }
 
 kobel_str f64_to_str(double self) {
-    return std__string__fmt_f64(self);
+    return std__traits__fmt_f64(self);
 }
 
 void std__io__print(kobel_str string) {
@@ -6166,8 +6168,12 @@ bool config__Toml_contains(config__Toml* self, kobel_str key) {
     return std__collections__HashMap_str_str_contains(&self->entries, key);
 }
 
-int32_t std__system__System_exec(kobel_str cmd) {
+int32_t std__process__Process_exec(kobel_str cmd) {
     return system(kobel_cstr(cmd));
+}
+
+void std__process__Process_exit(int32_t code) {
+    exit(code);
 }
 
 bool std__system__System_is_windows(void) {
@@ -6176,6 +6182,14 @@ bool std__system__System_is_windows(void) {
 
 bool std__system__System_has_env(kobel_str name) {
     return (getenv(kobel_cstr(name)) != NULL);
+}
+
+kobel_str std__system__System_get_env(kobel_str name) {
+    const char* raw = getenv(kobel_cstr(name));
+    if (raw == NULL) {
+        return KOBEL_STR("");
+    }
+    return std__string__str_from_bytes((uint8_t*)raw, strlen(raw));
 }
 
 bool compiler__driver__str_before(kobel_str a, kobel_str b) {
@@ -6418,7 +6432,7 @@ int32_t compiler__driver__cmd_run(kobel_str manifest_path, std__collections__Lis
             __for_i = (__for_i + 1);
         }
     }
-    return std__system__System_exec(run_cmd);
+    return std__process__Process_exec(run_cmd);
 }
 
 std__collections__List_str compiler__driver__discover_test_files(kobel_str test_dir) {
@@ -6491,7 +6505,7 @@ int32_t compiler__driver__cmd_test(kobel_str manifest_path, kobel_str filter) {
                 }
                 run_cmd = (str_contains(posix_bin, KOBEL_STR(" ")) ? kobel_concat3(KOBEL_STR("\""), posix_bin, KOBEL_STR("\" >/dev/null 2>&1")) : kobel_concat(posix_bin, KOBEL_STR(" >/dev/null 2>&1")));
             }
-            int32_t test_res = std__system__System_exec(run_cmd);
+            int32_t test_res = std__process__Process_exec(run_cmd);
             std__filesystem__File_remove(test_bin);
             if (test_res == 0) {
                 std__io__println(KOBEL_STR("PASS"));
@@ -6643,7 +6657,7 @@ int32_t compiler__driver__cmd_fixpoint(kobel_str manifest_path) {
     }
     std__io__println(KOBEL_STR("[2/3] Building the second-generation compiler..."));
     std__filesystem__File_remove(stage2_exe);
-    int32_t compile_res = std__system__System_exec(compiler__driver__c_compile_cmd(stage1_c, stage2_exe, stage2_obj, cfg.cc, true));
+    int32_t compile_res = std__process__Process_exec(compiler__driver__c_compile_cmd(stage1_c, stage2_exe, stage2_obj, cfg.cc, true));
     if ((compile_res != 0) || !std__filesystem__File_exists(stage2_exe)) {
         std__io__println(kobel_concat3(KOBEL_STR("[ERROR] Backend compiler did not produce '"), stage2_exe, KOBEL_STR("'.")));
         return 1;
@@ -6656,7 +6670,7 @@ int32_t compiler__driver__cmd_fixpoint(kobel_str manifest_path) {
     if (str_contains(run_exe, KOBEL_STR(" "))) {
         run_exe = kobel_concat3(KOBEL_STR("\""), run_exe, KOBEL_STR("\""));
     }
-    int32_t exit_code = std__system__System_exec(kobel_concat5(run_exe, KOBEL_STR(" "), cfg.entry, KOBEL_STR(" -emit-c "), stage2_c));
+    int32_t exit_code = std__process__Process_exec(kobel_concat5(run_exe, KOBEL_STR(" "), cfg.entry, KOBEL_STR(" -emit-c "), stage2_c));
     if (exit_code != 0) {
         std__io__println(kobel_concat3(KOBEL_STR("[ERROR] Second-generation compiler failed (exit "), i32_to_str(exit_code), KOBEL_STR(").")));
         return 1;
@@ -23640,9 +23654,9 @@ void compiler__driver__ensure_dir(kobel_str path) {
         return;
     }
     if (std__system__System_is_windows()) {
-        std__system__System_exec(kobel_concat3(KOBEL_STR("cmd /c mkdir \""), str_to_win_path(path), KOBEL_STR("\" >nul 2>nul")));
+        std__process__Process_exec(kobel_concat3(KOBEL_STR("cmd /c mkdir \""), str_to_win_path(path), KOBEL_STR("\" >nul 2>nul")));
     } else {
-        std__system__System_exec(kobel_concat3(KOBEL_STR("mkdir -p \""), str_to_posix_path(path), KOBEL_STR("\" >/dev/null 2>&1")));
+        std__process__Process_exec(kobel_concat3(KOBEL_STR("mkdir -p \""), str_to_posix_path(path), KOBEL_STR("\" >/dev/null 2>&1")));
     }
     std__collections__List_str_free(&entries);
 }
@@ -23689,9 +23703,6 @@ int32_t compiler__driver__CompileOptions_compile(compiler__driver__CompileOption
         std__io__println(KOBEL_STR("[1/4] Loading modules (lex + parse)..."));
     }
     compiler__loader__ModuleLoader loader = compiler__loader__ModuleLoader_init(str_dir_of(input_path), self->extra_roots);
-    if (compiler__loader__ModuleLoader_find_module(&loader, KOBEL_STR("std.fmt")).found) {
-        compiler__loader__ModuleLoader_ensure_module(&loader, KOBEL_STR("std.fmt"), 0, 0, KOBEL_STR(""));
-    }
     if (compiler__loader__ModuleLoader_find_module(&loader, KOBEL_STR("std.traits")).found) {
         compiler__loader__ModuleLoader_ensure_module(&loader, KOBEL_STR("std.traits"), 0, 0, KOBEL_STR(""));
     }
@@ -23774,7 +23785,7 @@ int32_t compiler__driver__CompileOptions_compile(compiler__driver__CompileOption
         std__filesystem__File_rename(out_path, old_bin);
     }
     kobel_str compile_cmd = compiler__driver__c_compile_cmd(c_tmp_path, out_path, obj_tmp_path, self->c_compiler, self->quiet);
-    int32_t exit_code = std__system__System_exec(compile_cmd);
+    int32_t exit_code = std__process__Process_exec(compile_cmd);
     if (exit_code != 0) {
         if (std__filesystem__File_exists(old_bin) && !std__filesystem__File_exists(out_path)) {
             std__filesystem__File_rename(old_bin, out_path);
@@ -25440,8 +25451,8 @@ lsp__AnalysisResult lsp__AnalysisResult_init(kobel_str path, kobel_str source, k
         std__collections__List_str_plus_assign(&extra_roots, str_join_path(workspace_root, KOBEL_STR("src")));
     }
     compiler__loader__ModuleLoader loader = compiler__loader__ModuleLoader_init(entry_dir, extra_roots);
-    if (compiler__loader__ModuleLoader_find_module(&loader, KOBEL_STR("std.fmt")).found) {
-        compiler__loader__ModuleLoader_ensure_module(&loader, KOBEL_STR("std.fmt"), 0, 0, KOBEL_STR(""));
+    if (compiler__loader__ModuleLoader_find_module(&loader, KOBEL_STR("std.traits")).found) {
+        compiler__loader__ModuleLoader_ensure_module(&loader, KOBEL_STR("std.traits"), 0, 0, KOBEL_STR(""));
     }
     if (compiler__loader__ModuleLoader_find_module(&loader, KOBEL_STR("std.string")).found) {
         compiler__loader__ModuleLoader_ensure_module(&loader, KOBEL_STR("std.string"), 0, 0, KOBEL_STR(""));
@@ -26520,10 +26531,6 @@ kobel_str lsp__read_message(void) {
     }
     buf[content_length] = 0;
     return std__string__str_from_bytes(buf, content_length);
-}
-
-void std__process__Process_exit(int32_t code) {
-    exit(code);
 }
 
 void lsp__publish_doc_diagnostics(kobel_str uri, kobel_str text, kobel_str workspace_root) {

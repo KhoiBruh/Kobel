@@ -1,32 +1,30 @@
-mod std.string;
+mod std.traits;
 
 use std.memory.*;
 use std.string.str_from_bytes;
 
-// ============================================================================
-// std.traits.to_str - the `Stringer` trait
-//
-// `Stringer` is the trait behind string interpolation and `x.to_str()`. It comes
-// with implementations for the built-in value types; user structs may implement
-// it too (import this module and write `impl Stringer for MyStruct`).
-//
-// One file per trait keeps std/traits/ organized as more traits are added.
-//
-// Floats use a fixed-point decimal printer (six fractional digits, trailing
-// zeros trimmed) so no libc is needed; there is no exponent notation.
-// ============================================================================
+/*
+ * ============================================================================
+ * std.traits.stringer — the `Stringer` trait
+ *
+ * `Stringer` is the trait behind string interpolation and `x.to_str()`. It comes
+ * with implementations for the built-in value types; user structs may implement
+ * it too (import `std.traits.*` and write `impl Stringer for MyStruct`).
+ *
+ * Floats use a fixed-point decimal printer (six fractional digits, trailing
+ * zeros trimmed) so no libc is needed; there is no exponent notation.
+ * ============================================================================
+ */
 
 pub trait Stringer {
 	fn to_str(val self): str;
 }
 
-// --- helpers ---------------------------------------------------------------
-
 // Decimal string of an unsigned 64-bit value. The digit count is computed
 // first so the digits can be written forward into an exactly sized buffer.
 fn fmt_u64(n0: u64): str {
 	var n = n0;
-	var digits = 1;
+	var digits: usz = 1;
 	var probe = n;
 	while (probe >= 10) {
 		probe /= 10;
@@ -45,8 +43,11 @@ fn fmt_u64(n0: u64): str {
 }
 
 fn fmt_i64(v: i64): str {
-	if (v < 0) return "-" + fmt_u64(0 - v);
-	return fmt_u64(v);
+	if (v < 0) {
+		val mag = (0 - (v + 1)) as u64 + 1;
+		return "-" + fmt_u64(mag);
+	}
+	return fmt_u64(v as u64);
 }
 
 fn fmt_char(c: char): str {
@@ -60,7 +61,9 @@ fn fmt_bool(b: bool) => if (b) "true" else "false";
 
 // `n` copies of the character '0'.
 fn fmt_zeros(n: usz): str {
-	if (n == 0) return "";
+	if (n == 0) {
+		return "";
+	}
 	val buf = Heap.create_array<u8>(n + 1);
 	for (i in 0..<n) {
 		buf[i] = '0'.code();
@@ -69,15 +72,21 @@ fn fmt_zeros(n: usz): str {
 	return str_from_bytes(buf, n);
 }
 
-// Fixed-point decimal with up to six fractional digits, trailing zeros trimmed
-// ("1.5", "-2.25", "3"). No exponent notation, so very large or very small
-// magnitudes lose precision (see docs, section 6.6).
+/*
+ * Fixed-point decimal with up to six fractional digits, trailing zeros trimmed
+ * ("1.5", "-2.25", "3"). No exponent notation, so very large or very small
+ * magnitudes lose precision.
+ */
 fn fmt_f64(v: f64): str {
-	if (v != v) return "nan";
+	if (v != v) {
+		return "nan";
+	}
 	// `v - v` is NaN for an infinity and 0 for a finite value.
 	val diff = v - v;
 	if (diff != 0.0) {
-		if (v > 0.0) return "inf";
+		if (v > 0.0) {
+			return "inf";
+		}
 		return "-inf";
 	}
 
@@ -102,22 +111,28 @@ fn fmt_f64(v: f64): str {
 		frac = 0;
 	}
 
-	var out = sign + fmt_u64(ip);
-	if (frac == 0) return out;
+	val out = sign + fmt_u64(ip);
+	if (frac == 0) {
+		return out;
+	}
 
 	var digits = fmt_u64(frac);
-	if (digits.len < prec) digits = fmt_zeros(prec - digits.len) + digits;
+	if (digits.len < prec) {
+		digits = fmt_zeros(prec - digits.len) + digits;
+	}
 
 	var end = digits.len;
 	while (end > 0) {
-		if (digits[end - 1] != '0') break;
+		if (digits[end - 1] != '0') {
+			break;
+		}
 		end--;
 	}
-	if (end == 0) return out;
+	if (end == 0) {
+		return out;
+	}
 	return out + "." + digits.slice(0, end);
 }
-
-// --- built-in implementations ----------------------------------------------
 
 impl Stringer for bool {
 	fn to_str(val self) => fmt_bool(self);

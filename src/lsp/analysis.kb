@@ -442,8 +442,12 @@ impl AnalysisResult {
 		}
 
 		var loader = ModuleLoader(entry_dir, extra_roots);
-		if (loader.find_module("std.fmt").found) loader.ensure_module("std.fmt");
-		if (loader.find_module("std.string").found) loader.ensure_module("std.string");
+		if (loader.find_module("std.traits").found) {
+			loader.ensure_module("std.traits");
+		}
+		if (loader.find_module("std.string").found) {
+			loader.ensure_module("std.string");
+		}
 
 		val full_prog = loader.load_program(path, source);
 		if (loader.errors.len > 0) {

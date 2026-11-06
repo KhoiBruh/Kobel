@@ -2,6 +2,7 @@ mod compiler.driver;
 
 use std.io.*;
 use std.filesystem.*;
+use std.process.*;
 use std.system.*;
 use std.collections.*;
 
@@ -152,7 +153,7 @@ pub fn cmd_run(manifest_path: str, extra_args: List<str>): i32 {
 		else "${run_cmd} ${arg}";
 	}
 
-	return System.exec(run_cmd);
+	return Process.exec(run_cmd);
 }
 
 pub fn discover_test_files(test_dir: str): List<str> {
@@ -215,7 +216,7 @@ pub fn cmd_test(manifest_path: str, filter: str): i32 {
 			if (!posix_bin.starts_with(".") && !posix_bin.starts_with("/")) posix_bin = "./${posix_bin}";
 			run_cmd = if (" " in posix_bin) "\"${posix_bin}\" >/dev/null 2>&1" else "${posix_bin} >/dev/null 2>&1";
 		}
-		val test_res = System.exec(run_cmd);
+		val test_res = Process.exec(run_cmd);
 
 		// Clean up the temporary test binary
 		File.remove(test_bin);
@@ -366,7 +367,7 @@ pub fn cmd_fixpoint(manifest_path: str): i32 {
 
 	println("[2/3] Building the second-generation compiler...");
 	File.remove(stage2_exe);
-	val compile_res = System.exec(c_compile_cmd(stage1_c, stage2_exe, stage2_obj, cfg.cc, true));
+	val compile_res = Process.exec(c_compile_cmd(stage1_c, stage2_exe, stage2_obj, cfg.cc, true));
 	if (compile_res != 0 || !File.exists(stage2_exe)) {
 		println("[ERROR] Backend compiler did not produce '${stage2_exe}'.");
 		return 1;
@@ -378,7 +379,7 @@ pub fn cmd_fixpoint(manifest_path: str): i32 {
 		run_exe = "./${run_exe}";
 	}
 	if (" " in run_exe) run_exe = "\"${run_exe}\"";
-	val exit_code = System.exec("${run_exe} ${cfg.entry} -emit-c ${stage2_c}");
+	val exit_code = Process.exec("${run_exe} ${cfg.entry} -emit-c ${stage2_c}");
 	if (exit_code != 0) {
 		println("[ERROR] Second-generation compiler failed (exit ${exit_code}).");
 		return 1;

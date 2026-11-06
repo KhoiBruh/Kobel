@@ -2,16 +2,21 @@ mod std.process;
 
 /*
  * ============================================================================
- * std.process.process — Process control utilities
+ * std.process — Process execution and lifecycle control
  * ============================================================================
  */
 
 extern "libc" {
+	fn system(cmd: *char): i32;
 	fn exit(code: i32);
 }
 
 pub struct Process;
 
 impl Process {
+
+	pub fn exec(cmd: str) => system(cmd.c_str());
+
 	pub fn exit(code: i32) => exit(code);
+
 }

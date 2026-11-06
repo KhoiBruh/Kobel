@@ -2,6 +2,7 @@ mod compiler.driver;
 
 use std.io.*;
 use std.filesystem.*;
+use std.process.*;
 use std.system.*;
 use std.collections.*;
 
@@ -36,9 +37,9 @@ pub fn ensure_dir(path: str) {
 	defer entries.free();
 	if (!entries.empty()) return;
 	if (System.is_windows()) {
-		System.exec("cmd /c mkdir \"${path.to_win_path()}\" >nul 2>nul");
+		Process.exec("cmd /c mkdir \"${path.to_win_path()}\" >nul 2>nul");
 	} else {
-		System.exec("mkdir -p \"${path.to_posix_path()}\" >/dev/null 2>&1");
+		Process.exec("mkdir -p \"${path.to_posix_path()}\" >/dev/null 2>&1");
 	}
 }
 
@@ -108,13 +109,17 @@ impl CompileOptions {
 		if (!self.quiet) println("[1/4] Loading modules (lex + parse)...");
 		var loader = ModuleLoader(input_path.dir_of(), self.extra_roots);
 
-		// String interpolation lowers to the `Stringer` trait, whose built-in
-		// implementations live under std/traits (reachable through std.fmt). Load
-		// it whenever it is available so the primitive methods exist even when the
-		// input does not import the formatting module.
-		if (loader.find_module("std.fmt").found) loader.ensure_module("std.fmt");
-		if (loader.find_module("std.traits").found) loader.ensure_module("std.traits");
-		if (loader.find_module("std.string").found) loader.ensure_module("std.string");
+		/*
+		 * String interpolation lowers to the `Stringer` trait, whose built-in
+		 * implementations live in `std.traits`. Load `std.traits` and `std.string`
+		 * whenever available so primitive formatting methods exist automatically.
+		 */
+		if (loader.find_module("std.traits").found) {
+			loader.ensure_module("std.traits");
+		}
+		if (loader.find_module("std.string").found) {
+			loader.ensure_module("std.string");
+		}
 
 		val loaded_prog = loader.load_program(input_path, src);
 		if (!loader.errors.empty()) {
@@ -195,7 +200,7 @@ impl CompileOptions {
 
 		var compile_cmd = c_compile_cmd(c_tmp_path, out_path, obj_tmp_path, self.c_compiler, self.quiet);
 
-		val exit_code = System.exec(compile_cmd);
+		val exit_code = Process.exec(compile_cmd);
 		if (exit_code != 0) {
 			// Restore previous binary if compilation failed
 			if (File.exists(old_bin) && !File.exists(out_path))
