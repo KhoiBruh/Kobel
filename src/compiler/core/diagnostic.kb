@@ -1,0 +1,332 @@
+mod compiler.core;
+
+use std.ascii.*;
+use std.collections.*;
+use std.filesystem.*;
+use std.io.*;
+use std.string.*;
+
+/*
+ * ============================================================================
+ * compiler.core.diagnostic — Structured compiler diagnostics and reporting
+ *
+ * Replaces ad-hoc `List<str>` error strings with structured `Diagnostic`
+ * records and a deduplicating `DiagnosticBag`. Supports both direct structured
+ * emission (`error`, `warning`) and legacy string parsing (`parse_legacy`)
+ * while upper compiler layers are migrated.
+ * ============================================================================
+ */
+
+pub enum Severity {
+	ERROR,
+	WARNING,
+	NOTE
+}
+
+pub struct Diagnostic {
+	pub severity: Severity,
+	pub span: Span,
+	pub file_path: str,
+	pub message: str,
+	pub hint: str = ""
+}
+
+fn resolve_diagnostic_path(target: str, default_file: str, sources: *SourceMap?): str {
+	if (target.empty()) {
+		return default_file;
+	}
+	if (target.ends_with(".kb") || "/" in target || "\\" in target) {
+		return target.to_posix_path();
+	}
+
+	if (sources != null) {
+		val by_mod = sources.find_by_module(target);
+		if (by_mod != null) {
+			return by_mod.path.to_posix_path();
+		}
+	}
+
+	val rel_stem = target.replace_char('.', '/');
+	val rel = "${rel_stem}.kb";
+	if (File.exists("src/${rel}")) {
+		return "src/${rel}";
+	}
+	if (File.exists("lib/${rel}")) {
+		return "lib/${rel}";
+	}
+	if (File.exists(rel)) {
+		return rel;
+	}
+
+	return target;
+}
+
+impl Diagnostic {
+
+	pub init(
+		severity: Severity,
+		span: Span,
+		file_path: str,
+		message: str,
+		hint: str = ""
+	) => Self(severity, span, file_path, message, hint);
+
+	pub fn error(span: Span, file_path: str, message: str, hint: str = ""): Diagnostic
+		=> Diagnostic(Severity.ERROR, span, file_path, message, hint);
+
+	pub fn warning(span: Span, file_path: str, message: str, hint: str = ""): Diagnostic
+		=> Diagnostic(Severity.WARNING, span, file_path, message, hint);
+
+	pub fn key(val self): str
+		=> "${self.file_path}:${self.span.line}:${self.span.col}:${self.message}";
+
+	/*
+	 * Parses a legacy `"<module-or-file>: Line X, Column Y: <msg>"` string into
+	 * a structured `Diagnostic` so existing passes interoperate cleanly during
+	 * the bottom-up migration.
+	 */
+	pub fn parse_legacy(
+		raw: str,
+		default_file: str,
+		severity: Severity = Severity.ERROR,
+		sources: *SourceMap? = null
+	): Diagnostic {
+		val line_kw = "Line ";
+		val line_pos = raw.index_of(line_kw);
+
+		if (line_pos >= 0) {
+			val prefix = if (line_pos > 0) raw.slice(0, line_pos as usz).trim() else "";
+			var target = if (prefix.ends_with(":")) prefix.slice(0, prefix.len - 1).trim()
+			else prefix;
+
+			if (target.empty()) {
+				target = default_file;
+			}
+
+			var l_idx = (line_pos as usz) + line_kw.len;
+			var line_num: usz = 0;
+			while (l_idx < raw.len && raw[l_idx].is_digit()) {
+				line_num = line_num * 10 + (raw[l_idx].code() - 48) as usz;
+				l_idx++;
+			}
+
+			while (l_idx < raw.len && (raw[l_idx] == ' ' || raw[l_idx] == ',')) {
+				l_idx++;
+			}
+
+			var col_num: usz = 0;
+			val col_kw = "Column ";
+			val rest = raw.slice(l_idx, raw.len);
+			val c_pos = rest.index_of(col_kw);
+			if (c_pos >= 0) {
+				l_idx = l_idx + (c_pos as usz) + col_kw.len;
+				while (l_idx < raw.len && raw[l_idx].is_digit()) {
+					col_num = col_num * 10 + (raw[l_idx].code() - 48) as usz;
+					l_idx++;
+				}
+			}
+
+			while (l_idx < raw.len && (raw[l_idx] == ':' || raw[l_idx] == ' ')) {
+				l_idx++;
+			}
+			val msg = raw.slice(l_idx, raw.len).trim();
+			val file_path = resolve_diagnostic_path(target, default_file, sources);
+			return Diagnostic(severity, Span(0, line_num, col_num, 1), file_path, msg);
+		}
+
+		val colon_pos = raw.index_of(":");
+		if (colon_pos >= 0) {
+			val c_idx = colon_pos as usz;
+			val target = raw.slice(0, c_idx).trim();
+			val msg = raw.slice(c_idx + 1, raw.len).trim();
+			val file_path = resolve_diagnostic_path(target, default_file, sources);
+			return Diagnostic(severity, Span(0, 0, 0, 1), file_path, msg);
+		}
+
+		return Diagnostic(severity, Span(0, 0, 0, 1), default_file, raw);
+	}
+
+	pub fn render(val self, sources: *SourceMap? = null): str {
+		val c_red = "\x1b[1;31m";
+		val c_yellow = "\x1b[1;33m";
+		val c_blue = "\x1b[1;34m";
+		val c_bold = "\x1b[1m";
+		val c_reset = "\x1b[0m";
+
+		val prefix = when (self.severity) {
+			Severity.WARNING -> "${c_yellow}warning${c_reset}";
+			Severity.NOTE -> "${c_blue}note${c_reset}";
+			else -> "${c_red}error${c_reset}";
+		};
+
+		var sb = StringBuilder(256);
+		defer sb.free();
+
+		sb += prefix;
+		sb += c_bold;
+		sb += ": ";
+		sb += self.message;
+		sb += c_reset;
+		sb += '\n';
+
+		if (!self.file_path.empty()) {
+			sb += "  ";
+			sb += c_blue;
+			sb += "-->";
+			sb += c_reset;
+			sb += ' ';
+			sb += self.file_path;
+			if (self.span.line > 0) {
+				sb += ':';
+				sb += self.span.line;
+				sb += ':';
+				sb += self.span.col;
+			}
+			sb += '\n';
+		}
+
+		var raw_line = "";
+		var have_line = false;
+
+		if (self.span.line > 0) {
+			if (sources != null) {
+				val sf = if (self.span.file_id > 0) sources.get_file(self.span.file_id)
+				else sources.find_by_path(self.file_path);
+				if (sf != null && self.span.line <= sf.lines.len) {
+					raw_line = sf.line_text(self.span.line);
+					have_line = true;
+				}
+			}
+
+			if (!have_line && !self.file_path.empty() && File.exists(self.file_path)) {
+				val content = File.read(self.file_path);
+				if (!content.empty()) {
+					val lines = content.split_lines();
+					defer lines.free();
+					if (self.span.line >= 1 && self.span.line <= lines.len) {
+						raw_line = lines[self.span.line - 1];
+						have_line = true;
+					}
+				}
+			}
+		}
+
+		if (have_line) {
+			val line_str = "${self.span.line}";
+			val gutter_w = if (line_str.len < 2) 2 else line_str.len;
+
+			sb += ' ';
+			if (gutter_w > line_str.len) {
+				sb.append_repeat(' ', gutter_w - line_str.len);
+			}
+			sb.append_repeat(' ', line_str.len);
+			sb += ' ';
+			sb += c_blue;
+			sb += '|';
+			sb += c_reset;
+			sb += '\n';
+
+			sb += ' ';
+			sb += c_blue;
+			if (gutter_w > line_str.len) {
+				sb.append_repeat(' ', gutter_w - line_str.len);
+			}
+			sb += line_str;
+			sb += " |";
+			sb += c_reset;
+			sb += ' ';
+			sb += raw_line;
+			sb += '\n';
+
+			sb += ' ';
+			sb.append_repeat(' ', gutter_w);
+			sb += ' ';
+			sb += c_blue;
+			sb += '|';
+			sb += c_reset;
+			sb += ' ';
+
+			val limit = if (self.span.col > 1) self.span.col - 1 else 0;
+			for (i in 0..<limit) {
+				if (i < raw_line.len && raw_line[i] == '\t') {
+					sb += '\t';
+				} else {
+					sb += ' ';
+				}
+			}
+
+			val caret_color = if (self.severity == Severity.WARNING) c_yellow else c_red;
+			sb += caret_color;
+			val caret_len = if (self.span.length > 1) self.span.length else 1;
+			sb.append_repeat('^', caret_len);
+			sb += c_reset;
+			sb += '\n';
+		}
+
+		if (!self.hint.empty()) {
+			sb += "  ";
+			sb += c_blue;
+			sb += "= help: ";
+			sb += c_reset;
+			sb += self.hint;
+			sb += '\n';
+		}
+
+		return sb.to_str();
+	}
+
+}
+
+pub struct DiagnosticBag {
+	pub items: List<Diagnostic>,
+	seen: HashSet<str>,
+	pub error_count: usz = 0,
+	pub warning_count: usz = 0
+}
+
+impl DiagnosticBag {
+
+	pub init() => Self(List<Diagnostic>(), HashSet<str>(), 0, 0);
+
+	pub fn has_errors(val self) => self.error_count > 0;
+
+	pub fn empty(val self) => self.items.empty();
+
+	pub fn add(var self, diag: Diagnostic) {
+		val k = diag.key();
+		if (k in self.seen) {
+			return;
+		}
+		self.seen += k;
+		self.items += diag;
+		if (diag.severity == Severity.ERROR) {
+			self.error_count++;
+		} else if (diag.severity == Severity.WARNING) {
+			self.warning_count++;
+		}
+	}
+
+	pub fn report_error(var self, span: Span, file_path: str, message: str, hint: str = "") {
+		self.add(Diagnostic.error(span, file_path, message, hint));
+	}
+
+	pub fn report_warning(var self, span: Span, file_path: str, message: str, hint: str = "") {
+		self.add(Diagnostic.warning(span, file_path, message, hint));
+	}
+
+	pub fn print_all(val self, default_file: str, sources: *SourceMap? = null) {
+		for (d in self.items) {
+			print(d.render(sources));
+			println("");
+		}
+		if (self.error_count > 0) {
+			println("\x1b[1;31merror\x1b[0m: could not compile '${default_file}' due to ${self.error_count} previous error(s)");
+		}
+	}
+
+	pub fn free(self) {
+		self.items.free();
+		self.seen.free();
+	}
+
+}

@@ -179,6 +179,14 @@ typedef struct config__ProjectConfig config__ProjectConfig;
 typedef struct config__Toml config__Toml;
 typedef struct std__process__Process std__process__Process;
 typedef struct std__system__System std__system__System;
+typedef int32_t compiler__core__Severity;
+typedef struct compiler__core__Diagnostic compiler__core__Diagnostic;
+typedef struct compiler__core__DiagnosticBag compiler__core__DiagnosticBag;
+typedef struct compiler__core__SymbolId compiler__core__SymbolId;
+typedef struct compiler__core__InternPool compiler__core__InternPool;
+typedef struct compiler__core__Span compiler__core__Span;
+typedef struct compiler__core__SourceFile compiler__core__SourceFile;
+typedef struct compiler__core__SourceMap compiler__core__SourceMap;
 typedef struct compiler__lexer__Lexer compiler__lexer__Lexer;
 typedef int32_t compiler__lexer__TokenType;
 typedef struct compiler__lexer__Token compiler__lexer__Token;
@@ -295,7 +303,6 @@ typedef struct compiler__parser__Parser compiler__parser__Parser;
 typedef struct compiler__loader__LoadedModule compiler__loader__LoadedModule;
 typedef struct compiler__loader__ModuleFile compiler__loader__ModuleFile;
 typedef struct compiler__loader__ModuleLoader compiler__loader__ModuleLoader;
-typedef struct compiler__driver__Diagnostic compiler__driver__Diagnostic;
 typedef struct compiler__sema__EnumMemberInfo compiler__sema__EnumMemberInfo;
 typedef struct compiler__sema__EnumInfo compiler__sema__EnumInfo;
 typedef int32_t compiler__sema__InstanceKind;
@@ -367,10 +374,14 @@ typedef struct std__collections__List_compiler__ast__AssocBinding std__collectio
 typedef struct std__collections__List_compiler__ast__EnumMember std__collections__List_compiler__ast__EnumMember;
 typedef struct std__collections__List_ptr_compiler__sema__Type std__collections__List_ptr_compiler__sema__Type;
 typedef struct std__collections__HashMap_str_str std__collections__HashMap_str_str;
+typedef struct std__collections__List_compiler__core__Diagnostic std__collections__List_compiler__core__Diagnostic;
+typedef struct std__collections__HashSet_str std__collections__HashSet_str;
+typedef struct std__collections__List_u32 std__collections__List_u32;
+typedef struct std__collections__HashMap_str_u32 std__collections__HashMap_str_u32;
+typedef struct std__collections__List_compiler__core__SourceFile std__collections__List_compiler__core__SourceFile;
 typedef struct std__collections__List_compiler__ast__EnumField std__collections__List_compiler__ast__EnumField;
 typedef struct std__collections__List_compiler__lexer__Token std__collections__List_compiler__lexer__Token;
 typedef struct std__collections__List_compiler__loader__LoadedModule std__collections__List_compiler__loader__LoadedModule;
-typedef struct std__collections__HashSet_str std__collections__HashSet_str;
 typedef struct std__collections__List_ptr_compiler__sema__EnumMemberInfo std__collections__List_ptr_compiler__sema__EnumMemberInfo;
 typedef struct std__collections__List_usz std__collections__List_usz;
 typedef struct std__collections__List_ptr_compiler__sema__AnnEntry std__collections__List_ptr_compiler__sema__AnnEntry;
@@ -443,6 +454,17 @@ struct config__ProjectConfig {
     kobel_str test_dir;
 };
 
+struct compiler__core__SymbolId {
+    uint32_t id;
+};
+
+struct compiler__core__Span {
+    uint32_t file_id;
+    size_t line;
+    size_t col;
+    size_t length;
+};
+
 struct compiler__lexer__Lexer {
     kobel_str src;
     size_t cursor;
@@ -506,14 +528,6 @@ struct compiler__loader__ModuleFile {
     bool found;
     kobel_str path;
     kobel_str source;
-};
-
-struct compiler__driver__Diagnostic {
-    kobel_str file_path;
-    size_t line;
-    size_t col;
-    kobel_str message;
-    bool is_warning;
 };
 
 struct compiler__sema__EnumMemberInfo {
@@ -720,6 +734,41 @@ struct std__collections__HashMap_str_str {
     size_t cap;
 };
 
+struct std__collections__List_compiler__core__Diagnostic {
+    compiler__core__Diagnostic* data;
+    size_t len;
+    size_t cap;
+};
+
+struct std__collections__HashSet_str {
+    kobel_str* keys;
+    size_t* hashes;
+    bool* occupied;
+    size_t len;
+    size_t cap;
+};
+
+struct std__collections__List_u32 {
+    uint32_t* data;
+    size_t len;
+    size_t cap;
+};
+
+struct std__collections__HashMap_str_u32 {
+    kobel_str* keys;
+    uint32_t* values;
+    size_t* hashes;
+    bool* occupied;
+    size_t len;
+    size_t cap;
+};
+
+struct std__collections__List_compiler__core__SourceFile {
+    compiler__core__SourceFile* data;
+    size_t len;
+    size_t cap;
+};
+
 struct std__collections__List_compiler__ast__EnumField {
     compiler__ast__EnumField* data;
     size_t len;
@@ -734,14 +783,6 @@ struct std__collections__List_compiler__lexer__Token {
 
 struct std__collections__List_compiler__loader__LoadedModule {
     compiler__loader__LoadedModule* data;
-    size_t len;
-    size_t cap;
-};
-
-struct std__collections__HashSet_str {
-    kobel_str* keys;
-    size_t* hashes;
-    bool* occupied;
     size_t len;
     size_t cap;
 };
@@ -955,6 +996,40 @@ struct std__collections__List_compiler__codegen__ConditionAlias {
 
 struct config__Toml {
     std__collections__HashMap_str_str entries;
+};
+
+struct compiler__core__Diagnostic {
+    compiler__core__Severity severity;
+    compiler__core__Span span;
+    kobel_str file_path;
+    kobel_str message;
+    kobel_str hint;
+};
+
+struct compiler__core__DiagnosticBag {
+    std__collections__List_compiler__core__Diagnostic items;
+    std__collections__HashSet_str seen;
+    size_t error_count;
+    size_t warning_count;
+};
+
+struct compiler__core__InternPool {
+    std__collections__List_str strings;
+    std__collections__HashMap_str_u32 lookup;
+};
+
+struct compiler__core__SourceFile {
+    uint32_t id;
+    kobel_str path;
+    kobel_str module_name;
+    kobel_str content;
+    std__collections__List_str lines;
+};
+
+struct compiler__core__SourceMap {
+    std__collections__List_compiler__core__SourceFile files;
+    std__collections__HashMap_str_u32 path_index;
+    std__collections__HashMap_str_u32 module_index;
 };
 
 struct compiler__ast__GenericParam {
@@ -1640,6 +1715,36 @@ static inline std__collections__List_ptr_compiler__ast__AstNode std__collections
 	l.len = n;
 	l.cap = cap;
 	return l;
+}static inline std__collections__List_compiler__core__Diagnostic std__collections__List_compiler__core__Diagnostic_from_array(const void* src, size_t n) {
+	size_t elem_size = sizeof(*(((std__collections__List_compiler__core__Diagnostic*)0)->data));
+	size_t cap = (n < 4) ? 4 : n;
+	void* data = malloc(cap * elem_size);
+	if (n > 0 && src != NULL) memcpy(data, src, n * elem_size);
+	std__collections__List_compiler__core__Diagnostic l;
+	l.data = data;
+	l.len = n;
+	l.cap = cap;
+	return l;
+}static inline std__collections__List_u32 std__collections__List_u32_from_array(const void* src, size_t n) {
+	size_t elem_size = sizeof(*(((std__collections__List_u32*)0)->data));
+	size_t cap = (n < 4) ? 4 : n;
+	void* data = malloc(cap * elem_size);
+	if (n > 0 && src != NULL) memcpy(data, src, n * elem_size);
+	std__collections__List_u32 l;
+	l.data = data;
+	l.len = n;
+	l.cap = cap;
+	return l;
+}static inline std__collections__List_compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_from_array(const void* src, size_t n) {
+	size_t elem_size = sizeof(*(((std__collections__List_compiler__core__SourceFile*)0)->data));
+	size_t cap = (n < 4) ? 4 : n;
+	void* data = malloc(cap * elem_size);
+	if (n > 0 && src != NULL) memcpy(data, src, n * elem_size);
+	std__collections__List_compiler__core__SourceFile l;
+	l.data = data;
+	l.len = n;
+	l.cap = cap;
+	return l;
 }static inline std__collections__List_compiler__ast__EnumField std__collections__List_compiler__ast__EnumField_from_array(const void* src, size_t n) {
 	size_t elem_size = sizeof(*(((std__collections__List_compiler__ast__EnumField*)0)->data));
 	size_t cap = (n < 4) ? 4 : n;
@@ -2057,6 +2162,43 @@ bool char_is_whitespace(char self);
 bool char_is_hex_digit(char self);
 char char_to_lower(char self);
 char char_to_upper(char self);
+kobel_str compiler__core__resolve_diagnostic_path(kobel_str target, kobel_str default_file, compiler__core__SourceMap* sources);
+compiler__core__Diagnostic compiler__core__Diagnostic_init(compiler__core__Severity severity, compiler__core__Span span, kobel_str file_path, kobel_str message, kobel_str hint);
+compiler__core__Diagnostic compiler__core__Diagnostic_error(compiler__core__Span span, kobel_str file_path, kobel_str message, kobel_str hint);
+compiler__core__Diagnostic compiler__core__Diagnostic_warning(compiler__core__Span span, kobel_str file_path, kobel_str message, kobel_str hint);
+kobel_str compiler__core__Diagnostic_key(compiler__core__Diagnostic* self);
+compiler__core__Diagnostic compiler__core__Diagnostic_parse_legacy(kobel_str raw, kobel_str default_file, compiler__core__Severity severity, compiler__core__SourceMap* sources);
+kobel_str compiler__core__Diagnostic_render(compiler__core__Diagnostic* self, compiler__core__SourceMap* sources);
+compiler__core__DiagnosticBag compiler__core__DiagnosticBag_init(void);
+bool compiler__core__DiagnosticBag_has_errors(compiler__core__DiagnosticBag* self);
+bool compiler__core__DiagnosticBag_empty(compiler__core__DiagnosticBag* self);
+void compiler__core__DiagnosticBag_add(compiler__core__DiagnosticBag* self, compiler__core__Diagnostic diag);
+void compiler__core__DiagnosticBag_report_error(compiler__core__DiagnosticBag* self, compiler__core__Span span, kobel_str file_path, kobel_str message, kobel_str hint);
+void compiler__core__DiagnosticBag_report_warning(compiler__core__DiagnosticBag* self, compiler__core__Span span, kobel_str file_path, kobel_str message, kobel_str hint);
+void compiler__core__DiagnosticBag_print_all(compiler__core__DiagnosticBag* self, kobel_str default_file, compiler__core__SourceMap* sources);
+void compiler__core__DiagnosticBag_free(compiler__core__DiagnosticBag* self);
+compiler__core__SymbolId compiler__core__SymbolId_init(uint32_t id);
+bool compiler__core__SymbolId_is_valid(compiler__core__SymbolId* self);
+bool compiler__core__SymbolId_equals(compiler__core__SymbolId* self, compiler__core__SymbolId other);
+size_t compiler__core__SymbolId_hash(compiler__core__SymbolId* self);
+kobel_str compiler__core__SymbolId_to_str(compiler__core__SymbolId* self);
+compiler__core__InternPool compiler__core__InternPool_init(void);
+compiler__core__SymbolId compiler__core__InternPool_intern(compiler__core__InternPool* self, kobel_str text);
+kobel_str compiler__core__InternPool_resolve(compiler__core__InternPool* self, compiler__core__SymbolId sym);
+size_t compiler__core__InternPool_count(compiler__core__InternPool* self);
+void compiler__core__InternPool_free(compiler__core__InternPool* self);
+compiler__core__Span compiler__core__Span_init(uint32_t file_id, size_t line, size_t col, size_t length);
+bool compiler__core__Span_is_valid(compiler__core__Span* self);
+compiler__core__SourceFile compiler__core__SourceFile_init(uint32_t id, kobel_str path, kobel_str module_name, kobel_str content);
+kobel_str compiler__core__SourceFile_line_text(compiler__core__SourceFile* self, size_t line_num);
+void compiler__core__SourceFile_free(compiler__core__SourceFile* self);
+compiler__core__SourceMap compiler__core__SourceMap_init(void);
+uint32_t compiler__core__SourceMap_add_file(compiler__core__SourceMap* self, kobel_str path, kobel_str module_name, kobel_str content);
+compiler__core__SourceFile* compiler__core__SourceMap_get_file(compiler__core__SourceMap* self, uint32_t file_id);
+compiler__core__SourceFile* compiler__core__SourceMap_find_by_path(compiler__core__SourceMap* self, kobel_str path);
+compiler__core__SourceFile* compiler__core__SourceMap_find_by_module(compiler__core__SourceMap* self, kobel_str module_name);
+size_t compiler__core__SourceMap_count(compiler__core__SourceMap* self);
+void compiler__core__SourceMap_free(compiler__core__SourceMap* self);
 compiler__lexer__TokenType compiler__lexer__lookup_keyword(kobel_str text);
 compiler__lexer__Lexer compiler__lexer__Lexer_init(kobel_str src);
 bool compiler__lexer__Lexer_is_end(compiler__lexer__Lexer* self);
@@ -2160,8 +2302,6 @@ void compiler__loader__ModuleLoader_process_uses(compiler__loader__ModuleLoader*
 compiler__ast__AstNode* compiler__loader__ModuleLoader_load_program(compiler__loader__ModuleLoader* self, kobel_str entry_path, kobel_str entry_source);
 compiler__ast__AstNode* compiler__loader__ModuleLoader_build_merged_program(compiler__loader__ModuleLoader* self);
 kobel_str compiler__driver__resolve_file_path(kobel_str target, kobel_str default_file, compiler__loader__ModuleLoader* loader);
-compiler__driver__Diagnostic compiler__driver__Diagnostic_parse(kobel_str raw, kobel_str default_file, compiler__loader__ModuleLoader* loader);
-kobel_str compiler__driver__Diagnostic_render(compiler__driver__Diagnostic* self);
 void compiler__driver__print_diagnostics(std__collections__List_str errors, kobel_str default_file, compiler__loader__ModuleLoader* loader);
 void compiler__driver__print_warnings(std__collections__List_str warnings, kobel_str default_file, compiler__loader__ModuleLoader* loader);
 compiler__sema__EnumMemberInfo* compiler__sema__EnumInfo_find_member(compiler__sema__EnumInfo* self, kobel_str name);
@@ -3056,6 +3196,120 @@ void std__collections__HashMap_str_str_free(std__collections__HashMap_str_str* s
 void std__collections__HashMap_str_str_set(std__collections__HashMap_str_str* self, kobel_str key, kobel_str value);
 kobel_str* std__collections__HashMap_str_str_get(std__collections__HashMap_str_str* self, kobel_str key);
 bool std__collections__HashMap_str_str_contains(std__collections__HashMap_str_str* self, kobel_str key);
+size_t std__collections__List_compiler__core__Diagnostic_count(std__collections__List_compiler__core__Diagnostic* self);
+compiler__core__Diagnostic std__collections__List_compiler__core__Diagnostic_at(std__collections__List_compiler__core__Diagnostic* self, size_t i);
+std__collections__List_compiler__core__Diagnostic std__collections__List_compiler__core__Diagnostic_init(size_t cap);
+compiler__core__Diagnostic std__collections__List_compiler__core__Diagnostic_first(std__collections__List_compiler__core__Diagnostic* self);
+compiler__core__Diagnostic std__collections__List_compiler__core__Diagnostic_last(std__collections__List_compiler__core__Diagnostic* self);
+bool std__collections__List_compiler__core__Diagnostic_empty(std__collections__List_compiler__core__Diagnostic* self);
+void std__collections__List_compiler__core__Diagnostic_add(std__collections__List_compiler__core__Diagnostic* self, compiler__core__Diagnostic value);
+compiler__core__Diagnostic std__collections__List_compiler__core__Diagnostic_pop(std__collections__List_compiler__core__Diagnostic* self);
+void std__collections__List_compiler__core__Diagnostic_extend(std__collections__List_compiler__core__Diagnostic* self, std__collections__List_compiler__core__Diagnostic other);
+size_t std__collections__List_compiler__core__Diagnostic_clear(std__collections__List_compiler__core__Diagnostic* self);
+void std__collections__List_compiler__core__Diagnostic_grow(std__collections__List_compiler__core__Diagnostic* self);
+void std__collections__List_compiler__core__Diagnostic_reserve(std__collections__List_compiler__core__Diagnostic* self, size_t min_cap);
+compiler__core__Diagnostic std__collections__List_compiler__core__Diagnostic_remove_at(std__collections__List_compiler__core__Diagnostic* self, size_t index);
+void std__collections__List_compiler__core__Diagnostic_insert(std__collections__List_compiler__core__Diagnostic* self, size_t index, compiler__core__Diagnostic value);
+std__collections__List_compiler__core__Diagnostic std__collections__List_compiler__core__Diagnostic_clone(std__collections__List_compiler__core__Diagnostic* self);
+compiler__core__Diagnostic std__collections__List_compiler__core__Diagnostic_pop_or(std__collections__List_compiler__core__Diagnostic* self, compiler__core__Diagnostic value);
+void std__collections__List_compiler__core__Diagnostic_swap(std__collections__List_compiler__core__Diagnostic* self, size_t a, size_t b);
+void std__collections__List_compiler__core__Diagnostic_reverse(std__collections__List_compiler__core__Diagnostic* self);
+std__collections__List_compiler__core__Diagnostic std__collections__List_compiler__core__Diagnostic_sub(std__collections__List_compiler__core__Diagnostic* self, size_t start, size_t count);
+intptr_t std__collections__List_compiler__core__Diagnostic_index_of(std__collections__List_compiler__core__Diagnostic* self, compiler__core__Diagnostic value);
+intptr_t std__collections__List_compiler__core__Diagnostic_last_index_of(std__collections__List_compiler__core__Diagnostic* self, compiler__core__Diagnostic value);
+bool std__collections__List_compiler__core__Diagnostic_remove(std__collections__List_compiler__core__Diagnostic* self, compiler__core__Diagnostic value);
+size_t std__collections__List_compiler__core__Diagnostic_remove_all(std__collections__List_compiler__core__Diagnostic* self, compiler__core__Diagnostic value);
+void std__collections__List_compiler__core__Diagnostic_free(std__collections__List_compiler__core__Diagnostic* self);
+compiler__core__Diagnostic std__collections__List_compiler__core__Diagnostic_get(std__collections__List_compiler__core__Diagnostic* self, size_t index);
+bool std__collections__List_compiler__core__Diagnostic_contains(std__collections__List_compiler__core__Diagnostic* self, compiler__core__Diagnostic value);
+compiler__core__Diagnostic std__collections__List_compiler__core__Diagnostic_set(std__collections__List_compiler__core__Diagnostic* self, size_t index, compiler__core__Diagnostic value);
+void std__collections__List_compiler__core__Diagnostic_plus_assign(std__collections__List_compiler__core__Diagnostic* self, compiler__core__Diagnostic value);
+std__collections__HashSet_str std__collections__HashSet_str_init(size_t init_cap);
+size_t std__collections__HashSet_str_dist(std__collections__HashSet_str* self, size_t from, size_t to);
+bool std__collections__HashSet_str_add(std__collections__HashSet_str* self, kobel_str key);
+bool std__collections__HashSet_str_remove(std__collections__HashSet_str* self, kobel_str key);
+void std__collections__HashSet_str_clear(std__collections__HashSet_str* self);
+bool std__collections__HashSet_str_empty(std__collections__HashSet_str* self);
+void std__collections__HashSet_str_reserve(std__collections__HashSet_str* self, size_t min_elements);
+void std__collections__HashSet_str_extend(std__collections__HashSet_str* self, std__collections__HashSet_str other);
+std__collections__HashSet_str std__collections__HashSet_str_clone(std__collections__HashSet_str* self);
+std__collections__List_str std__collections__HashSet_str_to_list(std__collections__HashSet_str* self);
+void std__collections__HashSet_str_grow(std__collections__HashSet_str* self);
+void std__collections__HashSet_str_free(std__collections__HashSet_str* self);
+bool std__collections__HashSet_str_plus_assign(std__collections__HashSet_str* self, kobel_str key);
+bool std__collections__HashSet_str_contains(std__collections__HashSet_str* self, kobel_str key);
+size_t std__collections__HashSet_str_count(std__collections__HashSet_str* self);
+kobel_str std__collections__HashSet_str_at(std__collections__HashSet_str* self, size_t i);
+size_t std__collections__List_u32_count(std__collections__List_u32* self);
+uint32_t std__collections__List_u32_at(std__collections__List_u32* self, size_t i);
+std__collections__List_u32 std__collections__List_u32_init(size_t cap);
+uint32_t std__collections__List_u32_first(std__collections__List_u32* self);
+uint32_t std__collections__List_u32_last(std__collections__List_u32* self);
+bool std__collections__List_u32_empty(std__collections__List_u32* self);
+void std__collections__List_u32_add(std__collections__List_u32* self, uint32_t value);
+uint32_t std__collections__List_u32_pop(std__collections__List_u32* self);
+void std__collections__List_u32_extend(std__collections__List_u32* self, std__collections__List_u32 other);
+size_t std__collections__List_u32_clear(std__collections__List_u32* self);
+void std__collections__List_u32_grow(std__collections__List_u32* self);
+void std__collections__List_u32_reserve(std__collections__List_u32* self, size_t min_cap);
+uint32_t std__collections__List_u32_remove_at(std__collections__List_u32* self, size_t index);
+void std__collections__List_u32_insert(std__collections__List_u32* self, size_t index, uint32_t value);
+std__collections__List_u32 std__collections__List_u32_clone(std__collections__List_u32* self);
+uint32_t std__collections__List_u32_pop_or(std__collections__List_u32* self, uint32_t value);
+void std__collections__List_u32_swap(std__collections__List_u32* self, size_t a, size_t b);
+void std__collections__List_u32_reverse(std__collections__List_u32* self);
+std__collections__List_u32 std__collections__List_u32_sub(std__collections__List_u32* self, size_t start, size_t count);
+intptr_t std__collections__List_u32_index_of(std__collections__List_u32* self, uint32_t value);
+intptr_t std__collections__List_u32_last_index_of(std__collections__List_u32* self, uint32_t value);
+bool std__collections__List_u32_remove(std__collections__List_u32* self, uint32_t value);
+size_t std__collections__List_u32_remove_all(std__collections__List_u32* self, uint32_t value);
+void std__collections__List_u32_free(std__collections__List_u32* self);
+uint32_t std__collections__List_u32_get(std__collections__List_u32* self, size_t index);
+bool std__collections__List_u32_contains(std__collections__List_u32* self, uint32_t value);
+uint32_t std__collections__List_u32_set(std__collections__List_u32* self, size_t index, uint32_t value);
+void std__collections__List_u32_plus_assign(std__collections__List_u32* self, uint32_t value);
+std__collections__HashMap_str_u32 std__collections__HashMap_str_u32_init(size_t init_cap);
+size_t std__collections__HashMap_str_u32_dist(std__collections__HashMap_str_u32* self, size_t from, size_t to);
+uint32_t std__collections__HashMap_str_u32_get_or(std__collections__HashMap_str_u32* self, kobel_str key, uint32_t value);
+bool std__collections__HashMap_str_u32_remove(std__collections__HashMap_str_u32* self, kobel_str key);
+void std__collections__HashMap_str_u32_clear(std__collections__HashMap_str_u32* self);
+bool std__collections__HashMap_str_u32_empty(std__collections__HashMap_str_u32* self);
+size_t std__collections__HashMap_str_u32_count(std__collections__HashMap_str_u32* self);
+std__collections__List_str std__collections__HashMap_str_u32_keys(std__collections__HashMap_str_u32* self);
+std__collections__List_u32 std__collections__HashMap_str_u32_values(std__collections__HashMap_str_u32* self);
+void std__collections__HashMap_str_u32_grow(std__collections__HashMap_str_u32* self);
+void std__collections__HashMap_str_u32_free(std__collections__HashMap_str_u32* self);
+void std__collections__HashMap_str_u32_set(std__collections__HashMap_str_u32* self, kobel_str key, uint32_t value);
+uint32_t* std__collections__HashMap_str_u32_get(std__collections__HashMap_str_u32* self, kobel_str key);
+bool std__collections__HashMap_str_u32_contains(std__collections__HashMap_str_u32* self, kobel_str key);
+size_t std__collections__List_compiler__core__SourceFile_count(std__collections__List_compiler__core__SourceFile* self);
+compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_at(std__collections__List_compiler__core__SourceFile* self, size_t i);
+std__collections__List_compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_init(size_t cap);
+compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_first(std__collections__List_compiler__core__SourceFile* self);
+compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_last(std__collections__List_compiler__core__SourceFile* self);
+bool std__collections__List_compiler__core__SourceFile_empty(std__collections__List_compiler__core__SourceFile* self);
+void std__collections__List_compiler__core__SourceFile_add(std__collections__List_compiler__core__SourceFile* self, compiler__core__SourceFile value);
+compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_pop(std__collections__List_compiler__core__SourceFile* self);
+void std__collections__List_compiler__core__SourceFile_extend(std__collections__List_compiler__core__SourceFile* self, std__collections__List_compiler__core__SourceFile other);
+size_t std__collections__List_compiler__core__SourceFile_clear(std__collections__List_compiler__core__SourceFile* self);
+void std__collections__List_compiler__core__SourceFile_grow(std__collections__List_compiler__core__SourceFile* self);
+void std__collections__List_compiler__core__SourceFile_reserve(std__collections__List_compiler__core__SourceFile* self, size_t min_cap);
+compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_remove_at(std__collections__List_compiler__core__SourceFile* self, size_t index);
+void std__collections__List_compiler__core__SourceFile_insert(std__collections__List_compiler__core__SourceFile* self, size_t index, compiler__core__SourceFile value);
+std__collections__List_compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_clone(std__collections__List_compiler__core__SourceFile* self);
+compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_pop_or(std__collections__List_compiler__core__SourceFile* self, compiler__core__SourceFile value);
+void std__collections__List_compiler__core__SourceFile_swap(std__collections__List_compiler__core__SourceFile* self, size_t a, size_t b);
+void std__collections__List_compiler__core__SourceFile_reverse(std__collections__List_compiler__core__SourceFile* self);
+std__collections__List_compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_sub(std__collections__List_compiler__core__SourceFile* self, size_t start, size_t count);
+intptr_t std__collections__List_compiler__core__SourceFile_index_of(std__collections__List_compiler__core__SourceFile* self, compiler__core__SourceFile value);
+intptr_t std__collections__List_compiler__core__SourceFile_last_index_of(std__collections__List_compiler__core__SourceFile* self, compiler__core__SourceFile value);
+bool std__collections__List_compiler__core__SourceFile_remove(std__collections__List_compiler__core__SourceFile* self, compiler__core__SourceFile value);
+size_t std__collections__List_compiler__core__SourceFile_remove_all(std__collections__List_compiler__core__SourceFile* self, compiler__core__SourceFile value);
+void std__collections__List_compiler__core__SourceFile_free(std__collections__List_compiler__core__SourceFile* self);
+compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_get(std__collections__List_compiler__core__SourceFile* self, size_t index);
+bool std__collections__List_compiler__core__SourceFile_contains(std__collections__List_compiler__core__SourceFile* self, compiler__core__SourceFile value);
+compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_set(std__collections__List_compiler__core__SourceFile* self, size_t index, compiler__core__SourceFile value);
+void std__collections__List_compiler__core__SourceFile_plus_assign(std__collections__List_compiler__core__SourceFile* self, compiler__core__SourceFile value);
 size_t std__collections__List_compiler__ast__EnumField_count(std__collections__List_compiler__ast__EnumField* self);
 compiler__ast__EnumField std__collections__List_compiler__ast__EnumField_at(std__collections__List_compiler__ast__EnumField* self, size_t i);
 std__collections__List_compiler__ast__EnumField std__collections__List_compiler__ast__EnumField_init(size_t cap);
@@ -3140,22 +3394,6 @@ compiler__loader__LoadedModule std__collections__List_compiler__loader__LoadedMo
 bool std__collections__List_compiler__loader__LoadedModule_contains(std__collections__List_compiler__loader__LoadedModule* self, compiler__loader__LoadedModule value);
 compiler__loader__LoadedModule std__collections__List_compiler__loader__LoadedModule_set(std__collections__List_compiler__loader__LoadedModule* self, size_t index, compiler__loader__LoadedModule value);
 void std__collections__List_compiler__loader__LoadedModule_plus_assign(std__collections__List_compiler__loader__LoadedModule* self, compiler__loader__LoadedModule value);
-std__collections__HashSet_str std__collections__HashSet_str_init(size_t init_cap);
-size_t std__collections__HashSet_str_dist(std__collections__HashSet_str* self, size_t from, size_t to);
-bool std__collections__HashSet_str_add(std__collections__HashSet_str* self, kobel_str key);
-bool std__collections__HashSet_str_remove(std__collections__HashSet_str* self, kobel_str key);
-void std__collections__HashSet_str_clear(std__collections__HashSet_str* self);
-bool std__collections__HashSet_str_empty(std__collections__HashSet_str* self);
-void std__collections__HashSet_str_reserve(std__collections__HashSet_str* self, size_t min_elements);
-void std__collections__HashSet_str_extend(std__collections__HashSet_str* self, std__collections__HashSet_str other);
-std__collections__HashSet_str std__collections__HashSet_str_clone(std__collections__HashSet_str* self);
-std__collections__List_str std__collections__HashSet_str_to_list(std__collections__HashSet_str* self);
-void std__collections__HashSet_str_grow(std__collections__HashSet_str* self);
-void std__collections__HashSet_str_free(std__collections__HashSet_str* self);
-bool std__collections__HashSet_str_plus_assign(std__collections__HashSet_str* self, kobel_str key);
-bool std__collections__HashSet_str_contains(std__collections__HashSet_str* self, kobel_str key);
-size_t std__collections__HashSet_str_count(std__collections__HashSet_str* self);
-kobel_str std__collections__HashSet_str_at(std__collections__HashSet_str* self, size_t i);
 size_t std__collections__List_ptr_compiler__sema__EnumMemberInfo_count(std__collections__List_ptr_compiler__sema__EnumMemberInfo* self);
 compiler__sema__EnumMemberInfo* std__collections__List_ptr_compiler__sema__EnumMemberInfo_at(std__collections__List_ptr_compiler__sema__EnumMemberInfo* self, size_t i);
 std__collections__List_ptr_compiler__sema__EnumMemberInfo std__collections__List_ptr_compiler__sema__EnumMemberInfo_init(size_t cap);
@@ -3883,6 +4121,9 @@ void std__memory__Heap_free_compiler__ast__StructField(compiler__ast__StructFiel
 void std__memory__Heap_free_compiler__ast__AssocBinding(compiler__ast__AssocBinding* ptr);
 void std__memory__Heap_free_compiler__ast__EnumMember(compiler__ast__EnumMember* ptr);
 void std__memory__Heap_free_ptr_compiler__sema__Type(compiler__sema__Type** ptr);
+void std__memory__Heap_free_compiler__core__Diagnostic(compiler__core__Diagnostic* ptr);
+void std__memory__Heap_free_u32(uint32_t* ptr);
+void std__memory__Heap_free_compiler__core__SourceFile(compiler__core__SourceFile* ptr);
 void std__memory__Heap_free_compiler__ast__EnumField(compiler__ast__EnumField* ptr);
 void std__memory__Heap_free_compiler__lexer__Token(compiler__lexer__Token* ptr);
 void std__memory__Heap_free_compiler__loader__LoadedModule(compiler__loader__LoadedModule* ptr);
@@ -3953,6 +4194,12 @@ compiler__sema__Type** std__memory__Heap_create_array_ptr_compiler__sema__Type(s
 compiler__sema__Type** std__memory__Heap_resize_ptr_compiler__sema__Type(compiler__sema__Type** ptr, size_t count);
 size_t* std__memory__Heap_create_array_usz(size_t count);
 bool* std__memory__Heap_create_array_bool(size_t count);
+compiler__core__Diagnostic* std__memory__Heap_create_array_compiler__core__Diagnostic(size_t count);
+compiler__core__Diagnostic* std__memory__Heap_resize_compiler__core__Diagnostic(compiler__core__Diagnostic* ptr, size_t count);
+uint32_t* std__memory__Heap_create_array_u32(size_t count);
+uint32_t* std__memory__Heap_resize_u32(uint32_t* ptr, size_t count);
+compiler__core__SourceFile* std__memory__Heap_create_array_compiler__core__SourceFile(size_t count);
+compiler__core__SourceFile* std__memory__Heap_resize_compiler__core__SourceFile(compiler__core__SourceFile* ptr, size_t count);
 compiler__ast__EnumField* std__memory__Heap_create_array_compiler__ast__EnumField(size_t count);
 compiler__ast__EnumField* std__memory__Heap_resize_compiler__ast__EnumField(compiler__ast__EnumField* ptr, size_t count);
 compiler__lexer__Token* std__memory__Heap_create_array_compiler__lexer__Token(size_t count);
@@ -6734,6 +6981,426 @@ char char_to_upper(char self) {
     return self;
 }
 
+kobel_str compiler__core__resolve_diagnostic_path(kobel_str target, kobel_str default_file, compiler__core__SourceMap* sources) {
+    if (str_empty(target)) {
+        return default_file;
+    }
+    if ((str_ends_with(target, KOBEL_STR(".kb")) || str_contains(target, KOBEL_STR("/"))) || str_contains(target, KOBEL_STR("\\"))) {
+        return str_to_posix_path(target);
+    }
+    if (sources != NULL) {
+        compiler__core__SourceFile* by_mod = compiler__core__SourceMap_find_by_module(sources, target);
+        if (by_mod != NULL) {
+            return str_to_posix_path(by_mod->path);
+        }
+    }
+    kobel_str rel_stem = str_replace_char(target, '.', '/');
+    kobel_str rel = kobel_concat(rel_stem, KOBEL_STR(".kb"));
+    if (std__filesystem__File_exists(kobel_concat(KOBEL_STR("src/"), rel))) {
+        return kobel_concat(KOBEL_STR("src/"), rel);
+    }
+    if (std__filesystem__File_exists(kobel_concat(KOBEL_STR("lib/"), rel))) {
+        return kobel_concat(KOBEL_STR("lib/"), rel);
+    }
+    if (std__filesystem__File_exists(rel)) {
+        return rel;
+    }
+    return target;
+}
+
+compiler__core__Diagnostic compiler__core__Diagnostic_init(compiler__core__Severity severity, compiler__core__Span span, kobel_str file_path, kobel_str message, kobel_str hint) {
+    return (compiler__core__Diagnostic){ severity, span, file_path, message, hint };
+}
+
+compiler__core__Diagnostic compiler__core__Diagnostic_error(compiler__core__Span span, kobel_str file_path, kobel_str message, kobel_str hint) {
+    return compiler__core__Diagnostic_init(0, span, file_path, message, hint);
+}
+
+compiler__core__Diagnostic compiler__core__Diagnostic_warning(compiler__core__Span span, kobel_str file_path, kobel_str message, kobel_str hint) {
+    return compiler__core__Diagnostic_init(1, span, file_path, message, hint);
+}
+
+kobel_str compiler__core__Diagnostic_key(compiler__core__Diagnostic* self) {
+    return kobel_concat3(kobel_concat5(self->file_path, KOBEL_STR(":"), usz_to_str(self->span.line), KOBEL_STR(":"), usz_to_str(self->span.col)), KOBEL_STR(":"), self->message);
+}
+
+compiler__core__Diagnostic compiler__core__Diagnostic_parse_legacy(kobel_str raw, kobel_str default_file, compiler__core__Severity severity, compiler__core__SourceMap* sources) {
+    kobel_str line_kw = KOBEL_STR("Line ");
+    intptr_t line_pos = str_index_of(raw, line_kw);
+    if (line_pos >= 0) {
+        kobel_str prefix = ((line_pos > 0) ? str_trim(kobel_slice(raw, 0, (size_t)line_pos)) : KOBEL_STR(""));
+        kobel_str target = (str_ends_with(prefix, KOBEL_STR(":")) ? str_trim(kobel_slice(prefix, 0, (prefix.len - 1))) : prefix);
+        if (str_empty(target)) {
+            target = default_file;
+        }
+        size_t l_idx = (((size_t)line_pos) + line_kw.len);
+        size_t line_num = 0;
+        while ((l_idx < raw.len) && char_is_digit(raw.data[l_idx])) {
+            line_num = ((line_num * 10) + (size_t)(((int32_t)(uint8_t)(raw.data[l_idx])) - 48));
+            l_idx++;
+        }
+        while ((l_idx < raw.len) && ((raw.data[l_idx] == ' ') || (raw.data[l_idx] == ','))) {
+            l_idx++;
+        }
+        size_t col_num = 0;
+        kobel_str col_kw = KOBEL_STR("Column ");
+        kobel_str rest = kobel_slice(raw, l_idx, raw.len);
+        intptr_t c_pos = str_index_of(rest, col_kw);
+        if (c_pos >= 0) {
+            l_idx = ((l_idx + ((size_t)c_pos)) + col_kw.len);
+            while ((l_idx < raw.len) && char_is_digit(raw.data[l_idx])) {
+                col_num = ((col_num * 10) + (size_t)(((int32_t)(uint8_t)(raw.data[l_idx])) - 48));
+                l_idx++;
+            }
+        }
+        while ((l_idx < raw.len) && ((raw.data[l_idx] == ':') || (raw.data[l_idx] == ' '))) {
+            l_idx++;
+        }
+        kobel_str msg = str_trim(kobel_slice(raw, l_idx, raw.len));
+        kobel_str file_path = compiler__core__resolve_diagnostic_path(target, default_file, sources);
+        return compiler__core__Diagnostic_init(severity, compiler__core__Span_init(0, line_num, col_num, 1), file_path, msg, KOBEL_STR(""));
+    }
+    intptr_t colon_pos = str_index_of(raw, KOBEL_STR(":"));
+    if (colon_pos >= 0) {
+        size_t c_idx = (size_t)colon_pos;
+        kobel_str target = str_trim(kobel_slice(raw, 0, c_idx));
+        kobel_str msg = str_trim(kobel_slice(raw, (c_idx + 1), raw.len));
+        kobel_str file_path = compiler__core__resolve_diagnostic_path(target, default_file, sources);
+        return compiler__core__Diagnostic_init(severity, compiler__core__Span_init(0, 0, 0, 1), file_path, msg, KOBEL_STR(""));
+    }
+    return compiler__core__Diagnostic_init(severity, compiler__core__Span_init(0, 0, 0, 1), default_file, raw, KOBEL_STR(""));
+}
+
+kobel_str compiler__core__Diagnostic_render(compiler__core__Diagnostic* self, compiler__core__SourceMap* sources) {
+    kobel_str c_red = KOBEL_STR("\x1b[1;31m");
+    kobel_str c_yellow = KOBEL_STR("\x1b[1;33m");
+    kobel_str c_blue = KOBEL_STR("\x1b[1;34m");
+    kobel_str c_bold = KOBEL_STR("\x1b[1m");
+    kobel_str c_reset = KOBEL_STR("\x1b[0m");
+    kobel_str prefix = (self->severity == 1 ? kobel_concat3(c_yellow, KOBEL_STR("warning"), c_reset) : (self->severity == 2 ? kobel_concat3(c_blue, KOBEL_STR("note"), c_reset) : kobel_concat3(c_red, KOBEL_STR("error"), c_reset)));
+    std__string__StringBuilder sb = std__string__StringBuilder_init(256);
+    std__string__StringBuilder_plus_assign_2(&sb, prefix);
+    std__string__StringBuilder_plus_assign_2(&sb, c_bold);
+    std__string__StringBuilder_plus_assign_2(&sb, KOBEL_STR(": "));
+    std__string__StringBuilder_plus_assign_2(&sb, self->message);
+    std__string__StringBuilder_plus_assign_2(&sb, c_reset);
+    std__string__StringBuilder_plus_assign_2_2(&sb, '\n');
+    if (!str_empty(self->file_path)) {
+        std__string__StringBuilder_plus_assign_2(&sb, KOBEL_STR("  "));
+        std__string__StringBuilder_plus_assign_2(&sb, c_blue);
+        std__string__StringBuilder_plus_assign_2(&sb, KOBEL_STR("-->"));
+        std__string__StringBuilder_plus_assign_2(&sb, c_reset);
+        std__string__StringBuilder_plus_assign_2_2(&sb, ' ');
+        std__string__StringBuilder_plus_assign_2(&sb, self->file_path);
+        if (self->span.line > 0) {
+            std__string__StringBuilder_plus_assign_2_2(&sb, ':');
+            std__string__StringBuilder_plus_assign_2_7(&sb, self->span.line);
+            std__string__StringBuilder_plus_assign_2_2(&sb, ':');
+            std__string__StringBuilder_plus_assign_2_7(&sb, self->span.col);
+        }
+        std__string__StringBuilder_plus_assign_2_2(&sb, '\n');
+    }
+    kobel_str raw_line = KOBEL_STR("");
+    bool have_line = false;
+    if (self->span.line > 0) {
+        if (sources != NULL) {
+            compiler__core__SourceFile* sf = ((self->span.file_id > 0) ? compiler__core__SourceMap_get_file(sources, self->span.file_id) : compiler__core__SourceMap_find_by_path(sources, self->file_path));
+            if ((sf != NULL) && (self->span.line <= sf->lines.len)) {
+                raw_line = compiler__core__SourceFile_line_text(sf, self->span.line);
+                have_line = true;
+            }
+        }
+        if ((!have_line && !str_empty(self->file_path)) && std__filesystem__File_exists(self->file_path)) {
+            kobel_str content = std__filesystem__File_read(self->file_path);
+            if (!str_empty(content)) {
+                std__collections__List_str lines = str_split_lines(content);
+                if ((self->span.line >= 1) && (self->span.line <= lines.len)) {
+                    raw_line = std__collections__List_str_get(&lines, (self->span.line - 1));
+                    have_line = true;
+                }
+                std__collections__List_str_free(&lines);
+            }
+        }
+    }
+    if (have_line) {
+        kobel_str line_str = usz_to_str(self->span.line);
+        size_t gutter_w = ((line_str.len < 2) ? 2 : line_str.len);
+        std__string__StringBuilder_plus_assign_2_2(&sb, ' ');
+        if (gutter_w > line_str.len) {
+            std__string__StringBuilder_append_repeat(&sb, ' ', (gutter_w - line_str.len));
+        }
+        std__string__StringBuilder_append_repeat(&sb, ' ', line_str.len);
+        std__string__StringBuilder_plus_assign_2_2(&sb, ' ');
+        std__string__StringBuilder_plus_assign_2(&sb, c_blue);
+        std__string__StringBuilder_plus_assign_2_2(&sb, '|');
+        std__string__StringBuilder_plus_assign_2(&sb, c_reset);
+        std__string__StringBuilder_plus_assign_2_2(&sb, '\n');
+        std__string__StringBuilder_plus_assign_2_2(&sb, ' ');
+        std__string__StringBuilder_plus_assign_2(&sb, c_blue);
+        if (gutter_w > line_str.len) {
+            std__string__StringBuilder_append_repeat(&sb, ' ', (gutter_w - line_str.len));
+        }
+        std__string__StringBuilder_plus_assign_2(&sb, line_str);
+        std__string__StringBuilder_plus_assign_2(&sb, KOBEL_STR(" |"));
+        std__string__StringBuilder_plus_assign_2(&sb, c_reset);
+        std__string__StringBuilder_plus_assign_2_2(&sb, ' ');
+        std__string__StringBuilder_plus_assign_2(&sb, raw_line);
+        std__string__StringBuilder_plus_assign_2_2(&sb, '\n');
+        std__string__StringBuilder_plus_assign_2_2(&sb, ' ');
+        std__string__StringBuilder_append_repeat(&sb, ' ', gutter_w);
+        std__string__StringBuilder_plus_assign_2_2(&sb, ' ');
+        std__string__StringBuilder_plus_assign_2(&sb, c_blue);
+        std__string__StringBuilder_plus_assign_2_2(&sb, '|');
+        std__string__StringBuilder_plus_assign_2(&sb, c_reset);
+        std__string__StringBuilder_plus_assign_2_2(&sb, ' ');
+        size_t limit = ((self->span.col > 1) ? (self->span.col - 1) : 0);
+        {
+            size_t __for_e = limit;
+            size_t __for_i = __for_e;
+            __for_i = 0;
+            bool __for_up = (__for_i <= __for_e);
+            bool __for_go = false;
+            if (__for_up) {
+                __for_go = (__for_i < __for_e);
+            } else {
+                __for_go = (__for_i > __for_e);
+            }
+            while (__for_go) {
+                size_t i = __for_i;
+                if ((i < raw_line.len) && (raw_line.data[i] == '\t')) {
+                    std__string__StringBuilder_plus_assign_2_2(&sb, '\t');
+                } else {
+                    std__string__StringBuilder_plus_assign_2_2(&sb, ' ');
+                }
+                if (__for_up) {
+                    __for_go = ((__for_i + 1) < __for_e);
+                } else {
+                    __for_go = ((__for_i - 1) > __for_e);
+                }
+                if (__for_go) {
+                    if (__for_up) {
+                        __for_i = (__for_i + 1);
+                    } else {
+                        __for_i = (__for_i - 1);
+                    }
+                }
+            }
+        }
+        kobel_str caret_color = ((self->severity == 1) ? c_yellow : c_red);
+        std__string__StringBuilder_plus_assign_2(&sb, caret_color);
+        size_t caret_len = ((self->span.length > 1) ? self->span.length : 1);
+        std__string__StringBuilder_append_repeat(&sb, '^', caret_len);
+        std__string__StringBuilder_plus_assign_2(&sb, c_reset);
+        std__string__StringBuilder_plus_assign_2_2(&sb, '\n');
+    }
+    if (!str_empty(self->hint)) {
+        std__string__StringBuilder_plus_assign_2(&sb, KOBEL_STR("  "));
+        std__string__StringBuilder_plus_assign_2(&sb, c_blue);
+        std__string__StringBuilder_plus_assign_2(&sb, KOBEL_STR("= help: "));
+        std__string__StringBuilder_plus_assign_2(&sb, c_reset);
+        std__string__StringBuilder_plus_assign_2(&sb, self->hint);
+        std__string__StringBuilder_plus_assign_2_2(&sb, '\n');
+    }
+    {
+        kobel_str __ret_tmp = std__string__StringBuilder_to_str(&sb);
+        std__string__StringBuilder_free(&sb);
+        return __ret_tmp;
+    }
+}
+
+compiler__core__DiagnosticBag compiler__core__DiagnosticBag_init(void) {
+    return (compiler__core__DiagnosticBag){ std__collections__List_compiler__core__Diagnostic_init(4), std__collections__HashSet_str_init(16), 0, 0 };
+}
+
+bool compiler__core__DiagnosticBag_has_errors(compiler__core__DiagnosticBag* self) {
+    return (self->error_count > 0);
+}
+
+bool compiler__core__DiagnosticBag_empty(compiler__core__DiagnosticBag* self) {
+    return std__collections__List_compiler__core__Diagnostic_empty(&self->items);
+}
+
+void compiler__core__DiagnosticBag_add(compiler__core__DiagnosticBag* self, compiler__core__Diagnostic diag) {
+    kobel_str k = compiler__core__Diagnostic_key(&diag);
+    if (std__collections__HashSet_str_contains(&self->seen, k)) {
+        return;
+    }
+    std__collections__HashSet_str_plus_assign(&self->seen, k);
+    std__collections__List_compiler__core__Diagnostic_plus_assign(&self->items, diag);
+    if (diag.severity == 0) {
+        self->error_count++;
+    } else if (diag.severity == 1) {
+        self->warning_count++;
+    }
+}
+
+void compiler__core__DiagnosticBag_report_error(compiler__core__DiagnosticBag* self, compiler__core__Span span, kobel_str file_path, kobel_str message, kobel_str hint) {
+    compiler__core__DiagnosticBag_add(self, compiler__core__Diagnostic_error(span, file_path, message, hint));
+}
+
+void compiler__core__DiagnosticBag_report_warning(compiler__core__DiagnosticBag* self, compiler__core__Span span, kobel_str file_path, kobel_str message, kobel_str hint) {
+    compiler__core__DiagnosticBag_add(self, compiler__core__Diagnostic_warning(span, file_path, message, hint));
+}
+
+void compiler__core__DiagnosticBag_print_all(compiler__core__DiagnosticBag* self, kobel_str default_file, compiler__core__SourceMap* sources) {
+    {
+        size_t __for_n = std__collections__List_compiler__core__Diagnostic_count(&self->items);
+        size_t __for_i = 0;
+        while (__for_i < __for_n) {
+            compiler__core__Diagnostic d = std__collections__List_compiler__core__Diagnostic_at(&self->items, __for_i);
+            std__io__print(compiler__core__Diagnostic_render(&d, sources));
+            std__io__println(KOBEL_STR(""));
+            __for_i = (__for_i + 1);
+        }
+    }
+    if (self->error_count > 0) {
+        std__io__println(kobel_concat5(KOBEL_STR("\x1b[1;31merror\x1b[0m: could not compile '"), default_file, KOBEL_STR("' due to "), usz_to_str(self->error_count), KOBEL_STR(" previous error(s)")));
+    }
+}
+
+void compiler__core__DiagnosticBag_free(compiler__core__DiagnosticBag* self) {
+    std__collections__List_compiler__core__Diagnostic_free(&self->items);
+    std__collections__HashSet_str_free(&self->seen);
+}
+
+compiler__core__SymbolId compiler__core__SymbolId_init(uint32_t id) {
+    return (compiler__core__SymbolId){ id };
+}
+
+bool compiler__core__SymbolId_is_valid(compiler__core__SymbolId* self) {
+    return (self->id != 0);
+}
+
+bool compiler__core__SymbolId_equals(compiler__core__SymbolId* self, compiler__core__SymbolId other) {
+    return (self->id == other.id);
+}
+
+size_t compiler__core__SymbolId_hash(compiler__core__SymbolId* self) {
+    return usz_hash(((size_t)self->id));
+}
+
+kobel_str compiler__core__SymbolId_to_str(compiler__core__SymbolId* self) {
+    return u32_to_str(self->id);
+}
+
+compiler__core__InternPool compiler__core__InternPool_init(void) {
+    return (compiler__core__InternPool){ std__collections__List_str_init(4), std__collections__HashMap_str_u32_init(16) };
+}
+
+compiler__core__SymbolId compiler__core__InternPool_intern(compiler__core__InternPool* self, kobel_str text) {
+    if (str_empty(text)) {
+        return compiler__core__SymbolId_init(0);
+    }
+    uint32_t* found = std__collections__HashMap_str_u32_get(&self->lookup, text);
+    if (found != NULL) {
+        return compiler__core__SymbolId_init(*found);
+    }
+    uint32_t next_id = (uint32_t)(self->strings.len + 1);
+    std__collections__List_str_plus_assign(&self->strings, text);
+    std__collections__HashMap_str_u32_set(&self->lookup, text, next_id);
+    return compiler__core__SymbolId_init(next_id);
+}
+
+kobel_str compiler__core__InternPool_resolve(compiler__core__InternPool* self, compiler__core__SymbolId sym) {
+    if ((sym.id == 0) || (((size_t)sym.id) > self->strings.len)) {
+        return KOBEL_STR("");
+    }
+    return std__collections__List_str_get(&self->strings, (size_t)(sym.id - 1));
+}
+
+size_t compiler__core__InternPool_count(compiler__core__InternPool* self) {
+    return self->strings.len;
+}
+
+void compiler__core__InternPool_free(compiler__core__InternPool* self) {
+    std__collections__List_str_free(&self->strings);
+    std__collections__HashMap_str_u32_free(&self->lookup);
+}
+
+compiler__core__Span compiler__core__Span_init(uint32_t file_id, size_t line, size_t col, size_t length) {
+    return (compiler__core__Span){ file_id, line, col, ((length == 0) ? 1 : length) };
+}
+
+bool compiler__core__Span_is_valid(compiler__core__Span* self) {
+    return (self->line > 0);
+}
+
+compiler__core__SourceFile compiler__core__SourceFile_init(uint32_t id, kobel_str path, kobel_str module_name, kobel_str content) {
+    std__collections__List_str lines = str_split_lines(content);
+    return (compiler__core__SourceFile){ id, path, module_name, content, lines };
+}
+
+kobel_str compiler__core__SourceFile_line_text(compiler__core__SourceFile* self, size_t line_num) {
+    if ((line_num == 0) || (line_num > self->lines.len)) {
+        return KOBEL_STR("");
+    }
+    return std__collections__List_str_get(&self->lines, (line_num - 1));
+}
+
+void compiler__core__SourceFile_free(compiler__core__SourceFile* self) {
+    std__collections__List_str_free(&self->lines);
+}
+
+compiler__core__SourceMap compiler__core__SourceMap_init(void) {
+    return (compiler__core__SourceMap){ std__collections__List_compiler__core__SourceFile_init(4), std__collections__HashMap_str_u32_init(16), std__collections__HashMap_str_u32_init(16) };
+}
+
+uint32_t compiler__core__SourceMap_add_file(compiler__core__SourceMap* self, kobel_str path, kobel_str module_name, kobel_str content) {
+    uint32_t* existing = std__collections__HashMap_str_u32_get(&self->path_index, path);
+    if (existing != NULL) {
+        return *existing;
+    }
+    uint32_t id = (uint32_t)(self->files.len + 1);
+    std__collections__List_compiler__core__SourceFile_plus_assign(&self->files, compiler__core__SourceFile_init(id, path, module_name, content));
+    std__collections__HashMap_str_u32_set(&self->path_index, path, id);
+    if (!str_empty(module_name)) {
+        std__collections__HashMap_str_u32_set(&self->module_index, module_name, id);
+    }
+    return id;
+}
+
+compiler__core__SourceFile* compiler__core__SourceMap_get_file(compiler__core__SourceMap* self, uint32_t file_id) {
+    if ((file_id == 0) || (((size_t)file_id) > self->files.len)) {
+        return NULL;
+    }
+    return &self->files.data[(size_t)(file_id - 1)];
+}
+
+compiler__core__SourceFile* compiler__core__SourceMap_find_by_path(compiler__core__SourceMap* self, kobel_str path) {
+    uint32_t* id_ptr = std__collections__HashMap_str_u32_get(&self->path_index, path);
+    if (id_ptr == NULL) {
+        return NULL;
+    }
+    return compiler__core__SourceMap_get_file(self, *id_ptr);
+}
+
+compiler__core__SourceFile* compiler__core__SourceMap_find_by_module(compiler__core__SourceMap* self, kobel_str module_name) {
+    uint32_t* id_ptr = std__collections__HashMap_str_u32_get(&self->module_index, module_name);
+    if (id_ptr == NULL) {
+        return NULL;
+    }
+    return compiler__core__SourceMap_get_file(self, *id_ptr);
+}
+
+size_t compiler__core__SourceMap_count(compiler__core__SourceMap* self) {
+    return self->files.len;
+}
+
+void compiler__core__SourceMap_free(compiler__core__SourceMap* self) {
+    {
+        size_t __for_n = std__collections__List_compiler__core__SourceFile_count(&self->files);
+        size_t __for_i = 0;
+        while (__for_i < __for_n) {
+            compiler__core__SourceFile f = std__collections__List_compiler__core__SourceFile_at(&self->files, __for_i);
+            compiler__core__SourceFile_free(&f);
+            __for_i = (__for_i + 1);
+        }
+    }
+    std__collections__List_compiler__core__SourceFile_free(&self->files);
+    std__collections__HashMap_str_u32_free(&self->path_index);
+    std__collections__HashMap_str_u32_free(&self->module_index);
+}
+
 compiler__lexer__TokenType compiler__lexer__lookup_keyword(kobel_str text) {
     return (kobel_streq(text, KOBEL_STR("extern")) ? 43 : (kobel_streq(text, KOBEL_STR("struct")) ? 44 : (kobel_streq(text, KOBEL_STR("enum")) ? 45 : (kobel_streq(text, KOBEL_STR("fn")) ? 46 : (kobel_streq(text, KOBEL_STR("return")) ? 47 : (kobel_streq(text, KOBEL_STR("const")) ? 48 : (kobel_streq(text, KOBEL_STR("null")) ? 49 : (kobel_streq(text, KOBEL_STR("true")) ? 50 : (kobel_streq(text, KOBEL_STR("false")) ? 51 : (kobel_streq(text, KOBEL_STR("val")) ? 52 : (kobel_streq(text, KOBEL_STR("var")) ? 53 : (kobel_streq(text, KOBEL_STR("as")) ? 54 : (kobel_streq(text, KOBEL_STR("while")) ? 55 : (kobel_streq(text, KOBEL_STR("break")) ? 56 : (kobel_streq(text, KOBEL_STR("continue")) ? 57 : (kobel_streq(text, KOBEL_STR("if")) ? 58 : (kobel_streq(text, KOBEL_STR("else")) ? 59 : (kobel_streq(text, KOBEL_STR("when")) ? 60 : (kobel_streq(text, KOBEL_STR("mod")) ? 61 : (kobel_streq(text, KOBEL_STR("use")) ? 62 : (kobel_streq(text, KOBEL_STR("pub")) ? 63 : (kobel_streq(text, KOBEL_STR("trait")) ? 64 : (kobel_streq(text, KOBEL_STR("impl")) ? 65 : (kobel_streq(text, KOBEL_STR("for")) ? 66 : (kobel_streq(text, KOBEL_STR("in")) ? 67 : (kobel_streq(text, KOBEL_STR("yield")) ? 68 : (kobel_streq(text, KOBEL_STR("is")) ? 73 : (kobel_streq(text, KOBEL_STR("init")) ? 74 : (kobel_streq(text, KOBEL_STR("op")) ? 69 : (kobel_streq(text, KOBEL_STR("defer")) ? 70 : 42))))))))))))))))))))))))))))));
 }
@@ -9468,250 +10135,57 @@ kobel_str compiler__driver__resolve_file_path(kobel_str target, kobel_str defaul
     return target;
 }
 
-compiler__driver__Diagnostic compiler__driver__Diagnostic_parse(kobel_str raw, kobel_str default_file, compiler__loader__ModuleLoader* loader) {
-    kobel_str line_kw = KOBEL_STR("Line ");
-    intptr_t line_pos = str_index_of(raw, line_kw);
-    if (line_pos >= 0) {
-        kobel_str prefix = ((line_pos > 0) ? str_trim(kobel_slice(raw, 0, (size_t)line_pos)) : KOBEL_STR(""));
-        kobel_str target = (str_ends_with(prefix, KOBEL_STR(":")) ? str_trim(kobel_slice(prefix, 0, (prefix.len - 1))) : prefix);
-        if (str_empty(target)) {
-            target = default_file;
-        }
-        size_t l_idx = (((size_t)line_pos) + line_kw.len);
-        size_t line_num = 0;
-        while ((l_idx < raw.len) && char_is_digit(raw.data[l_idx])) {
-            line_num = ((line_num * 10) + (size_t)(((int32_t)(uint8_t)(raw.data[l_idx])) - 48));
-            l_idx++;
-        }
-        while ((l_idx < raw.len) && ((raw.data[l_idx] == ' ') || (raw.data[l_idx] == ','))) {
-            l_idx++;
-        }
-        size_t col_num = 0;
-        kobel_str col_kw = KOBEL_STR("Column ");
-        kobel_str rest = kobel_slice(raw, l_idx, raw.len);
-        intptr_t c_pos = str_index_of(rest, col_kw);
-        if (c_pos >= 0) {
-            l_idx = ((l_idx + ((size_t)c_pos)) + col_kw.len);
-            while ((l_idx < raw.len) && char_is_digit(raw.data[l_idx])) {
-                col_num = ((col_num * 10) + (size_t)(((int32_t)(uint8_t)(raw.data[l_idx])) - 48));
-                l_idx++;
-            }
-        }
-        while ((l_idx < raw.len) && ((raw.data[l_idx] == ':') || (raw.data[l_idx] == ' '))) {
-            l_idx++;
-        }
-        kobel_str msg = str_trim(kobel_slice(raw, l_idx, raw.len));
-        kobel_str file_path = compiler__driver__resolve_file_path(target, default_file, loader);
-        return (compiler__driver__Diagnostic){ file_path, line_num, col_num, msg, false };
-    }
-    intptr_t colon_pos = str_index_of(raw, KOBEL_STR(":"));
-    if (colon_pos >= 0) {
-        size_t c_idx = (size_t)colon_pos;
-        kobel_str target = str_trim(kobel_slice(raw, 0, c_idx));
-        kobel_str msg = str_trim(kobel_slice(raw, (c_idx + 1), raw.len));
-        kobel_str file_path = compiler__driver__resolve_file_path(target, default_file, loader);
-        return (compiler__driver__Diagnostic){ file_path, 0, 0, msg, false };
-    }
-    return (compiler__driver__Diagnostic){ default_file, 0, 0, raw, false };
-}
-
-kobel_str compiler__driver__Diagnostic_render(compiler__driver__Diagnostic* self) {
-    kobel_str c_red = KOBEL_STR("\x1b[1;31m");
-    kobel_str c_yellow = KOBEL_STR("\x1b[1;33m");
-    kobel_str c_blue = KOBEL_STR("\x1b[1;34m");
-    kobel_str c_bold = KOBEL_STR("\x1b[1m");
-    kobel_str c_reset = KOBEL_STR("\x1b[0m");
-    kobel_str prefix = (self->is_warning ? kobel_concat3(c_yellow, KOBEL_STR("warning"), c_reset) : kobel_concat3(c_red, KOBEL_STR("error"), c_reset));
-    kobel_str out = kobel_concat(kobel_concat5(prefix, c_bold, KOBEL_STR(": "), self->message, c_reset), KOBEL_STR("\n"));
-    if (!str_empty(self->file_path)) {
-        if (self->line > 0) {
-            out = kobel_concat4(kobel_concat5(kobel_concat5(out, KOBEL_STR("  "), c_blue, KOBEL_STR("-->"), c_reset), KOBEL_STR(" "), self->file_path, KOBEL_STR(":"), usz_to_str(self->line)), KOBEL_STR(":"), usz_to_str(self->col), KOBEL_STR("\n"));
-        } else {
-            out = kobel_concat4(kobel_concat5(out, KOBEL_STR("  "), c_blue, KOBEL_STR("-->"), c_reset), KOBEL_STR(" "), self->file_path, KOBEL_STR("\n"));
-        }
-    }
-    if (((self->line > 0) && !str_empty(self->file_path)) && std__filesystem__File_exists(self->file_path)) {
-        kobel_str content = std__filesystem__File_read(self->file_path);
-        if (!str_empty(content)) {
-            std__collections__List_str lines = str_split_lines(content);
-            if ((self->line >= 1) && (self->line <= lines.len)) {
-                kobel_str raw_line = std__collections__List_str_get(&lines, (self->line - 1));
-                kobel_str line_str = usz_to_str(self->line);
-                size_t gutter_w = ((line_str.len < 2) ? 2 : line_str.len);
-                kobel_str gutter_pad = KOBEL_STR("");
-                if (gutter_w > line_str.len) {
-                    {
-                        size_t __for_e = (gutter_w - line_str.len);
-                        size_t __for_i = __for_e;
-                        __for_i = 0;
-                        bool __for_up = (__for_i <= __for_e);
-                        bool __for_go = false;
-                        if (__for_up) {
-                            __for_go = (__for_i < __for_e);
-                        } else {
-                            __for_go = (__for_i > __for_e);
-                        }
-                        while (__for_go) {
-                            size_t i = __for_i;
-                            gutter_pad = kobel_concat(gutter_pad, KOBEL_STR(" "));
-                            if (__for_up) {
-                                __for_go = ((__for_i + 1) < __for_e);
-                            } else {
-                                __for_go = ((__for_i - 1) > __for_e);
-                            }
-                            if (__for_go) {
-                                if (__for_up) {
-                                    __for_i = (__for_i + 1);
-                                } else {
-                                    __for_i = (__for_i - 1);
-                                }
-                            }
-                        }
-                    }
-                }
-                kobel_str line_gutter = kobel_concat(gutter_pad, line_str);
-                kobel_str empty_gutter = KOBEL_STR("");
-                {
-                    size_t __for_e = gutter_w;
-                    size_t __for_i = __for_e;
-                    __for_i = 0;
-                    bool __for_up = (__for_i <= __for_e);
-                    bool __for_go = false;
-                    if (__for_up) {
-                        __for_go = (__for_i < __for_e);
-                    } else {
-                        __for_go = (__for_i > __for_e);
-                    }
-                    while (__for_go) {
-                        size_t i = __for_i;
-                        empty_gutter = kobel_concat(empty_gutter, KOBEL_STR(" "));
-                        if (__for_up) {
-                            __for_go = ((__for_i + 1) < __for_e);
-                        } else {
-                            __for_go = ((__for_i - 1) > __for_e);
-                        }
-                        if (__for_go) {
-                            if (__for_up) {
-                                __for_i = (__for_i + 1);
-                            } else {
-                                __for_i = (__for_i - 1);
-                            }
-                        }
-                    }
-                }
-                kobel_str caret_spaces = KOBEL_STR("");
-                size_t limit = ((self->col > 1) ? (self->col - 1) : 0);
-                {
-                    size_t __for_e = limit;
-                    size_t __for_i = __for_e;
-                    __for_i = 0;
-                    bool __for_up = (__for_i <= __for_e);
-                    bool __for_go = false;
-                    if (__for_up) {
-                        __for_go = (__for_i < __for_e);
-                    } else {
-                        __for_go = (__for_i > __for_e);
-                    }
-                    while (__for_go) {
-                        size_t i = __for_i;
-                        if ((i < raw_line.len) && (raw_line.data[i] == '\t')) {
-                            caret_spaces = kobel_concat(caret_spaces, KOBEL_STR("\t"));
-                        } else {
-                            caret_spaces = kobel_concat(caret_spaces, KOBEL_STR(" "));
-                        }
-                        if (__for_up) {
-                            __for_go = ((__for_i + 1) < __for_e);
-                        } else {
-                            __for_go = ((__for_i - 1) > __for_e);
-                        }
-                        if (__for_go) {
-                            if (__for_up) {
-                                __for_i = (__for_i + 1);
-                            } else {
-                                __for_i = (__for_i - 1);
-                            }
-                        }
-                    }
-                }
-                out = kobel_concat4(kobel_concat5(out, KOBEL_STR(" "), empty_gutter, KOBEL_STR(" "), c_blue), KOBEL_STR("|"), c_reset, KOBEL_STR("\n"));
-                out = kobel_concat5(kobel_concat5(out, KOBEL_STR(" "), c_blue, line_gutter, KOBEL_STR(" |")), c_reset, KOBEL_STR(" "), raw_line, KOBEL_STR("\n"));
-                out = kobel_concat5(kobel_concat5(kobel_concat5(out, KOBEL_STR(" "), empty_gutter, KOBEL_STR(" "), c_blue), KOBEL_STR("|"), c_reset, KOBEL_STR(" "), caret_spaces), c_red, KOBEL_STR("^"), c_reset, KOBEL_STR("\n"));
-            }
-        }
-    }
-    return out;
-}
-
 void compiler__driver__print_diagnostics(std__collections__List_str errors, kobel_str default_file, compiler__loader__ModuleLoader* loader) {
-    std__collections__List_str seen = std__collections__List_str_init(4);
-    int32_t printed_count = 0;
+    std__collections__HashSet_str seen = std__collections__HashSet_str_init(16);
+    size_t printed_count = 0;
     {
         size_t __for_n = std__collections__List_str_count(&errors);
         size_t __for_i = 0;
         while (__for_i < __for_n) {
             kobel_str err = std__collections__List_str_at(&errors, __for_i);
-            compiler__driver__Diagnostic diag = compiler__driver__Diagnostic_parse(err, default_file, loader);
-            kobel_str key = kobel_concat3(kobel_concat5(diag.file_path, KOBEL_STR(":"), usz_to_str(diag.line), KOBEL_STR(":"), usz_to_str(diag.col)), KOBEL_STR(":"), diag.message);
-            bool already_seen = false;
-            {
-                size_t __for_n = std__collections__List_str_count(&seen);
-                size_t __for_i = 0;
-                while (__for_i < __for_n) {
-                    kobel_str s = std__collections__List_str_at(&seen, __for_i);
-                    if (kobel_streq(s, key)) {
-                        already_seen = true;
-                        break;
-                    }
+            compiler__core__Diagnostic diag = compiler__core__Diagnostic_parse_legacy(err, default_file, 0, NULL);
+            diag.file_path = compiler__driver__resolve_file_path(diag.file_path, default_file, loader);
+            kobel_str key = compiler__core__Diagnostic_key(&diag);
+            if (std__collections__HashSet_str_contains(&seen, key)) {
+                {
                     __for_i = (__for_i + 1);
+                    continue;
                 }
             }
-            if (already_seen) {
-                __for_i = (__for_i + 1);
-                continue;
-            }
-            std__collections__List_str_plus_assign(&seen, key);
-            std__io__print(compiler__driver__Diagnostic_render(&diag));
+            std__collections__HashSet_str_plus_assign(&seen, key);
+            std__io__print(compiler__core__Diagnostic_render(&diag, NULL));
             std__io__println(KOBEL_STR(""));
             printed_count++;
             __for_i = (__for_i + 1);
         }
     }
-    std__io__println(kobel_concat5(KOBEL_STR("\x1b[1;31merror\x1b[0m: could not compile '"), default_file, KOBEL_STR("' due to "), i32_to_str(printed_count), KOBEL_STR(" previous error(s)")));
+    std__io__println(kobel_concat5(KOBEL_STR("\x1b[1;31merror\x1b[0m: could not compile '"), default_file, KOBEL_STR("' due to "), usz_to_str(printed_count), KOBEL_STR(" previous error(s)")));
+    std__collections__HashSet_str_free(&seen);
 }
 
 void compiler__driver__print_warnings(std__collections__List_str warnings, kobel_str default_file, compiler__loader__ModuleLoader* loader) {
-    std__collections__List_str seen = std__collections__List_str_init(4);
+    std__collections__HashSet_str seen = std__collections__HashSet_str_init(16);
     {
         size_t __for_n = std__collections__List_str_count(&warnings);
         size_t __for_i = 0;
         while (__for_i < __for_n) {
             kobel_str w = std__collections__List_str_at(&warnings, __for_i);
-            compiler__driver__Diagnostic diag = compiler__driver__Diagnostic_parse(w, default_file, loader);
-            diag.is_warning = true;
-            kobel_str key = kobel_concat3(kobel_concat5(diag.file_path, KOBEL_STR(":"), usz_to_str(diag.line), KOBEL_STR(":"), usz_to_str(diag.col)), KOBEL_STR(":"), diag.message);
-            bool already_seen = false;
-            {
-                size_t __for_n = std__collections__List_str_count(&seen);
-                size_t __for_i = 0;
-                while (__for_i < __for_n) {
-                    kobel_str s = std__collections__List_str_at(&seen, __for_i);
-                    if (kobel_streq(s, key)) {
-                        already_seen = true;
-                        break;
-                    }
+            compiler__core__Diagnostic diag = compiler__core__Diagnostic_parse_legacy(w, default_file, 1, NULL);
+            diag.file_path = compiler__driver__resolve_file_path(diag.file_path, default_file, loader);
+            kobel_str key = compiler__core__Diagnostic_key(&diag);
+            if (std__collections__HashSet_str_contains(&seen, key)) {
+                {
                     __for_i = (__for_i + 1);
+                    continue;
                 }
             }
-            if (already_seen) {
-                __for_i = (__for_i + 1);
-                continue;
-            }
-            std__collections__List_str_plus_assign(&seen, key);
-            std__io__print(compiler__driver__Diagnostic_render(&diag));
+            std__collections__HashSet_str_plus_assign(&seen, key);
+            std__io__print(compiler__core__Diagnostic_render(&diag, NULL));
             std__io__println(KOBEL_STR(""));
             __for_i = (__for_i + 1);
         }
     }
+    std__collections__HashSet_str_free(&seen);
 }
 
 compiler__sema__EnumMemberInfo* compiler__sema__EnumInfo_find_member(compiler__sema__EnumInfo* self, kobel_str name) {
@@ -30903,6 +31377,1802 @@ bool std__collections__HashMap_str_str_contains(std__collections__HashMap_str_st
     return false;
 }
 
+size_t std__collections__List_compiler__core__Diagnostic_count(std__collections__List_compiler__core__Diagnostic* self) {
+    return self->len;
+}
+
+compiler__core__Diagnostic std__collections__List_compiler__core__Diagnostic_at(std__collections__List_compiler__core__Diagnostic* self, size_t i) {
+    return self->data[i];
+}
+
+std__collections__List_compiler__core__Diagnostic std__collections__List_compiler__core__Diagnostic_init(size_t cap) {
+    return (std__collections__List_compiler__core__Diagnostic){ std__memory__Heap_create_array_compiler__core__Diagnostic(cap), 0, cap };
+}
+
+compiler__core__Diagnostic std__collections__List_compiler__core__Diagnostic_first(std__collections__List_compiler__core__Diagnostic* self) {
+    return self->data[0];
+}
+
+compiler__core__Diagnostic std__collections__List_compiler__core__Diagnostic_last(std__collections__List_compiler__core__Diagnostic* self) {
+    return self->data[(self->len - 1)];
+}
+
+bool std__collections__List_compiler__core__Diagnostic_empty(std__collections__List_compiler__core__Diagnostic* self) {
+    return (self->len == 0);
+}
+
+void std__collections__List_compiler__core__Diagnostic_add(std__collections__List_compiler__core__Diagnostic* self, compiler__core__Diagnostic value) {
+    if (self->len == self->cap) {
+        std__collections__List_compiler__core__Diagnostic_grow(self);
+    }
+    self->data[self->len] = value;
+    self->len++;
+}
+
+compiler__core__Diagnostic std__collections__List_compiler__core__Diagnostic_pop(std__collections__List_compiler__core__Diagnostic* self) {
+    self->len--;
+    return self->data[self->len];
+}
+
+void std__collections__List_compiler__core__Diagnostic_extend(std__collections__List_compiler__core__Diagnostic* self, std__collections__List_compiler__core__Diagnostic other) {
+    {
+        size_t __for_n = std__collections__List_compiler__core__Diagnostic_count(&other);
+        size_t __for_i = 0;
+        while (__for_i < __for_n) {
+            compiler__core__Diagnostic data = std__collections__List_compiler__core__Diagnostic_at(&other, __for_i);
+            std__collections__List_compiler__core__Diagnostic_plus_assign(self, data);
+            __for_i = (__for_i + 1);
+        }
+    }
+}
+
+size_t std__collections__List_compiler__core__Diagnostic_clear(std__collections__List_compiler__core__Diagnostic* self) {
+    return self->len = 0;
+}
+
+void std__collections__List_compiler__core__Diagnostic_grow(std__collections__List_compiler__core__Diagnostic* self) {
+    size_t new_cap = (self->cap * 2);
+    self->data = std__memory__Heap_resize_compiler__core__Diagnostic(self->data, new_cap);
+    self->cap = new_cap;
+}
+
+void std__collections__List_compiler__core__Diagnostic_reserve(std__collections__List_compiler__core__Diagnostic* self, size_t min_cap) {
+    if (min_cap > self->cap) {
+        size_t new_cap = self->cap;
+        while (new_cap < min_cap) {
+            new_cap *= 2;
+        }
+        self->data = std__memory__Heap_resize_compiler__core__Diagnostic(self->data, new_cap);
+        self->cap = new_cap;
+    }
+}
+
+compiler__core__Diagnostic std__collections__List_compiler__core__Diagnostic_remove_at(std__collections__List_compiler__core__Diagnostic* self, size_t index) {
+    compiler__core__Diagnostic item = self->data[index];
+    {
+        size_t __for_e = (self->len - 1);
+        size_t __for_i = __for_e;
+        __for_i = index;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            self->data[i] = self->data[(i + 1)];
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    self->len--;
+    return item;
+}
+
+void std__collections__List_compiler__core__Diagnostic_insert(std__collections__List_compiler__core__Diagnostic* self, size_t index, compiler__core__Diagnostic value) {
+    if (self->len == self->cap) {
+        std__collections__List_compiler__core__Diagnostic_grow(self);
+    }
+    size_t i = self->len;
+    while (i > index) {
+        self->data[i] = self->data[(i - 1)];
+        i--;
+    }
+    self->data[index] = value;
+    self->len++;
+}
+
+std__collections__List_compiler__core__Diagnostic std__collections__List_compiler__core__Diagnostic_clone(std__collections__List_compiler__core__Diagnostic* self) {
+    size_t cap = ((self->cap > 0) ? self->cap : 4);
+    std__collections__List_compiler__core__Diagnostic res = (std__collections__List_compiler__core__Diagnostic){ std__memory__Heap_create_array_compiler__core__Diagnostic(cap), 0, cap };
+    {
+        size_t __for_e = self->len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            std__collections__List_compiler__core__Diagnostic_plus_assign(&res, self->data[i]);
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return res;
+}
+
+compiler__core__Diagnostic std__collections__List_compiler__core__Diagnostic_pop_or(std__collections__List_compiler__core__Diagnostic* self, compiler__core__Diagnostic value) {
+    return ((self->len == 0) ? value : std__collections__List_compiler__core__Diagnostic_pop(self));
+}
+
+void std__collections__List_compiler__core__Diagnostic_swap(std__collections__List_compiler__core__Diagnostic* self, size_t a, size_t b) {
+    compiler__core__Diagnostic tmp = self->data[a];
+    self->data[a] = self->data[b];
+    self->data[b] = tmp;
+}
+
+void std__collections__List_compiler__core__Diagnostic_reverse(std__collections__List_compiler__core__Diagnostic* self) {
+    if (self->len <= 1) {
+        return;
+    }
+    int32_t left = 0;
+    size_t right = (self->len - 1);
+    while (left < right) {
+        compiler__core__Diagnostic tmp = self->data[left];
+        self->data[left] = self->data[right];
+        self->data[right] = tmp;
+        left++;
+        right--;
+    }
+}
+
+std__collections__List_compiler__core__Diagnostic std__collections__List_compiler__core__Diagnostic_sub(std__collections__List_compiler__core__Diagnostic* self, size_t start, size_t count) {
+    std__collections__List_compiler__core__Diagnostic res = (std__collections__List_compiler__core__Diagnostic){ std__memory__Heap_create_array_compiler__core__Diagnostic(count), 0, count };
+    if (start >= self->len) {
+        return res;
+    }
+    size_t end = (((start + count) > self->len) ? self->len : (start + count));
+    {
+        size_t __for_e = end;
+        size_t __for_i = __for_e;
+        __for_i = start;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            std__collections__List_compiler__core__Diagnostic_plus_assign(&res, self->data[i]);
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return res;
+}
+
+intptr_t std__collections__List_compiler__core__Diagnostic_index_of(std__collections__List_compiler__core__Diagnostic* self, compiler__core__Diagnostic value) {
+    {
+        size_t __for_e = self->len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            if (kobel_memeq(&self->data[i], &value, 56)) {
+                return i;
+            }
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return -1;
+}
+
+intptr_t std__collections__List_compiler__core__Diagnostic_last_index_of(std__collections__List_compiler__core__Diagnostic* self, compiler__core__Diagnostic value) {
+    if (self->len == 0) {
+        return -1;
+    }
+    size_t i = (self->len - 1);
+    while (true) {
+        if (kobel_memeq(&self->data[i], &value, 56)) {
+            return i;
+        }
+        if (i == 0) {
+            break;
+        }
+        i--;
+    }
+    return -1;
+}
+
+bool std__collections__List_compiler__core__Diagnostic_remove(std__collections__List_compiler__core__Diagnostic* self, compiler__core__Diagnostic value) {
+    intptr_t idx = std__collections__List_compiler__core__Diagnostic_index_of(self, value);
+    if (idx < 0) {
+        return false;
+    }
+    std__collections__List_compiler__core__Diagnostic_remove_at(self, (size_t)idx);
+    return true;
+}
+
+size_t std__collections__List_compiler__core__Diagnostic_remove_all(std__collections__List_compiler__core__Diagnostic* self, compiler__core__Diagnostic value) {
+    int32_t write = 0;
+    int32_t removed = 0;
+    {
+        size_t __for_e = self->len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            if (kobel_memeq(&self->data[i], &value, 56)) {
+                removed++;
+            } else {
+                if (write != i) {
+                    self->data[write] = self->data[i];
+                }
+                write++;
+            }
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    self->len = write;
+    return removed;
+}
+
+void std__collections__List_compiler__core__Diagnostic_free(std__collections__List_compiler__core__Diagnostic* self) {
+    std__memory__Heap_free_compiler__core__Diagnostic(self->data);
+}
+
+compiler__core__Diagnostic std__collections__List_compiler__core__Diagnostic_get(std__collections__List_compiler__core__Diagnostic* self, size_t index) {
+    return self->data[index];
+}
+
+bool std__collections__List_compiler__core__Diagnostic_contains(std__collections__List_compiler__core__Diagnostic* self, compiler__core__Diagnostic value) {
+    return (std__collections__List_compiler__core__Diagnostic_index_of(self, value) != -1);
+}
+
+compiler__core__Diagnostic std__collections__List_compiler__core__Diagnostic_set(std__collections__List_compiler__core__Diagnostic* self, size_t index, compiler__core__Diagnostic value) {
+    return self->data[index] = value;
+}
+
+void std__collections__List_compiler__core__Diagnostic_plus_assign(std__collections__List_compiler__core__Diagnostic* self, compiler__core__Diagnostic value) {
+    std__collections__List_compiler__core__Diagnostic_add(self, value);
+}
+
+std__collections__HashSet_str std__collections__HashSet_str_init(size_t init_cap) {
+    size_t cap = init_cap;
+    if (cap < 8) {
+        cap = 8;
+    }
+    kobel_str* keys = std__memory__Heap_create_array_str(cap);
+    size_t* hashes = std__memory__Heap_create_array_usz(cap);
+    bool* occ = std__memory__Heap_create_array_bool(cap);
+    {
+        size_t __for_e = cap;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            occ[i] = false;
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return (std__collections__HashSet_str){ keys, hashes, occ, 0, cap };
+}
+
+size_t std__collections__HashSet_str_dist(std__collections__HashSet_str* self, size_t from, size_t to) {
+    if (to >= from) {
+        return (to - from);
+    }
+    return ((self->cap + to) - from);
+}
+
+bool std__collections__HashSet_str_add(std__collections__HashSet_str* self, kobel_str key) {
+    if ((self->cap == 0) || ((self->len * 10) >= (self->cap * 7))) {
+        std__collections__HashSet_str_grow(self);
+    }
+    size_t h = str_hash(key);
+    size_t idx = (h % self->cap);
+    while (self->occupied[idx]) {
+        if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
+            return false;
+        }
+        idx = ((idx + 1) % self->cap);
+    }
+    self->keys[idx] = key;
+    self->hashes[idx] = h;
+    self->occupied[idx] = true;
+    self->len++;
+    return true;
+}
+
+bool std__collections__HashSet_str_remove(std__collections__HashSet_str* self, kobel_str key) {
+    if ((self->len == 0) || (self->cap == 0)) {
+        return false;
+    }
+    size_t h = str_hash(key);
+    size_t idx = (h % self->cap);
+    while (self->occupied[idx]) {
+        if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
+            size_t i = idx;
+            size_t j = ((idx + 1) % self->cap);
+            while (self->occupied[j]) {
+                size_t k = (self->hashes[j] % self->cap);
+                if (std__collections__HashSet_str_dist(self, k, j) > std__collections__HashSet_str_dist(self, k, i)) {
+                    self->keys[i] = self->keys[j];
+                    self->hashes[i] = self->hashes[j];
+                    i = j;
+                }
+                j = ((j + 1) % self->cap);
+            }
+            self->occupied[i] = false;
+            self->len--;
+            return true;
+        }
+        idx = ((idx + 1) % self->cap);
+    }
+    return false;
+}
+
+void std__collections__HashSet_str_clear(std__collections__HashSet_str* self) {
+    if (self->cap > 0) {
+        size_t __for_e = self->cap;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            self->occupied[i] = false;
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    self->len = 0;
+}
+
+bool std__collections__HashSet_str_empty(std__collections__HashSet_str* self) {
+    return (self->len == 0);
+}
+
+void std__collections__HashSet_str_reserve(std__collections__HashSet_str* self, size_t min_elements) {
+    while ((self->cap == 0) || ((min_elements * 10) >= (self->cap * 7))) {
+        std__collections__HashSet_str_grow(self);
+    }
+}
+
+void std__collections__HashSet_str_extend(std__collections__HashSet_str* self, std__collections__HashSet_str other) {
+    if (other.cap == 0) {
+        return;
+    }
+    {
+        size_t __for_e = other.cap;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            if (other.occupied[i]) {
+                std__collections__HashSet_str_add(self, other.keys[i]);
+            }
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+}
+
+std__collections__HashSet_str std__collections__HashSet_str_clone(std__collections__HashSet_str* self) {
+    size_t cap = ((self->cap >= 8) ? self->cap : 16);
+    kobel_str* keys = std__memory__Heap_create_array_str(cap);
+    size_t* hashes = std__memory__Heap_create_array_usz(cap);
+    bool* occ = std__memory__Heap_create_array_bool(cap);
+    {
+        size_t __for_e = cap;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            occ[i] = false;
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    std__collections__HashSet_str res = (std__collections__HashSet_str){ keys, hashes, occ, 0, cap };
+    if (self->cap > 0) {
+        {
+            size_t __for_e = self->cap;
+            size_t __for_i = __for_e;
+            __for_i = 0;
+            bool __for_up = (__for_i <= __for_e);
+            bool __for_go = false;
+            if (__for_up) {
+                __for_go = (__for_i < __for_e);
+            } else {
+                __for_go = (__for_i > __for_e);
+            }
+            while (__for_go) {
+                size_t i = __for_i;
+                if (self->occupied[i]) {
+                    std__collections__HashSet_str_add(&res, self->keys[i]);
+                }
+                if (__for_up) {
+                    __for_go = ((__for_i + 1) < __for_e);
+                } else {
+                    __for_go = ((__for_i - 1) > __for_e);
+                }
+                if (__for_go) {
+                    if (__for_up) {
+                        __for_i = (__for_i + 1);
+                    } else {
+                        __for_i = (__for_i - 1);
+                    }
+                }
+            }
+        }
+    }
+    return res;
+}
+
+std__collections__List_str std__collections__HashSet_str_to_list(std__collections__HashSet_str* self) {
+    std__collections__List_str res = std__collections__List_str_init(4);
+    if (self->cap == 0) {
+        return res;
+    }
+    {
+        size_t __for_e = self->cap;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            if (self->occupied[i]) {
+                std__collections__List_str_plus_assign(&res, self->keys[i]);
+            }
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return res;
+}
+
+void std__collections__HashSet_str_grow(std__collections__HashSet_str* self) {
+    size_t old_cap = self->cap;
+    kobel_str* old_keys = self->keys;
+    size_t* old_hashes = self->hashes;
+    bool* old_occ = self->occupied;
+    size_t new_cap = ((old_cap < 8) ? 16 : (old_cap * 2));
+    kobel_str* keys = std__memory__Heap_create_array_str(new_cap);
+    size_t* hashes = std__memory__Heap_create_array_usz(new_cap);
+    bool* new_occ = std__memory__Heap_create_array_bool(new_cap);
+    {
+        size_t __for_e = new_cap;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t j = __for_i;
+            new_occ[j] = false;
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    if (old_cap > 0) {
+        {
+            size_t __for_e = old_cap;
+            size_t __for_i = __for_e;
+            __for_i = 0;
+            bool __for_up = (__for_i <= __for_e);
+            bool __for_go = false;
+            if (__for_up) {
+                __for_go = (__for_i < __for_e);
+            } else {
+                __for_go = (__for_i > __for_e);
+            }
+            while (__for_go) {
+                size_t i = __for_i;
+                if (old_occ[i]) {
+                    size_t h = old_hashes[i];
+                    size_t idx = (h % new_cap);
+                    while (new_occ[idx]) {
+                        idx = ((idx + 1) % new_cap);
+                    }
+                    keys[idx] = old_keys[i];
+                    hashes[idx] = h;
+                    new_occ[idx] = true;
+                }
+                if (__for_up) {
+                    __for_go = ((__for_i + 1) < __for_e);
+                } else {
+                    __for_go = ((__for_i - 1) > __for_e);
+                }
+                if (__for_go) {
+                    if (__for_up) {
+                        __for_i = (__for_i + 1);
+                    } else {
+                        __for_i = (__for_i - 1);
+                    }
+                }
+            }
+        }
+        std__memory__Heap_free_str(old_keys);
+        std__memory__Heap_free_usz(old_hashes);
+        std__memory__Heap_free_bool(old_occ);
+    }
+    self->keys = keys;
+    self->hashes = hashes;
+    self->occupied = new_occ;
+    self->cap = new_cap;
+}
+
+void std__collections__HashSet_str_free(std__collections__HashSet_str* self) {
+    if (self->cap > 0) {
+        std__memory__Heap_free_str(self->keys);
+        std__memory__Heap_free_usz(self->hashes);
+        std__memory__Heap_free_bool(self->occupied);
+    }
+}
+
+bool std__collections__HashSet_str_plus_assign(std__collections__HashSet_str* self, kobel_str key) {
+    return std__collections__HashSet_str_add(self, key);
+}
+
+bool std__collections__HashSet_str_contains(std__collections__HashSet_str* self, kobel_str key) {
+    if ((self->len == 0) || (self->cap == 0)) {
+        return false;
+    }
+    size_t h = str_hash(key);
+    size_t idx = (h % self->cap);
+    while (self->occupied[idx]) {
+        if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
+            return true;
+        }
+        idx = ((idx + 1) % self->cap);
+    }
+    return false;
+}
+
+size_t std__collections__HashSet_str_count(std__collections__HashSet_str* self) {
+    return self->len;
+}
+
+kobel_str std__collections__HashSet_str_at(std__collections__HashSet_str* self, size_t i) {
+    int32_t seen = 0;
+    {
+        size_t __for_e = self->cap;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t idx = __for_i;
+            if (self->occupied[idx]) {
+                if (seen == i) {
+                    return self->keys[idx];
+                }
+                seen++;
+            }
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return self->keys[0];
+}
+
+size_t std__collections__List_u32_count(std__collections__List_u32* self) {
+    return self->len;
+}
+
+uint32_t std__collections__List_u32_at(std__collections__List_u32* self, size_t i) {
+    return self->data[i];
+}
+
+std__collections__List_u32 std__collections__List_u32_init(size_t cap) {
+    return (std__collections__List_u32){ std__memory__Heap_create_array_u32(cap), 0, cap };
+}
+
+uint32_t std__collections__List_u32_first(std__collections__List_u32* self) {
+    return self->data[0];
+}
+
+uint32_t std__collections__List_u32_last(std__collections__List_u32* self) {
+    return self->data[(self->len - 1)];
+}
+
+bool std__collections__List_u32_empty(std__collections__List_u32* self) {
+    return (self->len == 0);
+}
+
+void std__collections__List_u32_add(std__collections__List_u32* self, uint32_t value) {
+    if (self->len == self->cap) {
+        std__collections__List_u32_grow(self);
+    }
+    self->data[self->len] = value;
+    self->len++;
+}
+
+uint32_t std__collections__List_u32_pop(std__collections__List_u32* self) {
+    self->len--;
+    return self->data[self->len];
+}
+
+void std__collections__List_u32_extend(std__collections__List_u32* self, std__collections__List_u32 other) {
+    {
+        size_t __for_n = std__collections__List_u32_count(&other);
+        size_t __for_i = 0;
+        while (__for_i < __for_n) {
+            uint32_t data = std__collections__List_u32_at(&other, __for_i);
+            std__collections__List_u32_plus_assign(self, data);
+            __for_i = (__for_i + 1);
+        }
+    }
+}
+
+size_t std__collections__List_u32_clear(std__collections__List_u32* self) {
+    return self->len = 0;
+}
+
+void std__collections__List_u32_grow(std__collections__List_u32* self) {
+    size_t new_cap = (self->cap * 2);
+    self->data = std__memory__Heap_resize_u32(self->data, new_cap);
+    self->cap = new_cap;
+}
+
+void std__collections__List_u32_reserve(std__collections__List_u32* self, size_t min_cap) {
+    if (min_cap > self->cap) {
+        size_t new_cap = self->cap;
+        while (new_cap < min_cap) {
+            new_cap *= 2;
+        }
+        self->data = std__memory__Heap_resize_u32(self->data, new_cap);
+        self->cap = new_cap;
+    }
+}
+
+uint32_t std__collections__List_u32_remove_at(std__collections__List_u32* self, size_t index) {
+    uint32_t item = self->data[index];
+    {
+        size_t __for_e = (self->len - 1);
+        size_t __for_i = __for_e;
+        __for_i = index;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            self->data[i] = self->data[(i + 1)];
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    self->len--;
+    return item;
+}
+
+void std__collections__List_u32_insert(std__collections__List_u32* self, size_t index, uint32_t value) {
+    if (self->len == self->cap) {
+        std__collections__List_u32_grow(self);
+    }
+    size_t i = self->len;
+    while (i > index) {
+        self->data[i] = self->data[(i - 1)];
+        i--;
+    }
+    self->data[index] = value;
+    self->len++;
+}
+
+std__collections__List_u32 std__collections__List_u32_clone(std__collections__List_u32* self) {
+    size_t cap = ((self->cap > 0) ? self->cap : 4);
+    std__collections__List_u32 res = (std__collections__List_u32){ std__memory__Heap_create_array_u32(cap), 0, cap };
+    {
+        size_t __for_e = self->len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            std__collections__List_u32_plus_assign(&res, self->data[i]);
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return res;
+}
+
+uint32_t std__collections__List_u32_pop_or(std__collections__List_u32* self, uint32_t value) {
+    return ((self->len == 0) ? value : std__collections__List_u32_pop(self));
+}
+
+void std__collections__List_u32_swap(std__collections__List_u32* self, size_t a, size_t b) {
+    uint32_t tmp = self->data[a];
+    self->data[a] = self->data[b];
+    self->data[b] = tmp;
+}
+
+void std__collections__List_u32_reverse(std__collections__List_u32* self) {
+    if (self->len <= 1) {
+        return;
+    }
+    int32_t left = 0;
+    size_t right = (self->len - 1);
+    while (left < right) {
+        uint32_t tmp = self->data[left];
+        self->data[left] = self->data[right];
+        self->data[right] = tmp;
+        left++;
+        right--;
+    }
+}
+
+std__collections__List_u32 std__collections__List_u32_sub(std__collections__List_u32* self, size_t start, size_t count) {
+    std__collections__List_u32 res = (std__collections__List_u32){ std__memory__Heap_create_array_u32(count), 0, count };
+    if (start >= self->len) {
+        return res;
+    }
+    size_t end = (((start + count) > self->len) ? self->len : (start + count));
+    {
+        size_t __for_e = end;
+        size_t __for_i = __for_e;
+        __for_i = start;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            std__collections__List_u32_plus_assign(&res, self->data[i]);
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return res;
+}
+
+intptr_t std__collections__List_u32_index_of(std__collections__List_u32* self, uint32_t value) {
+    {
+        size_t __for_e = self->len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            if (self->data[i] == value) {
+                return i;
+            }
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return -1;
+}
+
+intptr_t std__collections__List_u32_last_index_of(std__collections__List_u32* self, uint32_t value) {
+    if (self->len == 0) {
+        return -1;
+    }
+    size_t i = (self->len - 1);
+    while (true) {
+        if (self->data[i] == value) {
+            return i;
+        }
+        if (i == 0) {
+            break;
+        }
+        i--;
+    }
+    return -1;
+}
+
+bool std__collections__List_u32_remove(std__collections__List_u32* self, uint32_t value) {
+    intptr_t idx = std__collections__List_u32_index_of(self, value);
+    if (idx < 0) {
+        return false;
+    }
+    std__collections__List_u32_remove_at(self, (size_t)idx);
+    return true;
+}
+
+size_t std__collections__List_u32_remove_all(std__collections__List_u32* self, uint32_t value) {
+    int32_t write = 0;
+    int32_t removed = 0;
+    {
+        size_t __for_e = self->len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            if (self->data[i] == value) {
+                removed++;
+            } else {
+                if (write != i) {
+                    self->data[write] = self->data[i];
+                }
+                write++;
+            }
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    self->len = write;
+    return removed;
+}
+
+void std__collections__List_u32_free(std__collections__List_u32* self) {
+    std__memory__Heap_free_u32(self->data);
+}
+
+uint32_t std__collections__List_u32_get(std__collections__List_u32* self, size_t index) {
+    return self->data[index];
+}
+
+bool std__collections__List_u32_contains(std__collections__List_u32* self, uint32_t value) {
+    return (std__collections__List_u32_index_of(self, value) != -1);
+}
+
+uint32_t std__collections__List_u32_set(std__collections__List_u32* self, size_t index, uint32_t value) {
+    return self->data[index] = value;
+}
+
+void std__collections__List_u32_plus_assign(std__collections__List_u32* self, uint32_t value) {
+    std__collections__List_u32_add(self, value);
+}
+
+std__collections__HashMap_str_u32 std__collections__HashMap_str_u32_init(size_t init_cap) {
+    size_t cap = init_cap;
+    if (cap < 8) {
+        cap = 8;
+    }
+    kobel_str* keys = std__memory__Heap_create_array_str(cap);
+    uint32_t* values = std__memory__Heap_create_array_u32(cap);
+    size_t* hashes = std__memory__Heap_create_array_usz(cap);
+    bool* occ = std__memory__Heap_create_array_bool(cap);
+    {
+        size_t __for_e = cap;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            occ[i] = false;
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return (std__collections__HashMap_str_u32){ keys, values, hashes, occ, 0, cap };
+}
+
+size_t std__collections__HashMap_str_u32_dist(std__collections__HashMap_str_u32* self, size_t from, size_t to) {
+    if (to >= from) {
+        return (to - from);
+    }
+    return ((self->cap + to) - from);
+}
+
+uint32_t std__collections__HashMap_str_u32_get_or(std__collections__HashMap_str_u32* self, kobel_str key, uint32_t value) {
+    if ((self->len == 0) || (self->cap == 0)) {
+        return value;
+    }
+    size_t h = str_hash(key);
+    size_t idx = (h % self->cap);
+    while (self->occupied[idx]) {
+        if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
+            return self->values[idx];
+        }
+        idx = ((idx + 1) % self->cap);
+    }
+    return value;
+}
+
+bool std__collections__HashMap_str_u32_remove(std__collections__HashMap_str_u32* self, kobel_str key) {
+    if ((self->len == 0) || (self->cap == 0)) {
+        return false;
+    }
+    size_t h = str_hash(key);
+    size_t idx = (h % self->cap);
+    while (self->occupied[idx]) {
+        if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
+            size_t i = idx;
+            size_t j = ((idx + 1) % self->cap);
+            while (self->occupied[j]) {
+                size_t k = (self->hashes[j] % self->cap);
+                if (std__collections__HashMap_str_u32_dist(self, k, i) < std__collections__HashMap_str_u32_dist(self, k, j)) {
+                    self->keys[i] = self->keys[j];
+                    self->values[i] = self->values[j];
+                    self->hashes[i] = self->hashes[j];
+                    i = j;
+                }
+                j = ((j + 1) % self->cap);
+            }
+            self->occupied[i] = false;
+            self->len--;
+            return true;
+        }
+        idx = ((idx + 1) % self->cap);
+    }
+    return false;
+}
+
+void std__collections__HashMap_str_u32_clear(std__collections__HashMap_str_u32* self) {
+    if (self->cap <= 0) {
+        return;
+    }
+    {
+        size_t __for_e = self->cap;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            self->occupied[i] = false;
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    self->len = 0;
+}
+
+bool std__collections__HashMap_str_u32_empty(std__collections__HashMap_str_u32* self) {
+    return (self->len == 0);
+}
+
+size_t std__collections__HashMap_str_u32_count(std__collections__HashMap_str_u32* self) {
+    return self->len;
+}
+
+std__collections__List_str std__collections__HashMap_str_u32_keys(std__collections__HashMap_str_u32* self) {
+    std__collections__List_str res = std__collections__List_str_init(4);
+    if (self->cap == 0) {
+        return res;
+    }
+    {
+        size_t __for_e = self->cap;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            if (self->occupied[i]) {
+                std__collections__List_str_plus_assign(&res, self->keys[i]);
+            }
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return res;
+}
+
+std__collections__List_u32 std__collections__HashMap_str_u32_values(std__collections__HashMap_str_u32* self) {
+    std__collections__List_u32 res = std__collections__List_u32_init(4);
+    if (self->cap == 0) {
+        return res;
+    }
+    {
+        size_t __for_e = self->cap;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            if (self->occupied[i]) {
+                std__collections__List_u32_plus_assign(&res, self->values[i]);
+            }
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return res;
+}
+
+void std__collections__HashMap_str_u32_grow(std__collections__HashMap_str_u32* self) {
+    size_t old_cap = self->cap;
+    kobel_str* old_keys = self->keys;
+    uint32_t* old_vals = self->values;
+    size_t* old_hashes = self->hashes;
+    bool* old_occ = self->occupied;
+    size_t new_cap = ((old_cap < 8) ? 16 : (old_cap * 2));
+    kobel_str* keys = std__memory__Heap_create_array_str(new_cap);
+    uint32_t* values = std__memory__Heap_create_array_u32(new_cap);
+    size_t* hashes = std__memory__Heap_create_array_usz(new_cap);
+    bool* new_occ = std__memory__Heap_create_array_bool(new_cap);
+    {
+        size_t __for_e = new_cap;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t j = __for_i;
+            new_occ[j] = false;
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    if (old_cap > 0) {
+        {
+            size_t __for_e = old_cap;
+            size_t __for_i = __for_e;
+            __for_i = 0;
+            bool __for_up = (__for_i <= __for_e);
+            bool __for_go = false;
+            if (__for_up) {
+                __for_go = (__for_i < __for_e);
+            } else {
+                __for_go = (__for_i > __for_e);
+            }
+            while (__for_go) {
+                size_t i = __for_i;
+                if (old_occ[i]) {
+                    size_t h = old_hashes[i];
+                    size_t idx = (h % new_cap);
+                    while (new_occ[idx]) {
+                        idx = ((idx + 1) % new_cap);
+                    }
+                    keys[idx] = old_keys[i];
+                    values[idx] = old_vals[i];
+                    hashes[idx] = h;
+                    new_occ[idx] = true;
+                }
+                if (__for_up) {
+                    __for_go = ((__for_i + 1) < __for_e);
+                } else {
+                    __for_go = ((__for_i - 1) > __for_e);
+                }
+                if (__for_go) {
+                    if (__for_up) {
+                        __for_i = (__for_i + 1);
+                    } else {
+                        __for_i = (__for_i - 1);
+                    }
+                }
+            }
+        }
+        std__memory__Heap_free_str(old_keys);
+        std__memory__Heap_free_u32(old_vals);
+        std__memory__Heap_free_usz(old_hashes);
+        std__memory__Heap_free_bool(old_occ);
+    }
+    self->keys = keys;
+    self->values = values;
+    self->hashes = hashes;
+    self->occupied = new_occ;
+    self->cap = new_cap;
+}
+
+void std__collections__HashMap_str_u32_free(std__collections__HashMap_str_u32* self) {
+    if (self->cap > 0) {
+        std__memory__Heap_free_str(self->keys);
+        std__memory__Heap_free_u32(self->values);
+        std__memory__Heap_free_usz(self->hashes);
+        std__memory__Heap_free_bool(self->occupied);
+    }
+}
+
+void std__collections__HashMap_str_u32_set(std__collections__HashMap_str_u32* self, kobel_str key, uint32_t value) {
+    if ((self->cap == 0) || ((self->len * 10) >= (self->cap * 7))) {
+        std__collections__HashMap_str_u32_grow(self);
+    }
+    size_t h = str_hash(key);
+    size_t idx = (h % self->cap);
+    while (self->occupied[idx]) {
+        if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
+            self->values[idx] = value;
+            return;
+        }
+        idx = ((idx + 1) % self->cap);
+    }
+    self->keys[idx] = key;
+    self->values[idx] = value;
+    self->hashes[idx] = h;
+    self->occupied[idx] = true;
+    self->len++;
+}
+
+uint32_t* std__collections__HashMap_str_u32_get(std__collections__HashMap_str_u32* self, kobel_str key) {
+    if ((self->len == 0) || (self->cap == 0)) {
+        return NULL;
+    }
+    size_t h = str_hash(key);
+    size_t idx = (h % self->cap);
+    while (self->occupied[idx]) {
+        if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
+            return &self->values[idx];
+        }
+        idx = ((idx + 1) % self->cap);
+    }
+    return NULL;
+}
+
+bool std__collections__HashMap_str_u32_contains(std__collections__HashMap_str_u32* self, kobel_str key) {
+    if ((self->len == 0) || (self->cap == 0)) {
+        return false;
+    }
+    size_t h = str_hash(key);
+    size_t idx = (h % self->cap);
+    while (self->occupied[idx]) {
+        if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
+            return true;
+        }
+        idx = ((idx + 1) % self->cap);
+    }
+    return false;
+}
+
+size_t std__collections__List_compiler__core__SourceFile_count(std__collections__List_compiler__core__SourceFile* self) {
+    return self->len;
+}
+
+compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_at(std__collections__List_compiler__core__SourceFile* self, size_t i) {
+    return self->data[i];
+}
+
+std__collections__List_compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_init(size_t cap) {
+    return (std__collections__List_compiler__core__SourceFile){ std__memory__Heap_create_array_compiler__core__SourceFile(cap), 0, cap };
+}
+
+compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_first(std__collections__List_compiler__core__SourceFile* self) {
+    return self->data[0];
+}
+
+compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_last(std__collections__List_compiler__core__SourceFile* self) {
+    return self->data[(self->len - 1)];
+}
+
+bool std__collections__List_compiler__core__SourceFile_empty(std__collections__List_compiler__core__SourceFile* self) {
+    return (self->len == 0);
+}
+
+void std__collections__List_compiler__core__SourceFile_add(std__collections__List_compiler__core__SourceFile* self, compiler__core__SourceFile value) {
+    if (self->len == self->cap) {
+        std__collections__List_compiler__core__SourceFile_grow(self);
+    }
+    self->data[self->len] = value;
+    self->len++;
+}
+
+compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_pop(std__collections__List_compiler__core__SourceFile* self) {
+    self->len--;
+    return self->data[self->len];
+}
+
+void std__collections__List_compiler__core__SourceFile_extend(std__collections__List_compiler__core__SourceFile* self, std__collections__List_compiler__core__SourceFile other) {
+    {
+        size_t __for_n = std__collections__List_compiler__core__SourceFile_count(&other);
+        size_t __for_i = 0;
+        while (__for_i < __for_n) {
+            compiler__core__SourceFile data = std__collections__List_compiler__core__SourceFile_at(&other, __for_i);
+            std__collections__List_compiler__core__SourceFile_plus_assign(self, data);
+            __for_i = (__for_i + 1);
+        }
+    }
+}
+
+size_t std__collections__List_compiler__core__SourceFile_clear(std__collections__List_compiler__core__SourceFile* self) {
+    return self->len = 0;
+}
+
+void std__collections__List_compiler__core__SourceFile_grow(std__collections__List_compiler__core__SourceFile* self) {
+    size_t new_cap = (self->cap * 2);
+    self->data = std__memory__Heap_resize_compiler__core__SourceFile(self->data, new_cap);
+    self->cap = new_cap;
+}
+
+void std__collections__List_compiler__core__SourceFile_reserve(std__collections__List_compiler__core__SourceFile* self, size_t min_cap) {
+    if (min_cap > self->cap) {
+        size_t new_cap = self->cap;
+        while (new_cap < min_cap) {
+            new_cap *= 2;
+        }
+        self->data = std__memory__Heap_resize_compiler__core__SourceFile(self->data, new_cap);
+        self->cap = new_cap;
+    }
+}
+
+compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_remove_at(std__collections__List_compiler__core__SourceFile* self, size_t index) {
+    compiler__core__SourceFile item = self->data[index];
+    {
+        size_t __for_e = (self->len - 1);
+        size_t __for_i = __for_e;
+        __for_i = index;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            self->data[i] = self->data[(i + 1)];
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    self->len--;
+    return item;
+}
+
+void std__collections__List_compiler__core__SourceFile_insert(std__collections__List_compiler__core__SourceFile* self, size_t index, compiler__core__SourceFile value) {
+    if (self->len == self->cap) {
+        std__collections__List_compiler__core__SourceFile_grow(self);
+    }
+    size_t i = self->len;
+    while (i > index) {
+        self->data[i] = self->data[(i - 1)];
+        i--;
+    }
+    self->data[index] = value;
+    self->len++;
+}
+
+std__collections__List_compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_clone(std__collections__List_compiler__core__SourceFile* self) {
+    size_t cap = ((self->cap > 0) ? self->cap : 4);
+    std__collections__List_compiler__core__SourceFile res = (std__collections__List_compiler__core__SourceFile){ std__memory__Heap_create_array_compiler__core__SourceFile(cap), 0, cap };
+    {
+        size_t __for_e = self->len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            std__collections__List_compiler__core__SourceFile_plus_assign(&res, self->data[i]);
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return res;
+}
+
+compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_pop_or(std__collections__List_compiler__core__SourceFile* self, compiler__core__SourceFile value) {
+    return ((self->len == 0) ? value : std__collections__List_compiler__core__SourceFile_pop(self));
+}
+
+void std__collections__List_compiler__core__SourceFile_swap(std__collections__List_compiler__core__SourceFile* self, size_t a, size_t b) {
+    compiler__core__SourceFile tmp = self->data[a];
+    self->data[a] = self->data[b];
+    self->data[b] = tmp;
+}
+
+void std__collections__List_compiler__core__SourceFile_reverse(std__collections__List_compiler__core__SourceFile* self) {
+    if (self->len <= 1) {
+        return;
+    }
+    int32_t left = 0;
+    size_t right = (self->len - 1);
+    while (left < right) {
+        compiler__core__SourceFile tmp = self->data[left];
+        self->data[left] = self->data[right];
+        self->data[right] = tmp;
+        left++;
+        right--;
+    }
+}
+
+std__collections__List_compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_sub(std__collections__List_compiler__core__SourceFile* self, size_t start, size_t count) {
+    std__collections__List_compiler__core__SourceFile res = (std__collections__List_compiler__core__SourceFile){ std__memory__Heap_create_array_compiler__core__SourceFile(count), 0, count };
+    if (start >= self->len) {
+        return res;
+    }
+    size_t end = (((start + count) > self->len) ? self->len : (start + count));
+    {
+        size_t __for_e = end;
+        size_t __for_i = __for_e;
+        __for_i = start;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            std__collections__List_compiler__core__SourceFile_plus_assign(&res, self->data[i]);
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return res;
+}
+
+intptr_t std__collections__List_compiler__core__SourceFile_index_of(std__collections__List_compiler__core__SourceFile* self, compiler__core__SourceFile value) {
+    {
+        size_t __for_e = self->len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            if (kobel_memeq(&self->data[i], &value, 80)) {
+                return i;
+            }
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return -1;
+}
+
+intptr_t std__collections__List_compiler__core__SourceFile_last_index_of(std__collections__List_compiler__core__SourceFile* self, compiler__core__SourceFile value) {
+    if (self->len == 0) {
+        return -1;
+    }
+    size_t i = (self->len - 1);
+    while (true) {
+        if (kobel_memeq(&self->data[i], &value, 80)) {
+            return i;
+        }
+        if (i == 0) {
+            break;
+        }
+        i--;
+    }
+    return -1;
+}
+
+bool std__collections__List_compiler__core__SourceFile_remove(std__collections__List_compiler__core__SourceFile* self, compiler__core__SourceFile value) {
+    intptr_t idx = std__collections__List_compiler__core__SourceFile_index_of(self, value);
+    if (idx < 0) {
+        return false;
+    }
+    std__collections__List_compiler__core__SourceFile_remove_at(self, (size_t)idx);
+    return true;
+}
+
+size_t std__collections__List_compiler__core__SourceFile_remove_all(std__collections__List_compiler__core__SourceFile* self, compiler__core__SourceFile value) {
+    int32_t write = 0;
+    int32_t removed = 0;
+    {
+        size_t __for_e = self->len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            if (kobel_memeq(&self->data[i], &value, 80)) {
+                removed++;
+            } else {
+                if (write != i) {
+                    self->data[write] = self->data[i];
+                }
+                write++;
+            }
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    self->len = write;
+    return removed;
+}
+
+void std__collections__List_compiler__core__SourceFile_free(std__collections__List_compiler__core__SourceFile* self) {
+    std__memory__Heap_free_compiler__core__SourceFile(self->data);
+}
+
+compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_get(std__collections__List_compiler__core__SourceFile* self, size_t index) {
+    return self->data[index];
+}
+
+bool std__collections__List_compiler__core__SourceFile_contains(std__collections__List_compiler__core__SourceFile* self, compiler__core__SourceFile value) {
+    return (std__collections__List_compiler__core__SourceFile_index_of(self, value) != -1);
+}
+
+compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_set(std__collections__List_compiler__core__SourceFile* self, size_t index, compiler__core__SourceFile value) {
+    return self->data[index] = value;
+}
+
+void std__collections__List_compiler__core__SourceFile_plus_assign(std__collections__List_compiler__core__SourceFile* self, compiler__core__SourceFile value) {
+    std__collections__List_compiler__core__SourceFile_add(self, value);
+}
+
 size_t std__collections__List_compiler__ast__EnumField_count(std__collections__List_compiler__ast__EnumField* self) {
     return self->len;
 }
@@ -31906,438 +34176,6 @@ compiler__loader__LoadedModule std__collections__List_compiler__loader__LoadedMo
 
 void std__collections__List_compiler__loader__LoadedModule_plus_assign(std__collections__List_compiler__loader__LoadedModule* self, compiler__loader__LoadedModule value) {
     std__collections__List_compiler__loader__LoadedModule_add(self, value);
-}
-
-std__collections__HashSet_str std__collections__HashSet_str_init(size_t init_cap) {
-    size_t cap = init_cap;
-    if (cap < 8) {
-        cap = 8;
-    }
-    kobel_str* keys = std__memory__Heap_create_array_str(cap);
-    size_t* hashes = std__memory__Heap_create_array_usz(cap);
-    bool* occ = std__memory__Heap_create_array_bool(cap);
-    {
-        size_t __for_e = cap;
-        size_t __for_i = __for_e;
-        __for_i = 0;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            __for_go = (__for_i < __for_e);
-        } else {
-            __for_go = (__for_i > __for_e);
-        }
-        while (__for_go) {
-            size_t i = __for_i;
-            occ[i] = false;
-            if (__for_up) {
-                __for_go = ((__for_i + 1) < __for_e);
-            } else {
-                __for_go = ((__for_i - 1) > __for_e);
-            }
-            if (__for_go) {
-                if (__for_up) {
-                    __for_i = (__for_i + 1);
-                } else {
-                    __for_i = (__for_i - 1);
-                }
-            }
-        }
-    }
-    return (std__collections__HashSet_str){ keys, hashes, occ, 0, cap };
-}
-
-size_t std__collections__HashSet_str_dist(std__collections__HashSet_str* self, size_t from, size_t to) {
-    if (to >= from) {
-        return (to - from);
-    }
-    return ((self->cap + to) - from);
-}
-
-bool std__collections__HashSet_str_add(std__collections__HashSet_str* self, kobel_str key) {
-    if ((self->cap == 0) || ((self->len * 10) >= (self->cap * 7))) {
-        std__collections__HashSet_str_grow(self);
-    }
-    size_t h = str_hash(key);
-    size_t idx = (h % self->cap);
-    while (self->occupied[idx]) {
-        if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
-            return false;
-        }
-        idx = ((idx + 1) % self->cap);
-    }
-    self->keys[idx] = key;
-    self->hashes[idx] = h;
-    self->occupied[idx] = true;
-    self->len++;
-    return true;
-}
-
-bool std__collections__HashSet_str_remove(std__collections__HashSet_str* self, kobel_str key) {
-    if ((self->len == 0) || (self->cap == 0)) {
-        return false;
-    }
-    size_t h = str_hash(key);
-    size_t idx = (h % self->cap);
-    while (self->occupied[idx]) {
-        if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
-            size_t i = idx;
-            size_t j = ((idx + 1) % self->cap);
-            while (self->occupied[j]) {
-                size_t k = (self->hashes[j] % self->cap);
-                if (std__collections__HashSet_str_dist(self, k, j) > std__collections__HashSet_str_dist(self, k, i)) {
-                    self->keys[i] = self->keys[j];
-                    self->hashes[i] = self->hashes[j];
-                    i = j;
-                }
-                j = ((j + 1) % self->cap);
-            }
-            self->occupied[i] = false;
-            self->len--;
-            return true;
-        }
-        idx = ((idx + 1) % self->cap);
-    }
-    return false;
-}
-
-void std__collections__HashSet_str_clear(std__collections__HashSet_str* self) {
-    if (self->cap > 0) {
-        size_t __for_e = self->cap;
-        size_t __for_i = __for_e;
-        __for_i = 0;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            __for_go = (__for_i < __for_e);
-        } else {
-            __for_go = (__for_i > __for_e);
-        }
-        while (__for_go) {
-            size_t i = __for_i;
-            self->occupied[i] = false;
-            if (__for_up) {
-                __for_go = ((__for_i + 1) < __for_e);
-            } else {
-                __for_go = ((__for_i - 1) > __for_e);
-            }
-            if (__for_go) {
-                if (__for_up) {
-                    __for_i = (__for_i + 1);
-                } else {
-                    __for_i = (__for_i - 1);
-                }
-            }
-        }
-    }
-    self->len = 0;
-}
-
-bool std__collections__HashSet_str_empty(std__collections__HashSet_str* self) {
-    return (self->len == 0);
-}
-
-void std__collections__HashSet_str_reserve(std__collections__HashSet_str* self, size_t min_elements) {
-    while ((self->cap == 0) || ((min_elements * 10) >= (self->cap * 7))) {
-        std__collections__HashSet_str_grow(self);
-    }
-}
-
-void std__collections__HashSet_str_extend(std__collections__HashSet_str* self, std__collections__HashSet_str other) {
-    if (other.cap == 0) {
-        return;
-    }
-    {
-        size_t __for_e = other.cap;
-        size_t __for_i = __for_e;
-        __for_i = 0;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            __for_go = (__for_i < __for_e);
-        } else {
-            __for_go = (__for_i > __for_e);
-        }
-        while (__for_go) {
-            size_t i = __for_i;
-            if (other.occupied[i]) {
-                std__collections__HashSet_str_add(self, other.keys[i]);
-            }
-            if (__for_up) {
-                __for_go = ((__for_i + 1) < __for_e);
-            } else {
-                __for_go = ((__for_i - 1) > __for_e);
-            }
-            if (__for_go) {
-                if (__for_up) {
-                    __for_i = (__for_i + 1);
-                } else {
-                    __for_i = (__for_i - 1);
-                }
-            }
-        }
-    }
-}
-
-std__collections__HashSet_str std__collections__HashSet_str_clone(std__collections__HashSet_str* self) {
-    size_t cap = ((self->cap >= 8) ? self->cap : 16);
-    kobel_str* keys = std__memory__Heap_create_array_str(cap);
-    size_t* hashes = std__memory__Heap_create_array_usz(cap);
-    bool* occ = std__memory__Heap_create_array_bool(cap);
-    {
-        size_t __for_e = cap;
-        size_t __for_i = __for_e;
-        __for_i = 0;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            __for_go = (__for_i < __for_e);
-        } else {
-            __for_go = (__for_i > __for_e);
-        }
-        while (__for_go) {
-            size_t i = __for_i;
-            occ[i] = false;
-            if (__for_up) {
-                __for_go = ((__for_i + 1) < __for_e);
-            } else {
-                __for_go = ((__for_i - 1) > __for_e);
-            }
-            if (__for_go) {
-                if (__for_up) {
-                    __for_i = (__for_i + 1);
-                } else {
-                    __for_i = (__for_i - 1);
-                }
-            }
-        }
-    }
-    std__collections__HashSet_str res = (std__collections__HashSet_str){ keys, hashes, occ, 0, cap };
-    if (self->cap > 0) {
-        {
-            size_t __for_e = self->cap;
-            size_t __for_i = __for_e;
-            __for_i = 0;
-            bool __for_up = (__for_i <= __for_e);
-            bool __for_go = false;
-            if (__for_up) {
-                __for_go = (__for_i < __for_e);
-            } else {
-                __for_go = (__for_i > __for_e);
-            }
-            while (__for_go) {
-                size_t i = __for_i;
-                if (self->occupied[i]) {
-                    std__collections__HashSet_str_add(&res, self->keys[i]);
-                }
-                if (__for_up) {
-                    __for_go = ((__for_i + 1) < __for_e);
-                } else {
-                    __for_go = ((__for_i - 1) > __for_e);
-                }
-                if (__for_go) {
-                    if (__for_up) {
-                        __for_i = (__for_i + 1);
-                    } else {
-                        __for_i = (__for_i - 1);
-                    }
-                }
-            }
-        }
-    }
-    return res;
-}
-
-std__collections__List_str std__collections__HashSet_str_to_list(std__collections__HashSet_str* self) {
-    std__collections__List_str res = std__collections__List_str_init(4);
-    if (self->cap == 0) {
-        return res;
-    }
-    {
-        size_t __for_e = self->cap;
-        size_t __for_i = __for_e;
-        __for_i = 0;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            __for_go = (__for_i < __for_e);
-        } else {
-            __for_go = (__for_i > __for_e);
-        }
-        while (__for_go) {
-            size_t i = __for_i;
-            if (self->occupied[i]) {
-                std__collections__List_str_plus_assign(&res, self->keys[i]);
-            }
-            if (__for_up) {
-                __for_go = ((__for_i + 1) < __for_e);
-            } else {
-                __for_go = ((__for_i - 1) > __for_e);
-            }
-            if (__for_go) {
-                if (__for_up) {
-                    __for_i = (__for_i + 1);
-                } else {
-                    __for_i = (__for_i - 1);
-                }
-            }
-        }
-    }
-    return res;
-}
-
-void std__collections__HashSet_str_grow(std__collections__HashSet_str* self) {
-    size_t old_cap = self->cap;
-    kobel_str* old_keys = self->keys;
-    size_t* old_hashes = self->hashes;
-    bool* old_occ = self->occupied;
-    size_t new_cap = ((old_cap < 8) ? 16 : (old_cap * 2));
-    kobel_str* keys = std__memory__Heap_create_array_str(new_cap);
-    size_t* hashes = std__memory__Heap_create_array_usz(new_cap);
-    bool* new_occ = std__memory__Heap_create_array_bool(new_cap);
-    {
-        size_t __for_e = new_cap;
-        size_t __for_i = __for_e;
-        __for_i = 0;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            __for_go = (__for_i < __for_e);
-        } else {
-            __for_go = (__for_i > __for_e);
-        }
-        while (__for_go) {
-            size_t j = __for_i;
-            new_occ[j] = false;
-            if (__for_up) {
-                __for_go = ((__for_i + 1) < __for_e);
-            } else {
-                __for_go = ((__for_i - 1) > __for_e);
-            }
-            if (__for_go) {
-                if (__for_up) {
-                    __for_i = (__for_i + 1);
-                } else {
-                    __for_i = (__for_i - 1);
-                }
-            }
-        }
-    }
-    if (old_cap > 0) {
-        {
-            size_t __for_e = old_cap;
-            size_t __for_i = __for_e;
-            __for_i = 0;
-            bool __for_up = (__for_i <= __for_e);
-            bool __for_go = false;
-            if (__for_up) {
-                __for_go = (__for_i < __for_e);
-            } else {
-                __for_go = (__for_i > __for_e);
-            }
-            while (__for_go) {
-                size_t i = __for_i;
-                if (old_occ[i]) {
-                    size_t h = old_hashes[i];
-                    size_t idx = (h % new_cap);
-                    while (new_occ[idx]) {
-                        idx = ((idx + 1) % new_cap);
-                    }
-                    keys[idx] = old_keys[i];
-                    hashes[idx] = h;
-                    new_occ[idx] = true;
-                }
-                if (__for_up) {
-                    __for_go = ((__for_i + 1) < __for_e);
-                } else {
-                    __for_go = ((__for_i - 1) > __for_e);
-                }
-                if (__for_go) {
-                    if (__for_up) {
-                        __for_i = (__for_i + 1);
-                    } else {
-                        __for_i = (__for_i - 1);
-                    }
-                }
-            }
-        }
-        std__memory__Heap_free_str(old_keys);
-        std__memory__Heap_free_usz(old_hashes);
-        std__memory__Heap_free_bool(old_occ);
-    }
-    self->keys = keys;
-    self->hashes = hashes;
-    self->occupied = new_occ;
-    self->cap = new_cap;
-}
-
-void std__collections__HashSet_str_free(std__collections__HashSet_str* self) {
-    if (self->cap > 0) {
-        std__memory__Heap_free_str(self->keys);
-        std__memory__Heap_free_usz(self->hashes);
-        std__memory__Heap_free_bool(self->occupied);
-    }
-}
-
-bool std__collections__HashSet_str_plus_assign(std__collections__HashSet_str* self, kobel_str key) {
-    return std__collections__HashSet_str_add(self, key);
-}
-
-bool std__collections__HashSet_str_contains(std__collections__HashSet_str* self, kobel_str key) {
-    if ((self->len == 0) || (self->cap == 0)) {
-        return false;
-    }
-    size_t h = str_hash(key);
-    size_t idx = (h % self->cap);
-    while (self->occupied[idx]) {
-        if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
-            return true;
-        }
-        idx = ((idx + 1) % self->cap);
-    }
-    return false;
-}
-
-size_t std__collections__HashSet_str_count(std__collections__HashSet_str* self) {
-    return self->len;
-}
-
-kobel_str std__collections__HashSet_str_at(std__collections__HashSet_str* self, size_t i) {
-    int32_t seen = 0;
-    {
-        size_t __for_e = self->cap;
-        size_t __for_i = __for_e;
-        __for_i = 0;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            __for_go = (__for_i < __for_e);
-        } else {
-            __for_go = (__for_i > __for_e);
-        }
-        while (__for_go) {
-            size_t idx = __for_i;
-            if (self->occupied[idx]) {
-                if (seen == i) {
-                    return self->keys[idx];
-                }
-                seen++;
-            }
-            if (__for_up) {
-                __for_go = ((__for_i + 1) < __for_e);
-            } else {
-                __for_go = ((__for_i - 1) > __for_e);
-            }
-            if (__for_go) {
-                if (__for_up) {
-                    __for_i = (__for_i + 1);
-                } else {
-                    __for_i = (__for_i - 1);
-                }
-            }
-        }
-    }
-    return self->keys[0];
 }
 
 size_t std__collections__List_ptr_compiler__sema__EnumMemberInfo_count(std__collections__List_ptr_compiler__sema__EnumMemberInfo* self) {
@@ -42660,6 +44498,18 @@ void std__memory__Heap_free_ptr_compiler__sema__Type(compiler__sema__Type** ptr)
     free((uint8_t*)ptr);
 }
 
+void std__memory__Heap_free_compiler__core__Diagnostic(compiler__core__Diagnostic* ptr) {
+    free((uint8_t*)ptr);
+}
+
+void std__memory__Heap_free_u32(uint32_t* ptr) {
+    free((uint8_t*)ptr);
+}
+
+void std__memory__Heap_free_compiler__core__SourceFile(compiler__core__SourceFile* ptr) {
+    free((uint8_t*)ptr);
+}
+
 void std__memory__Heap_free_compiler__ast__EnumField(compiler__ast__EnumField* ptr) {
     free((uint8_t*)ptr);
 }
@@ -42972,6 +44822,30 @@ size_t* std__memory__Heap_create_array_usz(size_t count) {
 
 bool* std__memory__Heap_create_array_bool(size_t count) {
     return (bool*)malloc((count * 1));
+}
+
+compiler__core__Diagnostic* std__memory__Heap_create_array_compiler__core__Diagnostic(size_t count) {
+    return (compiler__core__Diagnostic*)malloc((count * 56));
+}
+
+compiler__core__Diagnostic* std__memory__Heap_resize_compiler__core__Diagnostic(compiler__core__Diagnostic* ptr, size_t count) {
+    return (compiler__core__Diagnostic*)realloc((uint8_t*)ptr, (count * 56));
+}
+
+uint32_t* std__memory__Heap_create_array_u32(size_t count) {
+    return (uint32_t*)malloc((count * 4));
+}
+
+uint32_t* std__memory__Heap_resize_u32(uint32_t* ptr, size_t count) {
+    return (uint32_t*)realloc((uint8_t*)ptr, (count * 4));
+}
+
+compiler__core__SourceFile* std__memory__Heap_create_array_compiler__core__SourceFile(size_t count) {
+    return (compiler__core__SourceFile*)malloc((count * 80));
+}
+
+compiler__core__SourceFile* std__memory__Heap_resize_compiler__core__SourceFile(compiler__core__SourceFile* ptr, size_t count) {
+    return (compiler__core__SourceFile*)realloc((uint8_t*)ptr, (count * 80));
 }
 
 compiler__ast__EnumField* std__memory__Heap_create_array_compiler__ast__EnumField(size_t count) {

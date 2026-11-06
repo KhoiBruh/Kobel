@@ -1,0 +1,155 @@
+mod tests.unit.test_core;
+
+use std.io.println;
+use std.collections.*;
+
+use compiler.core.*;
+
+fn test_source_map(): bool {
+	var sm = SourceMap();
+	defer sm.free();
+
+	val id1 = sm.add_file("src/main.kb", "main", "mod main;\nfn main(): i32 => 0;\n");
+	val id2 = sm.add_file("src/util.kb", "util", "mod util;\npub fn helper() {}\n");
+
+	if (id1 != 1 || id2 != 2 || sm.count() != 2) {
+		return false;
+	}
+
+	val dup_id = sm.add_file("src/main.kb", "main", "ignored");
+	if (dup_id != id1 || sm.count() != 2) {
+		return false;
+	}
+
+	val f1 = sm.get_file(id1) ?: return false;
+	if (f1.path != "src/main.kb" || f1.module_name != "main") {
+		return false;
+	}
+	if (f1.line_text(1) != "mod main;") {
+		return false;
+	}
+	if (f1.line_text(2) != "fn main(): i32 => 0;") {
+		return false;
+	}
+	if (!f1.line_text(99).empty()) {
+		return false;
+	}
+
+	val by_mod = sm.find_by_module("util") ?: return false;
+	if (by_mod.id != id2 || by_mod.line_text(2) != "pub fn helper() {}") {
+		return false;
+	}
+
+	val sp = Span(id1, 2, 4, 4);
+	if (!sp.is_valid() || sp.file_id != id1 || sp.line != 2 || sp.col != 4 || sp.length != 4) {
+		return false;
+	}
+
+	return true;
+}
+
+fn test_intern_pool(): bool {
+	var pool = InternPool();
+	defer pool.free();
+
+	val empty_sym = pool.intern("");
+	if (empty_sym.is_valid() || !pool.resolve(empty_sym).empty()) {
+		return false;
+	}
+
+	val s_fn = pool.intern("fn");
+	val s_val = pool.intern("val");
+	val s_fn_again = pool.intern("fn");
+
+	if (!s_fn.is_valid() || !s_val.is_valid()) {
+		return false;
+	}
+	if (s_fn != s_fn_again || s_fn == s_val) {
+		return false;
+	}
+	if (pool.count() != 2) {
+		return false;
+	}
+	if (pool.resolve(s_fn) != "fn" || pool.resolve(s_val) != "val") {
+		return false;
+	}
+
+	var sym_set = HashSet<SymbolId>();
+	defer sym_set.free();
+	sym_set += s_fn;
+	sym_set += s_val;
+	sym_set += s_fn_again;
+	if (sym_set.len != 2 || !(s_fn in sym_set) || !(s_val in sym_set)) {
+		return false;
+	}
+
+	return true;
+}
+
+fn test_diagnostics(): bool {
+	var sm = SourceMap();
+	defer sm.free();
+	val fid = sm.add_file("src/sample.kb", "sample", "mod sample;\nval x: i32 = \"bad\";\n");
+
+	var bag = DiagnosticBag();
+	defer bag.free();
+
+	if (bag.has_errors() || !bag.empty()) {
+		return false;
+	}
+
+	val sp = Span(fid, 2, 14, 5);
+	bag.report_error(sp, "src/sample.kb", "Type mismatch", "expected i32, found str");
+	// Duplicate error should be deduplicated automatically.
+	bag.report_error(sp, "src/sample.kb", "Type mismatch", "expected i32, found str");
+	bag.report_warning(Span(fid, 2, 5, 1), "src/sample.kb", "Unused variable 'x'");
+
+	if (!bag.has_errors() || bag.error_count != 1 || bag.warning_count != 1 || bag.items.len != 2) {
+		return false;
+	}
+
+	val first_diag = bag.items[0];
+	val rendered = first_diag.render(&sm);
+	if (!("Type mismatch" in rendered) || !("src/sample.kb:2:14" in rendered) || !("^^^^^" in rendered)) {
+		return false;
+	}
+
+	val legacy = Diagnostic.parse_legacy(
+		"sample: Line 2, Column 14: Legacy error message",
+		"src/default.kb",
+		Severity.ERROR,
+		&sm
+	);
+	if (legacy.file_path != "src/sample.kb" || legacy.span.line != 2 || legacy.span.col != 14) {
+		return false;
+	}
+	if (legacy.message != "Legacy error message") {
+		return false;
+	}
+
+	return true;
+}
+
+fn main(): i32 {
+	println("=== Unit Test: compiler.core ===");
+
+	if (!test_source_map()) {
+		println("  [FAIL] test_source_map");
+		return 1;
+	}
+	println("  [PASS] test_source_map");
+
+	if (!test_intern_pool()) {
+		println("  [FAIL] test_intern_pool");
+		return 1;
+	}
+	println("  [PASS] test_intern_pool");
+
+	if (!test_diagnostics()) {
+		println("  [FAIL] test_diagnostics");
+		return 1;
+	}
+	println("  [PASS] test_diagnostics");
+
+	return 0;
+}

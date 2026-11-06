@@ -1,0 +1,116 @@
+mod compiler.core;
+
+use std.collections.*;
+
+/*
+ * ============================================================================
+ * compiler.core.source — Source spans, files, and compilation source map
+ *
+ * Provides strongly-typed source location tracking (`Span`) and an indexed
+ * table of loaded source files (`SourceMap`) so diagnostics and IDE tooling
+ * never need to re-read files from disk or depend on the module loader.
+ * ============================================================================
+ */
+
+pub struct Span {
+	pub file_id: u32 = 0,
+	pub line: usz = 0,
+	pub col: usz = 0,
+	pub length: usz = 1
+}
+
+impl Span {
+
+	pub init(file_id: u32 = 0, line: usz = 0, col: usz = 0, length: usz = 1)
+		=> Self(file_id, line, col, if (length == 0) 1 else length);
+
+	pub fn is_valid(val self) => self.line > 0;
+
+}
+
+pub struct SourceFile {
+	pub id: u32,
+	pub path: str,
+	pub module_name: str,
+	pub content: str,
+	pub lines: List<str>
+}
+
+impl SourceFile {
+
+	pub init(id: u32, path: str, module_name: str, content: str) {
+		val lines = content.split_lines();
+		return Self(id, path, module_name, content, lines);
+	}
+
+	pub fn line_text(val self, line_num: usz): str {
+		if (line_num == 0 || line_num > self.lines.len) {
+			return "";
+		}
+		return self.lines[line_num - 1];
+	}
+
+	pub fn free(self) {
+		self.lines.free();
+	}
+
+}
+
+pub struct SourceMap {
+	pub files: List<SourceFile>,
+	path_index: HashMap<str, u32>,
+	module_index: HashMap<str, u32>
+}
+
+impl SourceMap {
+
+	pub init() => Self(
+		List<SourceFile>(),
+		HashMap<str, u32>(),
+		HashMap<str, u32>()
+	);
+
+	pub fn add_file(var self, path: str, module_name: str, content: str): u32 {
+		val existing = self.path_index[path];
+		if (existing != null) {
+			return *existing;
+		}
+
+		val id = (self.files.len + 1) as u32;
+		self.files += SourceFile(id, path, module_name, content);
+		self.path_index[path] = id;
+		if (!module_name.empty()) {
+			self.module_index[module_name] = id;
+		}
+		return id;
+	}
+
+	pub fn get_file(val self, file_id: u32): *SourceFile? {
+		if (file_id == 0 || (file_id as usz) > self.files.len) {
+			return null;
+		}
+		return &self.files.data[(file_id - 1) as usz];
+	}
+
+	pub fn find_by_path(val self, path: str): *SourceFile? {
+		val id_ptr = self.path_index[path] ?: return null;
+		return self.get_file(*id_ptr);
+	}
+
+	pub fn find_by_module(val self, module_name: str): *SourceFile? {
+		val id_ptr = self.module_index[module_name] ?: return null;
+		return self.get_file(*id_ptr);
+	}
+
+	pub fn count(val self) => self.files.len;
+
+	pub fn free(self) {
+		for (f in self.files) {
+			f.free();
+		}
+		self.files.free();
+		self.path_index.free();
+		self.module_index.free();
+	}
+
+}
