@@ -11,6 +11,7 @@ mod compiler.codegen;
 use compiler.ast.*;
 
 use compiler.sema.*;
+use compiler.semantic.types.*;
 
 pub fn c_type_from_ast(node: *AstNode): str {
 	if (node == null) return "void";

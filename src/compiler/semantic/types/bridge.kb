@@ -1,28 +1,25 @@
-mod compiler.sema;
-
-/*
- * ============================================================================
- * Resolved type -> AST annotation
- *
- * `ast_type_from_type` materializes a resolved `*Type` as an AST type node, so
- * synthesized locals and instance signatures can carry an explicit annotation
- * the C backend understands. Kept apart from the checker: no pass state is
- * involved, only the arena and the type model.
- * ============================================================================
- */
+mod compiler.semantic.types;
 
 use std.collections.*;
 use std.memory.*;
 
 use compiler.ast.*;
 
+/*
+ * ============================================================================
+ * compiler.semantic.types.bridge — Resolved Type to AST Type Node Synthesis
+ *
+ * Converts a resolved semantic `*Type` back into an explicit syntactic
+ * `*AstNode` type annotation for synthesized locals and monomorphized
+ * signatures consumed by the C99 code generator.
+ * ============================================================================
+ */
+
 impl Arena {
 
 	fn ast_named_type(var self, name: str): *AstNode
 		=> self.node(NodeData.NamedType(name, List<*AstNode>()), 0, 0);
 
-	// Builds an AST type node for a resolved semantic type, so locals can carry an
-	// explicit annotation the C backend understands.
 	pub fn ast_type_from_type(var self, ty: *Type): *AstNode {
 		if (ty.is_enum()) return self.ast_named_type(ty.as_enum().c_name);
 
@@ -62,4 +59,5 @@ impl Arena {
 			else -> self.ast_named_type("none");
 		};
 	}
+
 }

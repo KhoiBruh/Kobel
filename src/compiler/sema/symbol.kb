@@ -21,6 +21,7 @@ use std.collections.*;
 use std.traits.Iterable;
 
 use compiler.ast.*;
+use compiler.semantic.types.*;
 
 // ============================================================================
 // SymbolKind Enumeration

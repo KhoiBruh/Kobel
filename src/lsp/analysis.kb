@@ -10,6 +10,7 @@ use compiler.lexer.*;
 use compiler.parser.*;
 use compiler.ast.*;
 use compiler.sema.*;
+use compiler.semantic.types.*;
 use compiler.sema.decl.*;
 use compiler.sema.body.*;
 use compiler.loader.*;

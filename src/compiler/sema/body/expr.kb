@@ -19,6 +19,7 @@ use compiler.ast.*;
 use compiler.lexer.*;
 
 use compiler.sema.*;
+use compiler.semantic.types.*;
 use compiler.sema.decl.*;
 use compiler.sema.desugar.*;
 

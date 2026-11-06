@@ -21,10 +21,11 @@ use compiler.lexer.TokenType;
 use compiler.ast.*;
 
 use compiler.sema.*;
+use compiler.semantic.types.*;
 use compiler.sema.decl.*;
 
 use compiler.ast.StructField as AstStructField;
-use compiler.sema.StructField;
+use compiler.semantic.types.StructField;
 
 // A template is a candidate when its name matches and its table kind agrees:
 // `FN` never matches an `impl` method, `METHOD` only matches one, `STRUCT`

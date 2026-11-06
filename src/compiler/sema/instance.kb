@@ -15,6 +15,7 @@ mod compiler.sema;
 use std.collections.*;
 
 use compiler.ast.*;
+use compiler.semantic.types.*;
 
 // What kind of declaration an instance was produced from.
 pub enum InstanceKind {

@@ -5,10 +5,11 @@ use std.io.println;
 use std.memory.Arena;
 use std.collections.List;
 
-use compiler.sema.DataType;
-use compiler.sema.Type;
-use compiler.sema.StructField;
-use compiler.sema.StructType;
+use compiler.semantic.types.DataType;
+use compiler.semantic.types.Type;
+use compiler.semantic.types.StructField;
+use compiler.semantic.types.StructType;
+use compiler.semantic.types.*;
 
 
 fn assert_true(cond: bool, msg: str) {

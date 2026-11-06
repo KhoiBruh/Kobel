@@ -31,7 +31,9 @@ use compiler.sema.decl.*;
 use compiler.ast.StructField as AstStructField;
 use compiler.ast.PointerType;
 use compiler.ast.ArrayType;
-use compiler.sema.StructField;
+use compiler.sema.*;
+use compiler.semantic.types.*;
+use compiler.semantic.types.StructField;
 
 impl DeclPass {
 

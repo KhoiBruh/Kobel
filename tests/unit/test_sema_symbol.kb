@@ -3,8 +3,9 @@ mod test.bootstrap_sema_symbol;
 use std.io.print;
 use std.io.println;
 
-use compiler.sema.DataType;
-use compiler.sema.Type;
+use compiler.semantic.types.DataType;
+use compiler.semantic.types.Type;
+use compiler.semantic.types.*;
 
 use compiler.sema.SymbolKind;
 use compiler.sema.Symbol;

@@ -22,12 +22,13 @@ use compiler.core.*;
 use compiler.lexer.TokenType;
 
 use compiler.ast.*;
+use compiler.semantic.types.*;
 use compiler.sema.*;
 use compiler.sema.mono.*;
 use compiler.sema.desugar.*;
 
 use compiler.ast.StructField as AstStructField;
-use compiler.sema.StructField;
+use compiler.semantic.types.StructField;
 
 // ============================================================================
 // DeclPass - Top-level Declarations Collector

@@ -6,7 +6,7 @@ use std.io.println;
 use compiler.lexer.Lexer;
 use compiler.parser.*;
 
-use compiler.sema.DataType;
+use compiler.semantic.types.DataType;
 
 use compiler.sema.SymbolKind;
 

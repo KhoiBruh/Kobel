@@ -17,6 +17,7 @@ use compiler.ast.PointerType;
 use compiler.ast.ArrayType;
 
 use compiler.sema.*;
+use compiler.semantic.types.*;
 use compiler.sema.mono.*;
 
 impl DeclPass {

@@ -8,6 +8,7 @@ use compiler.lexer.*;
 use compiler.ast.*;
 
 use compiler.sema.*;
+use compiler.semantic.types.*;
 
 // ============================================================================
 // C99 Backend Code Generator

@@ -13,7 +13,7 @@ use std.filesystem.File;
 use compiler.loader.ModuleLoader;
 use compiler.sema.decl.DeclPass;
 use compiler.sema.decl.*;
-use compiler.sema.DataType;
+use compiler.semantic.types.DataType;
 use compiler.ast.*;
 
 fn main(): i32 {

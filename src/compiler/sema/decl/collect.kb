@@ -18,7 +18,8 @@ use compiler.lexer.*;
 use compiler.ast.*;
 
 use compiler.sema.*;
-use compiler.sema.StructField;
+use compiler.semantic.types.*;
+use compiler.semantic.types.StructField;
 use compiler.sema.mono.*;
 
 // A trait may declare overloads, so a method is identified by name + arity.

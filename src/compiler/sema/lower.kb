@@ -19,6 +19,7 @@ use std.memory.*;
 use std.collections.*;
 
 use compiler.ast.*;
+use compiler.semantic.types.*;
 
 use compiler.lexer.*;
 

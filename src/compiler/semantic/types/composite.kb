@@ -1,0 +1,267 @@
+mod compiler.semantic.types;
+
+use std.collections.*;
+use std.memory.*;
+
+use compiler.ast.*;
+
+/*
+ * ============================================================================
+ * compiler.semantic.types.composite — Struct, Enum, Method, and Trait metadata
+ *
+ * Defines the composite descriptors referenced by `TypePayload`:
+ *   - `StructField` and `StructType` (fields, methods, visibility, layout)
+ *   - `EnumMemberInfo` and `EnumInfo` (plain integer and tagged-union enums)
+ *   - `MethodInfo` and `PrimMethods` (method signatures and overload lookup)
+ *   - `TraitMethod` and `TraitInfo` (static trait contracts and associated types)
+ * ============================================================================
+ */
+
+// ============================================================================
+// Method Descriptors
+// ============================================================================
+
+pub struct MethodInfo {
+	pub name: str,
+	pub c_name: str,
+	pub fn_type: *Type,
+	pub ast_node: *AstNode,
+	pub module: str,
+	pub operator: bool = false,
+	pub is_static: bool = false,
+	pub initializer: bool = false
+}
+
+pub struct PrimMethods {
+	pub list: List<*MethodInfo> = List()
+}
+
+// ============================================================================
+// Struct Descriptors & Method Lookup
+// ============================================================================
+
+pub struct StructField {
+	pub name: str,
+	pub type_ptr: *Type,
+	pub offset: usz,
+	pub public: bool,
+	pub default_val: *AstNode? = null
+}
+
+pub struct StructType {
+	pub name: str,
+	pub c_name: str,
+	pub fields: List<StructField>,
+	pub methods: List<*MethodInfo>,
+	pub module: str,
+	pub has_private: bool,
+	pub is_defined: bool = true
+}
+
+impl StructType {
+
+	pub fn find_method(val self, name: str): *MethodInfo? {
+		for (m in self.methods) if (!m.operator && m.name == name) return m;
+		for (m in self.methods) if (m.name == name) return m;
+		return null;
+	}
+
+	pub fn find_static_method(val self, name: str): *MethodInfo? {
+		for (m in self.methods) if (!m.operator && m.is_static && m.name == name) return m;
+		for (m in self.methods) if (m.is_static && m.name == name) return m;
+		return null;
+	}
+
+	pub fn find_static_method_arity(val self, name: str, argc: usz): *MethodInfo? {
+		for (m in self.methods) {
+			if (
+				!m.operator
+				&& m.is_static
+				&& m.name == name
+				&& m.fn_type.as_fn().param_types.len == argc
+			) return m;
+		}
+		for (m in self.methods) {
+			if (
+				m.is_static
+				&& m.name == name
+				&& m.fn_type.as_fn().param_types.len == argc
+			) return m;
+		}
+		return null;
+	}
+
+	pub fn count_static_method_arity(val self, name: str, argc: usz): usz {
+		var n = 0;
+		for (m in self.methods) {
+			if (
+				!m.operator
+				&& m.is_static
+				&& m.name == name
+				&& m.fn_type.as_fn().param_types.len == argc
+			) n++;
+		}
+		return n;
+	}
+
+	pub fn find_method_arity(val self, name: str, argc: usz): *MethodInfo? {
+		for (m in self.methods) {
+			if (
+				!m.operator
+				&& !m.is_static
+				&& m.name == name
+				&& m.fn_type.as_fn().param_types.len == argc
+			) return m;
+		}
+		for (m in self.methods) {
+			if (
+				!m.is_static
+				&& m.name == name
+				&& m.fn_type.as_fn().param_types.len == argc
+			) return m;
+		}
+		return null;
+	}
+
+	pub fn count_method_arity(val self, name: str, argc: usz): usz {
+		var n = 0;
+		for (m in self.methods) {
+			if (
+				!m.operator
+				&& !m.is_static
+				&& m.name == name
+				&& m.fn_type.as_fn().param_types.len == argc
+			) n++;
+		}
+		return n;
+	}
+
+	pub fn find_method_c(val self, c_name: str): *MethodInfo? {
+		for (m in self.methods) if (m.c_name == c_name) return m;
+		return null;
+	}
+
+	pub fn find_operator(val self, op_name: str, arg_types: List<*Type>): *MethodInfo? {
+		var assignable_match: *MethodInfo? = null;
+
+		for (m in self.methods) {
+			if (!m.operator || m.name != op_name) continue;
+			val fn_t = m.fn_type.as_fn();
+			if (fn_t.param_types.len != arg_types.len) continue;
+
+			var all_exact = true;
+			var all_assignable = true;
+			for (i in 1..<arg_types.len) {
+				val param_t = fn_t.param_types[i];
+				val arg_t = arg_types[i];
+				if (param_t == null || arg_t == null) {
+					all_exact = false;
+					all_assignable = false;
+					break;
+				}
+
+				if (!param_t.can_assign(arg_t)) {
+					all_assignable = false;
+					all_exact = false;
+					break;
+				}
+
+				if (param_t.kind != arg_t.kind) all_exact = false;
+			}
+
+			if (all_exact) return m;
+			if (all_assignable && assignable_match == null) assignable_match = m;
+		}
+		return assignable_match;
+	}
+
+}
+
+impl Arena {
+
+	pub fn struct_type(var self, name: str, var fields: List<StructField>): *Type {
+		var max_align = 1;
+		var current_offset = 0;
+
+		for (i in 0..<fields.len) {
+			var f = fields[i];
+			val f_align = f.type_ptr.align;
+			if (f_align > max_align) max_align = f_align;
+
+			val rem = current_offset % f_align;
+			if (rem != 0) current_offset += (f_align - rem);
+
+			f.offset = current_offset;
+			fields[i] = f;
+			current_offset += f.type_ptr.size;
+		}
+
+		val total_rem = current_offset % max_align;
+		if (total_rem != 0) current_offset += (max_align - total_rem);
+
+		val struct_info = self.create_val(StructType(name, name, fields, List<*MethodInfo>(), "", false));
+		return self.type_payload(DataType.STRUCT, current_offset, max_align, TypePayload.Struct(struct_info));
+	}
+
+}
+
+// ============================================================================
+// Enum Descriptors
+// ============================================================================
+
+pub struct EnumMemberInfo {
+	pub name: str,
+	pub value: i64,
+	pub payload_ty: *Type? = null,
+	pub payload_path: str = "",
+	pub raw_text: str = "",
+	pub lit_kind: LiteralKind = LiteralKind.INT
+}
+
+pub struct EnumInfo {
+	pub name: str,
+	pub c_name: str,
+	pub underlying: *Type,
+	pub members: List<*EnumMemberInfo>,
+	pub is_payload: bool = false,
+	pub tag_field: str = "tag"
+}
+
+impl EnumInfo {
+
+	pub fn find_member(val self, name: str): *EnumMemberInfo? {
+		for (m in self.members) if (m.name == name) return m;
+		return null;
+	}
+
+}
+
+// ============================================================================
+// Trait Descriptors
+// ============================================================================
+
+pub struct TraitMethod {
+	pub name: str,
+	pub arity: usz,
+	pub has_default: bool,
+	pub node: *AstNode
+}
+
+pub struct TraitInfo {
+	pub name: str,
+	pub bases: List<str>,
+	pub methods: List<*TraitMethod>,
+	pub impls: List<str>,
+	pub assoc_types: List<str> = List()
+}
+
+impl TraitInfo {
+
+	pub fn find_method(val self, name: str): *TraitMethod? {
+		for (m in self.methods) if (m.name == name) return m;
+		return null;
+	}
+
+	pub fn has_impl(val self, struct_name: str) => struct_name in self.impls;
+
+}

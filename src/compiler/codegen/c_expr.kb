@@ -14,6 +14,7 @@ use compiler.lexer.*;
 use compiler.ast.*;
 
 use compiler.sema.*;
+use compiler.semantic.types.*;
 
 // ============================================================================
 // Expression Code Generation

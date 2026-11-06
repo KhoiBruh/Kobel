@@ -1,22 +1,19 @@
-mod compiler.sema;
-
-/*
- * ============================================================================
- * Type model
- *
- * `Type` plus its payload enum (Pointer/Array/Struct/Fn/Enum), struct layout,
- * function and method types, enum info, and the canonical primitive singletons
- * (`PrimTypes`). Equality is structural; structs compare their mangled C name so
- * same-named types in different modules stay distinct.
- * ============================================================================
- */
+mod compiler.semantic.types;
 
 use std.collections.*;
 use std.memory.Arena;
 use std.traits.*;
 use std.string.*;
 
-
+/*
+ * ============================================================================
+ * compiler.semantic.types.type — Core semantic type model
+ *
+ * Defines `DataType`, `TypePayload`, and `Type`, along with structural type
+ * equality, assignment compatibility (`can_assign`), struct field layout
+ * calculation, and string formatting.
+ * ============================================================================
+ */
 
 pub enum DataType {
 	NONE,
@@ -32,8 +29,10 @@ pub enum DataType {
 	FN
 }
 
-// What a `Type` carries besides kind/size/align. `None` covers primitives, and
-// a payload enum keeps the variant (and its accessors) checked.
+/*
+ * Variant payload carried by a `Type` in addition to `kind`, `size`, and `align`.
+ * `NONE` covers primitive types; composite variants carry typed pointers.
+ */
 pub enum TypePayload {
 	NONE,
 	Pointer(pointee: *Type, mutable: bool, nullable: bool),
@@ -48,13 +47,13 @@ pub struct Type {
 	pub size: usz,
 	pub align: usz,
 	pub data: TypePayload,
-	// Methods of a built-in type (`impl i32 { ... }`). Null for every non-primitive
-	// type and for primitives built by `Type.primitive`, which are not canonical.
+	// Methods registered on a built-in primitive type (`impl i32 { ... }`).
+	// Null for non-primitive types and non-canonical primitive values.
 	pub methods: *PrimMethods? = null
 }
 
 // ============================================================================
-// Primitive Types Constructors
+// Primitive Type Value Constructors
 // ============================================================================
 
 impl Type {
@@ -103,7 +102,7 @@ impl Type {
 }
 
 // ============================================================================
-// Complex Type Allocators (impl Arena Extension)
+// Arena Type Allocators
 // ============================================================================
 
 impl Arena {
@@ -130,9 +129,11 @@ impl Arena {
 }
 
 // ============================================================================
-// Payload accessors. A wrong-kind accessor returns null instead of casting an
-// unrelated payload; callers branch on `kind` first.
+// Payload Accessors, Predicates, Layout & Compatibility
+// ============================================================================
+
 impl Type {
+
 	pub fn as_pointer(val self): *TypePayload.Pointer {
 		return when (self.data) {
 			is TypePayload.Pointer as p -> p;
@@ -170,15 +171,12 @@ impl Type {
 		};
 	}
 
-	// Methods of a built-in type. Called through the canonical instance from
-	// `PrimTypes`, so `i32` accumulates exactly one method list.
+	// Appends a method to a canonical built-in primitive type from `PrimTypes`.
 	pub fn add_method(val self, mi: *MethodInfo) {
 		if (self.methods == null) return;
 		self.methods.list += mi;
 	}
 
-	// The method list, empty when this type has no payload (a non-canonical
-	// primitive built by `Type.primitive`, a pointer, an array, ...).
 	pub fn method_list(val self): List<*MethodInfo> {
 		if (self.methods == null) return List();
 		return self.methods.list;
@@ -194,8 +192,8 @@ impl Type {
 		val list = self.method_list();
 		for (m in list) {
 			if (
-				m.name == name &&
-				m.fn_type.as_fn().param_types.len == argc
+				m.name == name
+				&& m.fn_type.as_fn().param_types.len == argc
 			) return m;
 		}
 		return null;
@@ -289,9 +287,9 @@ impl Type {
 			DataType.POINTER -> {
 				val p_a = self.as_pointer();
 				val p_b = b.as_pointer();
-				yield p_a.mutable == p_b.mutable &&
-					p_a.nullable == p_b.nullable &&
-					p_a.pointee.equals(p_b.pointee);
+				yield p_a.mutable == p_b.mutable
+					&& p_a.nullable == p_b.nullable
+					&& p_a.pointee.equals(p_b.pointee);
 			}
 			DataType.ARRAY -> {
 				val arr_a = self.as_array();
@@ -300,8 +298,6 @@ impl Type {
 					&& arr_a.elem.equals(arr_b.elem);
 			}
 			DataType.STRUCT -> {
-				// Struct names are only unique per module: compare the mangled C name
-				// when there is one, so `a::Item` and `b::Item` stay distinct.
 				val s_a = self.as_struct();
 				val s_b = b.as_struct();
 				val n_a = if (s_a.c_name.empty()) s_a.name else s_a.c_name;
@@ -323,13 +319,10 @@ impl Type {
 		};
 	}
 
-	//pub op equals(val self, b: Type) => self.equals(&b);
-
 	pub fn can_assign(val self, source: *Type): bool {
 		if (self.equals(source)) return true;
 
-		// Enum raw-value coercion: an enum with an underlying primitive can coerce
-		// to and from that primitive type.
+		// Enum raw-value coercion to/from its underlying primitive type.
 		if (self.is_enum() && !self.as_enum().is_payload) {
 			if (!source.is_enum() && self.as_enum().underlying.can_assign(source)) return true;
 		}
@@ -337,54 +330,50 @@ impl Type {
 			if (!self.is_enum() && self.can_assign(source.as_enum().underlying)) return true;
 		}
 
-		// 1. Allow assignment between integer types (integer coercion / literal assignment)
+		// 1. Integer coercion
 		if (self.is_integer() && source.is_integer()) return true;
 
-		// 2. Allow assignment between float types
+		// 2. Float coercion
 		if (self.is_float() && source.is_float()) return true;
 		if (self.is_float() && source.is_integer()) return true;
 
-		// 3. Allow passing/assigning str to *char, &char, *u8, &u8, *none
+		// 3. Passing/assigning str to *char, &char, *u8, &u8, *none
 		if (self.kind == DataType.POINTER && source.kind == DataType.STR) {
 			val t_ptr = self.as_pointer();
 			if (
-				t_ptr.pointee.kind == DataType.CHAR ||
-				t_ptr.pointee.kind == DataType.U8 ||
-				t_ptr.pointee.kind == DataType.NONE
+				t_ptr.pointee.kind == DataType.CHAR
+				|| t_ptr.pointee.kind == DataType.U8
+				|| t_ptr.pointee.kind == DataType.NONE
 			) return true;
 		}
 
-		// 4. Allow assigning a char/u8 pointer to str
+		// 4. Assigning a non-nullable char/u8 pointer to str
 		if (self.kind == DataType.STR && source.kind == DataType.POINTER) {
 			val s_ptr = source.as_pointer();
 			if (s_ptr.nullable) return false;
 			if (
-				s_ptr.pointee.kind == DataType.CHAR ||
-				s_ptr.pointee.kind == DataType.U8
+				s_ptr.pointee.kind == DataType.CHAR
+				|| s_ptr.pointee.kind == DataType.U8
 			) return true;
 		}
 
-		// 5. Allow assigning a mutable pointer to an immutable pointer: *mut T -> *T,
-		// and allow assigning a non-nullable pointer to a nullable pointer: *T -> *T?
+		// 5. Pointer mutability (&T -> *T), nullability (*T -> *T?), and raw byte pointers
 		if (self.kind == DataType.POINTER && source.kind == DataType.POINTER) {
 			val t_ptr = self.as_pointer();
 			val s_ptr = source.as_pointer();
 
-			// Nullable pointer cannot be assigned to non-nullable pointer
 			if (s_ptr.nullable && !t_ptr.nullable) return false;
 
 			if (
-				(!t_ptr.mutable || s_ptr.mutable) &&
-				t_ptr.pointee.equals(s_ptr.pointee)
+				(!t_ptr.mutable || s_ptr.mutable)
+				&& t_ptr.pointee.equals(s_ptr.pointee)
 			) return true;
 
-			// Allow none pointer (null pointer) to be compatible only with nullable pointers
 			if (s_ptr.pointee.kind == DataType.NONE) return t_ptr.nullable;
 
-			// Allow raw byte pointer compatibility
 			if (
-				t_ptr.pointee.kind == DataType.U8 ||
-				t_ptr.pointee.kind == DataType.NONE
+				t_ptr.pointee.kind == DataType.U8
+				|| t_ptr.pointee.kind == DataType.NONE
 			) return true;
 		}
 
