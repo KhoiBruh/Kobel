@@ -1,56 +1,43 @@
-mod compiler.sema.mono;
-
-// ============================================================================
-// Monomorphization - template registry and instance worklist
-//
-// Template lookup over the struct/fn/method tables, and the instantiation
-// worklist: `queue_decl` appends `module marker, decl` pairs in creation order
-// and `drain_instances` rewrites them until no generic use is left. The data
-// types live in `sema.template` / `sema.instance`; the instantiate/rewrite/clone
-// steps live in `mono.instantiate`, `mono.rewrite` and `mono.clone`.
-// ============================================================================
+mod compiler.semantic.resolution;
 
 use std.memory.*;
 use std.collections.*;
 use std.traits.*;
 
-
-
 use compiler.lexer.TokenType;
-
 use compiler.ast.*;
-
-use compiler.sema.*;
 use compiler.semantic.types.*;
 use compiler.semantic.symbols.*;
-use compiler.sema.decl.*;
 
-use compiler.ast.StructField as AstStructField;
-use compiler.semantic.types.StructField;
+/*
+ * ============================================================================
+ * compiler.semantic.resolution.registry — Generic Template Registry & Worklist
+ *
+ * Coordinates generic template registration across struct, function, and impl
+ * blocks, visible template lookup, trait bounds checking, and worklist draining.
+ * ============================================================================
+ */
 
-// A template is a candidate when its name matches and its table kind agrees:
-// `FN` never matches an `impl` method, `METHOD` only matches one, `STRUCT`
-// ignores the flag.
 fn template_matches(kind: TemplateKind, t: *GenericTemplate, name: str): bool => when (kind) {
 	TemplateKind.FN -> !t.is_method && t.name == name;
 	TemplateKind.METHOD -> t.is_method && t.name == name;
 	else -> t.name == name;
 };
 
-impl DeclPass {
+impl TypeResolver {
 
 	pub fn register_template(var self, node: *AstNode) {
 		val cur = node;
 		when (cur) {
 			is StructDecl as s -> {
-				if (s.type_params.len > 0) self.symtab.gen.struct_templates += self.gen_template(s.name, node, false);
+				if (s.type_params.len > 0) self.symtab.gen.struct_templates += self.generic_template(s.name, node, false);
 			}
 			is FnDecl as f -> {
-				if (f.type_params.len > 0) self.symtab.gen.fn_templates += self.gen_template(f.name, node, false);
+				if (f.type_params.len > 0) self.symtab.gen.fn_templates += self.generic_template(f.name, node, false);
 			}
 			is ImplDecl as im -> {
 				if (im.type_params.len > 0) {
-					self.symtab.gen.impl_templates += self.gen_template(im.struct_name, node, true);
+					self.symtab.gen.impl_templates += self.generic_template(im.struct_name, node, true);
 				} else {
 					for (m in im.methods) {
 						if (m is FnDecl as var f && f.type_params.len > 0) {
@@ -64,7 +51,7 @@ impl DeclPass {
 									f.params[i] = Param(p.name, self_ty_node, p.mutable, p.has_val, p.default_val);
 								}
 							}
-							self.symtab.gen.fn_templates += self.gen_template(f.name, m, true, im.struct_name);
+							self.symtab.gen.fn_templates += self.generic_template(f.name, m, true, im.struct_name);
 						}
 					}
 				}
@@ -72,9 +59,10 @@ impl DeclPass {
 		}
 	}
 
-	// self_type is the impl's target type for a method template ("" otherwise),
-	// which lets a method be looked up by its receiver instead of by name alone.
-	pub fn gen_template(var self, name: str, node: *AstNode, is_method: bool, self_type: str = ""): *GenericTemplate {
+	pub fn generic_template(
+		var self, name: str, node: *AstNode,
+		is_method: bool, self_type: str = ""
+	): *GenericTemplate {
 		return self.arena.create_val(GenericTemplate(name, self.current_module, node, is_method, self_type));
 	}
 
@@ -90,21 +78,16 @@ impl DeclPass {
 
 	pub fn find_instance_symbol(val self, name: str) => self.symtab.gen.find_instance_symbol(name);
 
-	// Which table a `TemplateKind` is looked up in.
 	fn templates_of(val self, kind: TemplateKind) =>
 		if (kind == TemplateKind.STRUCT) self.symtab.gen.struct_templates
 		else self.symtab.gen.fn_templates;
 
-	// A method template also has to agree on the receiver type: two structs may
-	// declare a generic method with the same name.
 	fn template_fits(val self, kind: TemplateKind, t: *GenericTemplate, name: str, self_type: str): bool {
 		if (!template_matches(kind, t, name)) return false;
 		if (self_type.empty()) return true;
 		return t.self_type == self_type;
 	}
 
-	// Visible from the current module: own module first, then imports (a wildcard
-	// import, or an alias that matches `name`), then any module.
 	fn find_template(val self, kind: TemplateKind, name: str, self_type: str = ""): *GenericTemplate? {
 		val list = self.templates_of(kind);
 		for (t in list) {
@@ -162,7 +145,6 @@ impl DeclPass {
 		else -> "x";
 	};
 
-	// C-level size of a type node (used to lower `T.size()` during materialization).
 	pub fn ast_type_size(var self, node: *AstNode): usz {
 		if (node == null) return 8;
 		return when (node) {
@@ -183,10 +165,6 @@ impl DeclPass {
 		};
 	}
 
-	// Checks the trait bounds of an instantiation: for every `T: Trait` parameter
-	// the concrete argument must be a struct with a matching `impl Trait for`
-	// block. Arguments that are not known structs (primitives, pointers, ...) are
-	// left alone so no false error is reported for a type we cannot prove.
 	pub fn check_bounds(var self, tmpl: *GenericTemplate, arg_asts: List<*AstNode>) {
 		val params = tmpl.params();
 		for (i in 0..<params.len) {
@@ -228,18 +206,10 @@ impl DeclPass {
 
 	pub fn queue_decl(var self, module: str, node: *AstNode) {
 		val marker = self.arena.node(NodeData.ModuleDecl(module.split('.'), module), node.line, node.col);
-		// One pair per instance: it is both the declaration to emit and the entry to
-		// rewrite (the clone's own generic uses still have to be resolved).
 		self.symtab.gen.instances += marker;
 		self.symtab.gen.instances += node;
 	}
 
-	// Drains the instance worklist. Rewriting an instance can discover further
-	// generic uses and queue more instances, so this runs to a fixpoint; each
-	// entry is rewritten with its template's module in scope. Function/method
-	// instances are *views* whose bodies are the template's shared AST, so they
-	// are never rewritten here: their generic uses are resolved while checking
-	// (see `BodyPass` instance annotations and the env-based type resolver).
 	pub fn drain_instances(var self) {
 		var i = 0;
 		while (i + 1 < self.symtab.gen.instances.len) {

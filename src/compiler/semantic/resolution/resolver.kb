@@ -1,27 +1,98 @@
-mod compiler.sema.decl;
+mod compiler.semantic.resolution;
 
-// ============================================================================
-// DeclPass - AST type resolution
-//
-// `resolve_ast_type` turns a parsed type annotation into the resolved `*Type`
-// the rest of sema works with: type-parameter substitution, `Self` and
-// `Self.Item`, primitives, generic struct instantiation, user types, and the
-// pointer/array/nullable wrappers. A node is only rewritten when it belongs to a
-// concrete declaration; template annotations are shared and stay untouched.
-// ============================================================================
-
+use std.string.*;
+use std.memory.*;
 use std.collections.*;
 
+use compiler.core.*;
+use compiler.lexer.TokenType;
 use compiler.ast.*;
 use compiler.ast.PointerType;
 use compiler.ast.ArrayType;
-
-use compiler.sema.*;
 use compiler.semantic.types.*;
 use compiler.semantic.symbols.*;
-use compiler.sema.mono.*;
 
-impl DeclPass {
+/*
+ * ============================================================================
+ * compiler.semantic.resolution.resolver — Standalone AST Type Resolver
+ *
+ * Resolves AST type annotation nodes into canonical `*Type` instances,
+ * managing type parameter substitution, `Self` and `Self.Item` bindings,
+ * primitive types, and generic struct instantiation.
+ * ============================================================================
+ */
+
+pub struct TypeResolver {
+	pub symtab: SymbolTable,
+	pub arena: Arena,
+	pub current_module: str = "",
+	pub errors: List<str> = List(),
+	pub is_extern: bool = false,
+	pub current_self_type: *Type? = null,
+	pub subst_names: List<str> = List(),
+	pub subst_types: List<*Type> = List(),
+	pub current_fn_return_type: *AstNode? = null,
+	pub mat_rec: *InstanceRecord? = null
+}
+
+impl TypeResolver {
+
+	pub init(
+		symtab: SymbolTable,
+		arena: Arena,
+		current_module: str = "",
+		errors: List<str> = List(),
+		is_extern: bool = false,
+		current_self_type: *Type? = null,
+		subst_names: List<str> = List(),
+		subst_types: List<*Type> = List(),
+		current_fn_return_type: *AstNode? = null,
+		mat_rec: *InstanceRecord? = null
+	) {
+		return Self(
+			symtab,
+			arena,
+			current_module,
+			errors,
+			is_extern,
+			current_self_type,
+			subst_names,
+			subst_types,
+			current_fn_return_type,
+			mat_rec
+		);
+	}
+
+	pub fn prims(val self) => self.symtab.prims;
+
+	pub fn enter_module(var self, module: str): str {
+		val prev = self.current_module;
+		if (module.len > 0) {
+			self.current_module = module;
+			self.symtab.set_current_module(module);
+		}
+		return prev;
+	}
+
+	pub fn leave_module(var self, prev: str) {
+		self.current_module = prev;
+		self.symtab.set_current_module(prev);
+	}
+
+	pub fn c_name_for(val self, name: str): str {
+		if (self.is_extern || name == "main") return name;
+		return self.current_module.mangle_symbol(name);
+	}
+
+	pub fn report_error(var self, node: *AstNode, msg: str) {
+		val loc = "Line ${node.line}, Column ${node.col}: ";
+		if (self.current_module.len > 0) {
+			self.errors += "${self.current_module}: ${loc}${msg}";
+		} else {
+			self.errors += loc + msg;
+		}
+	}
+
 	pub fn resolve_ast_type(var self, node: *AstNode): *Type {
 		if (node == null) return self.prims().t_none();
 
@@ -29,10 +100,6 @@ impl DeclPass {
 			is NamedType as var named -> {
 				val name = named.name;
 
-				// Inside an instantiation a type parameter resolves to its argument.
-				// The node is left untouched: template AST nodes are shared. The
-				// *last* match wins: nested instantiations may stack the same
-				// parameter name, and the innermost binding is authoritative.
 				var subst_res: *Type? = null;
 				for (i in 0..<self.subst_names.len) {
 					if (self.subst_names[i] == name) subst_res = self.subst_types[i];
@@ -40,9 +107,6 @@ impl DeclPass {
 				if (subst_res != null) yield subst_res;
 
 				if (name == "Self" && self.current_self_type != null) {
-					// Inside an instance the type node is shared with other
-					// instances, so never rename it: each instance must resolve
-					// `Self` against its own type when its body is checked.
 					if (self.subst_names.empty()) {
 						val sinfo = self.current_self_type.as_struct();
 						if (!sinfo.c_name.empty()) named.name = sinfo.c_name;
@@ -51,7 +115,6 @@ impl DeclPass {
 					yield self.current_self_type;
 				}
 
-				// `Self.Item`: a trait associated type bound by the enclosing impl.
 				if (name.starts_with("Self.")) {
 					val assoc = name.slice(5, name.len);
 					if (self.current_self_type == null || self.current_self_type.kind != DataType.STRUCT) {
@@ -61,15 +124,11 @@ impl DeclPass {
 					val self_name = self.current_self_type.as_struct().name;
 					val bound = self.symtab.find_assoc_type(self_name, assoc);
 					if (bound == null) {
-						self.report_error(node,
-							"Trait associated type '${assoc}' is not bound for '${self_name}'"
-						);
+						self.report_error(node, "Trait associated type '${assoc}' is not bound for '${self_name}'");
 						yield self.prims().t_none();
 					}
 					if (bound.kind == DataType.POINTER || bound.kind == DataType.ARRAY) {
-						self.report_error(node,
-							"Associated type '${assoc}' must be a named type (struct, enum or primitive)"
-						);
+						self.report_error(node, "Associated type '${assoc}' must be a named type (struct, enum or primitive)");
 						yield self.prims().t_none();
 					}
 					if (self.subst_names.empty()) named.name = self.ast_type_name_of(bound!);
@@ -79,13 +138,10 @@ impl DeclPass {
 				val prim = resolve_primitive_name(self.symtab.prims!, name);
 				if (prim != null) yield prim;
 
-				// Generic struct instantiation: List<i32> -> concrete struct.
 				if (named.type_args.len > 0) {
 					val tmpl = self.find_struct_template(name);
 					if (tmpl != null) {
 						val cty = self.instantiate_struct(tmpl, named.type_args);
-						// A template's annotation is shared with every instance, so it is
-						// only rewritten when it belongs to a concrete declaration.
 						if (self.subst_names.empty()) {
 							named.name = cty.as_struct().name;
 							named.type_args = List<*AstNode>();
@@ -94,10 +150,8 @@ impl DeclPass {
 					}
 				}
 
-				// Look up a user-defined type (Struct / Enum)
 				val sym = self.symtab.lookup(name);
 				if (sym != null) {
-					// Switch to the mangled C name (if any) so the backend emits the right name
 					if (sym.c_name != name) named.name = sym.c_name;
 					yield sym.type_ptr;
 				}
@@ -128,9 +182,6 @@ impl DeclPass {
 		};
 	}
 
-
-	// The AST-level name for a resolved type, for nodes whose annotation has to be
-	// rewritten (an associated type binding must become a concrete C name).
 	fn ast_type_name_of(val self, ty: *Type): str {
 		if (ty.kind == DataType.STRUCT) {
 			val s_info = ty.as_struct();
@@ -140,4 +191,5 @@ impl DeclPass {
 		if (ty.is_enum()) return ty.as_enum().c_name;
 		return primitive_type_name(ty);
 	}
+
 }

@@ -21,7 +21,7 @@ use compiler.sema.*;
 use compiler.semantic.types.*;
 use compiler.semantic.symbols.*;
 use compiler.semantic.types.StructField;
-use compiler.sema.mono.*;
+use compiler.semantic.resolution.*;
 
 // A trait may declare overloads, so a method is identified by name + arity.
 fn trait_method_in(list: List<*TraitMethod>, name: str, arity: usz): *TraitMethod? {

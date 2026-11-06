@@ -342,6 +342,7 @@ typedef struct compiler__semantic__symbols__Scope compiler__semantic__symbols__S
 typedef struct compiler__semantic__symbols__ImportBinding compiler__semantic__symbols__ImportBinding;
 typedef struct compiler__semantic__symbols__ModuleScope compiler__semantic__symbols__ModuleScope;
 typedef struct compiler__semantic__symbols__SymbolTable compiler__semantic__symbols__SymbolTable;
+typedef struct compiler__semantic__resolution__TypeResolver compiler__semantic__resolution__TypeResolver;
 typedef struct compiler__sema__decl__DeclPass compiler__sema__decl__DeclPass;
 typedef struct compiler__sema__body__BodyPass compiler__sema__body__BodyPass;
 typedef struct compiler__sema__body__ArrowCandidate compiler__sema__body__ArrowCandidate;
@@ -1564,6 +1565,19 @@ struct compiler__semantic__symbols__SymbolTable {
     compiler__semantic__symbols__SemanticTable* sem;
 };
 
+struct compiler__semantic__resolution__TypeResolver {
+    compiler__semantic__symbols__SymbolTable symtab;
+    std__memory__Arena arena;
+    kobel_str current_module;
+    std__collections__List_str errors;
+    bool is_extern;
+    compiler__semantic__types__Type* current_self_type;
+    std__collections__List_str subst_names;
+    std__collections__List_ptr_compiler__semantic__types__Type subst_types;
+    compiler__ast__AstNode* current_fn_return_type;
+    compiler__semantic__symbols__InstanceRecord* mat_rec;
+};
+
 struct compiler__sema__decl__DeclPass {
     compiler__semantic__symbols__SymbolTable symtab;
     std__memory__Arena arena;
@@ -2536,56 +2550,72 @@ compiler__semantic__symbols__Symbol* compiler__semantic__symbols__SymbolTable_lo
 compiler__ast__AstNode* std__memory__Arena_interp_call(std__memory__Arena* self, kobel_str name, compiler__ast__AstNode* arg, size_t line, size_t col);
 compiler__ast__AstNode* std__memory__Arena_interp_concat(std__memory__Arena* self, compiler__ast__AstNode* a, compiler__ast__AstNode* b_node, size_t line, size_t col);
 compiler__ast__AstNode* std__memory__Arena_interp_concat_many(std__memory__Arena* self, std__collections__List_ptr_compiler__ast__AstNode pieces, size_t line, size_t col);
-compiler__semantic__symbols__AnnotationEntry* compiler__sema__decl__DeclPass_mat_ann(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node);
-compiler__ast__AstNode* compiler__sema__decl__DeclPass_clone_type(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node, compiler__semantic__symbols__GenericSubst* subst);
-compiler__ast__AstNode* compiler__sema__decl__DeclPass_clone_expr(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node, compiler__semantic__symbols__GenericSubst* subst);
-compiler__ast__AstNode* compiler__sema__decl__DeclPass_clone_call_expr(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node, compiler__semantic__symbols__GenericSubst* subst);
-compiler__ast__AstNode* compiler__sema__decl__DeclPass_clone_size_query(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node, compiler__semantic__symbols__GenericSubst* subst);
-compiler__ast__AstNode* compiler__sema__decl__DeclPass_clone_template_call(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node, compiler__semantic__symbols__GenericSubst* subst);
-std__collections__List_ptr_compiler__ast__AstNode compiler__sema__decl__DeclPass_clone_expr_list(compiler__sema__decl__DeclPass* self, std__collections__List_ptr_compiler__ast__AstNode nodes, compiler__semantic__symbols__GenericSubst* subst);
-std__collections__List_ptr_compiler__ast__AstNode compiler__sema__decl__DeclPass_clone_type_args(compiler__sema__decl__DeclPass* self, std__collections__List_ptr_compiler__ast__AstNode nodes, compiler__semantic__symbols__GenericSubst* subst);
-std__collections__List_compiler__ast__WhenArm compiler__sema__decl__DeclPass_clone_when_arms(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node, compiler__semantic__symbols__GenericSubst* subst);
-std__collections__List_compiler__ast__InterpPart compiler__sema__decl__DeclPass_clone_interp_parts(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node, compiler__semantic__symbols__GenericSubst* subst);
-compiler__ast__AstNode* compiler__sema__decl__DeclPass_clone_stmt(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node, compiler__semantic__symbols__GenericSubst* subst);
-compiler__ast__AstNode* compiler__sema__decl__DeclPass_clone_fn(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node, compiler__semantic__symbols__GenericSubst* subst, kobel_str new_name);
-compiler__ast__AstNode* compiler__sema__decl__DeclPass_materialize_body(compiler__sema__decl__DeclPass* self, compiler__semantic__symbols__InstanceRecord* rec);
-compiler__semantic__types__Type* compiler__sema__decl__DeclPass_instantiate_struct(compiler__sema__decl__DeclPass* self, compiler__semantic__symbols__GenericTemplate* tmpl, std__collections__List_ptr_compiler__ast__AstNode arg_asts);
-compiler__ast__AstNode* compiler__sema__decl__DeclPass_make_fn_view(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* fn_node, compiler__semantic__symbols__GenericTemplate* tmpl, std__collections__List_ptr_compiler__semantic__types__Type args, std__collections__List_ptr_compiler__ast__AstNode arg_asts, kobel_str cname);
-compiler__semantic__types__Type* compiler__sema__decl__DeclPass_make_fn_sig(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* fn_node, compiler__semantic__symbols__GenericTemplate* tmpl, std__collections__List_ptr_compiler__semantic__types__Type args, compiler__semantic__types__Type* receiver);
-compiler__semantic__types__Type* compiler__sema__decl__DeclPass_instance_receiver_type(compiler__sema__decl__DeclPass* self, compiler__semantic__symbols__GenericTemplate* tmpl, std__collections__List_ptr_compiler__semantic__types__Type args);
-compiler__ast__AstNode* compiler__sema__decl__DeclPass_struct_decl_view(compiler__sema__decl__DeclPass* self, kobel_str name, std__collections__List_compiler__semantic__types__StructField fields, bool public, size_t line, size_t col);
-void compiler__sema__decl__DeclPass_push_subst(compiler__sema__decl__DeclPass* self, std__collections__List_str names, std__collections__List_ptr_compiler__semantic__types__Type args);
-void compiler__sema__decl__DeclPass_pop_subst(compiler__sema__decl__DeclPass* self, size_t mark);
-kobel_str compiler__sema__decl__DeclPass_canonical_type_token(compiler__sema__decl__DeclPass* self, compiler__semantic__types__Type* ty);
-kobel_str compiler__sema__decl__DeclPass_type_token_list_of(compiler__sema__decl__DeclPass* self, std__collections__List_ptr_compiler__semantic__types__Type args);
-kobel_str compiler__sema__decl__DeclPass_instantiate_fn(compiler__sema__decl__DeclPass* self, compiler__semantic__symbols__GenericTemplate* tmpl, std__collections__List_ptr_compiler__ast__AstNode arg_asts);
-void compiler__sema__decl__DeclPass_collect_fn_as(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node, kobel_str final_name, compiler__semantic__types__Type* sig);
-bool compiler__sema__mono__template_matches(compiler__semantic__symbols__TemplateKind kind, compiler__semantic__symbols__GenericTemplate* t, kobel_str name);
-void compiler__sema__decl__DeclPass_register_template(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node);
-compiler__semantic__symbols__GenericTemplate* compiler__sema__decl__DeclPass_gen_template(compiler__sema__decl__DeclPass* self, kobel_str name, compiler__ast__AstNode* node, bool is_method, kobel_str self_type);
-bool compiler__sema__decl__DeclPass_template_in_module(compiler__sema__decl__DeclPass* self, kobel_str module, kobel_str name);
-compiler__semantic__symbols__Symbol* compiler__sema__decl__DeclPass_find_instance_symbol(compiler__sema__decl__DeclPass* self, kobel_str name);
-std__collections__List_ptr_compiler__semantic__symbols__GenericTemplate compiler__sema__decl__DeclPass_templates_of(compiler__sema__decl__DeclPass* self, compiler__semantic__symbols__TemplateKind kind);
-bool compiler__sema__decl__DeclPass_template_fits(compiler__sema__decl__DeclPass* self, compiler__semantic__symbols__TemplateKind kind, compiler__semantic__symbols__GenericTemplate* t, kobel_str name, kobel_str self_type);
-compiler__semantic__symbols__GenericTemplate* compiler__sema__decl__DeclPass_find_template(compiler__sema__decl__DeclPass* self, compiler__semantic__symbols__TemplateKind kind, kobel_str name, kobel_str self_type);
-compiler__semantic__symbols__GenericTemplate* compiler__sema__decl__DeclPass_find_fn_template(compiler__sema__decl__DeclPass* self, kobel_str name);
-compiler__semantic__symbols__GenericTemplate* compiler__sema__decl__DeclPass_find_method_template(compiler__sema__decl__DeclPass* self, kobel_str name, kobel_str self_type);
-compiler__semantic__symbols__GenericTemplate* compiler__sema__decl__DeclPass_find_struct_template(compiler__sema__decl__DeclPass* self, kobel_str name);
-kobel_str compiler__sema__decl__DeclPass_type_token(compiler__sema__decl__DeclPass* self, compiler__semantic__types__Type* ty);
-size_t compiler__sema__decl__DeclPass_ast_type_size(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node);
-void compiler__sema__decl__DeclPass_check_bounds(compiler__sema__decl__DeclPass* self, compiler__semantic__symbols__GenericTemplate* tmpl, std__collections__List_ptr_compiler__ast__AstNode arg_asts);
-compiler__semantic__symbols__GenericSubst* compiler__sema__decl__DeclPass_alloc_subst(compiler__sema__decl__DeclPass* self, std__collections__List_str names, std__collections__List_ptr_compiler__ast__AstNode args);
-void compiler__sema__decl__DeclPass_queue_decl(compiler__sema__decl__DeclPass* self, kobel_str module, compiler__ast__AstNode* node);
-void compiler__sema__decl__DeclPass_drain_instances(compiler__sema__decl__DeclPass* self);
-void compiler__sema__decl__DeclPass_propagate_target_type(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* target_type_node, compiler__ast__AstNode* init_node);
-void compiler__sema__decl__DeclPass_rewrite_generics(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node);
-bool compiler__sema__decl__DeclPass_rewrite_child(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* child);
-bool compiler__sema__decl__DeclPass_rewrite_type_generics(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node);
-bool compiler__sema__decl__DeclPass_rewrite_named_type(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node);
-void compiler__sema__decl__DeclPass_rewrite_call_target(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__CallExpr* c);
-bool compiler__sema__decl__DeclPass_rewrite_expr_generics(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node);
-bool compiler__sema__decl__DeclPass_rewrite_stmt_generics(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node);
-bool compiler__sema__decl__DeclPass_rewrite_decl_generics(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node);
+compiler__semantic__symbols__AnnotationEntry* compiler__semantic__resolution__TypeResolver_mat_ann(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node);
+compiler__ast__AstNode* compiler__semantic__resolution__TypeResolver_clone_type(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node, compiler__semantic__symbols__GenericSubst* subst);
+compiler__ast__AstNode* compiler__semantic__resolution__TypeResolver_clone_expr(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node, compiler__semantic__symbols__GenericSubst* subst);
+compiler__ast__AstNode* compiler__semantic__resolution__TypeResolver_clone_call_expr(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node, compiler__semantic__symbols__GenericSubst* subst);
+compiler__ast__AstNode* compiler__semantic__resolution__TypeResolver_clone_size_query(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node, compiler__semantic__symbols__GenericSubst* subst);
+compiler__ast__AstNode* compiler__semantic__resolution__TypeResolver_clone_template_call(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node, compiler__semantic__symbols__GenericSubst* subst);
+std__collections__List_ptr_compiler__ast__AstNode compiler__semantic__resolution__TypeResolver_clone_expr_list(compiler__semantic__resolution__TypeResolver* self, std__collections__List_ptr_compiler__ast__AstNode nodes, compiler__semantic__symbols__GenericSubst* subst);
+std__collections__List_ptr_compiler__ast__AstNode compiler__semantic__resolution__TypeResolver_clone_type_args(compiler__semantic__resolution__TypeResolver* self, std__collections__List_ptr_compiler__ast__AstNode nodes, compiler__semantic__symbols__GenericSubst* subst);
+std__collections__List_compiler__ast__WhenArm compiler__semantic__resolution__TypeResolver_clone_when_arms(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node, compiler__semantic__symbols__GenericSubst* subst);
+std__collections__List_compiler__ast__InterpPart compiler__semantic__resolution__TypeResolver_clone_interp_parts(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node, compiler__semantic__symbols__GenericSubst* subst);
+compiler__ast__AstNode* compiler__semantic__resolution__TypeResolver_clone_stmt(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node, compiler__semantic__symbols__GenericSubst* subst);
+compiler__ast__AstNode* compiler__semantic__resolution__TypeResolver_clone_fn(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node, compiler__semantic__symbols__GenericSubst* subst, kobel_str new_name);
+compiler__ast__AstNode* compiler__semantic__resolution__TypeResolver_materialize_body(compiler__semantic__resolution__TypeResolver* self, compiler__semantic__symbols__InstanceRecord* rec);
+std__collections__List_str compiler__semantic__resolution__overloaded_names(compiler__ast__NodeData__ImplDecl* im);
+kobel_str compiler__semantic__resolution__method_c_name(kobel_str base, size_t argc, bool overloaded, std__collections__List_str taken);
+void compiler__semantic__resolution__trait_put_method(std__collections__List_ptr_compiler__semantic__types__TraitMethod* out, compiler__semantic__types__TraitMethod* m);
+compiler__semantic__types__Type* compiler__semantic__resolution__TypeResolver_instantiate_struct(compiler__semantic__resolution__TypeResolver* self, compiler__semantic__symbols__GenericTemplate* tmpl, std__collections__List_ptr_compiler__ast__AstNode arg_asts);
+compiler__ast__AstNode* compiler__semantic__resolution__TypeResolver_make_fn_view(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* fn_node, compiler__semantic__symbols__GenericTemplate* tmpl, std__collections__List_ptr_compiler__semantic__types__Type args, std__collections__List_ptr_compiler__ast__AstNode arg_asts, kobel_str cname);
+compiler__semantic__types__Type* compiler__semantic__resolution__TypeResolver_make_fn_sig(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* fn_node, compiler__semantic__symbols__GenericTemplate* tmpl, std__collections__List_ptr_compiler__semantic__types__Type args, compiler__semantic__types__Type* receiver);
+compiler__semantic__types__Type* compiler__semantic__resolution__TypeResolver_instance_receiver_type(compiler__semantic__resolution__TypeResolver* self, compiler__semantic__symbols__GenericTemplate* tmpl, std__collections__List_ptr_compiler__semantic__types__Type args);
+compiler__ast__AstNode* compiler__semantic__resolution__TypeResolver_struct_decl_view(compiler__semantic__resolution__TypeResolver* self, kobel_str name, std__collections__List_compiler__semantic__types__StructField fields, bool public, size_t line, size_t col);
+void compiler__semantic__resolution__TypeResolver_push_subst(compiler__semantic__resolution__TypeResolver* self, std__collections__List_str names, std__collections__List_ptr_compiler__semantic__types__Type args);
+void compiler__semantic__resolution__TypeResolver_pop_subst(compiler__semantic__resolution__TypeResolver* self, size_t mark);
+kobel_str compiler__semantic__resolution__TypeResolver_canonical_type_token(compiler__semantic__resolution__TypeResolver* self, compiler__semantic__types__Type* ty);
+kobel_str compiler__semantic__resolution__TypeResolver_type_token_list_of(compiler__semantic__resolution__TypeResolver* self, std__collections__List_ptr_compiler__semantic__types__Type args);
+kobel_str compiler__semantic__resolution__TypeResolver_instantiate_fn(compiler__semantic__resolution__TypeResolver* self, compiler__semantic__symbols__GenericTemplate* tmpl, std__collections__List_ptr_compiler__ast__AstNode arg_asts);
+void compiler__semantic__resolution__TypeResolver_collect_fn_as(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node, kobel_str final_name, compiler__semantic__types__Type* sig);
+void compiler__semantic__resolution__TypeResolver_trait_record_impl(compiler__semantic__resolution__TypeResolver* self, compiler__semantic__types__TraitInfo* t, kobel_str struct_name);
+void compiler__semantic__resolution__TypeResolver_trait_effective(compiler__semantic__resolution__TypeResolver* self, compiler__semantic__types__TraitInfo* t, std__collections__List_ptr_compiler__semantic__types__TraitMethod* out, std__collections__HashSet_str* seen);
+void compiler__semantic__resolution__TypeResolver_register_assoc_bindings(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node, compiler__ast__NodeData__ImplDecl* im, compiler__semantic__types__Type* st_type, kobel_str struct_name);
+void compiler__semantic__resolution__TypeResolver_apply_trait(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node, compiler__ast__NodeData__ImplDecl* im, kobel_str struct_name);
+void compiler__semantic__resolution__TypeResolver_collect_impl(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node);
+bool compiler__semantic__resolution__template_matches(compiler__semantic__symbols__TemplateKind kind, compiler__semantic__symbols__GenericTemplate* t, kobel_str name);
+void compiler__semantic__resolution__TypeResolver_register_template(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node);
+compiler__semantic__symbols__GenericTemplate* compiler__semantic__resolution__TypeResolver_generic_template(compiler__semantic__resolution__TypeResolver* self, kobel_str name, compiler__ast__AstNode* node, bool is_method, kobel_str self_type);
+bool compiler__semantic__resolution__TypeResolver_template_in_module(compiler__semantic__resolution__TypeResolver* self, kobel_str module, kobel_str name);
+compiler__semantic__symbols__Symbol* compiler__semantic__resolution__TypeResolver_find_instance_symbol(compiler__semantic__resolution__TypeResolver* self, kobel_str name);
+std__collections__List_ptr_compiler__semantic__symbols__GenericTemplate compiler__semantic__resolution__TypeResolver_templates_of(compiler__semantic__resolution__TypeResolver* self, compiler__semantic__symbols__TemplateKind kind);
+bool compiler__semantic__resolution__TypeResolver_template_fits(compiler__semantic__resolution__TypeResolver* self, compiler__semantic__symbols__TemplateKind kind, compiler__semantic__symbols__GenericTemplate* t, kobel_str name, kobel_str self_type);
+compiler__semantic__symbols__GenericTemplate* compiler__semantic__resolution__TypeResolver_find_template(compiler__semantic__resolution__TypeResolver* self, compiler__semantic__symbols__TemplateKind kind, kobel_str name, kobel_str self_type);
+compiler__semantic__symbols__GenericTemplate* compiler__semantic__resolution__TypeResolver_find_fn_template(compiler__semantic__resolution__TypeResolver* self, kobel_str name);
+compiler__semantic__symbols__GenericTemplate* compiler__semantic__resolution__TypeResolver_find_method_template(compiler__semantic__resolution__TypeResolver* self, kobel_str name, kobel_str self_type);
+compiler__semantic__symbols__GenericTemplate* compiler__semantic__resolution__TypeResolver_find_struct_template(compiler__semantic__resolution__TypeResolver* self, kobel_str name);
+kobel_str compiler__semantic__resolution__TypeResolver_type_token(compiler__semantic__resolution__TypeResolver* self, compiler__semantic__types__Type* ty);
+size_t compiler__semantic__resolution__TypeResolver_ast_type_size(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node);
+void compiler__semantic__resolution__TypeResolver_check_bounds(compiler__semantic__resolution__TypeResolver* self, compiler__semantic__symbols__GenericTemplate* tmpl, std__collections__List_ptr_compiler__ast__AstNode arg_asts);
+compiler__semantic__symbols__GenericSubst* compiler__semantic__resolution__TypeResolver_alloc_subst(compiler__semantic__resolution__TypeResolver* self, std__collections__List_str names, std__collections__List_ptr_compiler__ast__AstNode args);
+void compiler__semantic__resolution__TypeResolver_queue_decl(compiler__semantic__resolution__TypeResolver* self, kobel_str module, compiler__ast__AstNode* node);
+void compiler__semantic__resolution__TypeResolver_drain_instances(compiler__semantic__resolution__TypeResolver* self);
+compiler__semantic__resolution__TypeResolver compiler__semantic__resolution__TypeResolver_init(compiler__semantic__symbols__SymbolTable symtab, std__memory__Arena arena, kobel_str current_module, std__collections__List_str errors, bool is_extern, compiler__semantic__types__Type* current_self_type, std__collections__List_str subst_names, std__collections__List_ptr_compiler__semantic__types__Type subst_types, compiler__ast__AstNode* current_fn_return_type, compiler__semantic__symbols__InstanceRecord* mat_rec);
+compiler__semantic__types__PrimTypes* compiler__semantic__resolution__TypeResolver_prims(compiler__semantic__resolution__TypeResolver* self);
+kobel_str compiler__semantic__resolution__TypeResolver_enter_module(compiler__semantic__resolution__TypeResolver* self, kobel_str module);
+void compiler__semantic__resolution__TypeResolver_leave_module(compiler__semantic__resolution__TypeResolver* self, kobel_str prev);
+kobel_str compiler__semantic__resolution__TypeResolver_c_name_for(compiler__semantic__resolution__TypeResolver* self, kobel_str name);
+void compiler__semantic__resolution__TypeResolver_report_error(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node, kobel_str msg);
+compiler__semantic__types__Type* compiler__semantic__resolution__TypeResolver_resolve_ast_type(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node);
+kobel_str compiler__semantic__resolution__TypeResolver_ast_type_name_of(compiler__semantic__resolution__TypeResolver* self, compiler__semantic__types__Type* ty);
+void compiler__semantic__resolution__TypeResolver_propagate_target_type(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* target_type_node, compiler__ast__AstNode* init_node);
+void compiler__semantic__resolution__TypeResolver_rewrite_generics(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node);
+bool compiler__semantic__resolution__TypeResolver_rewrite_child(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* child);
+bool compiler__semantic__resolution__TypeResolver_rewrite_type_generics(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node);
+bool compiler__semantic__resolution__TypeResolver_rewrite_named_type(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node);
+void compiler__semantic__resolution__TypeResolver_rewrite_call_target(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node, compiler__ast__NodeData__CallExpr* c);
+bool compiler__semantic__resolution__TypeResolver_rewrite_expr_generics(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node);
+bool compiler__semantic__resolution__TypeResolver_rewrite_stmt_generics(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node);
+bool compiler__semantic__resolution__TypeResolver_rewrite_decl_generics(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node);
 compiler__semantic__types__TraitMethod* compiler__sema__decl__trait_method_in(std__collections__List_ptr_compiler__semantic__types__TraitMethod list, kobel_str name, size_t arity);
 void compiler__sema__decl__DeclPass_collect_module(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node);
 void compiler__sema__decl__DeclPass_collect_use(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node);
@@ -2620,8 +2650,25 @@ void compiler__sema__decl__DeclPass_trait_record_impl(compiler__sema__decl__Decl
 void compiler__sema__decl__DeclPass_trait_effective(compiler__sema__decl__DeclPass* self, compiler__semantic__types__TraitInfo* t, std__collections__List_ptr_compiler__semantic__types__TraitMethod* out, std__collections__HashSet_str* seen);
 void compiler__sema__decl__DeclPass_register_assoc_bindings(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__ImplDecl* im, compiler__semantic__types__Type* st_type, kobel_str struct_name);
 void compiler__sema__decl__DeclPass_apply_trait(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__ImplDecl* im, kobel_str struct_name);
+compiler__semantic__resolution__TypeResolver compiler__sema__decl__DeclPass_to_resolver(compiler__sema__decl__DeclPass* self);
+void compiler__sema__decl__DeclPass_apply_resolver(compiler__sema__decl__DeclPass* self, compiler__semantic__resolution__TypeResolver r);
 compiler__semantic__types__Type* compiler__sema__decl__DeclPass_resolve_ast_type(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node);
-kobel_str compiler__sema__decl__DeclPass_ast_type_name_of(compiler__sema__decl__DeclPass* self, compiler__semantic__types__Type* ty);
+compiler__semantic__types__Type* compiler__sema__decl__DeclPass_instantiate_struct(compiler__sema__decl__DeclPass* self, compiler__semantic__symbols__GenericTemplate* tmpl, std__collections__List_ptr_compiler__ast__AstNode arg_asts);
+kobel_str compiler__sema__decl__DeclPass_instantiate_fn(compiler__sema__decl__DeclPass* self, compiler__semantic__symbols__GenericTemplate* tmpl, std__collections__List_ptr_compiler__ast__AstNode arg_asts);
+compiler__semantic__symbols__GenericTemplate* compiler__sema__decl__DeclPass_find_fn_template(compiler__sema__decl__DeclPass* self, kobel_str name);
+compiler__semantic__symbols__GenericTemplate* compiler__sema__decl__DeclPass_find_struct_template(compiler__sema__decl__DeclPass* self, kobel_str name);
+compiler__semantic__symbols__GenericTemplate* compiler__sema__decl__DeclPass_find_method_template(compiler__sema__decl__DeclPass* self, kobel_str name, kobel_str self_type);
+void compiler__sema__decl__DeclPass_register_template(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node);
+bool compiler__sema__decl__DeclPass_template_in_module(compiler__sema__decl__DeclPass* self, kobel_str module, kobel_str name);
+compiler__semantic__symbols__Symbol* compiler__sema__decl__DeclPass_find_instance_symbol(compiler__sema__decl__DeclPass* self, kobel_str name);
+void compiler__sema__decl__DeclPass_drain_instances(compiler__sema__decl__DeclPass* self);
+void compiler__sema__decl__DeclPass_rewrite_generics(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node);
+void compiler__sema__decl__DeclPass_propagate_target_type(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* target_type_node, compiler__ast__AstNode* init_node);
+compiler__ast__AstNode* compiler__sema__decl__DeclPass_materialize_body(compiler__sema__decl__DeclPass* self, compiler__semantic__symbols__InstanceRecord* rec);
+compiler__ast__AstNode* compiler__sema__decl__DeclPass_clone_expr(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node, compiler__semantic__symbols__GenericSubst* subst);
+compiler__ast__AstNode* compiler__sema__decl__DeclPass_clone_fn(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node, compiler__semantic__symbols__GenericSubst* subst, kobel_str new_name);
+compiler__ast__AstNode* compiler__sema__decl__DeclPass_clone_stmt(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node, compiler__semantic__symbols__GenericSubst* subst);
+compiler__ast__AstNode* compiler__sema__decl__DeclPass_clone_type(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node, compiler__semantic__symbols__GenericSubst* subst);
 compiler__semantic__types__Type* compiler__sema__body__BodyPass_check_member_expr(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node);
 compiler__semantic__types__Type* compiler__sema__body__BodyPass_check_const_member(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__MemberExpr* mem);
 compiler__semantic__types__Type* compiler__sema__body__BodyPass_member_on_str(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__MemberExpr* mem);
@@ -4340,13 +4387,13 @@ compiler__semantic__symbols__SemanticTable* std__memory__Arena_create_val_compil
 compiler__semantic__symbols__Symbol* std__memory__Arena_create_val_compiler__semantic__symbols__Symbol(std__memory__Arena* self, compiler__semantic__symbols__Symbol value);
 compiler__semantic__symbols__ModuleScope* std__memory__Arena_create_val_compiler__semantic__symbols__ModuleScope(std__memory__Arena* self, compiler__semantic__symbols__ModuleScope value);
 compiler__semantic__symbols__InstanceRecord* std__memory__Arena_create_val_compiler__semantic__symbols__InstanceRecord(std__memory__Arena* self, compiler__semantic__symbols__InstanceRecord value);
+compiler__semantic__types__MethodInfo* std__memory__Arena_create_val_compiler__semantic__types__MethodInfo(std__memory__Arena* self, compiler__semantic__types__MethodInfo value);
 compiler__semantic__symbols__GenericTemplate* std__memory__Arena_create_val_compiler__semantic__symbols__GenericTemplate(std__memory__Arena* self, compiler__semantic__symbols__GenericTemplate value);
 compiler__semantic__symbols__GenericSubst* std__memory__Arena_create_val_compiler__semantic__symbols__GenericSubst(std__memory__Arena* self, compiler__semantic__symbols__GenericSubst value);
 compiler__semantic__types__EnumMemberInfo* std__memory__Arena_create_val_compiler__semantic__types__EnumMemberInfo(std__memory__Arena* self, compiler__semantic__types__EnumMemberInfo value);
 compiler__semantic__types__EnumInfo* std__memory__Arena_create_val_compiler__semantic__types__EnumInfo(std__memory__Arena* self, compiler__semantic__types__EnumInfo value);
 compiler__semantic__types__TraitMethod* std__memory__Arena_create_val_compiler__semantic__types__TraitMethod(std__memory__Arena* self, compiler__semantic__types__TraitMethod value);
 compiler__semantic__types__TraitInfo* std__memory__Arena_create_val_compiler__semantic__types__TraitInfo(std__memory__Arena* self, compiler__semantic__types__TraitInfo value);
-compiler__semantic__types__MethodInfo* std__memory__Arena_create_val_compiler__semantic__types__MethodInfo(std__memory__Arena* self, compiler__semantic__types__MethodInfo value);
 compiler__semantic__symbols__AnnotationEntry* std__memory__Arena_create_val_compiler__semantic__symbols__AnnotationEntry(std__memory__Arena* self, compiler__semantic__symbols__AnnotationEntry value);
 compiler__sema__body__ArrowCandidate* std__memory__Arena_create_val_compiler__sema__body__ArrowCandidate(std__memory__Arena* self, compiler__sema__body__ArrowCandidate value);
 lsp__JsonValue* std__memory__Heap_create_lsp__JsonValue(void);
@@ -4436,13 +4483,13 @@ compiler__semantic__symbols__SemanticTable* std__memory__Arena_create_compiler__
 compiler__semantic__symbols__Symbol* std__memory__Arena_create_compiler__semantic__symbols__Symbol(std__memory__Arena* self);
 compiler__semantic__symbols__ModuleScope* std__memory__Arena_create_compiler__semantic__symbols__ModuleScope(std__memory__Arena* self);
 compiler__semantic__symbols__InstanceRecord* std__memory__Arena_create_compiler__semantic__symbols__InstanceRecord(std__memory__Arena* self);
+compiler__semantic__types__MethodInfo* std__memory__Arena_create_compiler__semantic__types__MethodInfo(std__memory__Arena* self);
 compiler__semantic__symbols__GenericTemplate* std__memory__Arena_create_compiler__semantic__symbols__GenericTemplate(std__memory__Arena* self);
 compiler__semantic__symbols__GenericSubst* std__memory__Arena_create_compiler__semantic__symbols__GenericSubst(std__memory__Arena* self);
 compiler__semantic__types__EnumMemberInfo* std__memory__Arena_create_compiler__semantic__types__EnumMemberInfo(std__memory__Arena* self);
 compiler__semantic__types__EnumInfo* std__memory__Arena_create_compiler__semantic__types__EnumInfo(std__memory__Arena* self);
 compiler__semantic__types__TraitMethod* std__memory__Arena_create_compiler__semantic__types__TraitMethod(std__memory__Arena* self);
 compiler__semantic__types__TraitInfo* std__memory__Arena_create_compiler__semantic__types__TraitInfo(std__memory__Arena* self);
-compiler__semantic__types__MethodInfo* std__memory__Arena_create_compiler__semantic__types__MethodInfo(std__memory__Arena* self);
 compiler__semantic__symbols__AnnotationEntry* std__memory__Arena_create_compiler__semantic__symbols__AnnotationEntry(std__memory__Arena* self);
 compiler__sema__body__ArrowCandidate* std__memory__Arena_create_compiler__sema__body__ArrowCandidate(std__memory__Arena* self);
 
@@ -11337,7 +11384,7 @@ compiler__semantic__symbols__AnnotationEntry* compiler__semantic__symbols__Insta
     if (p == NULL) {
         return NULL;
     }
-    return *p;
+    return (*(p));
 }
 
 void compiler__semantic__symbols__GenericRegistry_add_inst(compiler__semantic__symbols__GenericRegistry* self, compiler__semantic__symbols__Symbol* sym) {
@@ -11364,12 +11411,12 @@ compiler__semantic__symbols__InstanceRecord* compiler__semantic__symbols__Generi
         size_t __for_n = std__collections__List_ptr_compiler__semantic__symbols__InstanceRecord_count(&self->records);
         size_t __for_i = 0;
         while (__for_i < __for_n) {
-            compiler__semantic__symbols__InstanceRecord* r = std__collections__List_ptr_compiler__semantic__symbols__InstanceRecord_at(&self->records, __for_i);
-            if ((r->template != template) || (r->kind != kind)) {
+            compiler__semantic__symbols__InstanceRecord* record = std__collections__List_ptr_compiler__semantic__symbols__InstanceRecord_at(&self->records, __for_i);
+            if ((record->template != template) || (record->kind != kind)) {
                 __for_i = (__for_i + 1);
                 continue;
             }
-            if (r->args.len != args.len) {
+            if (record->args.len != args.len) {
                 __for_i = (__for_i + 1);
                 continue;
             }
@@ -11387,7 +11434,7 @@ compiler__semantic__symbols__InstanceRecord* compiler__semantic__symbols__Generi
                 }
                 while (__for_go) {
                     size_t i = __for_i;
-                    if (!compiler__semantic__types__Type_equals(std__collections__List_ptr_compiler__semantic__types__Type_get(&r->args, i), std__collections__List_ptr_compiler__semantic__types__Type_get(&args, i))) {
+                    if (!compiler__semantic__types__Type_equals(std__collections__List_ptr_compiler__semantic__types__Type_get(&record->args, i), std__collections__List_ptr_compiler__semantic__types__Type_get(&args, i))) {
                         same = false;
                     }
                     if (__for_up) {
@@ -11405,7 +11452,7 @@ compiler__semantic__symbols__InstanceRecord* compiler__semantic__symbols__Generi
                 }
             }
             if (same) {
-                return r;
+                return record;
             }
             __for_i = (__for_i + 1);
         }
@@ -11458,10 +11505,10 @@ compiler__semantic__symbols__Symbol* compiler__semantic__symbols__Scope_at(compi
 
 compiler__semantic__symbols__Symbol* compiler__semantic__symbols__ModuleScope_lookup(compiler__semantic__symbols__ModuleScope* self, kobel_str name) {
     compiler__semantic__symbols__Symbol** p = std__collections__HashMap_str_ptr_compiler__semantic__symbols__Symbol_get(&self->sym_map, name);
-    if (p != NULL) {
-        return (*(p));
+    if (p == NULL) {
+        return NULL;
     }
-    return NULL;
+    return (*(p));
 }
 
 compiler__semantic__symbols__Symbol* compiler__semantic__symbols__ModuleScope_get(compiler__semantic__symbols__ModuleScope* self, kobel_str name) {
@@ -11510,7 +11557,7 @@ compiler__semantic__types__Type* compiler__semantic__symbols__SymbolTable_get_no
     if (p == NULL) {
         return NULL;
     }
-    return *p;
+    return (*(p));
 }
 
 void compiler__semantic__symbols__SymbolTable_set_resolved_method(compiler__semantic__symbols__SymbolTable* self, compiler__ast__AstNode* node, compiler__semantic__types__MethodInfo* mi) {
@@ -11529,7 +11576,7 @@ compiler__semantic__types__MethodInfo* compiler__semantic__symbols__SymbolTable_
     if (p == NULL) {
         return NULL;
     }
-    return *p;
+    return (*(p));
 }
 
 void compiler__semantic__symbols__SymbolTable_set_resolved_node(compiler__semantic__symbols__SymbolTable* self, compiler__ast__AstNode* node, compiler__ast__AstNode* r) {
@@ -11548,7 +11595,7 @@ compiler__ast__AstNode* compiler__semantic__symbols__SymbolTable_get_resolved_no
     if (p == NULL) {
         return NULL;
     }
-    return *p;
+    return (*(p));
 }
 
 void compiler__semantic__symbols__SymbolTable_set_node_instance(compiler__semantic__symbols__SymbolTable* self, compiler__ast__AstNode* node, compiler__semantic__symbols__InstanceRecord* rec) {
@@ -11567,7 +11614,7 @@ compiler__semantic__symbols__InstanceRecord* compiler__semantic__symbols__Symbol
     if (p == NULL) {
         return NULL;
     }
-    return *p;
+    return (*(p));
 }
 
 void compiler__semantic__symbols__SymbolTable_set_is_pattern(compiler__semantic__symbols__SymbolTable* self, compiler__ast__AstNode* node, compiler__semantic__symbols__IsPatternInfo info) {
@@ -11593,7 +11640,7 @@ compiler__semantic__symbols__IsPatternInfo compiler__semantic__symbols__SymbolTa
     if (p == NULL) {
         return (compiler__semantic__symbols__IsPatternInfo){ KOBEL_STR(""), KOBEL_STR(""), false, KOBEL_STR(""), false, KOBEL_STR("") };
     }
-    return *p;
+    return (*(p));
 }
 
 void compiler__semantic__symbols__SymbolTable_register_prim_method(compiler__semantic__symbols__SymbolTable* self, compiler__semantic__types__Type* prim, compiler__semantic__types__MethodInfo* mi) {
@@ -11677,8 +11724,9 @@ compiler__semantic__symbols__Scope* compiler__semantic__symbols__SymbolTable_ent
 }
 
 void compiler__semantic__symbols__SymbolTable_exit_scope(compiler__semantic__symbols__SymbolTable* self) {
-    if ((*self->current_scope).parent != NULL) {
-        self->current_scope = (*self->current_scope).parent;
+    self->current_scope = (*self->current_scope).parent;
+    if (self->current_scope == NULL) {
+        return;
     }
 }
 
@@ -11916,7 +11964,7 @@ compiler__semantic__symbols__Symbol* compiler__semantic__symbols__SymbolTable_lo
 compiler__semantic__symbols__Symbol* compiler__semantic__symbols__SymbolTable_lookup_struct_const(compiler__semantic__symbols__SymbolTable* self, kobel_str struct_name, kobel_str member_name) {
     kobel_str direct = kobel_concat3(struct_name, KOBEL_STR("__"), member_name);
     compiler__semantic__symbols__Symbol** p = std__collections__HashMap_str_ptr_compiler__semantic__symbols__Symbol_get(&self->struct_const_map, direct);
-    compiler__semantic__symbols__Symbol* s = ((p != NULL) ? (*(p)) : NULL);
+    compiler__semantic__symbols__Symbol* s = (*(p));
     if (s != NULL) {
         return s;
     }
@@ -12002,18 +12050,18 @@ compiler__ast__AstNode* std__memory__Arena_interp_concat_many(std__memory__Arena
     return acc;
 }
 
-compiler__semantic__symbols__AnnotationEntry* compiler__sema__decl__DeclPass_mat_ann(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node) {
+compiler__semantic__symbols__AnnotationEntry* compiler__semantic__resolution__TypeResolver_mat_ann(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node) {
     if ((node == NULL) || (self->mat_rec == NULL)) {
         return NULL;
     }
     return compiler__semantic__symbols__InstanceRecord_find_ann(self->mat_rec, node);
 }
 
-compiler__ast__AstNode* compiler__sema__decl__DeclPass_clone_type(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node, compiler__semantic__symbols__GenericSubst* subst) {
+compiler__ast__AstNode* compiler__semantic__resolution__TypeResolver_clone_type(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node, compiler__semantic__symbols__GenericSubst* subst) {
     if (node == NULL) {
         return (compiler__ast__AstNode*)NULL;
     }
-    compiler__semantic__symbols__AnnotationEntry* e = compiler__sema__decl__DeclPass_mat_ann(self, node);
+    compiler__semantic__symbols__AnnotationEntry* e = compiler__semantic__resolution__TypeResolver_mat_ann(self, node);
     if (e != NULL && e->ty != NULL) {
         return std__memory__Arena_ast_type_from_type(&self->arena, e->ty);
     }
@@ -12022,10 +12070,10 @@ compiler__ast__AstNode* compiler__sema__decl__DeclPass_clone_type(compiler__sema
         compiler__ast__NodeData__NamedType* nt = (compiler__ast__NodeData__NamedType*)(&(target)->data.u.NamedType);
         compiler__ast__AstNode* sa = ((subst != NULL) ? compiler__semantic__symbols__GenericSubst_lookup(subst, nt->name) : NULL);
         if (sa != NULL) {
-            return compiler__sema__decl__DeclPass_clone_type(self, (compiler__ast__AstNode*)sa, NULL);
+            return compiler__semantic__resolution__TypeResolver_clone_type(self, (compiler__ast__AstNode*)sa, NULL);
         }
         if (nt->type_args.len > 0) {
-            compiler__semantic__symbols__GenericTemplate* tmpl = compiler__sema__decl__DeclPass_find_struct_template(self, nt->name);
+            compiler__semantic__symbols__GenericTemplate* tmpl = compiler__semantic__resolution__TypeResolver_find_struct_template(self, nt->name);
             if (tmpl != NULL) {
                 std__collections__List_ptr_compiler__ast__AstNode args = std__collections__List_ptr_compiler__ast__AstNode_init(4);
                 {
@@ -12033,11 +12081,11 @@ compiler__ast__AstNode* compiler__sema__decl__DeclPass_clone_type(compiler__sema
                     size_t __for_i = 0;
                     while (__for_i < __for_n) {
                         compiler__ast__AstNode* ta = std__collections__List_ptr_compiler__ast__AstNode_at(&nt->type_args, __for_i);
-                        std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&args, compiler__sema__decl__DeclPass_clone_type(self, ta, subst));
+                        std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&args, compiler__semantic__resolution__TypeResolver_clone_type(self, ta, subst));
                         __for_i = (__for_i + 1);
                     }
                 }
-                compiler__semantic__types__Type* cty = compiler__sema__decl__DeclPass_instantiate_struct(self, tmpl, args);
+                compiler__semantic__types__Type* cty = compiler__semantic__resolution__TypeResolver_instantiate_struct(self, tmpl, args);
                 return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 1, .u.NamedType = { (*compiler__semantic__types__Type_as_struct(cty)).name, std__collections__List_ptr_compiler__ast__AstNode_init(4) } }, node->line, node->col);
             }
         }
@@ -12047,36 +12095,36 @@ compiler__ast__AstNode* compiler__sema__decl__DeclPass_clone_type(compiler__sema
             size_t __for_i = 0;
             while (__for_i < __for_n) {
                 compiler__ast__AstNode* ta = std__collections__List_ptr_compiler__ast__AstNode_at(&nt->type_args, __for_i);
-                std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&targs, compiler__sema__decl__DeclPass_clone_type(self, ta, subst));
+                std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&targs, compiler__semantic__resolution__TypeResolver_clone_type(self, ta, subst));
                 __for_i = (__for_i + 1);
             }
         }
         return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 1, .u.NamedType = { nt->name, targs } }, node->line, node->col);
     } else if (target != NULL && target->data.tag == compiler__ast__NodeData__PointerType__TAG) {
         compiler__ast__NodeData__PointerType* pt = (compiler__ast__NodeData__PointerType*)(&(target)->data.u.PointerType);
-        return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 2, .u.PointerType = { pt->mutable, compiler__sema__decl__DeclPass_clone_type(self, pt->pointee, subst) } }, node->line, node->col);
+        return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 2, .u.PointerType = { pt->mutable, compiler__semantic__resolution__TypeResolver_clone_type(self, pt->pointee, subst) } }, node->line, node->col);
     } else if (target != NULL && target->data.tag == compiler__ast__NodeData__ArrayType__TAG) {
         compiler__ast__NodeData__ArrayType* at = (compiler__ast__NodeData__ArrayType*)(&(target)->data.u.ArrayType);
-        return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 3, .u.ArrayType = { compiler__sema__decl__DeclPass_clone_type(self, at->element_type, subst), at->size } }, node->line, node->col);
+        return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 3, .u.ArrayType = { compiler__semantic__resolution__TypeResolver_clone_type(self, at->element_type, subst), at->size } }, node->line, node->col);
     } else if (target != NULL && target->data.tag == compiler__ast__NodeData__NullableType__TAG) {
         compiler__ast__NodeData__NullableType* nt = (compiler__ast__NodeData__NullableType*)(&(target)->data.u.NullableType);
-        return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 4, .u.NullableType = { compiler__sema__decl__DeclPass_clone_type(self, nt->inner_type, subst) } }, node->line, node->col);
+        return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 4, .u.NullableType = { compiler__semantic__resolution__TypeResolver_clone_type(self, nt->inner_type, subst) } }, node->line, node->col);
     } else {
         return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 1, .u.NamedType = { KOBEL_STR("none"), std__collections__List_ptr_compiler__ast__AstNode_init(4) } }, node->line, node->col);
     }
 }
 
-compiler__ast__AstNode* compiler__sema__decl__DeclPass_clone_expr(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node, compiler__semantic__symbols__GenericSubst* subst) {
+compiler__ast__AstNode* compiler__semantic__resolution__TypeResolver_clone_expr(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node, compiler__semantic__symbols__GenericSubst* subst) {
     if (node == NULL) {
         return (compiler__ast__AstNode*)NULL;
     }
     compiler__ast__AstNode* raw_node = node;
     if (((((raw_node != NULL && raw_node->data.tag == compiler__ast__NodeData__ReturnStmt__TAG) || (raw_node != NULL && raw_node->data.tag == compiler__ast__NodeData__BreakStmt__TAG)) || (raw_node != NULL && raw_node->data.tag == compiler__ast__NodeData__ContinueStmt__TAG)) || (raw_node != NULL && raw_node->data.tag == compiler__ast__NodeData__YieldStmt__TAG)) || (raw_node != NULL && raw_node->data.tag == compiler__ast__NodeData__BlockStmt__TAG)) {
-        return compiler__sema__decl__DeclPass_clone_stmt(self, node, subst);
+        return compiler__semantic__resolution__TypeResolver_clone_stmt(self, node, subst);
     }
-    compiler__semantic__symbols__AnnotationEntry* e = compiler__sema__decl__DeclPass_mat_ann(self, node);
+    compiler__semantic__symbols__AnnotationEntry* e = compiler__semantic__resolution__TypeResolver_mat_ann(self, node);
     if (e != NULL && e->resolved != NULL) {
-        return compiler__sema__decl__DeclPass_clone_expr(self, e->resolved, subst);
+        return compiler__semantic__resolution__TypeResolver_clone_expr(self, e->resolved, subst);
     }
     compiler__ast__AstNode* target = node;
     compiler__ast__AstNode* out;
@@ -12088,40 +12136,39 @@ compiler__ast__AstNode* compiler__sema__decl__DeclPass_clone_expr(compiler__sema
         out = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 6, .u.IdentifierExpr = { ((e != NULL && e->has_ident_name) ? e->ident_name : id->name) } }, node->line, node->col);
     } else if (target != NULL && target->data.tag == compiler__ast__NodeData__BinaryExpr__TAG) {
         compiler__ast__NodeData__BinaryExpr* b = (compiler__ast__NodeData__BinaryExpr*)(&(target)->data.u.BinaryExpr);
-        out = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 7, .u.BinaryExpr = { compiler__sema__decl__DeclPass_clone_expr(self, b->left, subst), b->op, compiler__sema__decl__DeclPass_clone_expr(self, b->right, subst) } }, node->line, node->col);
+        out = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 7, .u.BinaryExpr = { compiler__semantic__resolution__TypeResolver_clone_expr(self, b->left, subst), b->op, compiler__semantic__resolution__TypeResolver_clone_expr(self, b->right, subst) } }, node->line, node->col);
     } else if (target != NULL && target->data.tag == compiler__ast__NodeData__UnaryExpr__TAG) {
         compiler__ast__NodeData__UnaryExpr* u = (compiler__ast__NodeData__UnaryExpr*)(&(target)->data.u.UnaryExpr);
-        out = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 8, .u.UnaryExpr = { u->op, compiler__sema__decl__DeclPass_clone_expr(self, u->operand, subst), u->is_postfix } }, node->line, node->col);
+        out = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 8, .u.UnaryExpr = { u->op, compiler__semantic__resolution__TypeResolver_clone_expr(self, u->operand, subst), u->is_postfix } }, node->line, node->col);
     } else if (target != NULL && target->data.tag == compiler__ast__NodeData__CallExpr__TAG) {
         void* __orig_target = (void*)target;
         compiler__ast__NodeData__CallExpr* target = (compiler__ast__NodeData__CallExpr*)((&((compiler__ast__AstNode*)__orig_target)->data.u.CallExpr));
-        out = compiler__sema__decl__DeclPass_clone_call_expr(self, node, subst);
+        out = compiler__semantic__resolution__TypeResolver_clone_call_expr(self, node, subst);
     } else if (target != NULL && target->data.tag == compiler__ast__NodeData__MemberExpr__TAG) {
         compiler__ast__NodeData__MemberExpr* m = (compiler__ast__NodeData__MemberExpr*)(&(target)->data.u.MemberExpr);
         compiler__ast__AstNode* obj_src = (e != NULL ? e->obj_replace : NULL);
         if (obj_src == NULL) obj_src = m->object;
-        compiler__ast__AstNode* cloned_obj = compiler__sema__decl__DeclPass_clone_expr(self, obj_src, subst);
-        compiler__ast__AstNode* res = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 10, .u.MemberExpr = { cloned_obj, m->member, m->is_safe } }, node->line, node->col);
-        out = res;
+        compiler__ast__AstNode* cloned_obj = compiler__semantic__resolution__TypeResolver_clone_expr(self, obj_src, subst);
+        out = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 10, .u.MemberExpr = { cloned_obj, m->member, m->is_safe } }, node->line, node->col);
         goto __when_end_27;
     } else if (target != NULL && target->data.tag == compiler__ast__NodeData__IndexExpr__TAG) {
         compiler__ast__NodeData__IndexExpr* ix = (compiler__ast__NodeData__IndexExpr*)(&(target)->data.u.IndexExpr);
-        out = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 11, .u.IndexExpr = { compiler__sema__decl__DeclPass_clone_expr(self, ix->target, subst), compiler__sema__decl__DeclPass_clone_expr(self, ix->index, subst) } }, node->line, node->col);
+        out = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 11, .u.IndexExpr = { compiler__semantic__resolution__TypeResolver_clone_expr(self, ix->target, subst), compiler__semantic__resolution__TypeResolver_clone_expr(self, ix->index, subst) } }, node->line, node->col);
     } else if (target != NULL && target->data.tag == compiler__ast__NodeData__AssignExpr__TAG) {
         compiler__ast__NodeData__AssignExpr* a = (compiler__ast__NodeData__AssignExpr*)(&(target)->data.u.AssignExpr);
-        out = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 12, .u.AssignExpr = { compiler__sema__decl__DeclPass_clone_expr(self, a->target, subst), a->op, compiler__sema__decl__DeclPass_clone_expr(self, a->value, subst) } }, node->line, node->col);
+        out = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 12, .u.AssignExpr = { compiler__semantic__resolution__TypeResolver_clone_expr(self, a->target, subst), a->op, compiler__semantic__resolution__TypeResolver_clone_expr(self, a->value, subst) } }, node->line, node->col);
     } else if (target != NULL && target->data.tag == compiler__ast__NodeData__UpdateExpr__TAG) {
         compiler__ast__NodeData__UpdateExpr* u = (compiler__ast__NodeData__UpdateExpr*)(&(target)->data.u.UpdateExpr);
-        out = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 13, .u.UpdateExpr = { u->op, compiler__sema__decl__DeclPass_clone_expr(self, u->target, subst) } }, node->line, node->col);
+        out = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 13, .u.UpdateExpr = { u->op, compiler__semantic__resolution__TypeResolver_clone_expr(self, u->target, subst) } }, node->line, node->col);
     } else if (target != NULL && target->data.tag == compiler__ast__NodeData__CastExpr__TAG) {
         compiler__ast__NodeData__CastExpr* cst = (compiler__ast__NodeData__CastExpr*)(&(target)->data.u.CastExpr);
-        out = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 14, .u.CastExpr = { ((cst->expr != NULL) ? compiler__sema__decl__DeclPass_clone_expr(self, cst->expr, subst) : NULL), compiler__sema__decl__DeclPass_clone_type(self, cst->target_type, subst) } }, node->line, node->col);
+        out = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 14, .u.CastExpr = { ((cst->expr != NULL) ? compiler__semantic__resolution__TypeResolver_clone_expr(self, cst->expr, subst) : NULL), compiler__semantic__resolution__TypeResolver_clone_type(self, cst->target_type, subst) } }, node->line, node->col);
     } else if (target != NULL && target->data.tag == compiler__ast__NodeData__GroupExpr__TAG) {
         compiler__ast__NodeData__GroupExpr* g = (compiler__ast__NodeData__GroupExpr*)(&(target)->data.u.GroupExpr);
-        out = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 15, .u.GroupExpr = { compiler__sema__decl__DeclPass_clone_expr(self, g->expr, subst) } }, node->line, node->col);
+        out = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 15, .u.GroupExpr = { compiler__semantic__resolution__TypeResolver_clone_expr(self, g->expr, subst) } }, node->line, node->col);
     } else if (target != NULL && target->data.tag == compiler__ast__NodeData__IfExpr__TAG) {
         compiler__ast__NodeData__IfExpr* ie = (compiler__ast__NodeData__IfExpr*)(&(target)->data.u.IfExpr);
-        out = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 17, .u.IfExpr = { compiler__sema__decl__DeclPass_clone_expr(self, ie->condition, subst), compiler__sema__decl__DeclPass_clone_expr(self, ie->then_branch, subst), compiler__sema__decl__DeclPass_clone_expr(self, ie->else_branch, subst) } }, node->line, node->col);
+        out = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 17, .u.IfExpr = { compiler__semantic__resolution__TypeResolver_clone_expr(self, ie->condition, subst), compiler__semantic__resolution__TypeResolver_clone_expr(self, ie->then_branch, subst), compiler__semantic__resolution__TypeResolver_clone_expr(self, ie->else_branch, subst) } }, node->line, node->col);
     } else if (target != NULL && target->data.tag == compiler__ast__NodeData__ArrayLiteralExpr__TAG) {
         compiler__ast__NodeData__ArrayLiteralExpr* al = (compiler__ast__NodeData__ArrayLiteralExpr*)(&(target)->data.u.ArrayLiteralExpr);
         kobel_str lname = al->list_struct_name;
@@ -12131,22 +12178,22 @@ compiler__ast__AstNode* compiler__sema__decl__DeclPass_clone_expr(compiler__sema
                 lname = e->list_name;
             }
             if (e->has_elem_node) {
-                enode = compiler__sema__decl__DeclPass_clone_type(self, e->elem_node, subst);
+                enode = compiler__semantic__resolution__TypeResolver_clone_type(self, e->elem_node, subst);
             }
         }
-        out = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 16, .u.ArrayLiteralExpr = { compiler__sema__decl__DeclPass_clone_expr_list(self, al->elements, subst), lname, enode } }, node->line, node->col);
+        out = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 16, .u.ArrayLiteralExpr = { compiler__semantic__resolution__TypeResolver_clone_expr_list(self, al->elements, subst), lname, enode } }, node->line, node->col);
         goto __when_end_27;
     } else if (target != NULL && target->data.tag == compiler__ast__NodeData__WhenExpr__TAG) {
         compiler__ast__NodeData__WhenExpr* we = (compiler__ast__NodeData__WhenExpr*)(&(target)->data.u.WhenExpr);
-        out = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 18, .u.WhenExpr = { ((we->condition != NULL) ? compiler__sema__decl__DeclPass_clone_expr(self, we->condition, subst) : NULL), compiler__sema__decl__DeclPass_clone_when_arms(self, node, subst) } }, node->line, node->col);
+        out = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 18, .u.WhenExpr = { ((we->condition != NULL) ? compiler__semantic__resolution__TypeResolver_clone_expr(self, we->condition, subst) : NULL), compiler__semantic__resolution__TypeResolver_clone_when_arms(self, node, subst) } }, node->line, node->col);
     } else if (target != NULL && target->data.tag == compiler__ast__NodeData__InterpExpr__TAG) {
         void* __orig_target = (void*)target;
         compiler__ast__NodeData__InterpExpr* target = (compiler__ast__NodeData__InterpExpr*)((&((compiler__ast__AstNode*)__orig_target)->data.u.InterpExpr));
-        out = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 19, .u.InterpExpr = { compiler__sema__decl__DeclPass_clone_interp_parts(self, node, subst) } }, node->line, node->col);
+        out = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 19, .u.InterpExpr = { compiler__semantic__resolution__TypeResolver_clone_interp_parts(self, node, subst) } }, node->line, node->col);
     } else if (target != NULL && target->data.tag == compiler__ast__NodeData__IsExpr__TAG) {
         compiler__ast__NodeData__IsExpr* is_e = (compiler__ast__NodeData__IsExpr*)(&(target)->data.u.IsExpr);
-        compiler__ast__AstNode* expr_clone = ((is_e->expr != NULL) ? compiler__sema__decl__DeclPass_clone_expr(self, is_e->expr, subst) : NULL);
-        compiler__ast__AstNode* res_is = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 20, .u.IsExpr = { expr_clone, compiler__sema__decl__DeclPass_clone_type(self, is_e->target_type, subst), is_e->alias, is_e->mutable } }, node->line, node->col);
+        compiler__ast__AstNode* expr_clone = ((is_e->expr != NULL) ? compiler__semantic__resolution__TypeResolver_clone_expr(self, is_e->expr, subst) : NULL);
+        compiler__ast__AstNode* res_is = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 20, .u.IsExpr = { expr_clone, compiler__semantic__resolution__TypeResolver_clone_type(self, is_e->target_type, subst), is_e->alias, is_e->mutable } }, node->line, node->col);
         {
             compiler__ast__NodeData__IsExpr* res_e = NULL;
             if (!str_empty(is_e->alias) && (res_is != NULL && res_is->data.tag == compiler__ast__NodeData__IsExpr__TAG && (res_e = (compiler__ast__NodeData__IsExpr*)(&(res_is)->data.u.IsExpr), 1))) {
@@ -12158,10 +12205,10 @@ compiler__ast__AstNode* compiler__sema__decl__DeclPass_clone_expr(compiler__sema
         goto __when_end_27;
     } else if (target != NULL && target->data.tag == compiler__ast__NodeData__StructCtorExpr__TAG) {
         compiler__ast__NodeData__StructCtorExpr* sc = (compiler__ast__NodeData__StructCtorExpr*)(&(target)->data.u.StructCtorExpr);
-        out = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 21, .u.StructCtorExpr = { sc->c_name, compiler__sema__decl__DeclPass_clone_expr_list(self, sc->args, subst) } }, node->line, node->col);
+        out = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 21, .u.StructCtorExpr = { sc->c_name, compiler__semantic__resolution__TypeResolver_clone_expr_list(self, sc->args, subst) } }, node->line, node->col);
     } else if (target != NULL && target->data.tag == compiler__ast__NodeData__EnumCtorExpr__TAG) {
         compiler__ast__NodeData__EnumCtorExpr* ec = (compiler__ast__NodeData__EnumCtorExpr*)(&(target)->data.u.EnumCtorExpr);
-        out = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 22, .u.EnumCtorExpr = { ec->c_name, ec->tag_field, ec->tag_value, ec->payload_path, compiler__sema__decl__DeclPass_clone_expr_list(self, ec->args, subst) } }, node->line, node->col);
+        out = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 22, .u.EnumCtorExpr = { ec->c_name, ec->tag_field, ec->tag_value, ec->payload_path, compiler__semantic__resolution__TypeResolver_clone_expr_list(self, ec->args, subst) } }, node->line, node->col);
     } else if (target != NULL && target->data.tag == compiler__ast__NodeData__SizeOfParam__TAG) {
         compiler__ast__NodeData__SizeOfParam* sop = (compiler__ast__NodeData__SizeOfParam*)(&(target)->data.u.SizeOfParam);
         out = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 23, .u.SizeOfParam = { sop->param_index, sop->size_text } }, node->line, node->col);
@@ -12185,23 +12232,23 @@ compiler__ast__AstNode* compiler__sema__decl__DeclPass_clone_expr(compiler__sema
     return out;
 }
 
-compiler__ast__AstNode* compiler__sema__decl__DeclPass_clone_call_expr(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node, compiler__semantic__symbols__GenericSubst* subst) {
-    compiler__ast__AstNode* special = compiler__sema__decl__DeclPass_clone_size_query(self, node, subst);
-    if (special == NULL) special = compiler__sema__decl__DeclPass_clone_template_call(self, node, subst);
+compiler__ast__AstNode* compiler__semantic__resolution__TypeResolver_clone_call_expr(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node, compiler__semantic__symbols__GenericSubst* subst) {
+    compiler__ast__AstNode* special = compiler__semantic__resolution__TypeResolver_clone_size_query(self, node, subst);
+    if (special == NULL) special = compiler__semantic__resolution__TypeResolver_clone_template_call(self, node, subst);
     if (special != NULL) {
         return special;
     }
     {
         compiler__ast__NodeData__CallExpr* c = NULL;
         if ((node != NULL && node->data.tag == compiler__ast__NodeData__CallExpr__TAG && (c = (compiler__ast__NodeData__CallExpr*)(&(node)->data.u.CallExpr), 1))) {
-            std__collections__List_ptr_compiler__ast__AstNode args = compiler__sema__decl__DeclPass_clone_expr_list(self, c->args, subst);
-            return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 9, .u.CallExpr = { compiler__sema__decl__DeclPass_clone_expr(self, c->callee, subst), args, std__collections__List_ptr_compiler__ast__AstNode_init(4) } }, node->line, node->col);
+            std__collections__List_ptr_compiler__ast__AstNode args = compiler__semantic__resolution__TypeResolver_clone_expr_list(self, c->args, subst);
+            return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 9, .u.CallExpr = { compiler__semantic__resolution__TypeResolver_clone_expr(self, c->callee, subst), args, std__collections__List_ptr_compiler__ast__AstNode_init(4) } }, node->line, node->col);
         }
     }
     return node;
 }
 
-compiler__ast__AstNode* compiler__sema__decl__DeclPass_clone_size_query(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node, compiler__semantic__symbols__GenericSubst* subst) {
+compiler__ast__AstNode* compiler__semantic__resolution__TypeResolver_clone_size_query(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node, compiler__semantic__symbols__GenericSubst* subst) {
     {
         compiler__ast__NodeData__CallExpr* c = NULL;
         if ((node != NULL && node->data.tag == compiler__ast__NodeData__CallExpr__TAG && (c = (compiler__ast__NodeData__CallExpr*)(&(node)->data.u.CallExpr), 1))) {
@@ -12215,7 +12262,7 @@ compiler__ast__AstNode* compiler__sema__decl__DeclPass_clone_size_query(compiler
                             if (sa == NULL) {
                                 return NULL;
                             }
-                            return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 5, .u.LiteralExpr = { 0, usz_to_str(compiler__sema__decl__DeclPass_ast_type_size(self, sa)) } }, node->line, node->col);
+                            return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 5, .u.LiteralExpr = { 0, usz_to_str(compiler__semantic__resolution__TypeResolver_ast_type_size(self, sa)) } }, node->line, node->col);
                         }
                     }
                 }
@@ -12225,7 +12272,7 @@ compiler__ast__AstNode* compiler__sema__decl__DeclPass_clone_size_query(compiler
     return NULL;
 }
 
-compiler__ast__AstNode* compiler__sema__decl__DeclPass_clone_template_call(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node, compiler__semantic__symbols__GenericSubst* subst) {
+compiler__ast__AstNode* compiler__semantic__resolution__TypeResolver_clone_template_call(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node, compiler__semantic__symbols__GenericSubst* subst) {
     {
         compiler__ast__NodeData__CallExpr* c = NULL;
         if ((node != NULL && node->data.tag == compiler__ast__NodeData__CallExpr__TAG && (c = (compiler__ast__NodeData__CallExpr*)(&(node)->data.u.CallExpr), 1))) {
@@ -12240,11 +12287,11 @@ compiler__ast__AstNode* compiler__sema__decl__DeclPass_clone_template_call(compi
                     {
                         compiler__ast__NodeData__IdentifierExpr* id = NULL;
                         if ((mem->object != NULL && mem->object->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (id = (compiler__ast__NodeData__IdentifierExpr*)(&(mem->object)->data.u.IdentifierExpr), 1))) {
-                            ft = compiler__sema__decl__DeclPass_find_method_template(self, mem->member, id->name);
+                            ft = compiler__semantic__resolution__TypeResolver_find_method_template(self, mem->member, id->name);
                         }
                     }
                     if (ft == NULL) {
-                        ft = compiler__sema__decl__DeclPass_find_method_template(self, mem->member, KOBEL_STR(""));
+                        ft = compiler__semantic__resolution__TypeResolver_find_method_template(self, mem->member, KOBEL_STR(""));
                     }
                     if (ft == NULL) {
                         return NULL;
@@ -12256,8 +12303,8 @@ compiler__ast__AstNode* compiler__sema__decl__DeclPass_clone_template_call(compi
                             is_static = (std__collections__List_compiler__ast__Param_empty(&f->params) || !kobel_streq(std__collections__List_compiler__ast__Param_get(&f->params, 0).name, KOBEL_STR("self")));
                         }
                     }
-                    compiler__ast__AstNode* mem_obj = compiler__sema__decl__DeclPass_clone_expr(self, mem->object, subst);
-                    std__collections__List_ptr_compiler__ast__AstNode targs = compiler__sema__decl__DeclPass_clone_type_args(self, c->type_args, subst);
+                    compiler__ast__AstNode* mem_obj = compiler__semantic__resolution__TypeResolver_clone_expr(self, mem->object, subst);
+                    std__collections__List_ptr_compiler__ast__AstNode targs = compiler__semantic__resolution__TypeResolver_clone_type_args(self, c->type_args, subst);
                     std__collections__List_ptr_compiler__ast__AstNode new_args = std__collections__List_ptr_compiler__ast__AstNode_init(4);
                     if (!is_static) {
                         std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&new_args, mem_obj);
@@ -12267,11 +12314,11 @@ compiler__ast__AstNode* compiler__sema__decl__DeclPass_clone_template_call(compi
                         size_t __for_i = 0;
                         while (__for_i < __for_n) {
                             compiler__ast__AstNode* a = std__collections__List_ptr_compiler__ast__AstNode_at(&c->args, __for_i);
-                            std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&new_args, compiler__sema__decl__DeclPass_clone_expr(self, a, subst));
+                            std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&new_args, compiler__semantic__resolution__TypeResolver_clone_expr(self, a, subst));
                             __for_i = (__for_i + 1);
                         }
                     }
-                    kobel_str cname = compiler__sema__decl__DeclPass_instantiate_fn(self, ft, targs);
+                    kobel_str cname = compiler__semantic__resolution__TypeResolver_instantiate_fn(self, ft, targs);
                     compiler__ast__AstNode* callee = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 6, .u.IdentifierExpr = { cname } }, node->line, node->col);
                     compiler__ast__AstNode* call_node = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 9, .u.CallExpr = { callee, new_args, std__collections__List_ptr_compiler__ast__AstNode_init(4) } }, node->line, node->col);
                     if (!is_static && mem->is_safe) {
@@ -12286,34 +12333,34 @@ compiler__ast__AstNode* compiler__sema__decl__DeclPass_clone_template_call(compi
             {
                 compiler__ast__NodeData__IdentifierExpr* cid = NULL;
                 if ((callee != NULL && callee->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (cid = (compiler__ast__NodeData__IdentifierExpr*)(&(callee)->data.u.IdentifierExpr), 1))) {
-                    compiler__semantic__symbols__GenericTemplate* ft = compiler__sema__decl__DeclPass_find_fn_template(self, cid->name);
+                    compiler__semantic__symbols__GenericTemplate* ft = compiler__semantic__resolution__TypeResolver_find_fn_template(self, cid->name);
                     if (ft != NULL) {
-                        std__collections__List_ptr_compiler__ast__AstNode targs = compiler__sema__decl__DeclPass_clone_type_args(self, c->type_args, subst);
-                        kobel_str cname = compiler__sema__decl__DeclPass_instantiate_fn(self, ft, targs);
+                        std__collections__List_ptr_compiler__ast__AstNode targs = compiler__semantic__resolution__TypeResolver_clone_type_args(self, c->type_args, subst);
+                        kobel_str cname = compiler__semantic__resolution__TypeResolver_instantiate_fn(self, ft, targs);
                         std__collections__List_ptr_compiler__ast__AstNode cargs = std__collections__List_ptr_compiler__ast__AstNode_init(4);
                         {
                             size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&c->args);
                             size_t __for_i = 0;
                             while (__for_i < __for_n) {
                                 compiler__ast__AstNode* a = std__collections__List_ptr_compiler__ast__AstNode_at(&c->args, __for_i);
-                                std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&cargs, compiler__sema__decl__DeclPass_clone_expr(self, a, subst));
+                                std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&cargs, compiler__semantic__resolution__TypeResolver_clone_expr(self, a, subst));
                                 __for_i = (__for_i + 1);
                             }
                         }
                         compiler__ast__AstNode* callee = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 6, .u.IdentifierExpr = { cname } }, node->line, node->col);
                         return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 9, .u.CallExpr = { callee, cargs, std__collections__List_ptr_compiler__ast__AstNode_init(4) } }, node->line, node->col);
                     }
-                    compiler__semantic__symbols__GenericTemplate* st = compiler__sema__decl__DeclPass_find_struct_template(self, cid->name);
+                    compiler__semantic__symbols__GenericTemplate* st = compiler__semantic__resolution__TypeResolver_find_struct_template(self, cid->name);
                     if (st != NULL) {
-                        std__collections__List_ptr_compiler__ast__AstNode targs = compiler__sema__decl__DeclPass_clone_type_args(self, c->type_args, subst);
-                        compiler__semantic__types__Type* cty = compiler__sema__decl__DeclPass_instantiate_struct(self, st, targs);
+                        std__collections__List_ptr_compiler__ast__AstNode targs = compiler__semantic__resolution__TypeResolver_clone_type_args(self, c->type_args, subst);
+                        compiler__semantic__types__Type* cty = compiler__semantic__resolution__TypeResolver_instantiate_struct(self, st, targs);
                         std__collections__List_ptr_compiler__ast__AstNode cargs = std__collections__List_ptr_compiler__ast__AstNode_init(4);
                         {
                             size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&c->args);
                             size_t __for_i = 0;
                             while (__for_i < __for_n) {
                                 compiler__ast__AstNode* a = std__collections__List_ptr_compiler__ast__AstNode_at(&c->args, __for_i);
-                                std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&cargs, compiler__sema__decl__DeclPass_clone_expr(self, a, subst));
+                                std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&cargs, compiler__semantic__resolution__TypeResolver_clone_expr(self, a, subst));
                                 __for_i = (__for_i + 1);
                             }
                         }
@@ -12327,35 +12374,35 @@ compiler__ast__AstNode* compiler__sema__decl__DeclPass_clone_template_call(compi
     return NULL;
 }
 
-std__collections__List_ptr_compiler__ast__AstNode compiler__sema__decl__DeclPass_clone_expr_list(compiler__sema__decl__DeclPass* self, std__collections__List_ptr_compiler__ast__AstNode nodes, compiler__semantic__symbols__GenericSubst* subst) {
+std__collections__List_ptr_compiler__ast__AstNode compiler__semantic__resolution__TypeResolver_clone_expr_list(compiler__semantic__resolution__TypeResolver* self, std__collections__List_ptr_compiler__ast__AstNode nodes, compiler__semantic__symbols__GenericSubst* subst) {
     std__collections__List_ptr_compiler__ast__AstNode out = std__collections__List_ptr_compiler__ast__AstNode_init(4);
     {
         size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&nodes);
         size_t __for_i = 0;
         while (__for_i < __for_n) {
             compiler__ast__AstNode* n = std__collections__List_ptr_compiler__ast__AstNode_at(&nodes, __for_i);
-            std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&out, compiler__sema__decl__DeclPass_clone_expr(self, n, subst));
+            std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&out, compiler__semantic__resolution__TypeResolver_clone_expr(self, n, subst));
             __for_i = (__for_i + 1);
         }
     }
     return out;
 }
 
-std__collections__List_ptr_compiler__ast__AstNode compiler__sema__decl__DeclPass_clone_type_args(compiler__sema__decl__DeclPass* self, std__collections__List_ptr_compiler__ast__AstNode nodes, compiler__semantic__symbols__GenericSubst* subst) {
+std__collections__List_ptr_compiler__ast__AstNode compiler__semantic__resolution__TypeResolver_clone_type_args(compiler__semantic__resolution__TypeResolver* self, std__collections__List_ptr_compiler__ast__AstNode nodes, compiler__semantic__symbols__GenericSubst* subst) {
     std__collections__List_ptr_compiler__ast__AstNode out = std__collections__List_ptr_compiler__ast__AstNode_init(4);
     {
         size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&nodes);
         size_t __for_i = 0;
         while (__for_i < __for_n) {
             compiler__ast__AstNode* n = std__collections__List_ptr_compiler__ast__AstNode_at(&nodes, __for_i);
-            std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&out, compiler__sema__decl__DeclPass_clone_type(self, n, subst));
+            std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&out, compiler__semantic__resolution__TypeResolver_clone_type(self, n, subst));
             __for_i = (__for_i + 1);
         }
     }
     return out;
 }
 
-std__collections__List_compiler__ast__WhenArm compiler__sema__decl__DeclPass_clone_when_arms(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node, compiler__semantic__symbols__GenericSubst* subst) {
+std__collections__List_compiler__ast__WhenArm compiler__semantic__resolution__TypeResolver_clone_when_arms(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node, compiler__semantic__symbols__GenericSubst* subst) {
     std__collections__List_compiler__ast__WhenArm arms = std__collections__List_compiler__ast__WhenArm_init(4);
     {
         compiler__ast__NodeData__WhenExpr* we = NULL;
@@ -12365,8 +12412,8 @@ std__collections__List_compiler__ast__WhenArm compiler__sema__decl__DeclPass_clo
                 size_t __for_i = 0;
                 while (__for_i < __for_n) {
                     compiler__ast__WhenArm arm = std__collections__List_compiler__ast__WhenArm_at(&we->arms, __for_i);
-                    std__collections__List_ptr_compiler__ast__AstNode pats = compiler__sema__decl__DeclPass_clone_expr_list(self, arm.patterns, subst);
-                    compiler__ast__AstNode* arm_body = ((arm.body != NULL && arm.body->data.tag == compiler__ast__NodeData__BlockStmt__TAG) ? compiler__sema__decl__DeclPass_clone_stmt(self, arm.body, subst) : compiler__sema__decl__DeclPass_clone_expr(self, arm.body, subst));
+                    std__collections__List_ptr_compiler__ast__AstNode pats = compiler__semantic__resolution__TypeResolver_clone_expr_list(self, arm.patterns, subst);
+                    compiler__ast__AstNode* arm_body = ((arm.body != NULL && arm.body->data.tag == compiler__ast__NodeData__BlockStmt__TAG) ? compiler__semantic__resolution__TypeResolver_clone_stmt(self, arm.body, subst) : compiler__semantic__resolution__TypeResolver_clone_expr(self, arm.body, subst));
                     std__collections__List_compiler__ast__WhenArm_plus_assign(&arms, (compiler__ast__WhenArm){ pats, arm.is_else, arm_body, arm.line, arm.col });
                     __for_i = (__for_i + 1);
                 }
@@ -12376,7 +12423,7 @@ std__collections__List_compiler__ast__WhenArm compiler__sema__decl__DeclPass_clo
     return arms;
 }
 
-std__collections__List_compiler__ast__InterpPart compiler__sema__decl__DeclPass_clone_interp_parts(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node, compiler__semantic__symbols__GenericSubst* subst) {
+std__collections__List_compiler__ast__InterpPart compiler__semantic__resolution__TypeResolver_clone_interp_parts(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node, compiler__semantic__symbols__GenericSubst* subst) {
     std__collections__List_compiler__ast__InterpPart parts = std__collections__List_compiler__ast__InterpPart_init(4);
     {
         compiler__ast__NodeData__InterpExpr* ie = NULL;
@@ -12388,10 +12435,10 @@ std__collections__List_compiler__ast__InterpPart compiler__sema__decl__DeclPass_
                     compiler__ast__InterpPart part = std__collections__List_compiler__ast__InterpPart_at(&ie->parts, __for_i);
                     if (part.tag == compiler__ast__InterpPart__Literal__TAG) {
                         compiler__ast__InterpPart__Literal* lit = (compiler__ast__InterpPart__Literal*)(&(part).u.Literal);
-                        std__collections__List_compiler__ast__InterpPart_plus_assign(&parts, (compiler__ast__InterpPart){ .tag = 0, .u.Literal = { compiler__sema__decl__DeclPass_clone_expr(self, lit->node, subst) } });
+                        std__collections__List_compiler__ast__InterpPart_plus_assign(&parts, (compiler__ast__InterpPart){ .tag = 0, .u.Literal = { compiler__semantic__resolution__TypeResolver_clone_expr(self, lit->node, subst) } });
                     } else if (part.tag == compiler__ast__InterpPart__Hole__TAG) {
                         compiler__ast__InterpPart__Hole* hole = (compiler__ast__InterpPart__Hole*)(&(part).u.Hole);
-                        std__collections__List_compiler__ast__InterpPart_plus_assign(&parts, (compiler__ast__InterpPart){ .tag = 1, .u.Hole = { compiler__sema__decl__DeclPass_clone_expr(self, hole->node, subst) } });
+                        std__collections__List_compiler__ast__InterpPart_plus_assign(&parts, (compiler__ast__InterpPart){ .tag = 1, .u.Hole = { compiler__semantic__resolution__TypeResolver_clone_expr(self, hole->node, subst) } });
                     }
                     __for_i = (__for_i + 1);
                 }
@@ -12401,13 +12448,13 @@ std__collections__List_compiler__ast__InterpPart compiler__sema__decl__DeclPass_
     return parts;
 }
 
-compiler__ast__AstNode* compiler__sema__decl__DeclPass_clone_stmt(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node, compiler__semantic__symbols__GenericSubst* subst) {
+compiler__ast__AstNode* compiler__semantic__resolution__TypeResolver_clone_stmt(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node, compiler__semantic__symbols__GenericSubst* subst) {
     if (node == NULL) {
         return (compiler__ast__AstNode*)NULL;
     }
-    compiler__semantic__symbols__AnnotationEntry* se = compiler__sema__decl__DeclPass_mat_ann(self, node);
+    compiler__semantic__symbols__AnnotationEntry* se = compiler__semantic__resolution__TypeResolver_mat_ann(self, node);
     if (se != NULL && se->resolved != NULL) {
-        return compiler__sema__decl__DeclPass_clone_stmt(self, se->resolved, subst);
+        return compiler__semantic__resolution__TypeResolver_clone_stmt(self, se->resolved, subst);
     }
     compiler__ast__AstNode* target = node;
     if (target != NULL && target->data.tag == compiler__ast__NodeData__BlockStmt__TAG) {
@@ -12418,17 +12465,17 @@ compiler__ast__AstNode* compiler__sema__decl__DeclPass_clone_stmt(compiler__sema
             size_t __for_i = 0;
             while (__for_i < __for_n) {
                 compiler__ast__AstNode* s = std__collections__List_ptr_compiler__ast__AstNode_at(&b->statements, __for_i);
-                std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&ss, compiler__sema__decl__DeclPass_clone_stmt(self, s, subst));
+                std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&ss, compiler__semantic__resolution__TypeResolver_clone_stmt(self, s, subst));
                 __for_i = (__for_i + 1);
             }
         }
         return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 24, .u.BlockStmt = { ss } }, node->line, node->col);
     } else if (target != NULL && target->data.tag == compiler__ast__NodeData__ExprStmt__TAG) {
         compiler__ast__NodeData__ExprStmt* e = (compiler__ast__NodeData__ExprStmt*)(&(target)->data.u.ExprStmt);
-        return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 25, .u.ExprStmt = { compiler__sema__decl__DeclPass_clone_expr(self, e->expr, subst) } }, node->line, node->col);
+        return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 25, .u.ExprStmt = { compiler__semantic__resolution__TypeResolver_clone_expr(self, e->expr, subst) } }, node->line, node->col);
     } else if (target != NULL && target->data.tag == compiler__ast__NodeData__VarDeclStmt__TAG) {
         compiler__ast__NodeData__VarDeclStmt* v = (compiler__ast__NodeData__VarDeclStmt*)(&(target)->data.u.VarDeclStmt);
-        compiler__ast__AstNode* ta = ((v->type_annotation != NULL) ? compiler__sema__decl__DeclPass_clone_type(self, v->type_annotation, subst) : NULL);
+        compiler__ast__AstNode* ta = ((v->type_annotation != NULL) ? compiler__semantic__resolution__TypeResolver_clone_type(self, v->type_annotation, subst) : NULL);
         if ((se != NULL && se->var_ty != NULL) && (ta == NULL)) {
             ta = std__memory__Arena_ast_type_from_type(&self->arena, se->var_ty);
         }
@@ -12436,26 +12483,26 @@ compiler__ast__AstNode* compiler__sema__decl__DeclPass_clone_stmt(compiler__sema
         if (se != NULL && se->init_override != NULL) {
             init_src = se->init_override;
         }
-        compiler__ast__AstNode* init_expr = ((init_src != NULL) ? compiler__sema__decl__DeclPass_clone_expr(self, init_src, subst) : NULL);
+        compiler__ast__AstNode* init_expr = ((init_src != NULL) ? compiler__semantic__resolution__TypeResolver_clone_expr(self, init_src, subst) : NULL);
         if ((ta != NULL) && (init_expr != NULL)) {
-            compiler__sema__decl__DeclPass_propagate_target_type(self, ta, init_expr);
+            compiler__semantic__resolution__TypeResolver_propagate_target_type(self, ta, init_expr);
         }
         return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 26, .u.VarDeclStmt = { v->mutable, v->name, ta, init_expr } }, node->line, node->col);
     } else if (target != NULL && target->data.tag == compiler__ast__NodeData__IfStmt__TAG) {
         compiler__ast__NodeData__IfStmt* s = (compiler__ast__NodeData__IfStmt*)(&(target)->data.u.IfStmt);
-        return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 27, .u.IfStmt = { compiler__sema__decl__DeclPass_clone_expr(self, s->condition, subst), compiler__sema__decl__DeclPass_clone_stmt(self, s->then_branch, subst), ((s->else_branch != NULL) ? compiler__sema__decl__DeclPass_clone_stmt(self, s->else_branch, subst) : NULL) } }, node->line, node->col);
+        return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 27, .u.IfStmt = { compiler__semantic__resolution__TypeResolver_clone_expr(self, s->condition, subst), compiler__semantic__resolution__TypeResolver_clone_stmt(self, s->then_branch, subst), ((s->else_branch != NULL) ? compiler__semantic__resolution__TypeResolver_clone_stmt(self, s->else_branch, subst) : NULL) } }, node->line, node->col);
     } else if (target != NULL && target->data.tag == compiler__ast__NodeData__WhileStmt__TAG) {
         compiler__ast__NodeData__WhileStmt* w = (compiler__ast__NodeData__WhileStmt*)(&(target)->data.u.WhileStmt);
-        return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 28, .u.WhileStmt = { compiler__sema__decl__DeclPass_clone_expr(self, w->condition, subst), compiler__sema__decl__DeclPass_clone_stmt(self, w->body, subst) } }, node->line, node->col);
+        return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 28, .u.WhileStmt = { compiler__semantic__resolution__TypeResolver_clone_expr(self, w->condition, subst), compiler__semantic__resolution__TypeResolver_clone_stmt(self, w->body, subst) } }, node->line, node->col);
     } else if (target != NULL && target->data.tag == compiler__ast__NodeData__ForStmt__TAG) {
         compiler__ast__NodeData__ForStmt* f = (compiler__ast__NodeData__ForStmt*)(&(target)->data.u.ForStmt);
-        return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 29, .u.ForStmt = { f->var_name, f->is_range, f->is_open, f->is_half_open, ((f->iterable != NULL) ? compiler__sema__decl__DeclPass_clone_expr(self, f->iterable, subst) : NULL), ((f->range_start != NULL) ? compiler__sema__decl__DeclPass_clone_expr(self, f->range_start, subst) : NULL), ((f->range_end != NULL) ? compiler__sema__decl__DeclPass_clone_expr(self, f->range_end, subst) : NULL), compiler__sema__decl__DeclPass_clone_stmt(self, f->body, subst) } }, node->line, node->col);
+        return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 29, .u.ForStmt = { f->var_name, f->is_range, f->is_open, f->is_half_open, ((f->iterable != NULL) ? compiler__semantic__resolution__TypeResolver_clone_expr(self, f->iterable, subst) : NULL), ((f->range_start != NULL) ? compiler__semantic__resolution__TypeResolver_clone_expr(self, f->range_start, subst) : NULL), ((f->range_end != NULL) ? compiler__semantic__resolution__TypeResolver_clone_expr(self, f->range_end, subst) : NULL), compiler__semantic__resolution__TypeResolver_clone_stmt(self, f->body, subst) } }, node->line, node->col);
     } else if (target != NULL && target->data.tag == compiler__ast__NodeData__ReturnStmt__TAG) {
         compiler__ast__NodeData__ReturnStmt* r = (compiler__ast__NodeData__ReturnStmt*)(&(target)->data.u.ReturnStmt);
-        return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 30, .u.ReturnStmt = { ((r->value != NULL) ? compiler__sema__decl__DeclPass_clone_expr(self, r->value, subst) : NULL) } }, node->line, node->col);
+        return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 30, .u.ReturnStmt = { ((r->value != NULL) ? compiler__semantic__resolution__TypeResolver_clone_expr(self, r->value, subst) : NULL) } }, node->line, node->col);
     } else if (target != NULL && target->data.tag == compiler__ast__NodeData__YieldStmt__TAG) {
         compiler__ast__NodeData__YieldStmt* y = (compiler__ast__NodeData__YieldStmt*)(&(target)->data.u.YieldStmt);
-        return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 34, .u.YieldStmt = { ((y->value != NULL) ? compiler__sema__decl__DeclPass_clone_expr(self, y->value, subst) : NULL) } }, node->line, node->col);
+        return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 34, .u.YieldStmt = { ((y->value != NULL) ? compiler__semantic__resolution__TypeResolver_clone_expr(self, y->value, subst) : NULL) } }, node->line, node->col);
     } else if (target != NULL && target->data.tag == compiler__ast__NodeData__BreakStmt__TAG) {
         void* __orig_target = (void*)target;
         compiler__ast__NodeData__BreakStmt* target = (compiler__ast__NodeData__BreakStmt*)((&((compiler__ast__AstNode*)__orig_target)->data.u.BreakStmt));
@@ -12478,24 +12525,24 @@ compiler__ast__AstNode* compiler__sema__decl__DeclPass_clone_stmt(compiler__sema
                     size_t __for_i = 0;
                     while (__for_i < __for_n) {
                         compiler__ast__AstNode* pat = std__collections__List_ptr_compiler__ast__AstNode_at(&arm.patterns, __for_i);
-                        std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&pats, compiler__sema__decl__DeclPass_clone_expr(self, pat, subst));
+                        std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&pats, compiler__semantic__resolution__TypeResolver_clone_expr(self, pat, subst));
                         __for_i = (__for_i + 1);
                     }
                 }
-                std__collections__List_compiler__ast__WhenArm_plus_assign(&arms, (compiler__ast__WhenArm){ pats, arm.is_else, compiler__sema__decl__DeclPass_clone_stmt(self, arm.body, subst), arm.line, arm.col });
+                std__collections__List_compiler__ast__WhenArm_plus_assign(&arms, (compiler__ast__WhenArm){ pats, arm.is_else, compiler__semantic__resolution__TypeResolver_clone_stmt(self, arm.body, subst), arm.line, arm.col });
                 __for_i = (__for_i + 1);
             }
         }
-        return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 33, .u.WhenStmt = { ((w->condition != NULL) ? compiler__sema__decl__DeclPass_clone_expr(self, w->condition, subst) : NULL), arms } }, node->line, node->col);
+        return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 33, .u.WhenStmt = { ((w->condition != NULL) ? compiler__semantic__resolution__TypeResolver_clone_expr(self, w->condition, subst) : NULL), arms } }, node->line, node->col);
     } else if (target != NULL && target->data.tag == compiler__ast__NodeData__DeferStmt__TAG) {
         compiler__ast__NodeData__DeferStmt* d = (compiler__ast__NodeData__DeferStmt*)(&(target)->data.u.DeferStmt);
-        return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 35, .u.DeferStmt = { compiler__sema__decl__DeclPass_clone_stmt(self, d->body, subst) } }, node->line, node->col);
+        return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 35, .u.DeferStmt = { compiler__semantic__resolution__TypeResolver_clone_stmt(self, d->body, subst) } }, node->line, node->col);
     } else {
         return (compiler__ast__AstNode*)NULL;
     }
 }
 
-compiler__ast__AstNode* compiler__sema__decl__DeclPass_clone_fn(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node, compiler__semantic__symbols__GenericSubst* subst, kobel_str new_name) {
+compiler__ast__AstNode* compiler__semantic__resolution__TypeResolver_clone_fn(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node, compiler__semantic__symbols__GenericSubst* subst, kobel_str new_name) {
     {
         compiler__ast__NodeData__FnDecl* f = NULL;
         if ((node != NULL && node->data.tag == compiler__ast__NodeData__FnDecl__TAG && (f = (compiler__ast__NodeData__FnDecl*)(&(node)->data.u.FnDecl), 1))) {
@@ -12505,27 +12552,27 @@ compiler__ast__AstNode* compiler__sema__decl__DeclPass_clone_fn(compiler__sema__
                 size_t __for_i = 0;
                 while (__for_i < __for_n) {
                     compiler__ast__Param p = std__collections__List_compiler__ast__Param_at(&f->params, __for_i);
-                    compiler__ast__AstNode* pt = ((p.type_node != NULL) ? compiler__sema__decl__DeclPass_clone_type(self, p.type_node, subst) : NULL);
-                    compiler__ast__AstNode* dflt = ((p.default_val != NULL) ? compiler__sema__decl__DeclPass_clone_expr(self, p.default_val, subst) : NULL);
+                    compiler__ast__AstNode* pt = ((p.type_node != NULL) ? compiler__semantic__resolution__TypeResolver_clone_type(self, p.type_node, subst) : NULL);
+                    compiler__ast__AstNode* dflt = ((p.default_val != NULL) ? compiler__semantic__resolution__TypeResolver_clone_expr(self, p.default_val, subst) : NULL);
                     std__collections__List_compiler__ast__Param_plus_assign(&params, (compiler__ast__Param){ p.name, pt, p.mutable, p.has_val, dflt });
                     __for_i = (__for_i + 1);
                 }
             }
-            compiler__ast__AstNode* rt = ((f->return_type != NULL) ? compiler__sema__decl__DeclPass_clone_type(self, f->return_type, subst) : NULL);
-            return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 38, .u.FnDecl = { new_name, std__collections__List_compiler__ast__GenericParam_init(4), params, rt, ((f->body != NULL) ? compiler__sema__decl__DeclPass_clone_stmt(self, f->body, subst) : NULL), f->public, f->operator, f->initializer, self->current_module } }, node->line, node->col);
+            compiler__ast__AstNode* rt = ((f->return_type != NULL) ? compiler__semantic__resolution__TypeResolver_clone_type(self, f->return_type, subst) : NULL);
+            return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 38, .u.FnDecl = { new_name, std__collections__List_compiler__ast__GenericParam_init(4), params, rt, ((f->body != NULL) ? compiler__semantic__resolution__TypeResolver_clone_stmt(self, f->body, subst) : NULL), f->public, f->operator, f->initializer, self->current_module } }, node->line, node->col);
         }
     }
     return node;
 }
 
-compiler__ast__AstNode* compiler__sema__decl__DeclPass_materialize_body(compiler__sema__decl__DeclPass* self, compiler__semantic__symbols__InstanceRecord* rec) {
+compiler__ast__AstNode* compiler__semantic__resolution__TypeResolver_materialize_body(compiler__semantic__resolution__TypeResolver* self, compiler__semantic__symbols__InstanceRecord* rec) {
     compiler__semantic__symbols__InstanceRecord* saved = self->mat_rec;
     self->mat_rec = rec;
     compiler__ast__AstNode* body = NULL;
     {
         compiler__ast__NodeData__FnDecl* f = NULL;
         if ((rec->decl != NULL && rec->decl->data.tag == compiler__ast__NodeData__FnDecl__TAG && (f = (compiler__ast__NodeData__FnDecl*)(&(rec->decl)->data.u.FnDecl), 1)) && (f->body != NULL)) {
-            body = compiler__sema__decl__DeclPass_clone_stmt(self, f->body, NULL);
+            body = compiler__semantic__resolution__TypeResolver_clone_stmt(self, f->body, NULL);
         }
     }
     self->mat_rec = saved;
@@ -12537,42 +12584,183 @@ compiler__ast__AstNode* compiler__sema__decl__DeclPass_materialize_body(compiler
     }
 }
 
-compiler__semantic__types__Type* compiler__sema__decl__DeclPass_instantiate_struct(compiler__sema__decl__DeclPass* self, compiler__semantic__symbols__GenericTemplate* tmpl, std__collections__List_ptr_compiler__ast__AstNode arg_asts) {
-    compiler__sema__decl__DeclPass_check_bounds(self, tmpl, arg_asts);
+std__collections__List_str compiler__semantic__resolution__overloaded_names(compiler__ast__NodeData__ImplDecl* im) {
+    std__collections__List_str names = std__collections__List_str_init(4);
+    {
+        size_t __for_e = im->methods.len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t a = __for_i;
+            compiler__ast__AstNode* ma = std__collections__List_ptr_compiler__ast__AstNode_get(&im->methods, a);
+            kobel_str na = KOBEL_STR("");
+            {
+                compiler__ast__NodeData__FnDecl* fna = NULL;
+                if ((ma != NULL && ma->data.tag == compiler__ast__NodeData__FnDecl__TAG && (fna = (compiler__ast__NodeData__FnDecl*)(&(ma)->data.u.FnDecl), 1))) {
+                    na = fna->name;
+                }
+            }
+            if (str_empty(na) || std__collections__List_str_contains(&names, na)) {
+                if (__for_up) {
+                    __for_go = ((__for_i + 1) < __for_e);
+                } else {
+                    __for_go = ((__for_i - 1) > __for_e);
+                }
+                if (__for_go) {
+                    if (__for_up) {
+                        __for_i = (__for_i + 1);
+                    } else {
+                        __for_i = (__for_i - 1);
+                    }
+                }
+                continue;
+            }
+            {
+                size_t __for_e = im->methods.len;
+                size_t __for_i = __for_e;
+                __for_i = (a + 1);
+                bool __for_up = (__for_i <= __for_e);
+                bool __for_go = false;
+                if (__for_up) {
+                    __for_go = (__for_i < __for_e);
+                } else {
+                    __for_go = (__for_i > __for_e);
+                }
+                while (__for_go) {
+                    size_t b = __for_i;
+                    compiler__ast__AstNode* mb = std__collections__List_ptr_compiler__ast__AstNode_get(&im->methods, b);
+                    {
+                        compiler__ast__NodeData__FnDecl* fnb = NULL;
+                        if ((mb != NULL && mb->data.tag == compiler__ast__NodeData__FnDecl__TAG && (fnb = (compiler__ast__NodeData__FnDecl*)(&(mb)->data.u.FnDecl), 1)) && kobel_streq(fnb->name, na)) {
+                            std__collections__List_str_plus_assign(&names, na);
+                            break;
+                        }
+                    }
+                    if (__for_up) {
+                        __for_go = ((__for_i + 1) < __for_e);
+                    } else {
+                        __for_go = ((__for_i - 1) > __for_e);
+                    }
+                    if (__for_go) {
+                        if (__for_up) {
+                            __for_i = (__for_i + 1);
+                        } else {
+                            __for_i = (__for_i - 1);
+                        }
+                    }
+                }
+            }
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return names;
+}
+
+kobel_str compiler__semantic__resolution__method_c_name(kobel_str base, size_t argc, bool overloaded, std__collections__List_str taken) {
+    if (!overloaded) {
+        return base;
+    }
+    kobel_str cand = kobel_concat3(base, KOBEL_STR("_"), usz_to_str(argc));
+    if (!(std__collections__List_str_contains(&taken, cand))) {
+        return cand;
+    }
+    int32_t k = 2;
+    while (std__collections__List_str_contains(&taken, kobel_concat3(cand, KOBEL_STR("_"), i32_to_str(k)))) {
+        k++;
+    }
+    return kobel_concat3(cand, KOBEL_STR("_"), i32_to_str(k));
+}
+
+void compiler__semantic__resolution__trait_put_method(std__collections__List_ptr_compiler__semantic__types__TraitMethod* out, compiler__semantic__types__TraitMethod* m) {
+    {
+        size_t __for_e = out->len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            compiler__semantic__types__TraitMethod* e = std__collections__List_ptr_compiler__semantic__types__TraitMethod_get(&(*out), i);
+            if (kobel_streq(e->name, m->name) && (e->arity == m->arity)) {
+                std__collections__List_ptr_compiler__semantic__types__TraitMethod_set(&(*out), i, m);
+                return;
+            }
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    std__collections__List_ptr_compiler__semantic__types__TraitMethod_plus_assign(out, m);
+}
+
+compiler__semantic__types__Type* compiler__semantic__resolution__TypeResolver_instantiate_struct(compiler__semantic__resolution__TypeResolver* self, compiler__semantic__symbols__GenericTemplate* tmpl, std__collections__List_ptr_compiler__ast__AstNode arg_asts) {
+    compiler__semantic__resolution__TypeResolver_check_bounds(self, tmpl, arg_asts);
     std__collections__List_ptr_compiler__semantic__types__Type args = std__collections__List_ptr_compiler__semantic__types__Type_init(4);
     {
         size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&arg_asts);
         size_t __for_i = 0;
         while (__for_i < __for_n) {
             compiler__ast__AstNode* a = std__collections__List_ptr_compiler__ast__AstNode_at(&arg_asts, __for_i);
-            std__collections__List_ptr_compiler__semantic__types__Type_plus_assign(&args, compiler__sema__decl__DeclPass_resolve_ast_type(self, a));
+            std__collections__List_ptr_compiler__semantic__types__Type_plus_assign(&args, compiler__semantic__resolution__TypeResolver_resolve_ast_type(self, a));
             __for_i = (__for_i + 1);
         }
     }
     compiler__semantic__symbols__InstanceRecord* known = compiler__semantic__symbols__GenericRegistry_find_instance_record(&self->symtab.gen, tmpl, args, 0);
     if (known != NULL) {
-        compiler__semantic__symbols__Symbol* known_sym = compiler__sema__decl__DeclPass_find_instance_symbol(self, known->c_name);
+        compiler__semantic__symbols__Symbol* known_sym = compiler__semantic__resolution__TypeResolver_find_instance_symbol(self, known->c_name);
         if (known_sym != NULL) {
             return known_sym->type_ptr;
         }
     }
     kobel_str base = str_mangle_symbol(tmpl->module, tmpl->name);
-    kobel_str cname = kobel_concat3(base, KOBEL_STR("_"), compiler__sema__decl__DeclPass_type_token_list_of(self, args));
-    compiler__semantic__symbols__Symbol* existing = compiler__sema__decl__DeclPass_find_instance_symbol(self, cname);
+    kobel_str cname = kobel_concat3(base, KOBEL_STR("_"), compiler__semantic__resolution__TypeResolver_type_token_list_of(self, args));
+    compiler__semantic__symbols__Symbol* existing = compiler__semantic__resolution__TypeResolver_find_instance_symbol(self, cname);
     if (existing != NULL) {
         return existing->type_ptr;
     }
     {
         compiler__ast__NodeData__StructDecl* decl = NULL;
         if ((tmpl->node != NULL && tmpl->node->data.tag == compiler__ast__NodeData__StructDecl__TAG && (decl = (compiler__ast__NodeData__StructDecl*)(&(tmpl->node)->data.u.StructDecl), 1))) {
-            kobel_str prev_mod = compiler__sema__decl__DeclPass_enter_module(self, tmpl->module);
+            kobel_str prev_mod = compiler__semantic__resolution__TypeResolver_enter_module(self, tmpl->module);
             compiler__semantic__types__Type* s_type = std__memory__Arena_struct_type(&self->arena, cname, std__collections__List_compiler__semantic__types__StructField_init(4));
             compiler__semantic__types__StructType* st = compiler__semantic__types__Type_as_struct(s_type);
             st->c_name = cname;
             st->module = tmpl->module;
             compiler__semantic__symbols__GenericRegistry_add_inst(&self->symtab.gen, std__memory__Arena_create_val_compiler__semantic__symbols__Symbol(&self->arena, (compiler__semantic__symbols__Symbol){ cname, cname, 4, s_type, false, decl->public, (*tmpl->node).line, (*tmpl->node).col, tmpl->node, NULL, false }));
             size_t mark = self->subst_names.len;
-            compiler__sema__decl__DeclPass_push_subst(self, compiler__semantic__symbols__GenericTemplate_param_names(tmpl), args);
+            compiler__semantic__resolution__TypeResolver_push_subst(self, compiler__semantic__symbols__GenericTemplate_param_names(tmpl), args);
             bool has_private = false;
             std__collections__List_compiler__semantic__types__StructField fields = std__collections__List_compiler__semantic__types__StructField_init(4);
             {
@@ -12580,7 +12768,7 @@ compiler__semantic__types__Type* compiler__sema__decl__DeclPass_instantiate_stru
                 size_t __for_i = 0;
                 while (__for_i < __for_n) {
                     compiler__ast__StructField f = std__collections__List_compiler__ast__StructField_at(&decl->fields, __for_i);
-                    compiler__semantic__types__Type* f_type = compiler__sema__decl__DeclPass_resolve_ast_type(self, f.type_node);
+                    compiler__semantic__types__Type* f_type = compiler__semantic__resolution__TypeResolver_resolve_ast_type(self, f.type_node);
                     std__collections__List_compiler__semantic__types__StructField_plus_assign(&fields, (compiler__semantic__types__StructField){ f.name, f_type, 0, f.public, f.default_val });
                     if (!f.public) {
                         has_private = true;
@@ -12588,7 +12776,7 @@ compiler__semantic__types__Type* compiler__sema__decl__DeclPass_instantiate_stru
                     __for_i = (__for_i + 1);
                 }
             }
-            compiler__sema__decl__DeclPass_pop_subst(self, mark);
+            compiler__semantic__resolution__TypeResolver_pop_subst(self, mark);
             {
                 size_t __for_n = std__collections__List_compiler__semantic__types__StructField_count(&fields);
                 size_t __for_i = 0;
@@ -12609,13 +12797,13 @@ compiler__semantic__types__Type* compiler__sema__decl__DeclPass_instantiate_stru
                         __for_i = (__for_i + 1);
                         continue;
                     }
-                    kobel_str prev_mod2 = compiler__sema__decl__DeclPass_enter_module(self, impl_tmpl->module);
+                    kobel_str prev_mod2 = compiler__semantic__resolution__TypeResolver_enter_module(self, impl_tmpl->module);
                     {
                         compiler__ast__NodeData__ImplDecl* im = NULL;
                         if ((impl_tmpl->node != NULL && impl_tmpl->node->data.tag == compiler__ast__NodeData__ImplDecl__TAG && (im = (compiler__ast__NodeData__ImplDecl*)(&(impl_tmpl->node)->data.u.ImplDecl), 1))) {
                             self->current_self_type = s_type;
-                            size_t mark = self->subst_names.len;
-                            compiler__sema__decl__DeclPass_push_subst(self, compiler__semantic__symbols__GenericTemplate_param_names(impl_tmpl), args);
+                            size_t mark2 = self->subst_names.len;
+                            compiler__semantic__resolution__TypeResolver_push_subst(self, compiler__semantic__symbols__GenericTemplate_param_names(impl_tmpl), args);
                             std__collections__List_ptr_compiler__ast__AstNode methods = std__collections__List_ptr_compiler__ast__AstNode_init(4);
                             {
                                 size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&im->methods);
@@ -12625,9 +12813,9 @@ compiler__semantic__types__Type* compiler__sema__decl__DeclPass_instantiate_stru
                                     {
                                         compiler__ast__NodeData__FnDecl* mf = NULL;
                                         if ((m != NULL && m->data.tag == compiler__ast__NodeData__FnDecl__TAG && (mf = (compiler__ast__NodeData__FnDecl*)(&(m)->data.u.FnDecl), 1))) {
-                                            compiler__ast__AstNode* mview = compiler__sema__decl__DeclPass_make_fn_view(self, m, impl_tmpl, args, arg_asts, mf->name);
+                                            compiler__ast__AstNode* mview = compiler__semantic__resolution__TypeResolver_make_fn_view(self, m, impl_tmpl, args, arg_asts, mf->name);
                                             compiler__semantic__symbols__InstanceRecord* mrec = std__memory__Arena_create_val_compiler__semantic__symbols__InstanceRecord(&self->arena, (compiler__semantic__symbols__InstanceRecord){ 1, impl_tmpl, args, cname, mview, std__collections__HashMap_usz_ptr_compiler__semantic__symbols__AnnotationEntry_init(16), NULL });
-                                            mrec->sig = compiler__sema__decl__DeclPass_make_fn_sig(self, m, impl_tmpl, args, s_type);
+                                            mrec->sig = compiler__semantic__resolution__TypeResolver_make_fn_sig(self, m, impl_tmpl, args, s_type);
                                             compiler__semantic__symbols__SymbolTable_set_node_instance(&self->symtab, mview, mrec);
                                             std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&methods, mview);
                                         }
@@ -12641,30 +12829,30 @@ compiler__semantic__types__Type* compiler__sema__decl__DeclPass_instantiate_stru
                                 size_t __for_i = 0;
                                 while (__for_i < __for_n) {
                                     compiler__ast__AssocBinding b = std__collections__List_compiler__ast__AssocBinding_at(&im->assoc_bindings, __for_i);
-                                    compiler__semantic__types__Type* bty = compiler__sema__decl__DeclPass_resolve_ast_type(self, b.type_node);
+                                    compiler__semantic__types__Type* bty = compiler__semantic__resolution__TypeResolver_resolve_ast_type(self, b.type_node);
                                     std__collections__List_compiler__ast__AssocBinding_plus_assign(&bindings, (compiler__ast__AssocBinding){ b.name, std__memory__Arena_ast_type_from_type(&self->arena, bty) });
                                     __for_i = (__for_i + 1);
                                 }
                             }
-                            compiler__sema__decl__DeclPass_pop_subst(self, mark);
+                            compiler__semantic__resolution__TypeResolver_pop_subst(self, mark2);
                             self->current_self_type = NULL;
                             compiler__ast__AstNode* iview = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 41, .u.ImplDecl = { cname, std__collections__List_compiler__ast__GenericParam_init(4), im->trait_name, methods, bindings } }, (*impl_tmpl->node).line, (*impl_tmpl->node).col);
-                            compiler__sema__decl__DeclPass_collect_impl(self, iview);
-                            compiler__sema__decl__DeclPass_queue_decl(self, impl_tmpl->module, iview);
+                            compiler__semantic__resolution__TypeResolver_collect_impl(self, iview);
+                            compiler__semantic__resolution__TypeResolver_queue_decl(self, impl_tmpl->module, iview);
                         }
                     }
-                    compiler__sema__decl__DeclPass_leave_module(self, prev_mod2);
+                    compiler__semantic__resolution__TypeResolver_leave_module(self, prev_mod2);
                     __for_i = (__for_i + 1);
                 }
             }
-            compiler__ast__AstNode* view = compiler__sema__decl__DeclPass_struct_decl_view(self, cname, fields, decl->public, (*tmpl->node).line, (*tmpl->node).col);
-            compiler__sema__decl__DeclPass_queue_decl(self, tmpl->module, view);
+            compiler__ast__AstNode* view = compiler__semantic__resolution__TypeResolver_struct_decl_view(self, cname, fields, decl->public, (*tmpl->node).line, (*tmpl->node).col);
+            compiler__semantic__resolution__TypeResolver_queue_decl(self, tmpl->module, view);
             compiler__semantic__symbols__InstanceRecord* rec = std__memory__Arena_create_val_compiler__semantic__symbols__InstanceRecord(&self->arena, (compiler__semantic__symbols__InstanceRecord){ 0, tmpl, args, cname, view, std__collections__HashMap_usz_ptr_compiler__semantic__symbols__AnnotationEntry_init(16), NULL });
             compiler__semantic__symbols__GenericRegistry_add_record(&self->symtab.gen, rec);
-            compiler__sema__decl__DeclPass_leave_module(self, prev_mod);
-            compiler__semantic__symbols__Symbol* sym = compiler__sema__decl__DeclPass_find_instance_symbol(self, cname);
+            compiler__semantic__resolution__TypeResolver_leave_module(self, prev_mod);
+            compiler__semantic__symbols__Symbol* sym = compiler__semantic__resolution__TypeResolver_find_instance_symbol(self, cname);
             if (sym == NULL) {
-                return compiler__semantic__types__PrimTypes_t_none(compiler__sema__decl__DeclPass_prims(self));
+                return compiler__semantic__types__PrimTypes_t_none(compiler__semantic__resolution__TypeResolver_prims(self));
             }
             return sym->type_ptr;
         }
@@ -12672,46 +12860,46 @@ compiler__semantic__types__Type* compiler__sema__decl__DeclPass_instantiate_stru
     return compiler__semantic__types__PrimTypes_t_none(self->symtab.prims);
 }
 
-compiler__ast__AstNode* compiler__sema__decl__DeclPass_make_fn_view(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* fn_node, compiler__semantic__symbols__GenericTemplate* tmpl, std__collections__List_ptr_compiler__semantic__types__Type args, std__collections__List_ptr_compiler__ast__AstNode arg_asts, kobel_str cname) {
+compiler__ast__AstNode* compiler__semantic__resolution__TypeResolver_make_fn_view(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* fn_node, compiler__semantic__symbols__GenericTemplate* tmpl, std__collections__List_ptr_compiler__semantic__types__Type args, std__collections__List_ptr_compiler__ast__AstNode arg_asts, kobel_str cname) {
     {
-        compiler__ast__NodeData__FnDecl* t = NULL;
-        if ((fn_node != NULL && fn_node->data.tag == compiler__ast__NodeData__FnDecl__TAG && (t = (compiler__ast__NodeData__FnDecl*)(&(fn_node)->data.u.FnDecl), 1))) {
+        compiler__ast__NodeData__FnDecl* f = NULL;
+        if ((fn_node != NULL && fn_node->data.tag == compiler__ast__NodeData__FnDecl__TAG && (f = (compiler__ast__NodeData__FnDecl*)(&(fn_node)->data.u.FnDecl), 1))) {
             size_t mark = self->subst_names.len;
-            compiler__sema__decl__DeclPass_push_subst(self, compiler__semantic__symbols__GenericTemplate_param_names(tmpl), args);
+            compiler__semantic__resolution__TypeResolver_push_subst(self, compiler__semantic__symbols__GenericTemplate_param_names(tmpl), args);
             std__collections__List_compiler__ast__Param params = std__collections__List_compiler__ast__Param_init(4);
             {
-                size_t __for_n = std__collections__List_compiler__ast__Param_count(&t->params);
+                size_t __for_n = std__collections__List_compiler__ast__Param_count(&f->params);
                 size_t __for_i = 0;
                 while (__for_i < __for_n) {
-                    compiler__ast__Param p = std__collections__List_compiler__ast__Param_at(&t->params, __for_i);
+                    compiler__ast__Param p = std__collections__List_compiler__ast__Param_at(&f->params, __for_i);
                     compiler__ast__AstNode* pt = NULL;
                     if (p.type_node != NULL) {
-                        compiler__semantic__types__Type* ty = compiler__sema__decl__DeclPass_resolve_ast_type(self, p.type_node);
+                        compiler__semantic__types__Type* ty = compiler__semantic__resolution__TypeResolver_resolve_ast_type(self, p.type_node);
                         pt = std__memory__Arena_ast_type_from_type(&self->arena, ty);
                     }
-                    compiler__ast__AstNode* dflt = ((p.default_val != NULL) ? compiler__sema__decl__DeclPass_clone_expr(self, p.default_val, compiler__sema__decl__DeclPass_alloc_subst(self, compiler__semantic__symbols__GenericTemplate_param_names(tmpl), arg_asts)) : NULL);
+                    compiler__ast__AstNode* dflt = ((p.default_val != NULL) ? compiler__semantic__resolution__TypeResolver_clone_expr(self, p.default_val, compiler__semantic__resolution__TypeResolver_alloc_subst(self, compiler__semantic__symbols__GenericTemplate_param_names(tmpl), arg_asts)) : NULL);
                     std__collections__List_compiler__ast__Param_plus_assign(&params, (compiler__ast__Param){ p.name, pt, p.mutable, p.has_val, dflt });
                     __for_i = (__for_i + 1);
                 }
             }
             compiler__ast__AstNode* rt = NULL;
-            if (t->return_type != NULL) {
-                compiler__semantic__types__Type* rty = compiler__sema__decl__DeclPass_resolve_ast_type(self, t->return_type);
+            if (f->return_type != NULL) {
+                compiler__semantic__types__Type* rty = compiler__semantic__resolution__TypeResolver_resolve_ast_type(self, f->return_type);
                 rt = std__memory__Arena_ast_type_from_type(&self->arena, rty);
             }
-            compiler__sema__decl__DeclPass_pop_subst(self, mark);
-            return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 38, .u.FnDecl = { cname, std__collections__List_compiler__ast__GenericParam_init(4), params, rt, t->body, t->public, t->operator, t->initializer, self->current_module } }, (*tmpl->node).line, (*tmpl->node).col);
+            compiler__semantic__resolution__TypeResolver_pop_subst(self, mark);
+            return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 38, .u.FnDecl = { cname, std__collections__List_compiler__ast__GenericParam_init(4), params, rt, f->body, f->public, f->operator, f->initializer, self->current_module } }, fn_node->line, fn_node->col);
         }
     }
     return fn_node;
 }
 
-compiler__semantic__types__Type* compiler__sema__decl__DeclPass_make_fn_sig(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* fn_node, compiler__semantic__symbols__GenericTemplate* tmpl, std__collections__List_ptr_compiler__semantic__types__Type args, compiler__semantic__types__Type* receiver) {
+compiler__semantic__types__Type* compiler__semantic__resolution__TypeResolver_make_fn_sig(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* fn_node, compiler__semantic__symbols__GenericTemplate* tmpl, std__collections__List_ptr_compiler__semantic__types__Type args, compiler__semantic__types__Type* receiver) {
     {
         compiler__ast__NodeData__FnDecl* t = NULL;
         if ((fn_node != NULL && fn_node->data.tag == compiler__ast__NodeData__FnDecl__TAG && (t = (compiler__ast__NodeData__FnDecl*)(&(fn_node)->data.u.FnDecl), 1))) {
             size_t mark = self->subst_names.len;
-            compiler__sema__decl__DeclPass_push_subst(self, compiler__semantic__symbols__GenericTemplate_param_names(tmpl), args);
+            compiler__semantic__resolution__TypeResolver_push_subst(self, compiler__semantic__symbols__GenericTemplate_param_names(tmpl), args);
             std__collections__List_ptr_compiler__semantic__types__Type param_types = std__collections__List_ptr_compiler__semantic__types__Type_init(4);
             {
                 size_t __for_n = std__collections__List_compiler__ast__Param_count(&t->params);
@@ -12722,7 +12910,7 @@ compiler__semantic__types__Type* compiler__sema__decl__DeclPass_make_fn_sig(comp
                         if (receiver != NULL) {
                             std__collections__List_ptr_compiler__semantic__types__Type_plus_assign(&param_types, std__memory__Arena_pointer_type(&self->arena, receiver, p.mutable));
                         } else {
-                            std__collections__List_ptr_compiler__semantic__types__Type_plus_assign(&param_types, compiler__semantic__types__PrimTypes_t_none(compiler__sema__decl__DeclPass_prims(self)));
+                            std__collections__List_ptr_compiler__semantic__types__Type_plus_assign(&param_types, compiler__semantic__types__PrimTypes_t_none(compiler__semantic__resolution__TypeResolver_prims(self)));
                         }
                         {
                             __for_i = (__for_i + 1);
@@ -12730,38 +12918,29 @@ compiler__semantic__types__Type* compiler__sema__decl__DeclPass_make_fn_sig(comp
                         }
                     }
                     if (p.type_node == NULL) {
-                        std__collections__List_ptr_compiler__semantic__types__Type_plus_assign(&param_types, compiler__semantic__types__PrimTypes_t_none(compiler__sema__decl__DeclPass_prims(self)));
+                        std__collections__List_ptr_compiler__semantic__types__Type_plus_assign(&param_types, compiler__semantic__types__PrimTypes_t_none(compiler__semantic__resolution__TypeResolver_prims(self)));
                         {
                             __for_i = (__for_i + 1);
                             continue;
                         }
                     }
-                    std__collections__List_ptr_compiler__semantic__types__Type_plus_assign(&param_types, compiler__sema__decl__DeclPass_resolve_ast_type(self, p.type_node));
+                    std__collections__List_ptr_compiler__semantic__types__Type_plus_assign(&param_types, compiler__semantic__resolution__TypeResolver_resolve_ast_type(self, p.type_node));
                     __for_i = (__for_i + 1);
                 }
             }
-            compiler__semantic__types__Type* ret_type = compiler__semantic__types__PrimTypes_t_none(compiler__sema__decl__DeclPass_prims(self));
+            compiler__semantic__types__Type* ret_type = compiler__semantic__types__PrimTypes_t_none(compiler__semantic__resolution__TypeResolver_prims(self));
             if (t->return_type != NULL) {
-                ret_type = compiler__sema__decl__DeclPass_resolve_ast_type(self, t->return_type);
+                ret_type = compiler__semantic__resolution__TypeResolver_resolve_ast_type(self, t->return_type);
             }
-            compiler__sema__decl__DeclPass_pop_subst(self, mark);
+            compiler__semantic__resolution__TypeResolver_pop_subst(self, mark);
             return std__memory__Arena_fn_type(&self->arena, param_types, ret_type);
         }
     }
     return compiler__semantic__types__PrimTypes_t_none(self->symtab.prims);
 }
 
-compiler__semantic__types__Type* compiler__sema__decl__DeclPass_instance_receiver_type(compiler__sema__decl__DeclPass* self, compiler__semantic__symbols__GenericTemplate* tmpl, std__collections__List_ptr_compiler__semantic__types__Type args) {
+compiler__semantic__types__Type* compiler__semantic__resolution__TypeResolver_instance_receiver_type(compiler__semantic__resolution__TypeResolver* self, compiler__semantic__symbols__GenericTemplate* tmpl, std__collections__List_ptr_compiler__semantic__types__Type args) {
     if (!tmpl->is_method || str_empty(tmpl->self_type)) {
-        return NULL;
-    }
-    compiler__semantic__symbols__GenericTemplate* st = compiler__sema__decl__DeclPass_find_struct_template(self, tmpl->self_type);
-    if (st != NULL) {
-        kobel_str cname = kobel_concat3(str_mangle_symbol(st->module, st->name), KOBEL_STR("_"), compiler__sema__decl__DeclPass_type_token_list_of(self, args));
-        compiler__semantic__symbols__Symbol* sym = compiler__sema__decl__DeclPass_find_instance_symbol(self, cname);
-        if (sym != NULL) {
-            return sym->type_ptr;
-        }
         return NULL;
     }
     compiler__semantic__symbols__Symbol* sym = compiler__semantic__symbols__SymbolTable_lookup(&self->symtab, tmpl->self_type);
@@ -12771,7 +12950,7 @@ compiler__semantic__types__Type* compiler__sema__decl__DeclPass_instance_receive
     return NULL;
 }
 
-compiler__ast__AstNode* compiler__sema__decl__DeclPass_struct_decl_view(compiler__sema__decl__DeclPass* self, kobel_str name, std__collections__List_compiler__semantic__types__StructField fields, bool public, size_t line, size_t col) {
+compiler__ast__AstNode* compiler__semantic__resolution__TypeResolver_struct_decl_view(compiler__semantic__resolution__TypeResolver* self, kobel_str name, std__collections__List_compiler__semantic__types__StructField fields, bool public, size_t line, size_t col) {
     std__collections__List_compiler__ast__StructField ast_fields = std__collections__List_compiler__ast__StructField_init(4);
     {
         size_t __for_n = std__collections__List_compiler__semantic__types__StructField_count(&fields);
@@ -12785,7 +12964,7 @@ compiler__ast__AstNode* compiler__sema__decl__DeclPass_struct_decl_view(compiler
     return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 39, .u.StructDecl = { name, std__collections__List_compiler__ast__GenericParam_init(4), ast_fields, public, false, true } }, line, col);
 }
 
-void compiler__sema__decl__DeclPass_push_subst(compiler__sema__decl__DeclPass* self, std__collections__List_str names, std__collections__List_ptr_compiler__semantic__types__Type args) {
+void compiler__semantic__resolution__TypeResolver_push_subst(compiler__semantic__resolution__TypeResolver* self, std__collections__List_str names, std__collections__List_ptr_compiler__semantic__types__Type args) {
     {
         size_t __for_e = names.len;
         size_t __for_i = __for_e;
@@ -12803,7 +12982,7 @@ void compiler__sema__decl__DeclPass_push_subst(compiler__sema__decl__DeclPass* s
             if (i < args.len) {
                 std__collections__List_ptr_compiler__semantic__types__Type_plus_assign(&self->subst_types, std__collections__List_ptr_compiler__semantic__types__Type_get(&args, i));
             } else {
-                std__collections__List_ptr_compiler__semantic__types__Type_plus_assign(&self->subst_types, compiler__semantic__types__PrimTypes_t_none(compiler__sema__decl__DeclPass_prims(self)));
+                std__collections__List_ptr_compiler__semantic__types__Type_plus_assign(&self->subst_types, compiler__semantic__types__PrimTypes_t_none(compiler__semantic__resolution__TypeResolver_prims(self)));
             }
             if (__for_up) {
                 __for_go = ((__for_i + 1) < __for_e);
@@ -12821,14 +13000,14 @@ void compiler__sema__decl__DeclPass_push_subst(compiler__sema__decl__DeclPass* s
     }
 }
 
-void compiler__sema__decl__DeclPass_pop_subst(compiler__sema__decl__DeclPass* self, size_t mark) {
+void compiler__semantic__resolution__TypeResolver_pop_subst(compiler__semantic__resolution__TypeResolver* self, size_t mark) {
     while (self->subst_names.len > mark) {
         std__collections__List_str_pop(&self->subst_names);
         std__collections__List_ptr_compiler__semantic__types__Type_pop(&self->subst_types);
     }
 }
 
-kobel_str compiler__sema__decl__DeclPass_canonical_type_token(compiler__sema__decl__DeclPass* self, compiler__semantic__types__Type* ty) {
+kobel_str compiler__semantic__resolution__TypeResolver_canonical_type_token(compiler__semantic__resolution__TypeResolver* self, compiler__semantic__types__Type* ty) {
     if (compiler__semantic__types__Type_is_enum(ty)) {
         return (*compiler__semantic__types__Type_as_enum(ty)).c_name;
     }
@@ -12840,16 +13019,16 @@ kobel_str compiler__sema__decl__DeclPass_canonical_type_token(compiler__sema__de
         return s_info->name;
     }
     if (ty->kind == 16) {
-        return kobel_concat(KOBEL_STR("ptr_"), compiler__sema__decl__DeclPass_canonical_type_token(self, (*compiler__semantic__types__Type_as_pointer(ty)).pointee));
+        return kobel_concat(KOBEL_STR("ptr_"), compiler__semantic__resolution__TypeResolver_canonical_type_token(self, (*compiler__semantic__types__Type_as_pointer(ty)).pointee));
     }
     if (ty->kind == 17) {
         compiler__semantic__types__TypePayload__Array* a = compiler__semantic__types__Type_as_array(ty);
-        return kobel_concat4(KOBEL_STR("arr"), usz_to_str(a->length), KOBEL_STR("_"), compiler__sema__decl__DeclPass_canonical_type_token(self, a->elem));
+        return kobel_concat4(KOBEL_STR("arr"), usz_to_str(a->length), KOBEL_STR("_"), compiler__semantic__resolution__TypeResolver_canonical_type_token(self, a->elem));
     }
-    return compiler__sema__decl__DeclPass_type_token(self, ty);
+    return compiler__semantic__resolution__TypeResolver_type_token(self, ty);
 }
 
-kobel_str compiler__sema__decl__DeclPass_type_token_list_of(compiler__sema__decl__DeclPass* self, std__collections__List_ptr_compiler__semantic__types__Type args) {
+kobel_str compiler__semantic__resolution__TypeResolver_type_token_list_of(compiler__semantic__resolution__TypeResolver* self, std__collections__List_ptr_compiler__semantic__types__Type args) {
     kobel_str res = KOBEL_STR("");
     {
         size_t __for_e = args.len;
@@ -12864,7 +13043,7 @@ kobel_str compiler__sema__decl__DeclPass_type_token_list_of(compiler__sema__decl
         }
         while (__for_go) {
             size_t i = __for_i;
-            res = ((i > 0) ? kobel_concat3(res, KOBEL_STR("_"), compiler__sema__decl__DeclPass_canonical_type_token(self, std__collections__List_ptr_compiler__semantic__types__Type_get(&args, i))) : compiler__sema__decl__DeclPass_canonical_type_token(self, std__collections__List_ptr_compiler__semantic__types__Type_get(&args, i)));
+            res = ((i > 0) ? kobel_concat3(res, KOBEL_STR("_"), compiler__semantic__resolution__TypeResolver_canonical_type_token(self, std__collections__List_ptr_compiler__semantic__types__Type_get(&args, i))) : compiler__semantic__resolution__TypeResolver_canonical_type_token(self, std__collections__List_ptr_compiler__semantic__types__Type_get(&args, i)));
             if (__for_up) {
                 __for_go = ((__for_i + 1) < __for_e);
             } else {
@@ -12882,15 +13061,15 @@ kobel_str compiler__sema__decl__DeclPass_type_token_list_of(compiler__sema__decl
     return res;
 }
 
-kobel_str compiler__sema__decl__DeclPass_instantiate_fn(compiler__sema__decl__DeclPass* self, compiler__semantic__symbols__GenericTemplate* tmpl, std__collections__List_ptr_compiler__ast__AstNode arg_asts) {
-    compiler__sema__decl__DeclPass_check_bounds(self, tmpl, arg_asts);
+kobel_str compiler__semantic__resolution__TypeResolver_instantiate_fn(compiler__semantic__resolution__TypeResolver* self, compiler__semantic__symbols__GenericTemplate* tmpl, std__collections__List_ptr_compiler__ast__AstNode arg_asts) {
+    compiler__semantic__resolution__TypeResolver_check_bounds(self, tmpl, arg_asts);
     std__collections__List_ptr_compiler__semantic__types__Type args = std__collections__List_ptr_compiler__semantic__types__Type_init(4);
     {
         size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&arg_asts);
         size_t __for_i = 0;
         while (__for_i < __for_n) {
             compiler__ast__AstNode* a = std__collections__List_ptr_compiler__ast__AstNode_at(&arg_asts, __for_i);
-            std__collections__List_ptr_compiler__semantic__types__Type_plus_assign(&args, compiler__sema__decl__DeclPass_resolve_ast_type(self, a));
+            std__collections__List_ptr_compiler__semantic__types__Type_plus_assign(&args, compiler__semantic__resolution__TypeResolver_resolve_ast_type(self, a));
             __for_i = (__for_i + 1);
         }
     }
@@ -12902,25 +13081,25 @@ kobel_str compiler__sema__decl__DeclPass_instantiate_fn(compiler__sema__decl__De
     if (tmpl->is_method && !str_empty(tmpl->self_type)) {
         base = kobel_concat3(str_mangle_symbol(tmpl->module, tmpl->self_type), KOBEL_STR("_"), tmpl->name);
     }
-    kobel_str cname = kobel_concat3(base, KOBEL_STR("_"), compiler__sema__decl__DeclPass_type_token_list_of(self, args));
-    if (compiler__sema__decl__DeclPass_find_instance_symbol(self, cname) != NULL) {
+    kobel_str cname = kobel_concat3(base, KOBEL_STR("_"), compiler__semantic__resolution__TypeResolver_type_token_list_of(self, args));
+    if (compiler__semantic__resolution__TypeResolver_find_instance_symbol(self, cname) != NULL) {
         return cname;
     }
-    kobel_str prev_mod = compiler__sema__decl__DeclPass_enter_module(self, tmpl->module);
-    compiler__semantic__types__Type* receiver = compiler__sema__decl__DeclPass_instance_receiver_type(self, tmpl, args);
-    compiler__ast__AstNode* view = compiler__sema__decl__DeclPass_make_fn_view(self, tmpl->node, tmpl, args, arg_asts, cname);
-    compiler__semantic__types__Type* sig = compiler__sema__decl__DeclPass_make_fn_sig(self, tmpl->node, tmpl, args, receiver);
-    compiler__sema__decl__DeclPass_collect_fn_as(self, view, cname, sig);
-    compiler__sema__decl__DeclPass_queue_decl(self, tmpl->module, view);
+    kobel_str prev_mod = compiler__semantic__resolution__TypeResolver_enter_module(self, tmpl->module);
+    compiler__semantic__types__Type* receiver = compiler__semantic__resolution__TypeResolver_instance_receiver_type(self, tmpl, args);
+    compiler__ast__AstNode* view = compiler__semantic__resolution__TypeResolver_make_fn_view(self, tmpl->node, tmpl, args, arg_asts, cname);
+    compiler__semantic__types__Type* sig = compiler__semantic__resolution__TypeResolver_make_fn_sig(self, tmpl->node, tmpl, args, receiver);
+    compiler__semantic__resolution__TypeResolver_collect_fn_as(self, view, cname, sig);
+    compiler__semantic__resolution__TypeResolver_queue_decl(self, tmpl->module, view);
     compiler__semantic__symbols__InstanceRecord* rec = std__memory__Arena_create_val_compiler__semantic__symbols__InstanceRecord(&self->arena, (compiler__semantic__symbols__InstanceRecord){ 1, tmpl, args, cname, view, std__collections__HashMap_usz_ptr_compiler__semantic__symbols__AnnotationEntry_init(16), NULL });
     rec->sig = sig;
     compiler__semantic__symbols__SymbolTable_set_node_instance(&self->symtab, view, rec);
     compiler__semantic__symbols__GenericRegistry_add_record(&self->symtab.gen, rec);
-    compiler__sema__decl__DeclPass_leave_module(self, prev_mod);
+    compiler__semantic__resolution__TypeResolver_leave_module(self, prev_mod);
     return cname;
 }
 
-void compiler__sema__decl__DeclPass_collect_fn_as(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node, kobel_str final_name, compiler__semantic__types__Type* sig) {
+void compiler__semantic__resolution__TypeResolver_collect_fn_as(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node, kobel_str final_name, compiler__semantic__types__Type* sig) {
     {
         compiler__ast__NodeData__FnDecl* f = NULL;
         if ((node != NULL && node->data.tag == compiler__ast__NodeData__FnDecl__TAG && (f = (compiler__ast__NodeData__FnDecl*)(&(node)->data.u.FnDecl), 1))) {
@@ -12930,11 +13109,11 @@ void compiler__sema__decl__DeclPass_collect_fn_as(compiler__sema__decl__DeclPass
                 size_t __for_i = 0;
                 while (__for_i < __for_n) {
                     compiler__ast__Param p = std__collections__List_compiler__ast__Param_at(&f->params, __for_i);
-                    std__collections__List_ptr_compiler__semantic__types__Type_plus_assign(&param_types, ((p.type_node != NULL) ? compiler__sema__decl__DeclPass_resolve_ast_type(self, p.type_node) : compiler__semantic__types__PrimTypes_t_none(compiler__sema__decl__DeclPass_prims(self))));
+                    std__collections__List_ptr_compiler__semantic__types__Type_plus_assign(&param_types, ((p.type_node != NULL) ? compiler__semantic__resolution__TypeResolver_resolve_ast_type(self, p.type_node) : compiler__semantic__types__PrimTypes_t_none(compiler__semantic__resolution__TypeResolver_prims(self))));
                     __for_i = (__for_i + 1);
                 }
             }
-            compiler__semantic__types__Type* ret_type = ((f->return_type != NULL) ? compiler__sema__decl__DeclPass_resolve_ast_type(self, f->return_type) : compiler__semantic__types__PrimTypes_t_none(compiler__sema__decl__DeclPass_prims(self)));
+            compiler__semantic__types__Type* ret_type = ((f->return_type != NULL) ? compiler__semantic__resolution__TypeResolver_resolve_ast_type(self, f->return_type) : compiler__semantic__types__PrimTypes_t_none(compiler__semantic__resolution__TypeResolver_prims(self)));
             compiler__semantic__types__Type* fn_type = sig;
             if (fn_type == NULL) fn_type = std__memory__Arena_fn_type(&self->arena, param_types, ret_type);
             compiler__semantic__symbols__GenericRegistry_add_inst(&self->symtab.gen, std__memory__Arena_create_val_compiler__semantic__symbols__Symbol(&self->arena, (compiler__semantic__symbols__Symbol){ final_name, final_name, 3, fn_type, false, f->public, node->line, node->col, node, NULL, false }));
@@ -12943,26 +13122,274 @@ void compiler__sema__decl__DeclPass_collect_fn_as(compiler__sema__decl__DeclPass
     }
 }
 
-bool compiler__sema__mono__template_matches(compiler__semantic__symbols__TemplateKind kind, compiler__semantic__symbols__GenericTemplate* t, kobel_str name) {
+void compiler__semantic__resolution__TypeResolver_trait_record_impl(compiler__semantic__resolution__TypeResolver* self, compiler__semantic__types__TraitInfo* t, kobel_str struct_name) {
+    if (t == NULL) {
+        return;
+    }
+    if (compiler__semantic__types__TraitInfo_has_impl(t, struct_name)) {
+        return;
+    }
+    std__collections__List_str_plus_assign(&t->impls, struct_name);
+    {
+        size_t __for_n = std__collections__List_str_count(&t->bases);
+        size_t __for_i = 0;
+        while (__for_i < __for_n) {
+            kobel_str bname = std__collections__List_str_at(&t->bases, __for_i);
+            compiler__semantic__resolution__TypeResolver_trait_record_impl(self, compiler__semantic__symbols__SymbolTable_find_trait(&self->symtab, bname), struct_name);
+            __for_i = (__for_i + 1);
+        }
+    }
+}
+
+void compiler__semantic__resolution__TypeResolver_trait_effective(compiler__semantic__resolution__TypeResolver* self, compiler__semantic__types__TraitInfo* t, std__collections__List_ptr_compiler__semantic__types__TraitMethod* out, std__collections__HashSet_str* seen) {
+    if (t == NULL) {
+        return;
+    }
+    if (std__collections__HashSet_str_contains(seen, t->name)) {
+        return;
+    }
+    std__collections__HashSet_str_plus_assign(seen, t->name);
+    {
+        size_t __for_n = std__collections__List_str_count(&t->bases);
+        size_t __for_i = 0;
+        while (__for_i < __for_n) {
+            kobel_str bname = std__collections__List_str_at(&t->bases, __for_i);
+            compiler__semantic__resolution__TypeResolver_trait_effective(self, compiler__semantic__symbols__SymbolTable_find_trait(&self->symtab, bname), out, seen);
+            __for_i = (__for_i + 1);
+        }
+    }
+    {
+        size_t __for_n = std__collections__List_ptr_compiler__semantic__types__TraitMethod_count(&t->methods);
+        size_t __for_i = 0;
+        while (__for_i < __for_n) {
+            compiler__semantic__types__TraitMethod* m = std__collections__List_ptr_compiler__semantic__types__TraitMethod_at(&t->methods, __for_i);
+            compiler__semantic__resolution__trait_put_method(out, m);
+            __for_i = (__for_i + 1);
+        }
+    }
+}
+
+void compiler__semantic__resolution__TypeResolver_register_assoc_bindings(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node, compiler__ast__NodeData__ImplDecl* im, compiler__semantic__types__Type* st_type, kobel_str struct_name) {
+    compiler__semantic__types__TraitInfo* trait_info = NULL;
+    if (!str_empty(im->trait_name)) {
+        trait_info = compiler__semantic__symbols__SymbolTable_find_trait(&self->symtab, im->trait_name);
+    }
+    if (trait_info == NULL) {
+        if (!std__collections__List_compiler__ast__AssocBinding_empty(&im->assoc_bindings)) {
+            compiler__semantic__resolution__TypeResolver_report_error(self, node, KOBEL_STR("Associated types can only be bound in an impl of a known trait"));
+        }
+        return;
+    }
+    std__collections__List_str assoc_decls = trait_info->assoc_types;
+    {
+        size_t __for_n = std__collections__List_compiler__ast__AssocBinding_count(&im->assoc_bindings);
+        size_t __for_i = 0;
+        while (__for_i < __for_n) {
+            compiler__ast__AssocBinding b = std__collections__List_compiler__ast__AssocBinding_at(&im->assoc_bindings, __for_i);
+            bool declared = false;
+            {
+                size_t __for_n = std__collections__List_str_count(&assoc_decls);
+                size_t __for_i = 0;
+                while (__for_i < __for_n) {
+                    kobel_str a = std__collections__List_str_at(&assoc_decls, __for_i);
+                    if (kobel_streq(a, b.name)) {
+                        declared = true;
+                    }
+                    __for_i = (__for_i + 1);
+                }
+            }
+            if (!declared) {
+                compiler__semantic__resolution__TypeResolver_report_error(self, node, kobel_concat5(KOBEL_STR("Trait '"), trait_info->name, KOBEL_STR("' has no associated type '"), b.name, KOBEL_STR("'")));
+            }
+            if (compiler__semantic__symbols__SymbolTable_find_assoc_type(&self->symtab, struct_name, b.name) != NULL) {
+                compiler__semantic__resolution__TypeResolver_report_error(self, node, kobel_concat5(KOBEL_STR("Duplicate binding of associated type '"), b.name, KOBEL_STR("' for '"), struct_name, KOBEL_STR("'")));
+                {
+                    __for_i = (__for_i + 1);
+                    continue;
+                }
+            }
+            compiler__semantic__types__Type* bound = compiler__semantic__resolution__TypeResolver_resolve_ast_type(self, b.type_node);
+            if ((bound->kind == 16) || (bound->kind == 17)) {
+                compiler__semantic__resolution__TypeResolver_report_error(self, b.type_node, kobel_concat3(KOBEL_STR("Associated type '"), b.name, KOBEL_STR("' must be a named type (struct, enum or primitive)")));
+                {
+                    __for_i = (__for_i + 1);
+                    continue;
+                }
+            }
+            compiler__semantic__symbols__SymbolTable_set_assoc_type(&self->symtab, struct_name, b.name, bound);
+            __for_i = (__for_i + 1);
+        }
+    }
+    {
+        size_t __for_n = std__collections__List_str_count(&assoc_decls);
+        size_t __for_i = 0;
+        while (__for_i < __for_n) {
+            kobel_str required = std__collections__List_str_at(&assoc_decls, __for_i);
+            if (compiler__semantic__symbols__SymbolTable_find_assoc_type(&self->symtab, struct_name, required) == NULL) {
+                compiler__semantic__resolution__TypeResolver_report_error(self, node, kobel_concat5(KOBEL_STR("Impl of trait '"), trait_info->name, KOBEL_STR("' must bind associated type '"), required, KOBEL_STR("'")));
+            }
+            __for_i = (__for_i + 1);
+        }
+    }
+}
+
+void compiler__semantic__resolution__TypeResolver_apply_trait(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node, compiler__ast__NodeData__ImplDecl* im, kobel_str struct_name) {
+    compiler__semantic__types__TraitInfo* t = compiler__semantic__symbols__SymbolTable_find_trait(&self->symtab, im->trait_name);
+    if (t == NULL) {
+        compiler__semantic__resolution__TypeResolver_report_error(self, node, kobel_concat3(KOBEL_STR("Unknown trait '"), im->trait_name, KOBEL_STR("'")));
+        return;
+    }
+    compiler__semantic__resolution__TypeResolver_trait_record_impl(self, t, struct_name);
+    std__collections__List_ptr_compiler__semantic__types__TraitMethod effective = std__collections__List_ptr_compiler__semantic__types__TraitMethod_init(4);
+    std__collections__HashSet_str seen = std__collections__HashSet_str_init(16);
+    compiler__semantic__resolution__TypeResolver_trait_effective(self, t, &effective, &seen);
+    {
+        size_t __for_n = std__collections__List_ptr_compiler__semantic__types__TraitMethod_count(&effective);
+        size_t __for_i = 0;
+        while (__for_i < __for_n) {
+            compiler__semantic__types__TraitMethod* tm = std__collections__List_ptr_compiler__semantic__types__TraitMethod_at(&effective, __for_i);
+            bool have = false;
+            {
+                size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&im->methods);
+                size_t __for_i = 0;
+                while (__for_i < __for_n) {
+                    compiler__ast__AstNode* m = std__collections__List_ptr_compiler__ast__AstNode_at(&im->methods, __for_i);
+                    {
+                        compiler__ast__NodeData__FnDecl* f = NULL;
+                        if (((m != NULL && m->data.tag == compiler__ast__NodeData__FnDecl__TAG && (f = (compiler__ast__NodeData__FnDecl*)(&(m)->data.u.FnDecl), 1)) && kobel_streq(f->name, tm->name)) && (f->params.len == tm->arity)) {
+                            have = true;
+                        }
+                    }
+                    __for_i = (__for_i + 1);
+                }
+            }
+            if (have) {
+                __for_i = (__for_i + 1);
+                continue;
+            }
+            if (!tm->has_default) {
+                compiler__semantic__resolution__TypeResolver_report_error(self, node, kobel_concat3(kobel_concat5(KOBEL_STR("Struct '"), struct_name, KOBEL_STR("' does not implement required trait method '"), tm->name, KOBEL_STR("' of trait '")), t->name, KOBEL_STR("'")));
+                {
+                    __for_i = (__for_i + 1);
+                    continue;
+                }
+            }
+            std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&im->methods, compiler__semantic__resolution__TypeResolver_clone_fn(self, tm->node, NULL, tm->name));
+            __for_i = (__for_i + 1);
+        }
+    }
+}
+
+void compiler__semantic__resolution__TypeResolver_collect_impl(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node) {
+    {
+        compiler__ast__NodeData__ImplDecl* im = NULL;
+        if ((node != NULL && node->data.tag == compiler__ast__NodeData__ImplDecl__TAG && (im = (compiler__ast__NodeData__ImplDecl*)(&(node)->data.u.ImplDecl), 1))) {
+            if (im->type_params.len > 0) {
+                return;
+            }
+            compiler__semantic__symbols__Symbol* st_sym = compiler__semantic__symbols__SymbolTable_lookup_in_module(&self->symtab, self->current_module, im->struct_name);
+            if (st_sym == NULL) {
+                st_sym = compiler__semantic__symbols__SymbolTable_lookup(&self->symtab, im->struct_name);
+            }
+            if ((st_sym == NULL) || (st_sym->kind != 4)) {
+                if (str_empty(im->struct_name)) {
+                    compiler__semantic__resolution__TypeResolver_report_error(self, node, KOBEL_STR("Impl block requires a target struct or trait name"));
+                }
+                return;
+            }
+            compiler__semantic__types__Type* st_type = st_sym->type_ptr;
+            kobel_str st_c_name = st_sym->c_name;
+            compiler__semantic__types__StructType* st_info = compiler__semantic__types__Type_as_struct(st_type);
+            self->current_self_type = st_type;
+            im->struct_name = st_c_name;
+            compiler__semantic__resolution__TypeResolver_register_assoc_bindings(self, node, im, st_type, st_info->name);
+            if (!str_empty(im->trait_name)) {
+                compiler__semantic__resolution__TypeResolver_apply_trait(self, node, im, st_info->name);
+            }
+            std__collections__List_str overloaded = compiler__semantic__resolution__overloaded_names(im);
+            std__collections__List_str used_names = std__collections__List_str_init(4);
+            {
+                size_t __for_n = std__collections__List_ptr_compiler__semantic__types__MethodInfo_count(&st_info->methods);
+                size_t __for_i = 0;
+                while (__for_i < __for_n) {
+                    compiler__semantic__types__MethodInfo* m = std__collections__List_ptr_compiler__semantic__types__MethodInfo_at(&st_info->methods, __for_i);
+                    std__collections__List_str_plus_assign(&used_names, m->c_name);
+                    __for_i = (__for_i + 1);
+                }
+            }
+            {
+                size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&im->methods);
+                size_t __for_i = 0;
+                while (__for_i < __for_n) {
+                    compiler__ast__AstNode* m_node = std__collections__List_ptr_compiler__ast__AstNode_at(&im->methods, __for_i);
+                    {
+                        compiler__ast__NodeData__FnDecl* f = NULL;
+                        if ((m_node != NULL && m_node->data.tag == compiler__ast__NodeData__FnDecl__TAG && (f = (compiler__ast__NodeData__FnDecl*)(&(m_node)->data.u.FnDecl), 1))) {
+                            if (f->type_params.len > 0) {
+                                __for_i = (__for_i + 1);
+                                continue;
+                            }
+                            std__collections__List_ptr_compiler__semantic__types__Type param_types = std__collections__List_ptr_compiler__semantic__types__Type_init(4);
+                            {
+                                size_t __for_n = std__collections__List_compiler__ast__Param_count(&f->params);
+                                size_t __for_i = 0;
+                                while (__for_i < __for_n) {
+                                    compiler__ast__Param p = std__collections__List_compiler__ast__Param_at(&f->params, __for_i);
+                                    compiler__semantic__types__Type* pt = compiler__semantic__types__PrimTypes_t_none(compiler__semantic__resolution__TypeResolver_prims(self));
+                                    if (kobel_streq(p.name, KOBEL_STR("self")) && (p.type_node == NULL)) {
+                                        pt = std__memory__Arena_pointer_type(&self->arena, st_type, p.mutable);
+                                    } else if (p.type_node != NULL) {
+                                        pt = compiler__semantic__resolution__TypeResolver_resolve_ast_type(self, p.type_node);
+                                    } else {
+                                        pt = compiler__semantic__types__PrimTypes_t_none(compiler__semantic__resolution__TypeResolver_prims(self));
+                                    }
+                                    std__collections__List_ptr_compiler__semantic__types__Type_plus_assign(&param_types, pt);
+                                    __for_i = (__for_i + 1);
+                                }
+                            }
+                            compiler__semantic__types__Type* ret_type = compiler__semantic__types__PrimTypes_t_none(compiler__semantic__resolution__TypeResolver_prims(self));
+                            if (f->return_type != NULL) {
+                                ret_type = compiler__semantic__resolution__TypeResolver_resolve_ast_type(self, f->return_type);
+                            }
+                            compiler__semantic__types__Type* rec_sig = (compiler__semantic__symbols__SymbolTable_get_node_instance(&self->symtab, m_node) != NULL ? compiler__semantic__symbols__SymbolTable_get_node_instance(&self->symtab, m_node)->sig : NULL);
+                            compiler__semantic__types__Type* fn_type = rec_sig;
+                            if (fn_type == NULL) fn_type = std__memory__Arena_fn_type(&self->arena, param_types, ret_type);
+                            kobel_str m_c_name = compiler__semantic__resolution__method_c_name(kobel_concat3(st_c_name, KOBEL_STR("_"), f->name), param_types.len, std__collections__List_str_contains(&overloaded, f->name), used_names);
+                            std__collections__List_str_plus_assign(&used_names, m_c_name);
+                            bool is_static = (std__collections__List_compiler__ast__Param_empty(&f->params) || !kobel_streq(std__collections__List_compiler__ast__Param_get(&f->params, 0).name, KOBEL_STR("self")));
+                            compiler__semantic__types__MethodInfo* mi = std__memory__Arena_create_val_compiler__semantic__types__MethodInfo(&self->arena, (compiler__semantic__types__MethodInfo){ f->name, m_c_name, fn_type, m_node, self->current_module, f->operator, is_static, f->initializer });
+                            std__collections__List_ptr_compiler__semantic__types__MethodInfo_plus_assign(&st_info->methods, mi);
+                            f->name = m_c_name;
+                        }
+                    }
+                    __for_i = (__for_i + 1);
+                }
+            }
+            self->current_self_type = NULL;
+        }
+    }
+}
+
+bool compiler__semantic__resolution__template_matches(compiler__semantic__symbols__TemplateKind kind, compiler__semantic__symbols__GenericTemplate* t, kobel_str name) {
     return (kind == 0 ? (!t->is_method && kobel_streq(t->name, name)) : (kind == 1 ? (t->is_method && kobel_streq(t->name, name)) : kobel_streq(t->name, name)));
 }
 
-void compiler__sema__decl__DeclPass_register_template(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node) {
+void compiler__semantic__resolution__TypeResolver_register_template(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node) {
     compiler__ast__AstNode* cur = node;
     if (cur != NULL && cur->data.tag == compiler__ast__NodeData__StructDecl__TAG) {
         compiler__ast__NodeData__StructDecl* s = (compiler__ast__NodeData__StructDecl*)(&(cur)->data.u.StructDecl);
         if (s->type_params.len > 0) {
-            std__collections__List_ptr_compiler__semantic__symbols__GenericTemplate_plus_assign(&self->symtab.gen.struct_templates, compiler__sema__decl__DeclPass_gen_template(self, s->name, node, false, KOBEL_STR("")));
+            std__collections__List_ptr_compiler__semantic__symbols__GenericTemplate_plus_assign(&self->symtab.gen.struct_templates, compiler__semantic__resolution__TypeResolver_generic_template(self, s->name, node, false, KOBEL_STR("")));
         }
     } else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__FnDecl__TAG) {
         compiler__ast__NodeData__FnDecl* f = (compiler__ast__NodeData__FnDecl*)(&(cur)->data.u.FnDecl);
         if (f->type_params.len > 0) {
-            std__collections__List_ptr_compiler__semantic__symbols__GenericTemplate_plus_assign(&self->symtab.gen.fn_templates, compiler__sema__decl__DeclPass_gen_template(self, f->name, node, false, KOBEL_STR("")));
+            std__collections__List_ptr_compiler__semantic__symbols__GenericTemplate_plus_assign(&self->symtab.gen.fn_templates, compiler__semantic__resolution__TypeResolver_generic_template(self, f->name, node, false, KOBEL_STR("")));
         }
     } else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__ImplDecl__TAG) {
         compiler__ast__NodeData__ImplDecl* im = (compiler__ast__NodeData__ImplDecl*)(&(cur)->data.u.ImplDecl);
         if (im->type_params.len > 0) {
-            std__collections__List_ptr_compiler__semantic__symbols__GenericTemplate_plus_assign(&self->symtab.gen.impl_templates, compiler__sema__decl__DeclPass_gen_template(self, im->struct_name, node, true, KOBEL_STR("")));
+            std__collections__List_ptr_compiler__semantic__symbols__GenericTemplate_plus_assign(&self->symtab.gen.impl_templates, compiler__semantic__resolution__TypeResolver_generic_template(self, im->struct_name, node, true, KOBEL_STR("")));
         } else {
             {
                 size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&im->methods);
@@ -13006,7 +13433,7 @@ void compiler__sema__decl__DeclPass_register_template(compiler__sema__decl__Decl
                                     }
                                 }
                             }
-                            std__collections__List_ptr_compiler__semantic__symbols__GenericTemplate_plus_assign(&self->symtab.gen.fn_templates, compiler__sema__decl__DeclPass_gen_template(self, f->name, m, true, im->struct_name));
+                            std__collections__List_ptr_compiler__semantic__symbols__GenericTemplate_plus_assign(&self->symtab.gen.fn_templates, compiler__semantic__resolution__TypeResolver_generic_template(self, f->name, m, true, im->struct_name));
                         }
                     }
                     __for_i = (__for_i + 1);
@@ -13016,11 +13443,11 @@ void compiler__sema__decl__DeclPass_register_template(compiler__sema__decl__Decl
     }
 }
 
-compiler__semantic__symbols__GenericTemplate* compiler__sema__decl__DeclPass_gen_template(compiler__sema__decl__DeclPass* self, kobel_str name, compiler__ast__AstNode* node, bool is_method, kobel_str self_type) {
+compiler__semantic__symbols__GenericTemplate* compiler__semantic__resolution__TypeResolver_generic_template(compiler__semantic__resolution__TypeResolver* self, kobel_str name, compiler__ast__AstNode* node, bool is_method, kobel_str self_type) {
     return std__memory__Arena_create_val_compiler__semantic__symbols__GenericTemplate(&self->arena, (compiler__semantic__symbols__GenericTemplate){ name, self->current_module, node, is_method, self_type });
 }
 
-bool compiler__sema__decl__DeclPass_template_in_module(compiler__sema__decl__DeclPass* self, kobel_str module, kobel_str name) {
+bool compiler__semantic__resolution__TypeResolver_template_in_module(compiler__semantic__resolution__TypeResolver* self, kobel_str module, kobel_str name) {
     {
         size_t __for_n = std__collections__List_ptr_compiler__semantic__symbols__GenericTemplate_count(&self->symtab.gen.struct_templates);
         size_t __for_i = 0;
@@ -13046,16 +13473,16 @@ bool compiler__sema__decl__DeclPass_template_in_module(compiler__sema__decl__Dec
     return false;
 }
 
-compiler__semantic__symbols__Symbol* compiler__sema__decl__DeclPass_find_instance_symbol(compiler__sema__decl__DeclPass* self, kobel_str name) {
+compiler__semantic__symbols__Symbol* compiler__semantic__resolution__TypeResolver_find_instance_symbol(compiler__semantic__resolution__TypeResolver* self, kobel_str name) {
     return compiler__semantic__symbols__GenericRegistry_find_instance_symbol(&self->symtab.gen, name);
 }
 
-std__collections__List_ptr_compiler__semantic__symbols__GenericTemplate compiler__sema__decl__DeclPass_templates_of(compiler__sema__decl__DeclPass* self, compiler__semantic__symbols__TemplateKind kind) {
+std__collections__List_ptr_compiler__semantic__symbols__GenericTemplate compiler__semantic__resolution__TypeResolver_templates_of(compiler__semantic__resolution__TypeResolver* self, compiler__semantic__symbols__TemplateKind kind) {
     return ((kind == 2) ? self->symtab.gen.struct_templates : self->symtab.gen.fn_templates);
 }
 
-bool compiler__sema__decl__DeclPass_template_fits(compiler__sema__decl__DeclPass* self, compiler__semantic__symbols__TemplateKind kind, compiler__semantic__symbols__GenericTemplate* t, kobel_str name, kobel_str self_type) {
-    if (!compiler__sema__mono__template_matches(kind, t, name)) {
+bool compiler__semantic__resolution__TypeResolver_template_fits(compiler__semantic__resolution__TypeResolver* self, compiler__semantic__symbols__TemplateKind kind, compiler__semantic__symbols__GenericTemplate* t, kobel_str name, kobel_str self_type) {
+    if (!compiler__semantic__resolution__template_matches(kind, t, name)) {
         return false;
     }
     if (str_empty(self_type)) {
@@ -13064,14 +13491,14 @@ bool compiler__sema__decl__DeclPass_template_fits(compiler__sema__decl__DeclPass
     return kobel_streq(t->self_type, self_type);
 }
 
-compiler__semantic__symbols__GenericTemplate* compiler__sema__decl__DeclPass_find_template(compiler__sema__decl__DeclPass* self, compiler__semantic__symbols__TemplateKind kind, kobel_str name, kobel_str self_type) {
-    std__collections__List_ptr_compiler__semantic__symbols__GenericTemplate list = compiler__sema__decl__DeclPass_templates_of(self, kind);
+compiler__semantic__symbols__GenericTemplate* compiler__semantic__resolution__TypeResolver_find_template(compiler__semantic__resolution__TypeResolver* self, compiler__semantic__symbols__TemplateKind kind, kobel_str name, kobel_str self_type) {
+    std__collections__List_ptr_compiler__semantic__symbols__GenericTemplate list = compiler__semantic__resolution__TypeResolver_templates_of(self, kind);
     {
         size_t __for_n = std__collections__List_ptr_compiler__semantic__symbols__GenericTemplate_count(&list);
         size_t __for_i = 0;
         while (__for_i < __for_n) {
             compiler__semantic__symbols__GenericTemplate* t = std__collections__List_ptr_compiler__semantic__symbols__GenericTemplate_at(&list, __for_i);
-            if (compiler__sema__decl__DeclPass_template_fits(self, kind, t, name, self_type) && kobel_streq(t->module, self->current_module)) {
+            if (compiler__semantic__resolution__TypeResolver_template_fits(self, kind, t, name, self_type) && kobel_streq(t->module, self->current_module)) {
                 return t;
             }
             __for_i = (__for_i + 1);
@@ -13084,7 +13511,7 @@ compiler__semantic__symbols__GenericTemplate* compiler__sema__decl__DeclPass_fin
             size_t __for_i = 0;
             while (__for_i < __for_n) {
                 compiler__semantic__symbols__GenericTemplate* t = std__collections__List_ptr_compiler__semantic__symbols__GenericTemplate_at(&list, __for_i);
-                if (compiler__sema__decl__DeclPass_template_fits(self, kind, t, b->symbol_name, self_type) && kobel_streq(t->module, b->module_name)) {
+                if (compiler__semantic__resolution__TypeResolver_template_fits(self, kind, t, b->symbol_name, self_type) && kobel_streq(t->module, b->module_name)) {
                     return t;
                 }
                 __for_i = (__for_i + 1);
@@ -13111,7 +13538,7 @@ compiler__semantic__symbols__GenericTemplate* compiler__sema__decl__DeclPass_fin
                     size_t __for_i = 0;
                     while (__for_i < __for_n) {
                         compiler__semantic__symbols__GenericTemplate* t = std__collections__List_ptr_compiler__semantic__symbols__GenericTemplate_at(&list, __for_i);
-                        if (compiler__sema__decl__DeclPass_template_fits(self, kind, t, name, self_type) && kobel_streq(t->module, wmod)) {
+                        if (compiler__semantic__resolution__TypeResolver_template_fits(self, kind, t, name, self_type) && kobel_streq(t->module, wmod)) {
                             return t;
                         }
                         __for_i = (__for_i + 1);
@@ -13137,7 +13564,7 @@ compiler__semantic__symbols__GenericTemplate* compiler__sema__decl__DeclPass_fin
         size_t __for_i = 0;
         while (__for_i < __for_n) {
             compiler__semantic__symbols__GenericTemplate* t = std__collections__List_ptr_compiler__semantic__symbols__GenericTemplate_at(&list, __for_i);
-            if (compiler__sema__decl__DeclPass_template_fits(self, kind, t, name, self_type)) {
+            if (compiler__semantic__resolution__TypeResolver_template_fits(self, kind, t, name, self_type)) {
                 return t;
             }
             __for_i = (__for_i + 1);
@@ -13146,19 +13573,19 @@ compiler__semantic__symbols__GenericTemplate* compiler__sema__decl__DeclPass_fin
     return NULL;
 }
 
-compiler__semantic__symbols__GenericTemplate* compiler__sema__decl__DeclPass_find_fn_template(compiler__sema__decl__DeclPass* self, kobel_str name) {
-    return compiler__sema__decl__DeclPass_find_template(self, 0, name, KOBEL_STR(""));
+compiler__semantic__symbols__GenericTemplate* compiler__semantic__resolution__TypeResolver_find_fn_template(compiler__semantic__resolution__TypeResolver* self, kobel_str name) {
+    return compiler__semantic__resolution__TypeResolver_find_template(self, 0, name, KOBEL_STR(""));
 }
 
-compiler__semantic__symbols__GenericTemplate* compiler__sema__decl__DeclPass_find_method_template(compiler__sema__decl__DeclPass* self, kobel_str name, kobel_str self_type) {
-    return compiler__sema__decl__DeclPass_find_template(self, 1, name, self_type);
+compiler__semantic__symbols__GenericTemplate* compiler__semantic__resolution__TypeResolver_find_method_template(compiler__semantic__resolution__TypeResolver* self, kobel_str name, kobel_str self_type) {
+    return compiler__semantic__resolution__TypeResolver_find_template(self, 1, name, self_type);
 }
 
-compiler__semantic__symbols__GenericTemplate* compiler__sema__decl__DeclPass_find_struct_template(compiler__sema__decl__DeclPass* self, kobel_str name) {
-    return compiler__sema__decl__DeclPass_find_template(self, 2, name, KOBEL_STR(""));
+compiler__semantic__symbols__GenericTemplate* compiler__semantic__resolution__TypeResolver_find_struct_template(compiler__semantic__resolution__TypeResolver* self, kobel_str name) {
+    return compiler__semantic__resolution__TypeResolver_find_template(self, 2, name, KOBEL_STR(""));
 }
 
-kobel_str compiler__sema__decl__DeclPass_type_token(compiler__sema__decl__DeclPass* self, compiler__semantic__types__Type* ty) {
+kobel_str compiler__semantic__resolution__TypeResolver_type_token(compiler__semantic__resolution__TypeResolver* self, compiler__semantic__types__Type* ty) {
     if (ty->kind == 0) {
         return KOBEL_STR("none");
     } else if (ty->kind == 1) {
@@ -13192,10 +13619,10 @@ kobel_str compiler__sema__decl__DeclPass_type_token(compiler__sema__decl__DeclPa
     } else if (ty->kind == 15) {
         return KOBEL_STR("str");
     } else if (ty->kind == 16) {
-        return kobel_concat(KOBEL_STR("ptr_"), compiler__sema__decl__DeclPass_type_token(self, (*compiler__semantic__types__Type_as_pointer(ty)).pointee));
+        return kobel_concat(KOBEL_STR("ptr_"), compiler__semantic__resolution__TypeResolver_type_token(self, (*compiler__semantic__types__Type_as_pointer(ty)).pointee));
     } else if (ty->kind == 17) {
         compiler__semantic__types__TypePayload__Array* at = compiler__semantic__types__Type_as_array(ty);
-        return kobel_concat4(KOBEL_STR("arr"), usz_to_str(at->length), KOBEL_STR("_"), compiler__sema__decl__DeclPass_type_token(self, at->elem));
+        return kobel_concat4(KOBEL_STR("arr"), usz_to_str(at->length), KOBEL_STR("_"), compiler__semantic__resolution__TypeResolver_type_token(self, at->elem));
     } else if (ty->kind == 18) {
         return (*compiler__semantic__types__Type_as_struct(ty)).name;
     } else {
@@ -13203,7 +13630,7 @@ kobel_str compiler__sema__decl__DeclPass_type_token(compiler__sema__decl__DeclPa
     }
 }
 
-size_t compiler__sema__decl__DeclPass_ast_type_size(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node) {
+size_t compiler__semantic__resolution__TypeResolver_ast_type_size(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node) {
     if (node == NULL) {
         return 8;
     }
@@ -13213,7 +13640,7 @@ size_t compiler__sema__decl__DeclPass_ast_type_size(compiler__sema__decl__DeclPa
         return 8;
     } else if (node != NULL && node->data.tag == compiler__ast__NodeData__ArrayType__TAG) {
         compiler__ast__NodeData__ArrayType* a = (compiler__ast__NodeData__ArrayType*)(&(node)->data.u.ArrayType);
-        return (a->size * compiler__sema__decl__DeclPass_ast_type_size(self, a->element_type));
+        return (a->size * compiler__semantic__resolution__TypeResolver_ast_type_size(self, a->element_type));
     } else if (node != NULL && node->data.tag == compiler__ast__NodeData__NamedType__TAG) {
         compiler__ast__NodeData__NamedType* nt = (compiler__ast__NodeData__NamedType*)(&(node)->data.u.NamedType);
         kobel_str name = nt->name;
@@ -13242,7 +13669,7 @@ size_t compiler__sema__decl__DeclPass_ast_type_size(compiler__sema__decl__DeclPa
     }
 }
 
-void compiler__sema__decl__DeclPass_check_bounds(compiler__sema__decl__DeclPass* self, compiler__semantic__symbols__GenericTemplate* tmpl, std__collections__List_ptr_compiler__ast__AstNode arg_asts) {
+void compiler__semantic__resolution__TypeResolver_check_bounds(compiler__semantic__resolution__TypeResolver* self, compiler__semantic__symbols__GenericTemplate* tmpl, std__collections__List_ptr_compiler__ast__AstNode arg_asts) {
     std__collections__List_compiler__ast__GenericParam params = compiler__semantic__symbols__GenericTemplate_params(tmpl);
     {
         size_t __for_e = params.len;
@@ -13274,7 +13701,7 @@ void compiler__sema__decl__DeclPass_check_bounds(compiler__sema__decl__DeclPass*
                 continue;
             }
             compiler__ast__AstNode* arg = std__collections__List_ptr_compiler__ast__AstNode_get(&arg_asts, i);
-            compiler__semantic__types__Type* ty = compiler__sema__decl__DeclPass_resolve_ast_type(self, arg);
+            compiler__semantic__types__Type* ty = compiler__semantic__resolution__TypeResolver_resolve_ast_type(self, arg);
             if ((ty == NULL) || (ty->kind == 0)) {
                 if (__for_up) {
                     __for_go = ((__for_i + 1) < __for_e);
@@ -13312,14 +13739,14 @@ void compiler__sema__decl__DeclPass_check_bounds(compiler__sema__decl__DeclPass*
                     kobel_str b = std__collections__List_str_at(&gp.bounds, __for_i);
                     compiler__semantic__types__TraitInfo* bt = compiler__semantic__symbols__SymbolTable_find_trait(&self->symtab, b);
                     if (bt == NULL) {
-                        compiler__sema__decl__DeclPass_report_error(self, arg, kobel_concat3(KOBEL_STR("Unknown trait bound '"), b, KOBEL_STR("'")));
+                        compiler__semantic__resolution__TypeResolver_report_error(self, arg, kobel_concat3(KOBEL_STR("Unknown trait bound '"), b, KOBEL_STR("'")));
                         {
                             __for_i = (__for_i + 1);
                             continue;
                         }
                     }
                     if (!compiler__semantic__types__TraitInfo_has_impl(bt, aname)) {
-                        compiler__sema__decl__DeclPass_report_error(self, arg, kobel_concat5(KOBEL_STR("Type '"), aname, KOBEL_STR("' does not implement trait '"), b, KOBEL_STR("'")));
+                        compiler__semantic__resolution__TypeResolver_report_error(self, arg, kobel_concat5(KOBEL_STR("Type '"), aname, KOBEL_STR("' does not implement trait '"), b, KOBEL_STR("'")));
                     }
                     __for_i = (__for_i + 1);
                 }
@@ -13340,17 +13767,17 @@ void compiler__sema__decl__DeclPass_check_bounds(compiler__sema__decl__DeclPass*
     }
 }
 
-compiler__semantic__symbols__GenericSubst* compiler__sema__decl__DeclPass_alloc_subst(compiler__sema__decl__DeclPass* self, std__collections__List_str names, std__collections__List_ptr_compiler__ast__AstNode args) {
+compiler__semantic__symbols__GenericSubst* compiler__semantic__resolution__TypeResolver_alloc_subst(compiler__semantic__resolution__TypeResolver* self, std__collections__List_str names, std__collections__List_ptr_compiler__ast__AstNode args) {
     return std__memory__Arena_create_val_compiler__semantic__symbols__GenericSubst(&self->arena, (compiler__semantic__symbols__GenericSubst){ names, args });
 }
 
-void compiler__sema__decl__DeclPass_queue_decl(compiler__sema__decl__DeclPass* self, kobel_str module, compiler__ast__AstNode* node) {
+void compiler__semantic__resolution__TypeResolver_queue_decl(compiler__semantic__resolution__TypeResolver* self, kobel_str module, compiler__ast__AstNode* node) {
     compiler__ast__AstNode* marker = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 36, .u.ModuleDecl = { str_split(module, '.'), module } }, node->line, node->col);
     std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&self->symtab.gen.instances, marker);
     std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&self->symtab.gen.instances, node);
 }
 
-void compiler__sema__decl__DeclPass_drain_instances(compiler__sema__decl__DeclPass* self) {
+void compiler__semantic__resolution__TypeResolver_drain_instances(compiler__semantic__resolution__TypeResolver* self) {
     int32_t i = 0;
     while ((i + 1) < self->symtab.gen.instances.len) {
         compiler__ast__AstNode* marker = std__collections__List_ptr_compiler__ast__AstNode_get(&self->symtab.gen.instances, i);
@@ -13366,11 +13793,184 @@ void compiler__sema__decl__DeclPass_drain_instances(compiler__sema__decl__DeclPa
         if ((decl != NULL && decl->data.tag == compiler__ast__NodeData__FnDecl__TAG) || (decl != NULL && decl->data.tag == compiler__ast__NodeData__ImplDecl__TAG)) {
             continue;
         }
-        compiler__sema__decl__DeclPass_rewrite_generics(self, decl);
+        compiler__semantic__resolution__TypeResolver_rewrite_generics(self, decl);
     }
 }
 
-void compiler__sema__decl__DeclPass_propagate_target_type(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* target_type_node, compiler__ast__AstNode* init_node) {
+compiler__semantic__resolution__TypeResolver compiler__semantic__resolution__TypeResolver_init(compiler__semantic__symbols__SymbolTable symtab, std__memory__Arena arena, kobel_str current_module, std__collections__List_str errors, bool is_extern, compiler__semantic__types__Type* current_self_type, std__collections__List_str subst_names, std__collections__List_ptr_compiler__semantic__types__Type subst_types, compiler__ast__AstNode* current_fn_return_type, compiler__semantic__symbols__InstanceRecord* mat_rec) {
+    return (compiler__semantic__resolution__TypeResolver){ symtab, arena, current_module, errors, is_extern, current_self_type, subst_names, subst_types, current_fn_return_type, mat_rec };
+}
+
+compiler__semantic__types__PrimTypes* compiler__semantic__resolution__TypeResolver_prims(compiler__semantic__resolution__TypeResolver* self) {
+    return self->symtab.prims;
+}
+
+kobel_str compiler__semantic__resolution__TypeResolver_enter_module(compiler__semantic__resolution__TypeResolver* self, kobel_str module) {
+    kobel_str prev = self->current_module;
+    if (module.len > 0) {
+        self->current_module = module;
+        compiler__semantic__symbols__SymbolTable_set_current_module(&self->symtab, module);
+    }
+    return prev;
+}
+
+void compiler__semantic__resolution__TypeResolver_leave_module(compiler__semantic__resolution__TypeResolver* self, kobel_str prev) {
+    self->current_module = prev;
+    compiler__semantic__symbols__SymbolTable_set_current_module(&self->symtab, prev);
+}
+
+kobel_str compiler__semantic__resolution__TypeResolver_c_name_for(compiler__semantic__resolution__TypeResolver* self, kobel_str name) {
+    if (self->is_extern || kobel_streq(name, KOBEL_STR("main"))) {
+        return name;
+    }
+    return str_mangle_symbol(self->current_module, name);
+}
+
+void compiler__semantic__resolution__TypeResolver_report_error(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node, kobel_str msg) {
+    kobel_str loc = kobel_concat5(KOBEL_STR("Line "), usz_to_str(node->line), KOBEL_STR(", Column "), usz_to_str(node->col), KOBEL_STR(": "));
+    if (self->current_module.len > 0) {
+        std__collections__List_str_plus_assign(&self->errors, kobel_concat4(self->current_module, KOBEL_STR(": "), loc, msg));
+    } else {
+        std__collections__List_str_plus_assign(&self->errors, kobel_concat(loc, msg));
+    }
+}
+
+compiler__semantic__types__Type* compiler__semantic__resolution__TypeResolver_resolve_ast_type(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node) {
+    if (node == NULL) {
+        return compiler__semantic__types__PrimTypes_t_none(compiler__semantic__resolution__TypeResolver_prims(self));
+    }
+    if (node != NULL && node->data.tag == compiler__ast__NodeData__NamedType__TAG) {
+        compiler__ast__NodeData__NamedType* named = (compiler__ast__NodeData__NamedType*)(&(node)->data.u.NamedType);
+        kobel_str name = named->name;
+        compiler__semantic__types__Type* subst_res = NULL;
+        {
+            size_t __for_e = self->subst_names.len;
+            size_t __for_i = __for_e;
+            __for_i = 0;
+            bool __for_up = (__for_i <= __for_e);
+            bool __for_go = false;
+            if (__for_up) {
+                __for_go = (__for_i < __for_e);
+            } else {
+                __for_go = (__for_i > __for_e);
+            }
+            while (__for_go) {
+                size_t i = __for_i;
+                if (kobel_streq(std__collections__List_str_get(&self->subst_names, i), name)) {
+                    subst_res = std__collections__List_ptr_compiler__semantic__types__Type_get(&self->subst_types, i);
+                }
+                if (__for_up) {
+                    __for_go = ((__for_i + 1) < __for_e);
+                } else {
+                    __for_go = ((__for_i - 1) > __for_e);
+                }
+                if (__for_go) {
+                    if (__for_up) {
+                        __for_i = (__for_i + 1);
+                    } else {
+                        __for_i = (__for_i - 1);
+                    }
+                }
+            }
+        }
+        if (subst_res != NULL) {
+            return subst_res;
+        }
+        if (kobel_streq(name, KOBEL_STR("Self")) && (self->current_self_type != NULL)) {
+            if (std__collections__List_str_empty(&self->subst_names)) {
+                compiler__semantic__types__StructType* sinfo = compiler__semantic__types__Type_as_struct(self->current_self_type);
+                if (!str_empty(sinfo->c_name)) {
+                    named->name = sinfo->c_name;
+                } else {
+                    named->name = sinfo->name;
+                }
+            }
+            return self->current_self_type;
+        }
+        if (str_starts_with(name, KOBEL_STR("Self."))) {
+            kobel_str assoc = kobel_slice(name, 5, name.len);
+            if ((self->current_self_type == NULL) || ((*self->current_self_type).kind != 18)) {
+                compiler__semantic__resolution__TypeResolver_report_error(self, node, kobel_concat3(KOBEL_STR("Associated type '"), name, KOBEL_STR("' used outside of an impl")));
+                return compiler__semantic__types__PrimTypes_t_none(compiler__semantic__resolution__TypeResolver_prims(self));
+            }
+            kobel_str self_name = (*compiler__semantic__types__Type_as_struct(self->current_self_type)).name;
+            compiler__semantic__types__Type* bound = compiler__semantic__symbols__SymbolTable_find_assoc_type(&self->symtab, self_name, assoc);
+            if (bound == NULL) {
+                compiler__semantic__resolution__TypeResolver_report_error(self, node, kobel_concat5(KOBEL_STR("Trait associated type '"), assoc, KOBEL_STR("' is not bound for '"), self_name, KOBEL_STR("'")));
+                return compiler__semantic__types__PrimTypes_t_none(compiler__semantic__resolution__TypeResolver_prims(self));
+            }
+            if ((bound->kind == 16) || (bound->kind == 17)) {
+                compiler__semantic__resolution__TypeResolver_report_error(self, node, kobel_concat3(KOBEL_STR("Associated type '"), assoc, KOBEL_STR("' must be a named type (struct, enum or primitive)")));
+                return compiler__semantic__types__PrimTypes_t_none(compiler__semantic__resolution__TypeResolver_prims(self));
+            }
+            if (std__collections__List_str_empty(&self->subst_names)) {
+                named->name = compiler__semantic__resolution__TypeResolver_ast_type_name_of(self, bound);
+            }
+            return bound;
+        }
+        compiler__semantic__types__Type* prim = compiler__semantic__types__resolve_primitive_name(self->symtab.prims, name);
+        if (prim != NULL) {
+            return prim;
+        }
+        if (named->type_args.len > 0) {
+            compiler__semantic__symbols__GenericTemplate* tmpl = compiler__semantic__resolution__TypeResolver_find_struct_template(self, name);
+            if (tmpl != NULL) {
+                compiler__semantic__types__Type* cty = compiler__semantic__resolution__TypeResolver_instantiate_struct(self, tmpl, named->type_args);
+                if (std__collections__List_str_empty(&self->subst_names)) {
+                    named->name = (*compiler__semantic__types__Type_as_struct(cty)).name;
+                    named->type_args = std__collections__List_ptr_compiler__ast__AstNode_init(4);
+                }
+                return cty;
+            }
+        }
+        compiler__semantic__symbols__Symbol* sym = compiler__semantic__symbols__SymbolTable_lookup(&self->symtab, name);
+        if (sym != NULL) {
+            if (!kobel_streq(sym->c_name, name)) {
+                named->name = sym->c_name;
+            }
+            return sym->type_ptr;
+        }
+        compiler__semantic__resolution__TypeResolver_report_error(self, node, kobel_concat3(KOBEL_STR("Unknown type '"), name, KOBEL_STR("'")));
+        return compiler__semantic__types__PrimTypes_t_none(compiler__semantic__resolution__TypeResolver_prims(self));
+    } else if (node != NULL && node->data.tag == compiler__ast__NodeData__PointerType__TAG) {
+        compiler__ast__NodeData__PointerType* ptr_ast = (compiler__ast__NodeData__PointerType*)(&(node)->data.u.PointerType);
+        compiler__semantic__types__Type* pointee = compiler__semantic__resolution__TypeResolver_resolve_ast_type(self, ptr_ast->pointee);
+        return std__memory__Arena_pointer_type(&self->arena, pointee, ptr_ast->mutable);
+    } else if (node != NULL && node->data.tag == compiler__ast__NodeData__ArrayType__TAG) {
+        compiler__ast__NodeData__ArrayType* arr_ast = (compiler__ast__NodeData__ArrayType*)(&(node)->data.u.ArrayType);
+        compiler__semantic__types__Type* elem = compiler__semantic__resolution__TypeResolver_resolve_ast_type(self, arr_ast->element_type);
+        return std__memory__Arena_array_type(&self->arena, elem, arr_ast->size);
+    } else if (node != NULL && node->data.tag == compiler__ast__NodeData__NullableType__TAG) {
+        compiler__ast__NodeData__NullableType* null_ast = (compiler__ast__NodeData__NullableType*)(&(node)->data.u.NullableType);
+        compiler__semantic__types__Type* inner_ty = compiler__semantic__resolution__TypeResolver_resolve_ast_type(self, null_ast->inner_type);
+        compiler__semantic__types__Type* res_ty = inner_ty;
+        if (inner_ty->kind == 16) {
+            compiler__semantic__types__TypePayload__Pointer* pt = compiler__semantic__types__Type_as_pointer(inner_ty);
+            res_ty = std__memory__Arena_nullable_pointer_type(&self->arena, pt->pointee, pt->mutable);
+        } else {
+            compiler__semantic__resolution__TypeResolver_report_error(self, node, KOBEL_STR("Nullable modifier '?' is only supported on pointer types"));
+        }
+        return res_ty;
+    } else {
+        return compiler__semantic__types__PrimTypes_t_none(compiler__semantic__resolution__TypeResolver_prims(self));
+    }
+}
+
+kobel_str compiler__semantic__resolution__TypeResolver_ast_type_name_of(compiler__semantic__resolution__TypeResolver* self, compiler__semantic__types__Type* ty) {
+    if (ty->kind == 18) {
+        compiler__semantic__types__StructType* s_info = compiler__semantic__types__Type_as_struct(ty);
+        if (!str_empty(s_info->c_name)) {
+            return s_info->c_name;
+        }
+        return s_info->name;
+    }
+    if (compiler__semantic__types__Type_is_enum(ty)) {
+        return (*compiler__semantic__types__Type_as_enum(ty)).c_name;
+    }
+    return compiler__semantic__types__primitive_type_name(ty);
+}
+
+void compiler__semantic__resolution__TypeResolver_propagate_target_type(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* target_type_node, compiler__ast__AstNode* init_node) {
     if ((target_type_node == NULL) || (init_node == NULL)) {
         return;
     }
@@ -13413,7 +14013,7 @@ void compiler__sema__decl__DeclPass_propagate_target_type(compiler__sema__decl__
                                     call->type_args = new_targs;
                                 }
                             } else {
-                                compiler__semantic__symbols__GenericTemplate* tmpl = compiler__sema__decl__DeclPass_find_struct_template(self, cid->name);
+                                compiler__semantic__symbols__GenericTemplate* tmpl = compiler__semantic__resolution__TypeResolver_find_struct_template(self, cid->name);
                                 if (tmpl != NULL) {
                                     kobel_str prefix = kobel_concat(str_mangle_symbol(tmpl->module, tmpl->name), KOBEL_STR("_"));
                                     if (str_starts_with(nt->name, prefix)) {
@@ -13426,8 +14026,8 @@ void compiler__sema__decl__DeclPass_propagate_target_type(compiler__sema__decl__
                 }
             } else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__IfExpr__TAG) {
                 compiler__ast__NodeData__IfExpr* ife = (compiler__ast__NodeData__IfExpr*)(&(cur)->data.u.IfExpr);
-                compiler__sema__decl__DeclPass_propagate_target_type(self, target_type_node, ife->then_branch);
-                compiler__sema__decl__DeclPass_propagate_target_type(self, target_type_node, ife->else_branch);
+                compiler__semantic__resolution__TypeResolver_propagate_target_type(self, target_type_node, ife->then_branch);
+                compiler__semantic__resolution__TypeResolver_propagate_target_type(self, target_type_node, ife->else_branch);
             } else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__WhenExpr__TAG) {
                 compiler__ast__NodeData__WhenExpr* we = (compiler__ast__NodeData__WhenExpr*)(&(cur)->data.u.WhenExpr);
                 {
@@ -13435,7 +14035,7 @@ void compiler__sema__decl__DeclPass_propagate_target_type(compiler__sema__decl__
                     size_t __for_i = 0;
                     while (__for_i < __for_n) {
                         compiler__ast__WhenArm arm = std__collections__List_compiler__ast__WhenArm_at(&we->arms, __for_i);
-                        compiler__sema__decl__DeclPass_propagate_target_type(self, target_type_node, arm.body);
+                        compiler__semantic__resolution__TypeResolver_propagate_target_type(self, target_type_node, arm.body);
                         __for_i = (__for_i + 1);
                     }
                 }
@@ -13444,52 +14044,52 @@ void compiler__sema__decl__DeclPass_propagate_target_type(compiler__sema__decl__
     }
 }
 
-void compiler__sema__decl__DeclPass_rewrite_generics(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node) {
+void compiler__semantic__resolution__TypeResolver_rewrite_generics(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node) {
     if (node == NULL) {
         return;
     }
-    if (compiler__sema__decl__DeclPass_rewrite_type_generics(self, node)) {
+    if (compiler__semantic__resolution__TypeResolver_rewrite_type_generics(self, node)) {
         return;
     }
-    if (compiler__sema__decl__DeclPass_rewrite_expr_generics(self, node)) {
+    if (compiler__semantic__resolution__TypeResolver_rewrite_expr_generics(self, node)) {
         return;
     }
-    if (compiler__sema__decl__DeclPass_rewrite_stmt_generics(self, node)) {
+    if (compiler__semantic__resolution__TypeResolver_rewrite_stmt_generics(self, node)) {
         return;
     }
-    compiler__sema__decl__DeclPass_rewrite_decl_generics(self, node);
+    compiler__semantic__resolution__TypeResolver_rewrite_decl_generics(self, node);
 }
 
-bool compiler__sema__decl__DeclPass_rewrite_child(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* child) {
-    compiler__sema__decl__DeclPass_rewrite_generics(self, child);
+bool compiler__semantic__resolution__TypeResolver_rewrite_child(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* child) {
+    compiler__semantic__resolution__TypeResolver_rewrite_generics(self, child);
     return true;
 }
 
-bool compiler__sema__decl__DeclPass_rewrite_type_generics(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node) {
+bool compiler__semantic__resolution__TypeResolver_rewrite_type_generics(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node) {
     compiler__ast__AstNode* target = node;
     if (target != NULL && target->data.tag == compiler__ast__NodeData__NamedType__TAG) {
         void* __orig_target = (void*)target;
         compiler__ast__NodeData__NamedType* target = (compiler__ast__NodeData__NamedType*)((&((compiler__ast__AstNode*)__orig_target)->data.u.NamedType));
-        return compiler__sema__decl__DeclPass_rewrite_named_type(self, node);
+        return compiler__semantic__resolution__TypeResolver_rewrite_named_type(self, node);
     } else if (target != NULL && target->data.tag == compiler__ast__NodeData__PointerType__TAG) {
         compiler__ast__NodeData__PointerType* pt = (compiler__ast__NodeData__PointerType*)(&(target)->data.u.PointerType);
-        return compiler__sema__decl__DeclPass_rewrite_child(self, pt->pointee);
+        return compiler__semantic__resolution__TypeResolver_rewrite_child(self, pt->pointee);
     } else if (target != NULL && target->data.tag == compiler__ast__NodeData__ArrayType__TAG) {
         compiler__ast__NodeData__ArrayType* at = (compiler__ast__NodeData__ArrayType*)(&(target)->data.u.ArrayType);
-        return compiler__sema__decl__DeclPass_rewrite_child(self, at->element_type);
+        return compiler__semantic__resolution__TypeResolver_rewrite_child(self, at->element_type);
     } else {
         return false;
     }
 }
 
-bool compiler__sema__decl__DeclPass_rewrite_named_type(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node) {
+bool compiler__semantic__resolution__TypeResolver_rewrite_named_type(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node) {
     {
         compiler__ast__NodeData__NamedType* nt = NULL;
         if ((node != NULL && node->data.tag == compiler__ast__NodeData__NamedType__TAG && (nt = (compiler__ast__NodeData__NamedType*)(&(node)->data.u.NamedType), 1))) {
             if (nt->type_args.len > 0) {
-                compiler__semantic__symbols__GenericTemplate* tmpl = compiler__sema__decl__DeclPass_find_struct_template(self, nt->name);
+                compiler__semantic__symbols__GenericTemplate* tmpl = compiler__semantic__resolution__TypeResolver_find_struct_template(self, nt->name);
                 if (tmpl != NULL) {
-                    compiler__semantic__types__Type* cty = compiler__sema__decl__DeclPass_instantiate_struct(self, tmpl, nt->type_args);
+                    compiler__semantic__types__Type* cty = compiler__semantic__resolution__TypeResolver_instantiate_struct(self, tmpl, nt->type_args);
                     nt->name = (*compiler__semantic__types__Type_as_struct(cty)).name;
                     nt->type_args = std__collections__List_ptr_compiler__ast__AstNode_init(4);
                     return true;
@@ -13500,7 +14100,7 @@ bool compiler__sema__decl__DeclPass_rewrite_named_type(compiler__sema__decl__Dec
                 size_t __for_i = 0;
                 while (__for_i < __for_n) {
                     compiler__ast__AstNode* ta = std__collections__List_ptr_compiler__ast__AstNode_at(&nt->type_args, __for_i);
-                    compiler__sema__decl__DeclPass_rewrite_generics(self, ta);
+                    compiler__semantic__resolution__TypeResolver_rewrite_generics(self, ta);
                     __for_i = (__for_i + 1);
                 }
             }
@@ -13509,7 +14109,7 @@ bool compiler__sema__decl__DeclPass_rewrite_named_type(compiler__sema__decl__Dec
     return true;
 }
 
-void compiler__sema__decl__DeclPass_rewrite_call_target(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__CallExpr* c) {
+void compiler__semantic__resolution__TypeResolver_rewrite_call_target(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node, compiler__ast__NodeData__CallExpr* c) {
     if (std__collections__List_ptr_compiler__ast__AstNode_empty(&c->type_args)) {
         return;
     }
@@ -13517,15 +14117,15 @@ void compiler__sema__decl__DeclPass_rewrite_call_target(compiler__sema__decl__De
     {
         compiler__ast__NodeData__IdentifierExpr* cid = NULL;
         if ((callee != NULL && callee->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (cid = (compiler__ast__NodeData__IdentifierExpr*)(&(callee)->data.u.IdentifierExpr), 1))) {
-            compiler__semantic__symbols__GenericTemplate* ft = compiler__sema__decl__DeclPass_find_fn_template(self, cid->name);
+            compiler__semantic__symbols__GenericTemplate* ft = compiler__semantic__resolution__TypeResolver_find_fn_template(self, cid->name);
             if (ft != NULL) {
-                kobel_str cname = compiler__sema__decl__DeclPass_instantiate_fn(self, ft, c->type_args);
+                kobel_str cname = compiler__semantic__resolution__TypeResolver_instantiate_fn(self, ft, c->type_args);
                 cid->name = cname;
                 c->type_args = std__collections__List_ptr_compiler__ast__AstNode_init(4);
             } else {
-                compiler__semantic__symbols__GenericTemplate* st = compiler__sema__decl__DeclPass_find_struct_template(self, cid->name);
+                compiler__semantic__symbols__GenericTemplate* st = compiler__semantic__resolution__TypeResolver_find_struct_template(self, cid->name);
                 if (st != NULL) {
-                    compiler__semantic__types__Type* cty = compiler__sema__decl__DeclPass_instantiate_struct(self, st, c->type_args);
+                    compiler__semantic__types__Type* cty = compiler__semantic__resolution__TypeResolver_instantiate_struct(self, st, c->type_args);
                     cid->name = (*compiler__semantic__types__Type_as_struct(cty)).name;
                     c->type_args = std__collections__List_ptr_compiler__ast__AstNode_init(4);
                 }
@@ -13534,59 +14134,59 @@ void compiler__sema__decl__DeclPass_rewrite_call_target(compiler__sema__decl__De
     }
 }
 
-bool compiler__sema__decl__DeclPass_rewrite_expr_generics(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node) {
+bool compiler__semantic__resolution__TypeResolver_rewrite_expr_generics(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node) {
     compiler__ast__AstNode* cur = node;
     if (cur != NULL && cur->data.tag == compiler__ast__NodeData__CallExpr__TAG) {
         compiler__ast__NodeData__CallExpr* c = (compiler__ast__NodeData__CallExpr*)(&(cur)->data.u.CallExpr);
-        compiler__sema__decl__DeclPass_rewrite_call_target(self, node, c);
-        compiler__sema__decl__DeclPass_rewrite_generics(self, c->callee);
+        compiler__semantic__resolution__TypeResolver_rewrite_call_target(self, node, c);
+        compiler__semantic__resolution__TypeResolver_rewrite_generics(self, c->callee);
         {
             size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&c->args);
             size_t __for_i = 0;
             while (__for_i < __for_n) {
                 compiler__ast__AstNode* a = std__collections__List_ptr_compiler__ast__AstNode_at(&c->args, __for_i);
-                compiler__sema__decl__DeclPass_rewrite_generics(self, a);
+                compiler__semantic__resolution__TypeResolver_rewrite_generics(self, a);
                 __for_i = (__for_i + 1);
             }
         }
         return true;
     } else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__BinaryExpr__TAG) {
         compiler__ast__NodeData__BinaryExpr* b = (compiler__ast__NodeData__BinaryExpr*)(&(cur)->data.u.BinaryExpr);
-        compiler__sema__decl__DeclPass_rewrite_generics(self, b->left);
-        compiler__sema__decl__DeclPass_rewrite_generics(self, b->right);
+        compiler__semantic__resolution__TypeResolver_rewrite_generics(self, b->left);
+        compiler__semantic__resolution__TypeResolver_rewrite_generics(self, b->right);
         return true;
     } else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__UnaryExpr__TAG) {
         compiler__ast__NodeData__UnaryExpr* u = (compiler__ast__NodeData__UnaryExpr*)(&(cur)->data.u.UnaryExpr);
-        return compiler__sema__decl__DeclPass_rewrite_child(self, u->operand);
+        return compiler__semantic__resolution__TypeResolver_rewrite_child(self, u->operand);
     } else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__MemberExpr__TAG) {
         compiler__ast__NodeData__MemberExpr* m = (compiler__ast__NodeData__MemberExpr*)(&(cur)->data.u.MemberExpr);
-        return compiler__sema__decl__DeclPass_rewrite_child(self, m->object);
+        return compiler__semantic__resolution__TypeResolver_rewrite_child(self, m->object);
     } else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__IndexExpr__TAG) {
         compiler__ast__NodeData__IndexExpr* ix = (compiler__ast__NodeData__IndexExpr*)(&(cur)->data.u.IndexExpr);
-        compiler__sema__decl__DeclPass_rewrite_generics(self, ix->target);
-        compiler__sema__decl__DeclPass_rewrite_generics(self, ix->index);
+        compiler__semantic__resolution__TypeResolver_rewrite_generics(self, ix->target);
+        compiler__semantic__resolution__TypeResolver_rewrite_generics(self, ix->index);
         return true;
     } else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__AssignExpr__TAG) {
         compiler__ast__NodeData__AssignExpr* a = (compiler__ast__NodeData__AssignExpr*)(&(cur)->data.u.AssignExpr);
-        compiler__sema__decl__DeclPass_rewrite_generics(self, a->target);
-        compiler__sema__decl__DeclPass_rewrite_generics(self, a->value);
+        compiler__semantic__resolution__TypeResolver_rewrite_generics(self, a->target);
+        compiler__semantic__resolution__TypeResolver_rewrite_generics(self, a->value);
         return true;
     } else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__UpdateExpr__TAG) {
         compiler__ast__NodeData__UpdateExpr* u = (compiler__ast__NodeData__UpdateExpr*)(&(cur)->data.u.UpdateExpr);
-        return compiler__sema__decl__DeclPass_rewrite_child(self, u->target);
+        return compiler__semantic__resolution__TypeResolver_rewrite_child(self, u->target);
     } else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__CastExpr__TAG) {
         compiler__ast__NodeData__CastExpr* cst = (compiler__ast__NodeData__CastExpr*)(&(cur)->data.u.CastExpr);
-        compiler__sema__decl__DeclPass_rewrite_generics(self, cst->expr);
-        compiler__sema__decl__DeclPass_rewrite_generics(self, cst->target_type);
+        compiler__semantic__resolution__TypeResolver_rewrite_generics(self, cst->expr);
+        compiler__semantic__resolution__TypeResolver_rewrite_generics(self, cst->target_type);
         return true;
     } else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__GroupExpr__TAG) {
         compiler__ast__NodeData__GroupExpr* g = (compiler__ast__NodeData__GroupExpr*)(&(cur)->data.u.GroupExpr);
-        return compiler__sema__decl__DeclPass_rewrite_child(self, g->expr);
+        return compiler__semantic__resolution__TypeResolver_rewrite_child(self, g->expr);
     } else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__IfExpr__TAG) {
         compiler__ast__NodeData__IfExpr* ie = (compiler__ast__NodeData__IfExpr*)(&(cur)->data.u.IfExpr);
-        compiler__sema__decl__DeclPass_rewrite_generics(self, ie->condition);
-        compiler__sema__decl__DeclPass_rewrite_generics(self, ie->then_branch);
-        compiler__sema__decl__DeclPass_rewrite_generics(self, ie->else_branch);
+        compiler__semantic__resolution__TypeResolver_rewrite_generics(self, ie->condition);
+        compiler__semantic__resolution__TypeResolver_rewrite_generics(self, ie->then_branch);
+        compiler__semantic__resolution__TypeResolver_rewrite_generics(self, ie->else_branch);
         return true;
     } else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__ArrayLiteralExpr__TAG) {
         compiler__ast__NodeData__ArrayLiteralExpr* al = (compiler__ast__NodeData__ArrayLiteralExpr*)(&(cur)->data.u.ArrayLiteralExpr);
@@ -13595,14 +14195,14 @@ bool compiler__sema__decl__DeclPass_rewrite_expr_generics(compiler__sema__decl__
             size_t __for_i = 0;
             while (__for_i < __for_n) {
                 compiler__ast__AstNode* e = std__collections__List_ptr_compiler__ast__AstNode_at(&al->elements, __for_i);
-                compiler__sema__decl__DeclPass_rewrite_generics(self, e);
+                compiler__semantic__resolution__TypeResolver_rewrite_generics(self, e);
                 __for_i = (__for_i + 1);
             }
         }
         return true;
     } else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__WhenExpr__TAG) {
         compiler__ast__NodeData__WhenExpr* we = (compiler__ast__NodeData__WhenExpr*)(&(cur)->data.u.WhenExpr);
-        compiler__sema__decl__DeclPass_rewrite_generics(self, we->condition);
+        compiler__semantic__resolution__TypeResolver_rewrite_generics(self, we->condition);
         {
             size_t __for_n = std__collections__List_compiler__ast__WhenArm_count(&we->arms);
             size_t __for_i = 0;
@@ -13613,11 +14213,11 @@ bool compiler__sema__decl__DeclPass_rewrite_expr_generics(compiler__sema__decl__
                     size_t __for_i = 0;
                     while (__for_i < __for_n) {
                         compiler__ast__AstNode* pat = std__collections__List_ptr_compiler__ast__AstNode_at(&arm.patterns, __for_i);
-                        compiler__sema__decl__DeclPass_rewrite_generics(self, pat);
+                        compiler__semantic__resolution__TypeResolver_rewrite_generics(self, pat);
                         __for_i = (__for_i + 1);
                     }
                 }
-                compiler__sema__decl__DeclPass_rewrite_generics(self, arm.body);
+                compiler__semantic__resolution__TypeResolver_rewrite_generics(self, arm.body);
                 __for_i = (__for_i + 1);
             }
         }
@@ -13631,10 +14231,10 @@ bool compiler__sema__decl__DeclPass_rewrite_expr_generics(compiler__sema__decl__
                 compiler__ast__InterpPart part = std__collections__List_compiler__ast__InterpPart_at(&ie->parts, __for_i);
                 if (part.tag == compiler__ast__InterpPart__Literal__TAG) {
                     compiler__ast__InterpPart__Literal* lit = (compiler__ast__InterpPart__Literal*)(&(part).u.Literal);
-                    compiler__sema__decl__DeclPass_rewrite_generics(self, lit->node);
+                    compiler__semantic__resolution__TypeResolver_rewrite_generics(self, lit->node);
                 } else if (part.tag == compiler__ast__InterpPart__Hole__TAG) {
                     compiler__ast__InterpPart__Hole* hole = (compiler__ast__InterpPart__Hole*)(&(part).u.Hole);
-                    compiler__sema__decl__DeclPass_rewrite_generics(self, hole->node);
+                    compiler__semantic__resolution__TypeResolver_rewrite_generics(self, hole->node);
                 }
                 __for_i = (__for_i + 1);
             }
@@ -13643,16 +14243,16 @@ bool compiler__sema__decl__DeclPass_rewrite_expr_generics(compiler__sema__decl__
     } else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__IsExpr__TAG) {
         compiler__ast__NodeData__IsExpr* is_e = (compiler__ast__NodeData__IsExpr*)(&(cur)->data.u.IsExpr);
         if (is_e->expr != NULL) {
-            compiler__sema__decl__DeclPass_rewrite_generics(self, is_e->expr);
+            compiler__semantic__resolution__TypeResolver_rewrite_generics(self, is_e->expr);
         }
-        compiler__sema__decl__DeclPass_rewrite_generics(self, is_e->target_type);
+        compiler__semantic__resolution__TypeResolver_rewrite_generics(self, is_e->target_type);
         return true;
     } else {
         return false;
     }
 }
 
-bool compiler__sema__decl__DeclPass_rewrite_stmt_generics(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node) {
+bool compiler__semantic__resolution__TypeResolver_rewrite_stmt_generics(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node) {
     compiler__ast__AstNode* cur = node;
     if (cur != NULL && cur->data.tag == compiler__ast__NodeData__BlockStmt__TAG) {
         compiler__ast__NodeData__BlockStmt* b = (compiler__ast__NodeData__BlockStmt*)(&(cur)->data.u.BlockStmt);
@@ -13661,56 +14261,56 @@ bool compiler__sema__decl__DeclPass_rewrite_stmt_generics(compiler__sema__decl__
             size_t __for_i = 0;
             while (__for_i < __for_n) {
                 compiler__ast__AstNode* s = std__collections__List_ptr_compiler__ast__AstNode_at(&b->statements, __for_i);
-                compiler__sema__decl__DeclPass_rewrite_generics(self, s);
+                compiler__semantic__resolution__TypeResolver_rewrite_generics(self, s);
                 __for_i = (__for_i + 1);
             }
         }
         return true;
     } else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__ExprStmt__TAG) {
         compiler__ast__NodeData__ExprStmt* e = (compiler__ast__NodeData__ExprStmt*)(&(cur)->data.u.ExprStmt);
-        return compiler__sema__decl__DeclPass_rewrite_child(self, e->expr);
+        return compiler__semantic__resolution__TypeResolver_rewrite_child(self, e->expr);
     } else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__VarDeclStmt__TAG) {
         compiler__ast__NodeData__VarDeclStmt* v = (compiler__ast__NodeData__VarDeclStmt*)(&(cur)->data.u.VarDeclStmt);
         if ((v->type_annotation != NULL) && (v->initializer != NULL)) {
-            compiler__sema__decl__DeclPass_propagate_target_type(self, v->type_annotation, v->initializer);
+            compiler__semantic__resolution__TypeResolver_propagate_target_type(self, v->type_annotation, v->initializer);
         }
-        compiler__sema__decl__DeclPass_rewrite_generics(self, v->type_annotation);
-        compiler__sema__decl__DeclPass_rewrite_generics(self, v->initializer);
+        compiler__semantic__resolution__TypeResolver_rewrite_generics(self, v->type_annotation);
+        compiler__semantic__resolution__TypeResolver_rewrite_generics(self, v->initializer);
         return true;
     } else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__IfStmt__TAG) {
         compiler__ast__NodeData__IfStmt* s = (compiler__ast__NodeData__IfStmt*)(&(cur)->data.u.IfStmt);
-        compiler__sema__decl__DeclPass_rewrite_generics(self, s->condition);
-        compiler__sema__decl__DeclPass_rewrite_generics(self, s->then_branch);
-        compiler__sema__decl__DeclPass_rewrite_generics(self, s->else_branch);
+        compiler__semantic__resolution__TypeResolver_rewrite_generics(self, s->condition);
+        compiler__semantic__resolution__TypeResolver_rewrite_generics(self, s->then_branch);
+        compiler__semantic__resolution__TypeResolver_rewrite_generics(self, s->else_branch);
         return true;
     } else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__WhileStmt__TAG) {
         compiler__ast__NodeData__WhileStmt* w = (compiler__ast__NodeData__WhileStmt*)(&(cur)->data.u.WhileStmt);
-        compiler__sema__decl__DeclPass_rewrite_generics(self, w->condition);
-        compiler__sema__decl__DeclPass_rewrite_generics(self, w->body);
+        compiler__semantic__resolution__TypeResolver_rewrite_generics(self, w->condition);
+        compiler__semantic__resolution__TypeResolver_rewrite_generics(self, w->body);
         return true;
     } else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__ForStmt__TAG) {
         compiler__ast__NodeData__ForStmt* f = (compiler__ast__NodeData__ForStmt*)(&(cur)->data.u.ForStmt);
-        compiler__sema__decl__DeclPass_rewrite_generics(self, f->iterable);
-        compiler__sema__decl__DeclPass_rewrite_generics(self, f->range_start);
-        compiler__sema__decl__DeclPass_rewrite_generics(self, f->range_end);
-        compiler__sema__decl__DeclPass_rewrite_generics(self, f->body);
+        compiler__semantic__resolution__TypeResolver_rewrite_generics(self, f->iterable);
+        compiler__semantic__resolution__TypeResolver_rewrite_generics(self, f->range_start);
+        compiler__semantic__resolution__TypeResolver_rewrite_generics(self, f->range_end);
+        compiler__semantic__resolution__TypeResolver_rewrite_generics(self, f->body);
         return true;
     } else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__ReturnStmt__TAG) {
         compiler__ast__NodeData__ReturnStmt* r = (compiler__ast__NodeData__ReturnStmt*)(&(cur)->data.u.ReturnStmt);
         if ((r->value != NULL) && (self->current_fn_return_type != NULL)) {
-            compiler__sema__decl__DeclPass_propagate_target_type(self, self->current_fn_return_type, r->value);
+            compiler__semantic__resolution__TypeResolver_propagate_target_type(self, self->current_fn_return_type, r->value);
         }
-        compiler__sema__decl__DeclPass_rewrite_generics(self, r->value);
+        compiler__semantic__resolution__TypeResolver_rewrite_generics(self, r->value);
         return true;
     } else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__YieldStmt__TAG) {
         compiler__ast__NodeData__YieldStmt* y = (compiler__ast__NodeData__YieldStmt*)(&(cur)->data.u.YieldStmt);
-        return compiler__sema__decl__DeclPass_rewrite_child(self, y->value);
+        return compiler__semantic__resolution__TypeResolver_rewrite_child(self, y->value);
     } else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__DeferStmt__TAG) {
         compiler__ast__NodeData__DeferStmt* d = (compiler__ast__NodeData__DeferStmt*)(&(cur)->data.u.DeferStmt);
-        return compiler__sema__decl__DeclPass_rewrite_child(self, d->body);
+        return compiler__semantic__resolution__TypeResolver_rewrite_child(self, d->body);
     } else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__WhenStmt__TAG) {
         compiler__ast__NodeData__WhenStmt* w = (compiler__ast__NodeData__WhenStmt*)(&(cur)->data.u.WhenStmt);
-        compiler__sema__decl__DeclPass_rewrite_generics(self, w->condition);
+        compiler__semantic__resolution__TypeResolver_rewrite_generics(self, w->condition);
         {
             size_t __for_n = std__collections__List_compiler__ast__WhenArm_count(&w->arms);
             size_t __for_i = 0;
@@ -13721,11 +14321,11 @@ bool compiler__sema__decl__DeclPass_rewrite_stmt_generics(compiler__sema__decl__
                     size_t __for_i = 0;
                     while (__for_i < __for_n) {
                         compiler__ast__AstNode* pat = std__collections__List_ptr_compiler__ast__AstNode_at(&arm.patterns, __for_i);
-                        compiler__sema__decl__DeclPass_rewrite_generics(self, pat);
+                        compiler__semantic__resolution__TypeResolver_rewrite_generics(self, pat);
                         __for_i = (__for_i + 1);
                     }
                 }
-                compiler__sema__decl__DeclPass_rewrite_generics(self, arm.body);
+                compiler__semantic__resolution__TypeResolver_rewrite_generics(self, arm.body);
                 __for_i = (__for_i + 1);
             }
         }
@@ -13735,7 +14335,7 @@ bool compiler__sema__decl__DeclPass_rewrite_stmt_generics(compiler__sema__decl__
     }
 }
 
-bool compiler__sema__decl__DeclPass_rewrite_decl_generics(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node) {
+bool compiler__semantic__resolution__TypeResolver_rewrite_decl_generics(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node) {
     compiler__ast__AstNode* cur = node;
     if (cur != NULL && cur->data.tag == compiler__ast__NodeData__StructDecl__TAG) {
         compiler__ast__NodeData__StructDecl* s = (compiler__ast__NodeData__StructDecl*)(&(cur)->data.u.StructDecl);
@@ -13745,11 +14345,11 @@ bool compiler__sema__decl__DeclPass_rewrite_decl_generics(compiler__sema__decl__
             while (__for_i < __for_n) {
                 compiler__ast__StructField fld = std__collections__List_compiler__ast__StructField_at(&s->fields, __for_i);
                 if ((fld.type_node != NULL) && (fld.default_val != NULL)) {
-                    compiler__sema__decl__DeclPass_propagate_target_type(self, fld.type_node, fld.default_val);
+                    compiler__semantic__resolution__TypeResolver_propagate_target_type(self, fld.type_node, fld.default_val);
                 }
-                compiler__sema__decl__DeclPass_rewrite_generics(self, fld.type_node);
+                compiler__semantic__resolution__TypeResolver_rewrite_generics(self, fld.type_node);
                 if (fld.default_val != NULL) {
-                    compiler__sema__decl__DeclPass_rewrite_generics(self, fld.default_val);
+                    compiler__semantic__resolution__TypeResolver_rewrite_generics(self, fld.default_val);
                 }
                 __for_i = (__for_i + 1);
             }
@@ -13763,25 +14363,25 @@ bool compiler__sema__decl__DeclPass_rewrite_decl_generics(compiler__sema__decl__
             while (__for_i < __for_n) {
                 compiler__ast__Param p = std__collections__List_compiler__ast__Param_at(&f->params, __for_i);
                 if ((p.type_node != NULL) && (p.default_val != NULL)) {
-                    compiler__sema__decl__DeclPass_propagate_target_type(self, p.type_node, p.default_val);
+                    compiler__semantic__resolution__TypeResolver_propagate_target_type(self, p.type_node, p.default_val);
                 }
-                compiler__sema__decl__DeclPass_rewrite_generics(self, p.type_node);
+                compiler__semantic__resolution__TypeResolver_rewrite_generics(self, p.type_node);
                 if (p.default_val != NULL) {
-                    compiler__sema__decl__DeclPass_rewrite_generics(self, p.default_val);
+                    compiler__semantic__resolution__TypeResolver_rewrite_generics(self, p.default_val);
                 }
                 __for_i = (__for_i + 1);
             }
         }
-        compiler__sema__decl__DeclPass_rewrite_generics(self, f->return_type);
+        compiler__semantic__resolution__TypeResolver_rewrite_generics(self, f->return_type);
         compiler__ast__AstNode* prev_ret = self->current_fn_return_type;
         self->current_fn_return_type = f->return_type;
         {
             compiler__ast__NodeData__ExprStmt* es = NULL;
             if ((f->body != NULL && f->body->data.tag == compiler__ast__NodeData__ExprStmt__TAG && (es = (compiler__ast__NodeData__ExprStmt*)(&(f->body)->data.u.ExprStmt), 1)) && (f->return_type != NULL)) {
-                compiler__sema__decl__DeclPass_propagate_target_type(self, f->return_type, es->expr);
+                compiler__semantic__resolution__TypeResolver_propagate_target_type(self, f->return_type, es->expr);
             }
         }
-        compiler__sema__decl__DeclPass_rewrite_generics(self, f->body);
+        compiler__semantic__resolution__TypeResolver_rewrite_generics(self, f->body);
         self->current_fn_return_type = prev_ret;
         return true;
     } else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__ImplDecl__TAG) {
@@ -13798,7 +14398,7 @@ bool compiler__sema__decl__DeclPass_rewrite_decl_generics(compiler__sema__decl__
                         continue;
                     }
                 }
-                compiler__sema__decl__DeclPass_rewrite_generics(self, m);
+                compiler__semantic__resolution__TypeResolver_rewrite_generics(self, m);
                 __for_i = (__for_i + 1);
             }
         }
@@ -13806,10 +14406,10 @@ bool compiler__sema__decl__DeclPass_rewrite_decl_generics(compiler__sema__decl__
     } else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__ConstDecl__TAG) {
         compiler__ast__NodeData__ConstDecl* c = (compiler__ast__NodeData__ConstDecl*)(&(cur)->data.u.ConstDecl);
         if ((c->type_node != NULL) && (c->value != NULL)) {
-            compiler__sema__decl__DeclPass_propagate_target_type(self, c->type_node, c->value);
+            compiler__semantic__resolution__TypeResolver_propagate_target_type(self, c->type_node, c->value);
         }
-        compiler__sema__decl__DeclPass_rewrite_generics(self, c->type_node);
-        compiler__sema__decl__DeclPass_rewrite_generics(self, c->value);
+        compiler__semantic__resolution__TypeResolver_rewrite_generics(self, c->type_node);
+        compiler__semantic__resolution__TypeResolver_rewrite_generics(self, c->value);
         return true;
     } else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__ExternBlock__TAG) {
         compiler__ast__NodeData__ExternBlock* ext = (compiler__ast__NodeData__ExternBlock*)(&(cur)->data.u.ExternBlock);
@@ -13818,7 +14418,7 @@ bool compiler__sema__decl__DeclPass_rewrite_decl_generics(compiler__sema__decl__
             size_t __for_i = 0;
             while (__for_i < __for_n) {
                 compiler__ast__AstNode* d = compiler__ast__NodeData__ExternBlock_at(ext, __for_i);
-                compiler__sema__decl__DeclPass_rewrite_generics(self, d);
+                compiler__semantic__resolution__TypeResolver_rewrite_generics(self, d);
                 __for_i = (__for_i + 1);
             }
         }
@@ -15391,139 +15991,133 @@ void compiler__sema__decl__DeclPass_apply_trait(compiler__sema__decl__DeclPass* 
     }
 }
 
-compiler__semantic__types__Type* compiler__sema__decl__DeclPass_resolve_ast_type(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node) {
-    if (node == NULL) {
-        return compiler__semantic__types__PrimTypes_t_none(compiler__sema__decl__DeclPass_prims(self));
-    }
-    if (node != NULL && node->data.tag == compiler__ast__NodeData__NamedType__TAG) {
-        compiler__ast__NodeData__NamedType* named = (compiler__ast__NodeData__NamedType*)(&(node)->data.u.NamedType);
-        kobel_str name = named->name;
-        compiler__semantic__types__Type* subst_res = NULL;
-        {
-            size_t __for_e = self->subst_names.len;
-            size_t __for_i = __for_e;
-            __for_i = 0;
-            bool __for_up = (__for_i <= __for_e);
-            bool __for_go = false;
-            if (__for_up) {
-                __for_go = (__for_i < __for_e);
-            } else {
-                __for_go = (__for_i > __for_e);
-            }
-            while (__for_go) {
-                size_t i = __for_i;
-                if (kobel_streq(std__collections__List_str_get(&self->subst_names, i), name)) {
-                    subst_res = std__collections__List_ptr_compiler__semantic__types__Type_get(&self->subst_types, i);
-                }
-                if (__for_up) {
-                    __for_go = ((__for_i + 1) < __for_e);
-                } else {
-                    __for_go = ((__for_i - 1) > __for_e);
-                }
-                if (__for_go) {
-                    if (__for_up) {
-                        __for_i = (__for_i + 1);
-                    } else {
-                        __for_i = (__for_i - 1);
-                    }
-                }
-            }
-        }
-        if (subst_res != NULL) {
-            return subst_res;
-        }
-        if (kobel_streq(name, KOBEL_STR("Self")) && (self->current_self_type != NULL)) {
-            if (std__collections__List_str_empty(&self->subst_names)) {
-                compiler__semantic__types__StructType* sinfo = compiler__semantic__types__Type_as_struct(self->current_self_type);
-                if (!str_empty(sinfo->c_name)) {
-                    named->name = sinfo->c_name;
-                } else {
-                    named->name = sinfo->name;
-                }
-            }
-            return self->current_self_type;
-        }
-        if (str_starts_with(name, KOBEL_STR("Self."))) {
-            kobel_str assoc = kobel_slice(name, 5, name.len);
-            if ((self->current_self_type == NULL) || ((*self->current_self_type).kind != 18)) {
-                compiler__sema__decl__DeclPass_report_error(self, node, kobel_concat3(KOBEL_STR("Associated type '"), name, KOBEL_STR("' used outside of an impl")));
-                return compiler__semantic__types__PrimTypes_t_none(compiler__sema__decl__DeclPass_prims(self));
-            }
-            kobel_str self_name = (*compiler__semantic__types__Type_as_struct(self->current_self_type)).name;
-            compiler__semantic__types__Type* bound = compiler__semantic__symbols__SymbolTable_find_assoc_type(&self->symtab, self_name, assoc);
-            if (bound == NULL) {
-                compiler__sema__decl__DeclPass_report_error(self, node, kobel_concat5(KOBEL_STR("Trait associated type '"), assoc, KOBEL_STR("' is not bound for '"), self_name, KOBEL_STR("'")));
-                return compiler__semantic__types__PrimTypes_t_none(compiler__sema__decl__DeclPass_prims(self));
-            }
-            if ((bound->kind == 16) || (bound->kind == 17)) {
-                compiler__sema__decl__DeclPass_report_error(self, node, kobel_concat3(KOBEL_STR("Associated type '"), assoc, KOBEL_STR("' must be a named type (struct, enum or primitive)")));
-                return compiler__semantic__types__PrimTypes_t_none(compiler__sema__decl__DeclPass_prims(self));
-            }
-            if (std__collections__List_str_empty(&self->subst_names)) {
-                named->name = compiler__sema__decl__DeclPass_ast_type_name_of(self, bound);
-            }
-            return bound;
-        }
-        compiler__semantic__types__Type* prim = compiler__semantic__types__resolve_primitive_name(self->symtab.prims, name);
-        if (prim != NULL) {
-            return prim;
-        }
-        if (named->type_args.len > 0) {
-            compiler__semantic__symbols__GenericTemplate* tmpl = compiler__sema__decl__DeclPass_find_struct_template(self, name);
-            if (tmpl != NULL) {
-                compiler__semantic__types__Type* cty = compiler__sema__decl__DeclPass_instantiate_struct(self, tmpl, named->type_args);
-                if (std__collections__List_str_empty(&self->subst_names)) {
-                    named->name = (*compiler__semantic__types__Type_as_struct(cty)).name;
-                    named->type_args = std__collections__List_ptr_compiler__ast__AstNode_init(4);
-                }
-                return cty;
-            }
-        }
-        compiler__semantic__symbols__Symbol* sym = compiler__semantic__symbols__SymbolTable_lookup(&self->symtab, name);
-        if (sym != NULL) {
-            if (!kobel_streq(sym->c_name, name)) {
-                named->name = sym->c_name;
-            }
-            return sym->type_ptr;
-        }
-        compiler__sema__decl__DeclPass_report_error(self, node, kobel_concat3(KOBEL_STR("Unknown type '"), name, KOBEL_STR("'")));
-        return compiler__semantic__types__PrimTypes_t_none(compiler__sema__decl__DeclPass_prims(self));
-    } else if (node != NULL && node->data.tag == compiler__ast__NodeData__PointerType__TAG) {
-        compiler__ast__NodeData__PointerType* ptr_ast = (compiler__ast__NodeData__PointerType*)(&(node)->data.u.PointerType);
-        compiler__semantic__types__Type* pointee = compiler__sema__decl__DeclPass_resolve_ast_type(self, ptr_ast->pointee);
-        return std__memory__Arena_pointer_type(&self->arena, pointee, ptr_ast->mutable);
-    } else if (node != NULL && node->data.tag == compiler__ast__NodeData__ArrayType__TAG) {
-        compiler__ast__NodeData__ArrayType* arr_ast = (compiler__ast__NodeData__ArrayType*)(&(node)->data.u.ArrayType);
-        compiler__semantic__types__Type* elem = compiler__sema__decl__DeclPass_resolve_ast_type(self, arr_ast->element_type);
-        return std__memory__Arena_array_type(&self->arena, elem, arr_ast->size);
-    } else if (node != NULL && node->data.tag == compiler__ast__NodeData__NullableType__TAG) {
-        compiler__ast__NodeData__NullableType* null_ast = (compiler__ast__NodeData__NullableType*)(&(node)->data.u.NullableType);
-        compiler__semantic__types__Type* inner_ty = compiler__sema__decl__DeclPass_resolve_ast_type(self, null_ast->inner_type);
-        compiler__semantic__types__Type* res_ty = inner_ty;
-        if (inner_ty->kind == 16) {
-            compiler__semantic__types__TypePayload__Pointer* pt = compiler__semantic__types__Type_as_pointer(inner_ty);
-            res_ty = std__memory__Arena_nullable_pointer_type(&self->arena, pt->pointee, pt->mutable);
-        } else {
-            compiler__sema__decl__DeclPass_report_error(self, node, KOBEL_STR("Nullable modifier '?' is only supported on pointer types"));
-        }
-        return res_ty;
-    } else {
-        return compiler__semantic__types__PrimTypes_t_none(compiler__sema__decl__DeclPass_prims(self));
-    }
+compiler__semantic__resolution__TypeResolver compiler__sema__decl__DeclPass_to_resolver(compiler__sema__decl__DeclPass* self) {
+    return compiler__semantic__resolution__TypeResolver_init(self->symtab, self->arena, self->current_module, self->errors, self->is_extern, self->current_self_type, self->subst_names, self->subst_types, self->current_fn_return_type, self->mat_rec);
 }
 
-kobel_str compiler__sema__decl__DeclPass_ast_type_name_of(compiler__sema__decl__DeclPass* self, compiler__semantic__types__Type* ty) {
-    if (ty->kind == 18) {
-        compiler__semantic__types__StructType* s_info = compiler__semantic__types__Type_as_struct(ty);
-        if (!str_empty(s_info->c_name)) {
-            return s_info->c_name;
-        }
-        return s_info->name;
-    }
-    if (compiler__semantic__types__Type_is_enum(ty)) {
-        return (*compiler__semantic__types__Type_as_enum(ty)).c_name;
-    }
-    return compiler__semantic__types__primitive_type_name(ty);
+void compiler__sema__decl__DeclPass_apply_resolver(compiler__sema__decl__DeclPass* self, compiler__semantic__resolution__TypeResolver r) {
+    self->symtab = r.symtab;
+    self->arena = r.arena;
+    self->current_module = r.current_module;
+    self->errors = r.errors;
+    self->is_extern = r.is_extern;
+    self->current_self_type = r.current_self_type;
+    self->subst_names = r.subst_names;
+    self->subst_types = r.subst_types;
+    self->current_fn_return_type = r.current_fn_return_type;
+    self->mat_rec = r.mat_rec;
+}
+
+compiler__semantic__types__Type* compiler__sema__decl__DeclPass_resolve_ast_type(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node) {
+    compiler__semantic__resolution__TypeResolver r = compiler__sema__decl__DeclPass_to_resolver(self);
+    compiler__semantic__types__Type* res = compiler__semantic__resolution__TypeResolver_resolve_ast_type(&r, node);
+    compiler__sema__decl__DeclPass_apply_resolver(self, r);
+    return res;
+}
+
+compiler__semantic__types__Type* compiler__sema__decl__DeclPass_instantiate_struct(compiler__sema__decl__DeclPass* self, compiler__semantic__symbols__GenericTemplate* tmpl, std__collections__List_ptr_compiler__ast__AstNode arg_asts) {
+    compiler__semantic__resolution__TypeResolver r = compiler__sema__decl__DeclPass_to_resolver(self);
+    compiler__semantic__types__Type* res = compiler__semantic__resolution__TypeResolver_instantiate_struct(&r, tmpl, arg_asts);
+    compiler__sema__decl__DeclPass_apply_resolver(self, r);
+    return res;
+}
+
+kobel_str compiler__sema__decl__DeclPass_instantiate_fn(compiler__sema__decl__DeclPass* self, compiler__semantic__symbols__GenericTemplate* tmpl, std__collections__List_ptr_compiler__ast__AstNode arg_asts) {
+    compiler__semantic__resolution__TypeResolver r = compiler__sema__decl__DeclPass_to_resolver(self);
+    kobel_str res = compiler__semantic__resolution__TypeResolver_instantiate_fn(&r, tmpl, arg_asts);
+    compiler__sema__decl__DeclPass_apply_resolver(self, r);
+    return res;
+}
+
+compiler__semantic__symbols__GenericTemplate* compiler__sema__decl__DeclPass_find_fn_template(compiler__sema__decl__DeclPass* self, kobel_str name) {
+    compiler__semantic__resolution__TypeResolver r = compiler__sema__decl__DeclPass_to_resolver(self);
+    compiler__semantic__symbols__GenericTemplate* res = compiler__semantic__resolution__TypeResolver_find_fn_template(&r, name);
+    compiler__sema__decl__DeclPass_apply_resolver(self, r);
+    return res;
+}
+
+compiler__semantic__symbols__GenericTemplate* compiler__sema__decl__DeclPass_find_struct_template(compiler__sema__decl__DeclPass* self, kobel_str name) {
+    compiler__semantic__resolution__TypeResolver r = compiler__sema__decl__DeclPass_to_resolver(self);
+    compiler__semantic__symbols__GenericTemplate* res = compiler__semantic__resolution__TypeResolver_find_struct_template(&r, name);
+    compiler__sema__decl__DeclPass_apply_resolver(self, r);
+    return res;
+}
+
+compiler__semantic__symbols__GenericTemplate* compiler__sema__decl__DeclPass_find_method_template(compiler__sema__decl__DeclPass* self, kobel_str name, kobel_str self_type) {
+    compiler__semantic__resolution__TypeResolver r = compiler__sema__decl__DeclPass_to_resolver(self);
+    compiler__semantic__symbols__GenericTemplate* res = compiler__semantic__resolution__TypeResolver_find_method_template(&r, name, self_type);
+    compiler__sema__decl__DeclPass_apply_resolver(self, r);
+    return res;
+}
+
+void compiler__sema__decl__DeclPass_register_template(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node) {
+    compiler__semantic__resolution__TypeResolver r = compiler__sema__decl__DeclPass_to_resolver(self);
+    compiler__semantic__resolution__TypeResolver_register_template(&r, node);
+    compiler__sema__decl__DeclPass_apply_resolver(self, r);
+}
+
+bool compiler__sema__decl__DeclPass_template_in_module(compiler__sema__decl__DeclPass* self, kobel_str module, kobel_str name) {
+    compiler__semantic__resolution__TypeResolver r = compiler__sema__decl__DeclPass_to_resolver(self);
+    bool res = compiler__semantic__resolution__TypeResolver_template_in_module(&r, module, name);
+    compiler__sema__decl__DeclPass_apply_resolver(self, r);
+    return res;
+}
+
+compiler__semantic__symbols__Symbol* compiler__sema__decl__DeclPass_find_instance_symbol(compiler__sema__decl__DeclPass* self, kobel_str name) {
+    return compiler__semantic__symbols__GenericRegistry_find_instance_symbol(&self->symtab.gen, name);
+}
+
+void compiler__sema__decl__DeclPass_drain_instances(compiler__sema__decl__DeclPass* self) {
+    compiler__semantic__resolution__TypeResolver r = compiler__sema__decl__DeclPass_to_resolver(self);
+    compiler__semantic__resolution__TypeResolver_drain_instances(&r);
+    compiler__sema__decl__DeclPass_apply_resolver(self, r);
+}
+
+void compiler__sema__decl__DeclPass_rewrite_generics(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node) {
+    compiler__semantic__resolution__TypeResolver r = compiler__sema__decl__DeclPass_to_resolver(self);
+    compiler__semantic__resolution__TypeResolver_rewrite_generics(&r, node);
+    compiler__sema__decl__DeclPass_apply_resolver(self, r);
+}
+
+void compiler__sema__decl__DeclPass_propagate_target_type(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* target_type_node, compiler__ast__AstNode* init_node) {
+    compiler__semantic__resolution__TypeResolver r = compiler__sema__decl__DeclPass_to_resolver(self);
+    compiler__semantic__resolution__TypeResolver_propagate_target_type(&r, target_type_node, init_node);
+    compiler__sema__decl__DeclPass_apply_resolver(self, r);
+}
+
+compiler__ast__AstNode* compiler__sema__decl__DeclPass_materialize_body(compiler__sema__decl__DeclPass* self, compiler__semantic__symbols__InstanceRecord* rec) {
+    compiler__semantic__resolution__TypeResolver r = compiler__sema__decl__DeclPass_to_resolver(self);
+    compiler__ast__AstNode* res = compiler__semantic__resolution__TypeResolver_materialize_body(&r, rec);
+    compiler__sema__decl__DeclPass_apply_resolver(self, r);
+    return res;
+}
+
+compiler__ast__AstNode* compiler__sema__decl__DeclPass_clone_expr(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node, compiler__semantic__symbols__GenericSubst* subst) {
+    compiler__semantic__resolution__TypeResolver r = compiler__sema__decl__DeclPass_to_resolver(self);
+    compiler__ast__AstNode* res = compiler__semantic__resolution__TypeResolver_clone_expr(&r, node, subst);
+    compiler__sema__decl__DeclPass_apply_resolver(self, r);
+    return res;
+}
+
+compiler__ast__AstNode* compiler__sema__decl__DeclPass_clone_fn(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node, compiler__semantic__symbols__GenericSubst* subst, kobel_str new_name) {
+    compiler__semantic__resolution__TypeResolver r = compiler__sema__decl__DeclPass_to_resolver(self);
+    compiler__ast__AstNode* res = compiler__semantic__resolution__TypeResolver_clone_fn(&r, node, subst, new_name);
+    compiler__sema__decl__DeclPass_apply_resolver(self, r);
+    return res;
+}
+
+compiler__ast__AstNode* compiler__sema__decl__DeclPass_clone_stmt(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node, compiler__semantic__symbols__GenericSubst* subst) {
+    compiler__semantic__resolution__TypeResolver r = compiler__sema__decl__DeclPass_to_resolver(self);
+    compiler__ast__AstNode* res = compiler__semantic__resolution__TypeResolver_clone_stmt(&r, node, subst);
+    compiler__sema__decl__DeclPass_apply_resolver(self, r);
+    return res;
+}
+
+compiler__ast__AstNode* compiler__sema__decl__DeclPass_clone_type(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node, compiler__semantic__symbols__GenericSubst* subst) {
+    compiler__semantic__resolution__TypeResolver r = compiler__sema__decl__DeclPass_to_resolver(self);
+    compiler__ast__AstNode* res = compiler__semantic__resolution__TypeResolver_clone_type(&r, node, subst);
+    compiler__sema__decl__DeclPass_apply_resolver(self, r);
+    return res;
 }
 
 compiler__semantic__types__Type* compiler__sema__body__BodyPass_check_member_expr(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node) {
@@ -46757,6 +47351,12 @@ compiler__semantic__symbols__InstanceRecord* std__memory__Arena_create_val_compi
     return ptr;
 }
 
+compiler__semantic__types__MethodInfo* std__memory__Arena_create_val_compiler__semantic__types__MethodInfo(std__memory__Arena* self, compiler__semantic__types__MethodInfo value) {
+    compiler__semantic__types__MethodInfo* ptr = std__memory__Arena_create_compiler__semantic__types__MethodInfo(self);
+    (*(ptr) = value);
+    return ptr;
+}
+
 compiler__semantic__symbols__GenericTemplate* std__memory__Arena_create_val_compiler__semantic__symbols__GenericTemplate(std__memory__Arena* self, compiler__semantic__symbols__GenericTemplate value) {
     compiler__semantic__symbols__GenericTemplate* ptr = std__memory__Arena_create_compiler__semantic__symbols__GenericTemplate(self);
     (*(ptr) = value);
@@ -46789,12 +47389,6 @@ compiler__semantic__types__TraitMethod* std__memory__Arena_create_val_compiler__
 
 compiler__semantic__types__TraitInfo* std__memory__Arena_create_val_compiler__semantic__types__TraitInfo(std__memory__Arena* self, compiler__semantic__types__TraitInfo value) {
     compiler__semantic__types__TraitInfo* ptr = std__memory__Arena_create_compiler__semantic__types__TraitInfo(self);
-    (*(ptr) = value);
-    return ptr;
-}
-
-compiler__semantic__types__MethodInfo* std__memory__Arena_create_val_compiler__semantic__types__MethodInfo(std__memory__Arena* self, compiler__semantic__types__MethodInfo value) {
-    compiler__semantic__types__MethodInfo* ptr = std__memory__Arena_create_compiler__semantic__types__MethodInfo(self);
     (*(ptr) = value);
     return ptr;
 }
@@ -47159,6 +47753,10 @@ compiler__semantic__symbols__InstanceRecord* std__memory__Arena_create_compiler_
     return (compiler__semantic__symbols__InstanceRecord*)std__memory__Arena_alloc_bytes(self, 120, 8);
 }
 
+compiler__semantic__types__MethodInfo* std__memory__Arena_create_compiler__semantic__types__MethodInfo(std__memory__Arena* self) {
+    return (compiler__semantic__types__MethodInfo*)std__memory__Arena_alloc_bytes(self, 72, 8);
+}
+
 compiler__semantic__symbols__GenericTemplate* std__memory__Arena_create_compiler__semantic__symbols__GenericTemplate(std__memory__Arena* self) {
     return (compiler__semantic__symbols__GenericTemplate*)std__memory__Arena_alloc_bytes(self, 64, 8);
 }
@@ -47181,10 +47779,6 @@ compiler__semantic__types__TraitMethod* std__memory__Arena_create_compiler__sema
 
 compiler__semantic__types__TraitInfo* std__memory__Arena_create_compiler__semantic__types__TraitInfo(std__memory__Arena* self) {
     return (compiler__semantic__types__TraitInfo*)std__memory__Arena_alloc_bytes(self, 112, 8);
-}
-
-compiler__semantic__types__MethodInfo* std__memory__Arena_create_compiler__semantic__types__MethodInfo(std__memory__Arena* self) {
-    return (compiler__semantic__types__MethodInfo*)std__memory__Arena_alloc_bytes(self, 72, 8);
 }
 
 compiler__semantic__symbols__AnnotationEntry* std__memory__Arena_create_compiler__semantic__symbols__AnnotationEntry(std__memory__Arena* self) {

@@ -1,34 +1,33 @@
-mod compiler.sema.mono;
-
-// ============================================================================
-// Generic Syntax Rewriting
-//
-// Rewriting generic syntax in place after collection: `f<X>(...)`,
-// `Struct<X>` type nodes and `T.size()` are replaced by their instantiated
-// counterparts before any body is checked.
-// ============================================================================
+mod compiler.semantic.resolution;
 
 use std.memory.*;
 use std.collections.*;
 
 use compiler.core.*;
-
 use compiler.lexer.TokenType;
-
 use compiler.ast.*;
-
-use compiler.sema.*;
 use compiler.semantic.types.*;
 use compiler.semantic.symbols.*;
-use compiler.sema.decl.*;
 
 use compiler.ast.StructField as AstStructField;
 use compiler.semantic.types.StructField;
 
-impl DeclPass {
+/*
+ * ============================================================================
+ * Generic Syntax Rewriting
+ *
+ * Rewriting generic syntax in place after collection: `f<X>(...)`,
+ * `Struct<X>` type nodes and `T.size()` are replaced by their instantiated
+ * counterparts before any body is checked.
+ * ============================================================================
+ */
 
-	// Propagates generic type arguments from a target type annotation (e.g. `List<i32>`)
-	// to a call expression initializer without type arguments (e.g. `List()`).
+impl TypeResolver {
+
+	/*
+	 * Propagates generic type arguments from a target type annotation (e.g. `List<i32>`)
+	 * to a call expression initializer without type arguments (e.g. `List()`).
+	 */
 	pub fn propagate_target_type(var self, target_type_node: *AstNode?, init_node: *AstNode?) {
 		if (target_type_node == null || init_node == null) return;
 		if (target_type_node is NamedType as nt) {
@@ -75,9 +74,11 @@ impl DeclPass {
 		}
 	}
 
-	// ----------------------------------------------------------------------------
-	// Generic-use rewriting over non-template declarations
-	// ----------------------------------------------------------------------------
+	/*
+	 * ----------------------------------------------------------------------------
+	 * Generic-use rewriting over non-template declarations
+	 * ----------------------------------------------------------------------------
+	 */
 
 	pub fn rewrite_generics(var self, node: *AstNode?) {
 		if (node == null) return;
@@ -93,8 +94,10 @@ impl DeclPass {
 		return true;
 	}
 
-	// Type nodes. `List<i32>` instantiates here; a type that stays generic has its
-	// argument list rewritten element by element.
+	/*
+	 * Type nodes. `List<i32>` instantiates here; a type that stays generic has its
+	 * argument list rewritten element by element.
+	 */
 	fn rewrite_type_generics(var self, node: *AstNode): bool {
 		val target = node;
 		return when (target) {
@@ -121,10 +124,12 @@ impl DeclPass {
 		return true;
 	}
 
-	// The callee of a call carrying type arguments: a free-function template is
-	// replaced by its instantiated name, and `Struct<X>(...)` by the instantiated
-	// struct's name. A *method* template is deliberately left alone: choosing one
-	// needs the receiver's type, which only the body pass knows.
+	/*
+	 * The callee of a call carrying type arguments: a free-function template is
+	 * replaced by its instantiated name, and `Struct<X>(...)` by the instantiated
+	 * struct's name. A *method* template is deliberately left alone: choosing one
+	 * needs the receiver's type, which only the body pass knows.
+	 */
 	fn rewrite_call_target(var self, node: *AstNode, c: &CallExpr) {
 		if (c.type_args.empty()) return;
 		val callee = c.callee;

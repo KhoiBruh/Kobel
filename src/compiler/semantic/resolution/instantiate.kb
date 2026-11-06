@@ -1,0 +1,493 @@
+mod compiler.semantic.resolution;
+
+use std.memory.*;
+use std.collections.*;
+
+use compiler.core.*;
+use compiler.lexer.TokenType;
+use compiler.ast.*;
+use compiler.semantic.types.*;
+use compiler.semantic.symbols.*;
+
+use compiler.ast.StructField as AstStructField;
+use compiler.semantic.types.StructField;
+
+/*
+ * ============================================================================
+ * compiler.semantic.resolution.instantiate — Generic Template Instantiation
+ *
+ * Specializes generic struct and function templates for concrete type arguments:
+ *   - Builds specialized `StructType` memory layouts without duplicating template AST.
+ *   - Instantiates function and method views referencing specialized signatures.
+ *   - Connects trait contracts and associated type bindings for specialized structs.
+ * ============================================================================
+ */
+
+fn overloaded_names(im: *ImplDecl): List<str> {
+	var names = List<str>();
+	for (a in 0..<im.methods.len) {
+		val ma = im.methods[a];
+		var na = "";
+		if (ma is FnDecl as fna) na = fna.name;
+		if (na.empty() || na in names) continue;
+		for (b in (a + 1)..<im.methods.len) {
+			val mb = im.methods[b];
+			if (mb is FnDecl as fnb && fnb.name == na) {
+				names += na;
+				break;
+			}
+		}
+	}
+	return names;
+}
+
+fn method_c_name(base: str, argc: usz, overloaded: bool, taken: List<str>): str {
+	if (!overloaded) return base;
+	val cand = "${base}_${argc}";
+	if (!(cand in taken)) return cand;
+	var k = 2;
+	while ("${cand}_${k}" in taken) k++;
+	return "${cand}_${k}";
+}
+
+fn trait_put_method(out: &List<*TraitMethod>, m: *TraitMethod) {
+	for (i in 0..<out.len) {
+		val e = (*out)[i];
+		if (e.name == m.name && e.arity == m.arity) {
+			(*out)[i] = m;
+			return;
+		}
+	}
+	out += m;
+}
+
+impl TypeResolver {
+
+	pub fn instantiate_struct(var self, tmpl: *GenericTemplate, arg_asts: List<*AstNode>): *Type {
+		self.check_bounds(tmpl, arg_asts);
+
+		var args = List<*Type>();
+		for (a in arg_asts) args += self.resolve_ast_type(a);
+
+		val known = self.symtab.gen.find_instance_record(tmpl, args, InstanceKind.STRUCT);
+		if (known != null) {
+			val known_sym = self.find_instance_symbol(known.c_name);
+			if (known_sym != null) return known_sym.type_ptr;
+		}
+
+		val base = tmpl.module.mangle_symbol(tmpl.name);
+		val cname = "${base}_${self.type_token_list_of(args)}";
+
+		val existing = self.find_instance_symbol(cname);
+		if (existing != null) return existing.type_ptr;
+
+		if (tmpl.node is StructDecl as decl) {
+			val prev_mod = self.enter_module(tmpl.module);
+
+			val s_type = self.arena.struct_type(cname, List<StructField>());
+			val st = s_type.as_struct();
+			st.c_name = cname;
+			st.module = tmpl.module;
+			self.symtab.gen.add_inst(self.arena.create_val(Symbol(
+				cname, cname, SymbolKind.STRUCT, s_type, false, decl.public,
+				tmpl.node.line, tmpl.node.col, tmpl.node
+			)));
+
+			val mark = self.subst_names.len;
+			self.push_subst(tmpl.param_names(), args);
+
+			var has_private = false;
+			var fields = List<StructField>();
+			for (f in decl.fields) {
+				val f_type = self.resolve_ast_type(f.type_node);
+				fields += StructField(f.name, f_type, 0, f.public, f.default_val);
+				if (!f.public) has_private = true;
+			}
+
+			self.pop_subst(mark);
+
+			for (f in fields) st.fields += f;
+			st.has_private = has_private;
+			s_type.layout_struct();
+
+			for (impl_tmpl in self.symtab.gen.impl_templates) {
+				if (impl_tmpl.name != tmpl.name) continue;
+				val prev_mod2 = self.enter_module(impl_tmpl.module);
+				if (impl_tmpl.node is ImplDecl as im) {
+					self.current_self_type = s_type;
+					val mark2 = self.subst_names.len;
+					self.push_subst(impl_tmpl.param_names(), args);
+
+					var methods = List<*AstNode>();
+					for (m in im.methods) {
+						if (m is FnDecl as mf) {
+							val mview = self.make_fn_view(m, impl_tmpl, args, arg_asts, mf.name);
+							val mrec = self.arena.create_val(InstanceRecord(InstanceKind.FUNCTION, impl_tmpl, args, cname, mview));
+							mrec.sig = self.make_fn_sig(m, impl_tmpl, args, s_type);
+							self.symtab.set_node_instance(mview, mrec);
+							methods += mview;
+						}
+					}
+
+					var bindings = List<AssocBinding>();
+					for (b in im.assoc_bindings) {
+						val bty = self.resolve_ast_type(b.type_node);
+						bindings += AssocBinding(b.name, self.arena.ast_type_from_type(bty));
+					}
+
+					self.pop_subst(mark2);
+					self.current_self_type = null;
+
+					val iview = self.arena.node(
+						NodeData.ImplDecl(
+							cname, List<GenericParam>(),
+							im.trait_name, methods, bindings
+						),
+						impl_tmpl.node.line, impl_tmpl.node.col
+					);
+					self.collect_impl(iview);
+					self.queue_decl(impl_tmpl.module, iview);
+				}
+				self.leave_module(prev_mod2);
+			}
+
+			val view = self.struct_decl_view(cname, fields, decl.public, tmpl.node.line, tmpl.node.col);
+			self.queue_decl(tmpl.module, view);
+			val rec = self.arena.create_val(InstanceRecord(InstanceKind.STRUCT, tmpl, args, cname, view));
+			self.symtab.gen.add_record(rec);
+
+			self.leave_module(prev_mod);
+
+			val sym = self.find_instance_symbol(cname) ?: return self.prims().t_none();
+			return sym.type_ptr;
+		}
+		return self.symtab.prims.t_none();
+	}
+
+	fn make_fn_view(
+		var self, fn_node: *AstNode, tmpl: *GenericTemplate,
+		args: List<*Type>, arg_asts: List<*AstNode>, cname: str
+	): *AstNode {
+		if (fn_node is FnDecl as f) {
+			val mark = self.subst_names.len;
+			self.push_subst(tmpl.param_names(), args);
+
+			var params = List<Param>();
+			for (p in f.params) {
+				var pt: *AstNode? = null;
+				if (p.type_node != null) {
+					val ty = self.resolve_ast_type(p.type_node!);
+					pt = self.arena.ast_type_from_type(ty);
+				}
+				val dflt = if (p.default_val != null)
+					self.clone_expr(p.default_val!, self.alloc_subst(tmpl.param_names(), arg_asts))
+					else null;
+				params += Param(p.name, pt, p.mutable, p.has_val, dflt);
+			}
+
+			var rt: *AstNode? = null;
+			if (f.return_type != null) {
+				val rty = self.resolve_ast_type(f.return_type!);
+				rt = self.arena.ast_type_from_type(rty);
+			}
+
+			self.pop_subst(mark);
+
+			return self.arena.node(
+				NodeData.FnDecl(
+					cname, List<GenericParam>(), params,
+					rt, f.body, f.public,
+					f.operator, f.initializer, self.current_module
+				),
+				fn_node.line, fn_node.col
+			);
+		}
+		return fn_node;
+	}
+
+	fn make_fn_sig(
+		var self, fn_node: *AstNode, tmpl: *GenericTemplate,
+		args: List<*Type>, receiver: *Type?
+	): *Type {
+		if (fn_node is FnDecl as t) {
+			val mark = self.subst_names.len;
+			self.push_subst(tmpl.param_names(), args);
+
+			var param_types = List<*Type>();
+			for (p in t.params) {
+				if (p.name == "self" && p.type_node == null) {
+					if (receiver != null) param_types += self.arena.pointer_type(receiver, p.mutable);
+					else param_types += self.prims().t_none();
+					continue;
+				}
+				if (p.type_node == null) {
+					param_types += self.prims().t_none();
+					continue;
+				}
+				param_types += self.resolve_ast_type(p.type_node!);
+			}
+
+			var ret_type = self.prims().t_none();
+			if (t.return_type != null) ret_type = self.resolve_ast_type(t.return_type!);
+
+			self.pop_subst(mark);
+
+			return self.arena.fn_type(param_types, ret_type);
+		}
+		return self.symtab.prims.t_none();
+	}
+
+	fn instance_receiver_type(val self, tmpl: *GenericTemplate, args: List<*Type>): *Type? {
+		if (!tmpl.is_method || tmpl.self_type.empty()) return null;
+		val sym = self.symtab.lookup(tmpl.self_type);
+		if (sym != null) return sym.type_ptr;
+		return null;
+	}
+
+	fn struct_decl_view(
+		var self, name: str, fields: List<StructField>,
+		public: bool, line: usz, col: usz
+	): *AstNode {
+		var ast_fields = List<AstStructField>();
+		for (f in fields) {
+			ast_fields += AstStructField(f.name, self.arena.ast_type_from_type(f.type_ptr), f.public, f.default_val);
+		}
+		return self.arena.node(NodeData.StructDecl(name, List<GenericParam>(), ast_fields, public, false, true), line, col);
+	}
+
+	fn push_subst(var self, names: List<str>, args: List<*Type>) {
+		for (i in 0..<names.len) {
+			self.subst_names += names[i];
+			if (i < args.len) self.subst_types += args[i];
+			else self.subst_types += self.prims().t_none();
+		}
+	}
+
+	fn pop_subst(var self, mark: usz) {
+		while (self.subst_names.len > mark) {
+			self.subst_names.pop();
+			self.subst_types.pop();
+		}
+	}
+
+	fn canonical_type_token(val self, ty: *Type): str {
+		if (ty.is_enum()) return ty.as_enum().c_name;
+		if (ty.kind == DataType.STRUCT) {
+			val s_info = ty.as_struct();
+			if (!s_info.c_name.empty()) return s_info.c_name;
+			return s_info.name;
+		}
+		if (ty.kind == DataType.POINTER) {
+			return "ptr_${self.canonical_type_token(ty.as_pointer().pointee)}";
+		}
+		if (ty.kind == DataType.ARRAY) {
+			val a = ty.as_array();
+			return "arr${a.length}_${self.canonical_type_token(a.elem)}";
+		}
+		return self.type_token(ty);
+	}
+
+	fn type_token_list_of(val self, args: List<*Type>): str {
+		var res = "";
+		for (i in 0..<args.len) {
+			res = if (i > 0) "${res}_${self.canonical_type_token(args[i])}"
+			else self.canonical_type_token(args[i]);
+		}
+		return res;
+	}
+
+	pub fn instantiate_fn(var self, tmpl: *GenericTemplate, arg_asts: List<*AstNode>): str {
+		self.check_bounds(tmpl, arg_asts);
+
+		var args = List<*Type>();
+		for (a in arg_asts) args += self.resolve_ast_type(a);
+
+		val known = self.symtab.gen.find_instance_record(tmpl, args, InstanceKind.FUNCTION);
+		if (known != null) return known.c_name;
+
+		var base = tmpl.module.mangle_symbol(tmpl.name);
+		if (tmpl.is_method && !tmpl.self_type.empty()) {
+			base = "${tmpl.module.mangle_symbol(tmpl.self_type)}_${tmpl.name}";
+		}
+		val cname = "${base}_${self.type_token_list_of(args)}";
+
+		if (self.find_instance_symbol(cname) != null) return cname;
+
+		val prev_mod = self.enter_module(tmpl.module);
+
+		val receiver = self.instance_receiver_type(tmpl, args);
+		val view = self.make_fn_view(tmpl.node, tmpl, args, arg_asts, cname);
+		val sig = self.make_fn_sig(tmpl.node, tmpl, args, receiver);
+		self.collect_fn_as(view, cname, sig);
+		self.queue_decl(tmpl.module, view);
+		val rec = self.arena.create_val(InstanceRecord(InstanceKind.FUNCTION, tmpl, args, cname, view));
+		rec.sig = sig;
+		self.symtab.set_node_instance(view, rec);
+		self.symtab.gen.add_record(rec);
+
+		self.leave_module(prev_mod);
+		return cname;
+	}
+
+	pub fn collect_fn_as(var self, node: *AstNode, final_name: str, sig: *Type? = null) {
+		if (node is FnDecl as f) {
+			var param_types = List<*Type>();
+			for (p in f.params) param_types += if (p.type_node != null) self.resolve_ast_type(p.type_node!) else self.prims().t_none();
+			val ret_type = if (f.return_type != null) self.resolve_ast_type(f.return_type!) else self.prims().t_none();
+
+			val fn_type = sig ?: self.arena.fn_type(param_types, ret_type);
+			self.symtab.gen.add_inst(self.arena.create_val(Symbol(final_name, final_name, SymbolKind.FN, fn_type, false, f.public, node.line, node.col, node)));
+			f.name = final_name;
+		}
+	}
+
+	pub fn trait_record_impl(var self, t: *TraitInfo?, struct_name: str) {
+		if (t == null) return;
+		if (t.has_impl(struct_name)) return;
+		t.impls += struct_name;
+		for (bname in t.bases) self.trait_record_impl(self.symtab.find_trait(bname), struct_name);
+	}
+
+	pub fn trait_effective(var self, t: *TraitInfo?, out: &List<*TraitMethod>, seen: &HashSet<str>) {
+		if (t == null) return;
+		if (t.name in seen) return;
+		seen += t.name;
+
+		for (bname in t.bases) self.trait_effective(self.symtab.find_trait(bname), out, seen);
+		for (m in t.methods) trait_put_method(out, m);
+	}
+
+	fn register_assoc_bindings(var self, node: *AstNode, im: *ImplDecl, st_type: *Type, struct_name: str) {
+		var trait_info: *TraitInfo? = null;
+		if (!im.trait_name.empty()) trait_info = self.symtab.find_trait(im.trait_name);
+		if (trait_info == null) {
+			if (!im.assoc_bindings.empty()) {
+				self.report_error(node, "Associated types can only be bound in an impl of a known trait");
+			}
+			return;
+		}
+
+		val assoc_decls = trait_info.assoc_types;
+		for (b in im.assoc_bindings) {
+			var declared = false;
+			for (a in assoc_decls) if (a == b.name) declared = true;
+			if (!declared) {
+				self.report_error(node, "Trait '${trait_info.name}' has no associated type '${b.name}'");
+			}
+			if (self.symtab.find_assoc_type(struct_name, b.name) != null) {
+				self.report_error(node, "Duplicate binding of associated type '${b.name}' for '${struct_name}'");
+				continue;
+			}
+			val bound = self.resolve_ast_type(b.type_node);
+			if (bound.kind == DataType.POINTER || bound.kind == DataType.ARRAY) {
+				self.report_error(b.type_node, "Associated type '${b.name}' must be a named type (struct, enum or primitive)");
+				continue;
+			}
+			self.symtab.set_assoc_type(struct_name, b.name, bound);
+		}
+
+		for (required in assoc_decls) {
+			if (self.symtab.find_assoc_type(struct_name, required) == null) {
+				self.report_error(node, "Impl of trait '${trait_info.name}' must bind associated type '${required}'");
+			}
+		}
+	}
+
+	pub fn apply_trait(var self, node: *AstNode, im: *ImplDecl, struct_name: str) {
+		val t = self.symtab.find_trait(im.trait_name);
+		if (t == null) {
+			self.report_error(node, "Unknown trait '${im.trait_name}'");
+			return;
+		}
+
+		self.trait_record_impl(t, struct_name);
+
+		var effective = List<*TraitMethod>();
+		var seen = HashSet<str>();
+		self.trait_effective(t, &effective, &seen);
+
+		for (tm in effective) {
+			var have = false;
+			for (m in im.methods) {
+				if (m is FnDecl as f && f.name == tm.name && f.params.len == tm.arity) have = true;
+			}
+			if (have) continue;
+
+			if (!tm.has_default) {
+				self.report_error(node, "Struct '${struct_name}' does not implement required trait method '${tm.name}' of trait '${t.name}'");
+				continue;
+			}
+			im.methods += self.clone_fn(tm.node, null, tm.name);
+		}
+	}
+
+	pub fn collect_impl(var self, node: *AstNode) {
+		if (node is ImplDecl as im) {
+			if (im.type_params.len > 0) return;
+
+			var st_sym = self.symtab.lookup_in_module(self.current_module, im.struct_name);
+			if (st_sym == null) st_sym = self.symtab.lookup(im.struct_name);
+
+			if (st_sym == null || st_sym.kind != SymbolKind.STRUCT) {
+				if (im.struct_name.empty()) {
+					self.report_error(node, "Impl block requires a target struct or trait name");
+				}
+				return;
+			}
+
+			val st_type = st_sym.type_ptr;
+			val st_c_name = st_sym.c_name;
+			val st_info = st_type.as_struct();
+
+			self.current_self_type = st_type;
+			im.struct_name = st_c_name;
+
+			self.register_assoc_bindings(node, im, st_type, st_info.name);
+
+			if (!im.trait_name.empty()) self.apply_trait(node, im, st_info.name);
+
+			val overloaded = overloaded_names(im);
+			var used_names = List<str>();
+			for (m in st_info.methods) used_names += m.c_name;
+
+			for (m_node in im.methods) {
+				if (m_node is FnDecl as f) {
+					if (f.type_params.len > 0) continue;
+
+					var param_types = List<*Type>();
+					for (p in f.params) {
+						var pt: *Type = self.prims().t_none();
+						if (p.name == "self" && p.type_node == null) {
+							pt = self.arena.pointer_type(st_type, p.mutable);
+						} else if (p.type_node != null) {
+							pt = self.resolve_ast_type(p.type_node!);
+						} else {
+							pt = self.prims().t_none();
+						}
+						param_types += pt;
+					}
+
+					var ret_type: *Type = self.prims().t_none();
+					if (f.return_type != null) ret_type = self.resolve_ast_type(f.return_type!);
+
+					val rec_sig = self.symtab.get_node_instance(m_node)?.sig;
+					val fn_type = rec_sig ?: self.arena.fn_type(param_types, ret_type);
+
+					val m_c_name = method_c_name(
+						"${st_c_name}_${f.name}", param_types.len, f.name in overloaded, used_names
+					);
+					used_names += m_c_name;
+
+					val is_static = f.params.empty() || f.params[0].name != "self";
+					val mi = self.arena.create_val(MethodInfo(f.name, m_c_name, fn_type, m_node, self.current_module, f.operator, is_static, f.initializer));
+					st_info.methods += mi;
+
+					f.name = m_c_name;
+				}
+			}
+
+			self.current_self_type = null;
+		}
+	}
+
+}

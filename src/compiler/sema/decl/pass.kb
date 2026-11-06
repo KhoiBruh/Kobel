@@ -25,7 +25,7 @@ use compiler.ast.*;
 use compiler.semantic.types.*;
 use compiler.semantic.symbols.*;
 use compiler.sema.*;
-use compiler.sema.mono.*;
+use compiler.semantic.resolution.*;
 use compiler.sema.desugar.*;
 
 use compiler.ast.StructField as AstStructField;
@@ -618,5 +618,149 @@ impl DeclPass {
 			}
 			im.methods += self.clone_fn(tm.node, null, tm.name);
 		}
+	}
+
+	// ------------------------------------------------------------------------
+	// Delegation to TypeResolver (compiler.semantic.resolution)
+	// ------------------------------------------------------------------------
+
+	pub fn to_resolver(val self): TypeResolver {
+		return TypeResolver(
+			self.symtab,
+			self.arena,
+			self.current_module,
+			self.errors,
+			self.is_extern,
+			self.current_self_type,
+			self.subst_names,
+			self.subst_types,
+			self.current_fn_return_type,
+			self.mat_rec
+		);
+	}
+
+	pub fn apply_resolver(var self, val r: TypeResolver) {
+		self.symtab = r.symtab;
+		self.arena = r.arena;
+		self.current_module = r.current_module;
+		self.errors = r.errors;
+		self.is_extern = r.is_extern;
+		self.current_self_type = r.current_self_type;
+		self.subst_names = r.subst_names;
+		self.subst_types = r.subst_types;
+		self.current_fn_return_type = r.current_fn_return_type;
+		self.mat_rec = r.mat_rec;
+	}
+
+	pub fn resolve_ast_type(var self, node: *AstNode): *Type {
+		var r = self.to_resolver();
+		val res = r.resolve_ast_type(node);
+		self.apply_resolver(r);
+		return res;
+	}
+
+	pub fn instantiate_struct(var self, tmpl: *GenericTemplate, arg_asts: List<*AstNode>): *Type {
+		var r = self.to_resolver();
+		val res = r.instantiate_struct(tmpl, arg_asts);
+		self.apply_resolver(r);
+		return res;
+	}
+
+	pub fn instantiate_fn(var self, tmpl: *GenericTemplate, arg_asts: List<*AstNode>): str {
+		var r = self.to_resolver();
+		val res = r.instantiate_fn(tmpl, arg_asts);
+		self.apply_resolver(r);
+		return res;
+	}
+
+	pub fn find_fn_template(var self, name: str): *GenericTemplate? {
+		var r = self.to_resolver();
+		val res = r.find_fn_template(name);
+		self.apply_resolver(r);
+		return res;
+	}
+
+	pub fn find_struct_template(var self, name: str): *GenericTemplate? {
+		var r = self.to_resolver();
+		val res = r.find_struct_template(name);
+		self.apply_resolver(r);
+		return res;
+	}
+
+	pub fn find_method_template(var self, name: str, self_type: str = ""): *GenericTemplate? {
+		var r = self.to_resolver();
+		val res = r.find_method_template(name, self_type);
+		self.apply_resolver(r);
+		return res;
+	}
+
+	pub fn register_template(var self, node: *AstNode) {
+		var r = self.to_resolver();
+		r.register_template(node);
+		self.apply_resolver(r);
+	}
+
+	pub fn template_in_module(var self, module: str, name: str): bool {
+		var r = self.to_resolver();
+		val res = r.template_in_module(module, name);
+		self.apply_resolver(r);
+		return res;
+	}
+
+	pub fn find_instance_symbol(val self, name: str): *Symbol? {
+		return self.symtab.gen.find_instance_symbol(name);
+	}
+
+	pub fn drain_instances(var self) {
+		var r = self.to_resolver();
+		r.drain_instances();
+		self.apply_resolver(r);
+	}
+
+	pub fn rewrite_generics(var self, node: *AstNode?) {
+		var r = self.to_resolver();
+		r.rewrite_generics(node);
+		self.apply_resolver(r);
+	}
+
+	pub fn propagate_target_type(var self, target_type_node: *AstNode?, init_node: *AstNode?) {
+		var r = self.to_resolver();
+		r.propagate_target_type(target_type_node, init_node);
+		self.apply_resolver(r);
+	}
+
+	pub fn materialize_body(var self, rec: *InstanceRecord): *AstNode {
+		var r = self.to_resolver();
+		val res = r.materialize_body(rec);
+		self.apply_resolver(r);
+		return res;
+	}
+
+	pub fn clone_expr(var self, node: *AstNode?, subst: *GenericSubst? = null): *AstNode {
+		var r = self.to_resolver();
+		val res = r.clone_expr(node, subst);
+		self.apply_resolver(r);
+		return res;
+	}
+
+	pub fn clone_fn(var self, node: *AstNode, subst: *GenericSubst? = null, new_name: str = ""): *AstNode {
+		var r = self.to_resolver();
+		val res = r.clone_fn(node, subst, new_name);
+		self.apply_resolver(r);
+		return res;
+	}
+
+	pub fn clone_stmt(var self, node: *AstNode?, subst: *GenericSubst? = null): *AstNode {
+		var r = self.to_resolver();
+		val res = r.clone_stmt(node, subst);
+		self.apply_resolver(r);
+		return res;
+	}
+
+	pub fn clone_type(var self, node: *AstNode?, subst: *GenericSubst? = null): *AstNode {
+		var r = self.to_resolver();
+		val res = r.clone_type(node, subst);
+		self.apply_resolver(r);
+		return res;
 	}
 }
