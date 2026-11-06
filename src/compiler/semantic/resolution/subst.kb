@@ -1,0 +1,58 @@
+mod compiler.semantic.resolution;
+
+use std.collections.*;
+use compiler.semantic.types.Type;
+
+/*
+ * ============================================================================
+ * TypeSubst — Type Parameter Substitution Environment
+ *
+ * Manages the lexical stack of type parameter bindings (T -> concrete Type)
+ * during AST type resolution and generic template monomorphization.
+ * Inner scopes shadow outer scopes with identical parameter names.
+ * ============================================================================
+ */
+
+pub struct TypeSubst {
+	pub names: List<str> = List(),
+	pub types: List<*Type> = List()
+}
+
+impl TypeSubst {
+
+	pub init(names: List<str> = List(), types: List<*Type> = List()) =>
+		Self(names, types);
+
+	pub fn is_empty(val self): bool => self.names.empty();
+
+	pub fn len(val self): usz => self.names.len;
+
+	// Looks up a type parameter name; innermost (latest) binding wins.
+	pub fn lookup(val self, name: str): *Type? {
+		var res: *Type? = null;
+		for (i in 0..<self.names.len) {
+			if (self.names[i] == name) res = self.types[i];
+		}
+		return res;
+	}
+
+	// Pushes new parameter bindings onto the stack, returning the previous mark.
+	pub fn push(var self, names: List<str>, types: List<*Type>, fallback: *Type): usz {
+		val mark = self.names.len;
+		for (i in 0..<names.len) {
+			self.names += names[i];
+			if (i < types.len) self.types += types[i];
+			else self.types += fallback;
+		}
+		return mark;
+	}
+
+	// Restores the substitution stack to a previously saved mark.
+	pub fn pop(var self, mark: usz) {
+		while (self.names.len > mark) {
+			self.names.pop();
+			self.types.pop();
+		}
+	}
+
+}

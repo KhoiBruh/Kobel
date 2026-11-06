@@ -29,8 +29,7 @@ pub struct TypeResolver {
 	pub errors: List<str> = List(),
 	pub is_extern: bool = false,
 	pub current_self_type: *Type? = null,
-	pub subst_names: List<str> = List(),
-	pub subst_types: List<*Type> = List(),
+	pub subst: TypeSubst = TypeSubst(),
 	pub current_fn_return_type: *AstNode? = null,
 	pub mat_rec: *InstanceRecord? = null
 }
@@ -44,8 +43,7 @@ impl TypeResolver {
 		errors: List<str> = List(),
 		is_extern: bool = false,
 		current_self_type: *Type? = null,
-		subst_names: List<str> = List(),
-		subst_types: List<*Type> = List(),
+		subst: TypeSubst = TypeSubst(),
 		current_fn_return_type: *AstNode? = null,
 		mat_rec: *InstanceRecord? = null
 	) {
@@ -56,8 +54,7 @@ impl TypeResolver {
 			errors,
 			is_extern,
 			current_self_type,
-			subst_names,
-			subst_types,
+			subst,
 			current_fn_return_type,
 			mat_rec
 		);
@@ -100,14 +97,11 @@ impl TypeResolver {
 			is NamedType as var named -> {
 				val name = named.name;
 
-				var subst_res: *Type? = null;
-				for (i in 0..<self.subst_names.len) {
-					if (self.subst_names[i] == name) subst_res = self.subst_types[i];
-				}
+				val subst_res = self.subst.lookup(name);
 				if (subst_res != null) yield subst_res;
 
 				if (name == "Self" && self.current_self_type != null) {
-					if (self.subst_names.empty()) {
+					if (self.subst.is_empty()) {
 						val sinfo = self.current_self_type.as_struct();
 						if (!sinfo.c_name.empty()) named.name = sinfo.c_name;
 						else named.name = sinfo.name;
@@ -131,7 +125,7 @@ impl TypeResolver {
 						self.report_error(node, "Associated type '${assoc}' must be a named type (struct, enum or primitive)");
 						yield self.prims().t_none();
 					}
-					if (self.subst_names.empty()) named.name = self.ast_type_name_of(bound!);
+					if (self.subst.is_empty()) named.name = self.ast_type_name_of(bound!);
 					yield bound;
 				}
 
@@ -142,7 +136,7 @@ impl TypeResolver {
 					val tmpl = self.find_struct_template(name);
 					if (tmpl != null) {
 						val cty = self.instantiate_struct(tmpl, named.type_args);
-						if (self.subst_names.empty()) {
+						if (self.subst.is_empty()) {
 							named.name = cty.as_struct().name;
 							named.type_args = List<*AstNode>();
 						}

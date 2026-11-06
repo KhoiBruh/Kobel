@@ -93,8 +93,7 @@ impl TypeResolver {
 				tmpl.node.line, tmpl.node.col, tmpl.node
 			)));
 
-			val mark = self.subst_names.len;
-			self.push_subst(tmpl.param_names(), args);
+			val mark = self.subst.push(tmpl.param_names(), args, self.prims().t_none());
 
 			var has_private = false;
 			var fields = List<StructField>();
@@ -104,7 +103,7 @@ impl TypeResolver {
 				if (!f.public) has_private = true;
 			}
 
-			self.pop_subst(mark);
+			self.subst.pop(mark);
 
 			for (f in fields) st.fields += f;
 			st.has_private = has_private;
@@ -115,8 +114,7 @@ impl TypeResolver {
 				val prev_mod2 = self.enter_module(impl_tmpl.module);
 				if (impl_tmpl.node is ImplDecl as im) {
 					self.current_self_type = s_type;
-					val mark2 = self.subst_names.len;
-					self.push_subst(impl_tmpl.param_names(), args);
+					val mark2 = self.subst.push(impl_tmpl.param_names(), args, self.prims().t_none());
 
 					var methods = List<*AstNode>();
 					for (m in im.methods) {
@@ -135,7 +133,7 @@ impl TypeResolver {
 						bindings += AssocBinding(b.name, self.arena.ast_type_from_type(bty));
 					}
 
-					self.pop_subst(mark2);
+					self.subst.pop(mark2);
 					self.current_self_type = null;
 
 					val iview = self.arena.node(
@@ -145,7 +143,7 @@ impl TypeResolver {
 						),
 						impl_tmpl.node.line, impl_tmpl.node.col
 					);
-					self.collect_impl(iview);
+					self.register_instance_impl(iview);
 					self.queue_decl(impl_tmpl.module, iview);
 				}
 				self.leave_module(prev_mod2);
@@ -169,8 +167,7 @@ impl TypeResolver {
 		args: List<*Type>, arg_asts: List<*AstNode>, cname: str
 	): *AstNode {
 		if (fn_node is FnDecl as f) {
-			val mark = self.subst_names.len;
-			self.push_subst(tmpl.param_names(), args);
+			val mark = self.subst.push(tmpl.param_names(), args, self.prims().t_none());
 
 			var params = List<Param>();
 			for (p in f.params) {
@@ -191,7 +188,7 @@ impl TypeResolver {
 				rt = self.arena.ast_type_from_type(rty);
 			}
 
-			self.pop_subst(mark);
+			self.subst.pop(mark);
 
 			return self.arena.node(
 				NodeData.FnDecl(
@@ -210,8 +207,7 @@ impl TypeResolver {
 		args: List<*Type>, receiver: *Type?
 	): *Type {
 		if (fn_node is FnDecl as t) {
-			val mark = self.subst_names.len;
-			self.push_subst(tmpl.param_names(), args);
+			val mark = self.subst.push(tmpl.param_names(), args, self.prims().t_none());
 
 			var param_types = List<*Type>();
 			for (p in t.params) {
@@ -230,7 +226,7 @@ impl TypeResolver {
 			var ret_type = self.prims().t_none();
 			if (t.return_type != null) ret_type = self.resolve_ast_type(t.return_type!);
 
-			self.pop_subst(mark);
+			self.subst.pop(mark);
 
 			return self.arena.fn_type(param_types, ret_type);
 		}
@@ -253,21 +249,6 @@ impl TypeResolver {
 			ast_fields += AstStructField(f.name, self.arena.ast_type_from_type(f.type_ptr), f.public, f.default_val);
 		}
 		return self.arena.node(NodeData.StructDecl(name, List<GenericParam>(), ast_fields, public, false, true), line, col);
-	}
-
-	fn push_subst(var self, names: List<str>, args: List<*Type>) {
-		for (i in 0..<names.len) {
-			self.subst_names += names[i];
-			if (i < args.len) self.subst_types += args[i];
-			else self.subst_types += self.prims().t_none();
-		}
-	}
-
-	fn pop_subst(var self, mark: usz) {
-		while (self.subst_names.len > mark) {
-			self.subst_names.pop();
-			self.subst_types.pop();
-		}
 	}
 
 	fn canonical_type_token(val self, ty: *Type): str {
@@ -421,7 +402,7 @@ impl TypeResolver {
 		}
 	}
 
-	pub fn collect_impl(var self, node: *AstNode) {
+	pub fn register_instance_impl(var self, node: *AstNode) {
 		if (node is ImplDecl as im) {
 			if (im.type_params.len > 0) return;
 

@@ -343,6 +343,7 @@ typedef struct compiler__semantic__symbols__ImportBinding compiler__semantic__sy
 typedef struct compiler__semantic__symbols__ModuleScope compiler__semantic__symbols__ModuleScope;
 typedef struct compiler__semantic__symbols__SymbolTable compiler__semantic__symbols__SymbolTable;
 typedef struct compiler__semantic__resolution__TypeResolver compiler__semantic__resolution__TypeResolver;
+typedef struct compiler__semantic__resolution__TypeSubst compiler__semantic__resolution__TypeSubst;
 typedef struct compiler__sema__decl__DeclPass compiler__sema__decl__DeclPass;
 typedef struct compiler__sema__body__BodyPass compiler__sema__body__BodyPass;
 typedef struct compiler__sema__body__ArrowCandidate compiler__sema__body__ArrowCandidate;
@@ -1565,17 +1566,9 @@ struct compiler__semantic__symbols__SymbolTable {
     compiler__semantic__symbols__SemanticTable* sem;
 };
 
-struct compiler__semantic__resolution__TypeResolver {
-    compiler__semantic__symbols__SymbolTable symtab;
-    std__memory__Arena arena;
-    kobel_str current_module;
-    std__collections__List_str errors;
-    bool is_extern;
-    compiler__semantic__types__Type* current_self_type;
-    std__collections__List_str subst_names;
-    std__collections__List_ptr_compiler__semantic__types__Type subst_types;
-    compiler__ast__AstNode* current_fn_return_type;
-    compiler__semantic__symbols__InstanceRecord* mat_rec;
+struct compiler__semantic__resolution__TypeSubst {
+    std__collections__List_str names;
+    std__collections__List_ptr_compiler__semantic__types__Type types;
 };
 
 struct compiler__sema__decl__DeclPass {
@@ -1684,6 +1677,18 @@ struct lsp__JsonValue {
     std__collections__List_ptr_lsp__JsonValue arr_val;
     std__collections__List_str obj_keys;
     std__collections__List_ptr_lsp__JsonValue obj_vals;
+};
+
+struct compiler__semantic__resolution__TypeResolver {
+    compiler__semantic__symbols__SymbolTable symtab;
+    std__memory__Arena arena;
+    kobel_str current_module;
+    std__collections__List_str errors;
+    bool is_extern;
+    compiler__semantic__types__Type* current_self_type;
+    compiler__semantic__resolution__TypeSubst subst;
+    compiler__ast__AstNode* current_fn_return_type;
+    compiler__semantic__symbols__InstanceRecord* mat_rec;
 };
 
 static inline std__collections__List_ptr_compiler__ast__AstNode std__collections__List_ptr_compiler__ast__AstNode_from_array(const void* src, size_t n) {
@@ -2571,8 +2576,6 @@ compiler__ast__AstNode* compiler__semantic__resolution__TypeResolver_make_fn_vie
 compiler__semantic__types__Type* compiler__semantic__resolution__TypeResolver_make_fn_sig(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* fn_node, compiler__semantic__symbols__GenericTemplate* tmpl, std__collections__List_ptr_compiler__semantic__types__Type args, compiler__semantic__types__Type* receiver);
 compiler__semantic__types__Type* compiler__semantic__resolution__TypeResolver_instance_receiver_type(compiler__semantic__resolution__TypeResolver* self, compiler__semantic__symbols__GenericTemplate* tmpl, std__collections__List_ptr_compiler__semantic__types__Type args);
 compiler__ast__AstNode* compiler__semantic__resolution__TypeResolver_struct_decl_view(compiler__semantic__resolution__TypeResolver* self, kobel_str name, std__collections__List_compiler__semantic__types__StructField fields, bool public, size_t line, size_t col);
-void compiler__semantic__resolution__TypeResolver_push_subst(compiler__semantic__resolution__TypeResolver* self, std__collections__List_str names, std__collections__List_ptr_compiler__semantic__types__Type args);
-void compiler__semantic__resolution__TypeResolver_pop_subst(compiler__semantic__resolution__TypeResolver* self, size_t mark);
 kobel_str compiler__semantic__resolution__TypeResolver_canonical_type_token(compiler__semantic__resolution__TypeResolver* self, compiler__semantic__types__Type* ty);
 kobel_str compiler__semantic__resolution__TypeResolver_type_token_list_of(compiler__semantic__resolution__TypeResolver* self, std__collections__List_ptr_compiler__semantic__types__Type args);
 kobel_str compiler__semantic__resolution__TypeResolver_instantiate_fn(compiler__semantic__resolution__TypeResolver* self, compiler__semantic__symbols__GenericTemplate* tmpl, std__collections__List_ptr_compiler__ast__AstNode arg_asts);
@@ -2581,7 +2584,7 @@ void compiler__semantic__resolution__TypeResolver_trait_record_impl(compiler__se
 void compiler__semantic__resolution__TypeResolver_trait_effective(compiler__semantic__resolution__TypeResolver* self, compiler__semantic__types__TraitInfo* t, std__collections__List_ptr_compiler__semantic__types__TraitMethod* out, std__collections__HashSet_str* seen);
 void compiler__semantic__resolution__TypeResolver_register_assoc_bindings(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node, compiler__ast__NodeData__ImplDecl* im, compiler__semantic__types__Type* st_type, kobel_str struct_name);
 void compiler__semantic__resolution__TypeResolver_apply_trait(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node, compiler__ast__NodeData__ImplDecl* im, kobel_str struct_name);
-void compiler__semantic__resolution__TypeResolver_collect_impl(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node);
+void compiler__semantic__resolution__TypeResolver_register_instance_impl(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node);
 bool compiler__semantic__resolution__template_matches(compiler__semantic__symbols__TemplateKind kind, compiler__semantic__symbols__GenericTemplate* t, kobel_str name);
 void compiler__semantic__resolution__TypeResolver_register_template(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node);
 compiler__semantic__symbols__GenericTemplate* compiler__semantic__resolution__TypeResolver_generic_template(compiler__semantic__resolution__TypeResolver* self, kobel_str name, compiler__ast__AstNode* node, bool is_method, kobel_str self_type);
@@ -2599,7 +2602,7 @@ void compiler__semantic__resolution__TypeResolver_check_bounds(compiler__semanti
 compiler__semantic__symbols__GenericSubst* compiler__semantic__resolution__TypeResolver_alloc_subst(compiler__semantic__resolution__TypeResolver* self, std__collections__List_str names, std__collections__List_ptr_compiler__ast__AstNode args);
 void compiler__semantic__resolution__TypeResolver_queue_decl(compiler__semantic__resolution__TypeResolver* self, kobel_str module, compiler__ast__AstNode* node);
 void compiler__semantic__resolution__TypeResolver_drain_instances(compiler__semantic__resolution__TypeResolver* self);
-compiler__semantic__resolution__TypeResolver compiler__semantic__resolution__TypeResolver_init(compiler__semantic__symbols__SymbolTable symtab, std__memory__Arena arena, kobel_str current_module, std__collections__List_str errors, bool is_extern, compiler__semantic__types__Type* current_self_type, std__collections__List_str subst_names, std__collections__List_ptr_compiler__semantic__types__Type subst_types, compiler__ast__AstNode* current_fn_return_type, compiler__semantic__symbols__InstanceRecord* mat_rec);
+compiler__semantic__resolution__TypeResolver compiler__semantic__resolution__TypeResolver_init(compiler__semantic__symbols__SymbolTable symtab, std__memory__Arena arena, kobel_str current_module, std__collections__List_str errors, bool is_extern, compiler__semantic__types__Type* current_self_type, compiler__semantic__resolution__TypeSubst subst, compiler__ast__AstNode* current_fn_return_type, compiler__semantic__symbols__InstanceRecord* mat_rec);
 compiler__semantic__types__PrimTypes* compiler__semantic__resolution__TypeResolver_prims(compiler__semantic__resolution__TypeResolver* self);
 kobel_str compiler__semantic__resolution__TypeResolver_enter_module(compiler__semantic__resolution__TypeResolver* self, kobel_str module);
 void compiler__semantic__resolution__TypeResolver_leave_module(compiler__semantic__resolution__TypeResolver* self, kobel_str prev);
@@ -2616,6 +2619,12 @@ void compiler__semantic__resolution__TypeResolver_rewrite_call_target(compiler__
 bool compiler__semantic__resolution__TypeResolver_rewrite_expr_generics(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node);
 bool compiler__semantic__resolution__TypeResolver_rewrite_stmt_generics(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node);
 bool compiler__semantic__resolution__TypeResolver_rewrite_decl_generics(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node);
+compiler__semantic__resolution__TypeSubst compiler__semantic__resolution__TypeSubst_init(std__collections__List_str names, std__collections__List_ptr_compiler__semantic__types__Type types);
+bool compiler__semantic__resolution__TypeSubst_is_empty(compiler__semantic__resolution__TypeSubst* self);
+size_t compiler__semantic__resolution__TypeSubst_len(compiler__semantic__resolution__TypeSubst* self);
+compiler__semantic__types__Type* compiler__semantic__resolution__TypeSubst_lookup(compiler__semantic__resolution__TypeSubst* self, kobel_str name);
+size_t compiler__semantic__resolution__TypeSubst_push(compiler__semantic__resolution__TypeSubst* self, std__collections__List_str names, std__collections__List_ptr_compiler__semantic__types__Type types, compiler__semantic__types__Type* fallback);
+void compiler__semantic__resolution__TypeSubst_pop(compiler__semantic__resolution__TypeSubst* self, size_t mark);
 compiler__semantic__types__TraitMethod* compiler__sema__decl__trait_method_in(std__collections__List_ptr_compiler__semantic__types__TraitMethod list, kobel_str name, size_t arity);
 void compiler__sema__decl__DeclPass_collect_module(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node);
 void compiler__sema__decl__DeclPass_collect_use(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node);
@@ -12759,8 +12768,7 @@ compiler__semantic__types__Type* compiler__semantic__resolution__TypeResolver_in
             st->c_name = cname;
             st->module = tmpl->module;
             compiler__semantic__symbols__GenericRegistry_add_inst(&self->symtab.gen, std__memory__Arena_create_val_compiler__semantic__symbols__Symbol(&self->arena, (compiler__semantic__symbols__Symbol){ cname, cname, 4, s_type, false, decl->public, (*tmpl->node).line, (*tmpl->node).col, tmpl->node, NULL, false }));
-            size_t mark = self->subst_names.len;
-            compiler__semantic__resolution__TypeResolver_push_subst(self, compiler__semantic__symbols__GenericTemplate_param_names(tmpl), args);
+            size_t mark = compiler__semantic__resolution__TypeSubst_push(&self->subst, compiler__semantic__symbols__GenericTemplate_param_names(tmpl), args, compiler__semantic__types__PrimTypes_t_none(compiler__semantic__resolution__TypeResolver_prims(self)));
             bool has_private = false;
             std__collections__List_compiler__semantic__types__StructField fields = std__collections__List_compiler__semantic__types__StructField_init(4);
             {
@@ -12776,7 +12784,7 @@ compiler__semantic__types__Type* compiler__semantic__resolution__TypeResolver_in
                     __for_i = (__for_i + 1);
                 }
             }
-            compiler__semantic__resolution__TypeResolver_pop_subst(self, mark);
+            compiler__semantic__resolution__TypeSubst_pop(&self->subst, mark);
             {
                 size_t __for_n = std__collections__List_compiler__semantic__types__StructField_count(&fields);
                 size_t __for_i = 0;
@@ -12802,8 +12810,7 @@ compiler__semantic__types__Type* compiler__semantic__resolution__TypeResolver_in
                         compiler__ast__NodeData__ImplDecl* im = NULL;
                         if ((impl_tmpl->node != NULL && impl_tmpl->node->data.tag == compiler__ast__NodeData__ImplDecl__TAG && (im = (compiler__ast__NodeData__ImplDecl*)(&(impl_tmpl->node)->data.u.ImplDecl), 1))) {
                             self->current_self_type = s_type;
-                            size_t mark2 = self->subst_names.len;
-                            compiler__semantic__resolution__TypeResolver_push_subst(self, compiler__semantic__symbols__GenericTemplate_param_names(impl_tmpl), args);
+                            size_t mark2 = compiler__semantic__resolution__TypeSubst_push(&self->subst, compiler__semantic__symbols__GenericTemplate_param_names(impl_tmpl), args, compiler__semantic__types__PrimTypes_t_none(compiler__semantic__resolution__TypeResolver_prims(self)));
                             std__collections__List_ptr_compiler__ast__AstNode methods = std__collections__List_ptr_compiler__ast__AstNode_init(4);
                             {
                                 size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&im->methods);
@@ -12834,10 +12841,10 @@ compiler__semantic__types__Type* compiler__semantic__resolution__TypeResolver_in
                                     __for_i = (__for_i + 1);
                                 }
                             }
-                            compiler__semantic__resolution__TypeResolver_pop_subst(self, mark2);
+                            compiler__semantic__resolution__TypeSubst_pop(&self->subst, mark2);
                             self->current_self_type = NULL;
                             compiler__ast__AstNode* iview = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 41, .u.ImplDecl = { cname, std__collections__List_compiler__ast__GenericParam_init(4), im->trait_name, methods, bindings } }, (*impl_tmpl->node).line, (*impl_tmpl->node).col);
-                            compiler__semantic__resolution__TypeResolver_collect_impl(self, iview);
+                            compiler__semantic__resolution__TypeResolver_register_instance_impl(self, iview);
                             compiler__semantic__resolution__TypeResolver_queue_decl(self, impl_tmpl->module, iview);
                         }
                     }
@@ -12864,8 +12871,7 @@ compiler__ast__AstNode* compiler__semantic__resolution__TypeResolver_make_fn_vie
     {
         compiler__ast__NodeData__FnDecl* f = NULL;
         if ((fn_node != NULL && fn_node->data.tag == compiler__ast__NodeData__FnDecl__TAG && (f = (compiler__ast__NodeData__FnDecl*)(&(fn_node)->data.u.FnDecl), 1))) {
-            size_t mark = self->subst_names.len;
-            compiler__semantic__resolution__TypeResolver_push_subst(self, compiler__semantic__symbols__GenericTemplate_param_names(tmpl), args);
+            size_t mark = compiler__semantic__resolution__TypeSubst_push(&self->subst, compiler__semantic__symbols__GenericTemplate_param_names(tmpl), args, compiler__semantic__types__PrimTypes_t_none(compiler__semantic__resolution__TypeResolver_prims(self)));
             std__collections__List_compiler__ast__Param params = std__collections__List_compiler__ast__Param_init(4);
             {
                 size_t __for_n = std__collections__List_compiler__ast__Param_count(&f->params);
@@ -12887,7 +12893,7 @@ compiler__ast__AstNode* compiler__semantic__resolution__TypeResolver_make_fn_vie
                 compiler__semantic__types__Type* rty = compiler__semantic__resolution__TypeResolver_resolve_ast_type(self, f->return_type);
                 rt = std__memory__Arena_ast_type_from_type(&self->arena, rty);
             }
-            compiler__semantic__resolution__TypeResolver_pop_subst(self, mark);
+            compiler__semantic__resolution__TypeSubst_pop(&self->subst, mark);
             return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 38, .u.FnDecl = { cname, std__collections__List_compiler__ast__GenericParam_init(4), params, rt, f->body, f->public, f->operator, f->initializer, self->current_module } }, fn_node->line, fn_node->col);
         }
     }
@@ -12898,8 +12904,7 @@ compiler__semantic__types__Type* compiler__semantic__resolution__TypeResolver_ma
     {
         compiler__ast__NodeData__FnDecl* t = NULL;
         if ((fn_node != NULL && fn_node->data.tag == compiler__ast__NodeData__FnDecl__TAG && (t = (compiler__ast__NodeData__FnDecl*)(&(fn_node)->data.u.FnDecl), 1))) {
-            size_t mark = self->subst_names.len;
-            compiler__semantic__resolution__TypeResolver_push_subst(self, compiler__semantic__symbols__GenericTemplate_param_names(tmpl), args);
+            size_t mark = compiler__semantic__resolution__TypeSubst_push(&self->subst, compiler__semantic__symbols__GenericTemplate_param_names(tmpl), args, compiler__semantic__types__PrimTypes_t_none(compiler__semantic__resolution__TypeResolver_prims(self)));
             std__collections__List_ptr_compiler__semantic__types__Type param_types = std__collections__List_ptr_compiler__semantic__types__Type_init(4);
             {
                 size_t __for_n = std__collections__List_compiler__ast__Param_count(&t->params);
@@ -12932,7 +12937,7 @@ compiler__semantic__types__Type* compiler__semantic__resolution__TypeResolver_ma
             if (t->return_type != NULL) {
                 ret_type = compiler__semantic__resolution__TypeResolver_resolve_ast_type(self, t->return_type);
             }
-            compiler__semantic__resolution__TypeResolver_pop_subst(self, mark);
+            compiler__semantic__resolution__TypeSubst_pop(&self->subst, mark);
             return std__memory__Arena_fn_type(&self->arena, param_types, ret_type);
         }
     }
@@ -12962,49 +12967,6 @@ compiler__ast__AstNode* compiler__semantic__resolution__TypeResolver_struct_decl
         }
     }
     return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 39, .u.StructDecl = { name, std__collections__List_compiler__ast__GenericParam_init(4), ast_fields, public, false, true } }, line, col);
-}
-
-void compiler__semantic__resolution__TypeResolver_push_subst(compiler__semantic__resolution__TypeResolver* self, std__collections__List_str names, std__collections__List_ptr_compiler__semantic__types__Type args) {
-    {
-        size_t __for_e = names.len;
-        size_t __for_i = __for_e;
-        __for_i = 0;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            __for_go = (__for_i < __for_e);
-        } else {
-            __for_go = (__for_i > __for_e);
-        }
-        while (__for_go) {
-            size_t i = __for_i;
-            std__collections__List_str_plus_assign(&self->subst_names, std__collections__List_str_get(&names, i));
-            if (i < args.len) {
-                std__collections__List_ptr_compiler__semantic__types__Type_plus_assign(&self->subst_types, std__collections__List_ptr_compiler__semantic__types__Type_get(&args, i));
-            } else {
-                std__collections__List_ptr_compiler__semantic__types__Type_plus_assign(&self->subst_types, compiler__semantic__types__PrimTypes_t_none(compiler__semantic__resolution__TypeResolver_prims(self)));
-            }
-            if (__for_up) {
-                __for_go = ((__for_i + 1) < __for_e);
-            } else {
-                __for_go = ((__for_i - 1) > __for_e);
-            }
-            if (__for_go) {
-                if (__for_up) {
-                    __for_i = (__for_i + 1);
-                } else {
-                    __for_i = (__for_i - 1);
-                }
-            }
-        }
-    }
-}
-
-void compiler__semantic__resolution__TypeResolver_pop_subst(compiler__semantic__resolution__TypeResolver* self, size_t mark) {
-    while (self->subst_names.len > mark) {
-        std__collections__List_str_pop(&self->subst_names);
-        std__collections__List_ptr_compiler__semantic__types__Type_pop(&self->subst_types);
-    }
 }
 
 kobel_str compiler__semantic__resolution__TypeResolver_canonical_type_token(compiler__semantic__resolution__TypeResolver* self, compiler__semantic__types__Type* ty) {
@@ -13280,7 +13242,7 @@ void compiler__semantic__resolution__TypeResolver_apply_trait(compiler__semantic
     }
 }
 
-void compiler__semantic__resolution__TypeResolver_collect_impl(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node) {
+void compiler__semantic__resolution__TypeResolver_register_instance_impl(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node) {
     {
         compiler__ast__NodeData__ImplDecl* im = NULL;
         if ((node != NULL && node->data.tag == compiler__ast__NodeData__ImplDecl__TAG && (im = (compiler__ast__NodeData__ImplDecl*)(&(node)->data.u.ImplDecl), 1))) {
@@ -13797,8 +13759,8 @@ void compiler__semantic__resolution__TypeResolver_drain_instances(compiler__sema
     }
 }
 
-compiler__semantic__resolution__TypeResolver compiler__semantic__resolution__TypeResolver_init(compiler__semantic__symbols__SymbolTable symtab, std__memory__Arena arena, kobel_str current_module, std__collections__List_str errors, bool is_extern, compiler__semantic__types__Type* current_self_type, std__collections__List_str subst_names, std__collections__List_ptr_compiler__semantic__types__Type subst_types, compiler__ast__AstNode* current_fn_return_type, compiler__semantic__symbols__InstanceRecord* mat_rec) {
-    return (compiler__semantic__resolution__TypeResolver){ symtab, arena, current_module, errors, is_extern, current_self_type, subst_names, subst_types, current_fn_return_type, mat_rec };
+compiler__semantic__resolution__TypeResolver compiler__semantic__resolution__TypeResolver_init(compiler__semantic__symbols__SymbolTable symtab, std__memory__Arena arena, kobel_str current_module, std__collections__List_str errors, bool is_extern, compiler__semantic__types__Type* current_self_type, compiler__semantic__resolution__TypeSubst subst, compiler__ast__AstNode* current_fn_return_type, compiler__semantic__symbols__InstanceRecord* mat_rec) {
+    return (compiler__semantic__resolution__TypeResolver){ symtab, arena, current_module, errors, is_extern, current_self_type, subst, current_fn_return_type, mat_rec };
 }
 
 compiler__semantic__types__PrimTypes* compiler__semantic__resolution__TypeResolver_prims(compiler__semantic__resolution__TypeResolver* self) {
@@ -13842,42 +13804,12 @@ compiler__semantic__types__Type* compiler__semantic__resolution__TypeResolver_re
     if (node != NULL && node->data.tag == compiler__ast__NodeData__NamedType__TAG) {
         compiler__ast__NodeData__NamedType* named = (compiler__ast__NodeData__NamedType*)(&(node)->data.u.NamedType);
         kobel_str name = named->name;
-        compiler__semantic__types__Type* subst_res = NULL;
-        {
-            size_t __for_e = self->subst_names.len;
-            size_t __for_i = __for_e;
-            __for_i = 0;
-            bool __for_up = (__for_i <= __for_e);
-            bool __for_go = false;
-            if (__for_up) {
-                __for_go = (__for_i < __for_e);
-            } else {
-                __for_go = (__for_i > __for_e);
-            }
-            while (__for_go) {
-                size_t i = __for_i;
-                if (kobel_streq(std__collections__List_str_get(&self->subst_names, i), name)) {
-                    subst_res = std__collections__List_ptr_compiler__semantic__types__Type_get(&self->subst_types, i);
-                }
-                if (__for_up) {
-                    __for_go = ((__for_i + 1) < __for_e);
-                } else {
-                    __for_go = ((__for_i - 1) > __for_e);
-                }
-                if (__for_go) {
-                    if (__for_up) {
-                        __for_i = (__for_i + 1);
-                    } else {
-                        __for_i = (__for_i - 1);
-                    }
-                }
-            }
-        }
+        compiler__semantic__types__Type* subst_res = compiler__semantic__resolution__TypeSubst_lookup(&self->subst, name);
         if (subst_res != NULL) {
             return subst_res;
         }
         if (kobel_streq(name, KOBEL_STR("Self")) && (self->current_self_type != NULL)) {
-            if (std__collections__List_str_empty(&self->subst_names)) {
+            if (compiler__semantic__resolution__TypeSubst_is_empty(&self->subst)) {
                 compiler__semantic__types__StructType* sinfo = compiler__semantic__types__Type_as_struct(self->current_self_type);
                 if (!str_empty(sinfo->c_name)) {
                     named->name = sinfo->c_name;
@@ -13903,7 +13835,7 @@ compiler__semantic__types__Type* compiler__semantic__resolution__TypeResolver_re
                 compiler__semantic__resolution__TypeResolver_report_error(self, node, kobel_concat3(KOBEL_STR("Associated type '"), assoc, KOBEL_STR("' must be a named type (struct, enum or primitive)")));
                 return compiler__semantic__types__PrimTypes_t_none(compiler__semantic__resolution__TypeResolver_prims(self));
             }
-            if (std__collections__List_str_empty(&self->subst_names)) {
+            if (compiler__semantic__resolution__TypeSubst_is_empty(&self->subst)) {
                 named->name = compiler__semantic__resolution__TypeResolver_ast_type_name_of(self, bound);
             }
             return bound;
@@ -13916,7 +13848,7 @@ compiler__semantic__types__Type* compiler__semantic__resolution__TypeResolver_re
             compiler__semantic__symbols__GenericTemplate* tmpl = compiler__semantic__resolution__TypeResolver_find_struct_template(self, name);
             if (tmpl != NULL) {
                 compiler__semantic__types__Type* cty = compiler__semantic__resolution__TypeResolver_instantiate_struct(self, tmpl, named->type_args);
-                if (std__collections__List_str_empty(&self->subst_names)) {
+                if (compiler__semantic__resolution__TypeSubst_is_empty(&self->subst)) {
                     named->name = (*compiler__semantic__types__Type_as_struct(cty)).name;
                     named->type_args = std__collections__List_ptr_compiler__ast__AstNode_init(4);
                 }
@@ -14425,6 +14357,98 @@ bool compiler__semantic__resolution__TypeResolver_rewrite_decl_generics(compiler
         return true;
     } else {
         return false;
+    }
+}
+
+compiler__semantic__resolution__TypeSubst compiler__semantic__resolution__TypeSubst_init(std__collections__List_str names, std__collections__List_ptr_compiler__semantic__types__Type types) {
+    return (compiler__semantic__resolution__TypeSubst){ names, types };
+}
+
+bool compiler__semantic__resolution__TypeSubst_is_empty(compiler__semantic__resolution__TypeSubst* self) {
+    return std__collections__List_str_empty(&self->names);
+}
+
+size_t compiler__semantic__resolution__TypeSubst_len(compiler__semantic__resolution__TypeSubst* self) {
+    return self->names.len;
+}
+
+compiler__semantic__types__Type* compiler__semantic__resolution__TypeSubst_lookup(compiler__semantic__resolution__TypeSubst* self, kobel_str name) {
+    compiler__semantic__types__Type* res = NULL;
+    {
+        size_t __for_e = self->names.len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            if (kobel_streq(std__collections__List_str_get(&self->names, i), name)) {
+                res = std__collections__List_ptr_compiler__semantic__types__Type_get(&self->types, i);
+            }
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return res;
+}
+
+size_t compiler__semantic__resolution__TypeSubst_push(compiler__semantic__resolution__TypeSubst* self, std__collections__List_str names, std__collections__List_ptr_compiler__semantic__types__Type types, compiler__semantic__types__Type* fallback) {
+    size_t mark = self->names.len;
+    {
+        size_t __for_e = names.len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            std__collections__List_str_plus_assign(&self->names, std__collections__List_str_get(&names, i));
+            if (i < types.len) {
+                std__collections__List_ptr_compiler__semantic__types__Type_plus_assign(&self->types, std__collections__List_ptr_compiler__semantic__types__Type_get(&types, i));
+            } else {
+                std__collections__List_ptr_compiler__semantic__types__Type_plus_assign(&self->types, fallback);
+            }
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    return mark;
+}
+
+void compiler__semantic__resolution__TypeSubst_pop(compiler__semantic__resolution__TypeSubst* self, size_t mark) {
+    while (self->names.len > mark) {
+        std__collections__List_str_pop(&self->names);
+        std__collections__List_ptr_compiler__semantic__types__Type_pop(&self->types);
     }
 }
 
@@ -15992,7 +16016,7 @@ void compiler__sema__decl__DeclPass_apply_trait(compiler__sema__decl__DeclPass* 
 }
 
 compiler__semantic__resolution__TypeResolver compiler__sema__decl__DeclPass_to_resolver(compiler__sema__decl__DeclPass* self) {
-    return compiler__semantic__resolution__TypeResolver_init(self->symtab, self->arena, self->current_module, self->errors, self->is_extern, self->current_self_type, self->subst_names, self->subst_types, self->current_fn_return_type, self->mat_rec);
+    return compiler__semantic__resolution__TypeResolver_init(self->symtab, self->arena, self->current_module, self->errors, self->is_extern, self->current_self_type, compiler__semantic__resolution__TypeSubst_init(self->subst_names, self->subst_types), self->current_fn_return_type, self->mat_rec);
 }
 
 void compiler__sema__decl__DeclPass_apply_resolver(compiler__sema__decl__DeclPass* self, compiler__semantic__resolution__TypeResolver r) {
@@ -16002,8 +16026,8 @@ void compiler__sema__decl__DeclPass_apply_resolver(compiler__sema__decl__DeclPas
     self->errors = r.errors;
     self->is_extern = r.is_extern;
     self->current_self_type = r.current_self_type;
-    self->subst_names = r.subst_names;
-    self->subst_types = r.subst_types;
+    self->subst_names = r.subst.names;
+    self->subst_types = r.subst.types;
     self->current_fn_return_type = r.current_fn_return_type;
     self->mat_rec = r.mat_rec;
 }

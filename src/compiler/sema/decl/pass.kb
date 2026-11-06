@@ -632,8 +632,7 @@ impl DeclPass {
 			self.errors,
 			self.is_extern,
 			self.current_self_type,
-			self.subst_names,
-			self.subst_types,
+			TypeSubst(self.subst_names, self.subst_types),
 			self.current_fn_return_type,
 			self.mat_rec
 		);
@@ -646,8 +645,8 @@ impl DeclPass {
 		self.errors = r.errors;
 		self.is_extern = r.is_extern;
 		self.current_self_type = r.current_self_type;
-		self.subst_names = r.subst_names;
-		self.subst_types = r.subst_types;
+		self.subst_names = r.subst.names;
+		self.subst_types = r.subst.types;
 		self.current_fn_return_type = r.current_fn_return_type;
 		self.mat_rec = r.mat_rec;
 	}
