@@ -4,7 +4,7 @@ use std.ascii.*;
 use std.filesystem.*;
 use std.collections.*;
 
-use util.*;
+use compiler.core.*;
 
 use compiler.lexer.*;
 use compiler.parser.*;

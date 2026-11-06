@@ -11,7 +11,7 @@ mod compiler.sema;
 use std.collections.*;
 use std.memory.*;
 
-use util.*;
+
 
 // ============================================================================
 // Canonical Primitive Types

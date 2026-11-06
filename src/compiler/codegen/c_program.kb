@@ -2,7 +2,7 @@ mod compiler.codegen;
 
 use std.collections.*;
 
-use util.*;
+
 
 use compiler.lexer.*;
 use compiler.ast.*;

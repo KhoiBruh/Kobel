@@ -12,7 +12,7 @@ mod compiler.sema.decl;
 use std.memory.*;
 use std.collections.*;
 
-use util.*;
+use compiler.core.*;
 
 use compiler.lexer.*;
 use compiler.ast.*;

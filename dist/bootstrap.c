@@ -2125,14 +2125,6 @@ std__filesystem__Path std__filesystem__Path_to_posix_path(std__filesystem__Path*
 std__filesystem__Path std__filesystem__Path_normalize(std__filesystem__Path* self);
 kobel_str std__filesystem__Path_to_str(std__filesystem__Path* self);
 config__ProjectConfig config__ProjectConfig_init(kobel_str manifest_path);
-kobel_str str_module_to_rel(kobel_str self);
-kobel_str str_path_to_module(kobel_str self);
-bool str_has_kb_suffix(kobel_str self);
-kobel_str str_strip_kb(kobel_str self);
-kobel_str str_mangle_symbol(kobel_str self, kobel_str name);
-kobel_str str_hash_stamp(kobel_str self);
-kobel_str util__multiline_escape_for_c(kobel_str text);
-kobel_str util__str_join_dots(std__collections__List_str parts, size_t count);
 config__Toml config__Toml_init(kobel_str content);
 kobel_str config__Toml_get_3(config__Toml* self, kobel_str key, kobel_str default_val);
 kobel_str config__Toml_get_2(config__Toml* self, kobel_str key);
@@ -2143,17 +2135,6 @@ void std__process__Process_exit(int32_t code);
 bool std__system__System_is_windows(void);
 bool std__system__System_has_env(kobel_str name);
 kobel_str std__system__System_get_env(kobel_str name);
-bool compiler__driver__str_before(kobel_str a, kobel_str b);
-void compiler__driver__collect_kb_files(kobel_str dir, kobel_str prefix, std__collections__List_str* out);
-kobel_str compiler__driver__compute_project_stamp(config__ProjectConfig cfg, kobel_str manifest_path);
-int32_t compiler__driver__cmd_build(kobel_str manifest_path);
-int32_t compiler__driver__cmd_run(kobel_str manifest_path, std__collections__List_str extra_args);
-std__collections__List_str compiler__driver__discover_test_files(kobel_str test_dir);
-int32_t compiler__driver__cmd_test(kobel_str manifest_path, kobel_str filter);
-std__collections__List_str compiler__driver__snap_corpus(kobel_str test_dir);
-kobel_str compiler__driver__snap_name(kobel_str path);
-int32_t compiler__driver__cmd_snap(kobel_str manifest_path, bool update);
-int32_t compiler__driver__cmd_fixpoint(kobel_str manifest_path);
 bool char_is_digit(char self);
 bool char_is_alpha(char self);
 bool char_is_alphanumeric(char self);
@@ -2186,6 +2167,13 @@ compiler__core__SymbolId compiler__core__InternPool_intern(compiler__core__Inter
 kobel_str compiler__core__InternPool_resolve(compiler__core__InternPool* self, compiler__core__SymbolId sym);
 size_t compiler__core__InternPool_count(compiler__core__InternPool* self);
 void compiler__core__InternPool_free(compiler__core__InternPool* self);
+kobel_str str_module_to_rel(kobel_str self);
+kobel_str str_path_to_module(kobel_str self);
+bool str_has_kb_suffix(kobel_str self);
+kobel_str str_strip_kb(kobel_str self);
+kobel_str str_mangle_symbol(kobel_str self, kobel_str name);
+kobel_str str_hash_stamp(kobel_str self);
+kobel_str compiler__core__str_join_dots(std__collections__List_str parts, size_t count);
 compiler__core__Span compiler__core__Span_init(uint32_t file_id, size_t line, size_t col, size_t length);
 bool compiler__core__Span_is_valid(compiler__core__Span* self);
 compiler__core__SourceFile compiler__core__SourceFile_init(uint32_t id, kobel_str path, kobel_str module_name, kobel_str content);
@@ -2198,6 +2186,17 @@ compiler__core__SourceFile* compiler__core__SourceMap_find_by_path(compiler__cor
 compiler__core__SourceFile* compiler__core__SourceMap_find_by_module(compiler__core__SourceMap* self, kobel_str module_name);
 size_t compiler__core__SourceMap_count(compiler__core__SourceMap* self);
 void compiler__core__SourceMap_free(compiler__core__SourceMap* self);
+bool compiler__driver__str_before(kobel_str a, kobel_str b);
+void compiler__driver__collect_kb_files(kobel_str dir, kobel_str prefix, std__collections__List_str* out);
+kobel_str compiler__driver__compute_project_stamp(config__ProjectConfig cfg, kobel_str manifest_path);
+int32_t compiler__driver__cmd_build(kobel_str manifest_path);
+int32_t compiler__driver__cmd_run(kobel_str manifest_path, std__collections__List_str extra_args);
+std__collections__List_str compiler__driver__discover_test_files(kobel_str test_dir);
+int32_t compiler__driver__cmd_test(kobel_str manifest_path, kobel_str filter);
+std__collections__List_str compiler__driver__snap_corpus(kobel_str test_dir);
+kobel_str compiler__driver__snap_name(kobel_str path);
+int32_t compiler__driver__cmd_snap(kobel_str manifest_path, bool update);
+int32_t compiler__driver__cmd_fixpoint(kobel_str manifest_path);
 compiler__lexer__TokenType compiler__lexer__lookup_keyword(kobel_str text);
 compiler__lexer__Lexer compiler__lexer__Lexer_init(kobel_str src);
 bool compiler__lexer__Lexer_is_end(compiler__lexer__Lexer* self);
@@ -2248,6 +2247,7 @@ bool compiler__parser__num_literal_is_float(kobel_str text);
 bool compiler__parser__str_has_hole(kobel_str text);
 bool compiler__parser__str_has_esc_dollar(kobel_str text);
 kobel_str compiler__parser__normalize_esc_dollar(kobel_str text);
+kobel_str compiler__parser__multiline_escape_for_c(kobel_str text);
 size_t compiler__parser__interp_skip_char_lit(kobel_str text, size_t start);
 size_t compiler__parser__interp_skip_quoted(kobel_str text, size_t start);
 intptr_t compiler__parser__interp_find_close(kobel_str text, size_t start);
@@ -6114,6 +6114,452 @@ config__ProjectConfig config__ProjectConfig_init(kobel_str manifest_path) {
     return self;
 }
 
+config__Toml config__Toml_init(kobel_str content) {
+    config__Toml self = (config__Toml){ std__collections__HashMap_str_str_init(16) };
+    std__collections__List_str lines = str_split_lines(content);
+    kobel_str current_section = KOBEL_STR("");
+    {
+        size_t __for_n = std__collections__List_str_count(&lines);
+        size_t __for_i = 0;
+        while (__for_i < __for_n) {
+            kobel_str line = std__collections__List_str_at(&lines, __for_i);
+            kobel_str trimmed = str_trim(line);
+            if (str_empty(trimmed) || str_starts_with(trimmed, KOBEL_STR("#"))) {
+                __for_i = (__for_i + 1);
+                continue;
+            }
+            if ((str_starts_with(trimmed, KOBEL_STR("[")) && str_ends_with(trimmed, KOBEL_STR("]"))) && (trimmed.len >= 2)) {
+                current_section = str_trim(kobel_slice(trimmed, 1, (trimmed.len - 1)));
+                {
+                    __for_i = (__for_i + 1);
+                    continue;
+                }
+            }
+            intptr_t eq_pos = str_index_of(trimmed, KOBEL_STR("="));
+            if (eq_pos > 0) {
+                kobel_str key_raw = str_trim(kobel_slice(trimmed, 0, eq_pos));
+                kobel_str val_raw = str_trim(kobel_slice(trimmed, (eq_pos + 1), trimmed.len));
+                kobel_str val_clean = ((((val_raw.len >= 2) && (str_starts_with(val_raw, KOBEL_STR("\"")) && str_ends_with(val_raw, KOBEL_STR("\"")))) || (str_starts_with(val_raw, KOBEL_STR("'")) && str_ends_with(val_raw, KOBEL_STR("'")))) ? kobel_slice(val_raw, 1, (val_raw.len - 1)) : val_raw);
+                kobel_str full_key = (!str_empty(current_section) ? kobel_concat3(current_section, KOBEL_STR("."), key_raw) : key_raw);
+                std__collections__HashMap_str_str_set(&self.entries, full_key, val_clean);
+            }
+            __for_i = (__for_i + 1);
+        }
+    }
+    return self;
+}
+
+kobel_str config__Toml_get_3(config__Toml* self, kobel_str key, kobel_str default_val) {
+    return std__collections__HashMap_str_str_get_or(&self->entries, key, default_val);
+}
+
+kobel_str config__Toml_get_2(config__Toml* self, kobel_str key) {
+    return std__collections__HashMap_str_str_get_or(&self->entries, key, KOBEL_STR(""));
+}
+
+void config__Toml_set(config__Toml* self, kobel_str key, kobel_str value) {
+    std__collections__HashMap_str_str_set(&self->entries, key, value);
+}
+
+bool config__Toml_contains(config__Toml* self, kobel_str key) {
+    return std__collections__HashMap_str_str_contains(&self->entries, key);
+}
+
+int32_t std__process__Process_exec(kobel_str cmd) {
+    return system(kobel_cstr(cmd));
+}
+
+void std__process__Process_exit(int32_t code) {
+    exit(code);
+}
+
+bool std__system__System_is_windows(void) {
+    return ((getenv(kobel_cstr(KOBEL_STR("SystemRoot"))) != NULL) || (getenv(kobel_cstr(KOBEL_STR("WINDIR"))) != NULL));
+}
+
+bool std__system__System_has_env(kobel_str name) {
+    return (getenv(kobel_cstr(name)) != NULL);
+}
+
+kobel_str std__system__System_get_env(kobel_str name) {
+    const char* raw = getenv(kobel_cstr(name));
+    if (raw == NULL) {
+        return KOBEL_STR("");
+    }
+    return kobel_from_cstr((const char*)(raw));
+}
+
+bool char_is_digit(char self) {
+    return ((self >= '0') && (self <= '9'));
+}
+
+bool char_is_alpha(char self) {
+    return (((self >= 'a') && (self <= 'z')) || ((self >= 'A') && (self <= 'Z')));
+}
+
+bool char_is_alphanumeric(char self) {
+    return (char_is_alpha(self) || char_is_digit(self));
+}
+
+bool char_is_whitespace(char self) {
+    return ((((self == ' ') || (self == '\t')) || (self == '\n')) || (self == '\r'));
+}
+
+bool char_is_hex_digit(char self) {
+    return ((char_is_digit(self) || ((self >= 'a') && (self <= 'f'))) || ((self >= 'A') && (self <= 'F')));
+}
+
+char char_to_lower(char self) {
+    if ((self >= 'A') && (self <= 'Z')) {
+        int32_t offset = (((int32_t)(uint8_t)(self)) + 32);
+        return ((char)(offset));
+    }
+    return self;
+}
+
+char char_to_upper(char self) {
+    if ((self >= 'a') && (self <= 'z')) {
+        int32_t offset = (((int32_t)(uint8_t)(self)) - 32);
+        return ((char)(offset));
+    }
+    return self;
+}
+
+kobel_str compiler__core__resolve_diagnostic_path(kobel_str target, kobel_str default_file, compiler__core__SourceMap* sources) {
+    if (str_empty(target)) {
+        return default_file;
+    }
+    if ((str_ends_with(target, KOBEL_STR(".kb")) || str_contains(target, KOBEL_STR("/"))) || str_contains(target, KOBEL_STR("\\"))) {
+        return str_to_posix_path(target);
+    }
+    if (sources != NULL) {
+        compiler__core__SourceFile* by_mod = compiler__core__SourceMap_find_by_module(sources, target);
+        if (by_mod != NULL) {
+            return str_to_posix_path(by_mod->path);
+        }
+    }
+    kobel_str rel = kobel_concat(str_module_to_rel(target), KOBEL_STR(".kb"));
+    if (std__filesystem__File_exists(kobel_concat(KOBEL_STR("src/"), rel))) {
+        return kobel_concat(KOBEL_STR("src/"), rel);
+    }
+    if (std__filesystem__File_exists(kobel_concat(KOBEL_STR("lib/"), rel))) {
+        return kobel_concat(KOBEL_STR("lib/"), rel);
+    }
+    if (std__filesystem__File_exists(rel)) {
+        return rel;
+    }
+    return target;
+}
+
+compiler__core__Diagnostic compiler__core__Diagnostic_init(compiler__core__Severity severity, compiler__core__Span span, kobel_str file_path, kobel_str message, kobel_str hint) {
+    return (compiler__core__Diagnostic){ severity, span, file_path, message, hint };
+}
+
+compiler__core__Diagnostic compiler__core__Diagnostic_error(compiler__core__Span span, kobel_str file_path, kobel_str message, kobel_str hint) {
+    return compiler__core__Diagnostic_init(0, span, file_path, message, hint);
+}
+
+compiler__core__Diagnostic compiler__core__Diagnostic_warning(compiler__core__Span span, kobel_str file_path, kobel_str message, kobel_str hint) {
+    return compiler__core__Diagnostic_init(1, span, file_path, message, hint);
+}
+
+kobel_str compiler__core__Diagnostic_key(compiler__core__Diagnostic* self) {
+    return kobel_concat3(kobel_concat5(self->file_path, KOBEL_STR(":"), usz_to_str(self->span.line), KOBEL_STR(":"), usz_to_str(self->span.col)), KOBEL_STR(":"), self->message);
+}
+
+compiler__core__Diagnostic compiler__core__Diagnostic_parse_legacy(kobel_str raw, kobel_str default_file, compiler__core__Severity severity, compiler__core__SourceMap* sources) {
+    kobel_str line_kw = KOBEL_STR("Line ");
+    intptr_t line_pos = str_index_of(raw, line_kw);
+    if (line_pos >= 0) {
+        kobel_str prefix = ((line_pos > 0) ? str_trim(kobel_slice(raw, 0, (size_t)line_pos)) : KOBEL_STR(""));
+        kobel_str target = (str_ends_with(prefix, KOBEL_STR(":")) ? str_trim(kobel_slice(prefix, 0, (prefix.len - 1))) : prefix);
+        if (str_empty(target)) {
+            target = default_file;
+        }
+        size_t l_idx = (((size_t)line_pos) + line_kw.len);
+        size_t line_num = 0;
+        while ((l_idx < raw.len) && char_is_digit(raw.data[l_idx])) {
+            line_num = ((line_num * 10) + (size_t)(((int32_t)(uint8_t)(raw.data[l_idx])) - 48));
+            l_idx++;
+        }
+        while ((l_idx < raw.len) && ((raw.data[l_idx] == ' ') || (raw.data[l_idx] == ','))) {
+            l_idx++;
+        }
+        size_t col_num = 0;
+        kobel_str col_kw = KOBEL_STR("Column ");
+        kobel_str rest = kobel_slice(raw, l_idx, raw.len);
+        intptr_t c_pos = str_index_of(rest, col_kw);
+        if (c_pos >= 0) {
+            l_idx = ((l_idx + ((size_t)c_pos)) + col_kw.len);
+            while ((l_idx < raw.len) && char_is_digit(raw.data[l_idx])) {
+                col_num = ((col_num * 10) + (size_t)(((int32_t)(uint8_t)(raw.data[l_idx])) - 48));
+                l_idx++;
+            }
+        }
+        while ((l_idx < raw.len) && ((raw.data[l_idx] == ':') || (raw.data[l_idx] == ' '))) {
+            l_idx++;
+        }
+        kobel_str msg = str_trim(kobel_slice(raw, l_idx, raw.len));
+        kobel_str file_path = compiler__core__resolve_diagnostic_path(target, default_file, sources);
+        return compiler__core__Diagnostic_init(severity, compiler__core__Span_init(0, line_num, col_num, 1), file_path, msg, KOBEL_STR(""));
+    }
+    intptr_t colon_pos = str_index_of(raw, KOBEL_STR(":"));
+    if (colon_pos >= 0) {
+        size_t c_idx = (size_t)colon_pos;
+        kobel_str target = str_trim(kobel_slice(raw, 0, c_idx));
+        kobel_str msg = str_trim(kobel_slice(raw, (c_idx + 1), raw.len));
+        kobel_str file_path = compiler__core__resolve_diagnostic_path(target, default_file, sources);
+        return compiler__core__Diagnostic_init(severity, compiler__core__Span_init(0, 0, 0, 1), file_path, msg, KOBEL_STR(""));
+    }
+    return compiler__core__Diagnostic_init(severity, compiler__core__Span_init(0, 0, 0, 1), default_file, raw, KOBEL_STR(""));
+}
+
+kobel_str compiler__core__Diagnostic_render(compiler__core__Diagnostic* self, compiler__core__SourceMap* sources) {
+    kobel_str c_red = KOBEL_STR("\x1b[1;31m");
+    kobel_str c_yellow = KOBEL_STR("\x1b[1;33m");
+    kobel_str c_blue = KOBEL_STR("\x1b[1;34m");
+    kobel_str c_bold = KOBEL_STR("\x1b[1m");
+    kobel_str c_reset = KOBEL_STR("\x1b[0m");
+    kobel_str prefix = (self->severity == 1 ? kobel_concat3(c_yellow, KOBEL_STR("warning"), c_reset) : (self->severity == 2 ? kobel_concat3(c_blue, KOBEL_STR("note"), c_reset) : kobel_concat3(c_red, KOBEL_STR("error"), c_reset)));
+    std__string__StringBuilder sb = std__string__StringBuilder_init(256);
+    std__string__StringBuilder_plus_assign_2(&sb, prefix);
+    std__string__StringBuilder_plus_assign_2(&sb, c_bold);
+    std__string__StringBuilder_plus_assign_2(&sb, KOBEL_STR(": "));
+    std__string__StringBuilder_plus_assign_2(&sb, self->message);
+    std__string__StringBuilder_plus_assign_2(&sb, c_reset);
+    std__string__StringBuilder_plus_assign_2_2(&sb, '\n');
+    if (!str_empty(self->file_path)) {
+        std__string__StringBuilder_plus_assign_2(&sb, KOBEL_STR("  "));
+        std__string__StringBuilder_plus_assign_2(&sb, c_blue);
+        std__string__StringBuilder_plus_assign_2(&sb, KOBEL_STR("-->"));
+        std__string__StringBuilder_plus_assign_2(&sb, c_reset);
+        std__string__StringBuilder_plus_assign_2_2(&sb, ' ');
+        std__string__StringBuilder_plus_assign_2(&sb, self->file_path);
+        if (self->span.line > 0) {
+            std__string__StringBuilder_plus_assign_2_2(&sb, ':');
+            std__string__StringBuilder_plus_assign_2_7(&sb, self->span.line);
+            std__string__StringBuilder_plus_assign_2_2(&sb, ':');
+            std__string__StringBuilder_plus_assign_2_7(&sb, self->span.col);
+        }
+        std__string__StringBuilder_plus_assign_2_2(&sb, '\n');
+    }
+    kobel_str raw_line = KOBEL_STR("");
+    bool have_line = false;
+    if (self->span.line > 0) {
+        if (sources != NULL) {
+            compiler__core__SourceFile* sf = ((self->span.file_id > 0) ? compiler__core__SourceMap_get_file(sources, self->span.file_id) : compiler__core__SourceMap_find_by_path(sources, self->file_path));
+            if ((sf != NULL) && (self->span.line <= sf->lines.len)) {
+                raw_line = compiler__core__SourceFile_line_text(sf, self->span.line);
+                have_line = true;
+            }
+        }
+        if ((!have_line && !str_empty(self->file_path)) && std__filesystem__File_exists(self->file_path)) {
+            kobel_str content = std__filesystem__File_read(self->file_path);
+            if (!str_empty(content)) {
+                std__collections__List_str lines = str_split_lines(content);
+                if ((self->span.line >= 1) && (self->span.line <= lines.len)) {
+                    raw_line = std__collections__List_str_get(&lines, (self->span.line - 1));
+                    have_line = true;
+                }
+                std__collections__List_str_free(&lines);
+            }
+        }
+    }
+    if (have_line) {
+        kobel_str line_str = usz_to_str(self->span.line);
+        size_t gutter_w = ((line_str.len < 2) ? 2 : line_str.len);
+        std__string__StringBuilder_plus_assign_2_2(&sb, ' ');
+        if (gutter_w > line_str.len) {
+            std__string__StringBuilder_append_repeat(&sb, ' ', (gutter_w - line_str.len));
+        }
+        std__string__StringBuilder_append_repeat(&sb, ' ', line_str.len);
+        std__string__StringBuilder_plus_assign_2_2(&sb, ' ');
+        std__string__StringBuilder_plus_assign_2(&sb, c_blue);
+        std__string__StringBuilder_plus_assign_2_2(&sb, '|');
+        std__string__StringBuilder_plus_assign_2(&sb, c_reset);
+        std__string__StringBuilder_plus_assign_2_2(&sb, '\n');
+        std__string__StringBuilder_plus_assign_2_2(&sb, ' ');
+        std__string__StringBuilder_plus_assign_2(&sb, c_blue);
+        if (gutter_w > line_str.len) {
+            std__string__StringBuilder_append_repeat(&sb, ' ', (gutter_w - line_str.len));
+        }
+        std__string__StringBuilder_plus_assign_2(&sb, line_str);
+        std__string__StringBuilder_plus_assign_2(&sb, KOBEL_STR(" |"));
+        std__string__StringBuilder_plus_assign_2(&sb, c_reset);
+        std__string__StringBuilder_plus_assign_2_2(&sb, ' ');
+        std__string__StringBuilder_plus_assign_2(&sb, raw_line);
+        std__string__StringBuilder_plus_assign_2_2(&sb, '\n');
+        std__string__StringBuilder_plus_assign_2_2(&sb, ' ');
+        std__string__StringBuilder_append_repeat(&sb, ' ', gutter_w);
+        std__string__StringBuilder_plus_assign_2_2(&sb, ' ');
+        std__string__StringBuilder_plus_assign_2(&sb, c_blue);
+        std__string__StringBuilder_plus_assign_2_2(&sb, '|');
+        std__string__StringBuilder_plus_assign_2(&sb, c_reset);
+        std__string__StringBuilder_plus_assign_2_2(&sb, ' ');
+        size_t limit = ((self->span.col > 1) ? (self->span.col - 1) : 0);
+        {
+            size_t __for_e = limit;
+            size_t __for_i = __for_e;
+            __for_i = 0;
+            bool __for_up = (__for_i <= __for_e);
+            bool __for_go = false;
+            if (__for_up) {
+                __for_go = (__for_i < __for_e);
+            } else {
+                __for_go = (__for_i > __for_e);
+            }
+            while (__for_go) {
+                size_t i = __for_i;
+                if ((i < raw_line.len) && (raw_line.data[i] == '\t')) {
+                    std__string__StringBuilder_plus_assign_2_2(&sb, '\t');
+                } else {
+                    std__string__StringBuilder_plus_assign_2_2(&sb, ' ');
+                }
+                if (__for_up) {
+                    __for_go = ((__for_i + 1) < __for_e);
+                } else {
+                    __for_go = ((__for_i - 1) > __for_e);
+                }
+                if (__for_go) {
+                    if (__for_up) {
+                        __for_i = (__for_i + 1);
+                    } else {
+                        __for_i = (__for_i - 1);
+                    }
+                }
+            }
+        }
+        kobel_str caret_color = ((self->severity == 1) ? c_yellow : c_red);
+        std__string__StringBuilder_plus_assign_2(&sb, caret_color);
+        size_t caret_len = ((self->span.length > 1) ? self->span.length : 1);
+        std__string__StringBuilder_append_repeat(&sb, '^', caret_len);
+        std__string__StringBuilder_plus_assign_2(&sb, c_reset);
+        std__string__StringBuilder_plus_assign_2_2(&sb, '\n');
+    }
+    if (!str_empty(self->hint)) {
+        std__string__StringBuilder_plus_assign_2(&sb, KOBEL_STR("  "));
+        std__string__StringBuilder_plus_assign_2(&sb, c_blue);
+        std__string__StringBuilder_plus_assign_2(&sb, KOBEL_STR("= help: "));
+        std__string__StringBuilder_plus_assign_2(&sb, c_reset);
+        std__string__StringBuilder_plus_assign_2(&sb, self->hint);
+        std__string__StringBuilder_plus_assign_2_2(&sb, '\n');
+    }
+    {
+        kobel_str __ret_tmp = std__string__StringBuilder_to_str(&sb);
+        std__string__StringBuilder_free(&sb);
+        return __ret_tmp;
+    }
+}
+
+compiler__core__DiagnosticBag compiler__core__DiagnosticBag_init(void) {
+    return (compiler__core__DiagnosticBag){ std__collections__List_compiler__core__Diagnostic_init(4), std__collections__HashSet_str_init(16), 0, 0 };
+}
+
+bool compiler__core__DiagnosticBag_has_errors(compiler__core__DiagnosticBag* self) {
+    return (self->error_count > 0);
+}
+
+bool compiler__core__DiagnosticBag_empty(compiler__core__DiagnosticBag* self) {
+    return std__collections__List_compiler__core__Diagnostic_empty(&self->items);
+}
+
+void compiler__core__DiagnosticBag_add(compiler__core__DiagnosticBag* self, compiler__core__Diagnostic diag) {
+    kobel_str k = compiler__core__Diagnostic_key(&diag);
+    if (std__collections__HashSet_str_contains(&self->seen, k)) {
+        return;
+    }
+    std__collections__HashSet_str_plus_assign(&self->seen, k);
+    std__collections__List_compiler__core__Diagnostic_plus_assign(&self->items, diag);
+    if (diag.severity == 0) {
+        self->error_count++;
+    } else if (diag.severity == 1) {
+        self->warning_count++;
+    }
+}
+
+void compiler__core__DiagnosticBag_report_error(compiler__core__DiagnosticBag* self, compiler__core__Span span, kobel_str file_path, kobel_str message, kobel_str hint) {
+    compiler__core__DiagnosticBag_add(self, compiler__core__Diagnostic_error(span, file_path, message, hint));
+}
+
+void compiler__core__DiagnosticBag_report_warning(compiler__core__DiagnosticBag* self, compiler__core__Span span, kobel_str file_path, kobel_str message, kobel_str hint) {
+    compiler__core__DiagnosticBag_add(self, compiler__core__Diagnostic_warning(span, file_path, message, hint));
+}
+
+void compiler__core__DiagnosticBag_print_all(compiler__core__DiagnosticBag* self, kobel_str default_file, compiler__core__SourceMap* sources) {
+    {
+        size_t __for_n = std__collections__List_compiler__core__Diagnostic_count(&self->items);
+        size_t __for_i = 0;
+        while (__for_i < __for_n) {
+            compiler__core__Diagnostic d = std__collections__List_compiler__core__Diagnostic_at(&self->items, __for_i);
+            std__io__print(compiler__core__Diagnostic_render(&d, sources));
+            std__io__println(KOBEL_STR(""));
+            __for_i = (__for_i + 1);
+        }
+    }
+    if (self->error_count > 0) {
+        std__io__println(kobel_concat5(KOBEL_STR("\x1b[1;31merror\x1b[0m: could not compile '"), default_file, KOBEL_STR("' due to "), usz_to_str(self->error_count), KOBEL_STR(" previous error(s)")));
+    }
+}
+
+void compiler__core__DiagnosticBag_free(compiler__core__DiagnosticBag* self) {
+    std__collections__List_compiler__core__Diagnostic_free(&self->items);
+    std__collections__HashSet_str_free(&self->seen);
+}
+
+compiler__core__SymbolId compiler__core__SymbolId_init(uint32_t id) {
+    return (compiler__core__SymbolId){ id };
+}
+
+bool compiler__core__SymbolId_is_valid(compiler__core__SymbolId* self) {
+    return (self->id != 0);
+}
+
+bool compiler__core__SymbolId_equals(compiler__core__SymbolId* self, compiler__core__SymbolId other) {
+    return (self->id == other.id);
+}
+
+size_t compiler__core__SymbolId_hash(compiler__core__SymbolId* self) {
+    return usz_hash(((size_t)self->id));
+}
+
+kobel_str compiler__core__SymbolId_to_str(compiler__core__SymbolId* self) {
+    return u32_to_str(self->id);
+}
+
+compiler__core__InternPool compiler__core__InternPool_init(void) {
+    return (compiler__core__InternPool){ std__collections__List_str_init(4), std__collections__HashMap_str_u32_init(16) };
+}
+
+compiler__core__SymbolId compiler__core__InternPool_intern(compiler__core__InternPool* self, kobel_str text) {
+    if (str_empty(text)) {
+        return compiler__core__SymbolId_init(0);
+    }
+    uint32_t* found = std__collections__HashMap_str_u32_get(&self->lookup, text);
+    if (found != NULL) {
+        return compiler__core__SymbolId_init(*found);
+    }
+    uint32_t next_id = (uint32_t)(self->strings.len + 1);
+    std__collections__List_str_plus_assign(&self->strings, text);
+    std__collections__HashMap_str_u32_set(&self->lookup, text, next_id);
+    return compiler__core__SymbolId_init(next_id);
+}
+
+kobel_str compiler__core__InternPool_resolve(compiler__core__InternPool* self, compiler__core__SymbolId sym) {
+    if ((sym.id == 0) || (((size_t)sym.id) > self->strings.len)) {
+        return KOBEL_STR("");
+    }
+    return std__collections__List_str_get(&self->strings, (size_t)(sym.id - 1));
+}
+
+size_t compiler__core__InternPool_count(compiler__core__InternPool* self) {
+    return self->strings.len;
+}
+
+void compiler__core__InternPool_free(compiler__core__InternPool* self) {
+    std__collections__List_str_free(&self->strings);
+    std__collections__HashMap_str_u32_free(&self->lookup);
+}
+
 kobel_str str_module_to_rel(kobel_str self) {
     return str_replace_char(self, '.', '/');
 }
@@ -6223,65 +6669,7 @@ kobel_str str_hash_stamp(kobel_str self) {
     return kobel_concat3(u64_to_str(h), KOBEL_STR("_"), usz_to_str(self.len));
 }
 
-kobel_str util__multiline_escape_for_c(kobel_str text) {
-    std__string__StringBuilder out = std__string__StringBuilder_init(32);
-    std__string__StringBuilder_plus_assign_2_2(&out, '"');
-    size_t i = 0;
-    while (i < text.len) {
-        char c = text.data[i];
-        if (c == '\\') {
-            if ((i + 1) < text.len) {
-                char next_c = text.data[(i + 1)];
-                if (next_c == '$') {
-                    std__string__StringBuilder_plus_assign_2_2(&out, '$');
-                    i += 2;
-                    continue;
-                }
-                if (next_c == '\\') {
-                    std__string__StringBuilder_plus_assign_2(&out, KOBEL_STR("\\\\"));
-                    i += 2;
-                    continue;
-                }
-                if (next_c == '"') {
-                    std__string__StringBuilder_plus_assign_2(&out, KOBEL_STR("\\\""));
-                    i += 2;
-                    continue;
-                }
-                std__string__StringBuilder_plus_assign_2_2(&out, '\\');
-                std__string__StringBuilder_plus_assign_2_2(&out, next_c);
-                i += 2;
-                continue;
-            }
-            std__string__StringBuilder_plus_assign_2(&out, KOBEL_STR("\\\\"));
-            i++;
-            continue;
-        }
-        if (c == '"') {
-            std__string__StringBuilder_plus_assign_2(&out, KOBEL_STR("\\\""));
-            i++;
-            continue;
-        }
-        if (c == '\n') {
-            std__string__StringBuilder_plus_assign_2(&out, KOBEL_STR("\\n"));
-            i++;
-            continue;
-        }
-        if (c == '\r') {
-            i++;
-            continue;
-        }
-        std__string__StringBuilder_plus_assign_2_2(&out, c);
-        i++;
-    }
-    std__string__StringBuilder_plus_assign_2_2(&out, '"');
-    {
-        kobel_str __ret_tmp = std__string__StringBuilder_to_str(&out);
-        std__string__StringBuilder_free(&out);
-        return __ret_tmp;
-    }
-}
-
-kobel_str util__str_join_dots(std__collections__List_str parts, size_t count) {
+kobel_str compiler__core__str_join_dots(std__collections__List_str parts, size_t count) {
     size_t total = 0;
     {
         size_t __for_e = count;
@@ -6362,79 +6750,88 @@ kobel_str util__str_join_dots(std__collections__List_str parts, size_t count) {
     return std__string__str_from_bytes(buf, w);
 }
 
-config__Toml config__Toml_init(kobel_str content) {
-    config__Toml self = (config__Toml){ std__collections__HashMap_str_str_init(16) };
+compiler__core__Span compiler__core__Span_init(uint32_t file_id, size_t line, size_t col, size_t length) {
+    return (compiler__core__Span){ file_id, line, col, ((length == 0) ? 1 : length) };
+}
+
+bool compiler__core__Span_is_valid(compiler__core__Span* self) {
+    return (self->line > 0);
+}
+
+compiler__core__SourceFile compiler__core__SourceFile_init(uint32_t id, kobel_str path, kobel_str module_name, kobel_str content) {
     std__collections__List_str lines = str_split_lines(content);
-    kobel_str current_section = KOBEL_STR("");
+    return (compiler__core__SourceFile){ id, path, module_name, content, lines };
+}
+
+kobel_str compiler__core__SourceFile_line_text(compiler__core__SourceFile* self, size_t line_num) {
+    if ((line_num == 0) || (line_num > self->lines.len)) {
+        return KOBEL_STR("");
+    }
+    return std__collections__List_str_get(&self->lines, (line_num - 1));
+}
+
+void compiler__core__SourceFile_free(compiler__core__SourceFile* self) {
+    std__collections__List_str_free(&self->lines);
+}
+
+compiler__core__SourceMap compiler__core__SourceMap_init(void) {
+    return (compiler__core__SourceMap){ std__collections__List_compiler__core__SourceFile_init(4), std__collections__HashMap_str_u32_init(16), std__collections__HashMap_str_u32_init(16) };
+}
+
+uint32_t compiler__core__SourceMap_add_file(compiler__core__SourceMap* self, kobel_str path, kobel_str module_name, kobel_str content) {
+    uint32_t* existing = std__collections__HashMap_str_u32_get(&self->path_index, path);
+    if (existing != NULL) {
+        return *existing;
+    }
+    uint32_t id = (uint32_t)(self->files.len + 1);
+    std__collections__List_compiler__core__SourceFile_plus_assign(&self->files, compiler__core__SourceFile_init(id, path, module_name, content));
+    std__collections__HashMap_str_u32_set(&self->path_index, path, id);
+    if (!str_empty(module_name)) {
+        std__collections__HashMap_str_u32_set(&self->module_index, module_name, id);
+    }
+    return id;
+}
+
+compiler__core__SourceFile* compiler__core__SourceMap_get_file(compiler__core__SourceMap* self, uint32_t file_id) {
+    if ((file_id == 0) || (((size_t)file_id) > self->files.len)) {
+        return NULL;
+    }
+    return &self->files.data[(size_t)(file_id - 1)];
+}
+
+compiler__core__SourceFile* compiler__core__SourceMap_find_by_path(compiler__core__SourceMap* self, kobel_str path) {
+    uint32_t* id_ptr = std__collections__HashMap_str_u32_get(&self->path_index, path);
+    if (id_ptr == NULL) {
+        return NULL;
+    }
+    return compiler__core__SourceMap_get_file(self, *id_ptr);
+}
+
+compiler__core__SourceFile* compiler__core__SourceMap_find_by_module(compiler__core__SourceMap* self, kobel_str module_name) {
+    uint32_t* id_ptr = std__collections__HashMap_str_u32_get(&self->module_index, module_name);
+    if (id_ptr == NULL) {
+        return NULL;
+    }
+    return compiler__core__SourceMap_get_file(self, *id_ptr);
+}
+
+size_t compiler__core__SourceMap_count(compiler__core__SourceMap* self) {
+    return self->files.len;
+}
+
+void compiler__core__SourceMap_free(compiler__core__SourceMap* self) {
     {
-        size_t __for_n = std__collections__List_str_count(&lines);
+        size_t __for_n = std__collections__List_compiler__core__SourceFile_count(&self->files);
         size_t __for_i = 0;
         while (__for_i < __for_n) {
-            kobel_str line = std__collections__List_str_at(&lines, __for_i);
-            kobel_str trimmed = str_trim(line);
-            if (str_empty(trimmed) || str_starts_with(trimmed, KOBEL_STR("#"))) {
-                __for_i = (__for_i + 1);
-                continue;
-            }
-            if ((str_starts_with(trimmed, KOBEL_STR("[")) && str_ends_with(trimmed, KOBEL_STR("]"))) && (trimmed.len >= 2)) {
-                current_section = str_trim(kobel_slice(trimmed, 1, (trimmed.len - 1)));
-                {
-                    __for_i = (__for_i + 1);
-                    continue;
-                }
-            }
-            intptr_t eq_pos = str_index_of(trimmed, KOBEL_STR("="));
-            if (eq_pos > 0) {
-                kobel_str key_raw = str_trim(kobel_slice(trimmed, 0, eq_pos));
-                kobel_str val_raw = str_trim(kobel_slice(trimmed, (eq_pos + 1), trimmed.len));
-                kobel_str val_clean = ((((val_raw.len >= 2) && (str_starts_with(val_raw, KOBEL_STR("\"")) && str_ends_with(val_raw, KOBEL_STR("\"")))) || (str_starts_with(val_raw, KOBEL_STR("'")) && str_ends_with(val_raw, KOBEL_STR("'")))) ? kobel_slice(val_raw, 1, (val_raw.len - 1)) : val_raw);
-                kobel_str full_key = (!str_empty(current_section) ? kobel_concat3(current_section, KOBEL_STR("."), key_raw) : key_raw);
-                std__collections__HashMap_str_str_set(&self.entries, full_key, val_clean);
-            }
+            compiler__core__SourceFile f = std__collections__List_compiler__core__SourceFile_at(&self->files, __for_i);
+            compiler__core__SourceFile_free(&f);
             __for_i = (__for_i + 1);
         }
     }
-    return self;
-}
-
-kobel_str config__Toml_get_3(config__Toml* self, kobel_str key, kobel_str default_val) {
-    return std__collections__HashMap_str_str_get_or(&self->entries, key, default_val);
-}
-
-kobel_str config__Toml_get_2(config__Toml* self, kobel_str key) {
-    return std__collections__HashMap_str_str_get_or(&self->entries, key, KOBEL_STR(""));
-}
-
-void config__Toml_set(config__Toml* self, kobel_str key, kobel_str value) {
-    std__collections__HashMap_str_str_set(&self->entries, key, value);
-}
-
-bool config__Toml_contains(config__Toml* self, kobel_str key) {
-    return std__collections__HashMap_str_str_contains(&self->entries, key);
-}
-
-int32_t std__process__Process_exec(kobel_str cmd) {
-    return system(kobel_cstr(cmd));
-}
-
-void std__process__Process_exit(int32_t code) {
-    exit(code);
-}
-
-bool std__system__System_is_windows(void) {
-    return ((getenv(kobel_cstr(KOBEL_STR("SystemRoot"))) != NULL) || (getenv(kobel_cstr(KOBEL_STR("WINDIR"))) != NULL));
-}
-
-bool std__system__System_has_env(kobel_str name) {
-    return (getenv(kobel_cstr(name)) != NULL);
-}
-
-kobel_str std__system__System_get_env(kobel_str name) {
-    const char* raw = getenv(kobel_cstr(name));
-    if (raw == NULL) {
-        return KOBEL_STR("");
-    }
-    return kobel_from_cstr((const char*)(raw));
+    std__collections__List_compiler__core__SourceFile_free(&self->files);
+    std__collections__HashMap_str_u32_free(&self->path_index);
+    std__collections__HashMap_str_u32_free(&self->module_index);
 }
 
 bool compiler__driver__str_before(kobel_str a, kobel_str b) {
@@ -6941,462 +7338,6 @@ int32_t compiler__driver__cmd_fixpoint(kobel_str manifest_path) {
         std__io__println(kobel_concat(KOBEL_STR("    stage2: "), std__collections__List_str_get(&b_lines, i)));
     }
     return 1;
-}
-
-bool char_is_digit(char self) {
-    return ((self >= '0') && (self <= '9'));
-}
-
-bool char_is_alpha(char self) {
-    return (((self >= 'a') && (self <= 'z')) || ((self >= 'A') && (self <= 'Z')));
-}
-
-bool char_is_alphanumeric(char self) {
-    return (char_is_alpha(self) || char_is_digit(self));
-}
-
-bool char_is_whitespace(char self) {
-    return ((((self == ' ') || (self == '\t')) || (self == '\n')) || (self == '\r'));
-}
-
-bool char_is_hex_digit(char self) {
-    return ((char_is_digit(self) || ((self >= 'a') && (self <= 'f'))) || ((self >= 'A') && (self <= 'F')));
-}
-
-char char_to_lower(char self) {
-    if ((self >= 'A') && (self <= 'Z')) {
-        int32_t offset = (((int32_t)(uint8_t)(self)) + 32);
-        return ((char)(offset));
-    }
-    return self;
-}
-
-char char_to_upper(char self) {
-    if ((self >= 'a') && (self <= 'z')) {
-        int32_t offset = (((int32_t)(uint8_t)(self)) - 32);
-        return ((char)(offset));
-    }
-    return self;
-}
-
-kobel_str compiler__core__resolve_diagnostic_path(kobel_str target, kobel_str default_file, compiler__core__SourceMap* sources) {
-    if (str_empty(target)) {
-        return default_file;
-    }
-    if ((str_ends_with(target, KOBEL_STR(".kb")) || str_contains(target, KOBEL_STR("/"))) || str_contains(target, KOBEL_STR("\\"))) {
-        return str_to_posix_path(target);
-    }
-    if (sources != NULL) {
-        compiler__core__SourceFile* by_mod = compiler__core__SourceMap_find_by_module(sources, target);
-        if (by_mod != NULL) {
-            return str_to_posix_path(by_mod->path);
-        }
-    }
-    kobel_str rel_stem = str_replace_char(target, '.', '/');
-    kobel_str rel = kobel_concat(rel_stem, KOBEL_STR(".kb"));
-    if (std__filesystem__File_exists(kobel_concat(KOBEL_STR("src/"), rel))) {
-        return kobel_concat(KOBEL_STR("src/"), rel);
-    }
-    if (std__filesystem__File_exists(kobel_concat(KOBEL_STR("lib/"), rel))) {
-        return kobel_concat(KOBEL_STR("lib/"), rel);
-    }
-    if (std__filesystem__File_exists(rel)) {
-        return rel;
-    }
-    return target;
-}
-
-compiler__core__Diagnostic compiler__core__Diagnostic_init(compiler__core__Severity severity, compiler__core__Span span, kobel_str file_path, kobel_str message, kobel_str hint) {
-    return (compiler__core__Diagnostic){ severity, span, file_path, message, hint };
-}
-
-compiler__core__Diagnostic compiler__core__Diagnostic_error(compiler__core__Span span, kobel_str file_path, kobel_str message, kobel_str hint) {
-    return compiler__core__Diagnostic_init(0, span, file_path, message, hint);
-}
-
-compiler__core__Diagnostic compiler__core__Diagnostic_warning(compiler__core__Span span, kobel_str file_path, kobel_str message, kobel_str hint) {
-    return compiler__core__Diagnostic_init(1, span, file_path, message, hint);
-}
-
-kobel_str compiler__core__Diagnostic_key(compiler__core__Diagnostic* self) {
-    return kobel_concat3(kobel_concat5(self->file_path, KOBEL_STR(":"), usz_to_str(self->span.line), KOBEL_STR(":"), usz_to_str(self->span.col)), KOBEL_STR(":"), self->message);
-}
-
-compiler__core__Diagnostic compiler__core__Diagnostic_parse_legacy(kobel_str raw, kobel_str default_file, compiler__core__Severity severity, compiler__core__SourceMap* sources) {
-    kobel_str line_kw = KOBEL_STR("Line ");
-    intptr_t line_pos = str_index_of(raw, line_kw);
-    if (line_pos >= 0) {
-        kobel_str prefix = ((line_pos > 0) ? str_trim(kobel_slice(raw, 0, (size_t)line_pos)) : KOBEL_STR(""));
-        kobel_str target = (str_ends_with(prefix, KOBEL_STR(":")) ? str_trim(kobel_slice(prefix, 0, (prefix.len - 1))) : prefix);
-        if (str_empty(target)) {
-            target = default_file;
-        }
-        size_t l_idx = (((size_t)line_pos) + line_kw.len);
-        size_t line_num = 0;
-        while ((l_idx < raw.len) && char_is_digit(raw.data[l_idx])) {
-            line_num = ((line_num * 10) + (size_t)(((int32_t)(uint8_t)(raw.data[l_idx])) - 48));
-            l_idx++;
-        }
-        while ((l_idx < raw.len) && ((raw.data[l_idx] == ' ') || (raw.data[l_idx] == ','))) {
-            l_idx++;
-        }
-        size_t col_num = 0;
-        kobel_str col_kw = KOBEL_STR("Column ");
-        kobel_str rest = kobel_slice(raw, l_idx, raw.len);
-        intptr_t c_pos = str_index_of(rest, col_kw);
-        if (c_pos >= 0) {
-            l_idx = ((l_idx + ((size_t)c_pos)) + col_kw.len);
-            while ((l_idx < raw.len) && char_is_digit(raw.data[l_idx])) {
-                col_num = ((col_num * 10) + (size_t)(((int32_t)(uint8_t)(raw.data[l_idx])) - 48));
-                l_idx++;
-            }
-        }
-        while ((l_idx < raw.len) && ((raw.data[l_idx] == ':') || (raw.data[l_idx] == ' '))) {
-            l_idx++;
-        }
-        kobel_str msg = str_trim(kobel_slice(raw, l_idx, raw.len));
-        kobel_str file_path = compiler__core__resolve_diagnostic_path(target, default_file, sources);
-        return compiler__core__Diagnostic_init(severity, compiler__core__Span_init(0, line_num, col_num, 1), file_path, msg, KOBEL_STR(""));
-    }
-    intptr_t colon_pos = str_index_of(raw, KOBEL_STR(":"));
-    if (colon_pos >= 0) {
-        size_t c_idx = (size_t)colon_pos;
-        kobel_str target = str_trim(kobel_slice(raw, 0, c_idx));
-        kobel_str msg = str_trim(kobel_slice(raw, (c_idx + 1), raw.len));
-        kobel_str file_path = compiler__core__resolve_diagnostic_path(target, default_file, sources);
-        return compiler__core__Diagnostic_init(severity, compiler__core__Span_init(0, 0, 0, 1), file_path, msg, KOBEL_STR(""));
-    }
-    return compiler__core__Diagnostic_init(severity, compiler__core__Span_init(0, 0, 0, 1), default_file, raw, KOBEL_STR(""));
-}
-
-kobel_str compiler__core__Diagnostic_render(compiler__core__Diagnostic* self, compiler__core__SourceMap* sources) {
-    kobel_str c_red = KOBEL_STR("\x1b[1;31m");
-    kobel_str c_yellow = KOBEL_STR("\x1b[1;33m");
-    kobel_str c_blue = KOBEL_STR("\x1b[1;34m");
-    kobel_str c_bold = KOBEL_STR("\x1b[1m");
-    kobel_str c_reset = KOBEL_STR("\x1b[0m");
-    kobel_str prefix = (self->severity == 1 ? kobel_concat3(c_yellow, KOBEL_STR("warning"), c_reset) : (self->severity == 2 ? kobel_concat3(c_blue, KOBEL_STR("note"), c_reset) : kobel_concat3(c_red, KOBEL_STR("error"), c_reset)));
-    std__string__StringBuilder sb = std__string__StringBuilder_init(256);
-    std__string__StringBuilder_plus_assign_2(&sb, prefix);
-    std__string__StringBuilder_plus_assign_2(&sb, c_bold);
-    std__string__StringBuilder_plus_assign_2(&sb, KOBEL_STR(": "));
-    std__string__StringBuilder_plus_assign_2(&sb, self->message);
-    std__string__StringBuilder_plus_assign_2(&sb, c_reset);
-    std__string__StringBuilder_plus_assign_2_2(&sb, '\n');
-    if (!str_empty(self->file_path)) {
-        std__string__StringBuilder_plus_assign_2(&sb, KOBEL_STR("  "));
-        std__string__StringBuilder_plus_assign_2(&sb, c_blue);
-        std__string__StringBuilder_plus_assign_2(&sb, KOBEL_STR("-->"));
-        std__string__StringBuilder_plus_assign_2(&sb, c_reset);
-        std__string__StringBuilder_plus_assign_2_2(&sb, ' ');
-        std__string__StringBuilder_plus_assign_2(&sb, self->file_path);
-        if (self->span.line > 0) {
-            std__string__StringBuilder_plus_assign_2_2(&sb, ':');
-            std__string__StringBuilder_plus_assign_2_7(&sb, self->span.line);
-            std__string__StringBuilder_plus_assign_2_2(&sb, ':');
-            std__string__StringBuilder_plus_assign_2_7(&sb, self->span.col);
-        }
-        std__string__StringBuilder_plus_assign_2_2(&sb, '\n');
-    }
-    kobel_str raw_line = KOBEL_STR("");
-    bool have_line = false;
-    if (self->span.line > 0) {
-        if (sources != NULL) {
-            compiler__core__SourceFile* sf = ((self->span.file_id > 0) ? compiler__core__SourceMap_get_file(sources, self->span.file_id) : compiler__core__SourceMap_find_by_path(sources, self->file_path));
-            if ((sf != NULL) && (self->span.line <= sf->lines.len)) {
-                raw_line = compiler__core__SourceFile_line_text(sf, self->span.line);
-                have_line = true;
-            }
-        }
-        if ((!have_line && !str_empty(self->file_path)) && std__filesystem__File_exists(self->file_path)) {
-            kobel_str content = std__filesystem__File_read(self->file_path);
-            if (!str_empty(content)) {
-                std__collections__List_str lines = str_split_lines(content);
-                if ((self->span.line >= 1) && (self->span.line <= lines.len)) {
-                    raw_line = std__collections__List_str_get(&lines, (self->span.line - 1));
-                    have_line = true;
-                }
-                std__collections__List_str_free(&lines);
-            }
-        }
-    }
-    if (have_line) {
-        kobel_str line_str = usz_to_str(self->span.line);
-        size_t gutter_w = ((line_str.len < 2) ? 2 : line_str.len);
-        std__string__StringBuilder_plus_assign_2_2(&sb, ' ');
-        if (gutter_w > line_str.len) {
-            std__string__StringBuilder_append_repeat(&sb, ' ', (gutter_w - line_str.len));
-        }
-        std__string__StringBuilder_append_repeat(&sb, ' ', line_str.len);
-        std__string__StringBuilder_plus_assign_2_2(&sb, ' ');
-        std__string__StringBuilder_plus_assign_2(&sb, c_blue);
-        std__string__StringBuilder_plus_assign_2_2(&sb, '|');
-        std__string__StringBuilder_plus_assign_2(&sb, c_reset);
-        std__string__StringBuilder_plus_assign_2_2(&sb, '\n');
-        std__string__StringBuilder_plus_assign_2_2(&sb, ' ');
-        std__string__StringBuilder_plus_assign_2(&sb, c_blue);
-        if (gutter_w > line_str.len) {
-            std__string__StringBuilder_append_repeat(&sb, ' ', (gutter_w - line_str.len));
-        }
-        std__string__StringBuilder_plus_assign_2(&sb, line_str);
-        std__string__StringBuilder_plus_assign_2(&sb, KOBEL_STR(" |"));
-        std__string__StringBuilder_plus_assign_2(&sb, c_reset);
-        std__string__StringBuilder_plus_assign_2_2(&sb, ' ');
-        std__string__StringBuilder_plus_assign_2(&sb, raw_line);
-        std__string__StringBuilder_plus_assign_2_2(&sb, '\n');
-        std__string__StringBuilder_plus_assign_2_2(&sb, ' ');
-        std__string__StringBuilder_append_repeat(&sb, ' ', gutter_w);
-        std__string__StringBuilder_plus_assign_2_2(&sb, ' ');
-        std__string__StringBuilder_plus_assign_2(&sb, c_blue);
-        std__string__StringBuilder_plus_assign_2_2(&sb, '|');
-        std__string__StringBuilder_plus_assign_2(&sb, c_reset);
-        std__string__StringBuilder_plus_assign_2_2(&sb, ' ');
-        size_t limit = ((self->span.col > 1) ? (self->span.col - 1) : 0);
-        {
-            size_t __for_e = limit;
-            size_t __for_i = __for_e;
-            __for_i = 0;
-            bool __for_up = (__for_i <= __for_e);
-            bool __for_go = false;
-            if (__for_up) {
-                __for_go = (__for_i < __for_e);
-            } else {
-                __for_go = (__for_i > __for_e);
-            }
-            while (__for_go) {
-                size_t i = __for_i;
-                if ((i < raw_line.len) && (raw_line.data[i] == '\t')) {
-                    std__string__StringBuilder_plus_assign_2_2(&sb, '\t');
-                } else {
-                    std__string__StringBuilder_plus_assign_2_2(&sb, ' ');
-                }
-                if (__for_up) {
-                    __for_go = ((__for_i + 1) < __for_e);
-                } else {
-                    __for_go = ((__for_i - 1) > __for_e);
-                }
-                if (__for_go) {
-                    if (__for_up) {
-                        __for_i = (__for_i + 1);
-                    } else {
-                        __for_i = (__for_i - 1);
-                    }
-                }
-            }
-        }
-        kobel_str caret_color = ((self->severity == 1) ? c_yellow : c_red);
-        std__string__StringBuilder_plus_assign_2(&sb, caret_color);
-        size_t caret_len = ((self->span.length > 1) ? self->span.length : 1);
-        std__string__StringBuilder_append_repeat(&sb, '^', caret_len);
-        std__string__StringBuilder_plus_assign_2(&sb, c_reset);
-        std__string__StringBuilder_plus_assign_2_2(&sb, '\n');
-    }
-    if (!str_empty(self->hint)) {
-        std__string__StringBuilder_plus_assign_2(&sb, KOBEL_STR("  "));
-        std__string__StringBuilder_plus_assign_2(&sb, c_blue);
-        std__string__StringBuilder_plus_assign_2(&sb, KOBEL_STR("= help: "));
-        std__string__StringBuilder_plus_assign_2(&sb, c_reset);
-        std__string__StringBuilder_plus_assign_2(&sb, self->hint);
-        std__string__StringBuilder_plus_assign_2_2(&sb, '\n');
-    }
-    {
-        kobel_str __ret_tmp = std__string__StringBuilder_to_str(&sb);
-        std__string__StringBuilder_free(&sb);
-        return __ret_tmp;
-    }
-}
-
-compiler__core__DiagnosticBag compiler__core__DiagnosticBag_init(void) {
-    return (compiler__core__DiagnosticBag){ std__collections__List_compiler__core__Diagnostic_init(4), std__collections__HashSet_str_init(16), 0, 0 };
-}
-
-bool compiler__core__DiagnosticBag_has_errors(compiler__core__DiagnosticBag* self) {
-    return (self->error_count > 0);
-}
-
-bool compiler__core__DiagnosticBag_empty(compiler__core__DiagnosticBag* self) {
-    return std__collections__List_compiler__core__Diagnostic_empty(&self->items);
-}
-
-void compiler__core__DiagnosticBag_add(compiler__core__DiagnosticBag* self, compiler__core__Diagnostic diag) {
-    kobel_str k = compiler__core__Diagnostic_key(&diag);
-    if (std__collections__HashSet_str_contains(&self->seen, k)) {
-        return;
-    }
-    std__collections__HashSet_str_plus_assign(&self->seen, k);
-    std__collections__List_compiler__core__Diagnostic_plus_assign(&self->items, diag);
-    if (diag.severity == 0) {
-        self->error_count++;
-    } else if (diag.severity == 1) {
-        self->warning_count++;
-    }
-}
-
-void compiler__core__DiagnosticBag_report_error(compiler__core__DiagnosticBag* self, compiler__core__Span span, kobel_str file_path, kobel_str message, kobel_str hint) {
-    compiler__core__DiagnosticBag_add(self, compiler__core__Diagnostic_error(span, file_path, message, hint));
-}
-
-void compiler__core__DiagnosticBag_report_warning(compiler__core__DiagnosticBag* self, compiler__core__Span span, kobel_str file_path, kobel_str message, kobel_str hint) {
-    compiler__core__DiagnosticBag_add(self, compiler__core__Diagnostic_warning(span, file_path, message, hint));
-}
-
-void compiler__core__DiagnosticBag_print_all(compiler__core__DiagnosticBag* self, kobel_str default_file, compiler__core__SourceMap* sources) {
-    {
-        size_t __for_n = std__collections__List_compiler__core__Diagnostic_count(&self->items);
-        size_t __for_i = 0;
-        while (__for_i < __for_n) {
-            compiler__core__Diagnostic d = std__collections__List_compiler__core__Diagnostic_at(&self->items, __for_i);
-            std__io__print(compiler__core__Diagnostic_render(&d, sources));
-            std__io__println(KOBEL_STR(""));
-            __for_i = (__for_i + 1);
-        }
-    }
-    if (self->error_count > 0) {
-        std__io__println(kobel_concat5(KOBEL_STR("\x1b[1;31merror\x1b[0m: could not compile '"), default_file, KOBEL_STR("' due to "), usz_to_str(self->error_count), KOBEL_STR(" previous error(s)")));
-    }
-}
-
-void compiler__core__DiagnosticBag_free(compiler__core__DiagnosticBag* self) {
-    std__collections__List_compiler__core__Diagnostic_free(&self->items);
-    std__collections__HashSet_str_free(&self->seen);
-}
-
-compiler__core__SymbolId compiler__core__SymbolId_init(uint32_t id) {
-    return (compiler__core__SymbolId){ id };
-}
-
-bool compiler__core__SymbolId_is_valid(compiler__core__SymbolId* self) {
-    return (self->id != 0);
-}
-
-bool compiler__core__SymbolId_equals(compiler__core__SymbolId* self, compiler__core__SymbolId other) {
-    return (self->id == other.id);
-}
-
-size_t compiler__core__SymbolId_hash(compiler__core__SymbolId* self) {
-    return usz_hash(((size_t)self->id));
-}
-
-kobel_str compiler__core__SymbolId_to_str(compiler__core__SymbolId* self) {
-    return u32_to_str(self->id);
-}
-
-compiler__core__InternPool compiler__core__InternPool_init(void) {
-    return (compiler__core__InternPool){ std__collections__List_str_init(4), std__collections__HashMap_str_u32_init(16) };
-}
-
-compiler__core__SymbolId compiler__core__InternPool_intern(compiler__core__InternPool* self, kobel_str text) {
-    if (str_empty(text)) {
-        return compiler__core__SymbolId_init(0);
-    }
-    uint32_t* found = std__collections__HashMap_str_u32_get(&self->lookup, text);
-    if (found != NULL) {
-        return compiler__core__SymbolId_init(*found);
-    }
-    uint32_t next_id = (uint32_t)(self->strings.len + 1);
-    std__collections__List_str_plus_assign(&self->strings, text);
-    std__collections__HashMap_str_u32_set(&self->lookup, text, next_id);
-    return compiler__core__SymbolId_init(next_id);
-}
-
-kobel_str compiler__core__InternPool_resolve(compiler__core__InternPool* self, compiler__core__SymbolId sym) {
-    if ((sym.id == 0) || (((size_t)sym.id) > self->strings.len)) {
-        return KOBEL_STR("");
-    }
-    return std__collections__List_str_get(&self->strings, (size_t)(sym.id - 1));
-}
-
-size_t compiler__core__InternPool_count(compiler__core__InternPool* self) {
-    return self->strings.len;
-}
-
-void compiler__core__InternPool_free(compiler__core__InternPool* self) {
-    std__collections__List_str_free(&self->strings);
-    std__collections__HashMap_str_u32_free(&self->lookup);
-}
-
-compiler__core__Span compiler__core__Span_init(uint32_t file_id, size_t line, size_t col, size_t length) {
-    return (compiler__core__Span){ file_id, line, col, ((length == 0) ? 1 : length) };
-}
-
-bool compiler__core__Span_is_valid(compiler__core__Span* self) {
-    return (self->line > 0);
-}
-
-compiler__core__SourceFile compiler__core__SourceFile_init(uint32_t id, kobel_str path, kobel_str module_name, kobel_str content) {
-    std__collections__List_str lines = str_split_lines(content);
-    return (compiler__core__SourceFile){ id, path, module_name, content, lines };
-}
-
-kobel_str compiler__core__SourceFile_line_text(compiler__core__SourceFile* self, size_t line_num) {
-    if ((line_num == 0) || (line_num > self->lines.len)) {
-        return KOBEL_STR("");
-    }
-    return std__collections__List_str_get(&self->lines, (line_num - 1));
-}
-
-void compiler__core__SourceFile_free(compiler__core__SourceFile* self) {
-    std__collections__List_str_free(&self->lines);
-}
-
-compiler__core__SourceMap compiler__core__SourceMap_init(void) {
-    return (compiler__core__SourceMap){ std__collections__List_compiler__core__SourceFile_init(4), std__collections__HashMap_str_u32_init(16), std__collections__HashMap_str_u32_init(16) };
-}
-
-uint32_t compiler__core__SourceMap_add_file(compiler__core__SourceMap* self, kobel_str path, kobel_str module_name, kobel_str content) {
-    uint32_t* existing = std__collections__HashMap_str_u32_get(&self->path_index, path);
-    if (existing != NULL) {
-        return *existing;
-    }
-    uint32_t id = (uint32_t)(self->files.len + 1);
-    std__collections__List_compiler__core__SourceFile_plus_assign(&self->files, compiler__core__SourceFile_init(id, path, module_name, content));
-    std__collections__HashMap_str_u32_set(&self->path_index, path, id);
-    if (!str_empty(module_name)) {
-        std__collections__HashMap_str_u32_set(&self->module_index, module_name, id);
-    }
-    return id;
-}
-
-compiler__core__SourceFile* compiler__core__SourceMap_get_file(compiler__core__SourceMap* self, uint32_t file_id) {
-    if ((file_id == 0) || (((size_t)file_id) > self->files.len)) {
-        return NULL;
-    }
-    return &self->files.data[(size_t)(file_id - 1)];
-}
-
-compiler__core__SourceFile* compiler__core__SourceMap_find_by_path(compiler__core__SourceMap* self, kobel_str path) {
-    uint32_t* id_ptr = std__collections__HashMap_str_u32_get(&self->path_index, path);
-    if (id_ptr == NULL) {
-        return NULL;
-    }
-    return compiler__core__SourceMap_get_file(self, *id_ptr);
-}
-
-compiler__core__SourceFile* compiler__core__SourceMap_find_by_module(compiler__core__SourceMap* self, kobel_str module_name) {
-    uint32_t* id_ptr = std__collections__HashMap_str_u32_get(&self->module_index, module_name);
-    if (id_ptr == NULL) {
-        return NULL;
-    }
-    return compiler__core__SourceMap_get_file(self, *id_ptr);
-}
-
-size_t compiler__core__SourceMap_count(compiler__core__SourceMap* self) {
-    return self->files.len;
-}
-
-void compiler__core__SourceMap_free(compiler__core__SourceMap* self) {
-    {
-        size_t __for_n = std__collections__List_compiler__core__SourceFile_count(&self->files);
-        size_t __for_i = 0;
-        while (__for_i < __for_n) {
-            compiler__core__SourceFile f = std__collections__List_compiler__core__SourceFile_at(&self->files, __for_i);
-            compiler__core__SourceFile_free(&f);
-            __for_i = (__for_i + 1);
-        }
-    }
-    std__collections__List_compiler__core__SourceFile_free(&self->files);
-    std__collections__HashMap_str_u32_free(&self->path_index);
-    std__collections__HashMap_str_u32_free(&self->module_index);
 }
 
 compiler__lexer__TokenType compiler__lexer__lookup_keyword(kobel_str text) {
@@ -8630,6 +8571,64 @@ kobel_str compiler__parser__normalize_esc_dollar(kobel_str text) {
     return out;
 }
 
+kobel_str compiler__parser__multiline_escape_for_c(kobel_str text) {
+    std__string__StringBuilder out = std__string__StringBuilder_init(32);
+    std__string__StringBuilder_plus_assign_2_2(&out, '"');
+    size_t i = 0;
+    while (i < text.len) {
+        char c = text.data[i];
+        if (c == '\\') {
+            if ((i + 1) < text.len) {
+                char next_c = text.data[(i + 1)];
+                if (next_c == '$') {
+                    std__string__StringBuilder_plus_assign_2_2(&out, '$');
+                    i += 2;
+                    continue;
+                }
+                if (next_c == '\\') {
+                    std__string__StringBuilder_plus_assign_2(&out, KOBEL_STR("\\\\"));
+                    i += 2;
+                    continue;
+                }
+                if (next_c == '"') {
+                    std__string__StringBuilder_plus_assign_2(&out, KOBEL_STR("\\\""));
+                    i += 2;
+                    continue;
+                }
+                std__string__StringBuilder_plus_assign_2_2(&out, '\\');
+                std__string__StringBuilder_plus_assign_2_2(&out, next_c);
+                i += 2;
+                continue;
+            }
+            std__string__StringBuilder_plus_assign_2(&out, KOBEL_STR("\\\\"));
+            i++;
+            continue;
+        }
+        if (c == '"') {
+            std__string__StringBuilder_plus_assign_2(&out, KOBEL_STR("\\\""));
+            i++;
+            continue;
+        }
+        if (c == '\n') {
+            std__string__StringBuilder_plus_assign_2(&out, KOBEL_STR("\\n"));
+            i++;
+            continue;
+        }
+        if (c == '\r') {
+            i++;
+            continue;
+        }
+        std__string__StringBuilder_plus_assign_2_2(&out, c);
+        i++;
+    }
+    std__string__StringBuilder_plus_assign_2_2(&out, '"');
+    {
+        kobel_str __ret_tmp = std__string__StringBuilder_to_str(&out);
+        std__string__StringBuilder_free(&out);
+        return __ret_tmp;
+    }
+}
+
 size_t compiler__parser__interp_skip_char_lit(kobel_str text, size_t start) {
     size_t i = (start + 1);
     while (i < text.len) {
@@ -9167,7 +9166,7 @@ compiler__ast__AstNode* compiler__parser__Parser_parse_multiline_string(compiler
     if (compiler__parser__str_has_hole(trimmed)) {
         return compiler__parser__Parser_parse_interp_multiline(self, trimmed, line, col);
     }
-    kobel_str c_literal = util__multiline_escape_for_c(trimmed);
+    kobel_str c_literal = compiler__parser__multiline_escape_for_c(trimmed);
     return compiler__parser__Parser_node(self, (compiler__ast__NodeData){ .tag = 5, .u.LiteralExpr = { 4, c_literal } }, line, col);
 }
 
@@ -10037,7 +10036,7 @@ void compiler__loader__ModuleLoader_process_uses(compiler__loader__ModuleLoader*
                     {
                         compiler__ast__NodeData__UseDecl* u = NULL;
                         if ((decl != NULL && decl->data.tag == compiler__ast__NodeData__UseDecl__TAG && (u = (compiler__ast__NodeData__UseDecl*)(&(decl)->data.u.UseDecl), 1))) {
-                            kobel_str mod_name = (u->wildcard ? util__str_join_dots(u->path, u->path.len) : ((u->path.len >= 2) ? util__str_join_dots(u->path, (u->path.len - 1)) : KOBEL_STR("")));
+                            kobel_str mod_name = (u->wildcard ? compiler__core__str_join_dots(u->path, u->path.len) : ((u->path.len >= 2) ? compiler__core__str_join_dots(u->path, (u->path.len - 1)) : KOBEL_STR("")));
                             if (!str_empty(mod_name)) {
                                 compiler__loader__ModuleLoader_ensure_module(self, mod_name, decl->line, decl->col, parent_mod);
                             }
@@ -12127,7 +12126,7 @@ void compiler__sema__decl__DeclPass_collect_use(compiler__sema__decl__DeclPass* 
         compiler__ast__NodeData__UseDecl* u = NULL;
         if ((node != NULL && node->data.tag == compiler__ast__NodeData__UseDecl__TAG && (u = (compiler__ast__NodeData__UseDecl*)(&(node)->data.u.UseDecl), 1))) {
             if (u->wildcard) {
-                kobel_str w_mod = util__str_join_dots(u->path, u->path.len);
+                kobel_str w_mod = compiler__core__str_join_dots(u->path, u->path.len);
                 if (!compiler__sema__SymbolTable_has_wildcard(&self->symtab, self->current_module, w_mod)) {
                     compiler__sema__SymbolTable_add_import(&self->symtab, w_mod, KOBEL_STR(""), KOBEL_STR(""), true);
                 }
@@ -12136,7 +12135,7 @@ void compiler__sema__decl__DeclPass_collect_use(compiler__sema__decl__DeclPass* 
             if (u->path.len < 2) {
                 return;
             }
-            kobel_str mod_name = util__str_join_dots(u->path, (u->path.len - 1));
+            kobel_str mod_name = compiler__core__str_join_dots(u->path, (u->path.len - 1));
             if (!compiler__sema__SymbolTable_module_exists(&self->symtab, mod_name)) {
                 return;
             }

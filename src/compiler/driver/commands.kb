@@ -6,7 +6,7 @@ use std.process.*;
 use std.system.*;
 use std.collections.*;
 
-use util.*;
+use compiler.core.*;
 
 use config.*;
 

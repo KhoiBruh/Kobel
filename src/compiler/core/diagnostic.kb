@@ -46,8 +46,7 @@ fn resolve_diagnostic_path(target: str, default_file: str, sources: *SourceMap?)
 		}
 	}
 
-	val rel_stem = target.replace_char('.', '/');
-	val rel = "${rel_stem}.kb";
+	val rel = "${target.module_to_rel()}.kb";
 	if (File.exists("src/${rel}")) {
 		return "src/${rel}";
 	}

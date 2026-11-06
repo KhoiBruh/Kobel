@@ -3,7 +3,7 @@ mod config;
 use std.collections.List;
 use std.collections.HashMap;
 
-use util.*;
+
 
 pub struct Toml {
 	pub entries: HashMap<str, str> = HashMap()

@@ -4,7 +4,7 @@ use std.io.*;
 use std.filesystem.*;
 use std.collections.*;
 
-use util.*;
+
 use compiler.core.Span;
 use compiler.core.Severity;
 use compiler.core.Diagnostic as CoreDiagnostic;

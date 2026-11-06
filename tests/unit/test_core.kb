@@ -130,6 +130,44 @@ fn test_diagnostics(): bool {
 	return true;
 }
 
+fn test_naming(): bool {
+	if ("std.io".module_to_rel() != "std/io") {
+		return false;
+	}
+	if ("compiler/core/source.kb".path_to_module() != "compiler.core.source") {
+		return false;
+	}
+	if (!"main.kb".has_kb_suffix() || "main.c".has_kb_suffix()) {
+		return false;
+	}
+	if ("main.kb".strip_kb() != "main" || "main".strip_kb() != "main") {
+		return false;
+	}
+	if ("std.io".mangle_symbol("println") != "std__io__println") {
+		return false;
+	}
+	if ("".mangle_symbol("main") != "main") {
+		return false;
+	}
+
+	var parts = List<str>();
+	defer parts.free();
+	parts += "compiler";
+	parts += "core";
+	parts += "Span";
+	if (str_join_dots(parts, 2) != "compiler.core") {
+		return false;
+	}
+	if (str_join_dots(parts, 3) != "compiler.core.Span") {
+		return false;
+	}
+	if ("hello".hash_stamp().empty()) {
+		return false;
+	}
+
+	return true;
+}
+
 fn main(): i32 {
 	println("=== Unit Test: compiler.core ===");
 
@@ -150,6 +188,12 @@ fn main(): i32 {
 		return 1;
 	}
 	println("  [PASS] test_diagnostics");
+
+	if (!test_naming()) {
+		println("  [FAIL] test_naming");
+		return 1;
+	}
+	println("  [PASS] test_naming");
 
 	return 0;
 }

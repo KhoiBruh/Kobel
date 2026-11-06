@@ -10,7 +10,7 @@ mod compiler.sema.body;
 use std.memory.*;
 use std.collections.*;
 
-use util.*;
+use compiler.core.*;
 
 use compiler.ast.*;
 
