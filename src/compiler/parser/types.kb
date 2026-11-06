@@ -3,8 +3,24 @@ mod compiler.parser;
 use std.collections.*;
 
 use compiler.lexer.*;
-
 use compiler.ast.*;
+
+/*
+ * ============================================================================
+ * compiler.parser.types — Type annotation parser
+ * ============================================================================
+ */
+
+fn parse_usize_literal(text: str): usz {
+	var size: usz = 0;
+	for (ch in text) {
+		if (ch >= '0' && ch <= '9') {
+			val digit = ch.code() - '0'.code();
+			size = size * 10 + (digit as usz);
+		}
+	}
+	return size;
+}
 
 impl Parser {
 
@@ -30,16 +46,7 @@ impl Parser {
 			self.consume(TokenType.SEMI_COLON, "Expected ';' after array element type");
 			val size_tok = self.consume(TokenType.NUMBER, "Expected integer literal for array size");
 			self.consume(TokenType.CLOSE_BRACKET, "Expected ']' after array size");
-
-			// Convert the size string to usz (default to 0 if empty)
-			var size: usz = 0;
-			for (ch in size_tok.text) {
-				if (ch >= '0' && ch <= '9') {
-					val digit = ch.code() - '0'.code();
-					size = size * 10 + (digit as usz);
-				}
-			}
-
+			val size = parse_usize_literal(size_tok.text);
 			return self.node(NodeData.ArrayType(elem_type, size), line, col);
 		}
 
@@ -63,23 +70,14 @@ impl Parser {
 
 		// 4. Array type syntax per the spec: Array<T>(N)
 		if (
-			full_name == "Array" &&
-			type_args.len == 1 &&
-			self.check(TokenType.OPEN_PAREN)
+			full_name == "Array"
+			&& type_args.len == 1
+			&& self.check(TokenType.OPEN_PAREN)
 		) {
 			self.consume(TokenType.OPEN_PAREN, "Expected '(' after 'Array<T>'");
 			val size_tok = self.consume(TokenType.NUMBER, "Expected integer literal for array size");
 			self.consume(TokenType.CLOSE_PAREN, "Expected ')' after array size");
-
-			// Convert the size string to usz
-			var size = 0;
-			for (ch in size_tok.text) {
-				if (ch >= '0' && ch <= '9') {
-					val digit = ch.code() - '0'.code();
-					size = size * 10 + digit;
-				}
-			}
-
+			val size = parse_usize_literal(size_tok.text);
 			return self.node(NodeData.ArrayType(type_args.first(), size), line, col);
 		}
 

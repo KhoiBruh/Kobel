@@ -3,8 +3,15 @@ mod compiler.parser;
 use std.memory.*;
 use std.collections.*;
 
+use compiler.core.*;
 use compiler.lexer.*;
 use compiler.ast.*;
+
+/*
+ * ============================================================================
+ * compiler.parser — Recursive-descent and Pratt parser state and cursor API
+ * ============================================================================
+ */
 
 pub struct Parser {
 	pub tokens: List<Token>,
@@ -21,6 +28,12 @@ impl Parser {
 	pub fn node(var self, data: NodeData, line: usz = 0, col: usz = 0): *AstNode
 		=> self.arena.node(data, line, col);
 
+	pub fn node_at(var self, data: NodeData, tok: Token): *AstNode {
+		var n = self.arena.node(data, tok.line, tok.col);
+		n.span = tok.span;
+		return n;
+	}
+
 	pub fn is_end(val self): bool {
 		if (self.current >= self.tokens.len) return true;
 		val tok = self.tokens[self.current];
@@ -31,7 +44,7 @@ impl Parser {
 		if (self.current >= self.tokens.len) self.tokens.last()
 		else self.tokens[self.current];
 
-// Token `offset` positions ahead of the cursor (0 == peek), clamped to the end.
+	// Token `offset` positions ahead of the cursor (0 == peek), clamped to the end.
 	pub fn peek_at(val self, offset: usz): Token {
 		val idx = self.current + offset;
 		if (idx >= self.tokens.len) return self.tokens.last();
@@ -61,7 +74,7 @@ impl Parser {
 		return false;
 	}
 
-	// Record a parse error with line and column
+	// Record a parse error with line and column.
 	pub fn error(var self, tok: Token, msg: str) {
 		self.errors += "Line ${tok.line}, Column ${tok.col}: ${msg}";
 	}
@@ -96,12 +109,11 @@ impl Parser {
 		}
 	}
 
+	// Check whether the position after '<' looks like type arguments ending with '>('
 	pub fn is_generic_args_ahead(val self): bool {
-		// Check whether the position after '<' looks like type arguments ending with '>'
 		if (!self.check(TokenType.LESS)) return false;
 
 		var depth = 1;
-
 		for (i in (self.current + 1)..<self.tokens.len) {
 			val tok = self.tokens[i];
 			when (tok.type) {
@@ -109,15 +121,14 @@ impl Parser {
 				TokenType.GREATER -> {
 					depth--;
 					if (depth == 0) return (
-						i + 1 < self.tokens.len &&
-						self.tokens[i + 1].type == TokenType.OPEN_PAREN
+						i + 1 < self.tokens.len
+						&& self.tokens[i + 1].type == TokenType.OPEN_PAREN
 					);
 				}
 				TokenType.SEMI_COLON, TokenType.OPEN_BRACE,
 				TokenType.CLOSE_BRACE, TokenType.END_OF_FILE -> return false;
 			}
 		}
-
 		return false;
 	}
 

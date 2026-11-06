@@ -3,12 +3,13 @@ mod compiler.parser;
 use std.collections.*;
 
 use compiler.lexer.*;
-
 use compiler.ast.*;
 
-// ============================================================================
-// Statement Parsers
-// ============================================================================
+/*
+ * ============================================================================
+ * compiler.parser.statement — Statement and control-flow parsers
+ * ============================================================================
+ */
 
 impl Parser {
 
@@ -17,8 +18,8 @@ impl Parser {
 		var statements = List<*AstNode>();
 
 		while (
-			!self.is_end() &&
-			!self.check(TokenType.CLOSE_BRACE)
+			!self.is_end()
+			&& !self.check(TokenType.CLOSE_BRACE)
 		) statements += self.parse_statement();
 
 		self.consume(TokenType.CLOSE_BRACE, "Expected '}' after block");
@@ -91,8 +92,8 @@ impl Parser {
 				range_end = self.parse_expression(Precedence.COMPARISON);
 			}
 
-			self.check(TokenType.GREATER) &&
-			self.peek_at(1).type == TokenType.DOT_DOT -> {
+			self.check(TokenType.GREATER)
+			&& self.peek_at(1).type == TokenType.DOT_DOT -> {
 				is_range = true;
 				is_open = true;
 				range_start = first;

@@ -3,14 +3,14 @@ mod compiler.parser;
 use std.collections.*;
 use std.string.StringBuilder;
 
-
 use compiler.lexer.*;
-
 use compiler.ast.*;
 
-// ============================================================================
-// Operator Precedence Levels
-// ============================================================================
+/*
+ * ============================================================================
+ * compiler.parser.expression — Pratt expression and string interpolation parser
+ * ============================================================================
+ */
 
 // Operator precedence levels, loosest first. `parse_expression(min_prec)` stops
 // as soon as the next infix operator binds no tighter than `min_prec`; a member's
@@ -262,6 +262,37 @@ impl Parser {
 		else -> Precedence.NONE;
 	};
 
+	fn parse_is_pattern(var self, left: *AstNode?, line: usz, col: usz): *AstNode {
+		val target_type = self.parse_type();
+		var alias = "";
+		var mutable = false;
+		if (self.match_token(TokenType.KW_AS)) {
+			if (self.match_token(TokenType.KW_VAR)) {
+				mutable = true;
+				self.match_token(TokenType.AMPERSAND);
+			} else if (self.match_token(TokenType.AMPERSAND)) {
+				mutable = true;
+			} else {
+				self.match_token(TokenType.KW_VAL);
+			}
+			val alias_tok = self.consume(TokenType.IDENTIFIER, "Expected identifier after 'as'");
+			alias = alias_tok.text;
+		}
+		return self.node(NodeData.IsExpr(left, target_type, alias, mutable), line, col);
+	}
+
+	fn parse_call_args(var self): List<*AstNode> {
+		var args = List<*AstNode>();
+		if (!self.check(TokenType.CLOSE_PAREN)) {
+			args += self.parse_expression(Precedence.NONE);
+			while (self.match_token(TokenType.COMMA)) {
+				args += self.parse_expression(Precedence.NONE);
+			}
+		}
+		self.consume(TokenType.CLOSE_PAREN, "Expected ')' after function arguments");
+		return args;
+	}
+
 	// ============================================================================
 	// Pratt Expression Parser
 	// ============================================================================
@@ -315,29 +346,7 @@ impl Parser {
 			}
 
 			// Type pattern: is Type [as [var|val|&] alias]
-			TokenType.KW_IS -> {
-				val target_type = self.parse_type();
-				var alias = "";
-				var mutable = false;
-				if (self.match_token(TokenType.KW_AS)) {
-					if (self.match_token(TokenType.KW_VAR)) {
-						mutable = true;
-						self.match_token(TokenType.AMPERSAND);
-					} else if (self.match_token(TokenType.AMPERSAND)) {
-						mutable = true;
-					} else {
-						self.match_token(TokenType.KW_VAL);
-					}
-					val alias_tok = self.consume(TokenType.IDENTIFIER, "Expected identifier after 'as'");
-					alias = alias_tok.text;
-				}
-				val is_node = self.node(NodeData.IsExpr(null, target_type, alias, mutable), line, col);
-				if (!alias.empty() && is_node is IsExpr as is_expr) {
-					is_expr.alias = alias;
-					is_expr.mutable = mutable;
-				}
-				yield is_node;
-			}
+			TokenType.KW_IS -> self.parse_is_pattern(null, line, col);
 
 			// If Expression: if (cond) then_expr else else_expr
 			TokenType.KW_IF -> {
@@ -380,7 +389,7 @@ impl Parser {
 
 					self.consume(TokenType.ARROW, "Expected '->' after when arm pattern");
 					val is_block = self.check(TokenType.OPEN_BRACE);
-					val body = if (is_block) self.parse_arm_block()
+					val body = if (is_block) self.parse_block_stmt()
 					else self.parse_expression(Precedence.NONE);
 
 					arms += WhenArm(patterns, is_else, body, arm_line, arm_col);
@@ -441,16 +450,16 @@ impl Parser {
 		}
 
 		return when {
-		// 2. Elvis operator: left ?: right (right can be expression or jump statement)
+			// 2. Elvis operator: left ?: right (right can be expression or jump statement)
 			self.match_token(TokenType.QUESTION_COLON) -> {
 				val right = when {
 					self.match_token(TokenType.KW_RETURN) -> {
 						val kw_line = self.previous().line;
 						val kw_col = self.previous().col;
 						val value = if (
-							!self.check(TokenType.SEMI_COLON) &&
-							!self.check(TokenType.CLOSE_BRACE) &&
-							!self.check(TokenType.CLOSE_PAREN)
+							!self.check(TokenType.SEMI_COLON)
+							&& !self.check(TokenType.CLOSE_BRACE)
+							&& !self.check(TokenType.CLOSE_PAREN)
 						) self.parse_expression(Precedence.NONE) else null;
 
 						yield self.node(NodeData.ReturnStmt(value), kw_line, kw_col);
@@ -469,9 +478,9 @@ impl Parser {
 						val kw_line = self.previous().line;
 						val kw_col = self.previous().col;
 						val value = if (
-							!self.check(TokenType.SEMI_COLON) &&
-							!self.check(TokenType.CLOSE_BRACE) &&
-							!self.check(TokenType.CLOSE_PAREN)
+							!self.check(TokenType.SEMI_COLON)
+							&& !self.check(TokenType.CLOSE_BRACE)
+							&& !self.check(TokenType.CLOSE_PAREN)
 						) self.parse_expression(Precedence.NONE) else null;
 
 						yield self.node(NodeData.YieldStmt(value), kw_line, kw_col);
@@ -510,29 +519,7 @@ impl Parser {
 			}
 
 			// Type Test: left is Type [as [var|val|&] alias]
-			self.match_token(TokenType.KW_IS) -> {
-				val target_type = self.parse_type();
-				var alias = "";
-				var mutable = false;
-				if (self.match_token(TokenType.KW_AS)) {
-					if (self.match_token(TokenType.KW_VAR)) {
-						mutable = true;
-						self.match_token(TokenType.AMPERSAND);
-					} else if (self.match_token(TokenType.AMPERSAND)) {
-						mutable = true;
-					} else {
-						self.match_token(TokenType.KW_VAL);
-					}
-					val alias_tok = self.consume(TokenType.IDENTIFIER, "Expected identifier after 'as'");
-					alias = alias_tok.text;
-				}
-				val is_node = self.node(NodeData.IsExpr(left, target_type, alias, mutable), line, col);
-				if (!alias.empty() && is_node is IsExpr as is_expr) {
-					is_expr.alias = alias;
-					is_expr.mutable = mutable;
-				}
-				yield is_node;
-			}
+			self.match_token(TokenType.KW_IS) -> self.parse_is_pattern(left, line, col);
 
 			// In test: left in right
 			self.match_token(TokenType.KW_IN) -> {
@@ -558,27 +545,13 @@ impl Parser {
 				self.consume(TokenType.GREATER, "Expected '>' after generic call type arguments");
 
 				self.consume(TokenType.OPEN_PAREN, "Expected '(' after generic type arguments");
-				var args = List<*AstNode>();
-				if (!self.check(TokenType.CLOSE_PAREN)) {
-					args += self.parse_expression(Precedence.NONE);
-					while (self.match_token(TokenType.COMMA)) {
-						args += self.parse_expression(Precedence.NONE);
-					}
-				}
-				self.consume(TokenType.CLOSE_PAREN, "Expected ')' after function arguments");
+				val args = self.parse_call_args();
 				yield self.node(NodeData.CallExpr(left, args, type_args), line, col);
 			}
 
 			// 6. Normal Call: left(arg1, arg2)
 			self.match_token(TokenType.OPEN_PAREN) -> {
-				var args = List<*AstNode>();
-				if (!self.check(TokenType.CLOSE_PAREN)) {
-					args += self.parse_expression(Precedence.NONE);
-					while (self.match_token(TokenType.COMMA)) {
-						args += self.parse_expression(Precedence.NONE);
-					}
-				}
-				self.consume(TokenType.CLOSE_PAREN, "Expected ')' after function arguments");
+				val args = self.parse_call_args();
 				yield self.node(NodeData.CallExpr(left, args, List<*AstNode>()), line, col);
 			}
 
@@ -612,130 +585,6 @@ impl Parser {
 			return e;
 		}
 		return self.parse_expression(Precedence.NONE);
-	}
-
-	pub fn parse_arm_statement(var self): *AstNode {
-		val tok = self.peek();
-		val line = tok.line;
-		val col = tok.col;
-
-		return when (tok.type) {
-			TokenType.OPEN_BRACE -> self.parse_arm_block();
-			TokenType.KW_VAL, TokenType.KW_VAR -> {
-				self.advance();
-				val mutable = tok.type == TokenType.KW_VAR;
-				val id_tok = self.consume(TokenType.IDENTIFIER, "Expected variable name");
-				val ty_node = if (self.match_token(TokenType.COLON)) self.parse_type() else null;
-				val init_node = if (self.match_token(TokenType.EQUAL)) self.parse_expression(Precedence.NONE)
-				else null;
-
-				self.consume(TokenType.SEMI_COLON, "Expected ';' after variable declaration");
-
-				yield self.node(NodeData.VarDeclStmt(mutable, id_tok.text, ty_node, init_node), line, col);
-			}
-			TokenType.KW_IF -> {
-				self.advance();
-				self.consume(TokenType.OPEN_PAREN, "Expected '(' after 'if'");
-				val condition = self.parse_expression(Precedence.NONE);
-				self.consume(TokenType.CLOSE_PAREN, "Expected ')' after if condition");
-				val then_branch = self.parse_arm_statement();
-				val else_branch = if (self.match_token(TokenType.KW_ELSE)) self.parse_arm_statement()
-				else null;
-
-				yield self.node(NodeData.IfStmt(condition, then_branch, else_branch), line, col);
-			}
-			TokenType.KW_WHILE -> {
-				val kw = self.advance();
-				self.consume(TokenType.OPEN_PAREN, "Expected '(' after 'while'");
-				val condition = self.parse_expression(Precedence.NONE);
-				self.consume(TokenType.CLOSE_PAREN, "Expected ')' after while condition");
-				val body = self.parse_arm_statement();
-
-				yield self.node(NodeData.WhileStmt(condition, body), kw.line, kw.col);
-			}
-			TokenType.KW_FOR -> {
-				val kw = self.advance();
-				self.consume(TokenType.OPEN_PAREN, "Expected '(' after 'for'");
-				val name_tok = self.consume(TokenType.IDENTIFIER, "Expected loop variable name");
-				self.consume(TokenType.KW_IN, "Expected 'in' after loop variable");
-
-				val first = self.parse_expression(Precedence.COMPARISON);
-
-				var is_range = false;
-				var is_open = false;
-				var is_half_open = false;
-				var iterable: *AstNode? = null;
-				var range_start: *AstNode? = null;
-				var range_end: *AstNode? = null;
-
-				when {
-					self.match_token(TokenType.DOT_DOT) -> {
-						is_range = true;
-						range_start = first;
-						if (self.match_token(TokenType.LESS)) is_half_open = true;
-						range_end = self.parse_expression(Precedence.COMPARISON);
-					}
-					self.check(TokenType.GREATER) &&
-					self.peek_at(1).type == TokenType.DOT_DOT -> {
-						is_range = true;
-						is_open = true;
-						range_start = first;
-
-						self.advance();
-						self.consume(TokenType.DOT_DOT, "Expected '..' in open range");
-						self.consume(TokenType.LESS, "Expected '<' to close an open range");
-
-						range_end = self.parse_expression(Precedence.COMPARISON);
-					}
-					else -> iterable = first;
-				}
-
-				self.consume(TokenType.CLOSE_PAREN, "Expected ')' after for header");
-				val body = self.parse_arm_statement();
-				yield self.node(NodeData.ForStmt(
-					name_tok.text, is_range, is_open, is_half_open,
-					iterable, range_start, range_end, body), kw.line, kw.col
-				);
-			}
-			TokenType.KW_WHEN -> self.parse_when_stmt();
-			TokenType.KW_BREAK -> {
-				self.advance();
-				self.consume(TokenType.SEMI_COLON, "Expected ';' after break");
-				yield self.node(NodeData.BreakStmt, line, col);
-			}
-			TokenType.KW_CONTINUE -> {
-				self.advance();
-				self.consume(TokenType.SEMI_COLON, "Expected ';' after continue");
-				yield self.node(NodeData.ContinueStmt, line, col);
-			}
-			TokenType.KW_YIELD -> {
-				self.advance();
-				val value = if (!self.check(TokenType.SEMI_COLON)) self.parse_expression(Precedence.NONE) else null;
-				self.consume(TokenType.SEMI_COLON, "Expected ';' after yield");
-				yield self.node(NodeData.YieldStmt(value), line, col);
-			}
-			TokenType.KW_RETURN -> {
-				self.advance();
-				val value = if (!self.check(TokenType.SEMI_COLON)) self.parse_expression(Precedence.NONE) else null;
-				self.consume(TokenType.SEMI_COLON, "Expected ';' after return");
-				yield self.node(NodeData.ReturnStmt(value), line, col);
-			}
-			else -> {
-				val expr = self.parse_expression(Precedence.NONE);
-				self.consume(TokenType.SEMI_COLON, "Expected ';' after expression statement");
-				yield self.node(NodeData.ExprStmt(expr), line, col);
-			}
-		};
-	}
-
-	pub fn parse_arm_block(var self): *AstNode {
-		val lbrace = self.consume(TokenType.OPEN_BRACE, "Expected '{'");
-		var stmts = List<*AstNode>();
-		while (!self.check(TokenType.CLOSE_BRACE) && !self.is_end()) {
-			stmts += self.parse_arm_statement();
-		}
-		self.consume(TokenType.CLOSE_BRACE, "Expected '}' after block");
-		return self.node(NodeData.BlockStmt(stmts), lbrace.line, lbrace.col);
 	}
 
 	pub fn parse_string_literal(var self, tok: Token, line: usz, col: usz): *AstNode {
