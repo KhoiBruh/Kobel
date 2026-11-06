@@ -7,11 +7,7 @@ use compiler.semantic.types.DataType;
 use compiler.semantic.types.Type;
 use compiler.semantic.types.*;
 
-use compiler.sema.SymbolKind;
-use compiler.sema.Symbol;
-use compiler.sema.Scope;
-use compiler.sema.ModuleScope;
-use compiler.sema.SymbolTable;
+use compiler.semantic.symbols.*;
 
 fn assert_true(cond: bool, msg: str) {
 	if (!cond) {

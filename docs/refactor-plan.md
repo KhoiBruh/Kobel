@@ -145,7 +145,7 @@ compiler.semantic.declaration   compiler.semantic.checker
 To execute Phase 6 safely while keeping the compiler verifiable at every step:
 
 - [x] **Step 6.1**: Create `src/compiler/semantic/types/{type,primitive,composite,bridge}.kb` (`mod compiler.semantic.types;`).
-- [ ] **Step 6.2**: Create `src/compiler/semantic/symbols/{symbol,table,annotations,generics}.kb` (`mod compiler.semantic.symbols;`).
+- [x] **Step 6.2**: Create `src/compiler/semantic/symbols/{symbol,table,annotations,generics}.kb` (`mod compiler.semantic.symbols;`).
 - [ ] **Step 6.3**: Create `src/compiler/semantic/resolution/{resolver,registry,instantiate,clone,rewrite}.kb` (`mod compiler.semantic.resolution;`). Eliminate the `mod compiler.sema.decl;` hack.
 - [ ] **Step 6.4**: Create `src/compiler/semantic/declaration/{collector,registration}.kb` (`mod compiler.semantic.declaration;`).
 - [ ] **Step 6.5**: Create `src/compiler/semantic/checker/{checker,program,statement,expression,access,call,inference,pattern,interpolation}.kb` (`mod compiler.semantic.checker;`). Split `inference.kb` cleanly out of `call.kb`.

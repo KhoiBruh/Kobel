@@ -1,0 +1,132 @@
+mod compiler.semantic.symbols;
+
+use std.collections.*;
+use std.traits.Iterable;
+
+use compiler.ast.*;
+use compiler.semantic.types.*;
+
+/*
+ * ============================================================================
+ * compiler.semantic.symbols.symbol — Symbol, Scope, and Module Scope model
+ *
+ * Defines the core lexical symbols, scoped hierarchy (`Scope`), module-level
+ * symbol tables (`ModuleScope`), and inter-module import bindings (`ImportBinding`).
+ * ============================================================================
+ */
+
+// ============================================================================
+// SymbolKind Enumeration
+// ============================================================================
+
+pub enum SymbolKind {
+	VAR,
+	CONST,
+	PARAM,
+	FN,
+	STRUCT,
+	ENUM,
+	MODULE,
+	TYPE_ALIAS
+}
+
+// ============================================================================
+// Symbol Representation
+// ============================================================================
+
+pub struct Symbol {
+	pub name: str,
+	pub c_name: str,
+	pub kind: SymbolKind,
+	pub type_ptr: *Type,
+	pub mutable: bool,
+	pub public: bool,
+	pub line: usz,
+	pub col: usz,
+	pub ast_node: *AstNode? = null,
+	pub orig_type: *Type? = null,
+	pub mutated: bool = false
+}
+
+// ============================================================================
+// Lexical Scope
+// ============================================================================
+
+pub struct Scope {
+	pub parent: *Scope? = null,
+	pub symbols: List<*Symbol> = List(),
+	pub is_fn_boundary: bool = false
+}
+
+impl Scope {
+
+	pub fn lookup(val self, name: str): *Symbol? {
+		for (sym in self.symbols) {
+			if (sym.name == name) return sym;
+		}
+		return null;
+	}
+
+	pub op get(val self, name: str) => self.lookup(name);
+
+	pub op contains(val self, name: str) => self.lookup(name) != null;
+
+	pub op plus_assign(var self, sym: *Symbol) => self.symbols += sym;
+
+}
+
+impl Iterable for Scope {
+
+	pub fn count(val self) => self.symbols.len;
+	pub fn at(val self, i: usz) => self.symbols[i];
+
+}
+
+// ============================================================================
+// Module Scope & Imports
+// ============================================================================
+
+/*
+ * An import binding produced from a `use` statement.
+ * When `wildcard` is true, all public symbols of `module_name` are accessible.
+ * `owner_module` scopes the binding so independent modules do not leak imports.
+ */
+pub struct ImportBinding {
+	pub module_name: str,
+	pub symbol_name: str,
+	pub local_name: str,
+	pub wildcard: bool,
+	pub owner_module: str
+}
+
+pub struct ModuleScope {
+	pub name: str,
+	pub symbols: List<*Symbol> = List(),
+	pub sym_map: HashMap<str, *Symbol> = HashMap()
+}
+
+impl ModuleScope {
+
+	pub fn lookup(val self, name: str): *Symbol? {
+		val p = self.sym_map.get(name);
+		if (p != null) return p.read();
+		return null;
+	}
+
+	pub op get(val self, name: str) => self.lookup(name);
+
+	pub op contains(val self, name: str) => name in self.sym_map;
+
+	pub op plus_assign(var self, sym: *Symbol) {
+		self.symbols += sym;
+		self.sym_map[sym.name] = sym;
+	}
+
+}
+
+impl Iterable for ModuleScope {
+
+	pub fn count(val self) => self.symbols.len;
+	pub fn at(val self, i: usz) => self.symbols[i];
+
+}

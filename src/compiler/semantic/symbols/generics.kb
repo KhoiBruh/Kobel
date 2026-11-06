@@ -1,0 +1,155 @@
+mod compiler.semantic.symbols;
+
+use std.collections.*;
+
+use compiler.ast.*;
+use compiler.semantic.types.*;
+
+/*
+ * ============================================================================
+ * compiler.semantic.symbols.generics — Generic templates, instances, and registry
+ *
+ * Defines the generic descriptor hierarchy:
+ *   - `TemplateKind`: Category of a generic template (function, method, struct).
+ *   - `GenericTemplate`: Uninstantiated generic AST template declaration.
+ *   - `GenericSubst`: Type-parameter to type-node substitution map.
+ *   - `InstanceKind` and `InstanceRecord`: Monomorphized instance identity and
+ *     per-instance side-table annotations.
+ *   - `GenericRegistry`: Global registry storing templates, instance caches, and
+ *     the monomorphization worklist.
+ * ============================================================================
+ */
+
+pub enum TemplateKind {
+	FN,
+	METHOD,
+	STRUCT
+}
+
+pub struct GenericTemplate {
+	pub name: str,
+	pub module: str,
+	pub node: *AstNode,
+	pub is_method: bool,
+	pub self_type: str = ""
+}
+
+impl GenericTemplate {
+
+	pub fn param_names(val self): List<str> {
+		var names = List<str>();
+		val node = self.node;
+		when (node) {
+			is StructDecl -> for (tp in node.type_params) names += tp.name;
+			is FnDecl -> for (p in node.type_params) names += p.name;
+			is ImplDecl -> for (p in node.type_params) names += p.name;
+		}
+		return names;
+	}
+
+	pub fn params(val self) => when (self.node) {
+		is StructDecl as s -> s.type_params;
+		is FnDecl as f -> f.type_params;
+		is ImplDecl as i -> i.type_params;
+		else -> List<GenericParam>();
+	};
+
+}
+
+pub struct GenericSubst {
+	pub names: List<str>,
+	pub args: List<*AstNode>
+}
+
+impl GenericSubst {
+
+	pub fn lookup(val self, name: str): *AstNode? {
+		val idx = self.names.index_of(name);
+		if (idx >= 0) return self.args[idx as usz];
+		return null;
+	}
+
+}
+
+pub fn is_template_decl(node: *AstNode): bool => decl_is_template(node);
+
+pub enum InstanceKind {
+	STRUCT,
+	FUNCTION
+}
+
+/*
+ * One monomorphized instance: the template it was produced from, the resolved
+ * concrete type arguments, and its specialized declaration.
+ */
+pub struct InstanceRecord {
+	pub kind: InstanceKind,
+	pub template: *GenericTemplate,
+	pub args: List<*Type>,
+	pub c_name: str,
+	pub decl: *AstNode,
+	pub ann_map: HashMap<usz, *AnnotationEntry> = HashMap(),
+	pub sig: *Type? = null
+}
+
+impl InstanceRecord {
+
+	pub fn find_ann(val self, node: *AstNode): *AnnotationEntry? {
+		val p = self.ann_map.get(node.addr()) ?: return null;
+		return *p;
+	}
+
+}
+
+/*
+ * Global monomorphization registry storing templates, mangled-name symbol indices,
+ * specialized instance records, and the instantiation worklist.
+ */
+pub struct GenericRegistry {
+	pub struct_templates: List<*GenericTemplate> = List(),
+	pub fn_templates: List<*GenericTemplate> = List(),
+	pub impl_templates: List<*GenericTemplate> = List(),
+	pub inst_map: HashMap<str, *Symbol> = HashMap(),
+	pub records: List<*InstanceRecord> = List(),
+	pub record_map: HashMap<str, *InstanceRecord> = HashMap(),
+	pub instances: List<*AstNode> = List()
+}
+
+impl GenericRegistry {
+
+	pub fn add_inst(var self, sym: *Symbol) {
+		self.inst_map[sym.name] = sym;
+	}
+
+	pub fn find_instance_symbol(val self, name: str): *Symbol? {
+		val p = self.inst_map.get(name) ?: return null;
+		return p.read();
+	}
+
+	pub fn add_record(var self, rec: *InstanceRecord) {
+		self.records += rec;
+		if (!rec.c_name.empty()) self.record_map[rec.c_name] = rec;
+	}
+
+	pub fn find_instance_record(
+		val self, template: *GenericTemplate,
+		args: List<*Type>, kind: InstanceKind
+	): *InstanceRecord? {
+		for (r in self.records) {
+			if (r.template != template || r.kind != kind) continue;
+			if (r.args.len != args.len) continue;
+			var same = true;
+			for (i in 0..<args.len) {
+				if (!r.args[i].equals(args[i])) same = false;
+			}
+			if (same) return r;
+		}
+		return null;
+	}
+
+	pub fn find_record_by_cname(val self, cname: str): *InstanceRecord? {
+		val p = self.record_map.get(cname) ?: return null;
+		return p.read();
+	}
+
+}

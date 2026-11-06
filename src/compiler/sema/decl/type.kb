@@ -18,6 +18,7 @@ use compiler.ast.ArrayType;
 
 use compiler.sema.*;
 use compiler.semantic.types.*;
+use compiler.semantic.symbols.*;
 use compiler.sema.mono.*;
 
 impl DeclPass {

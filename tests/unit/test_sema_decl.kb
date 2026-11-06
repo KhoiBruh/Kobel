@@ -8,7 +8,7 @@ use compiler.parser.*;
 
 use compiler.semantic.types.DataType;
 
-use compiler.sema.SymbolKind;
+use compiler.semantic.symbols.SymbolKind;
 
 use compiler.sema.decl.DeclPass;
 use compiler.sema.decl.*;

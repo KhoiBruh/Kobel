@@ -17,6 +17,7 @@ use compiler.ast.*;
 
 use compiler.sema.*;
 use compiler.semantic.types.*;
+use compiler.semantic.symbols.*;
 
 // ============================================================================
 // String interpolation lowering

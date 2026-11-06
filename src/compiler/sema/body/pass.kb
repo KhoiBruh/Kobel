@@ -22,6 +22,7 @@ use compiler.lexer.*;
 
 use compiler.sema.*;
 use compiler.semantic.types.*;
+use compiler.semantic.symbols.*;
 use compiler.sema.decl.*;
 use compiler.sema.desugar.*;
 use compiler.sema.mono.*;
@@ -199,7 +200,7 @@ impl BodyPass {
 
 	// Finds a method template for a receiver whose type the body pass knows, so
 	// two structs can declare generic methods with the same name.
-	pub fn find_method_template_for(var self, name: str, self_type: str): *GenTemplate? {
+	pub fn find_method_template_for(var self, name: str, self_type: str): *GenericTemplate? {
 		if (self.has_decl) return self.decl.find_method_template(name, self_type);
 
 		var decl_p = DeclPass(
@@ -214,7 +215,7 @@ impl BodyPass {
 
 	// Instantiates a generic method with the receiver type in scope, reusing the
 	// declaration pass so its instance tables stay coherent with this pass.
-	pub fn instantiate_method(var self, tmpl: *GenTemplate, arg_asts: List<*AstNode>, obj_ty: *Type): str {
+	pub fn instantiate_method(var self, tmpl: *GenericTemplate, arg_asts: List<*AstNode>, obj_ty: *Type): str {
 		if (self.has_decl) {
 			self.decl.symtab = self.symtab;
 			self.decl.current_module = self.symtab.current_module;
@@ -330,11 +331,11 @@ impl BodyPass {
 		}
 	}
 
-	pub fn ann_entry(var self, node: *AstNode): *AnnEntry {
+	pub fn ann_entry(var self, node: *AstNode): *AnnotationEntry {
 		val rec = self.current_rec;
 		val ex = rec.find_ann(node);
 		if (ex != null) return ex;
-		val e = self.arena.create_val(AnnEntry(node));
+		val e = self.arena.create_val(AnnotationEntry(node));
 		rec.ann_map[node.addr()] = e;
 		return e;
 	}

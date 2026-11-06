@@ -20,6 +20,7 @@ use std.collections.*;
 
 use compiler.ast.*;
 use compiler.semantic.types.*;
+use compiler.semantic.symbols.*;
 
 use compiler.lexer.*;
 

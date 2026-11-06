@@ -18,6 +18,7 @@ use compiler.lexer.*;
 
 use compiler.sema.*;
 use compiler.semantic.types.*;
+use compiler.semantic.symbols.*;
 use compiler.sema.decl.*;
 
 impl BodyPass {
@@ -682,7 +683,7 @@ impl BodyPass {
 	// the instance tables stay coherent with this pass (same pattern as
 	// `find_method_template_for` / `instantiate_method`).
 
-	fn find_fn_template_for(var self, name: str): *GenTemplate? {
+	fn find_fn_template_for(var self, name: str): *GenericTemplate? {
 		if (self.has_decl) return self.decl.find_fn_template(name);
 		var decl_p = DeclPass(
 			self.symtab, self.arena, self.symtab.current_module,
@@ -694,7 +695,7 @@ impl BodyPass {
 		return tmpl;
 	}
 
-	fn find_struct_template_for(var self, name: str): *GenTemplate? {
+	fn find_struct_template_for(var self, name: str): *GenericTemplate? {
 		if (self.has_decl) return self.decl.find_struct_template(name);
 		var decl_p = DeclPass(
 			self.symtab, self.arena, self.symtab.current_module,
@@ -706,7 +707,7 @@ impl BodyPass {
 		return tmpl;
 	}
 
-	fn instantiate_template_fn(var self, tmpl: *GenTemplate, arg_asts: List<*AstNode>): str {
+	fn instantiate_template_fn(var self, tmpl: *GenericTemplate, arg_asts: List<*AstNode>): str {
 		self.decl.symtab = self.symtab;
 		self.decl.current_module = self.symtab.current_module;
 		self.decl.current_self_type = self.current_self_type;
@@ -717,7 +718,7 @@ impl BodyPass {
 		return cname;
 	}
 
-	fn instantiate_template_struct(var self, tmpl: *GenTemplate, arg_asts: List<*AstNode>): *Type {
+	fn instantiate_template_struct(var self, tmpl: *GenericTemplate, arg_asts: List<*AstNode>): *Type {
 		self.decl.symtab = self.symtab;
 		self.decl.current_module = self.symtab.current_module;
 		self.decl.current_self_type = self.current_self_type;

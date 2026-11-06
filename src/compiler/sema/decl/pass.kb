@@ -23,6 +23,7 @@ use compiler.lexer.TokenType;
 
 use compiler.ast.*;
 use compiler.semantic.types.*;
+use compiler.semantic.symbols.*;
 use compiler.sema.*;
 use compiler.sema.mono.*;
 use compiler.sema.desugar.*;

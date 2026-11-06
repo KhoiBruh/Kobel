@@ -33,6 +33,7 @@ use compiler.ast.PointerType;
 use compiler.ast.ArrayType;
 use compiler.sema.*;
 use compiler.semantic.types.*;
+use compiler.semantic.symbols.*;
 use compiler.semantic.types.StructField;
 
 impl DeclPass {
@@ -43,12 +44,12 @@ impl DeclPass {
 
 	// The annotation side-table entry for a node while materializing a function
 	// instance (null when not materializing or when the node has no entry).
-	fn mat_ann(val self, node: *AstNode?): *AnnEntry? {
+	fn mat_ann(val self, node: *AstNode?): *AnnotationEntry? {
 		if (node == null || self.mat_rec == null) return null;
 		return self.mat_rec.find_ann(node!);
 	}
 
-	pub fn clone_type(var self, node: *AstNode?, subst: *GenSubst? = null): *AstNode {
+	pub fn clone_type(var self, node: *AstNode?, subst: *GenericSubst? = null): *AstNode {
 		if (node == null) return null as *AstNode;
 		// Inside an instance the checker resolved this type node to a concrete
 		// type; materialize that instead of replaying the substitution.
@@ -94,7 +95,7 @@ impl DeclPass {
 		};
 	}
 
-	pub fn clone_expr(var self, node: *AstNode?, subst: *GenSubst? = null): *AstNode {
+	pub fn clone_expr(var self, node: *AstNode?, subst: *GenericSubst? = null): *AstNode {
 		if (node == null) return null as *AstNode;
 		val raw_node = node;
 		if (
@@ -234,7 +235,7 @@ impl DeclPass {
 	// `CALL`: three shapes are rewritten before the generic clone. `T.size()` folds
 	// to a literal, a call carrying type arguments instantiates its template, and
 	// everything else is cloned caller-first like the original.
-	fn clone_call_expr(var self, node: *AstNode, subst: *GenSubst? = null): *AstNode {
+	fn clone_call_expr(var self, node: *AstNode, subst: *GenericSubst? = null): *AstNode {
 		val special = self.clone_size_query(node, subst) ?: self.clone_template_call(node, subst);
 		if (special != null) return special;
 
@@ -248,7 +249,7 @@ impl DeclPass {
 	// `T.size()` in generic code: the substituted type's C size is known at compile
 	// time, so the call becomes an integer literal. Null when the call is not a
 	// `T.size()` on a type parameter.
-	fn clone_size_query(var self, node: *AstNode, subst: *GenSubst? = null): *AstNode? {
+	fn clone_size_query(var self, node: *AstNode, subst: *GenericSubst? = null): *AstNode? {
 		if (node is CallExpr as c) {
 			if (c.callee is MemberExpr as m) {
 				if (m.member == "size" && m.object is IdentifierExpr as obj_id) {
@@ -264,13 +265,13 @@ impl DeclPass {
 	// rewritten to a call of the instantiated name (`obj.m<X>(...)`, `Fn<X>(...)`,
 	// `Struct<X>(...)`). Null when no template matches, which sends the caller down
 	// its generic clone path.
-	fn clone_template_call(var self, node: *AstNode, subst: *GenSubst? = null): *AstNode? {
+	fn clone_template_call(var self, node: *AstNode, subst: *GenericSubst? = null): *AstNode? {
 		if (node is CallExpr as c) {
 			if (c.type_args.empty()) return null;
 
 		val callee = c.callee;
 		if (callee is MemberExpr as mem) {
-			var ft: *GenTemplate? = null;
+			var ft: *GenericTemplate? = null;
 			if (mem.object is IdentifierExpr as id) {
 				ft = self.find_method_template(mem.member, id.name);
 			}
@@ -342,13 +343,13 @@ impl DeclPass {
 		return null;
 	}
 
-	fn clone_expr_list(var self, nodes: List<*AstNode>, subst: *GenSubst? = null): List<*AstNode> {
+	fn clone_expr_list(var self, nodes: List<*AstNode>, subst: *GenericSubst? = null): List<*AstNode> {
 		var out = List<*AstNode>();
 		for (n in nodes) out += self.clone_expr(n, subst);
 		return out;
 	}
 
-	fn clone_type_args(var self, nodes: List<*AstNode>, subst: *GenSubst? = null): List<*AstNode> {
+	fn clone_type_args(var self, nodes: List<*AstNode>, subst: *GenericSubst? = null): List<*AstNode> {
 		var out = List<*AstNode>();
 		for (n in nodes) out += self.clone_type(n, subst);
 		return out;
@@ -356,7 +357,7 @@ impl DeclPass {
 
 	// A `when` arm's patterns are expressions; its body is a block when written as
 	// `{ ... }`, otherwise a single expression.
-	fn clone_when_arms(var self, node: *AstNode, subst: *GenSubst? = null): List<WhenArm> {
+	fn clone_when_arms(var self, node: *AstNode, subst: *GenericSubst? = null): List<WhenArm> {
 		var arms = List<WhenArm>();
 		if (node is WhenExpr as we) {
 			for (arm in we.arms) {
@@ -371,7 +372,7 @@ impl DeclPass {
 		return arms;
 	}
 
-	fn clone_interp_parts(var self, node: *AstNode, subst: *GenSubst? = null): List<InterpPart> {
+	fn clone_interp_parts(var self, node: *AstNode, subst: *GenericSubst? = null): List<InterpPart> {
 		var parts = List<InterpPart>();
 		if (node is InterpExpr as ie) {
 			for (part in ie.parts) {
@@ -388,7 +389,7 @@ impl DeclPass {
 		return parts;
 	}
 
-	pub fn clone_stmt(var self, node: *AstNode?, subst: *GenSubst? = null): *AstNode {
+	pub fn clone_stmt(var self, node: *AstNode?, subst: *GenericSubst? = null): *AstNode {
 		if (node == null) return null as *AstNode;
 		val se = self.mat_ann(node);
 		// A node the checker already replaced for this instance (a desugared
@@ -479,7 +480,7 @@ impl DeclPass {
 		};
 	}
 
-	pub fn clone_fn(var self, node: *AstNode, subst: *GenSubst? = null, new_name: str = ""): *AstNode {
+	pub fn clone_fn(var self, node: *AstNode, subst: *GenericSubst? = null, new_name: str = ""): *AstNode {
 		if (node is FnDecl as f) {
 			var params = List<Param>();
 			for (p in f.params) {

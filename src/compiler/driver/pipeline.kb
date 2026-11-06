@@ -11,6 +11,7 @@ use compiler.core.*;
 use compiler.ast.*;
 use compiler.sema.*;
 use compiler.semantic.types.*;
+use compiler.semantic.symbols.*;
 use compiler.sema.decl.*;
 use compiler.sema.body.*;
 use compiler.codegen.*;

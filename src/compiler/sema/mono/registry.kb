@@ -22,6 +22,7 @@ use compiler.ast.*;
 
 use compiler.sema.*;
 use compiler.semantic.types.*;
+use compiler.semantic.symbols.*;
 use compiler.sema.decl.*;
 
 use compiler.ast.StructField as AstStructField;
@@ -30,7 +31,7 @@ use compiler.semantic.types.StructField;
 // A template is a candidate when its name matches and its table kind agrees:
 // `FN` never matches an `impl` method, `METHOD` only matches one, `STRUCT`
 // ignores the flag.
-fn template_matches(kind: TemplateKind, t: *GenTemplate, name: str): bool => when (kind) {
+fn template_matches(kind: TemplateKind, t: *GenericTemplate, name: str): bool => when (kind) {
 	TemplateKind.FN -> !t.is_method && t.name == name;
 	TemplateKind.METHOD -> t.is_method && t.name == name;
 	else -> t.name == name;
@@ -73,8 +74,8 @@ impl DeclPass {
 
 	// self_type is the impl's target type for a method template ("" otherwise),
 	// which lets a method be looked up by its receiver instead of by name alone.
-	pub fn gen_template(var self, name: str, node: *AstNode, is_method: bool, self_type: str = ""): *GenTemplate {
-		return self.arena.create_val(GenTemplate(name, self.current_module, node, is_method, self_type));
+	pub fn gen_template(var self, name: str, node: *AstNode, is_method: bool, self_type: str = ""): *GenericTemplate {
+		return self.arena.create_val(GenericTemplate(name, self.current_module, node, is_method, self_type));
 	}
 
 	pub fn template_in_module(val self, module: str, name: str): bool {
@@ -96,7 +97,7 @@ impl DeclPass {
 
 	// A method template also has to agree on the receiver type: two structs may
 	// declare a generic method with the same name.
-	fn template_fits(val self, kind: TemplateKind, t: *GenTemplate, name: str, self_type: str): bool {
+	fn template_fits(val self, kind: TemplateKind, t: *GenericTemplate, name: str, self_type: str): bool {
 		if (!template_matches(kind, t, name)) return false;
 		if (self_type.empty()) return true;
 		return t.self_type == self_type;
@@ -104,7 +105,7 @@ impl DeclPass {
 
 	// Visible from the current module: own module first, then imports (a wildcard
 	// import, or an alias that matches `name`), then any module.
-	fn find_template(val self, kind: TemplateKind, name: str, self_type: str = ""): *GenTemplate? {
+	fn find_template(val self, kind: TemplateKind, name: str, self_type: str = ""): *GenericTemplate? {
 		val list = self.templates_of(kind);
 		for (t in list) {
 			if (self.template_fits(kind, t, name, self_type) && t.module == self.current_module) return t;
@@ -129,11 +130,11 @@ impl DeclPass {
 		return null;
 	}
 
-	pub fn find_fn_template(val self, name: str): *GenTemplate? => self.find_template(TemplateKind.FN, name);
+	pub fn find_fn_template(val self, name: str): *GenericTemplate? => self.find_template(TemplateKind.FN, name);
 
-	pub fn find_method_template(val self, name: str, self_type: str = ""): *GenTemplate? => self.find_template(TemplateKind.METHOD, name, self_type);
+	pub fn find_method_template(val self, name: str, self_type: str = ""): *GenericTemplate? => self.find_template(TemplateKind.METHOD, name, self_type);
 
-	pub fn find_struct_template(val self, name: str): *GenTemplate? => self.find_template(TemplateKind.STRUCT, name);
+	pub fn find_struct_template(val self, name: str): *GenericTemplate? => self.find_template(TemplateKind.STRUCT, name);
 
 	pub fn type_token(val self, ty: *Type): str => when (ty.kind) {
 		DataType.NONE -> "none";
@@ -186,7 +187,7 @@ impl DeclPass {
 	// the concrete argument must be a struct with a matching `impl Trait for`
 	// block. Arguments that are not known structs (primitives, pointers, ...) are
 	// left alone so no false error is reported for a type we cannot prove.
-	pub fn check_bounds(var self, tmpl: *GenTemplate, arg_asts: List<*AstNode>) {
+	pub fn check_bounds(var self, tmpl: *GenericTemplate, arg_asts: List<*AstNode>) {
 		val params = tmpl.params();
 		for (i in 0..<params.len) {
 			val gp = params[i];
@@ -221,8 +222,8 @@ impl DeclPass {
 		}
 	}
 
-	pub fn alloc_subst(var self, names: List<str>, args: List<*AstNode>): *GenSubst {
-		return self.arena.create_val(GenSubst(names, args));
+	pub fn alloc_subst(var self, names: List<str>, args: List<*AstNode>): *GenericSubst {
+		return self.arena.create_val(GenericSubst(names, args));
 	}
 
 	pub fn queue_decl(var self, module: str, node: *AstNode) {

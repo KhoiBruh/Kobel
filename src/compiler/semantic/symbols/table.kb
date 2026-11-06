@@ -1,232 +1,40 @@
-mod compiler.sema;
-
-// ============================================================================
-// Symbol table and instantiation registry
-//
-// Scopes and module scopes, `Symbol` and `SymbolKind`, import bindings, and the
-// state that outlives the body pass:
-// - `GenericReg`: template tables, mangled-name index (`inst_map`), typed
-//   instance records and the instance declaration worklist;
-// - `SymbolTable`: scopes + modules + imports + enum registry + traits +
-//   associated-type bindings + the primitive singletons.
-// Lookup order: local scopes, current module, explicit imports, wildcard
-// imports, then instantiated symbols by mangled C name.
-//
-// The record types live next door: `sema.template` (GenTemplate/GenSubst),
-// `sema.instance` (InstanceRecord/AnnEntry) and `sema.traits` (TraitInfo).
-// ============================================================================
+mod compiler.semantic.symbols;
 
 use std.memory.*;
 use std.collections.*;
-use std.traits.Iterable;
 
 use compiler.ast.*;
 use compiler.semantic.types.*;
 
-// ============================================================================
-// SymbolKind Enumeration
-// ============================================================================
-
-pub enum SymbolKind {
-	VAR,
-	CONST,
-	PARAM,
-	FN,
-	STRUCT,
-	ENUM,
-	MODULE,
-	TYPE_ALIAS
-}
-
-// ============================================================================
-// Symbol Representation
-// ============================================================================
-
-pub struct Symbol {
-	pub name: str,
-	pub c_name: str,
-	pub kind: SymbolKind,
-	pub type_ptr: *Type,
-	pub mutable: bool,
-	pub public: bool,
-	pub line: usz,
-	pub col: usz,
-	pub ast_node: *AstNode? = null,
-	pub orig_type: *Type? = null,
-	pub mutated: bool = false
-}
-
-// ============================================================================
-// Lexical Scope
-// ============================================================================
-
-pub struct Scope {
-	pub parent: *Scope? = null,
-	pub symbols: List<*Symbol> = List(),
-	pub is_fn_boundary: bool = false
-}
-
-impl Scope {
-	pub fn lookup(val self, name: str): *Symbol? {
-		for (sym in self.symbols) {
-			if (sym.name == name) return sym;
-		}
-		return null;
-	}
-
-	pub op get(val self, name: str) => self.lookup(name);
-
-	pub op contains(val self, name: str) => self.lookup(name) != null;
-
-	pub op plus_assign(var self, sym: *Symbol) => self.symbols += sym;
-}
-
-impl Iterable for Scope {
-	pub fn count(val self) => self.symbols.len;
-	pub fn at(val self, i: usz) => self.symbols[i];
-}
-
-// ============================================================================
-// Module Scope & Imports
-// ============================================================================
-
-// A `use` that resolved to a symbol of another module.
-// When `wildcard` = true, every symbol of `module_name` is usable.
-// `owner_module` is the module the `use` was written in, so imports stay
-// scoped: two modules importing the same name do not affect each other.
-pub struct ImportBinding {
-	pub module_name: str,
-	pub symbol_name: str,
-	pub local_name: str,
-	pub wildcard: bool,
-	pub owner_module: str
-}
-
-pub struct ModuleScope {
-	pub name: str,
-	pub symbols: List<*Symbol> = List(),
-	pub sym_map: HashMap<str, *Symbol> = HashMap()
-}
-
-impl ModuleScope {
-	pub fn lookup(val self, name: str): *Symbol? {
-		val p = self.sym_map.get(name);
-		if (p != null) return p.read();
-		return null;
-	}
-
-	pub op get(val self, name: str) => self.lookup(name);
-
-	pub op contains(val self, name: str) => name in self.sym_map;
-
-	pub op plus_assign(var self, sym: *Symbol) {
-		self.symbols += sym;
-		self.sym_map[sym.name] = sym;
-	}
-}
-
-impl Iterable for ModuleScope {
-	pub fn count(val self) => self.symbols.len;
-	pub fn at(val self, i: usz) => self.symbols[i];
-}
-
-// Monomorphization state, shared through the (single) SymbolTable.
-pub struct GenericReg {
-	pub struct_templates: List<*GenTemplate> = List(),
-	pub fn_templates: List<*GenTemplate> = List(),
-	pub impl_templates: List<*GenTemplate> = List(),
-	// Symbols of instantiated declarations, keyed by their mangled C name. This
-	// is the *name* index; identity lives in `records` (template + resolved args).
-	pub inst_map: HashMap<str, *Symbol> = HashMap(),
-	// Typed instance records: the identity used by monomorphization is
-	// (template, resolved type arguments), not the mangled C name.
-	pub records: List<*InstanceRecord> = List(),
-	pub record_map: HashMap<str, *InstanceRecord> = HashMap(),
-	// Declarations produced by instantiation, as `module marker, decl` pairs in
-	// creation order (a dependency always precedes the instance that needs it).
-	// The same list is the rewrite worklist: each instance still gets a fixpoint
-	// pass so generic uses inside it are instantiated too.
-	pub instances: List<*AstNode> = List()
-}
-
-impl GenericReg {
-	pub fn add_inst(var self, sym: *Symbol) {
-		self.inst_map[sym.name] = sym;
-	}
-
-	pub fn find_instance_symbol(val self, name: str): *Symbol? {
-		val p = self.inst_map.get(name) ?: return null;
-		return p.read();
-	}
-
-	pub fn add_record(var self, rec: *InstanceRecord) {
-		self.records += rec;
-		if (!rec.c_name.empty()) self.record_map[rec.c_name] = rec;
-	}
-
-	// Typed lookup: same template and equal argument types.
-	pub fn find_instance_record(val self, tmpl: *GenTemplate, args: List<*Type>, kind: InstanceKind): *InstanceRecord? {
-		for (r in self.records) {
-			if (r.template != tmpl || r.kind != kind) continue;
-			if (r.args.len != args.len) continue;
-			var same = true;
-			for (i in 0..<args.len) {
-				if (!r.args[i].equals(args[i])) same = false;
-			}
-			if (same) return r;
-		}
-		return null;
-	}
-
-	pub fn find_record_by_cname(val self, cname: str): *InstanceRecord? {
-		val p = self.record_map.get(cname) ?: return null;
-		return p.read();
-	}
-}
-
-// ============================================================================
-// Symbol Table
-// ============================================================================
+/*
+ * ============================================================================
+ * compiler.semantic.symbols.table — Global Symbol Table
+ *
+ * Coordinates scoped symbol lookups, module registrations, imports, enum and
+ * trait catalogues, canonical primitive methods, and semantic side-tables.
+ * ============================================================================
+ */
 
 pub struct SymbolTable {
 	pub current_scope: *Scope,
 	pub arena: Arena,
 	pub current_module: str = "",
-	// NOTE: List<*ModuleScope> rather than List<ModuleScope>:
-	// `List.get` returns a COPY of the value (val), so any change through the copy
-	// (e.g. `sc.symbols += ...`) will not be visible on the next access.
-	// Keep pointers so define/lookup work correctly on both v0 and v1.
 	pub modules: List<*ModuleScope> = List(),
 	pub module_map: HashMap<str, *ModuleScope> = HashMap(),
 	pub imports: List<ImportBinding> = List(),
-	// Enum member tables, keyed by source name / mangled C name.
 	pub enums: List<*EnumInfo> = List(),
 	pub enum_map: HashMap<str, *EnumInfo> = HashMap(),
-	// Collected `trait` declarations, by source name.
 	pub traits: List<*TraitInfo> = List(),
 	pub trait_map: HashMap<str, *TraitInfo> = HashMap(),
-	// Methods extending the built-in (primitive) types live on the canonical
-	// `Type` of each kind (see `PrimTypes`); these helpers are the read side.
 	pub c_name_map: HashMap<str, *Symbol> = HashMap(),
 	pub struct_const_map: HashMap<str, *Symbol> = HashMap(),
 	pub explicit_imports: HashMap<str, ImportBinding> = HashMap(),
 	pub wildcard_owners: List<str> = List(),
 	pub wildcard_modules: List<str> = List(),
-	// Trait associated-type bindings: "<struct>.<assoc>" -> concrete type.
 	pub assoc_types: HashMap<str, *Type> = HashMap(),
-	pub gen: GenericReg = GenericReg(),
-	// Canonical primitive types, built on first use from this table's arena.
+	pub gen: GenericRegistry = GenericRegistry(),
 	pub prims: *PrimTypes? = null,
-	// Shared semantic side-tables for AST nodes (types, bound methods, replacements, instances, patterns).
 	pub sem: *SemanticTable? = null
-}
-
-pub struct SemanticTable {
-	pub node_types: HashMap<usz, *Type> = HashMap(),
-	pub resolved_methods: HashMap<usz, *MethodInfo> = HashMap(),
-	pub resolved_nodes: HashMap<usz, *AstNode> = HashMap(),
-	pub node_instances: HashMap<usz, *InstanceRecord> = HashMap(),
-	pub is_patterns: HashMap<usz, IsPatternInfo> = HashMap()
 }
 
 impl SymbolTable {
@@ -235,8 +43,6 @@ impl SymbolTable {
 		var arena = Arena();
 		val root_scope = arena.create_val(Scope());
 		var st = Self(root_scope, arena);
-		// Build the canonical primitives and semantic side-tables eagerly so every
-		// copy of this table shares the same instances.
 		st.prims = arena.create_val(PrimTypes(&arena));
 		st.sem = arena.create_val(SemanticTable());
 		return st;
@@ -307,33 +113,26 @@ impl SymbolTable {
 		return *p;
 	}
 
-	// Register a method of a built-in type on its canonical instance.
 	pub fn register_prim_method(val self, prim: *Type, mi: *MethodInfo) {
 		var target = prim;
 		target.add_method(mi);
 	}
 
-	// Method of a primitive type by its source name (used by `x.m()` resolution).
 	pub fn find_prim_method(val self, kind: DataType, name: str): *MethodInfo? {
 		val t = self.prims.get(kind) ?: return null;
 		return t.method_named(name);
 	}
 
-	// Overload-aware variant of `find_prim_method` (parameter count includes the
-	// receiver). Null when no overload matches, so the caller can fall back.
 	pub fn find_prim_method_arity(val self, kind: DataType, name: str, argc: usz): *MethodInfo? {
 		val t = self.prims.get(kind) ?: return null;
 		return t.method_arity(name, argc);
 	}
 
-	// Every method of a primitive kind, in declaration order (default-argument
-	// resolution walks this list like it walks `StructType.methods`).
 	pub fn prim_methods_of(val self, kind: DataType): List<*MethodInfo> {
 		val t = self.prims.get(kind) ?: return List();
 		return t.method_list();
 	}
 
-	// Primitive method by its mangled C name (used when re-visiting an impl).
 	pub fn find_prim_method_c(val self, c_name: str): *MethodInfo? {
 		for (t in self.prims.types) {
 			val m = t.method_by_c_name(c_name);
@@ -356,8 +155,8 @@ impl SymbolTable {
 		self.enums += info;
 		self.enum_map[info.name] = info;
 		if (
-			!info.c_name.empty() &&
-			info.c_name != info.name
+			!info.c_name.empty()
+			&& info.c_name != info.name
 		) self.enum_map[info.c_name] = info;
 	}
 
@@ -393,8 +192,6 @@ impl SymbolTable {
 		return null;
 	}
 
-	// Name lookup: local scope -> declarations of the current module -> imports of
-	// the current module -> mangled C name (so re-resolution gives the same result).
 	pub fn lookup(val self, name: str): *Symbol? {
 		var curr: *Scope? = self.current_scope;
 		while (curr != null) {
@@ -402,18 +199,15 @@ impl SymbolTable {
 			curr = curr.parent;
 		}
 
-		// 2. Top-level declarations of the current module
 		val own = self.lookup_in_module(self.current_module, name);
 		if (own != null) return own;
 
-		// 3. Explicit imports (by original name or alias), scoped to this module
 		val b = self.explicit_imports["${self.current_module}::${name}"];
 		if (b != null) {
 			val found = self.lookup_in_module(b.module_name, b.symbol_name);
 			if (found != null) return found;
 		}
 
-		// 4. Wildcard imports, scoped to this module
 		for (i in 0..<self.wildcard_owners.len) {
 			if (self.wildcard_owners[i] == self.current_module) {
 				val found = self.lookup_in_module(self.wildcard_modules[i], name);
@@ -421,17 +215,14 @@ impl SymbolTable {
 			}
 		}
 
-		// 5. Instantiated generic symbols (or fallback to mangled C name)
 		return self.gen.find_instance_symbol(name) ?: self.lookup_c_name(name);
 	}
 
 	pub fn define(var self, sym: Symbol): bool {
-		// Check for duplicate definitions in the same scope
 		val existing = self.lookup_current(sym.name);
 		if (existing != null) return false;
 
 		val sym_ptr = self.arena.create_val(sym);
-
 		self.current_scope += sym_ptr;
 		return true;
 	}
@@ -445,18 +236,16 @@ impl SymbolTable {
 
 	pub fn module_exists(val self, name: str) => name in self.module_map;
 
-	// True when `owner` already wildcard-imports `module_name`.
 	pub fn has_wildcard(val self, owner: str, module_name: str): bool {
 		for (i in 0..<self.wildcard_owners.len) {
 			if (
-				self.wildcard_owners[i] == owner &&
-				self.wildcard_modules[i] == module_name
+				self.wildcard_owners[i] == owner
+				&& self.wildcard_modules[i] == module_name
 			) return true;
 		}
 		return false;
 	}
 
-	// Associated type bindings: "<struct source name>.<assoc name>" -> concrete type.
 	pub fn set_assoc_type(
 		var self, struct_name: str,
 		assoc: str, ty: *Type
@@ -469,7 +258,6 @@ impl SymbolTable {
 		return p.read();
 	}
 
-	// Define a top-level declaration into the scope of the given module.
 	pub fn define_in_module(var self, module_name: str, sym: Symbol): bool {
 		val sc = self.find_module(module_name);
 		if (sc != null) {
@@ -478,8 +266,8 @@ impl SymbolTable {
 			sc += sym_ptr;
 
 			if (
-				!sym.c_name.empty() &&
-				sym.c_name != sym.name
+				!sym.c_name.empty()
+				&& sym.c_name != sym.name
 			) self.c_name_map[sym.c_name] = sym_ptr;
 
 			if (sym.kind == SymbolKind.CONST) self.struct_const_map[sym.name] = sym_ptr;
@@ -487,22 +275,20 @@ impl SymbolTable {
 			return true;
 		}
 
-		// Module scope does not exist yet -> create it (via pointer) then add the symbol
 		val fresh = self.arena.create_val(ModuleScope(module_name));
 		val sym_ptr2 = self.arena.create_val(sym);
 		fresh += sym_ptr2;
 		self.modules += fresh;
 		self.module_map[module_name] = fresh;
 		if (
-			!sym.c_name.empty() &&
-			sym.c_name != sym.name
+			!sym.c_name.empty()
+			&& sym.c_name != sym.name
 		) self.c_name_map[sym.c_name] = sym_ptr2;
 
 		if (sym.kind == SymbolKind.CONST) self.struct_const_map[sym.name] = sym_ptr2;
 		return true;
 	}
 
-	// Define a top-level declaration into the module currently being collected.
 	pub fn define_global(var self, sym: Symbol) => self.define_in_module(self.current_module, sym);
 
 	pub fn add_import(var self, module_name: str, symbol_name: str, local_name: str, wildcard: bool) {
@@ -522,7 +308,6 @@ impl SymbolTable {
 		return sc.lookup(name);
 	}
 
-	// Look up by generated C name (used when re-resolving a mangled name).
 	pub fn lookup_c_name(val self, c_name: str): *Symbol? {
 		if (c_name.empty()) return null;
 		val p = self.c_name_map.get(c_name) ?: return null;

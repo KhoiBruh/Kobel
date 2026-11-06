@@ -1,0 +1,60 @@
+mod compiler.semantic.symbols;
+
+use std.collections.*;
+
+use compiler.ast.*;
+use compiler.semantic.types.*;
+
+/*
+ * ============================================================================
+ * compiler.semantic.symbols.annotations — Semantic side-tables and annotations
+ *
+ * Provides external side-table annotations decoupling semantic metadata from
+ * purely syntactic AST nodes:
+ *   - `IsPatternInfo`: Tag and payload access metadata for `is` pattern lowering.
+ *   - `AnnotationEntry`: Per-node annotation for monomorphized instances sharing
+ *     a template AST.
+ *   - `SemanticTable`: Global side-table mapping node addresses to resolved types,
+ *     resolved methods, lowered replacements, and pattern metadata.
+ * ============================================================================
+ */
+
+// Resolved tag and payload access metadata for an `is` pattern expression.
+pub struct IsPatternInfo {
+	pub tag_field: str = "",
+	pub base_c_name: str = "",
+	pub is_ptr: bool = false,
+	pub payload_path: str = "",
+	pub payload_ptr: bool = false,
+	pub tag_const: str = ""
+}
+
+/*
+ * One per-node annotation entry for a function or method instance whose body
+ * shares the generic template's AST.
+ */
+pub struct AnnotationEntry {
+	pub node: *AstNode,
+	pub ty: *Type? = null,
+	pub method: *MethodInfo? = null,
+	pub resolved: *AstNode? = null,
+	pub is_info: IsPatternInfo = IsPatternInfo(),
+	pub has_is_info: bool = false,
+	pub list_name: str = "",
+	pub has_list_name: bool = false,
+	pub elem_node: *AstNode? = null,
+	pub has_elem_node: bool = false,
+	pub obj_replace: *AstNode? = null,
+	pub var_ty: *Type? = null,
+	pub init_override: *AstNode? = null,
+	pub ident_name: str = "",
+	pub has_ident_name: bool = false
+}
+
+pub struct SemanticTable {
+	pub node_types: HashMap<usz, *Type> = HashMap(),
+	pub resolved_methods: HashMap<usz, *MethodInfo> = HashMap(),
+	pub resolved_nodes: HashMap<usz, *AstNode> = HashMap(),
+	pub node_instances: HashMap<usz, *InstanceRecord> = HashMap(),
+	pub is_patterns: HashMap<usz, IsPatternInfo> = HashMap()
+}
