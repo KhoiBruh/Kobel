@@ -225,18 +225,18 @@ impl DeclPass {
 			for (m in e.members) {
 				var v: i64 = 0;
 				var raw_text = "";
-				var lit_kind = LiteralKind.INT;
+				var lit_kind = Literal.INTEGER;
 
 				if (is_int) {
 					v = next_int_val;
 					if (m.value != null) v = self.enum_const_i64(m.value!);
 					raw_text = "${v}";
-					lit_kind = LiteralKind.INT;
+					lit_kind = Literal.INTEGER;
 					next_int_val = v + 1;
 				} else if (is_str) {
-					lit_kind = LiteralKind.STRING;
+					lit_kind = Literal.STRING;
 					if (m.value != null) {
-						if (m.value is LiteralExpr as lit && lit.literal_kind == LiteralKind.STRING) {
+						if (m.value is LiteralExpr as lit && lit.literal_kind == Literal.STRING) {
 							raw_text = lit.raw_text;
 						} else {
 							self.report_error(m.value!, "Enum member value for 'str' enum must be a string literal");
@@ -246,9 +246,9 @@ impl DeclPass {
 						raw_text = "\"${m.name}\"";
 					}
 				} else if (is_char) {
-					lit_kind = LiteralKind.CHAR;
+					lit_kind = Literal.CHARACTER;
 					if (m.value != null) {
-						if (m.value is LiteralExpr as lit && lit.literal_kind == LiteralKind.CHAR) {
+						if (m.value is LiteralExpr as lit && lit.literal_kind == Literal.CHARACTER) {
 							raw_text = lit.raw_text;
 						} else {
 							self.report_error(m.value!, "Enum member value for 'char' enum must be a character literal");
@@ -259,9 +259,9 @@ impl DeclPass {
 						raw_text = "'?'";
 					}
 				} else if (is_float) {
-					lit_kind = LiteralKind.FLOAT;
+					lit_kind = Literal.FLOAT;
 					if (m.value != null) {
-						if (m.value is LiteralExpr as lit && (lit.literal_kind == LiteralKind.FLOAT || lit.literal_kind == LiteralKind.INT)) {
+						if (m.value is LiteralExpr as lit && (lit.literal_kind == Literal.FLOAT || lit.literal_kind == Literal.INTEGER)) {
 							raw_text = lit.raw_text;
 						} else {
 							self.report_error(m.value!, "Enum member value for float enum must be a number literal");
@@ -272,9 +272,9 @@ impl DeclPass {
 						raw_text = "0.0";
 					}
 				} else if (is_bool) {
-					lit_kind = LiteralKind.BOOL;
+					lit_kind = Literal.BOOLEAN;
 					if (m.value != null) {
-						if (m.value is LiteralExpr as lit && lit.literal_kind == LiteralKind.BOOL) {
+						if (m.value is LiteralExpr as lit && lit.literal_kind == Literal.BOOLEAN) {
 							raw_text = lit.raw_text;
 						} else {
 							self.report_error(m.value!, "Enum member value for 'bool' enum must be a bool literal");
@@ -359,7 +359,7 @@ impl DeclPass {
 				Symbol("${v_name}__TAG", "${v_c}__TAG", SymbolKind.CONST, tag_ty, false, false, m.line, m.col, null)
 			);
 
-			val mi = self.arena.create_val(EnumMemberInfo(m.name, idx, v_ty, "u.${m.name}", "", LiteralKind.INT));
+			val mi = self.arena.create_val(EnumMemberInfo(m.name, idx, v_ty, "u.${m.name}", "", Literal.INTEGER));
 			members += mi;
 
 			if (v_ty.size > max_payload) max_payload = v_ty.size;

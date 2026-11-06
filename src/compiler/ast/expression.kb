@@ -9,12 +9,11 @@ use compiler.core.Span;
  * compiler.ast.expression — Expression literal kinds, pattern arms, and parts
  * ============================================================================
  */
-
-pub enum LiteralKind {
-	INT,
+pub enum Literal {
+	INTEGER,
 	FLOAT,
-	BOOL,
-	CHAR,
+	BOOLEAN,
+	CHARACTER,
 	STRING,
 	NULL_VAL
 }

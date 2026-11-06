@@ -253,7 +253,7 @@ impl DeclPass {
 			if (c.callee is MemberExpr as m) {
 				if (m.member == "size" && m.object is IdentifierExpr as obj_id) {
 					val sa = subst?.lookup(obj_id.name) ?: return null;
-					return self.arena.node(NodeData.LiteralExpr(LiteralKind.INT, "${self.ast_type_size(sa)}"), node.line, node.col);
+					return self.arena.node(NodeData.LiteralExpr(Literal.INTEGER, "${self.ast_type_size(sa)}"), node.line, node.col);
 				}
 			}
 		}
@@ -295,13 +295,13 @@ impl DeclPass {
 			);
 
 			if (!is_static && mem.is_safe) {
-				val null_lit = self.arena.node(NodeData.LiteralExpr(LiteralKind.NULL_VAL, "null"), node.line, node.col);
+				val null_lit = self.arena.node(NodeData.LiteralExpr(Literal.NULL_VAL, "null"), node.line, node.col);
 				val cond = self.arena.node(
 					NodeData.BinaryExpr(mem_obj, TokenType.BANG_EQUAL, null_lit),
 					node.line, node.col
 				);
 
-				val else_null = self.arena.node(NodeData.LiteralExpr(LiteralKind.NULL_VAL, "null"), node.line, node.col);
+				val else_null = self.arena.node(NodeData.LiteralExpr(Literal.NULL_VAL, "null"), node.line, node.col);
 				return self.arena.node(
 					NodeData.IfExpr(cond, call_node, else_null),
 					node.line, node.col

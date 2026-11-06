@@ -52,12 +52,12 @@ fn test_expression_tree(): bool {
 	defer arena.free();
 
 	// Build: (10 + 20) * 3
-	val lit10 = arena.node(NodeData.LiteralExpr(LiteralKind.INT, "10"), 1, 2);
-	val lit20 = arena.node(NodeData.LiteralExpr(LiteralKind.INT, "20"), 1, 7);
+	val lit10 = arena.node(NodeData.LiteralExpr(Literal.INTEGER, "10"), 1, 2);
+	val lit20 = arena.node(NodeData.LiteralExpr(Literal.INTEGER, "20"), 1, 7);
 	val add_expr = arena.node(NodeData.BinaryExpr(lit10, TokenType.PLUS, lit20), 1, 5);
 	val group_expr = arena.node(NodeData.GroupExpr(add_expr), 1, 1);
 
-	val lit3 = arena.node(NodeData.LiteralExpr(LiteralKind.INT, "3"), 1, 12);
+	val lit3 = arena.node(NodeData.LiteralExpr(Literal.INTEGER, "3"), 1, 12);
 	val mul_expr = arena.node(NodeData.BinaryExpr(group_expr, TokenType.STAR, lit3), 1, 10);
 
 	if (mul_expr is BinaryExpr as bin) {
@@ -83,7 +83,7 @@ fn test_statement_nodes(): bool {
 
 	// var count: i32 = 42;
 	val ty_i32 = arena.node(NodeData.NamedType("i32", List<*AstNode>()), 1, 12);
-	val lit42 = arena.node(NodeData.LiteralExpr(LiteralKind.INT, "42"), 1, 18);
+	val lit42 = arena.node(NodeData.LiteralExpr(Literal.INTEGER, "42"), 1, 18);
 	val var_stmt = arena.node(NodeData.VarDeclStmt(true, "count", ty_i32, lit42), 1, 1);
 
 	if (var_stmt is VarDeclStmt as vd) {
@@ -106,7 +106,7 @@ fn test_statement_nodes(): bool {
 	} else return false;
 
 	// if (count > 0) { return count; }
-	val lit0 = arena.node(NodeData.LiteralExpr(LiteralKind.INT, "0"), 3, 13);
+	val lit0 = arena.node(NodeData.LiteralExpr(Literal.INTEGER, "0"), 3, 13);
 	val cond = arena.node(NodeData.BinaryExpr(id_count, TokenType.GREATER, lit0), 3, 11);
 	val if_stmt = arena.node(NodeData.IfStmt(cond, block, null), 3, 1);
 
@@ -185,7 +185,7 @@ fn test_arena_ast_methods(): bool {
 	var arena = Arena();
 	defer arena.free();
 
-	val lit_node = arena.node(NodeData.LiteralExpr(LiteralKind.INT, "123"), 1, 1);
+	val lit_node = arena.node(NodeData.LiteralExpr(Literal.INTEGER, "123"), 1, 1);
 	if (lit_node is LiteralExpr as lit) {
 		if (lit.raw_text != "123") return false;
 	} else return false;
@@ -213,7 +213,7 @@ fn test_arena_ast_methods(): bool {
 	} else return false;
 
 	// Test arena.alloc_node + a typed NodeData payload
-	val m_lit = arena.node(NodeData.LiteralExpr(LiteralKind.INT, "456"), 3, 1);
+	val m_lit = arena.node(NodeData.LiteralExpr(Literal.INTEGER, "456"), 3, 1);
 	if (m_lit is LiteralExpr as m_lit_e) {
 		if (m_lit_e.raw_text != "456") return false;
 	} else return false;

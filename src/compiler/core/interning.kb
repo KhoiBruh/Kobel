@@ -18,8 +18,6 @@ pub struct SymbolId {
 
 impl SymbolId {
 
-	pub init(id: u32 = 0) => Self(id);
-
 	pub fn is_valid(val self) => self.id != 0;
 
 	pub op equals(val self, other: Self) => self.id == other.id;
@@ -27,11 +25,11 @@ impl SymbolId {
 }
 
 impl Hash for SymbolId {
-	fn hash(val self): usz => (self.id as usz).hash();
+	fn hash(val self) => (self.id as usz).hash();
 }
 
 impl Stringer for SymbolId {
-	fn to_str(val self): str => "${self.id}";
+	fn to_str(val self) => "${self.id}";
 }
 
 pub struct InternPool {
@@ -44,13 +42,11 @@ impl InternPool {
 	pub init() => Self(List<str>(), HashMap<str, u32>());
 
 	pub fn intern(var self, text: str): SymbolId {
-		if (text.empty()) {
-			return SymbolId(0);
-		}
+		if (text.empty()) return SymbolId(0);
+
 		val found = self.lookup[text];
-		if (found != null) {
-			return SymbolId(*found);
-		}
+		if (found != null) return SymbolId(*found);
+
 		val next_id = (self.strings.len + 1) as u32;
 		self.strings += text;
 		self.lookup[text] = next_id;
@@ -58,10 +54,8 @@ impl InternPool {
 	}
 
 	pub fn resolve(val self, sym: SymbolId): str {
-		if (sym.id == 0 || (sym.id as usz) > self.strings.len) {
-			return "";
-		}
-		return self.strings[(sym.id - 1) as usz];
+		if (sym.id == 0 || sym.id > self.strings.len) return "";
+		return self.strings[sym.id - 1];
 	}
 
 	pub fn count(val self) => self.strings.len;

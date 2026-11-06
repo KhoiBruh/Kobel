@@ -81,6 +81,7 @@ impl StructType {
 				&& m.fn_type.as_fn().param_types.len == argc
 			) return m;
 		}
+
 		for (m in self.methods) {
 			if (
 				m.is_static
@@ -88,6 +89,7 @@ impl StructType {
 				&& m.fn_type.as_fn().param_types.len == argc
 			) return m;
 		}
+
 		return null;
 	}
 
@@ -101,6 +103,7 @@ impl StructType {
 				&& m.fn_type.as_fn().param_types.len == argc
 			) n++;
 		}
+
 		return n;
 	}
 
@@ -113,6 +116,7 @@ impl StructType {
 				&& m.fn_type.as_fn().param_types.len == argc
 			) return m;
 		}
+
 		for (m in self.methods) {
 			if (
 				!m.is_static
@@ -120,6 +124,7 @@ impl StructType {
 				&& m.fn_type.as_fn().param_types.len == argc
 			) return m;
 		}
+
 		return null;
 	}
 
@@ -133,6 +138,7 @@ impl StructType {
 				&& m.fn_type.as_fn().param_types.len == argc
 			) n++;
 		}
+
 		return n;
 	}
 
@@ -172,6 +178,7 @@ impl StructType {
 			if (all_exact) return m;
 			if (all_assignable && assignable_match == null) assignable_match = m;
 		}
+
 		return assignable_match;
 	}
 
@@ -215,7 +222,7 @@ pub struct EnumMemberInfo {
 	pub payload_ty: *Type? = null,
 	pub payload_path: str = "",
 	pub raw_text: str = "",
-	pub lit_kind: LiteralKind = LiteralKind.INT
+	pub lit_kind: Literal = Literal.INTEGER
 }
 
 pub struct EnumInfo {

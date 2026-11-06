@@ -13,7 +13,7 @@ use compiler.ast.*;
 
 impl Parser {
 
-	pub fn is_valid_op_name(val self, name: str): bool => when (name) {
+	pub fn is_valid_op_name(val self, name: str) => when (name) {
 		"plus", "minus", "mul", "div", "rem",
 		"bit_and", "bit_or", "bit_xor", "shl", "shr",
 		"plus_assign", "minus_assign", "mul_assign", "div_assign", "rem_assign",
@@ -30,11 +30,13 @@ impl Parser {
 		if (self.match_token(TokenType.COLON)) {
 			val b_tok = self.consume(TokenType.IDENTIFIER, "Expected trait bound name");
 			bounds += b_tok.text;
+
 			while (self.match_token(TokenType.PLUS)) {
 				val b2 = self.consume(TokenType.IDENTIFIER, "Expected trait bound name");
 				bounds += b2.text;
 			}
 		}
+
 		return bounds;
 	}
 
@@ -108,7 +110,9 @@ impl Parser {
 			self.consume(TokenType.SEMI_COLON, "Expected ';' after expression body");
 			yield self.node(NodeData.ExprStmt(expr), expr.line, expr.col);
 		}
+
 		self.check(TokenType.OPEN_BRACE) -> self.parse_block_stmt();
+
 		else -> {
 			self.consume(TokenType.SEMI_COLON, body_msg);
 			yield null;

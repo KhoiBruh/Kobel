@@ -34,7 +34,7 @@ impl NodeId {
 }
 
 impl Hash for NodeId {
-	pub fn hash(val self): u64 => self.id.hash();
+	pub fn hash(val self) => self.id.hash();
 }
 
 pub enum NodeData {
@@ -46,7 +46,7 @@ pub enum NodeData {
 	NullableType(inner_type: *AstNode),
 
 	// Expressions
-	LiteralExpr(literal_kind: LiteralKind, raw_text: str),
+	LiteralExpr(literal_kind: Literal, raw_text: str),
 	IdentifierExpr(name: str),
 	BinaryExpr(left: *AstNode, op: TokenType, right: *AstNode),
 	UnaryExpr(op: TokenType, operand: *AstNode, is_postfix: bool),
@@ -107,16 +107,18 @@ impl Arena {
 		var self, data: NodeData,
 		line: usz = 0, col: usz = 0
 	): *AstNode {
-		val sp = Span(0, line as u32, col as u32, 0);
-		var n = self.create_val(AstNode(line, col, data, NodeId(0), sp));
-		val raw_id = (n.addr() / 8) as u32;
-		n.id = NodeId(if (raw_id == 0) 1U else raw_id);
-		return n;
+		val span = Span(0, line as u32, col as u32, 0);
+		var node = self.create_val(AstNode(line, col, data, NodeId(0), span));
+		val raw_id = (node.addr() / 8) as u32;
+		node.id = NodeId(if (raw_id == 0) 1 else raw_id);
+		return node;
 	}
 
 	pub fn node_spanned(
 		var self, data: NodeData,
 		span: Span, id: NodeId = NodeId(0)
-	): *AstNode => self.create_val(AstNode(span.line as usz, span.col as usz, data, id, span));
+	) => self.create_val(
+		AstNode(span.line, span.col, data, id, span)
+	);
 
 }

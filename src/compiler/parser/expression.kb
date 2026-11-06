@@ -307,14 +307,14 @@ impl Parser {
 			// A number token keeps its fractional part, so a '.' in the text means
 			// the literal is a float (types are decided here, not by the lexer).
 			TokenType.NUMBER -> {
-				if (num_literal_is_float(tok.text)) yield self.node(NodeData.LiteralExpr(LiteralKind.FLOAT, tok.text), line, col);
-				yield self.node(NodeData.LiteralExpr(LiteralKind.INT, tok.text), line, col);
+				if (num_literal_is_float(tok.text)) yield self.node(NodeData.LiteralExpr(Literal.FLOAT, tok.text), line, col);
+				yield self.node(NodeData.LiteralExpr(Literal.INTEGER, tok.text), line, col);
 			}
 			TokenType.STRING -> self.parse_string_literal(tok, line, col);
-			TokenType.CHAR -> self.node(NodeData.LiteralExpr(LiteralKind.CHAR, tok.text), line, col);
-			TokenType.KW_TRUE -> self.node(NodeData.LiteralExpr(LiteralKind.BOOL, "true"), line, col);
-			TokenType.KW_FALSE -> self.node(NodeData.LiteralExpr(LiteralKind.BOOL, "false"), line, col);
-			TokenType.KW_NULL -> self.node(NodeData.LiteralExpr(LiteralKind.NULL_VAL, "null"), line, col);
+			TokenType.CHAR -> self.node(NodeData.LiteralExpr(Literal.CHARACTER, tok.text), line, col);
+			TokenType.KW_TRUE -> self.node(NodeData.LiteralExpr(Literal.BOOLEAN, "true"), line, col);
+			TokenType.KW_FALSE -> self.node(NodeData.LiteralExpr(Literal.BOOLEAN, "false"), line, col);
+			TokenType.KW_NULL -> self.node(NodeData.LiteralExpr(Literal.NULL_VAL, "null"), line, col);
 			TokenType.IDENTIFIER, TokenType.KW_OP -> self.node(NodeData.IdentifierExpr(tok.text), line, col);
 
 			// Grouping: (expr)
@@ -594,7 +594,7 @@ impl Parser {
 
 		if (!self.check(TokenType.STRING)) {
 			if (str_has_hole(tok.text)) return self.parse_interp_string(tok.text, line, col);
-			return self.node(NodeData.LiteralExpr(LiteralKind.STRING, normalize_esc_dollar(tok.text)), line, col);
+			return self.node(NodeData.LiteralExpr(Literal.STRING, normalize_esc_dollar(tok.text)), line, col);
 		}
 
 		var combined_inner = "";
@@ -609,11 +609,11 @@ impl Parser {
 		}
 		val combined = "\"${combined_inner}\"";
 		if (str_has_hole(combined)) return self.parse_interp_string(combined, line, col);
-		return self.node(NodeData.LiteralExpr(LiteralKind.STRING, normalize_esc_dollar(combined)), line, col);
+		return self.node(NodeData.LiteralExpr(Literal.STRING, normalize_esc_dollar(combined)), line, col);
 	}
 
 	pub fn parse_multiline_string(var self, text: str, line: usz, col: usz): *AstNode {
-		if (text.len < 6) return self.node(NodeData.LiteralExpr(LiteralKind.STRING, "\"\""), line, col);
+		if (text.len < 6) return self.node(NodeData.LiteralExpr(Literal.STRING, "\"\""), line, col);
 		val inner = text.slice(3, text.len - 3);
 		val trimmed = inner.multiline_trim_indent();
 
@@ -622,7 +622,7 @@ impl Parser {
 		}
 
 		val c_literal = multiline_escape_for_c(trimmed);
-		return self.node(NodeData.LiteralExpr(LiteralKind.STRING, c_literal), line, col);
+		return self.node(NodeData.LiteralExpr(Literal.STRING, c_literal), line, col);
 	}
 
 	pub fn parse_interp_multiline(var self, text: str, line: usz, col: usz): *AstNode {
@@ -685,7 +685,7 @@ impl Parser {
 			}
 			if (c == '$' && i + 1 < end && text[i + 1] == '{') {
 				if (has_lit) {
-					parts += InterpPart.Literal(self.node(NodeData.LiteralExpr(LiteralKind.STRING, "\"${lit.to_str()}\""), line, col));
+					parts += InterpPart.Literal(self.node(NodeData.LiteralExpr(Literal.STRING, "\"${lit.to_str()}\""), line, col));
 					lit.clear();
 					has_lit = false;
 				}
@@ -693,7 +693,7 @@ impl Parser {
 				val h_end = interp_find_close(text, h_start);
 				if (h_end < 0) {
 					self.errors += "Unterminated interpolation hole in multiline string literal";
-					return self.node(NodeData.LiteralExpr(LiteralKind.STRING, "\"\""), line, col);
+					return self.node(NodeData.LiteralExpr(Literal.STRING, "\"\""), line, col);
 				}
 				val src = text.slice(h_start, h_end as usz);
 				var sub_lexer = Lexer(src);
@@ -715,7 +715,7 @@ impl Parser {
 			i++;
 		}
 
-		if (has_lit) parts += InterpPart.Literal(self.node(NodeData.LiteralExpr(LiteralKind.STRING, "\"${lit.to_str()}\""), line, col));
+		if (has_lit) parts += InterpPart.Literal(self.node(NodeData.LiteralExpr(Literal.STRING, "\"${lit.to_str()}\""), line, col));
 		return self.node(NodeData.InterpExpr(parts), line, col);
 	}
 
@@ -751,7 +751,7 @@ impl Parser {
 			}
 			if (c == '$' && i + 1 < end && text[i + 1] == '{') {
 				if (has_lit) {
-					parts += InterpPart.Literal(self.node(NodeData.LiteralExpr(LiteralKind.STRING, "\"${lit.to_str()}\""), line, col));
+					parts += InterpPart.Literal(self.node(NodeData.LiteralExpr(Literal.STRING, "\"${lit.to_str()}\""), line, col));
 					lit.clear();
 					has_lit = false;
 				}
@@ -759,7 +759,7 @@ impl Parser {
 				val h_end = interp_find_close(text, h_start);
 				if (h_end < 0) {
 					self.errors += "Unterminated interpolation hole in string literal";
-					return self.node(NodeData.LiteralExpr(LiteralKind.STRING, text), line, col);
+					return self.node(NodeData.LiteralExpr(Literal.STRING, text), line, col);
 				}
 				val src = text.slice(h_start, h_end);
 				var sub_lexer = Lexer(src);
@@ -781,7 +781,7 @@ impl Parser {
 			i++;
 		}
 
-		if (has_lit) parts += InterpPart.Literal(self.node(NodeData.LiteralExpr(LiteralKind.STRING, "\"${lit.to_str()}\""), line, col));
+		if (has_lit) parts += InterpPart.Literal(self.node(NodeData.LiteralExpr(Literal.STRING, "\"${lit.to_str()}\""), line, col));
 		return self.node(NodeData.InterpExpr(parts), line, col);
 	}
 

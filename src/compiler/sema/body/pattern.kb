@@ -86,7 +86,7 @@ impl BodyPass {
 			for (arm in we.arms) {
 				if (arm.is_else) continue;
 				for (pat in arm.patterns) {
-					if (pat is LiteralExpr as lit && lit.literal_kind == LiteralKind.BOOL) {
+					if (pat is LiteralExpr as lit && lit.literal_kind == Literal.BOOLEAN) {
 						if (lit.raw_text == "true") has_true = true;
 						if (lit.raw_text == "false") has_false = true;
 					} else if (pat is IdentifierExpr as id) {

@@ -78,8 +78,8 @@ impl BodyPass {
 		if (node == null) return false;
 
 		if (node is LiteralExpr as lit) {
-			if (lit.literal_kind == LiteralKind.INT) return lit.raw_text.num_suffix().empty();
-			if (lit.literal_kind == LiteralKind.FLOAT) {
+			if (lit.literal_kind == Literal.INTEGER) return lit.raw_text.num_suffix().empty();
+			if (lit.literal_kind == Literal.FLOAT) {
 				val raw = lit.raw_text;
 				return !raw.ends_with("f") && !raw.ends_with("F");
 			}
@@ -100,7 +100,7 @@ impl BodyPass {
 	pub fn check_literal_expr(var self, node: *AstNode, expected: *Type? = null): *Type {
 		if (node is LiteralExpr as lit) {
 			return when (lit.literal_kind) {
-				LiteralKind.INT -> {
+				Literal.INTEGER -> {
 					val sfx = lit.raw_text.num_suffix();
 					if (!sfx.empty()) yield int_literal_type(self.symtab.prims!, lit.raw_text);
 					if (
@@ -111,7 +111,7 @@ impl BodyPass {
 					) yield expected;
 					yield self.prims().get(DataType.I32);
 				}
-				LiteralKind.FLOAT -> {
+				Literal.FLOAT -> {
 					val raw = lit.raw_text;
 					val is_f32 = raw.ends_with("f") || raw.ends_with("F");
 					if (is_f32) yield self.prims().t_prim(Type.f32());
@@ -120,8 +120,8 @@ impl BodyPass {
 					}
 					yield self.prims().t_prim(Type.f64());
 				}
-				LiteralKind.BOOL -> self.prims().t_bool();
-				LiteralKind.STRING -> {
+				Literal.BOOLEAN -> self.prims().t_bool();
+				Literal.STRING -> {
 					val str_ty = self.prims().t_str();
 					if (
 						expected != null &&
@@ -132,8 +132,8 @@ impl BodyPass {
 					}
 					yield str_ty;
 				}
-				LiteralKind.CHAR -> self.prims().t_char();
-				LiteralKind.NULL_VAL -> self.arena.nullable_pointer_type(self.prims().t_none(), false);
+				Literal.CHARACTER -> self.prims().t_char();
+				Literal.NULL_VAL -> self.arena.nullable_pointer_type(self.prims().t_none(), false);
 			};
 		}
 		return self.prims().t_none();

@@ -319,7 +319,7 @@ impl BodyPass {
 			}
 		}
 		var acc = self.arena.interp_concat_many(pieces, node.line, node.col);
-		if (acc == null) acc = self.arena.node(NodeData.LiteralExpr(LiteralKind.STRING, "\"\""), node.line, node.col);
+		if (acc == null) acc = self.arena.node(NodeData.LiteralExpr(Literal.STRING, "\"\""), node.line, node.col);
 		return self.lowered(node, acc!);
 	}
 
@@ -370,7 +370,7 @@ impl BodyPass {
 		if (self.is_array_expr(obj)) {
 			if (mem.member == "len" || mem.member == "size") {
 				val arr = self.type_of(obj).as_array();
-				val lit = self.arena.node(NodeData.LiteralExpr(LiteralKind.INT, "${arr.length}"), node.line, node.col);
+				val lit = self.arena.node(NodeData.LiteralExpr(Literal.INTEGER, "${arr.length}"), node.line, node.col);
 				return self.lowered(node, lit);
 			}
 			if (mem.member == "data") return self.lowered(node, obj);
@@ -464,7 +464,7 @@ impl BodyPass {
 		if (!mem.is_safe) return self.lowered(node, direct);
 
 		val call_ty = self.type_of(node);
-		val null_lit = self.arena.node(NodeData.LiteralExpr(LiteralKind.NULL_VAL, "null"), node.line, node.col);
+		val null_lit = self.arena.node(NodeData.LiteralExpr(Literal.NULL_VAL, "null"), node.line, node.col);
 		val cond = self.arena.node(NodeData.BinaryExpr(recv, TokenType.BANG_EQUAL, null_lit), node.line, node.col);
 
 		if (call_ty?.kind == DataType.BOOL) {
@@ -475,9 +475,9 @@ impl BodyPass {
 		val fallback = if (call_ty?.kind == DataType.STR) {
 			self.arena.node(NodeData.CallExpr(self.arena.node(NodeData.IdentifierExpr("kobel_null_str"), node.line, node.col), List<*AstNode>(), List<*AstNode>()), node.line, node.col)
 		} else if (call_ty?.is_integer() || call_ty?.is_enum() || call_ty?.kind == DataType.CHAR) {
-			self.arena.node(NodeData.LiteralExpr(LiteralKind.INT, "0"), node.line, node.col)
+			self.arena.node(NodeData.LiteralExpr(Literal.INTEGER, "0"), node.line, node.col)
 		} else if (call_ty?.kind == DataType.F32 || call_ty?.kind == DataType.F64) {
-			self.arena.node(NodeData.LiteralExpr(LiteralKind.FLOAT, "0.0"), node.line, node.col)
+			self.arena.node(NodeData.LiteralExpr(Literal.FLOAT, "0.0"), node.line, node.col)
 		} else {
 			null_lit
 		};
@@ -498,7 +498,7 @@ impl BodyPass {
 			var args = List<*AstNode>();
 			args += mem.object;
 			if (!call.args.empty()) args += call.args.first();
-			else args += self.arena.node(NodeData.LiteralExpr(LiteralKind.INT, "0"), node.line, node.col);
+			else args += self.arena.node(NodeData.LiteralExpr(Literal.INTEGER, "0"), node.line, node.col);
 
 		if (call.args.len >= 2) {
 			args += call.args[1];
@@ -579,7 +579,7 @@ impl Arena {
 		var eargs = List<*AstNode>();
 		eargs += self.node(NodeData.UnaryExpr(TokenType.AMPERSAND, left, false), line, col);
 		eargs += self.node(NodeData.UnaryExpr(TokenType.AMPERSAND, right, false), line, col);
-		eargs += self.node(NodeData.LiteralExpr(LiteralKind.INT, "${size}"), line, col);
+		eargs += self.node(NodeData.LiteralExpr(Literal.INTEGER, "${size}"), line, col);
 		val callee = self.node(NodeData.IdentifierExpr("kobel_memeq"), line, col);
 		val eq_call = self.node(NodeData.CallExpr(callee, eargs, List<*AstNode>()), line, col);
 		if (is_neq) return self.node(NodeData.UnaryExpr(TokenType.BANG, eq_call, false), line, col);

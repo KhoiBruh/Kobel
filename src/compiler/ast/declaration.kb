@@ -78,8 +78,8 @@ impl Iterable for Program {
  * fields directly.
  */
 pub fn decl_is_template(node: *AstNode) => when (node) {
-	is StructDecl as s -> s.type_params.len > 0;
-	is FnDecl as f -> f.type_params.len > 0;
-	is ImplDecl as i -> i.type_params.len > 0;
+	is StructDecl -> node.type_params.len > 0;
+	is FnDecl -> node.type_params.len > 0;
+	is ImplDecl -> node.type_params.len > 0;
 	else -> false;
 };

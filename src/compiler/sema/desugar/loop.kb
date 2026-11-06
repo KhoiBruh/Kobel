@@ -55,7 +55,7 @@ impl Arena {
 		self.node(NodeData.IdentifierExpr(name), line, col);
 
 	pub fn for_num(var self, text: str, line: usz, col: usz) =>
-		self.node(NodeData.LiteralExpr(LiteralKind.INT, text), line, col);
+		self.node(NodeData.LiteralExpr(Literal.INTEGER, text), line, col);
 
 	// `__for_i <cmp> __for_e`
 	pub fn for_i_cmp(var self, op: TokenType, line: usz, col: usz) => self.node(
@@ -230,7 +230,7 @@ impl Arena {
 			pre += self.for_by_dir(self.for_bump(TokenType.PLUS, line, col), self.for_bump(TokenType.MINUS, line, col), line, col);
 		}
 
-		pre += self.loop_var(true, "__for_go", null, self.node(NodeData.LiteralExpr(LiteralKind.BOOL, "false"), line, col), line, col);
+		pre += self.loop_var(true, "__for_go", null, self.node(NodeData.LiteralExpr(Literal.BOOLEAN, "false"), line, col), line, col);
 		if (fs.is_open || fs.is_half_open) {
 			pre += self.for_by_dir(
 				self.for_set_go(self.for_i_cmp(TokenType.LESS, line, col), line, col),

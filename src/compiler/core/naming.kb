@@ -15,6 +15,7 @@ use std.collections.List;
  */
 
 impl str {
+
 	// "std.io" -> "std/io" (module path -> relative file path, without extension)
 	pub fn module_to_rel(val self) => self.replace_char('.', '/');
 
@@ -37,21 +38,20 @@ impl str {
 	pub fn has_kb_suffix(val self) => self.ends_with(".kb");
 
 	// Strips a trailing ".kb" extension when present.
-	pub fn strip_kb(val self): str => if (self.ends_with(".kb")) self.strip_suffix(3) else self;
+	pub fn strip_kb(val self) => if (self.ends_with(".kb")) self.strip_suffix(3) else self;
 
 	/*
 	 * Builds the C identifier used for a top-level symbol of a module.
 	 * "std.io" + "println" -> "std__io__println"
 	 */
 	pub fn mangle_symbol(val self, name: str): str {
-		if (self.empty()) {
-			return name;
-		}
+		if (self.empty()) return name;
+
 		// Each '.' is written as 2 '_' characters, so allocate extra (2x the module part) to be safe.
 		val total = self.len * 2 + 2 + name.len;
 		val buf = Heap.create_array<u8>(total + 1);
 
-		var w: usz = 0;
+		var w = 0;
 		for (c in self) {
 			when (c) {
 				'.' -> {
@@ -84,25 +84,20 @@ impl str {
 	}
 
 	pub fn hash_stamp(val self): str {
-		var h: u64 = 5381;
-		for (c in self) {
-			h = ((h * 33) + c.code()) % 1000000007;
-		}
+		var h = 5381;
+		for (c in self) h = ((h * 33) + c.code()) % 1000000007;
 		return "${h}_${self.len}";
 	}
+
 }
 
 pub fn str_join_dots(parts: List<str>, count: usz): str {
-	var total: usz = 0;
-	for (i in 0..<count) {
-		total += parts[i].len;
-	}
-	if (count > 1) {
-		total += (count - 1);
-	}
+	var total = 0;
+	for (i in 0..<count) total += parts[i].len;
+	if (count > 1) total += (count - 1);
 
 	val buf = Heap.create_array<u8>(total + 1);
-	var w: usz = 0;
+	var w = 0;
 	for (i in 0..<count) {
 		val p = parts[i];
 		for (c in p) {
