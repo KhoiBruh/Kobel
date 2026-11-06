@@ -135,15 +135,16 @@ impl GenericRegistry {
 		val self, template: *GenericTemplate,
 		args: List<*Type>, kind: InstanceKind
 	): *InstanceRecord? {
-		for (r in self.records) {
-			if (r.template != template || r.kind != kind) continue;
-			if (r.args.len != args.len) continue;
+		for (record in self.records) {
+			if (record.template != template || record.kind != kind) continue;
+			if (record.args.len != args.len) continue;
+
 			var same = true;
-			for (i in 0..<args.len) {
-				if (!r.args[i].equals(args[i])) same = false;
-			}
-			if (same) return r;
+			for (i in 0..<args.len) if (!record.args[i].equals(args[i])) same = false;
+
+			if (same) return record;
 		}
+
 		return null;
 	}
 

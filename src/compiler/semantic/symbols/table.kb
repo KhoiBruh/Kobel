@@ -50,67 +50,67 @@ impl SymbolTable {
 
 	pub fn set_node_type(val self, node: *AstNode?, ty: *Type?) {
 		if (node == null || ty == null || self.sem == null) return;
-		var s = self.sem!;
+		var s = self.sem;
 		s.node_types[node.addr()] = ty!;
 	}
 
 	pub fn get_node_type(val self, node: *AstNode?): *Type? {
 		if (node == null || self.sem == null) return null;
-		val p = self.sem!.node_types.get(node.addr()) ?: return null;
-		return *p;
+		val p = self.sem.node_types.get(node.addr()) ?: return null;
+		return p.read();
 	}
 
 	pub fn set_resolved_method(val self, node: *AstNode?, mi: *MethodInfo?) {
 		if (node == null || mi == null || self.sem == null) return;
-		var s = self.sem!;
+		var s = self.sem;
 		s.resolved_methods[node.addr()] = mi!;
 	}
 
 	pub fn get_resolved_method(val self, node: *AstNode?): *MethodInfo? {
 		if (node == null || self.sem == null) return null;
-		val p = self.sem!.resolved_methods.get(node.addr()) ?: return null;
-		return *p;
+		val p = self.sem.resolved_methods.get(node.addr()) ?: return null;
+		return p.read();
 	}
 
 	pub fn set_resolved_node(val self, node: *AstNode?, r: *AstNode?) {
 		if (node == null || r == null || self.sem == null) return;
-		var s = self.sem!;
+		var s = self.sem;
 		s.resolved_nodes[node.addr()] = r!;
 	}
 
 	pub fn get_resolved_node(val self, node: *AstNode?): *AstNode? {
 		if (node == null || self.sem == null) return null;
-		val p = self.sem!.resolved_nodes.get(node.addr()) ?: return null;
-		return *p;
+		val p = self.sem.resolved_nodes.get(node.addr()) ?: return null;
+		return p.read();
 	}
 
 	pub fn set_node_instance(val self, node: *AstNode?, rec: *InstanceRecord?) {
 		if (node == null || rec == null || self.sem == null) return;
-		var s = self.sem!;
+		var s = self.sem;
 		s.node_instances[node.addr()] = rec!;
 	}
 
 	pub fn get_node_instance(val self, node: *AstNode?): *InstanceRecord? {
 		if (node == null || self.sem == null) return null;
-		val p = self.sem!.node_instances.get(node.addr()) ?: return null;
-		return *p;
+		val p = self.sem.node_instances.get(node.addr()) ?: return null;
+		return p.read();
 	}
 
 	pub fn set_is_pattern(val self, node: *AstNode?, info: IsPatternInfo) {
 		if (node == null || self.sem == null) return;
-		var s = self.sem!;
+		var s = self.sem;
 		s.is_patterns[node.addr()] = info;
 	}
 
 	pub fn has_is_pattern(val self, node: *AstNode?): bool {
 		if (node == null || self.sem == null) return false;
-		return self.sem!.is_patterns.get(node.addr()) != null;
+		return self.sem.is_patterns.get(node.addr()) != null;
 	}
 
 	pub fn get_is_pattern(val self, node: *AstNode?): IsPatternInfo {
 		if (node == null || self.sem == null) return IsPatternInfo();
-		val p = self.sem!.is_patterns.get(node.addr()) ?: return IsPatternInfo();
-		return *p;
+		val p = self.sem.is_patterns.get(node.addr()) ?: return IsPatternInfo();
+		return p.read();
 	}
 
 	pub fn register_prim_method(val self, prim: *Type, mi: *MethodInfo) {
@@ -172,9 +172,7 @@ impl SymbolTable {
 	}
 
 	pub fn exit_scope(var self) {
-		if (self.current_scope.parent != null) {
-			self.current_scope = self.current_scope.parent!;
-		}
+		self.current_scope = self.current_scope.parent ?: return;
 	}
 
 	pub fn is_in_function(val self): bool {
@@ -183,6 +181,7 @@ impl SymbolTable {
 			if (curr.is_fn_boundary) return true;
 			curr = curr.parent;
 		}
+
 		return false;
 	}
 
@@ -317,12 +316,14 @@ impl SymbolTable {
 	pub fn lookup_struct_const(val self, struct_name: str, member_name: str): *Symbol? {
 		val direct = "${struct_name}__${member_name}";
 		val p = self.struct_const_map.get(direct);
-		val s = if (p != null) p.read() else null;
+		val s = p.read();
 		if (s != null) return s;
+
 		for (sc in self.modules) {
 			val sc_s = sc.lookup(direct);
 			if (sc_s?.kind == SymbolKind.CONST) return sc_s;
 		}
+
 		return null;
 	}
 
