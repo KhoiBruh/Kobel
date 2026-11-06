@@ -2,17 +2,12 @@ mod std.filesystem;
 
 use std.string.str_from_bytes;
 use std.memory.*;
-use std.collections.List;
 
 /*
  * ============================================================================
  * std.filesystem.file — file I/O operations and handle wrapper
  * ============================================================================
  */
-
-extern "C" {
-	fn kobel_list_dir(dir_path: str): str;
-}
 
 extern "libc" {
 	fn fopen(filename: *char, mode: *char): *none;
@@ -45,7 +40,9 @@ impl File {
 
 	pub fn exists(path: str): bool {
 		val f = fopen(path.c_str(), "rb");
-		if (f == null) return false;
+		if (f == null) {
+			return false;
+		}
 		fclose(f);
 		return true;
 	}
@@ -53,7 +50,9 @@ impl File {
 	pub fn remove(path: str) => remove(path.c_str()) == 0;
 
 	pub fn rename(src: str, dst: str): bool {
-		if (File.exists(dst)) File.remove(dst);
+		if (File.exists(dst)) {
+			File.remove(dst);
+		}
 		return rename(src.c_str(), dst.c_str()) == 0;
 	}
 
@@ -96,23 +95,6 @@ impl File {
 		return written == content.len;
 	}
 
-	pub fn list_dir(path: str): List<str> {
-		val raw = kobel_list_dir(path);
-		if (raw.empty()) return List();
-
-		var res = List<str>();
-		var start = 0;
-		for (i in 0..<raw.len) {
-			if (raw[i] == '\n') {
-				if (i > start) res += raw.slice(start, i);
-				start = i + 1;
-			}
-		}
-
-		if (start < raw.len) res += raw.slice(start, raw.len);
-		return res;
-	}
-
 	// ------------------------------------------------------------------------
 	// Instance methods on File handle
 	// ------------------------------------------------------------------------
@@ -127,11 +109,15 @@ impl File {
 	}
 
 	pub fn flush(val self) {
-		if (self.handle != null) fflush(self.handle);
+		if (self.handle != null) {
+			fflush(self.handle);
+		}
 	}
 
 	pub fn size(val self): i64 {
-		if (self.handle == null) return 0;
+		if (self.handle == null) {
+			return 0;
+		}
 
 		val cur = ftell(self.handle);
 		fseek(self.handle, 0, 2);
@@ -143,13 +129,17 @@ impl File {
 	}
 
 	pub fn write_all(val self, content: str): bool {
-		if (self.handle == null) return false;
+		if (self.handle == null) {
+			return false;
+		}
 		val written = fwrite(content.data, 1, content.len, self.handle);
 		return written == content.len;
 	}
 
 	pub fn read_all(val self): str {
-		if (self.handle == null) return "";
+		if (self.handle == null) {
+			return "";
+		}
 
 		val cur = ftell(self.handle);
 		fseek(self.handle, 0, 2);

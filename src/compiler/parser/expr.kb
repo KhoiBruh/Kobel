@@ -1,7 +1,7 @@
 mod compiler.parser;
 
 use std.collections.*;
-use std.collections.StringBuilder;
+use std.string.StringBuilder;
 use util.*;
 
 use compiler.lexer.*;

@@ -1,5 +1,6 @@
 mod lsp;
 
+use std.string.*;
 use std.ascii.*;
 use std.collections.*;
 

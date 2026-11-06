@@ -14,7 +14,7 @@ mod compiler.loader;
 // ============================================================================
 
 use std.memory.*;
-use std.filesystem.File;
+use std.filesystem.*;
 use std.collections.*;
 
 use util.*;
@@ -147,7 +147,7 @@ impl ModuleLoader {
 
 			// 2. Folder-as-package: <root>/<rel>/
 			val dir_path = root.join_path(rel_dir);
-			val entries = File.list_dir(dir_path);
+			val entries = Path.list_dir(dir_path);
 			if (!entries.empty()) {
 				var kb_files = List<str>();
 				for (e in entries) {

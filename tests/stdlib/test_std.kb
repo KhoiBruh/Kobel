@@ -18,8 +18,6 @@ use std.collections.List;
 use std.collections.HashMap;
 use std.collections.HashSet;
 
-use std.collections.StringBuilder;
-
 use std.filesystem.Path;
 use std.filesystem.File;
 use std.system.System;
@@ -319,6 +317,10 @@ fn test_filesystem(): bool {
 	if (joined.to_str() != "dir/sub/file.txt") return false;
 	if (joined.extension() != "txt") return false;
 
+	val entries = Path.list_dir("lib/std/filesystem");
+	defer entries.free();
+	if (entries.empty()) return false;
+
 	val tmp = Path("build/tmp_fs_test.txt");
 	if (File.exists(tmp.to_str())) File.remove(tmp.to_str());
 
@@ -373,7 +375,7 @@ fn main(): i32 {
 		println("FAIL: test_collections");
 		return 1;
 	}
-	println("PASS: std.collections (List, HashMap, StringBuilder)");
+	println("PASS: std.collections (List, HashMap, HashSet)");
 
 	if (!test_filesystem()) {
 		println("FAIL: test_filesystem");

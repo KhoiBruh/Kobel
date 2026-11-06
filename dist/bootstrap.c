@@ -171,8 +171,8 @@ static kobel_str kobel_list_dir(kobel_str dir_path) {
 typedef struct std__memory__ArenaBlock std__memory__ArenaBlock;
 typedef struct std__memory__Arena std__memory__Arena;
 typedef struct std__memory__Heap std__memory__Heap;
-typedef struct std__collections__StringBuilder std__collections__StringBuilder;
 typedef struct std__string__StrRaw std__string__StrRaw;
+typedef struct std__string__StringBuilder std__string__StringBuilder;
 typedef struct std__filesystem__File std__filesystem__File;
 typedef struct std__filesystem__Path std__filesystem__Path;
 typedef struct config__ProjectConfig config__ProjectConfig;
@@ -415,15 +415,15 @@ struct std__memory__Arena {
     size_t block_size;
 };
 
-struct std__collections__StringBuilder {
-    uint8_t* buf;
-    size_t len;
-    size_t cap;
-};
-
 struct std__string__StrRaw {
     const char* data;
     size_t len;
+};
+
+struct std__string__StringBuilder {
+    uint8_t* buf;
+    size_t len;
+    size_t cap;
 };
 
 struct std__filesystem__File {
@@ -1424,7 +1424,7 @@ struct compiler__sema__Type {
 };
 
 struct compiler__codegen__CCodeGen {
-    std__collections__StringBuilder out;
+    std__string__StringBuilder out;
     size_t indent_level;
     std__collections__List_str errors;
     kobel_str array_elem_hint;
@@ -1450,7 +1450,7 @@ struct compiler__driver__CompileOptions {
 };
 
 struct fmt__FormatBuffer {
-    std__collections__StringBuilder sb;
+    std__string__StringBuilder sb;
     fmt__FormatOptions options;
     size_t indent_level;
     size_t align_spaces;
@@ -1902,40 +1902,7 @@ void std__memory__Arena_reset(std__memory__Arena* self);
 void std__memory__Arena_free(std__memory__Arena* self);
 uint8_t* std__memory__Heap_alloc_bytes(std__memory__Heap* self, size_t size, size_t align);
 void std__memory__Heap_free_1(void* ptr);
-std__collections__StringBuilder std__collections__StringBuilder_init(size_t init_cap);
-void std__collections__StringBuilder_reserve(std__collections__StringBuilder* self, size_t additional);
-void std__collections__StringBuilder_append_char(std__collections__StringBuilder* self, char c);
-void std__collections__StringBuilder_append_str(std__collections__StringBuilder* self, kobel_str s);
-void std__collections__StringBuilder_append_u64(std__collections__StringBuilder* self, uint64_t n);
-void std__collections__StringBuilder_append_u32(std__collections__StringBuilder* self, uint32_t n);
-void std__collections__StringBuilder_append_usz(std__collections__StringBuilder* self, size_t n);
-void std__collections__StringBuilder_append_i64(std__collections__StringBuilder* self, int64_t n);
-void std__collections__StringBuilder_append_i32(std__collections__StringBuilder* self, int32_t n);
-void std__collections__StringBuilder_append_bool(std__collections__StringBuilder* self, bool b);
-void std__collections__StringBuilder_append_line(std__collections__StringBuilder* self, kobel_str s);
-void std__collections__StringBuilder_append_repeat(std__collections__StringBuilder* self, char c, size_t n);
-void std__collections__StringBuilder_append_escaped(std__collections__StringBuilder* self, kobel_str s);
-bool std__collections__StringBuilder_empty(std__collections__StringBuilder* self);
-char std__collections__StringBuilder_last_char(std__collections__StringBuilder* self);
-size_t std__collections__StringBuilder_clear(std__collections__StringBuilder* self);
-kobel_str std__collections__StringBuilder_as_view(std__collections__StringBuilder* self);
-void std__collections__StringBuilder_grow(std__collections__StringBuilder* self, size_t min_cap);
-void std__collections__StringBuilder_free(std__collections__StringBuilder* self);
-void std__collections__StringBuilder_plus_assign_2(std__collections__StringBuilder* self, kobel_str s);
-void std__collections__StringBuilder_plus_assign_2_2(std__collections__StringBuilder* self, char c);
-void std__collections__StringBuilder_plus_assign_2_3(std__collections__StringBuilder* self, int64_t n);
-void std__collections__StringBuilder_plus_assign_2_4(std__collections__StringBuilder* self, int32_t n);
-void std__collections__StringBuilder_plus_assign_2_5(std__collections__StringBuilder* self, uint64_t n);
-void std__collections__StringBuilder_plus_assign_2_6(std__collections__StringBuilder* self, uint32_t n);
-void std__collections__StringBuilder_plus_assign_2_7(std__collections__StringBuilder* self, size_t n);
-void std__collections__StringBuilder_plus_assign_2_8(std__collections__StringBuilder* self, bool b);
-char std__collections__StringBuilder_get(std__collections__StringBuilder* self, size_t i);
-uint8_t std__collections__StringBuilder_set(std__collections__StringBuilder* self, size_t i, char c);
-size_t std__collections__StringBuilder_count(std__collections__StringBuilder* self);
-char std__collections__StringBuilder_at(std__collections__StringBuilder* self, size_t i);
-kobel_str std__collections__StringBuilder_to_str(std__collections__StringBuilder* self);
 kobel_str std__string__str_from_bytes(uint8_t* buf, size_t len);
-bool std__string__str_is_sep(char c);
 bool str_empty(kobel_str self);
 bool str_starts_with(kobel_str self, kobel_str prefix);
 bool str_ends_with(kobel_str self, kobel_str suffix);
@@ -1947,18 +1914,43 @@ kobel_str str_repeat(kobel_str self, size_t n);
 kobel_str str_join(kobel_str self, std__collections__List_str list);
 kobel_str str_suffix_tail(kobel_str self);
 kobel_str str_num_suffix(kobel_str self);
-kobel_str str_dir_of(kobel_str self);
-kobel_str str_base_name(kobel_str self);
-kobel_str str_join_path(kobel_str self, kobel_str rel);
-kobel_str str_remap_path_bytes(kobel_str self, char from, char to, bool fold_case);
-kobel_str str_normalize_path(kobel_str self);
-kobel_str str_to_win_path(kobel_str self);
-kobel_str str_to_posix_path(kobel_str self);
 kobel_str str_trim(kobel_str self);
 std__collections__List_str str_split_lines(kobel_str self);
 bool str_contains(kobel_str self, kobel_str sub);
 size_t str_count(kobel_str self);
 char str_at(kobel_str self, size_t i);
+std__string__StringBuilder std__string__StringBuilder_init(size_t init_cap);
+void std__string__StringBuilder_reserve(std__string__StringBuilder* self, size_t additional);
+void std__string__StringBuilder_append_char(std__string__StringBuilder* self, char c);
+void std__string__StringBuilder_append_str(std__string__StringBuilder* self, kobel_str s);
+void std__string__StringBuilder_append_u64(std__string__StringBuilder* self, uint64_t n);
+void std__string__StringBuilder_append_u32(std__string__StringBuilder* self, uint32_t n);
+void std__string__StringBuilder_append_usz(std__string__StringBuilder* self, size_t n);
+void std__string__StringBuilder_append_i64(std__string__StringBuilder* self, int64_t n);
+void std__string__StringBuilder_append_i32(std__string__StringBuilder* self, int32_t n);
+void std__string__StringBuilder_append_bool(std__string__StringBuilder* self, bool b);
+void std__string__StringBuilder_append_line(std__string__StringBuilder* self, kobel_str s);
+void std__string__StringBuilder_append_repeat(std__string__StringBuilder* self, char c, size_t n);
+void std__string__StringBuilder_append_escaped(std__string__StringBuilder* self, kobel_str s);
+bool std__string__StringBuilder_empty(std__string__StringBuilder* self);
+char std__string__StringBuilder_last_char(std__string__StringBuilder* self);
+size_t std__string__StringBuilder_clear(std__string__StringBuilder* self);
+kobel_str std__string__StringBuilder_as_view(std__string__StringBuilder* self);
+void std__string__StringBuilder_grow(std__string__StringBuilder* self, size_t min_cap);
+void std__string__StringBuilder_free(std__string__StringBuilder* self);
+void std__string__StringBuilder_plus_assign_2(std__string__StringBuilder* self, kobel_str s);
+void std__string__StringBuilder_plus_assign_2_2(std__string__StringBuilder* self, char c);
+void std__string__StringBuilder_plus_assign_2_3(std__string__StringBuilder* self, int64_t n);
+void std__string__StringBuilder_plus_assign_2_4(std__string__StringBuilder* self, int32_t n);
+void std__string__StringBuilder_plus_assign_2_5(std__string__StringBuilder* self, uint64_t n);
+void std__string__StringBuilder_plus_assign_2_6(std__string__StringBuilder* self, uint32_t n);
+void std__string__StringBuilder_plus_assign_2_7(std__string__StringBuilder* self, size_t n);
+void std__string__StringBuilder_plus_assign_2_8(std__string__StringBuilder* self, bool b);
+char std__string__StringBuilder_get(std__string__StringBuilder* self, size_t i);
+uint8_t std__string__StringBuilder_set(std__string__StringBuilder* self, size_t i, char c);
+size_t std__string__StringBuilder_count(std__string__StringBuilder* self);
+char std__string__StringBuilder_at(std__string__StringBuilder* self, size_t i);
+kobel_str std__string__StringBuilder_to_str(std__string__StringBuilder* self);
 kobel_str std__string__fmt_u64(uint64_t n0);
 kobel_str std__string__fmt_i64(int64_t v);
 kobel_str std__string__fmt_char(char c);
@@ -1992,14 +1984,23 @@ bool std__filesystem__File_rename(kobel_str src, kobel_str dst);
 kobel_str std__filesystem__File_read(kobel_str path);
 bool std__filesystem__File_write(kobel_str path, kobel_str content);
 bool std__filesystem__File_append(kobel_str path, kobel_str content);
-std__collections__List_str std__filesystem__File_list_dir(kobel_str path);
 bool std__filesystem__File_is_valid(std__filesystem__File* self);
 void std__filesystem__File_close(std__filesystem__File* self);
 void std__filesystem__File_flush(std__filesystem__File* self);
 int64_t std__filesystem__File_size(std__filesystem__File* self);
 bool std__filesystem__File_write_all(std__filesystem__File* self, kobel_str content);
 kobel_str std__filesystem__File_read_all(std__filesystem__File* self);
+bool std__filesystem__str_is_sep(char c);
+kobel_str std__filesystem__remap_path_bytes(kobel_str s, char from, char to, bool fold_case);
+kobel_str str_dir_of(kobel_str self);
+kobel_str str_base_name(kobel_str self);
+kobel_str str_join_path(kobel_str self, kobel_str rel);
+kobel_str str_normalize_path(kobel_str self);
+kobel_str str_to_win_path(kobel_str self);
+kobel_str str_to_posix_path(kobel_str self);
 std__filesystem__Path std__filesystem__Path_init(kobel_str raw);
+bool std__filesystem__Path_is_sep(char c);
+std__collections__List_str std__filesystem__Path_list_dir(kobel_str path);
 const char* std__filesystem__Path_c_str(std__filesystem__Path* self);
 bool std__filesystem__Path_empty(std__filesystem__Path* self);
 size_t std__filesystem__Path_len(std__filesystem__Path* self);
@@ -2667,7 +2668,7 @@ bool lsp__DocumentStore_remove(lsp__DocumentStore* self, kobel_str uri);
 lsp__Document lsp__DocumentStore_get(lsp__DocumentStore* self, kobel_str uri);
 bool lsp__DocumentStore_contains(lsp__DocumentStore* self, kobel_str uri);
 kobel_str lsp__uri_to_path(kobel_str uri);
-void lsp__append_json_escaped_str(std__collections__StringBuilder* sb, kobel_str s);
+void lsp__append_json_escaped_str(std__string__StringBuilder* sb, kobel_str s);
 lsp__JsonValue* lsp__JsonValue_box(lsp__JsonValue v);
 lsp__JsonValue* lsp__JsonValue_null_val(void);
 lsp__JsonValue* lsp__JsonValue_nil(void);
@@ -2681,7 +2682,7 @@ lsp__JsonValue* lsp__JsonValue_array(void);
 lsp__JsonValue* lsp__JsonValue_obj(void);
 lsp__JsonValue* lsp__JsonValue_object(void);
 lsp__JsonValue* lsp__JsonValue_parse(kobel_str src);
-void lsp__JsonValue_serialize_to(lsp__JsonValue* self, std__collections__StringBuilder* sb);
+void lsp__JsonValue_serialize_to(lsp__JsonValue* self, std__string__StringBuilder* sb);
 bool lsp__JsonValue_is_null(lsp__JsonValue* self);
 bool lsp__JsonValue_is_bool(lsp__JsonValue* self);
 bool lsp__JsonValue_is_num(lsp__JsonValue* self);
@@ -4173,244 +4174,10 @@ void std__memory__Heap_free_1(void* ptr) {
     free((uint8_t*)ptr);
 }
 
-std__collections__StringBuilder std__collections__StringBuilder_init(size_t init_cap) {
-    size_t cap = init_cap;
-    if (cap < 16) {
-        cap = 16;
-    }
-    uint8_t* raw = std__memory__Heap_create_array_u8(cap);
-    return (std__collections__StringBuilder){ raw, 0, cap };
-}
-
-void std__collections__StringBuilder_reserve(std__collections__StringBuilder* self, size_t additional) {
-    size_t needed = ((self->len + additional) + 1);
-    if (needed >= self->cap) {
-        std__collections__StringBuilder_grow(self, needed);
-    }
-}
-
-void std__collections__StringBuilder_append_char(std__collections__StringBuilder* self, char c) {
-    if ((self->len + 2) >= self->cap) {
-        std__collections__StringBuilder_grow(self, (self->len + 2));
-    }
-    self->buf[self->len] = ((int32_t)(uint8_t)(c));
-    self->len++;
-}
-
-void std__collections__StringBuilder_append_str(std__collections__StringBuilder* self, kobel_str s) {
-    size_t s_len = s.len;
-    if (s_len == 0) {
-        return;
-    }
-    if (((self->len + s_len) + 1) >= self->cap) {
-        std__collections__StringBuilder_grow(self, ((self->len + s_len) + 1));
-    }
-    memcpy(&self->buf[self->len], s.data, s_len);
-    self->len += s_len;
-}
-
-void std__collections__StringBuilder_append_u64(std__collections__StringBuilder* self, uint64_t n) {
-    if (n == 0) {
-        std__collections__StringBuilder_plus_assign_2_2(self, '0');
-        return;
-    }
-    uint64_t place = 1;
-    uint64_t probe = n;
-    while (probe >= 10) {
-        probe /= 10;
-        place *= 10;
-    }
-    uint64_t rest = n;
-    while (place > 0) {
-        uint64_t digit = (rest / place);
-        std__collections__StringBuilder_plus_assign_2_2(self, ((char)((uint8_t)(digit + 48))));
-        rest -= (digit * place);
-        place /= 10;
-    }
-}
-
-void std__collections__StringBuilder_append_u32(std__collections__StringBuilder* self, uint32_t n) {
-    std__collections__StringBuilder_append_u64(self, (uint64_t)n);
-}
-
-void std__collections__StringBuilder_append_usz(std__collections__StringBuilder* self, size_t n) {
-    std__collections__StringBuilder_append_u64(self, (uint64_t)n);
-}
-
-void std__collections__StringBuilder_append_i64(std__collections__StringBuilder* self, int64_t n) {
-    if (n < 0) {
-        std__collections__StringBuilder_plus_assign_2_2(self, '-');
-        uint64_t mag = ((uint64_t)(0 - (n + 1)) + 1);
-        std__collections__StringBuilder_append_u64(self, mag);
-        return;
-    }
-    std__collections__StringBuilder_append_u64(self, (uint64_t)n);
-}
-
-void std__collections__StringBuilder_append_i32(std__collections__StringBuilder* self, int32_t n) {
-    std__collections__StringBuilder_append_i64(self, n);
-}
-
-void std__collections__StringBuilder_append_bool(std__collections__StringBuilder* self, bool b) {
-    (b ? std__collections__StringBuilder_plus_assign_2(self, KOBEL_STR("true")) : std__collections__StringBuilder_plus_assign_2(self, KOBEL_STR("false")));
-}
-
-void std__collections__StringBuilder_append_line(std__collections__StringBuilder* self, kobel_str s) {
-    std__collections__StringBuilder_plus_assign_2(self, s);
-    std__collections__StringBuilder_plus_assign_2_2(self, '\n');
-}
-
-void std__collections__StringBuilder_append_repeat(std__collections__StringBuilder* self, char c, size_t n) {
-    if (n == 0) {
-        return;
-    }
-    if (((self->len + n) + 1) >= self->cap) {
-        std__collections__StringBuilder_grow(self, ((self->len + n) + 1));
-    }
-    memset(&self->buf[self->len], (int32_t)((int32_t)(uint8_t)(c)), n);
-    self->len += n;
-}
-
-void std__collections__StringBuilder_append_escaped(std__collections__StringBuilder* self, kobel_str s) {
-    {
-        size_t __for_e = s.len;
-        size_t __for_i = __for_e;
-        __for_i = 0;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            __for_go = (__for_i < __for_e);
-        } else {
-            __for_go = (__for_i > __for_e);
-        }
-        while (__for_go) {
-            size_t i = __for_i;
-            char c = s.data[i];
-            if (c == '"') {
-                std__collections__StringBuilder_plus_assign_2(self, KOBEL_STR("\\\""));
-            } else if (c == '\\') {
-                std__collections__StringBuilder_plus_assign_2(self, KOBEL_STR("\\\\"));
-            } else if (c == '\n') {
-                std__collections__StringBuilder_plus_assign_2(self, KOBEL_STR("\\n"));
-            } else if (c == '\r') {
-                std__collections__StringBuilder_plus_assign_2(self, KOBEL_STR("\\r"));
-            } else if (c == '\t') {
-                std__collections__StringBuilder_plus_assign_2(self, KOBEL_STR("\\t"));
-            } else {
-                std__collections__StringBuilder_plus_assign_2_2(self, c);
-            }
-            if (__for_up) {
-                __for_go = ((__for_i + 1) < __for_e);
-            } else {
-                __for_go = ((__for_i - 1) > __for_e);
-            }
-            if (__for_go) {
-                if (__for_up) {
-                    __for_i = (__for_i + 1);
-                } else {
-                    __for_i = (__for_i - 1);
-                }
-            }
-        }
-    }
-}
-
-bool std__collections__StringBuilder_empty(std__collections__StringBuilder* self) {
-    return (self->len == 0);
-}
-
-char std__collections__StringBuilder_last_char(std__collections__StringBuilder* self) {
-    return ((self->len == 0) ? '\0' : ((char)(self->buf[(self->len - 1)])));
-}
-
-size_t std__collections__StringBuilder_clear(std__collections__StringBuilder* self) {
-    return self->len = 0;
-}
-
-kobel_str std__collections__StringBuilder_as_view(std__collections__StringBuilder* self) {
-    self->buf[self->len] = 0;
-    return std__string__str_from_bytes(self->buf, self->len);
-}
-
-void std__collections__StringBuilder_grow(std__collections__StringBuilder* self, size_t min_cap) {
-    size_t new_cap = ((self->cap < 16) ? 16 : (self->cap * 2));
-    while (new_cap < min_cap) {
-        new_cap *= 2;
-    }
-    uint8_t* new_raw = std__memory__Heap_resize_u8(self->buf, new_cap);
-    self->buf = new_raw;
-    self->cap = new_cap;
-}
-
-void std__collections__StringBuilder_free(std__collections__StringBuilder* self) {
-    std__memory__Heap_free_u8(self->buf);
-}
-
-void std__collections__StringBuilder_plus_assign_2(std__collections__StringBuilder* self, kobel_str s) {
-    std__collections__StringBuilder_append_str(self, s);
-}
-
-void std__collections__StringBuilder_plus_assign_2_2(std__collections__StringBuilder* self, char c) {
-    std__collections__StringBuilder_append_char(self, c);
-}
-
-void std__collections__StringBuilder_plus_assign_2_3(std__collections__StringBuilder* self, int64_t n) {
-    std__collections__StringBuilder_append_i64(self, n);
-}
-
-void std__collections__StringBuilder_plus_assign_2_4(std__collections__StringBuilder* self, int32_t n) {
-    std__collections__StringBuilder_append_i32(self, n);
-}
-
-void std__collections__StringBuilder_plus_assign_2_5(std__collections__StringBuilder* self, uint64_t n) {
-    std__collections__StringBuilder_append_u64(self, n);
-}
-
-void std__collections__StringBuilder_plus_assign_2_6(std__collections__StringBuilder* self, uint32_t n) {
-    std__collections__StringBuilder_append_u32(self, n);
-}
-
-void std__collections__StringBuilder_plus_assign_2_7(std__collections__StringBuilder* self, size_t n) {
-    std__collections__StringBuilder_append_usz(self, n);
-}
-
-void std__collections__StringBuilder_plus_assign_2_8(std__collections__StringBuilder* self, bool b) {
-    std__collections__StringBuilder_append_bool(self, b);
-}
-
-char std__collections__StringBuilder_get(std__collections__StringBuilder* self, size_t i) {
-    return ((char)(self->buf[i]));
-}
-
-uint8_t std__collections__StringBuilder_set(std__collections__StringBuilder* self, size_t i, char c) {
-    return self->buf[i] = ((int32_t)(uint8_t)(c));
-}
-
-size_t std__collections__StringBuilder_count(std__collections__StringBuilder* self) {
-    return self->len;
-}
-
-char std__collections__StringBuilder_at(std__collections__StringBuilder* self, size_t i) {
-    return ((char)(self->buf[i]));
-}
-
-kobel_str std__collections__StringBuilder_to_str(std__collections__StringBuilder* self) {
-    uint8_t* str_data = std__memory__Heap_create_array_u8((self->len + 1));
-    if (self->len > 0) {
-        memcpy(str_data, self->buf, self->len);
-    }
-    str_data[self->len] = 0;
-    return std__string__str_from_bytes(str_data, self->len);
-}
-
 kobel_str std__string__str_from_bytes(uint8_t* buf, size_t len) {
     std__string__StrRaw r = (std__string__StrRaw){ (const char*)buf, len };
     kobel_str* sp = (kobel_str*)&r;
     return (*(sp));
-}
-
-bool std__string__str_is_sep(char c) {
-    return ((c == '/') || (c == '\\'));
 }
 
 bool str_empty(kobel_str self) {
@@ -4875,138 +4642,6 @@ kobel_str str_num_suffix(kobel_str self) {
     return tail;
 }
 
-kobel_str str_dir_of(kobel_str self) {
-    size_t last = 0;
-    bool found = false;
-    {
-        size_t __for_e = self.len;
-        size_t __for_i = __for_e;
-        __for_i = 0;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            __for_go = (__for_i < __for_e);
-        } else {
-            __for_go = (__for_i > __for_e);
-        }
-        while (__for_go) {
-            size_t i = __for_i;
-            if (std__string__str_is_sep(self.data[i])) {
-                last = i;
-                found = true;
-            }
-            if (__for_up) {
-                __for_go = ((__for_i + 1) < __for_e);
-            } else {
-                __for_go = ((__for_i - 1) > __for_e);
-            }
-            if (__for_go) {
-                if (__for_up) {
-                    __for_i = (__for_i + 1);
-                } else {
-                    __for_i = (__for_i - 1);
-                }
-            }
-        }
-    }
-    if (!found) {
-        return KOBEL_STR("");
-    }
-    return kobel_slice(self, 0, last);
-}
-
-kobel_str str_base_name(kobel_str self) {
-    size_t start = 0;
-    {
-        size_t __for_e = self.len;
-        size_t __for_i = __for_e;
-        __for_i = 0;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            __for_go = (__for_i < __for_e);
-        } else {
-            __for_go = (__for_i > __for_e);
-        }
-        while (__for_go) {
-            size_t i = __for_i;
-            if (std__string__str_is_sep(self.data[i])) {
-                start = (i + 1);
-            }
-            if (__for_up) {
-                __for_go = ((__for_i + 1) < __for_e);
-            } else {
-                __for_go = ((__for_i - 1) > __for_e);
-            }
-            if (__for_go) {
-                if (__for_up) {
-                    __for_i = (__for_i + 1);
-                } else {
-                    __for_i = (__for_i - 1);
-                }
-            }
-        }
-    }
-    return kobel_slice1(self, start);
-}
-
-kobel_str str_join_path(kobel_str self, kobel_str rel) {
-    if (str_empty(self)) {
-        return rel;
-    }
-    if (std__string__str_is_sep(self.data[(self.len - 1)])) {
-        return kobel_concat(self, rel);
-    }
-    return kobel_concat3(self, KOBEL_STR("/"), rel);
-}
-
-kobel_str str_remap_path_bytes(kobel_str self, char from, char to, bool fold_case) {
-    uint8_t* buf = std__memory__Heap_create_array_u8((self.len + 1));
-    {
-        size_t __for_e = self.len;
-        size_t __for_i = __for_e;
-        __for_i = 0;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            __for_go = (__for_i < __for_e);
-        } else {
-            __for_go = (__for_i > __for_e);
-        }
-        while (__for_go) {
-            size_t i = __for_i;
-            char c = self.data[i];
-            buf[i] = ((c == from) ? ((int32_t)(uint8_t)(to)) : (((fold_case && (c >= 'A')) && (c <= 'Z')) ? (((int32_t)(uint8_t)(c)) + 32) : ((int32_t)(uint8_t)(c))));
-            if (__for_up) {
-                __for_go = ((__for_i + 1) < __for_e);
-            } else {
-                __for_go = ((__for_i - 1) > __for_e);
-            }
-            if (__for_go) {
-                if (__for_up) {
-                    __for_i = (__for_i + 1);
-                } else {
-                    __for_i = (__for_i - 1);
-                }
-            }
-        }
-    }
-    buf[self.len] = 0;
-    return std__string__str_from_bytes(buf, self.len);
-}
-
-kobel_str str_normalize_path(kobel_str self) {
-    return str_remap_path_bytes(self, '\\', '/', true);
-}
-
-kobel_str str_to_win_path(kobel_str self) {
-    return str_remap_path_bytes(self, '/', '\\', false);
-}
-
-kobel_str str_to_posix_path(kobel_str self) {
-    return str_remap_path_bytes(self, '\\', '/', false);
-}
-
 kobel_str str_trim(kobel_str self) {
     if (str_empty(self)) {
         return self;
@@ -5071,6 +4706,236 @@ size_t str_count(kobel_str self) {
 
 char str_at(kobel_str self, size_t i) {
     return self.data[i];
+}
+
+std__string__StringBuilder std__string__StringBuilder_init(size_t init_cap) {
+    size_t cap = init_cap;
+    if (cap < 16) {
+        cap = 16;
+    }
+    uint8_t* raw = std__memory__Heap_create_array_u8(cap);
+    return (std__string__StringBuilder){ raw, 0, cap };
+}
+
+void std__string__StringBuilder_reserve(std__string__StringBuilder* self, size_t additional) {
+    size_t needed = ((self->len + additional) + 1);
+    if (needed >= self->cap) {
+        std__string__StringBuilder_grow(self, needed);
+    }
+}
+
+void std__string__StringBuilder_append_char(std__string__StringBuilder* self, char c) {
+    if ((self->len + 2) >= self->cap) {
+        std__string__StringBuilder_grow(self, (self->len + 2));
+    }
+    self->buf[self->len] = ((int32_t)(uint8_t)(c));
+    self->len++;
+}
+
+void std__string__StringBuilder_append_str(std__string__StringBuilder* self, kobel_str s) {
+    size_t s_len = s.len;
+    if (s_len == 0) {
+        return;
+    }
+    if (((self->len + s_len) + 1) >= self->cap) {
+        std__string__StringBuilder_grow(self, ((self->len + s_len) + 1));
+    }
+    memcpy(&self->buf[self->len], s.data, s_len);
+    self->len += s_len;
+}
+
+void std__string__StringBuilder_append_u64(std__string__StringBuilder* self, uint64_t n) {
+    if (n == 0) {
+        std__string__StringBuilder_plus_assign_2_2(self, '0');
+        return;
+    }
+    uint64_t place = 1;
+    uint64_t probe = n;
+    while (probe >= 10) {
+        probe /= 10;
+        place *= 10;
+    }
+    uint64_t rest = n;
+    while (place > 0) {
+        uint64_t digit = (rest / place);
+        std__string__StringBuilder_plus_assign_2_2(self, ((char)((uint8_t)(digit + 48))));
+        rest -= (digit * place);
+        place /= 10;
+    }
+}
+
+void std__string__StringBuilder_append_u32(std__string__StringBuilder* self, uint32_t n) {
+    std__string__StringBuilder_append_u64(self, (uint64_t)n);
+}
+
+void std__string__StringBuilder_append_usz(std__string__StringBuilder* self, size_t n) {
+    std__string__StringBuilder_append_u64(self, (uint64_t)n);
+}
+
+void std__string__StringBuilder_append_i64(std__string__StringBuilder* self, int64_t n) {
+    if (n < 0) {
+        std__string__StringBuilder_plus_assign_2_2(self, '-');
+        uint64_t mag = ((uint64_t)(0 - (n + 1)) + 1);
+        std__string__StringBuilder_append_u64(self, mag);
+        return;
+    }
+    std__string__StringBuilder_append_u64(self, (uint64_t)n);
+}
+
+void std__string__StringBuilder_append_i32(std__string__StringBuilder* self, int32_t n) {
+    std__string__StringBuilder_append_i64(self, n);
+}
+
+void std__string__StringBuilder_append_bool(std__string__StringBuilder* self, bool b) {
+    (b ? std__string__StringBuilder_plus_assign_2(self, KOBEL_STR("true")) : std__string__StringBuilder_plus_assign_2(self, KOBEL_STR("false")));
+}
+
+void std__string__StringBuilder_append_line(std__string__StringBuilder* self, kobel_str s) {
+    std__string__StringBuilder_plus_assign_2(self, s);
+    std__string__StringBuilder_plus_assign_2_2(self, '\n');
+}
+
+void std__string__StringBuilder_append_repeat(std__string__StringBuilder* self, char c, size_t n) {
+    if (n == 0) {
+        return;
+    }
+    if (((self->len + n) + 1) >= self->cap) {
+        std__string__StringBuilder_grow(self, ((self->len + n) + 1));
+    }
+    memset(&self->buf[self->len], (int32_t)((int32_t)(uint8_t)(c)), n);
+    self->len += n;
+}
+
+void std__string__StringBuilder_append_escaped(std__string__StringBuilder* self, kobel_str s) {
+    {
+        size_t __for_e = s.len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            char c = s.data[i];
+            if (c == '"') {
+                std__string__StringBuilder_plus_assign_2(self, KOBEL_STR("\\\""));
+            } else if (c == '\\') {
+                std__string__StringBuilder_plus_assign_2(self, KOBEL_STR("\\\\"));
+            } else if (c == '\n') {
+                std__string__StringBuilder_plus_assign_2(self, KOBEL_STR("\\n"));
+            } else if (c == '\r') {
+                std__string__StringBuilder_plus_assign_2(self, KOBEL_STR("\\r"));
+            } else if (c == '\t') {
+                std__string__StringBuilder_plus_assign_2(self, KOBEL_STR("\\t"));
+            } else {
+                std__string__StringBuilder_plus_assign_2_2(self, c);
+            }
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+}
+
+bool std__string__StringBuilder_empty(std__string__StringBuilder* self) {
+    return (self->len == 0);
+}
+
+char std__string__StringBuilder_last_char(std__string__StringBuilder* self) {
+    return ((self->len == 0) ? '\0' : ((char)(self->buf[(self->len - 1)])));
+}
+
+size_t std__string__StringBuilder_clear(std__string__StringBuilder* self) {
+    return self->len = 0;
+}
+
+kobel_str std__string__StringBuilder_as_view(std__string__StringBuilder* self) {
+    self->buf[self->len] = 0;
+    return std__string__str_from_bytes(self->buf, self->len);
+}
+
+void std__string__StringBuilder_grow(std__string__StringBuilder* self, size_t min_cap) {
+    size_t new_cap = ((self->cap < 16) ? 16 : (self->cap * 2));
+    while (new_cap < min_cap) {
+        new_cap *= 2;
+    }
+    uint8_t* new_raw = std__memory__Heap_resize_u8(self->buf, new_cap);
+    self->buf = new_raw;
+    self->cap = new_cap;
+}
+
+void std__string__StringBuilder_free(std__string__StringBuilder* self) {
+    std__memory__Heap_free_u8(self->buf);
+}
+
+void std__string__StringBuilder_plus_assign_2(std__string__StringBuilder* self, kobel_str s) {
+    std__string__StringBuilder_append_str(self, s);
+}
+
+void std__string__StringBuilder_plus_assign_2_2(std__string__StringBuilder* self, char c) {
+    std__string__StringBuilder_append_char(self, c);
+}
+
+void std__string__StringBuilder_plus_assign_2_3(std__string__StringBuilder* self, int64_t n) {
+    std__string__StringBuilder_append_i64(self, n);
+}
+
+void std__string__StringBuilder_plus_assign_2_4(std__string__StringBuilder* self, int32_t n) {
+    std__string__StringBuilder_append_i32(self, n);
+}
+
+void std__string__StringBuilder_plus_assign_2_5(std__string__StringBuilder* self, uint64_t n) {
+    std__string__StringBuilder_append_u64(self, n);
+}
+
+void std__string__StringBuilder_plus_assign_2_6(std__string__StringBuilder* self, uint32_t n) {
+    std__string__StringBuilder_append_u32(self, n);
+}
+
+void std__string__StringBuilder_plus_assign_2_7(std__string__StringBuilder* self, size_t n) {
+    std__string__StringBuilder_append_usz(self, n);
+}
+
+void std__string__StringBuilder_plus_assign_2_8(std__string__StringBuilder* self, bool b) {
+    std__string__StringBuilder_append_bool(self, b);
+}
+
+char std__string__StringBuilder_get(std__string__StringBuilder* self, size_t i) {
+    return ((char)(self->buf[i]));
+}
+
+uint8_t std__string__StringBuilder_set(std__string__StringBuilder* self, size_t i, char c) {
+    return self->buf[i] = ((int32_t)(uint8_t)(c));
+}
+
+size_t std__string__StringBuilder_count(std__string__StringBuilder* self) {
+    return self->len;
+}
+
+char std__string__StringBuilder_at(std__string__StringBuilder* self, size_t i) {
+    return ((char)(self->buf[i]));
+}
+
+kobel_str std__string__StringBuilder_to_str(std__string__StringBuilder* self) {
+    uint8_t* str_data = std__memory__Heap_create_array_u8((self->len + 1));
+    if (self->len > 0) {
+        memcpy(str_data, self->buf, self->len);
+    }
+    str_data[self->len] = 0;
+    return std__string__str_from_bytes(str_data, self->len);
 }
 
 kobel_str std__string__fmt_u64(uint64_t n0) {
@@ -5378,52 +5243,6 @@ bool std__filesystem__File_append(kobel_str path, kobel_str content) {
     return (written == content.len);
 }
 
-std__collections__List_str std__filesystem__File_list_dir(kobel_str path) {
-    kobel_str raw = kobel_list_dir(path);
-    if (str_empty(raw)) {
-        return std__collections__List_str_init(4);
-    }
-    std__collections__List_str res = std__collections__List_str_init(4);
-    int32_t start = 0;
-    {
-        size_t __for_e = raw.len;
-        size_t __for_i = __for_e;
-        __for_i = 0;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            __for_go = (__for_i < __for_e);
-        } else {
-            __for_go = (__for_i > __for_e);
-        }
-        while (__for_go) {
-            size_t i = __for_i;
-            if (raw.data[i] == '\n') {
-                if (i > start) {
-                    std__collections__List_str_plus_assign(&res, kobel_slice(raw, start, i));
-                }
-                start = (i + 1);
-            }
-            if (__for_up) {
-                __for_go = ((__for_i + 1) < __for_e);
-            } else {
-                __for_go = ((__for_i - 1) > __for_e);
-            }
-            if (__for_go) {
-                if (__for_up) {
-                    __for_i = (__for_i + 1);
-                } else {
-                    __for_i = (__for_i - 1);
-                }
-            }
-        }
-    }
-    if (start < raw.len) {
-        std__collections__List_str_plus_assign(&res, kobel_slice(raw, start, raw.len));
-    }
-    return res;
-}
-
 bool std__filesystem__File_is_valid(std__filesystem__File* self) {
     return (self->handle != NULL);
 }
@@ -5482,27 +5301,14 @@ kobel_str std__filesystem__File_read_all(std__filesystem__File* self) {
     return std__string__str_from_bytes(buf, read_bytes);
 }
 
-std__filesystem__Path std__filesystem__Path_init(kobel_str raw) {
-    return (std__filesystem__Path){ raw };
+bool std__filesystem__str_is_sep(char c) {
+    return ((c == '/') || (c == '\\'));
 }
 
-const char* std__filesystem__Path_c_str(std__filesystem__Path* self) {
-    return kobel_cstr(self->raw);
-}
-
-bool std__filesystem__Path_empty(std__filesystem__Path* self) {
-    return str_empty(self->raw);
-}
-
-size_t std__filesystem__Path_len(std__filesystem__Path* self) {
-    return self->raw.len;
-}
-
-std__filesystem__Path std__filesystem__Path_parent(std__filesystem__Path* self) {
-    int32_t last = 0;
-    bool found = false;
+kobel_str std__filesystem__remap_path_bytes(kobel_str s, char from, char to, bool fold_case) {
+    uint8_t* buf = std__memory__Heap_create_array_u8((s.len + 1));
     {
-        size_t __for_e = self->raw.len;
+        size_t __for_e = s.len;
         size_t __for_i = __for_e;
         __for_i = 0;
         bool __for_up = (__for_i <= __for_e);
@@ -5514,7 +5320,43 @@ std__filesystem__Path std__filesystem__Path_parent(std__filesystem__Path* self) 
         }
         while (__for_go) {
             size_t i = __for_i;
-            if (std__string__str_is_sep(self->raw.data[i])) {
+            char c = s.data[i];
+            buf[i] = ((c == from) ? ((int32_t)(uint8_t)(to)) : (((fold_case && (c >= 'A')) && (c <= 'Z')) ? (((int32_t)(uint8_t)(c)) + 32) : ((int32_t)(uint8_t)(c))));
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    buf[s.len] = 0;
+    return std__string__str_from_bytes(buf, s.len);
+}
+
+kobel_str str_dir_of(kobel_str self) {
+    size_t last = 0;
+    bool found = false;
+    {
+        size_t __for_e = self.len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            if (std__filesystem__str_is_sep(self.data[i])) {
                 last = i;
                 found = true;
             }
@@ -5533,15 +5375,15 @@ std__filesystem__Path std__filesystem__Path_parent(std__filesystem__Path* self) 
         }
     }
     if (!found) {
-        return std__filesystem__Path_init(KOBEL_STR(""));
+        return KOBEL_STR("");
     }
-    return std__filesystem__Path_init(kobel_slice(self->raw, 0, last));
+    return kobel_slice(self, 0, last);
 }
 
-kobel_str std__filesystem__Path_file_name(std__filesystem__Path* self) {
+kobel_str str_base_name(kobel_str self) {
     size_t start = 0;
     {
-        size_t __for_e = self->raw.len;
+        size_t __for_e = self.len;
         size_t __for_i = __for_e;
         __for_i = 0;
         bool __for_up = (__for_i <= __for_e);
@@ -5553,7 +5395,7 @@ kobel_str std__filesystem__Path_file_name(std__filesystem__Path* self) {
         }
         while (__for_go) {
             size_t i = __for_i;
-            if (std__string__str_is_sep(self->raw.data[i])) {
+            if (std__filesystem__str_is_sep(self.data[i])) {
                 start = (i + 1);
             }
             if (__for_up) {
@@ -5570,12 +5412,108 @@ kobel_str std__filesystem__Path_file_name(std__filesystem__Path* self) {
             }
         }
     }
-    return kobel_slice1(self->raw, start);
+    return kobel_slice1(self, start);
+}
+
+kobel_str str_join_path(kobel_str self, kobel_str rel) {
+    if (str_empty(self)) {
+        return rel;
+    }
+    if (std__filesystem__str_is_sep(self.data[(self.len - 1)])) {
+        return kobel_concat(self, rel);
+    }
+    return kobel_concat3(self, KOBEL_STR("/"), rel);
+}
+
+kobel_str str_normalize_path(kobel_str self) {
+    return std__filesystem__remap_path_bytes(self, '\\', '/', true);
+}
+
+kobel_str str_to_win_path(kobel_str self) {
+    return std__filesystem__remap_path_bytes(self, '/', '\\', false);
+}
+
+kobel_str str_to_posix_path(kobel_str self) {
+    return std__filesystem__remap_path_bytes(self, '\\', '/', false);
+}
+
+std__filesystem__Path std__filesystem__Path_init(kobel_str raw) {
+    return (std__filesystem__Path){ raw };
+}
+
+bool std__filesystem__Path_is_sep(char c) {
+    return std__filesystem__str_is_sep(c);
+}
+
+std__collections__List_str std__filesystem__Path_list_dir(kobel_str path) {
+    kobel_str raw = kobel_list_dir(path);
+    if (str_empty(raw)) {
+        return std__collections__List_str_init(4);
+    }
+    std__collections__List_str res = std__collections__List_str_init(4);
+    size_t start = 0;
+    {
+        size_t __for_e = raw.len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            if (raw.data[i] == '\n') {
+                if (i > start) {
+                    std__collections__List_str_plus_assign(&res, kobel_slice(raw, start, i));
+                }
+                start = (i + 1);
+            }
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    if (start < raw.len) {
+        std__collections__List_str_plus_assign(&res, kobel_slice(raw, start, raw.len));
+    }
+    return res;
+}
+
+const char* std__filesystem__Path_c_str(std__filesystem__Path* self) {
+    return kobel_cstr(self->raw);
+}
+
+bool std__filesystem__Path_empty(std__filesystem__Path* self) {
+    return str_empty(self->raw);
+}
+
+size_t std__filesystem__Path_len(std__filesystem__Path* self) {
+    return self->raw.len;
+}
+
+std__filesystem__Path std__filesystem__Path_parent(std__filesystem__Path* self) {
+    return std__filesystem__Path_init(str_dir_of(self->raw));
+}
+
+kobel_str std__filesystem__Path_file_name(std__filesystem__Path* self) {
+    return str_base_name(self->raw);
 }
 
 kobel_str std__filesystem__Path_extension(std__filesystem__Path* self) {
     kobel_str fname = std__filesystem__Path_file_name(self);
-    int32_t last_dot = 0;
+    size_t last_dot = 0;
     bool found = false;
     {
         size_t __for_e = fname.len;
@@ -5616,7 +5554,7 @@ kobel_str std__filesystem__Path_extension(std__filesystem__Path* self) {
 
 kobel_str std__filesystem__Path_stem(std__filesystem__Path* self) {
     kobel_str fname = std__filesystem__Path_file_name(self);
-    int32_t last_dot = 0;
+    size_t last_dot = 0;
     bool found = false;
     {
         size_t __for_e = fname.len;
@@ -5662,8 +5600,8 @@ std__filesystem__Path std__filesystem__Path_join(std__filesystem__Path* self, ko
     if (str_empty(part)) {
         return std__filesystem__Path_init(self->raw);
     }
-    if (std__string__str_is_sep(self->raw.data[(self->raw.len - 1)]) || std__string__str_is_sep(part.data[0])) {
-        if (std__string__str_is_sep(self->raw.data[(self->raw.len - 1)]) && std__string__str_is_sep(part.data[0])) {
+    if (std__filesystem__str_is_sep(self->raw.data[(self->raw.len - 1)]) || std__filesystem__str_is_sep(part.data[0])) {
+        if (std__filesystem__str_is_sep(self->raw.data[(self->raw.len - 1)]) && std__filesystem__str_is_sep(part.data[0])) {
             return std__filesystem__Path_init(kobel_concat(self->raw, kobel_slice1(part, 1)));
         }
         return std__filesystem__Path_init(kobel_concat(self->raw, part));
@@ -5716,7 +5654,7 @@ kobel_str str_path_to_module(kobel_str self) {
         while (__for_go) {
             size_t i = __for_i;
             char c = stem.data[i];
-            if (std__string__str_is_sep(c)) {
+            if (std__filesystem__str_is_sep(c)) {
                 buf[i] = ((int32_t)(uint8_t)('.'));
             } else {
                 buf[i] = ((int32_t)(uint8_t)(c));
@@ -5956,7 +5894,7 @@ kobel_str util__multiline_trim_indent(kobel_str raw) {
         end_idx = (end_idx - 1);
     }
     kobel_str prefix = util__common_whitespace_prefix(lines, start_idx, end_idx);
-    std__collections__StringBuilder sb = std__collections__StringBuilder_init(32);
+    std__string__StringBuilder sb = std__string__StringBuilder_init(32);
     bool first = true;
     {
         size_t __for_e = end_idx;
@@ -5974,11 +5912,11 @@ kobel_str util__multiline_trim_indent(kobel_str raw) {
             kobel_str line = std__collections__List_str_get(&lines, i);
             kobel_str trimmed_line = (util__str_is_blank(line) ? KOBEL_STR("") : (str_starts_with(line, prefix) ? kobel_slice(line, prefix.len, line.len) : line));
             if (first) {
-                std__collections__StringBuilder_plus_assign_2(&sb, trimmed_line);
+                std__string__StringBuilder_plus_assign_2(&sb, trimmed_line);
                 first = false;
             } else {
-                std__collections__StringBuilder_plus_assign_2_2(&sb, '\n');
-                std__collections__StringBuilder_plus_assign_2(&sb, trimmed_line);
+                std__string__StringBuilder_plus_assign_2_2(&sb, '\n');
+                std__string__StringBuilder_plus_assign_2(&sb, trimmed_line);
             }
             if (__for_up) {
                 __for_go = ((__for_i + 1) < __for_e);
@@ -5995,15 +5933,15 @@ kobel_str util__multiline_trim_indent(kobel_str raw) {
         }
     }
     {
-        kobel_str __ret_tmp = std__collections__StringBuilder_to_str(&sb);
-        std__collections__StringBuilder_free(&sb);
+        kobel_str __ret_tmp = std__string__StringBuilder_to_str(&sb);
+        std__string__StringBuilder_free(&sb);
         return __ret_tmp;
     }
 }
 
 kobel_str util__multiline_escape_for_c(kobel_str text) {
-    std__collections__StringBuilder out = std__collections__StringBuilder_init(32);
-    std__collections__StringBuilder_plus_assign_2_2(&out, '"');
+    std__string__StringBuilder out = std__string__StringBuilder_init(32);
+    std__string__StringBuilder_plus_assign_2_2(&out, '"');
     size_t i = 0;
     while (i < text.len) {
         char c = text.data[i];
@@ -6011,36 +5949,36 @@ kobel_str util__multiline_escape_for_c(kobel_str text) {
             if ((i + 1) < text.len) {
                 char next_c = text.data[(i + 1)];
                 if (next_c == '$') {
-                    std__collections__StringBuilder_plus_assign_2_2(&out, '$');
+                    std__string__StringBuilder_plus_assign_2_2(&out, '$');
                     i += 2;
                     continue;
                 }
                 if (next_c == '\\') {
-                    std__collections__StringBuilder_plus_assign_2(&out, KOBEL_STR("\\\\"));
+                    std__string__StringBuilder_plus_assign_2(&out, KOBEL_STR("\\\\"));
                     i += 2;
                     continue;
                 }
                 if (next_c == '"') {
-                    std__collections__StringBuilder_plus_assign_2(&out, KOBEL_STR("\\\""));
+                    std__string__StringBuilder_plus_assign_2(&out, KOBEL_STR("\\\""));
                     i += 2;
                     continue;
                 }
-                std__collections__StringBuilder_plus_assign_2_2(&out, '\\');
-                std__collections__StringBuilder_plus_assign_2_2(&out, next_c);
+                std__string__StringBuilder_plus_assign_2_2(&out, '\\');
+                std__string__StringBuilder_plus_assign_2_2(&out, next_c);
                 i += 2;
                 continue;
             }
-            std__collections__StringBuilder_plus_assign_2(&out, KOBEL_STR("\\\\"));
+            std__string__StringBuilder_plus_assign_2(&out, KOBEL_STR("\\\\"));
             i++;
             continue;
         }
         if (c == '"') {
-            std__collections__StringBuilder_plus_assign_2(&out, KOBEL_STR("\\\""));
+            std__string__StringBuilder_plus_assign_2(&out, KOBEL_STR("\\\""));
             i++;
             continue;
         }
         if (c == '\n') {
-            std__collections__StringBuilder_plus_assign_2(&out, KOBEL_STR("\\n"));
+            std__string__StringBuilder_plus_assign_2(&out, KOBEL_STR("\\n"));
             i++;
             continue;
         }
@@ -6048,13 +5986,13 @@ kobel_str util__multiline_escape_for_c(kobel_str text) {
             i++;
             continue;
         }
-        std__collections__StringBuilder_plus_assign_2_2(&out, c);
+        std__string__StringBuilder_plus_assign_2_2(&out, c);
         i++;
     }
-    std__collections__StringBuilder_plus_assign_2_2(&out, '"');
+    std__string__StringBuilder_plus_assign_2_2(&out, '"');
     {
-        kobel_str __ret_tmp = std__collections__StringBuilder_to_str(&out);
-        std__collections__StringBuilder_free(&out);
+        kobel_str __ret_tmp = std__string__StringBuilder_to_str(&out);
+        std__string__StringBuilder_free(&out);
         return __ret_tmp;
     }
 }
@@ -6279,7 +6217,7 @@ bool compiler__driver__str_before(kobel_str a, kobel_str b) {
 }
 
 void compiler__driver__collect_kb_files(kobel_str dir, kobel_str prefix, std__collections__List_str* out) {
-    std__collections__List_str entries = std__filesystem__File_list_dir(dir);
+    std__collections__List_str entries = std__filesystem__Path_list_dir(dir);
     if (std__collections__List_str_empty(&entries)) {
         std__collections__List_str_free(&entries);
         return;
@@ -8558,7 +8496,7 @@ compiler__ast__AstNode* compiler__parser__Parser_parse_interp_multiline(compiler
     std__collections__List_compiler__ast__InterpPart parts = std__collections__List_compiler__ast__InterpPart_init(4);
     size_t end = text.len;
     size_t i = 0;
-    std__collections__StringBuilder lit = std__collections__StringBuilder_init(32);
+    std__string__StringBuilder lit = std__string__StringBuilder_init(32);
     bool has_lit = false;
     while (i < end) {
         char c = text.data[i];
@@ -8566,42 +8504,42 @@ compiler__ast__AstNode* compiler__parser__Parser_parse_interp_multiline(compiler
             if ((i + 1) < end) {
                 char next_c = text.data[(i + 1)];
                 if (next_c == '$') {
-                    std__collections__StringBuilder_plus_assign_2_2(&lit, '$');
+                    std__string__StringBuilder_plus_assign_2_2(&lit, '$');
                     has_lit = true;
                     i += 2;
                     continue;
                 }
                 if (next_c == '\\') {
-                    std__collections__StringBuilder_plus_assign_2(&lit, KOBEL_STR("\\\\"));
+                    std__string__StringBuilder_plus_assign_2(&lit, KOBEL_STR("\\\\"));
                     has_lit = true;
                     i += 2;
                     continue;
                 }
                 if (next_c == '"') {
-                    std__collections__StringBuilder_plus_assign_2(&lit, KOBEL_STR("\\\""));
+                    std__string__StringBuilder_plus_assign_2(&lit, KOBEL_STR("\\\""));
                     has_lit = true;
                     i += 2;
                     continue;
                 }
-                std__collections__StringBuilder_plus_assign_2_2(&lit, '\\');
-                std__collections__StringBuilder_plus_assign_2_2(&lit, next_c);
+                std__string__StringBuilder_plus_assign_2_2(&lit, '\\');
+                std__string__StringBuilder_plus_assign_2_2(&lit, next_c);
                 has_lit = true;
                 i += 2;
                 continue;
             }
-            std__collections__StringBuilder_plus_assign_2(&lit, KOBEL_STR("\\\\"));
+            std__string__StringBuilder_plus_assign_2(&lit, KOBEL_STR("\\\\"));
             has_lit = true;
             i++;
             continue;
         }
         if (c == '"') {
-            std__collections__StringBuilder_plus_assign_2(&lit, KOBEL_STR("\\\""));
+            std__string__StringBuilder_plus_assign_2(&lit, KOBEL_STR("\\\""));
             has_lit = true;
             i++;
             continue;
         }
         if (c == '\n') {
-            std__collections__StringBuilder_plus_assign_2(&lit, KOBEL_STR("\\n"));
+            std__string__StringBuilder_plus_assign_2(&lit, KOBEL_STR("\\n"));
             has_lit = true;
             i++;
             continue;
@@ -8612,8 +8550,8 @@ compiler__ast__AstNode* compiler__parser__Parser_parse_interp_multiline(compiler
         }
         if (((c == '$') && ((i + 1) < end)) && (text.data[(i + 1)] == '{')) {
             if (has_lit) {
-                std__collections__List_compiler__ast__InterpPart_plus_assign(&parts, (compiler__ast__InterpPart){ .tag = 0, .u.Literal = { compiler__parser__Parser_node(self, (compiler__ast__NodeData){ .tag = 5, .u.LiteralExpr = { 4, kobel_concat3(KOBEL_STR("\""), std__collections__StringBuilder_to_str(&lit), KOBEL_STR("\"")) } }, line, col) } });
-                std__collections__StringBuilder_clear(&lit);
+                std__collections__List_compiler__ast__InterpPart_plus_assign(&parts, (compiler__ast__InterpPart){ .tag = 0, .u.Literal = { compiler__parser__Parser_node(self, (compiler__ast__NodeData){ .tag = 5, .u.LiteralExpr = { 4, kobel_concat3(KOBEL_STR("\""), std__string__StringBuilder_to_str(&lit), KOBEL_STR("\"")) } }, line, col) } });
+                std__string__StringBuilder_clear(&lit);
                 has_lit = false;
             }
             size_t h_start = (i + 2);
@@ -8622,7 +8560,7 @@ compiler__ast__AstNode* compiler__parser__Parser_parse_interp_multiline(compiler
                 std__collections__List_str_plus_assign(&self->errors, KOBEL_STR("Unterminated interpolation hole in multiline string literal"));
                 {
                     compiler__ast__AstNode* __ret_tmp = compiler__parser__Parser_node(self, (compiler__ast__NodeData){ .tag = 5, .u.LiteralExpr = { 4, KOBEL_STR("\"\"") } }, line, col);
-                    std__collections__StringBuilder_free(&lit);
+                    std__string__StringBuilder_free(&lit);
                     return __ret_tmp;
                 }
             }
@@ -8648,16 +8586,16 @@ compiler__ast__AstNode* compiler__parser__Parser_parse_interp_multiline(compiler
             i = (((size_t)h_end) + 1);
             continue;
         }
-        std__collections__StringBuilder_plus_assign_2_2(&lit, c);
+        std__string__StringBuilder_plus_assign_2_2(&lit, c);
         has_lit = true;
         i++;
     }
     if (has_lit) {
-        std__collections__List_compiler__ast__InterpPart_plus_assign(&parts, (compiler__ast__InterpPart){ .tag = 0, .u.Literal = { compiler__parser__Parser_node(self, (compiler__ast__NodeData){ .tag = 5, .u.LiteralExpr = { 4, kobel_concat3(KOBEL_STR("\""), std__collections__StringBuilder_to_str(&lit), KOBEL_STR("\"")) } }, line, col) } });
+        std__collections__List_compiler__ast__InterpPart_plus_assign(&parts, (compiler__ast__InterpPart){ .tag = 0, .u.Literal = { compiler__parser__Parser_node(self, (compiler__ast__NodeData){ .tag = 5, .u.LiteralExpr = { 4, kobel_concat3(KOBEL_STR("\""), std__string__StringBuilder_to_str(&lit), KOBEL_STR("\"")) } }, line, col) } });
     }
     {
         compiler__ast__AstNode* __ret_tmp = compiler__parser__Parser_node(self, (compiler__ast__NodeData){ .tag = 19, .u.InterpExpr = { parts } }, line, col);
-        std__collections__StringBuilder_free(&lit);
+        std__string__StringBuilder_free(&lit);
         return __ret_tmp;
     }
 }
@@ -8666,24 +8604,24 @@ compiler__ast__AstNode* compiler__parser__Parser_parse_interp_string(compiler__p
     std__collections__List_compiler__ast__InterpPart parts = std__collections__List_compiler__ast__InterpPart_init(4);
     size_t end = (text.len - 1);
     size_t i = 1;
-    std__collections__StringBuilder lit = std__collections__StringBuilder_init(32);
+    std__string__StringBuilder lit = std__string__StringBuilder_init(32);
     bool has_lit = false;
     while (i < end) {
         char c = text.data[i];
         if (c == '\\') {
             if (((i + 1) < end) && (text.data[(i + 1)] == '\\')) {
-                std__collections__StringBuilder_plus_assign_2(&lit, KOBEL_STR("\\\\"));
+                std__string__StringBuilder_plus_assign_2(&lit, KOBEL_STR("\\\\"));
                 has_lit = true;
                 i += 2;
                 continue;
             }
             if (((i + 1) < end) && (text.data[(i + 1)] == '$')) {
-                std__collections__StringBuilder_plus_assign_2_2(&lit, '$');
+                std__string__StringBuilder_plus_assign_2_2(&lit, '$');
             } else if ((i + 1) < end) {
-                std__collections__StringBuilder_plus_assign_2_2(&lit, '\\');
-                std__collections__StringBuilder_plus_assign_2_2(&lit, text.data[(i + 1)]);
+                std__string__StringBuilder_plus_assign_2_2(&lit, '\\');
+                std__string__StringBuilder_plus_assign_2_2(&lit, text.data[(i + 1)]);
             } else {
-                std__collections__StringBuilder_plus_assign_2_2(&lit, '\\');
+                std__string__StringBuilder_plus_assign_2_2(&lit, '\\');
             }
             has_lit = true;
             i += 2;
@@ -8691,8 +8629,8 @@ compiler__ast__AstNode* compiler__parser__Parser_parse_interp_string(compiler__p
         }
         if (((c == '$') && ((i + 1) < end)) && (text.data[(i + 1)] == '{')) {
             if (has_lit) {
-                std__collections__List_compiler__ast__InterpPart_plus_assign(&parts, (compiler__ast__InterpPart){ .tag = 0, .u.Literal = { compiler__parser__Parser_node(self, (compiler__ast__NodeData){ .tag = 5, .u.LiteralExpr = { 4, kobel_concat3(KOBEL_STR("\""), std__collections__StringBuilder_to_str(&lit), KOBEL_STR("\"")) } }, line, col) } });
-                std__collections__StringBuilder_clear(&lit);
+                std__collections__List_compiler__ast__InterpPart_plus_assign(&parts, (compiler__ast__InterpPart){ .tag = 0, .u.Literal = { compiler__parser__Parser_node(self, (compiler__ast__NodeData){ .tag = 5, .u.LiteralExpr = { 4, kobel_concat3(KOBEL_STR("\""), std__string__StringBuilder_to_str(&lit), KOBEL_STR("\"")) } }, line, col) } });
+                std__string__StringBuilder_clear(&lit);
                 has_lit = false;
             }
             size_t h_start = (i + 2);
@@ -8701,7 +8639,7 @@ compiler__ast__AstNode* compiler__parser__Parser_parse_interp_string(compiler__p
                 std__collections__List_str_plus_assign(&self->errors, KOBEL_STR("Unterminated interpolation hole in string literal"));
                 {
                     compiler__ast__AstNode* __ret_tmp = compiler__parser__Parser_node(self, (compiler__ast__NodeData){ .tag = 5, .u.LiteralExpr = { 4, text } }, line, col);
-                    std__collections__StringBuilder_free(&lit);
+                    std__string__StringBuilder_free(&lit);
                     return __ret_tmp;
                 }
             }
@@ -8727,16 +8665,16 @@ compiler__ast__AstNode* compiler__parser__Parser_parse_interp_string(compiler__p
             i = (h_end + 1);
             continue;
         }
-        std__collections__StringBuilder_plus_assign_2_2(&lit, c);
+        std__string__StringBuilder_plus_assign_2_2(&lit, c);
         has_lit = true;
         i++;
     }
     if (has_lit) {
-        std__collections__List_compiler__ast__InterpPart_plus_assign(&parts, (compiler__ast__InterpPart){ .tag = 0, .u.Literal = { compiler__parser__Parser_node(self, (compiler__ast__NodeData){ .tag = 5, .u.LiteralExpr = { 4, kobel_concat3(KOBEL_STR("\""), std__collections__StringBuilder_to_str(&lit), KOBEL_STR("\"")) } }, line, col) } });
+        std__collections__List_compiler__ast__InterpPart_plus_assign(&parts, (compiler__ast__InterpPart){ .tag = 0, .u.Literal = { compiler__parser__Parser_node(self, (compiler__ast__NodeData){ .tag = 5, .u.LiteralExpr = { 4, kobel_concat3(KOBEL_STR("\""), std__string__StringBuilder_to_str(&lit), KOBEL_STR("\"")) } }, line, col) } });
     }
     {
         compiler__ast__AstNode* __ret_tmp = compiler__parser__Parser_node(self, (compiler__ast__NodeData){ .tag = 19, .u.InterpExpr = { parts } }, line, col);
-        std__collections__StringBuilder_free(&lit);
+        std__string__StringBuilder_free(&lit);
         return __ret_tmp;
     }
 }
@@ -9238,7 +9176,7 @@ std__collections__List_compiler__loader__ModuleFile compiler__loader__ModuleLoad
                 std__collections__List_compiler__loader__ModuleFile_plus_assign(&list, (compiler__loader__ModuleFile){ true, candidate, src });
             }
             kobel_str dir_path = str_join_path(root, rel_dir);
-            std__collections__List_str entries = std__filesystem__File_list_dir(dir_path);
+            std__collections__List_str entries = std__filesystem__Path_list_dir(dir_path);
             if (!std__collections__List_str_empty(&entries)) {
                 std__collections__List_str kb_files = std__collections__List_str_init(4);
                 {
@@ -20968,7 +20906,7 @@ kobel_str compiler__sema__Type_to_str(compiler__sema__Type* self) {
 }
 
 compiler__codegen__CCodeGen compiler__codegen__CCodeGen_init(void) {
-    return (compiler__codegen__CCodeGen){ std__collections__StringBuilder_init(32), 0, std__collections__List_str_init(4), KOBEL_STR(""), KOBEL_STR(""), false, KOBEL_STR(""), KOBEL_STR(""), 0, std__collections__List_ptr_compiler__ast__AstNode_init(4), std__collections__List_usz_init(4), std__collections__List_bool_init(4), std__collections__List_usz_init(4) };
+    return (compiler__codegen__CCodeGen){ std__string__StringBuilder_init(32), 0, std__collections__List_str_init(4), KOBEL_STR(""), KOBEL_STR(""), false, KOBEL_STR(""), KOBEL_STR(""), 0, std__collections__List_ptr_compiler__ast__AstNode_init(4), std__collections__List_usz_init(4), std__collections__List_bool_init(4), std__collections__List_usz_init(4) };
 }
 
 void compiler__codegen__CCodeGen_enter_defer_scope(compiler__codegen__CCodeGen* self) {
@@ -21698,8 +21636,8 @@ kobel_str compiler__codegen__CCodeGen_gen_program(compiler__codegen__CCodeGen* s
     {
         compiler__ast__NodeData__Program* prog = NULL;
         if ((program_node != NULL && program_node->data.tag == compiler__ast__NodeData__Program__TAG && (prog = (compiler__ast__NodeData__Program*)(&(program_node)->data.u.Program), 1))) {
-            std__collections__StringBuilder_clear(&self->out);
-            std__collections__StringBuilder_plus_assign_2(&self->out, compiler__codegen__C_PRELUDE);
+            std__string__StringBuilder_clear(&self->out);
+            std__string__StringBuilder_plus_assign_2(&self->out, compiler__codegen__C_PRELUDE);
             {
                 size_t __for_n = compiler__ast__NodeData__Program_count(prog);
                 size_t __for_i = 0;
@@ -21712,20 +21650,20 @@ kobel_str compiler__codegen__CCodeGen_gen_program(compiler__codegen__CCodeGen* s
                     if (decl != NULL && decl->data.tag == compiler__ast__NodeData__StructDecl__TAG) {
                         compiler__ast__NodeData__StructDecl* s = (compiler__ast__NodeData__StructDecl*)(&(decl)->data.u.StructDecl);
                         if (s->forward || s->emit_typedef) {
-                            std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("typedef struct "));
-                            std__collections__StringBuilder_plus_assign_2(&self->out, s->name);
-                            std__collections__StringBuilder_plus_assign_2_2(&self->out, ' ');
-                            std__collections__StringBuilder_plus_assign_2(&self->out, s->name);
-                            std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
+                            std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("typedef struct "));
+                            std__string__StringBuilder_plus_assign_2(&self->out, s->name);
+                            std__string__StringBuilder_plus_assign_2_2(&self->out, ' ');
+                            std__string__StringBuilder_plus_assign_2(&self->out, s->name);
+                            std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
                         }
                     } else if (decl != NULL && decl->data.tag == compiler__ast__NodeData__EnumDecl__TAG) {
                         compiler__ast__NodeData__EnumDecl* e = (compiler__ast__NodeData__EnumDecl*)(&(decl)->data.u.EnumDecl);
                         if (compiler__codegen__CCodeGen_enum_has_payload(self, e)) {
-                            std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("typedef struct "));
-                            std__collections__StringBuilder_plus_assign_2(&self->out, e->name);
-                            std__collections__StringBuilder_plus_assign_2_2(&self->out, ' ');
-                            std__collections__StringBuilder_plus_assign_2(&self->out, e->name);
-                            std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
+                            std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("typedef struct "));
+                            std__string__StringBuilder_plus_assign_2(&self->out, e->name);
+                            std__string__StringBuilder_plus_assign_2_2(&self->out, ' ');
+                            std__string__StringBuilder_plus_assign_2(&self->out, e->name);
+                            std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
                             {
                                 size_t __for_e = e->members.len;
                                 size_t __for_i = __for_e;
@@ -21740,22 +21678,22 @@ kobel_str compiler__codegen__CCodeGen_gen_program(compiler__codegen__CCodeGen* s
                                 while (__for_go) {
                                     size_t i = __for_i;
                                     compiler__ast__EnumMember m = std__collections__List_compiler__ast__EnumMember_get(&e->members, i);
-                                    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("typedef struct "));
-                                    std__collections__StringBuilder_plus_assign_2(&self->out, e->name);
-                                    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("__"));
-                                    std__collections__StringBuilder_plus_assign_2(&self->out, m.name);
-                                    std__collections__StringBuilder_plus_assign_2_2(&self->out, ' ');
-                                    std__collections__StringBuilder_plus_assign_2(&self->out, e->name);
-                                    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("__"));
-                                    std__collections__StringBuilder_plus_assign_2(&self->out, m.name);
-                                    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
-                                    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("#define "));
-                                    std__collections__StringBuilder_plus_assign_2(&self->out, e->name);
-                                    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("__"));
-                                    std__collections__StringBuilder_plus_assign_2(&self->out, m.name);
-                                    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("__TAG "));
-                                    std__collections__StringBuilder_plus_assign_2_7(&self->out, i);
-                                    std__collections__StringBuilder_plus_assign_2_2(&self->out, '\n');
+                                    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("typedef struct "));
+                                    std__string__StringBuilder_plus_assign_2(&self->out, e->name);
+                                    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("__"));
+                                    std__string__StringBuilder_plus_assign_2(&self->out, m.name);
+                                    std__string__StringBuilder_plus_assign_2_2(&self->out, ' ');
+                                    std__string__StringBuilder_plus_assign_2(&self->out, e->name);
+                                    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("__"));
+                                    std__string__StringBuilder_plus_assign_2(&self->out, m.name);
+                                    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
+                                    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("#define "));
+                                    std__string__StringBuilder_plus_assign_2(&self->out, e->name);
+                                    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("__"));
+                                    std__string__StringBuilder_plus_assign_2(&self->out, m.name);
+                                    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("__TAG "));
+                                    std__string__StringBuilder_plus_assign_2_7(&self->out, i);
+                                    std__string__StringBuilder_plus_assign_2_2(&self->out, '\n');
                                     if (__for_up) {
                                         __for_go = ((__for_i + 1) < __for_e);
                                     } else {
@@ -21772,25 +21710,25 @@ kobel_str compiler__codegen__CCodeGen_gen_program(compiler__codegen__CCodeGen* s
                             }
                         } else {
                             kobel_str under = ((e->underlying_type != NULL) ? compiler__codegen__c_type_from_ast(e->underlying_type) : KOBEL_STR("int32_t"));
-                            std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("typedef "));
-                            std__collections__StringBuilder_plus_assign_2(&self->out, under);
-                            std__collections__StringBuilder_plus_assign_2_2(&self->out, ' ');
-                            std__collections__StringBuilder_plus_assign_2(&self->out, e->name);
-                            std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
+                            std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("typedef "));
+                            std__string__StringBuilder_plus_assign_2(&self->out, under);
+                            std__string__StringBuilder_plus_assign_2_2(&self->out, ' ');
+                            std__string__StringBuilder_plus_assign_2(&self->out, e->name);
+                            std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
                         }
                     } else if (decl != NULL && decl->data.tag == compiler__ast__NodeData__ConstDecl__TAG) {
                         compiler__ast__NodeData__ConstDecl* c = (compiler__ast__NodeData__ConstDecl*)(&(decl)->data.u.ConstDecl);
                         kobel_str c_val_str = ((c->value != NULL) ? compiler__codegen__CCodeGen_gen_expr(self, c->value) : KOBEL_STR("0"));
-                        std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("#define "));
-                        std__collections__StringBuilder_plus_assign_2(&self->out, c->name);
-                        std__collections__StringBuilder_plus_assign_2_2(&self->out, ' ');
-                        std__collections__StringBuilder_plus_assign_2(&self->out, c_val_str);
-                        std__collections__StringBuilder_plus_assign_2_2(&self->out, '\n');
+                        std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("#define "));
+                        std__string__StringBuilder_plus_assign_2(&self->out, c->name);
+                        std__string__StringBuilder_plus_assign_2_2(&self->out, ' ');
+                        std__string__StringBuilder_plus_assign_2(&self->out, c_val_str);
+                        std__string__StringBuilder_plus_assign_2_2(&self->out, '\n');
                     }
                     __for_i = (__for_i + 1);
                 }
             }
-            std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("\n\n"));
+            std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("\n\n"));
             std__collections__List_ptr_compiler__ast__AstNode items = std__collections__List_ptr_compiler__ast__AstNode_init(4);
             std__collections__HashSet_str pending = std__collections__HashSet_str_init(16);
             {
@@ -21902,7 +21840,7 @@ kobel_str compiler__codegen__CCodeGen_gen_program(compiler__codegen__CCodeGen* s
                     {
                         compiler__ast__NodeData__StructDecl* s = NULL;
                         if ((!compiler__ast__decl_is_template(decl_list) && (decl_list != NULL && decl_list->data.tag == compiler__ast__NodeData__StructDecl__TAG && (s = (compiler__ast__NodeData__StructDecl*)(&(decl_list)->data.u.StructDecl), 1))) && (str_starts_with(s->name, KOBEL_STR("std__collections__list__List")) || str_starts_with(s->name, KOBEL_STR("std__collections__List")))) {
-                            std__collections__StringBuilder_plus_assign_2(&self->out, kobel_concat5(kobel_concat5(KOBEL_STR("static inline "), s->name, KOBEL_STR(" "), s->name, KOBEL_STR("_from_array(const void* src, size_t n) {\n	size_t elem_size = sizeof(*(((")), s->name, KOBEL_STR("*)0)->data));\n	size_t cap = (n < 4) ? 4 : n;\n	void* data = malloc(cap * elem_size);\n	if (n > 0 && src != NULL) memcpy(data, src, n * elem_size);\n	"), s->name, KOBEL_STR(" l;\n	l.data = data;\n	l.len = n;\n	l.cap = cap;\n	return l;\n}")));
+                            std__string__StringBuilder_plus_assign_2(&self->out, kobel_concat5(kobel_concat5(KOBEL_STR("static inline "), s->name, KOBEL_STR(" "), s->name, KOBEL_STR("_from_array(const void* src, size_t n) {\n	size_t elem_size = sizeof(*(((")), s->name, KOBEL_STR("*)0)->data));\n	size_t cap = (n < 4) ? 4 : n;\n	void* data = malloc(cap * elem_size);\n	if (n > 0 && src != NULL) memcpy(data, src, n * elem_size);\n	"), s->name, KOBEL_STR(" l;\n	l.data = data;\n	l.len = n;\n	l.cap = cap;\n	return l;\n}")));
                         }
                     }
                     __for_i = (__for_i + 1);
@@ -21941,7 +21879,7 @@ kobel_str compiler__codegen__CCodeGen_gen_program(compiler__codegen__CCodeGen* s
                     __for_i = (__for_i + 1);
                 }
             }
-            std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("\n"));
+            std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("\n"));
             {
                 size_t __for_n = compiler__ast__NodeData__Program_count(prog);
                 size_t __for_i = 0;
@@ -21976,10 +21914,10 @@ kobel_str compiler__codegen__CCodeGen_gen_program(compiler__codegen__CCodeGen* s
                 }
             }
             {
-                kobel_str __ret_tmp = std__collections__StringBuilder_to_str(&self->out);
+                kobel_str __ret_tmp = std__string__StringBuilder_to_str(&self->out);
                 std__collections__HashSet_str_free(&emitted);
                 std__collections__HashSet_str_free(&pending);
-                std__collections__StringBuilder_free(&self->out);
+                std__string__StringBuilder_free(&self->out);
                 return __ret_tmp;
             }
         }
@@ -22056,24 +21994,24 @@ void compiler__codegen__CCodeGen_gen_struct_decl(compiler__codegen__CCodeGen* se
     if (s->forward) {
         return;
     }
-    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("struct "));
-    std__collections__StringBuilder_plus_assign_2(&self->out, s->name);
-    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" {\n"));
+    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("struct "));
+    std__string__StringBuilder_plus_assign_2(&self->out, s->name);
+    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" {\n"));
     {
         size_t __for_n = std__collections__List_compiler__ast__StructField_count(&s->fields);
         size_t __for_i = 0;
         while (__for_i < __for_n) {
             compiler__ast__StructField f = std__collections__List_compiler__ast__StructField_at(&s->fields, __for_i);
             kobel_str ty = compiler__codegen__c_type_from_ast(f.type_node);
-            std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("    "));
-            std__collections__StringBuilder_plus_assign_2(&self->out, ty);
-            std__collections__StringBuilder_plus_assign_2_2(&self->out, ' ');
-            std__collections__StringBuilder_plus_assign_2(&self->out, f.name);
-            std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
+            std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("    "));
+            std__string__StringBuilder_plus_assign_2(&self->out, ty);
+            std__string__StringBuilder_plus_assign_2_2(&self->out, ' ');
+            std__string__StringBuilder_plus_assign_2(&self->out, f.name);
+            std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
             __for_i = (__for_i + 1);
         }
     }
-    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("};\n\n"));
+    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("};\n\n"));
 }
 
 void compiler__codegen__CCodeGen_gen_payload_enum(compiler__codegen__CCodeGen* self, compiler__ast__NodeData__EnumDecl* e) {
@@ -22085,50 +22023,50 @@ void compiler__codegen__CCodeGen_gen_payload_enum(compiler__codegen__CCodeGen* s
         size_t __for_i = 0;
         while (__for_i < __for_n) {
             compiler__ast__EnumMember m = std__collections__List_compiler__ast__EnumMember_at(&e->members, __for_i);
-            std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("struct "));
-            std__collections__StringBuilder_plus_assign_2(&self->out, e->name);
-            std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("__"));
-            std__collections__StringBuilder_plus_assign_2(&self->out, m.name);
-            std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" {\n"));
+            std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("struct "));
+            std__string__StringBuilder_plus_assign_2(&self->out, e->name);
+            std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("__"));
+            std__string__StringBuilder_plus_assign_2(&self->out, m.name);
+            std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" {\n"));
             if (std__collections__List_compiler__ast__EnumField_empty(&m.payload)) {
-                std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("    char __empty;\n"));
+                std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("    char __empty;\n"));
             }
             {
                 size_t __for_n = std__collections__List_compiler__ast__EnumField_count(&m.payload);
                 size_t __for_i = 0;
                 while (__for_i < __for_n) {
                     compiler__ast__EnumField f = std__collections__List_compiler__ast__EnumField_at(&m.payload, __for_i);
-                    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("    "));
-                    std__collections__StringBuilder_plus_assign_2(&self->out, compiler__codegen__c_type_from_ast(f.type_node));
-                    std__collections__StringBuilder_plus_assign_2_2(&self->out, ' ');
-                    std__collections__StringBuilder_plus_assign_2(&self->out, f.name);
-                    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
+                    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("    "));
+                    std__string__StringBuilder_plus_assign_2(&self->out, compiler__codegen__c_type_from_ast(f.type_node));
+                    std__string__StringBuilder_plus_assign_2_2(&self->out, ' ');
+                    std__string__StringBuilder_plus_assign_2(&self->out, f.name);
+                    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
                     __for_i = (__for_i + 1);
                 }
             }
-            std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("};\n"));
+            std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("};\n"));
             __for_i = (__for_i + 1);
         }
     }
-    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("struct "));
-    std__collections__StringBuilder_plus_assign_2(&self->out, e->name);
-    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" {\n    int32_t tag;\n    union {\n"));
+    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("struct "));
+    std__string__StringBuilder_plus_assign_2(&self->out, e->name);
+    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" {\n    int32_t tag;\n    union {\n"));
     {
         size_t __for_n = std__collections__List_compiler__ast__EnumMember_count(&e->members);
         size_t __for_i = 0;
         while (__for_i < __for_n) {
             compiler__ast__EnumMember m = std__collections__List_compiler__ast__EnumMember_at(&e->members, __for_i);
-            std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("        struct "));
-            std__collections__StringBuilder_plus_assign_2(&self->out, e->name);
-            std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("__"));
-            std__collections__StringBuilder_plus_assign_2(&self->out, m.name);
-            std__collections__StringBuilder_plus_assign_2_2(&self->out, ' ');
-            std__collections__StringBuilder_plus_assign_2(&self->out, m.name);
-            std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
+            std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("        struct "));
+            std__string__StringBuilder_plus_assign_2(&self->out, e->name);
+            std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("__"));
+            std__string__StringBuilder_plus_assign_2(&self->out, m.name);
+            std__string__StringBuilder_plus_assign_2_2(&self->out, ' ');
+            std__string__StringBuilder_plus_assign_2(&self->out, m.name);
+            std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
             __for_i = (__for_i + 1);
         }
     }
-    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("    } u;\n};\n\n"));
+    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("    } u;\n};\n\n"));
 }
 
 void compiler__codegen__CCodeGen_gen_fn_decl(compiler__codegen__CCodeGen* self, compiler__ast__NodeData__FnDecl* f, bool is_proto, kobel_str self_c_type) {
@@ -22137,12 +22075,12 @@ void compiler__codegen__CCodeGen_gen_fn_decl(compiler__codegen__CCodeGen* self, 
     if (!is_proto && (f_body == NULL)) {
         return;
     }
-    std__collections__StringBuilder_plus_assign_2(&self->out, ret_ty);
-    std__collections__StringBuilder_plus_assign_2_2(&self->out, ' ');
-    std__collections__StringBuilder_plus_assign_2(&self->out, f->name);
-    std__collections__StringBuilder_plus_assign_2_2(&self->out, '(');
+    std__string__StringBuilder_plus_assign_2(&self->out, ret_ty);
+    std__string__StringBuilder_plus_assign_2_2(&self->out, ' ');
+    std__string__StringBuilder_plus_assign_2(&self->out, f->name);
+    std__string__StringBuilder_plus_assign_2_2(&self->out, '(');
     if (std__collections__List_compiler__ast__Param_empty(&f->params)) {
-        std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("void"));
+        std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("void"));
     } else {
         {
             size_t __for_e = f->params.len;
@@ -22158,16 +22096,16 @@ void compiler__codegen__CCodeGen_gen_fn_decl(compiler__codegen__CCodeGen* self, 
             while (__for_go) {
                 size_t i = __for_i;
                 if (i > 0) {
-                    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(", "));
+                    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(", "));
                 }
                 compiler__ast__Param p = std__collections__List_compiler__ast__Param_get(&f->params, i);
                 kobel_str p_ty = ((p.type_node != NULL) ? compiler__codegen__c_type_from_ast(p.type_node) : KOBEL_STR("void*"));
                 if ((!str_empty(self_c_type) && kobel_streq(p.name, KOBEL_STR("self"))) && (p.type_node == NULL)) {
                     p_ty = kobel_concat(self_c_type, KOBEL_STR("*"));
                 }
-                std__collections__StringBuilder_plus_assign_2(&self->out, p_ty);
-                std__collections__StringBuilder_plus_assign_2_2(&self->out, ' ');
-                std__collections__StringBuilder_plus_assign_2(&self->out, p.name);
+                std__string__StringBuilder_plus_assign_2(&self->out, p_ty);
+                std__string__StringBuilder_plus_assign_2_2(&self->out, ' ');
+                std__string__StringBuilder_plus_assign_2(&self->out, p.name);
                 if (__for_up) {
                     __for_go = ((__for_i + 1) < __for_e);
                 } else {
@@ -22183,9 +22121,9 @@ void compiler__codegen__CCodeGen_gen_fn_decl(compiler__codegen__CCodeGen* self, 
             }
         }
     }
-    std__collections__StringBuilder_plus_assign_2_2(&self->out, ')');
+    std__string__StringBuilder_plus_assign_2_2(&self->out, ')');
     if (is_proto) {
-        std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
+        std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
         return;
     }
     self->current_fn_ret_type = ret_ty;
@@ -22193,7 +22131,7 @@ void compiler__codegen__CCodeGen_gen_fn_decl(compiler__codegen__CCodeGen* self, 
     std__collections__List_usz_clear(&self->scope_starts);
     std__collections__List_bool_clear(&self->scope_jumped);
     std__collections__List_usz_clear(&self->loop_defer_depths);
-    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" {\n"));
+    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" {\n"));
     self->indent_level = 1;
     if (f_body != NULL && f_body->data.tag == compiler__ast__NodeData__BlockStmt__TAG) {
         compiler__ast__NodeData__BlockStmt* blk = (compiler__ast__NodeData__BlockStmt*)(&(f_body)->data.u.BlockStmt);
@@ -22226,9 +22164,9 @@ void compiler__codegen__CCodeGen_gen_fn_decl(compiler__codegen__CCodeGen* self, 
                 if ((!is_special && (es_candidate != NULL && es_candidate->data.tag == compiler__ast__NodeData__BinaryExpr__TAG && (bin = (compiler__ast__NodeData__BinaryExpr*)(&(es_candidate)->data.u.BinaryExpr), 1))) && (bin->op == 37)) {
                     bool is_str_ret = (kobel_streq(ret_ty, KOBEL_STR("kobel_str")) || compiler__codegen__CCodeGen_is_str_value(self, bin->left));
                     kobel_str not_null_chk = (is_str_ret ? KOBEL_STR(".data != NULL") : KOBEL_STR(" != NULL"));
-                    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("    "));
-                    std__collections__StringBuilder_plus_assign_2(&self->out, ret_ty);
-                    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" __ret_tmp;\n"));
+                    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("    "));
+                    std__string__StringBuilder_plus_assign_2(&self->out, ret_ty);
+                    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" __ret_tmp;\n"));
                     compiler__ast__AstNode* cur = es_candidate;
                     while (cur != NULL) {
                         while (cur != NULL) {
@@ -22247,16 +22185,16 @@ void compiler__codegen__CCodeGen_gen_fn_decl(compiler__codegen__CCodeGen* self, 
                         {
                             compiler__ast__NodeData__BinaryExpr* b = NULL;
                             if ((cur != NULL && cur->data.tag == compiler__ast__NodeData__BinaryExpr__TAG && (b = (compiler__ast__NodeData__BinaryExpr*)(&(cur)->data.u.BinaryExpr), 1)) && (b->op == 37)) {
-                                std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("    __ret_tmp = "));
-                                std__collections__StringBuilder_plus_assign_2(&self->out, compiler__codegen__CCodeGen_gen_expr(self, b->left));
-                                std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n    if (__ret_tmp"));
-                                std__collections__StringBuilder_plus_assign_2(&self->out, not_null_chk);
-                                std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(") return __ret_tmp;\n"));
+                                std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("    __ret_tmp = "));
+                                std__string__StringBuilder_plus_assign_2(&self->out, compiler__codegen__CCodeGen_gen_expr(self, b->left));
+                                std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n    if (__ret_tmp"));
+                                std__string__StringBuilder_plus_assign_2(&self->out, not_null_chk);
+                                std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(") return __ret_tmp;\n"));
                                 cur = b->right;
                             } else {
-                                std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("    return "));
-                                std__collections__StringBuilder_plus_assign_2(&self->out, compiler__codegen__CCodeGen_gen_expr(self, cur));
-                                std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
+                                std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("    return "));
+                                std__string__StringBuilder_plus_assign_2(&self->out, compiler__codegen__CCodeGen_gen_expr(self, cur));
+                                std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
                                 break;
                             }
                         }
@@ -22267,18 +22205,18 @@ void compiler__codegen__CCodeGen_gen_fn_decl(compiler__codegen__CCodeGen* self, 
         }
         if (!is_special) {
             if (kobel_streq(ret_ty, KOBEL_STR("void"))) {
-                std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("    "));
-                std__collections__StringBuilder_plus_assign_2(&self->out, compiler__codegen__CCodeGen_gen_expr(self, es->expr));
-                std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
+                std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("    "));
+                std__string__StringBuilder_plus_assign_2(&self->out, compiler__codegen__CCodeGen_gen_expr(self, es->expr));
+                std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
             } else {
-                std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("    return "));
-                std__collections__StringBuilder_plus_assign_2(&self->out, compiler__codegen__CCodeGen_gen_expr(self, es->expr));
-                std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
+                std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("    return "));
+                std__string__StringBuilder_plus_assign_2(&self->out, compiler__codegen__CCodeGen_gen_expr(self, es->expr));
+                std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
             }
         }
     }
     self->indent_level = 0;
-    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("}\n\n"));
+    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("}\n\n"));
 }
 
 kobel_str compiler__codegen__CCodeGen_fn_ret_c_type(compiler__codegen__CCodeGen* self, compiler__ast__NodeData__FnDecl* f) {
@@ -22412,8 +22350,8 @@ void compiler__codegen__CCodeGen_gen_statement(compiler__codegen__CCodeGen* self
 
 void compiler__codegen__CCodeGen_gen_block_stmt(compiler__codegen__CCodeGen* self, compiler__ast__NodeData__BlockStmt* blk) {
     kobel_str ind = compiler__codegen__get_indent(self->indent_level);
-    std__collections__StringBuilder_plus_assign_2(&self->out, ind);
-    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("{\n"));
+    std__string__StringBuilder_plus_assign_2(&self->out, ind);
+    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("{\n"));
     self->indent_level++;
     compiler__codegen__CCodeGen_enter_defer_scope(self);
     {
@@ -22427,8 +22365,8 @@ void compiler__codegen__CCodeGen_gen_block_stmt(compiler__codegen__CCodeGen* sel
     }
     compiler__codegen__CCodeGen_exit_defer_scope(self);
     self->indent_level--;
-    std__collections__StringBuilder_plus_assign_2(&self->out, ind);
-    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("}\n"));
+    std__string__StringBuilder_plus_assign_2(&self->out, ind);
+    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("}\n"));
 }
 
 void compiler__codegen__CCodeGen_gen_break_stmt(compiler__codegen__CCodeGen* self) {
@@ -22438,8 +22376,8 @@ void compiler__codegen__CCodeGen_gen_break_stmt(compiler__codegen__CCodeGen* sel
         size_t target_depth = std__collections__List_usz_last(&self->loop_defer_depths);
         compiler__codegen__CCodeGen_gen_defers_unwind(self, target_depth);
     }
-    std__collections__StringBuilder_plus_assign_2(&self->out, ind);
-    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("break;\n"));
+    std__string__StringBuilder_plus_assign_2(&self->out, ind);
+    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("break;\n"));
 }
 
 void compiler__codegen__CCodeGen_gen_continue_stmt(compiler__codegen__CCodeGen* self) {
@@ -22449,8 +22387,8 @@ void compiler__codegen__CCodeGen_gen_continue_stmt(compiler__codegen__CCodeGen* 
         size_t target_depth = std__collections__List_usz_last(&self->loop_defer_depths);
         compiler__codegen__CCodeGen_gen_defers_unwind(self, target_depth);
     }
-    std__collections__StringBuilder_plus_assign_2(&self->out, ind);
-    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("continue;\n"));
+    std__string__StringBuilder_plus_assign_2(&self->out, ind);
+    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("continue;\n"));
 }
 
 void compiler__codegen__CCodeGen_gen_var_decl_stmt(compiler__codegen__CCodeGen* self, compiler__ast__NodeData__VarDeclStmt* vd) {
@@ -22483,11 +22421,11 @@ void compiler__codegen__CCodeGen_gen_var_decl_stmt(compiler__codegen__CCodeGen* 
     {
         compiler__ast__NodeData__WhenExpr* we = NULL;
         if ((init_e != NULL && init_e->data.tag == compiler__ast__NodeData__WhenExpr__TAG && (we = (compiler__ast__NodeData__WhenExpr*)(&(init_e)->data.u.WhenExpr), 1)) && compiler__ast__NodeData__WhenExpr_has_blocks(we)) {
-            std__collections__StringBuilder_plus_assign_2(&self->out, ind);
-            std__collections__StringBuilder_plus_assign_2(&self->out, ty_str);
-            std__collections__StringBuilder_plus_assign_2_2(&self->out, ' ');
-            std__collections__StringBuilder_plus_assign_2(&self->out, vd->name);
-            std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
+            std__string__StringBuilder_plus_assign_2(&self->out, ind);
+            std__string__StringBuilder_plus_assign_2(&self->out, ty_str);
+            std__string__StringBuilder_plus_assign_2_2(&self->out, ' ');
+            std__string__StringBuilder_plus_assign_2(&self->out, vd->name);
+            std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
             compiler__codegen__CCodeGen_gen_when_with_target(self, we, vd->name, false);
             return;
         }
@@ -22504,20 +22442,20 @@ void compiler__codegen__CCodeGen_gen_var_decl_stmt(compiler__codegen__CCodeGen* 
         self->array_elem_hint = elem_hint;
         kobel_str init_s = compiler__codegen__CCodeGen_gen_expr(self, vd->initializer);
         self->array_elem_hint = saved_hint;
-        std__collections__StringBuilder_plus_assign_2(&self->out, ind);
-        std__collections__StringBuilder_plus_assign_2(&self->out, ty_str);
-        std__collections__StringBuilder_plus_assign_2_2(&self->out, ' ');
-        std__collections__StringBuilder_plus_assign_2(&self->out, vd->name);
-        std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" = "));
-        std__collections__StringBuilder_plus_assign_2(&self->out, init_s);
-        std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
+        std__string__StringBuilder_plus_assign_2(&self->out, ind);
+        std__string__StringBuilder_plus_assign_2(&self->out, ty_str);
+        std__string__StringBuilder_plus_assign_2_2(&self->out, ' ');
+        std__string__StringBuilder_plus_assign_2(&self->out, vd->name);
+        std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" = "));
+        std__string__StringBuilder_plus_assign_2(&self->out, init_s);
+        std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
         return;
     }
-    std__collections__StringBuilder_plus_assign_2(&self->out, ind);
-    std__collections__StringBuilder_plus_assign_2(&self->out, ty_str);
-    std__collections__StringBuilder_plus_assign_2_2(&self->out, ' ');
-    std__collections__StringBuilder_plus_assign_2(&self->out, vd->name);
-    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
+    std__string__StringBuilder_plus_assign_2(&self->out, ind);
+    std__string__StringBuilder_plus_assign_2(&self->out, ty_str);
+    std__string__StringBuilder_plus_assign_2_2(&self->out, ' ');
+    std__string__StringBuilder_plus_assign_2(&self->out, vd->name);
+    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
 }
 
 void compiler__codegen__CCodeGen_gen_var_elvis_init(compiler__codegen__CCodeGen* self, compiler__ast__NodeData__VarDeclStmt* vd, compiler__ast__AstNode* init_e, kobel_str ind, kobel_str ty_str) {
@@ -22534,40 +22472,40 @@ void compiler__codegen__CCodeGen_gen_var_elvis_init(compiler__codegen__CCodeGen*
                     kobel_str obj_s = compiler__codegen__CCodeGen_gen_expr(self, mem->object);
                     kobel_str obj_wrap = (compiler__codegen__expr_needs_parens_for_member(mem->object) ? kobel_concat3(KOBEL_STR("("), obj_s, KOBEL_STR(")")) : obj_s);
                     if (is_jump) {
-                        std__collections__StringBuilder_plus_assign_2(&self->out, ind);
-                        std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("if ("));
-                        std__collections__StringBuilder_plus_assign_2(&self->out, obj_wrap);
-                        std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" == NULL) {\n"));
+                        std__string__StringBuilder_plus_assign_2(&self->out, ind);
+                        std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("if ("));
+                        std__string__StringBuilder_plus_assign_2(&self->out, obj_wrap);
+                        std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" == NULL) {\n"));
                         self->indent_level++;
                         compiler__codegen__CCodeGen_gen_statement(self, unwrapped_r);
                         self->indent_level--;
-                        std__collections__StringBuilder_plus_assign_2(&self->out, ind);
-                        std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("}\n"));
-                        std__collections__StringBuilder_plus_assign_2(&self->out, ind);
-                        std__collections__StringBuilder_plus_assign_2(&self->out, ty_str);
-                        std__collections__StringBuilder_plus_assign_2_2(&self->out, ' ');
-                        std__collections__StringBuilder_plus_assign_2(&self->out, vd->name);
-                        std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" = "));
-                        std__collections__StringBuilder_plus_assign_2(&self->out, obj_wrap);
-                        std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("->"));
-                        std__collections__StringBuilder_plus_assign_2(&self->out, mem->member);
-                        std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
+                        std__string__StringBuilder_plus_assign_2(&self->out, ind);
+                        std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("}\n"));
+                        std__string__StringBuilder_plus_assign_2(&self->out, ind);
+                        std__string__StringBuilder_plus_assign_2(&self->out, ty_str);
+                        std__string__StringBuilder_plus_assign_2_2(&self->out, ' ');
+                        std__string__StringBuilder_plus_assign_2(&self->out, vd->name);
+                        std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" = "));
+                        std__string__StringBuilder_plus_assign_2(&self->out, obj_wrap);
+                        std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("->"));
+                        std__string__StringBuilder_plus_assign_2(&self->out, mem->member);
+                        std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
                         return;
                     }
                     kobel_str r_s = compiler__codegen__CCodeGen_gen_expr(self, eb->right);
-                    std__collections__StringBuilder_plus_assign_2(&self->out, ind);
-                    std__collections__StringBuilder_plus_assign_2(&self->out, ty_str);
-                    std__collections__StringBuilder_plus_assign_2_2(&self->out, ' ');
-                    std__collections__StringBuilder_plus_assign_2(&self->out, vd->name);
-                    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" = ("));
-                    std__collections__StringBuilder_plus_assign_2(&self->out, obj_wrap);
-                    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" != NULL ? "));
-                    std__collections__StringBuilder_plus_assign_2(&self->out, obj_wrap);
-                    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("->"));
-                    std__collections__StringBuilder_plus_assign_2(&self->out, mem->member);
-                    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" : "));
-                    std__collections__StringBuilder_plus_assign_2(&self->out, r_s);
-                    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(");\n"));
+                    std__string__StringBuilder_plus_assign_2(&self->out, ind);
+                    std__string__StringBuilder_plus_assign_2(&self->out, ty_str);
+                    std__string__StringBuilder_plus_assign_2_2(&self->out, ' ');
+                    std__string__StringBuilder_plus_assign_2(&self->out, vd->name);
+                    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" = ("));
+                    std__string__StringBuilder_plus_assign_2(&self->out, obj_wrap);
+                    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" != NULL ? "));
+                    std__string__StringBuilder_plus_assign_2(&self->out, obj_wrap);
+                    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("->"));
+                    std__string__StringBuilder_plus_assign_2(&self->out, mem->member);
+                    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" : "));
+                    std__string__StringBuilder_plus_assign_2(&self->out, r_s);
+                    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(");\n"));
                     return;
                 }
             }
@@ -22604,61 +22542,61 @@ void compiler__codegen__CCodeGen_gen_var_elvis_init(compiler__codegen__CCodeGen*
             if ((cur != NULL && cur->data.tag == compiler__ast__NodeData__BinaryExpr__TAG && (b = (compiler__ast__NodeData__BinaryExpr*)(&(cur)->data.u.BinaryExpr), 1))) {
                 if (b->op == 37) {
                     if (first) {
-                        std__collections__StringBuilder_plus_assign_2(&self->out, ind);
-                        std__collections__StringBuilder_plus_assign_2(&self->out, ty_str);
-                        std__collections__StringBuilder_plus_assign_2_2(&self->out, ' ');
-                        std__collections__StringBuilder_plus_assign_2(&self->out, vd->name);
-                        std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" = "));
-                        std__collections__StringBuilder_plus_assign_2(&self->out, compiler__codegen__CCodeGen_gen_expr(self, b->left));
-                        std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
+                        std__string__StringBuilder_plus_assign_2(&self->out, ind);
+                        std__string__StringBuilder_plus_assign_2(&self->out, ty_str);
+                        std__string__StringBuilder_plus_assign_2_2(&self->out, ' ');
+                        std__string__StringBuilder_plus_assign_2(&self->out, vd->name);
+                        std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" = "));
+                        std__string__StringBuilder_plus_assign_2(&self->out, compiler__codegen__CCodeGen_gen_expr(self, b->left));
+                        std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
                         first = false;
                     } else {
-                        std__collections__StringBuilder_plus_assign_2(&self->out, ind);
-                        std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("if ("));
-                        std__collections__StringBuilder_plus_assign_2(&self->out, vd->name);
-                        std__collections__StringBuilder_plus_assign_2(&self->out, null_chk);
-                        std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(") "));
-                        std__collections__StringBuilder_plus_assign_2(&self->out, vd->name);
-                        std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" = "));
-                        std__collections__StringBuilder_plus_assign_2(&self->out, compiler__codegen__CCodeGen_gen_expr(self, b->left));
-                        std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
+                        std__string__StringBuilder_plus_assign_2(&self->out, ind);
+                        std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("if ("));
+                        std__string__StringBuilder_plus_assign_2(&self->out, vd->name);
+                        std__string__StringBuilder_plus_assign_2(&self->out, null_chk);
+                        std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(") "));
+                        std__string__StringBuilder_plus_assign_2(&self->out, vd->name);
+                        std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" = "));
+                        std__string__StringBuilder_plus_assign_2(&self->out, compiler__codegen__CCodeGen_gen_expr(self, b->left));
+                        std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
                     }
                     cur = b->right;
                 } else {
-                    std__collections__StringBuilder_plus_assign_2(&self->out, ind);
-                    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("if ("));
-                    std__collections__StringBuilder_plus_assign_2(&self->out, vd->name);
-                    std__collections__StringBuilder_plus_assign_2(&self->out, null_chk);
-                    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(") "));
-                    std__collections__StringBuilder_plus_assign_2(&self->out, vd->name);
-                    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" = "));
-                    std__collections__StringBuilder_plus_assign_2(&self->out, compiler__codegen__CCodeGen_gen_expr(self, cur));
-                    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
+                    std__string__StringBuilder_plus_assign_2(&self->out, ind);
+                    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("if ("));
+                    std__string__StringBuilder_plus_assign_2(&self->out, vd->name);
+                    std__string__StringBuilder_plus_assign_2(&self->out, null_chk);
+                    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(") "));
+                    std__string__StringBuilder_plus_assign_2(&self->out, vd->name);
+                    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" = "));
+                    std__string__StringBuilder_plus_assign_2(&self->out, compiler__codegen__CCodeGen_gen_expr(self, cur));
+                    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
                     break;
                 }
             } else {
                 bool is_jump = compiler__codegen__is_jump_or_block(cur);
                 if (is_jump) {
-                    std__collections__StringBuilder_plus_assign_2(&self->out, ind);
-                    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("if ("));
-                    std__collections__StringBuilder_plus_assign_2(&self->out, vd->name);
-                    std__collections__StringBuilder_plus_assign_2(&self->out, null_chk);
-                    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(") {\n"));
+                    std__string__StringBuilder_plus_assign_2(&self->out, ind);
+                    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("if ("));
+                    std__string__StringBuilder_plus_assign_2(&self->out, vd->name);
+                    std__string__StringBuilder_plus_assign_2(&self->out, null_chk);
+                    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(") {\n"));
                     self->indent_level++;
                     compiler__codegen__CCodeGen_gen_statement(self, cur);
                     self->indent_level--;
-                    std__collections__StringBuilder_plus_assign_2(&self->out, ind);
-                    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("}\n"));
+                    std__string__StringBuilder_plus_assign_2(&self->out, ind);
+                    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("}\n"));
                 } else {
-                    std__collections__StringBuilder_plus_assign_2(&self->out, ind);
-                    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("if ("));
-                    std__collections__StringBuilder_plus_assign_2(&self->out, vd->name);
-                    std__collections__StringBuilder_plus_assign_2(&self->out, null_chk);
-                    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(") "));
-                    std__collections__StringBuilder_plus_assign_2(&self->out, vd->name);
-                    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" = "));
-                    std__collections__StringBuilder_plus_assign_2(&self->out, compiler__codegen__CCodeGen_gen_expr(self, cur));
-                    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
+                    std__string__StringBuilder_plus_assign_2(&self->out, ind);
+                    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("if ("));
+                    std__string__StringBuilder_plus_assign_2(&self->out, vd->name);
+                    std__string__StringBuilder_plus_assign_2(&self->out, null_chk);
+                    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(") "));
+                    std__string__StringBuilder_plus_assign_2(&self->out, vd->name);
+                    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" = "));
+                    std__string__StringBuilder_plus_assign_2(&self->out, compiler__codegen__CCodeGen_gen_expr(self, cur));
+                    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
                 }
                 break;
             }
@@ -22841,8 +22779,8 @@ void compiler__codegen__CCodeGen_gen_if_stmt(compiler__codegen__CCodeGen* self, 
     kobel_str ind = compiler__codegen__get_indent(self->indent_level);
     bool has_aliases = !std__collections__List_compiler__codegen__ConditionAlias_empty(&aliases);
     if (has_aliases) {
-        std__collections__StringBuilder_plus_assign_2(&self->out, ind);
-        std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("{\n"));
+        std__string__StringBuilder_plus_assign_2(&self->out, ind);
+        std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("{\n"));
         self->indent_level++;
         kobel_str a_ind = compiler__codegen__get_indent(self->indent_level);
         {
@@ -22850,23 +22788,23 @@ void compiler__codegen__CCodeGen_gen_if_stmt(compiler__codegen__CCodeGen* self, 
             size_t __for_i = 0;
             while (__for_i < __for_n) {
                 compiler__codegen__ConditionAlias a = std__collections__List_compiler__codegen__ConditionAlias_at(&aliases, __for_i);
-                std__collections__StringBuilder_plus_assign_2(&self->out, a_ind);
-                std__collections__StringBuilder_plus_assign_2(&self->out, a.decl);
-                std__collections__StringBuilder_plus_assign_2_2(&self->out, '\n');
+                std__string__StringBuilder_plus_assign_2(&self->out, a_ind);
+                std__string__StringBuilder_plus_assign_2(&self->out, a.decl);
+                std__string__StringBuilder_plus_assign_2_2(&self->out, '\n');
                 __for_i = (__for_i + 1);
             }
         }
     }
     kobel_str if_ind = compiler__codegen__get_indent(self->indent_level);
-    std__collections__StringBuilder_plus_assign_2(&self->out, if_ind);
-    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("if "));
-    std__collections__StringBuilder_plus_assign_2(&self->out, compiler__codegen__CCodeGen_gen_cond(self, ifs->condition));
-    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" {\n"));
+    std__string__StringBuilder_plus_assign_2(&self->out, if_ind);
+    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("if "));
+    std__string__StringBuilder_plus_assign_2(&self->out, compiler__codegen__CCodeGen_gen_cond(self, ifs->condition));
+    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" {\n"));
     self->indent_level++;
     if (!str_empty(cast_decl)) {
-        std__collections__StringBuilder_plus_assign_2(&self->out, compiler__codegen__get_indent(self->indent_level));
-        std__collections__StringBuilder_plus_assign_2(&self->out, cast_decl);
-        std__collections__StringBuilder_plus_assign_2_2(&self->out, '\n');
+        std__string__StringBuilder_plus_assign_2(&self->out, compiler__codegen__get_indent(self->indent_level));
+        std__string__StringBuilder_plus_assign_2(&self->out, cast_decl);
+        std__string__StringBuilder_plus_assign_2_2(&self->out, '\n');
     }
     compiler__codegen__CCodeGen_gen_block_body(self, ifs->then_branch);
     self->indent_level--;
@@ -22897,15 +22835,15 @@ void compiler__codegen__CCodeGen_gen_if_stmt(compiler__codegen__CCodeGen* self, 
                         elif_cast = compiler__codegen__CCodeGen_gen_smart_cast_decl(self, elif_is_e, elif_is_e->expr, id->name, (self->indent_level + 1));
                     }
                 }
-                std__collections__StringBuilder_plus_assign_2(&self->out, if_ind);
-                std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("} else if "));
-                std__collections__StringBuilder_plus_assign_2(&self->out, compiler__codegen__CCodeGen_gen_cond(self, elif->condition));
-                std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" {\n"));
+                std__string__StringBuilder_plus_assign_2(&self->out, if_ind);
+                std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("} else if "));
+                std__string__StringBuilder_plus_assign_2(&self->out, compiler__codegen__CCodeGen_gen_cond(self, elif->condition));
+                std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" {\n"));
                 self->indent_level++;
                 if (!str_empty(elif_cast)) {
-                    std__collections__StringBuilder_plus_assign_2(&self->out, compiler__codegen__get_indent(self->indent_level));
-                    std__collections__StringBuilder_plus_assign_2(&self->out, elif_cast);
-                    std__collections__StringBuilder_plus_assign_2_2(&self->out, '\n');
+                    std__string__StringBuilder_plus_assign_2(&self->out, compiler__codegen__get_indent(self->indent_level));
+                    std__string__StringBuilder_plus_assign_2(&self->out, elif_cast);
+                    std__string__StringBuilder_plus_assign_2_2(&self->out, '\n');
                 }
                 compiler__codegen__CCodeGen_gen_block_body(self, elif->then_branch);
                 self->indent_level--;
@@ -22916,34 +22854,34 @@ void compiler__codegen__CCodeGen_gen_if_stmt(compiler__codegen__CCodeGen* self, 
         }
     }
     if (cur_else != NULL) {
-        std__collections__StringBuilder_plus_assign_2(&self->out, if_ind);
-        std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("} else {\n"));
+        std__string__StringBuilder_plus_assign_2(&self->out, if_ind);
+        std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("} else {\n"));
         self->indent_level++;
         compiler__codegen__CCodeGen_gen_block_body(self, cur_else);
         self->indent_level--;
     }
-    std__collections__StringBuilder_plus_assign_2(&self->out, if_ind);
-    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("}\n"));
+    std__string__StringBuilder_plus_assign_2(&self->out, if_ind);
+    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("}\n"));
     if (has_aliases) {
         self->indent_level--;
-        std__collections__StringBuilder_plus_assign_2(&self->out, ind);
-        std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("}\n"));
+        std__string__StringBuilder_plus_assign_2(&self->out, ind);
+        std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("}\n"));
     }
 }
 
 void compiler__codegen__CCodeGen_gen_while_stmt(compiler__codegen__CCodeGen* self, compiler__ast__NodeData__WhileStmt* wh) {
     kobel_str ind = compiler__codegen__get_indent(self->indent_level);
-    std__collections__StringBuilder_plus_assign_2(&self->out, ind);
-    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("while "));
-    std__collections__StringBuilder_plus_assign_2(&self->out, compiler__codegen__CCodeGen_gen_cond(self, wh->condition));
-    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" {\n"));
+    std__string__StringBuilder_plus_assign_2(&self->out, ind);
+    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("while "));
+    std__string__StringBuilder_plus_assign_2(&self->out, compiler__codegen__CCodeGen_gen_cond(self, wh->condition));
+    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" {\n"));
     self->indent_level++;
     std__collections__List_usz_plus_assign(&self->loop_defer_depths, self->scope_starts.len);
     compiler__codegen__CCodeGen_gen_block_body(self, wh->body);
     std__collections__List_usz_pop(&self->loop_defer_depths);
     self->indent_level--;
-    std__collections__StringBuilder_plus_assign_2(&self->out, ind);
-    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("}\n"));
+    std__string__StringBuilder_plus_assign_2(&self->out, ind);
+    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("}\n"));
 }
 
 void compiler__codegen__CCodeGen_gen_return_stmt(compiler__codegen__CCodeGen* self, compiler__ast__NodeData__ReturnStmt* ret) {
@@ -22979,13 +22917,13 @@ void compiler__codegen__CCodeGen_gen_return_stmt(compiler__codegen__CCodeGen* se
                     bool is_str_ret = (kobel_streq(ret_ty, KOBEL_STR("kobel_str")) || compiler__codegen__CCodeGen_is_str_value(self, bin->left));
                     kobel_str not_null_chk = (is_str_ret ? KOBEL_STR(".data != NULL") : KOBEL_STR(" != NULL"));
                     compiler__ast__AstNode* cur = ret_candidate;
-                    std__collections__StringBuilder_plus_assign_2(&self->out, ind);
-                    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("{\n"));
+                    std__string__StringBuilder_plus_assign_2(&self->out, ind);
+                    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("{\n"));
                     self->indent_level++;
                     kobel_str inner_ind = compiler__codegen__get_indent(self->indent_level);
-                    std__collections__StringBuilder_plus_assign_2(&self->out, inner_ind);
-                    std__collections__StringBuilder_plus_assign_2(&self->out, ret_ty);
-                    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" __ret_tmp;\n"));
+                    std__string__StringBuilder_plus_assign_2(&self->out, inner_ind);
+                    std__string__StringBuilder_plus_assign_2(&self->out, ret_ty);
+                    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" __ret_tmp;\n"));
                     while (cur != NULL) {
                         while (cur != NULL) {
                             {
@@ -23003,38 +22941,38 @@ void compiler__codegen__CCodeGen_gen_return_stmt(compiler__codegen__CCodeGen* se
                         {
                             compiler__ast__NodeData__BinaryExpr* b = NULL;
                             if ((cur != NULL && cur->data.tag == compiler__ast__NodeData__BinaryExpr__TAG && (b = (compiler__ast__NodeData__BinaryExpr*)(&(cur)->data.u.BinaryExpr), 1)) && (b->op == 37)) {
-                                std__collections__StringBuilder_plus_assign_2(&self->out, inner_ind);
-                                std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("__ret_tmp = "));
-                                std__collections__StringBuilder_plus_assign_2(&self->out, compiler__codegen__CCodeGen_gen_expr(self, b->left));
-                                std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
-                                std__collections__StringBuilder_plus_assign_2(&self->out, inner_ind);
-                                std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("if (__ret_tmp"));
-                                std__collections__StringBuilder_plus_assign_2(&self->out, not_null_chk);
-                                std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(") return __ret_tmp;\n"));
+                                std__string__StringBuilder_plus_assign_2(&self->out, inner_ind);
+                                std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("__ret_tmp = "));
+                                std__string__StringBuilder_plus_assign_2(&self->out, compiler__codegen__CCodeGen_gen_expr(self, b->left));
+                                std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
+                                std__string__StringBuilder_plus_assign_2(&self->out, inner_ind);
+                                std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("if (__ret_tmp"));
+                                std__string__StringBuilder_plus_assign_2(&self->out, not_null_chk);
+                                std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(") return __ret_tmp;\n"));
                                 cur = b->right;
                             } else {
-                                std__collections__StringBuilder_plus_assign_2(&self->out, inner_ind);
-                                std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("return "));
-                                std__collections__StringBuilder_plus_assign_2(&self->out, compiler__codegen__CCodeGen_gen_expr(self, cur));
-                                std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
+                                std__string__StringBuilder_plus_assign_2(&self->out, inner_ind);
+                                std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("return "));
+                                std__string__StringBuilder_plus_assign_2(&self->out, compiler__codegen__CCodeGen_gen_expr(self, cur));
+                                std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
                                 break;
                             }
                         }
                     }
                     self->indent_level--;
-                    std__collections__StringBuilder_plus_assign_2(&self->out, ind);
-                    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("}\n"));
+                    std__string__StringBuilder_plus_assign_2(&self->out, ind);
+                    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("}\n"));
                     return;
                 }
             }
-            std__collections__StringBuilder_plus_assign_2(&self->out, ind);
-            std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("return "));
-            std__collections__StringBuilder_plus_assign_2(&self->out, compiler__codegen__CCodeGen_gen_expr(self, ret_val));
-            std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
+            std__string__StringBuilder_plus_assign_2(&self->out, ind);
+            std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("return "));
+            std__string__StringBuilder_plus_assign_2(&self->out, compiler__codegen__CCodeGen_gen_expr(self, ret_val));
+            std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
             return;
         }
-        std__collections__StringBuilder_plus_assign_2(&self->out, ind);
-        std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("return;\n"));
+        std__string__StringBuilder_plus_assign_2(&self->out, ind);
+        std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("return;\n"));
         return;
     }
     compiler__codegen__CCodeGen_mark_current_scope_jumped(self);
@@ -23043,26 +22981,26 @@ void compiler__codegen__CCodeGen_gen_return_stmt(compiler__codegen__CCodeGen* se
         if (str_empty(ret_ty) || kobel_streq(ret_ty, KOBEL_STR("void"))) {
             ret_ty = compiler__codegen__CCodeGen_c_type_or(self, ret_val, KOBEL_STR("int32_t"));
         }
-        std__collections__StringBuilder_plus_assign_2(&self->out, ind);
-        std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("{\n"));
+        std__string__StringBuilder_plus_assign_2(&self->out, ind);
+        std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("{\n"));
         self->indent_level++;
         kobel_str inner_ind = compiler__codegen__get_indent(self->indent_level);
-        std__collections__StringBuilder_plus_assign_2(&self->out, inner_ind);
-        std__collections__StringBuilder_plus_assign_2(&self->out, ret_ty);
-        std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" __ret_tmp = "));
-        std__collections__StringBuilder_plus_assign_2(&self->out, compiler__codegen__CCodeGen_gen_expr(self, ret_val));
-        std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
+        std__string__StringBuilder_plus_assign_2(&self->out, inner_ind);
+        std__string__StringBuilder_plus_assign_2(&self->out, ret_ty);
+        std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" __ret_tmp = "));
+        std__string__StringBuilder_plus_assign_2(&self->out, compiler__codegen__CCodeGen_gen_expr(self, ret_val));
+        std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
         compiler__codegen__CCodeGen_gen_defers_unwind(self, 0);
-        std__collections__StringBuilder_plus_assign_2(&self->out, inner_ind);
-        std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("return __ret_tmp;\n"));
+        std__string__StringBuilder_plus_assign_2(&self->out, inner_ind);
+        std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("return __ret_tmp;\n"));
         self->indent_level--;
-        std__collections__StringBuilder_plus_assign_2(&self->out, ind);
-        std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("}\n"));
+        std__string__StringBuilder_plus_assign_2(&self->out, ind);
+        std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("}\n"));
         return;
     }
     compiler__codegen__CCodeGen_gen_defers_unwind(self, 0);
-    std__collections__StringBuilder_plus_assign_2(&self->out, ind);
-    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("return;\n"));
+    std__string__StringBuilder_plus_assign_2(&self->out, ind);
+    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("return;\n"));
 }
 
 void compiler__codegen__CCodeGen_gen_expr_stmt(compiler__codegen__CCodeGen* self, compiler__ast__NodeData__ExprStmt* es) {
@@ -23125,9 +23063,9 @@ void compiler__codegen__CCodeGen_gen_expr_stmt(compiler__codegen__CCodeGen* self
             }
         }
     }
-    std__collections__StringBuilder_plus_assign_2(&self->out, ind);
-    std__collections__StringBuilder_plus_assign_2(&self->out, compiler__codegen__CCodeGen_gen_expr(self, es->expr));
-    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
+    std__string__StringBuilder_plus_assign_2(&self->out, ind);
+    std__string__StringBuilder_plus_assign_2(&self->out, compiler__codegen__CCodeGen_gen_expr(self, es->expr));
+    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
 }
 
 void compiler__codegen__CCodeGen_gen_assign_elvis_stmt(compiler__codegen__CCodeGen* self, compiler__ast__NodeData__AssignExpr* asg, compiler__ast__AstNode* asg_val, kobel_str ind) {
@@ -23145,36 +23083,36 @@ void compiler__codegen__CCodeGen_gen_assign_elvis_stmt(compiler__codegen__CCodeG
                     kobel_str obj_s = compiler__codegen__CCodeGen_gen_expr(self, mem->object);
                     kobel_str obj_wrap = (compiler__codegen__expr_needs_parens_for_member(mem->object) ? kobel_concat3(KOBEL_STR("("), obj_s, KOBEL_STR(")")) : obj_s);
                     if (is_jump) {
-                        std__collections__StringBuilder_plus_assign_2(&self->out, ind);
-                        std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("if ("));
-                        std__collections__StringBuilder_plus_assign_2(&self->out, obj_wrap);
-                        std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" == NULL) {\n"));
+                        std__string__StringBuilder_plus_assign_2(&self->out, ind);
+                        std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("if ("));
+                        std__string__StringBuilder_plus_assign_2(&self->out, obj_wrap);
+                        std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" == NULL) {\n"));
                         self->indent_level++;
                         compiler__codegen__CCodeGen_gen_statement(self, unwrapped_r);
                         self->indent_level--;
-                        std__collections__StringBuilder_plus_assign_2(&self->out, ind);
-                        std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("}\n"));
-                        std__collections__StringBuilder_plus_assign_2(&self->out, ind);
-                        std__collections__StringBuilder_plus_assign_2(&self->out, tgt);
-                        std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" = "));
-                        std__collections__StringBuilder_plus_assign_2(&self->out, obj_wrap);
-                        std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("->"));
-                        std__collections__StringBuilder_plus_assign_2(&self->out, mem->member);
-                        std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
+                        std__string__StringBuilder_plus_assign_2(&self->out, ind);
+                        std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("}\n"));
+                        std__string__StringBuilder_plus_assign_2(&self->out, ind);
+                        std__string__StringBuilder_plus_assign_2(&self->out, tgt);
+                        std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" = "));
+                        std__string__StringBuilder_plus_assign_2(&self->out, obj_wrap);
+                        std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("->"));
+                        std__string__StringBuilder_plus_assign_2(&self->out, mem->member);
+                        std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
                         return;
                     }
                     kobel_str r_s = compiler__codegen__CCodeGen_gen_expr(self, eb->right);
-                    std__collections__StringBuilder_plus_assign_2(&self->out, ind);
-                    std__collections__StringBuilder_plus_assign_2(&self->out, tgt);
-                    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" = ("));
-                    std__collections__StringBuilder_plus_assign_2(&self->out, obj_wrap);
-                    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" != NULL ? "));
-                    std__collections__StringBuilder_plus_assign_2(&self->out, obj_wrap);
-                    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("->"));
-                    std__collections__StringBuilder_plus_assign_2(&self->out, mem->member);
-                    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" : "));
-                    std__collections__StringBuilder_plus_assign_2(&self->out, r_s);
-                    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(");\n"));
+                    std__string__StringBuilder_plus_assign_2(&self->out, ind);
+                    std__string__StringBuilder_plus_assign_2(&self->out, tgt);
+                    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" = ("));
+                    std__string__StringBuilder_plus_assign_2(&self->out, obj_wrap);
+                    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" != NULL ? "));
+                    std__string__StringBuilder_plus_assign_2(&self->out, obj_wrap);
+                    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("->"));
+                    std__string__StringBuilder_plus_assign_2(&self->out, mem->member);
+                    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" : "));
+                    std__string__StringBuilder_plus_assign_2(&self->out, r_s);
+                    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(");\n"));
                     return;
                 }
             }
@@ -23211,59 +23149,59 @@ void compiler__codegen__CCodeGen_gen_assign_elvis_stmt(compiler__codegen__CCodeG
             if ((cur != NULL && cur->data.tag == compiler__ast__NodeData__BinaryExpr__TAG && (b = (compiler__ast__NodeData__BinaryExpr*)(&(cur)->data.u.BinaryExpr), 1))) {
                 if (b->op == 37) {
                     if (first) {
-                        std__collections__StringBuilder_plus_assign_2(&self->out, ind);
-                        std__collections__StringBuilder_plus_assign_2(&self->out, tgt);
-                        std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" = "));
-                        std__collections__StringBuilder_plus_assign_2(&self->out, compiler__codegen__CCodeGen_gen_expr(self, b->left));
-                        std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
+                        std__string__StringBuilder_plus_assign_2(&self->out, ind);
+                        std__string__StringBuilder_plus_assign_2(&self->out, tgt);
+                        std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" = "));
+                        std__string__StringBuilder_plus_assign_2(&self->out, compiler__codegen__CCodeGen_gen_expr(self, b->left));
+                        std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
                         first = false;
                     } else {
-                        std__collections__StringBuilder_plus_assign_2(&self->out, ind);
-                        std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("if ("));
-                        std__collections__StringBuilder_plus_assign_2(&self->out, tgt);
-                        std__collections__StringBuilder_plus_assign_2(&self->out, null_chk);
-                        std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(") "));
-                        std__collections__StringBuilder_plus_assign_2(&self->out, tgt);
-                        std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" = "));
-                        std__collections__StringBuilder_plus_assign_2(&self->out, compiler__codegen__CCodeGen_gen_expr(self, b->left));
-                        std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
+                        std__string__StringBuilder_plus_assign_2(&self->out, ind);
+                        std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("if ("));
+                        std__string__StringBuilder_plus_assign_2(&self->out, tgt);
+                        std__string__StringBuilder_plus_assign_2(&self->out, null_chk);
+                        std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(") "));
+                        std__string__StringBuilder_plus_assign_2(&self->out, tgt);
+                        std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" = "));
+                        std__string__StringBuilder_plus_assign_2(&self->out, compiler__codegen__CCodeGen_gen_expr(self, b->left));
+                        std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
                     }
                     cur = b->right;
                 } else {
-                    std__collections__StringBuilder_plus_assign_2(&self->out, ind);
-                    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("if ("));
-                    std__collections__StringBuilder_plus_assign_2(&self->out, tgt);
-                    std__collections__StringBuilder_plus_assign_2(&self->out, null_chk);
-                    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(") "));
-                    std__collections__StringBuilder_plus_assign_2(&self->out, tgt);
-                    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" = "));
-                    std__collections__StringBuilder_plus_assign_2(&self->out, compiler__codegen__CCodeGen_gen_expr(self, cur));
-                    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
+                    std__string__StringBuilder_plus_assign_2(&self->out, ind);
+                    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("if ("));
+                    std__string__StringBuilder_plus_assign_2(&self->out, tgt);
+                    std__string__StringBuilder_plus_assign_2(&self->out, null_chk);
+                    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(") "));
+                    std__string__StringBuilder_plus_assign_2(&self->out, tgt);
+                    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" = "));
+                    std__string__StringBuilder_plus_assign_2(&self->out, compiler__codegen__CCodeGen_gen_expr(self, cur));
+                    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
                     break;
                 }
             } else {
                 bool is_jump = compiler__codegen__is_jump_or_block(cur);
                 if (is_jump) {
-                    std__collections__StringBuilder_plus_assign_2(&self->out, ind);
-                    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("if ("));
-                    std__collections__StringBuilder_plus_assign_2(&self->out, tgt);
-                    std__collections__StringBuilder_plus_assign_2(&self->out, null_chk);
-                    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(") {\n"));
+                    std__string__StringBuilder_plus_assign_2(&self->out, ind);
+                    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("if ("));
+                    std__string__StringBuilder_plus_assign_2(&self->out, tgt);
+                    std__string__StringBuilder_plus_assign_2(&self->out, null_chk);
+                    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(") {\n"));
                     self->indent_level++;
                     compiler__codegen__CCodeGen_gen_statement(self, cur);
                     self->indent_level--;
-                    std__collections__StringBuilder_plus_assign_2(&self->out, ind);
-                    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("}\n"));
+                    std__string__StringBuilder_plus_assign_2(&self->out, ind);
+                    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("}\n"));
                 } else {
-                    std__collections__StringBuilder_plus_assign_2(&self->out, ind);
-                    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("if ("));
-                    std__collections__StringBuilder_plus_assign_2(&self->out, tgt);
-                    std__collections__StringBuilder_plus_assign_2(&self->out, null_chk);
-                    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(") "));
-                    std__collections__StringBuilder_plus_assign_2(&self->out, tgt);
-                    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" = "));
-                    std__collections__StringBuilder_plus_assign_2(&self->out, compiler__codegen__CCodeGen_gen_expr(self, cur));
-                    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
+                    std__string__StringBuilder_plus_assign_2(&self->out, ind);
+                    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("if ("));
+                    std__string__StringBuilder_plus_assign_2(&self->out, tgt);
+                    std__string__StringBuilder_plus_assign_2(&self->out, null_chk);
+                    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(") "));
+                    std__string__StringBuilder_plus_assign_2(&self->out, tgt);
+                    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" = "));
+                    std__string__StringBuilder_plus_assign_2(&self->out, compiler__codegen__CCodeGen_gen_expr(self, cur));
+                    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
                 }
                 break;
             }
@@ -23278,71 +23216,71 @@ void compiler__codegen__CCodeGen_gen_elvis_jump_stmt(compiler__codegen__CCodeGen
         if (((((unwrapped_l != NULL) && (unwrapped_l != NULL && unwrapped_l->data.tag == compiler__ast__NodeData__MemberExpr__TAG && (mem = (compiler__ast__NodeData__MemberExpr*)(&(unwrapped_l)->data.u.MemberExpr), 1))) && mem->is_safe) && !compiler__codegen__CCodeGen_is_pointer_value(self, unwrapped_l)) && !compiler__codegen__CCodeGen_is_str_value(self, unwrapped_l)) {
             kobel_str obj_s = compiler__codegen__CCodeGen_gen_expr(self, mem->object);
             kobel_str obj_wrap = (compiler__codegen__expr_needs_parens_for_member(mem->object) ? kobel_concat3(KOBEL_STR("("), obj_s, KOBEL_STR(")")) : obj_s);
-            std__collections__StringBuilder_plus_assign_2(&self->out, ind);
-            std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("if ("));
-            std__collections__StringBuilder_plus_assign_2(&self->out, obj_wrap);
-            std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" == NULL) {\n"));
+            std__string__StringBuilder_plus_assign_2(&self->out, ind);
+            std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("if ("));
+            std__string__StringBuilder_plus_assign_2(&self->out, obj_wrap);
+            std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" == NULL) {\n"));
             self->indent_level++;
             compiler__codegen__CCodeGen_gen_statement(self, bin->right);
             self->indent_level--;
-            std__collections__StringBuilder_plus_assign_2(&self->out, ind);
-            std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("}\n"));
+            std__string__StringBuilder_plus_assign_2(&self->out, ind);
+            std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("}\n"));
             return;
         }
     }
     kobel_str l_s = compiler__codegen__CCodeGen_gen_expr(self, bin->left);
-    std__collections__StringBuilder_plus_assign_2(&self->out, ind);
-    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("if ("));
+    std__string__StringBuilder_plus_assign_2(&self->out, ind);
+    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("if ("));
     if (compiler__codegen__CCodeGen_is_str_value(self, bin->left)) {
         kobel_str l_wrap = (compiler__codegen__expr_needs_parens_for_member(bin->left) ? kobel_concat3(KOBEL_STR("("), l_s, KOBEL_STR(")")) : l_s);
-        std__collections__StringBuilder_plus_assign_2(&self->out, l_wrap);
-        std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(".data == NULL) {\n"));
+        std__string__StringBuilder_plus_assign_2(&self->out, l_wrap);
+        std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(".data == NULL) {\n"));
     } else {
-        std__collections__StringBuilder_plus_assign_2(&self->out, l_s);
-        std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" == NULL) {\n"));
+        std__string__StringBuilder_plus_assign_2(&self->out, l_s);
+        std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" == NULL) {\n"));
     }
     self->indent_level++;
     compiler__codegen__CCodeGen_gen_statement(self, bin->right);
     self->indent_level--;
-    std__collections__StringBuilder_plus_assign_2(&self->out, ind);
-    std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("}\n"));
+    std__string__StringBuilder_plus_assign_2(&self->out, ind);
+    std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("}\n"));
 }
 
 void compiler__codegen__CCodeGen_gen_yield_stmt(compiler__codegen__CCodeGen* self, compiler__ast__NodeData__YieldStmt* ys) {
     kobel_str ind = compiler__codegen__get_indent(self->indent_level);
     if (self->is_yield_return) {
         if (ys->value != NULL) {
-            std__collections__StringBuilder_plus_assign_2(&self->out, ind);
-            std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("return "));
-            std__collections__StringBuilder_plus_assign_2(&self->out, compiler__codegen__CCodeGen_gen_expr(self, ys->value));
-            std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
+            std__string__StringBuilder_plus_assign_2(&self->out, ind);
+            std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("return "));
+            std__string__StringBuilder_plus_assign_2(&self->out, compiler__codegen__CCodeGen_gen_expr(self, ys->value));
+            std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
             return;
         }
-        std__collections__StringBuilder_plus_assign_2(&self->out, ind);
-        std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("return;\n"));
+        std__string__StringBuilder_plus_assign_2(&self->out, ind);
+        std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("return;\n"));
         return;
     }
     if (!str_empty(self->yield_target)) {
         kobel_str val_str = ((ys->value != NULL) ? compiler__codegen__CCodeGen_gen_expr(self, ys->value) : KOBEL_STR(""));
         if (!str_empty(val_str)) {
-            std__collections__StringBuilder_plus_assign_2(&self->out, ind);
-            std__collections__StringBuilder_plus_assign_2(&self->out, self->yield_target);
-            std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" = "));
-            std__collections__StringBuilder_plus_assign_2(&self->out, val_str);
-            std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
+            std__string__StringBuilder_plus_assign_2(&self->out, ind);
+            std__string__StringBuilder_plus_assign_2(&self->out, self->yield_target);
+            std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" = "));
+            std__string__StringBuilder_plus_assign_2(&self->out, val_str);
+            std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
         }
         if (!str_empty(self->yield_exit_label)) {
-            std__collections__StringBuilder_plus_assign_2(&self->out, ind);
-            std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("goto "));
-            std__collections__StringBuilder_plus_assign_2(&self->out, self->yield_exit_label);
-            std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
+            std__string__StringBuilder_plus_assign_2(&self->out, ind);
+            std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("goto "));
+            std__string__StringBuilder_plus_assign_2(&self->out, self->yield_exit_label);
+            std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
         }
         return;
     }
     if (ys->value != NULL) {
-        std__collections__StringBuilder_plus_assign_2(&self->out, ind);
-        std__collections__StringBuilder_plus_assign_2(&self->out, compiler__codegen__CCodeGen_gen_expr(self, ys->value));
-        std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
+        std__string__StringBuilder_plus_assign_2(&self->out, ind);
+        std__string__StringBuilder_plus_assign_2(&self->out, compiler__codegen__CCodeGen_gen_expr(self, ys->value));
+        std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
     }
 }
 
@@ -23396,20 +23334,20 @@ void compiler__codegen__CCodeGen_gen_when_stmt(compiler__codegen__CCodeGen* self
                 }
             }
             if (arm.is_else) {
-                std__collections__StringBuilder_plus_assign_2(&self->out, ind);
-                std__collections__StringBuilder_plus_assign_2(&self->out, (first ? KOBEL_STR("{\n") : KOBEL_STR("} else {\n")));
+                std__string__StringBuilder_plus_assign_2(&self->out, ind);
+                std__string__StringBuilder_plus_assign_2(&self->out, (first ? KOBEL_STR("{\n") : KOBEL_STR("} else {\n")));
             } else {
                 kobel_str test = compiler__codegen__CCodeGen_gen_when_test(self, cond, arm.patterns);
-                std__collections__StringBuilder_plus_assign_2(&self->out, ind);
-                std__collections__StringBuilder_plus_assign_2(&self->out, (first ? KOBEL_STR("if (") : KOBEL_STR("} else if (")));
-                std__collections__StringBuilder_plus_assign_2(&self->out, test);
-                std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(") {\n"));
+                std__string__StringBuilder_plus_assign_2(&self->out, ind);
+                std__string__StringBuilder_plus_assign_2(&self->out, (first ? KOBEL_STR("if (") : KOBEL_STR("} else if (")));
+                std__string__StringBuilder_plus_assign_2(&self->out, test);
+                std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(") {\n"));
             }
             self->indent_level++;
             if (!str_empty(cast_decl)) {
-                std__collections__StringBuilder_plus_assign_2(&self->out, compiler__codegen__get_indent(self->indent_level));
-                std__collections__StringBuilder_plus_assign_2(&self->out, cast_decl);
-                std__collections__StringBuilder_plus_assign_2_2(&self->out, '\n');
+                std__string__StringBuilder_plus_assign_2(&self->out, compiler__codegen__get_indent(self->indent_level));
+                std__string__StringBuilder_plus_assign_2(&self->out, cast_decl);
+                std__string__StringBuilder_plus_assign_2_2(&self->out, '\n');
             }
             compiler__codegen__CCodeGen_gen_block_body(self, arm.body);
             self->indent_level--;
@@ -23418,8 +23356,8 @@ void compiler__codegen__CCodeGen_gen_when_stmt(compiler__codegen__CCodeGen* self
         }
     }
     if (!first) {
-        std__collections__StringBuilder_plus_assign_2(&self->out, ind);
-        std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("}\n"));
+        std__string__StringBuilder_plus_assign_2(&self->out, ind);
+        std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("}\n"));
     }
 }
 
@@ -23510,23 +23448,23 @@ void compiler__codegen__CCodeGen_gen_when_with_target(compiler__codegen__CCodeGe
                 }
             }
             if (arm.is_else) {
-                std__collections__StringBuilder_plus_assign_2(&self->out, ind);
-                std__collections__StringBuilder_plus_assign_2(&self->out, (first ? KOBEL_STR("{\n") : KOBEL_STR("} else {\n")));
+                std__string__StringBuilder_plus_assign_2(&self->out, ind);
+                std__string__StringBuilder_plus_assign_2(&self->out, (first ? KOBEL_STR("{\n") : KOBEL_STR("} else {\n")));
             } else if ((!has_else && is_last) && !first) {
-                std__collections__StringBuilder_plus_assign_2(&self->out, ind);
-                std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("} else {\n"));
+                std__string__StringBuilder_plus_assign_2(&self->out, ind);
+                std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("} else {\n"));
             } else {
                 kobel_str test = compiler__codegen__CCodeGen_gen_when_test(self, cond, arm.patterns);
-                std__collections__StringBuilder_plus_assign_2(&self->out, ind);
-                std__collections__StringBuilder_plus_assign_2(&self->out, (first ? KOBEL_STR("if (") : KOBEL_STR("} else if (")));
-                std__collections__StringBuilder_plus_assign_2(&self->out, test);
-                std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(") {\n"));
+                std__string__StringBuilder_plus_assign_2(&self->out, ind);
+                std__string__StringBuilder_plus_assign_2(&self->out, (first ? KOBEL_STR("if (") : KOBEL_STR("} else if (")));
+                std__string__StringBuilder_plus_assign_2(&self->out, test);
+                std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(") {\n"));
             }
             self->indent_level++;
             if (!str_empty(cast_decl)) {
-                std__collections__StringBuilder_plus_assign_2(&self->out, compiler__codegen__get_indent(self->indent_level));
-                std__collections__StringBuilder_plus_assign_2(&self->out, cast_decl);
-                std__collections__StringBuilder_plus_assign_2_2(&self->out, '\n');
+                std__string__StringBuilder_plus_assign_2(&self->out, compiler__codegen__get_indent(self->indent_level));
+                std__string__StringBuilder_plus_assign_2(&self->out, cast_decl);
+                std__string__StringBuilder_plus_assign_2_2(&self->out, '\n');
             }
             compiler__ast__AstNode* arm_b = arm.body;
             {
@@ -23543,16 +23481,16 @@ void compiler__codegen__CCodeGen_gen_when_with_target(compiler__codegen__CCodeGe
                     }
                 } else {
                     kobel_str arm_ind = compiler__codegen__get_indent(self->indent_level);
-                    std__collections__StringBuilder_plus_assign_2(&self->out, arm_ind);
+                    std__string__StringBuilder_plus_assign_2(&self->out, arm_ind);
                     if (is_ret) {
-                        std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("return "));
-                        std__collections__StringBuilder_plus_assign_2(&self->out, compiler__codegen__CCodeGen_gen_expr(self, arm_b));
-                        std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
+                        std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("return "));
+                        std__string__StringBuilder_plus_assign_2(&self->out, compiler__codegen__CCodeGen_gen_expr(self, arm_b));
+                        std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
                     } else {
-                        std__collections__StringBuilder_plus_assign_2(&self->out, target_name);
-                        std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" = "));
-                        std__collections__StringBuilder_plus_assign_2(&self->out, compiler__codegen__CCodeGen_gen_expr(self, arm_b));
-                        std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
+                        std__string__StringBuilder_plus_assign_2(&self->out, target_name);
+                        std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" = "));
+                        std__string__StringBuilder_plus_assign_2(&self->out, compiler__codegen__CCodeGen_gen_expr(self, arm_b));
+                        std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
                     }
                 }
             }
@@ -23563,13 +23501,13 @@ void compiler__codegen__CCodeGen_gen_when_with_target(compiler__codegen__CCodeGe
         }
     }
     if (!first) {
-        std__collections__StringBuilder_plus_assign_2(&self->out, ind);
-        std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("}\n"));
+        std__string__StringBuilder_plus_assign_2(&self->out, ind);
+        std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("}\n"));
     }
     if (!is_ret) {
-        std__collections__StringBuilder_plus_assign_2(&self->out, ind);
-        std__collections__StringBuilder_plus_assign_2(&self->out, self->yield_exit_label);
-        std__collections__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(":;\n"));
+        std__string__StringBuilder_plus_assign_2(&self->out, ind);
+        std__string__StringBuilder_plus_assign_2(&self->out, self->yield_exit_label);
+        std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(":;\n"));
     }
     self->yield_target = prev_target;
     self->is_yield_return = prev_is_ret;
@@ -23696,7 +23634,7 @@ void compiler__driver__ensure_dir(kobel_str path) {
     if (str_empty(path) || std__filesystem__File_exists(path)) {
         return;
     }
-    std__collections__List_str entries = std__filesystem__File_list_dir(path);
+    std__collections__List_str entries = std__filesystem__Path_list_dir(path);
     if (!std__collections__List_str_empty(&entries)) {
         std__collections__List_str_free(&entries);
         return;
@@ -23861,7 +23799,7 @@ int32_t compiler__driver__CompileOptions_compile(compiler__driver__CompileOption
 }
 
 fmt__FormatBuffer fmt__FormatBuffer_init(fmt__FormatOptions options) {
-    return (fmt__FormatBuffer){ std__collections__StringBuilder_init(32), options, 0, 0, 0, true, 0 };
+    return (fmt__FormatBuffer){ std__string__StringBuilder_init(32), options, 0, 0, 0, true, 0 };
 }
 
 void fmt__FormatBuffer_ensure_indent(fmt__FormatBuffer* self) {
@@ -23881,7 +23819,7 @@ void fmt__FormatBuffer_ensure_indent(fmt__FormatBuffer* self) {
         }
         while (__for_go) {
             size_t i = __for_i;
-            std__collections__StringBuilder_plus_assign_2_2(&self->sb, '\t');
+            std__string__StringBuilder_plus_assign_2_2(&self->sb, '\t');
             if (__for_up) {
                 __for_go = ((__for_i + 1) < __for_e);
             } else {
@@ -23910,7 +23848,7 @@ void fmt__FormatBuffer_ensure_indent(fmt__FormatBuffer* self) {
             }
             while (__for_go) {
                 size_t j = __for_i;
-                std__collections__StringBuilder_plus_assign_2_2(&self->sb, ' ');
+                std__string__StringBuilder_plus_assign_2_2(&self->sb, ' ');
                 if (__for_up) {
                     __for_go = ((__for_i + 1) < __for_e);
                 } else {
@@ -23935,14 +23873,14 @@ void fmt__FormatBuffer_write(fmt__FormatBuffer* self, kobel_str s) {
         return;
     }
     fmt__FormatBuffer_ensure_indent(self);
-    std__collections__StringBuilder_plus_assign_2(&self->sb, s);
+    std__string__StringBuilder_plus_assign_2(&self->sb, s);
     self->current_col += s.len;
     self->blank_lines = 0;
 }
 
 void fmt__FormatBuffer_write_char(fmt__FormatBuffer* self, char c) {
     fmt__FormatBuffer_ensure_indent(self);
-    std__collections__StringBuilder_plus_assign_2_2(&self->sb, c);
+    std__string__StringBuilder_plus_assign_2_2(&self->sb, c);
     self->current_col++;
     self->blank_lines = 0;
 }
@@ -23966,7 +23904,7 @@ void fmt__FormatBuffer_newline(fmt__FormatBuffer* self) {
         }
         self->blank_lines++;
     }
-    std__collections__StringBuilder_plus_assign_2_2(&self->sb, '\n');
+    std__string__StringBuilder_plus_assign_2_2(&self->sb, '\n');
     self->at_line_start = true;
     self->current_col = 0;
 }
@@ -23995,7 +23933,7 @@ size_t fmt__FormatBuffer_clear_align(fmt__FormatBuffer* self) {
 }
 
 kobel_str fmt__FormatBuffer_to_str(fmt__FormatBuffer* self) {
-    return std__collections__StringBuilder_to_str(&self->sb);
+    return std__string__StringBuilder_to_str(&self->sb);
 }
 
 bool fmt__CommentTable_has_more(fmt__CommentTable* self) {
@@ -25807,7 +25745,7 @@ bool lsp__DocumentStore_contains(lsp__DocumentStore* self, kobel_str uri) {
 kobel_str lsp__uri_to_path(kobel_str uri) {
     kobel_str s = uri;
     s = (((s.len >= 8) && kobel_streq(kobel_slice(s, 0, 8), KOBEL_STR("file:///"))) ? kobel_slice(s, 8, s.len) : (((s.len >= 7) && kobel_streq(kobel_slice(s, 0, 7), KOBEL_STR("file://"))) ? kobel_slice(s, 7, s.len) : s));
-    std__collections__StringBuilder sb = std__collections__StringBuilder_init(32);
+    std__string__StringBuilder sb = std__string__StringBuilder_init(32);
     size_t i = 0;
     while (i < s.len) {
         char c = s.data[i];
@@ -25815,34 +25753,34 @@ kobel_str lsp__uri_to_path(kobel_str uri) {
             char h1 = s.data[(i + 1)];
             char h2 = s.data[(i + 2)];
             if ((h1 == '3') && ((h2 == 'a') || (h2 == 'A'))) {
-                std__collections__StringBuilder_plus_assign_2_2(&sb, ':');
+                std__string__StringBuilder_plus_assign_2_2(&sb, ':');
                 i += 3;
                 continue;
             }
             if ((h1 == '2') && (h2 == '0')) {
-                std__collections__StringBuilder_plus_assign_2_2(&sb, ' ');
+                std__string__StringBuilder_plus_assign_2_2(&sb, ' ');
                 i += 3;
                 continue;
             }
         }
         if (c == '/') {
-            std__collections__StringBuilder_plus_assign_2_2(&sb, '\\');
+            std__string__StringBuilder_plus_assign_2_2(&sb, '\\');
         } else {
-            std__collections__StringBuilder_plus_assign_2_2(&sb, c);
+            std__string__StringBuilder_plus_assign_2_2(&sb, c);
         }
         i++;
     }
     {
-        kobel_str __ret_tmp = std__collections__StringBuilder_to_str(&sb);
-        std__collections__StringBuilder_free(&sb);
+        kobel_str __ret_tmp = std__string__StringBuilder_to_str(&sb);
+        std__string__StringBuilder_free(&sb);
         return __ret_tmp;
     }
 }
 
-void lsp__append_json_escaped_str(std__collections__StringBuilder* sb, kobel_str s) {
-    std__collections__StringBuilder_plus_assign_2_2(sb, '"');
-    std__collections__StringBuilder_append_escaped(sb, s);
-    std__collections__StringBuilder_plus_assign_2_2(sb, '"');
+void lsp__append_json_escaped_str(std__string__StringBuilder* sb, kobel_str s) {
+    std__string__StringBuilder_plus_assign_2_2(sb, '"');
+    std__string__StringBuilder_append_escaped(sb, s);
+    std__string__StringBuilder_plus_assign_2_2(sb, '"');
 }
 
 lsp__JsonValue* lsp__JsonValue_box(lsp__JsonValue v) {
@@ -25900,21 +25838,21 @@ lsp__JsonValue* lsp__JsonValue_parse(kobel_str src) {
     return lsp__JsonParser_parse_value(&parser);
 }
 
-void lsp__JsonValue_serialize_to(lsp__JsonValue* self, std__collections__StringBuilder* sb) {
+void lsp__JsonValue_serialize_to(lsp__JsonValue* self, std__string__StringBuilder* sb) {
     if (self == NULL) {
-        std__collections__StringBuilder_plus_assign_2(sb, KOBEL_STR("null"));
+        std__string__StringBuilder_plus_assign_2(sb, KOBEL_STR("null"));
         return;
     }
     if (self->kind == 0) {
-        std__collections__StringBuilder_plus_assign_2(sb, KOBEL_STR("null"));
+        std__string__StringBuilder_plus_assign_2(sb, KOBEL_STR("null"));
     } else if (self->kind == 1) {
-        std__collections__StringBuilder_plus_assign_2_8(sb, self->bool_val);
+        std__string__StringBuilder_plus_assign_2_8(sb, self->bool_val);
     } else if (self->kind == 2) {
-        std__collections__StringBuilder_plus_assign_2_3(sb, self->num_val);
+        std__string__StringBuilder_plus_assign_2_3(sb, self->num_val);
     } else if (self->kind == 3) {
         lsp__append_json_escaped_str(sb, self->str_val);
     } else if (self->kind == 4) {
-        std__collections__StringBuilder_plus_assign_2_2(sb, '[');
+        std__string__StringBuilder_plus_assign_2_2(sb, '[');
         {
             size_t __for_e = self->arr_val.len;
             size_t __for_i = __for_e;
@@ -25929,7 +25867,7 @@ void lsp__JsonValue_serialize_to(lsp__JsonValue* self, std__collections__StringB
             while (__for_go) {
                 size_t i = __for_i;
                 if (i > 0) {
-                    std__collections__StringBuilder_plus_assign_2_2(sb, ',');
+                    std__string__StringBuilder_plus_assign_2_2(sb, ',');
                 }
                 lsp__JsonValue_serialize_to(std__collections__List_ptr_lsp__JsonValue_get(&self->arr_val, i), sb);
                 if (__for_up) {
@@ -25946,9 +25884,9 @@ void lsp__JsonValue_serialize_to(lsp__JsonValue* self, std__collections__StringB
                 }
             }
         }
-        std__collections__StringBuilder_plus_assign_2_2(sb, ']');
+        std__string__StringBuilder_plus_assign_2_2(sb, ']');
     } else if (self->kind == 5) {
-        std__collections__StringBuilder_plus_assign_2_2(sb, '{');
+        std__string__StringBuilder_plus_assign_2_2(sb, '{');
         {
             size_t __for_e = self->obj_keys.len;
             size_t __for_i = __for_e;
@@ -25963,10 +25901,10 @@ void lsp__JsonValue_serialize_to(lsp__JsonValue* self, std__collections__StringB
             while (__for_go) {
                 size_t i = __for_i;
                 if (i > 0) {
-                    std__collections__StringBuilder_plus_assign_2_2(sb, ',');
+                    std__string__StringBuilder_plus_assign_2_2(sb, ',');
                 }
                 lsp__append_json_escaped_str(sb, std__collections__List_str_get(&self->obj_keys, i));
-                std__collections__StringBuilder_plus_assign_2_2(sb, ':');
+                std__string__StringBuilder_plus_assign_2_2(sb, ':');
                 lsp__JsonValue_serialize_to(std__collections__List_ptr_lsp__JsonValue_get(&self->obj_vals, i), sb);
                 if (__for_up) {
                     __for_go = ((__for_i + 1) < __for_e);
@@ -25982,7 +25920,7 @@ void lsp__JsonValue_serialize_to(lsp__JsonValue* self, std__collections__StringB
                 }
             }
         }
-        std__collections__StringBuilder_plus_assign_2_2(sb, '}');
+        std__string__StringBuilder_plus_assign_2_2(sb, '}');
     }
 }
 
@@ -26113,11 +26051,11 @@ size_t lsp__JsonValue_count(lsp__JsonValue* self) {
 }
 
 kobel_str lsp__JsonValue_serialize(lsp__JsonValue* self) {
-    std__collections__StringBuilder sb = std__collections__StringBuilder_init(32);
+    std__string__StringBuilder sb = std__string__StringBuilder_init(32);
     lsp__JsonValue_serialize_to(self, &sb);
     {
-        kobel_str __ret_tmp = std__collections__StringBuilder_to_str(&sb);
-        std__collections__StringBuilder_free(&sb);
+        kobel_str __ret_tmp = std__string__StringBuilder_to_str(&sb);
+        std__string__StringBuilder_free(&sb);
         return __ret_tmp;
     }
 }
@@ -26149,7 +26087,7 @@ void lsp__JsonParser_skip_whitespace(lsp__JsonParser* self) {
 
 kobel_str lsp__JsonParser_parse_string(lsp__JsonParser* self) {
     lsp__JsonParser_advance(self);
-    std__collections__StringBuilder sb = std__collections__StringBuilder_init(32);
+    std__string__StringBuilder sb = std__string__StringBuilder_init(32);
     while (!lsp__JsonParser_is_end(self)) {
         char c = lsp__JsonParser_advance(self);
         if (c == '"') {
@@ -26160,34 +26098,34 @@ kobel_str lsp__JsonParser_parse_string(lsp__JsonParser* self) {
             }
             char esc = lsp__JsonParser_advance(self);
             if (esc == '"') {
-                std__collections__StringBuilder_plus_assign_2_2(&sb, '"');
+                std__string__StringBuilder_plus_assign_2_2(&sb, '"');
             } else if (esc == '\\') {
-                std__collections__StringBuilder_plus_assign_2_2(&sb, '\\');
+                std__string__StringBuilder_plus_assign_2_2(&sb, '\\');
             } else if (esc == '/') {
-                std__collections__StringBuilder_plus_assign_2_2(&sb, '/');
+                std__string__StringBuilder_plus_assign_2_2(&sb, '/');
             } else if (esc == 'n') {
-                std__collections__StringBuilder_plus_assign_2_2(&sb, '\n');
+                std__string__StringBuilder_plus_assign_2_2(&sb, '\n');
             } else if (esc == 'r') {
-                std__collections__StringBuilder_plus_assign_2_2(&sb, '\r');
+                std__string__StringBuilder_plus_assign_2_2(&sb, '\r');
             } else if (esc == 't') {
-                std__collections__StringBuilder_plus_assign_2_2(&sb, '\t');
+                std__string__StringBuilder_plus_assign_2_2(&sb, '\t');
             } else if (esc == 'u') {
                 size_t u_count = 0;
                 while ((u_count < 4) && !lsp__JsonParser_is_end(self)) {
                     lsp__JsonParser_advance(self);
                     u_count++;
                 }
-                std__collections__StringBuilder_plus_assign_2_2(&sb, '?');
+                std__string__StringBuilder_plus_assign_2_2(&sb, '?');
             } else {
-                std__collections__StringBuilder_plus_assign_2_2(&sb, esc);
+                std__string__StringBuilder_plus_assign_2_2(&sb, esc);
             }
         } else {
-            std__collections__StringBuilder_plus_assign_2_2(&sb, c);
+            std__string__StringBuilder_plus_assign_2_2(&sb, c);
         }
     }
     {
-        kobel_str __ret_tmp = std__collections__StringBuilder_to_str(&sb);
-        std__collections__StringBuilder_free(&sb);
+        kobel_str __ret_tmp = std__string__StringBuilder_to_str(&sb);
+        std__string__StringBuilder_free(&sb);
         return __ret_tmp;
     }
 }
@@ -26439,14 +26377,14 @@ void lsp__send_notification(kobel_str method, lsp__JsonValue* params) {
 kobel_str lsp__read_message(void) {
     size_t content_length = 0;
     while (true) {
-        std__collections__StringBuilder header_line = std__collections__StringBuilder_init(32);
+        std__string__StringBuilder header_line = std__string__StringBuilder_init(32);
         bool has_any = false;
         while (true) {
             int32_t ch = getchar();
             if (ch < 0) {
                 {
                     kobel_str __ret_tmp = KOBEL_STR("");
-                    std__collections__StringBuilder_free(&header_line);
+                    std__string__StringBuilder_free(&header_line);
                     return __ret_tmp;
                 }
             }
@@ -26456,19 +26394,19 @@ kobel_str lsp__read_message(void) {
                 break;
             }
             if (c != '\r') {
-                std__collections__StringBuilder_plus_assign_2_2(&header_line, c);
+                std__string__StringBuilder_plus_assign_2_2(&header_line, c);
             }
         }
         if (!has_any) {
             {
                 kobel_str __ret_tmp = KOBEL_STR("");
-                std__collections__StringBuilder_free(&header_line);
+                std__string__StringBuilder_free(&header_line);
                 return __ret_tmp;
             }
         }
-        kobel_str line = std__collections__StringBuilder_to_str(&header_line);
+        kobel_str line = std__string__StringBuilder_to_str(&header_line);
         if (str_empty(line)) {
-            std__collections__StringBuilder_free(&header_line);
+            std__string__StringBuilder_free(&header_line);
             break;
         }
         kobel_str prefix = KOBEL_STR("content-length:");
@@ -26541,7 +26479,7 @@ kobel_str lsp__read_message(void) {
                 content_length = n;
             }
         }
-        std__collections__StringBuilder_free(&header_line);
+        std__string__StringBuilder_free(&header_line);
     }
     if (content_length == 0) {
         return KOBEL_STR("");
@@ -32058,31 +31996,29 @@ bool std__collections__HashSet_str_remove(std__collections__HashSet_str* self, k
 
 void std__collections__HashSet_str_clear(std__collections__HashSet_str* self) {
     if (self->cap > 0) {
-        {
-            size_t __for_e = self->cap;
-            size_t __for_i = __for_e;
-            __for_i = 0;
-            bool __for_up = (__for_i <= __for_e);
-            bool __for_go = false;
+        size_t __for_e = self->cap;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            self->occupied[i] = false;
             if (__for_up) {
-                __for_go = (__for_i < __for_e);
+                __for_go = ((__for_i + 1) < __for_e);
             } else {
-                __for_go = (__for_i > __for_e);
+                __for_go = ((__for_i - 1) > __for_e);
             }
-            while (__for_go) {
-                size_t i = __for_i;
-                self->occupied[i] = false;
+            if (__for_go) {
                 if (__for_up) {
-                    __for_go = ((__for_i + 1) < __for_e);
+                    __for_i = (__for_i + 1);
                 } else {
-                    __for_go = ((__for_i - 1) > __for_e);
-                }
-                if (__for_go) {
-                    if (__for_up) {
-                        __for_i = (__for_i + 1);
-                    } else {
-                        __for_i = (__for_i - 1);
-                    }
+                    __for_i = (__for_i - 1);
                 }
             }
         }
@@ -32360,7 +32296,7 @@ size_t std__collections__HashSet_str_count(std__collections__HashSet_str* self) 
 }
 
 kobel_str std__collections__HashSet_str_at(std__collections__HashSet_str* self, size_t i) {
-    size_t seen = 0;
+    int32_t seen = 0;
     {
         size_t __for_e = self->cap;
         size_t __for_i = __for_e;

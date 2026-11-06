@@ -1,6 +1,7 @@
 mod lsp;
 
 use std.ascii.*;
+use std.filesystem.*;
 use std.collections.*;
 
 use util.*;

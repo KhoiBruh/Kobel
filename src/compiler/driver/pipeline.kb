@@ -32,7 +32,7 @@ pub fn resolve_host_cc(cc: str): str {
 
 pub fn ensure_dir(path: str) {
 	if (path.empty() || File.exists(path)) return;
-	val entries = File.list_dir(path);
+	val entries = Path.list_dir(path);
 	defer entries.free();
 	if (!entries.empty()) return;
 	if (System.is_windows()) {

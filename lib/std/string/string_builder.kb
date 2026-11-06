@@ -1,7 +1,6 @@
-mod std.collections;
+mod std.string;
 
 use std.memory.*;
-use std.string.*;
 use std.traits.*;
 
 extern "libc" {
@@ -28,26 +27,36 @@ impl StringBuilder {
 
 	pub init(init_cap: usz = 32) {
 		var cap = init_cap;
-		if (cap < 16) cap = 16;
+		if (cap < 16) {
+			cap = 16;
+		}
 		val raw = Heap.create_array<u8>(cap);
 		return Self(raw, 0, cap);
 	}
 
 	pub fn reserve(var self, additional: usz) {
 		val needed = self.len + additional + 1;
-		if (needed >= self.cap) self.grow(needed);
+		if (needed >= self.cap) {
+			self.grow(needed);
+		}
 	}
 
 	pub fn append_char(var self, c: char) {
-		if (self.len + 2 >= self.cap) self.grow(self.len + 2);
+		if (self.len + 2 >= self.cap) {
+			self.grow(self.len + 2);
+		}
 		self.buf[self.len] = c.code();
 		self.len++;
 	}
 
 	pub fn append_str(var self, s: str) {
 		val s_len = s.len;
-		if (s_len == 0) return;
-		if (self.len + s_len + 1 >= self.cap) self.grow(self.len + s_len + 1);
+		if (s_len == 0) {
+			return;
+		}
+		if (self.len + s_len + 1 >= self.cap) {
+			self.grow(self.len + s_len + 1);
+		}
 		memcpy(&self.buf[self.len], s.data, s_len);
 		self.len += s_len;
 	}
@@ -62,7 +71,7 @@ impl StringBuilder {
 		 * Emit from the most significant digit: find that digit's place value
 		 * first, then peel digits off one at a time (no temporary array needed).
 		 */
-		var place = 1;
+		var place: u64 = 1;
 		var probe = n;
 		while (probe >= 10) {
 			probe /= 10;
@@ -103,9 +112,13 @@ impl StringBuilder {
 
 	// `n` copies of `c` (indentation, padding) in one pass.
 	pub fn append_repeat(var self, c: char, n: usz) {
-		if (n == 0) return;
-		if (self.len + n + 1 >= self.cap) self.grow(self.len + n + 1);
-		memset(&self.buf[self.len], c.code(), n);
+		if (n == 0) {
+			return;
+		}
+		if (self.len + n + 1 >= self.cap) {
+			self.grow(self.len + n + 1);
+		}
+		memset(&self.buf[self.len], c.code() as i32, n);
 		self.len += n;
 	}
 
@@ -146,7 +159,9 @@ impl StringBuilder {
 
 	fn grow(var self, min_cap: usz) {
 		var new_cap = if (self.cap < 16) 16 else self.cap * 2;
-		while (new_cap < min_cap) new_cap *= 2;
+		while (new_cap < min_cap) {
+			new_cap *= 2;
+		}
 		val new_raw = Heap.resize<u8>(self.buf, new_cap);
 		self.buf = new_raw;
 		self.cap = new_cap;

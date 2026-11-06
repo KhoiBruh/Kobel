@@ -2,7 +2,7 @@ mod compiler.codegen;
 
 use std.string.*;
 use std.collections.*;
-use std.collections.StringBuilder;
+use std.string.StringBuilder;
 
 use compiler.lexer.*;
 use compiler.ast.*;

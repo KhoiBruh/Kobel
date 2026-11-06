@@ -5,7 +5,7 @@ use std.io.println;
 use std.collections.List;
 use std.collections.HashMap;
 use std.collections.HashSet;
-use std.collections.StringBuilder;
+use std.string.StringBuilder;
 
 fn assert_true(cond: bool, msg: str) {
 	if (!cond) {

@@ -2,9 +2,9 @@ mod tests.features.test_control_flow;
 
 use std.io.print;
 use std.io.println;
+use std.string.*;
 use std.collections.*;
 use std.traits.*;
-use std.collections.*;
 
 // ============================================================================
 // `for` loop tests (phase 1: iterable lowering + closed/open ranges)

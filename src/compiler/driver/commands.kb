@@ -23,7 +23,7 @@ fn str_before(a: str, b: str): bool {
 }
 
 pub fn collect_kb_files(dir: str, prefix: str, var out: &List<str>) {
-	val entries = File.list_dir(dir);
+	val entries = Path.list_dir(dir);
 	defer entries.free();
 	if (entries.empty()) return;
 

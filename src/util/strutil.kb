@@ -1,9 +1,9 @@
 mod util;
 
 use std.string.*;
+use std.filesystem.str_is_sep;
 use std.memory.*;
 use std.collections.List;
-use std.collections.StringBuilder;
 
 // ============================================================================
 // String utilities shared by the compiler
