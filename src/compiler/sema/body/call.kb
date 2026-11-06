@@ -28,6 +28,10 @@ impl BodyPass {
 		if (call.callee is IdentifierExpr as id && id.name == "char") {
 			return self.check_char_ctor(node, self.prims().t_char(), call);
 		}
+		// Primitive str constructor: str(c_str)
+		if (call.callee is IdentifierExpr as id && id.name == "str") {
+			return self.check_str_ctor(node, self.prims().t_str(), call);
+		}
 
 		// Check member call queries: T.size(), s.slice(...) or instance/primitive methods
 		val callee = call.callee;
@@ -194,6 +198,30 @@ impl BodyPass {
 		}
 		self.annotate_type(call.callee, char_ty);
 		return char_ty;
+	}
+
+	fn check_str_ctor(var self, node: *AstNode, str_ty: *Type, call: *CallExpr): *Type {
+		if (call.args.len != 1) {
+			self.report_error(node, "Constructor 'str' requires exactly 1 argument");
+			return str_ty;
+		}
+		val arg = call.args[0];
+		val arg_ty = self.check_expr(arg);
+		var valid = false;
+		if (arg_ty.kind == DataType.POINTER) {
+			val pt = arg_ty.as_pointer().pointee;
+			if (pt.kind == DataType.CHAR || pt.kind == DataType.U8 || pt.kind == DataType.I8) {
+				valid = true;
+			}
+		}
+		if (!valid) {
+			self.report_error(
+				arg,
+				"Cannot initialize 'str' with value of type '${self.type_display(arg_ty)}' (expected '*char' or '*u8')"
+			);
+		}
+		self.annotate_type(call.callee, str_ty);
+		return str_ty;
 	}
 
 	fn lower_size_query(var self, node: *AstNode, mem: *MemberExpr): *Type {

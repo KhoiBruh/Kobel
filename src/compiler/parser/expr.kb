@@ -711,7 +711,7 @@ impl Parser {
 	pub fn parse_multiline_string(var self, text: str, line: usz, col: usz): *AstNode {
 		if (text.len < 6) return self.node(NodeData.LiteralExpr(LiteralKind.STRING, "\"\""), line, col);
 		val inner = text.slice(3, text.len - 3);
-		val trimmed = multiline_trim_indent(inner);
+		val trimmed = inner.multiline_trim_indent();
 
 		if (str_has_hole(trimmed)) {
 			return self.parse_interp_multiline(trimmed, line, col);

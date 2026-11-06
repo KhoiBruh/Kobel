@@ -330,6 +330,9 @@ impl CCodeGen {
 		if (callee is IdentifierExpr as id && id.name == "char" && call.args.len == 1) {
 			return "((char)(${self.gen_expr(call.args[0])}))";
 		}
+		if (callee is IdentifierExpr as id && id.name == "str" && call.args.len == 1) {
+			return "kobel_from_cstr((const char*)(${self.gen_expr(call.args[0])}))";
+		}
 
 		val callee_str = self.gen_expr(call.callee);
 

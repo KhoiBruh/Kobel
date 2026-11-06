@@ -297,6 +297,22 @@ fn test_str(): bool {
 	if ("".repeat(4) != "") return false;
 
 	if ("  hello world  \n".trim() != "hello world") return false;
+	if (!"   \t\r".blank()) return false;
+	if (!"".blank()) return false;
+	if ("  x  ".blank()) return false;
+
+	val cptr = "kobel_cstr_test".c_str();
+	if (str(cptr) != "kobel_cstr_test") return false;
+
+	val split_parts = "a.b.c".split('.');
+	defer split_parts.free();
+	if (split_parts.len != 3 || split_parts[0] != "a" || split_parts[1] != "b" || split_parts[2] != "c") {
+		return false;
+	}
+
+	val indented = "\n    line1\n      line2\n    line3\n  ";
+	if (indented.trim_indent() != "line1\n  line2\nline3") return false;
+	if (indented.multiline_trim_indent() != "line1\n  line2\nline3") return false;
 	val lines = "a\nb\nc".split_lines();
 	if (lines.len != 3 || lines[0] != "a" || lines[1] != "b" || lines[2] != "c") return false;
 

@@ -273,7 +273,7 @@ impl ModuleLoader {
 		for (lm in self.ordered) {
 			val prog = lm.program ?: continue;
 			// Insert `mod <module name>;` so the passes know which symbol belongs to which module
-			decls += self.module_decl(lm.name.split_dots(), lm.name, 0, 0);
+			decls += self.module_decl(lm.name.split('.'), lm.name, 0, 0);
 
 			if (prog is Program as p) {
 				for (d in p) decls += d;

@@ -321,6 +321,11 @@ impl DeclPass {
 
 		if (expr is InterpExpr) return self.prims().t_str();
 
+		if (expr is CallExpr as call && call.callee is IdentifierExpr as cid) {
+			if (cid.name == "str") return self.prims().t_str();
+			if (cid.name == "char") return self.prims().t_char();
+		}
+
 		if (expr is MemberExpr as mem && mem.object is IdentifierExpr as id) {
 			val sym = self.symtab.lookup(id.name);
 			if (sym?.type_ptr?.as_enum()?.find_member(mem.member) != null) return sym.type_ptr;

@@ -2,8 +2,6 @@ use std.io.*;
 use std.filesystem.*;
 use std.collections.*;
 
-use util.*;
-
 use config.*;
 
 use compiler.driver.*;
@@ -38,19 +36,19 @@ fn run_project(argc: i32, argv: &*char): i32 {
 	var extra_args = List<str>();
 	var i = 2;
 	while (i < argc) {
-		extra_args += cstr_to_str(argv[i]);
+		extra_args += str(argv[i]);
 		i++;
 	}
 	return cmd_run("kobel.toml", extra_args);
 }
 
 fn run_test_suite(argc: i32, argv: &*char): i32 {
-	val filter = if (argc >= 3) cstr_to_str(argv[2]) else "";
+	val filter = if (argc >= 3) str(argv[2]) else "";
 	return cmd_test("kobel.toml", filter);
 }
 
 fn run_snap(argc: i32, argv: &*char): i32 {
-	val update = argc >= 3 && cstr_to_str(argv[2]) == "--update";
+	val update = argc >= 3 && str(argv[2]) == "--update";
 	return cmd_snap("kobel.toml", update);
 }
 
@@ -58,7 +56,7 @@ fn run_fixpoint(): i32 => cmd_fixpoint("kobel.toml");
 
 fn run_emit_c(argc: i32, argv: &*char): i32 {
 	val cfg = if (File.exists("kobel.toml")) ProjectConfig("kobel.toml") else ProjectConfig();
-	val out_path = if (argc >= 3) cstr_to_str(argv[2]) else "dist/bootstrap.c";
+	val out_path = if (argc >= 3) str(argv[2]) else "dist/bootstrap.c";
 
 	var opts = CompileOptions();
 	opts.input_path = cfg.entry;
@@ -78,7 +76,7 @@ fn run_fmt(argc: i32, argv: &*char): i32 {
 
 	var i = 2;
 	while (i < argc) {
-		val arg = cstr_to_str(argv[i]);
+		val arg = str(argv[i]);
 		when (arg) {
 			"-w", "--write" -> write_in_place = true;
 			"-h", "--help" -> {
@@ -119,22 +117,22 @@ fn run_compiler(argc: i32, argv: &*char): i32 {
 
 	var i = 1;
 	while (i < argc) {
-		val arg = cstr_to_str(argv[i]);
+		val arg = str(argv[i]);
 		when (arg) {
 			"-o" -> {
 				i++;
-				if (i < argc) opts.output_bin = cstr_to_str(argv[i]);
+				if (i < argc) opts.output_bin = str(argv[i]);
 			}
 			"-emit-c" -> {
 				i++;
 				if (i < argc) {
-					opts.emit_c_path = cstr_to_str(argv[i]);
+					opts.emit_c_path = str(argv[i]);
 					opts.only_emit_c = true;
 				}
 			}
 			"-cc" -> {
 				i++;
-				if (i < argc) opts.c_compiler = cstr_to_str(argv[i]);
+				if (i < argc) opts.c_compiler = str(argv[i]);
 			}
 			else -> {
 				if (!arg.empty() && !arg.starts_with("-")) {
@@ -169,7 +167,7 @@ fn main(argc: i32, argv: &*char): i32 {
 		return 0;
 	}
 
-	val first_arg = cstr_to_str(argv[1]);
+	val first_arg = str(argv[1]);
 	return when (first_arg) {
 		"build" -> run_build();
 		"run" -> run_project(argc, argv);

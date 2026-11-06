@@ -225,7 +225,7 @@ impl DeclPass {
 	}
 
 	pub fn queue_decl(var self, module: str, node: *AstNode) {
-		val marker = self.arena.node(NodeData.ModuleDecl(module.split_dots(), module), node.line, node.col);
+		val marker = self.arena.node(NodeData.ModuleDecl(module.split('.'), module), node.line, node.col);
 		// One pair per instance: it is both the declaration to emit and the entry to
 		// rewrite (the clone's own generic uses still have to be resolved).
 		self.symtab.gen.instances += marker;

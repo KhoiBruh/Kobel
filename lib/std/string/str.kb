@@ -27,34 +27,91 @@ pub fn str_from_bytes(buf: &u8, len: usz): str {
 	return sp.read();
 }
 
+fn common_whitespace_prefix(lines: List<str>, start_idx: usz, end_idx: usz): str {
+	var prefix = "";
+	var first = true;
+
+	for (i in start_idx..<end_idx) {
+		val line = lines[i];
+		if (line.blank()) {
+			continue;
+		}
+
+		var ws_end: usz = 0;
+		for (c in line) {
+			if (c == ' ' || c == '\t') {
+				ws_end++;
+			} else {
+				break;
+			}
+		}
+		val ws = line.slice(0, ws_end);
+
+		if (first) {
+			prefix = ws;
+			first = false;
+		} else {
+			var match_len: usz = 0;
+			val max_l = if (prefix.len < ws.len) prefix.len else ws.len;
+			while (match_len < max_l && prefix[match_len] == ws[match_len]) {
+				match_len++;
+			}
+			prefix = prefix.slice(0, match_len);
+		}
+	}
+
+	return prefix;
+}
+
 impl str {
 
 	pub fn empty(val self) => self.len == 0;
 
+	pub fn blank(val self): bool {
+		for (c in self) {
+			if (c != ' ' && c != '\t' && c != '\r' && c != '\n') {
+				return false;
+			}
+		}
+		return true;
+	}
+
 	pub fn starts_with(val self, prefix: str): bool {
-		if (self.len < prefix.len) return false;
+		if (self.len < prefix.len) {
+			return false;
+		}
 
 		for (i in 0..<prefix.len) {
-			if (self[i] != prefix[i]) return false;
+			if (self[i] != prefix[i]) {
+				return false;
+			}
 		}
 
 		return true;
 	}
 
 	pub fn ends_with(val self, suffix: str): bool {
-		if (self.len < suffix.len) return false;
+		if (self.len < suffix.len) {
+			return false;
+		}
 
 		val off = self.len - suffix.len;
 		for (i in 0..<suffix.len) {
-			if (self[off + i] != suffix[i]) return false;
+			if (self[off + i] != suffix[i]) {
+				return false;
+			}
 		}
 
 		return true;
 	}
 
 	pub fn index_of(val self, sub: str): isz {
-		if (sub.empty()) return 0;
-		if (self.len < sub.len) return -1;
+		if (sub.empty()) {
+			return 0;
+		}
+		if (self.len < sub.len) {
+			return -1;
+		}
 
 		val max_start = self.len - sub.len;
 		for (i in 0..max_start) {
@@ -66,7 +123,9 @@ impl str {
 				}
 			}
 
-			if (matched) return i;
+			if (matched) {
+				return i;
+			}
 		}
 
 		return -1;
@@ -92,7 +151,9 @@ impl str {
 	}
 
 	pub fn replace_char(val self, from: char, to: char): str {
-		if (self.empty()) return self;
+		if (self.empty()) {
+			return self;
+		}
 
 		val buf = Heap.create_array<u8>(self.len + 1);
 		for (i in 0..<self.len) {
@@ -106,7 +167,9 @@ impl str {
 
 	// `n` copies of `self` in a single allocation (`""` when `n == 0`).
 	pub fn repeat(val self, n: usz): str {
-		if (n == 0 || self.empty()) return "";
+		if (n == 0 || self.empty()) {
+			return "";
+		}
 		val buf = Heap.create_array<u8>(self.len * n + 1);
 		var w = 0;
 
@@ -122,11 +185,17 @@ impl str {
 	}
 
 	pub fn join(val self, list: List<str>): str {
-		if (list.empty()) return "";
-		if (list.len == 1) return list.data[0];
+		if (list.empty()) {
+			return "";
+		}
+		if (list.len == 1) {
+			return list.data[0];
+		}
 
 		var total = 0;
-		for (i in 0..<list.len) total += list.data[i].len;
+		for (i in 0..<list.len) {
+			total += list.data[i].len;
+		}
 		total += self.len * (list.len - 1);
 
 		val buf = Heap.create_array<u8>(total + 1);
@@ -155,14 +224,18 @@ impl str {
 	 * `1.5F` -> "F", `0xFF` -> "F". Only used through `num_suffix`.
 	 */
 	fn suffix_tail(val self): str {
-		if (self.empty()) return "";
+		if (self.empty()) {
+			return "";
+		}
 
 		if (self.len >= 2) {
 			val two = self.slice(self.len - 2, self.len);
 			if (
 				two == "UZ" || two == "UL"
 				|| two == "UB" || two == "US"
-			) return two;
+			) {
+				return two;
+			}
 		}
 
 		val last = self.slice(self.len - 1, self.len);
@@ -170,7 +243,9 @@ impl str {
 			last == "U" || last == "L" || last == "S"
 			|| last == "B" || last == "Z" || last == "D"
 			|| last == "F"
-		) return last;
+		) {
+			return last;
+		}
 
 		return "";
 	}
@@ -184,7 +259,9 @@ impl str {
 	 * 191, not `0xF` with an f32 suffix, and `0xFF_UL` is still a u64 255.
 	 */
 	pub fn num_suffix(val self): str {
-		if (self.empty()) return "";
+		if (self.empty()) {
+			return "";
+		}
 
 		var zone = self;
 		var radix = false;
@@ -198,38 +275,67 @@ impl str {
 				radix = true;
 				zone = "";
 				for (i in 2..<self.len) {
-					if (self[i] == '_') zone = self.slice(i + 1, self.len);
+					if (self[i] == '_') {
+						zone = self.slice(i + 1, self.len);
+					}
 				}
 			}
 		}
 
-		if (zone.empty()) return "";
+		if (zone.empty()) {
+			return "";
+		}
 
 		val tail = zone.suffix_tail();
 		/*
 		 * For a radix literal the whole zone has to be the suffix, or a digit such
 		 * as the second F of `0xFF_FF` would be read as one.
 		 */
-		if (radix && zone.len != tail.len) return "";
+		if (radix && zone.len != tail.len) {
+			return "";
+		}
 		return tail;
 	}
 
 	pub fn trim(val self): str {
-		if (self.empty()) return self;
+		if (self.empty()) {
+			return self;
+		}
 		var start: usz = 0;
 		while (start < self.len) {
 			val c = self[start];
-			if (c == ' ' || c == '\t' || c == '\r' || c == '\n') start++;
-			else break;
+			if (c == ' ' || c == '\t' || c == '\r' || c == '\n') {
+				start++;
+			} else {
+				break;
+			}
 		}
-		if (start == self.len) return "";
+		if (start == self.len) {
+			return "";
+		}
 		var end: usz = self.len;
 		while (end > start) {
 			val c = self[end - 1];
-			if (c == ' ' || c == '\t' || c == '\r' || c == '\n') end--;
-			else break;
+			if (c == ' ' || c == '\t' || c == '\r' || c == '\n') {
+				end--;
+			} else {
+				break;
+			}
 		}
 		return self.slice(start, end);
+	}
+
+	pub fn split(val self, delim: char): List<str> {
+		var parts = List<str>();
+		var start: usz = 0;
+		for (i in 0..<self.len) {
+			if (self[i] == delim) {
+				parts += self.slice(start, i);
+				start = i + 1;
+			}
+		}
+		parts += self.slice(start);
+		return parts;
 	}
 
 	pub fn split_lines(val self): List<str> {
@@ -243,8 +349,8 @@ impl str {
 				if (line_end > start && self[line_end - 1] == '\r') {
 					line_end = line_end - 1;
 				}
-			res += self.slice(start, line_end);
-			start = i + 1;
+				res += self.slice(start, line_end);
+				start = i + 1;
 			}
 			i++;
 		}
@@ -258,6 +364,53 @@ impl str {
 		}
 		return res;
 	}
+
+	pub fn multiline_trim_indent(val self): str {
+		if (self.empty()) {
+			return "";
+		}
+		val lines = self.split_lines();
+		if (lines.empty()) {
+			return "";
+		}
+		if (lines.len == 1) {
+			return lines[0];
+		}
+
+		var start_idx: usz = 0;
+		if (lines[0].blank()) {
+			start_idx = 1;
+		}
+
+		var end_idx: usz = lines.len;
+		if (end_idx > start_idx && lines[end_idx - 1].blank()) {
+			end_idx = end_idx - 1;
+		}
+
+		val prefix = common_whitespace_prefix(lines, start_idx, end_idx);
+
+		var sb = StringBuilder();
+		defer sb.free();
+		var first = true;
+		for (i in start_idx..<end_idx) {
+			val line = lines[i];
+			val trimmed_line = if (line.blank()) ""
+			else if (line.starts_with(prefix)) line.slice(prefix.len, line.len)
+			else line;
+
+			if (first) {
+				sb += trimmed_line;
+				first = false;
+			} else {
+				sb += '\n';
+				sb += trimmed_line;
+			}
+		}
+
+		return sb.to_str();
+	}
+
+	pub fn trim_indent(val self): str => self.multiline_trim_indent();
 
 	// ============================================================================
 	// Overloaded Operators
