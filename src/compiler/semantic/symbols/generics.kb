@@ -71,7 +71,7 @@ impl GenericSubst {
 
 }
 
-pub fn is_template_decl(node: *AstNode): bool => decl_is_template(node);
+pub fn is_template_decl(node: *AstNode) => decl_is_template(node);
 
 pub enum InstanceKind {
 	STRUCT,
@@ -96,7 +96,7 @@ impl InstanceRecord {
 
 	pub fn find_ann(val self, node: *AstNode): *AnnotationEntry? {
 		val p = self.ann_map.get(node.addr()) ?: return null;
-		return *p;
+		return p.read();
 	}
 
 }
