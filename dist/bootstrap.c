@@ -527,6 +527,7 @@ struct compiler__loader__LoadedModule {
     kobel_str name;
     kobel_str path;
     compiler__ast__AstNode* program;
+    uint32_t file_id;
 };
 
 struct compiler__loader__ModuleFile {
@@ -1406,6 +1407,7 @@ struct compiler__parser__Parser {
     std__memory__Arena arena;
     std__collections__List_str errors;
     std__collections__List_ptr_compiler__ast__AstNode struct_consts;
+    uint32_t file_id;
 };
 
 struct compiler__loader__ModuleLoader {
@@ -1415,6 +1417,7 @@ struct compiler__loader__ModuleLoader {
     std__collections__List_str errors;
     std__memory__Arena arena;
     std__collections__HashSet_str known;
+    compiler__core__SourceMap sources;
 };
 
 struct compiler__sema__EnumInfo {
@@ -2377,11 +2380,13 @@ compiler__ast__AstNode* compiler__parser__Parser_parse_single_type(compiler__par
 compiler__ast__AstNode* compiler__parser__Parser_parse_type(compiler__parser__Parser* self);
 kobel_str compiler__loader__detect_project_root(kobel_str start_dir);
 bool compiler__loader__str_less(kobel_str a, kobel_str b);
+void compiler__loader__sort_strings(std__collections__List_str items);
 compiler__loader__ModuleLoader compiler__loader__ModuleLoader_init(kobel_str entry_dir, std__collections__List_str extra_roots);
 compiler__ast__AstNode* compiler__loader__ModuleLoader_module_decl(compiler__loader__ModuleLoader* self, std__collections__List_str path, kobel_str full_path, size_t line, size_t col);
 compiler__ast__AstNode* compiler__loader__ModuleLoader_program(compiler__loader__ModuleLoader* self, std__collections__List_ptr_compiler__ast__AstNode declarations, size_t line, size_t col);
 size_t compiler__loader__ModuleLoader_count(compiler__loader__ModuleLoader* self);
-compiler__ast__AstNode* compiler__loader__ModuleLoader_parse_source(compiler__loader__ModuleLoader* self, kobel_str path, kobel_str source);
+compiler__core__SourceFile* compiler__loader__ModuleLoader_find_source_file(compiler__loader__ModuleLoader* self, uint32_t file_id);
+compiler__ast__AstNode* compiler__loader__ModuleLoader_parse_source(compiler__loader__ModuleLoader* self, kobel_str path, kobel_str source, kobel_str module_name);
 std__collections__List_compiler__loader__ModuleFile compiler__loader__ModuleLoader_find_module_files(compiler__loader__ModuleLoader* self, kobel_str module_name);
 compiler__loader__ModuleFile compiler__loader__ModuleLoader_find_module(compiler__loader__ModuleLoader* self, kobel_str module_name);
 bool compiler__loader__ModuleLoader_is_known(compiler__loader__ModuleLoader* self, kobel_str module_name);
@@ -9434,11 +9439,18 @@ compiler__ast__AstNode* compiler__parser__Parser_parse_interp_string(compiler__p
 }
 
 compiler__parser__Parser compiler__parser__Parser_init(std__collections__List_compiler__lexer__Token tokens) {
-    return (compiler__parser__Parser){ tokens, 0, std__memory__Arena_init(65536), std__collections__List_str_init(4), std__collections__List_ptr_compiler__ast__AstNode_init(4) };
+    compiler__parser__Parser p = (compiler__parser__Parser){ tokens, 0, std__memory__Arena_init(65536), std__collections__List_str_init(4), std__collections__List_ptr_compiler__ast__AstNode_init(4), 0 };
+    if (!std__collections__List_compiler__lexer__Token_empty(&tokens)) {
+        compiler__lexer__Token first_tok = std__collections__List_compiler__lexer__Token_get(&tokens, 0);
+        p.file_id = first_tok.span.file_id;
+    }
+    return p;
 }
 
 compiler__ast__AstNode* compiler__parser__Parser_node(compiler__parser__Parser* self, compiler__ast__NodeData data, size_t line, size_t col) {
-    return std__memory__Arena_node(&self->arena, data, line, col);
+    compiler__ast__AstNode* n = std__memory__Arena_node(&self->arena, data, line, col);
+    n->span.file_id = self->file_id;
+    return n;
 }
 
 compiler__ast__AstNode* compiler__parser__Parser_node_at(compiler__parser__Parser* self, compiler__ast__NodeData data, compiler__lexer__Token tok) {
@@ -9865,6 +9877,68 @@ bool compiler__loader__str_less(kobel_str a, kobel_str b) {
     return (a.len < b.len);
 }
 
+void compiler__loader__sort_strings(std__collections__List_str items) {
+    {
+        size_t __for_e = items.len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            {
+                size_t __for_e = items.len;
+                size_t __for_i = __for_e;
+                __for_i = (i + 1);
+                bool __for_up = (__for_i <= __for_e);
+                bool __for_go = false;
+                if (__for_up) {
+                    __for_go = (__for_i < __for_e);
+                } else {
+                    __for_go = (__for_i > __for_e);
+                }
+                while (__for_go) {
+                    size_t j = __for_i;
+                    if (compiler__loader__str_less(std__collections__List_str_get(&items, j), std__collections__List_str_get(&items, i))) {
+                        kobel_str tmp = std__collections__List_str_get(&items, i);
+                        std__collections__List_str_set(&items, i, std__collections__List_str_get(&items, j));
+                        std__collections__List_str_set(&items, j, tmp);
+                    }
+                    if (__for_up) {
+                        __for_go = ((__for_i + 1) < __for_e);
+                    } else {
+                        __for_go = ((__for_i - 1) > __for_e);
+                    }
+                    if (__for_go) {
+                        if (__for_up) {
+                            __for_i = (__for_i + 1);
+                        } else {
+                            __for_i = (__for_i - 1);
+                        }
+                    }
+                }
+            }
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+}
+
 compiler__loader__ModuleLoader compiler__loader__ModuleLoader_init(kobel_str entry_dir, std__collections__List_str extra_roots) {
     std__collections__List_str roots = std__collections__List_str_init(4);
     if (!str_empty(entry_dir)) {
@@ -9879,7 +9953,7 @@ compiler__loader__ModuleLoader compiler__loader__ModuleLoader_init(kobel_str ent
         std__collections__List_str_plus_assign(&roots, str_join_path(proj, KOBEL_STR("lib")));
         std__collections__List_str_plus_assign(&roots, str_join_path(proj, KOBEL_STR("src")));
     }
-    return (compiler__loader__ModuleLoader){ roots, std__collections__List_compiler__loader__LoadedModule_init(4), std__collections__List_compiler__loader__LoadedModule_init(4), std__collections__List_str_init(4), std__memory__Arena_init(524288), std__collections__HashSet_str_init(16) };
+    return (compiler__loader__ModuleLoader){ roots, std__collections__List_compiler__loader__LoadedModule_init(4), std__collections__List_compiler__loader__LoadedModule_init(4), std__collections__List_str_init(4), std__memory__Arena_init(524288), std__collections__HashSet_str_init(16), compiler__core__SourceMap_init() };
 }
 
 compiler__ast__AstNode* compiler__loader__ModuleLoader_module_decl(compiler__loader__ModuleLoader* self, std__collections__List_str path, kobel_str full_path, size_t line, size_t col) {
@@ -9894,8 +9968,13 @@ size_t compiler__loader__ModuleLoader_count(compiler__loader__ModuleLoader* self
     return self->ordered.len;
 }
 
-compiler__ast__AstNode* compiler__loader__ModuleLoader_parse_source(compiler__loader__ModuleLoader* self, kobel_str path, kobel_str source) {
-    compiler__lexer__Lexer lexer = compiler__lexer__Lexer_init(source, 0);
+compiler__core__SourceFile* compiler__loader__ModuleLoader_find_source_file(compiler__loader__ModuleLoader* self, uint32_t file_id) {
+    return compiler__core__SourceMap_get_file(&self->sources, file_id);
+}
+
+compiler__ast__AstNode* compiler__loader__ModuleLoader_parse_source(compiler__loader__ModuleLoader* self, kobel_str path, kobel_str source, kobel_str module_name) {
+    uint32_t file_id = compiler__core__SourceMap_add_file(&self->sources, path, source, module_name);
+    compiler__lexer__Lexer lexer = compiler__lexer__Lexer_init(source, file_id);
     std__collections__List_compiler__lexer__Token tokens = compiler__lexer__Lexer_tokenize(&lexer);
     if (!std__collections__List_str_empty(&lexer.errors)) {
         {
@@ -9955,65 +10034,7 @@ std__collections__List_compiler__loader__ModuleFile compiler__loader__ModuleLoad
                         __for_i = (__for_i + 1);
                     }
                 }
-                {
-                    size_t __for_e = kb_files.len;
-                    size_t __for_i = __for_e;
-                    __for_i = 0;
-                    bool __for_up = (__for_i <= __for_e);
-                    bool __for_go = false;
-                    if (__for_up) {
-                        __for_go = (__for_i < __for_e);
-                    } else {
-                        __for_go = (__for_i > __for_e);
-                    }
-                    while (__for_go) {
-                        size_t i = __for_i;
-                        {
-                            size_t __for_e = kb_files.len;
-                            size_t __for_i = __for_e;
-                            __for_i = (i + 1);
-                            bool __for_up = (__for_i <= __for_e);
-                            bool __for_go = false;
-                            if (__for_up) {
-                                __for_go = (__for_i < __for_e);
-                            } else {
-                                __for_go = (__for_i > __for_e);
-                            }
-                            while (__for_go) {
-                                size_t j = __for_i;
-                                if (compiler__loader__str_less(std__collections__List_str_get(&kb_files, j), std__collections__List_str_get(&kb_files, i))) {
-                                    kobel_str tmp = std__collections__List_str_get(&kb_files, i);
-                                    std__collections__List_str_set(&kb_files, i, std__collections__List_str_get(&kb_files, j));
-                                    std__collections__List_str_set(&kb_files, j, tmp);
-                                }
-                                if (__for_up) {
-                                    __for_go = ((__for_i + 1) < __for_e);
-                                } else {
-                                    __for_go = ((__for_i - 1) > __for_e);
-                                }
-                                if (__for_go) {
-                                    if (__for_up) {
-                                        __for_i = (__for_i + 1);
-                                    } else {
-                                        __for_i = (__for_i - 1);
-                                    }
-                                }
-                            }
-                        }
-                        if (__for_up) {
-                            __for_go = ((__for_i + 1) < __for_e);
-                        } else {
-                            __for_go = ((__for_i - 1) > __for_e);
-                        }
-                        if (__for_go) {
-                            if (__for_up) {
-                                __for_i = (__for_i + 1);
-                            } else {
-                                __for_i = (__for_i - 1);
-                            }
-                        }
-                    }
-                }
+                compiler__loader__sort_strings(kb_files);
                 {
                     size_t __for_n = std__collections__List_str_count(&kb_files);
                     size_t __for_i = 0;
@@ -10068,7 +10089,7 @@ void compiler__loader__ModuleLoader_ensure_module(compiler__loader__ModuleLoader
         return;
     }
     std__collections__HashSet_str_plus_assign(&self->known, module_name);
-    std__collections__List_compiler__loader__LoadedModule_plus_assign(&self->modules, (compiler__loader__LoadedModule){ module_name, KOBEL_STR(""), NULL });
+    std__collections__List_compiler__loader__LoadedModule_plus_assign(&self->modules, (compiler__loader__LoadedModule){ module_name, KOBEL_STR(""), NULL, 0 });
     std__collections__List_compiler__loader__ModuleFile files = compiler__loader__ModuleLoader_find_module_files(self, module_name);
     if (std__collections__List_compiler__loader__ModuleFile_empty(&files)) {
         kobel_str prefix = (!str_empty(parent_mod) ? kobel_concat(parent_mod, KOBEL_STR(": ")) : KOBEL_STR(""));
@@ -10081,7 +10102,7 @@ void compiler__loader__ModuleLoader_ensure_module(compiler__loader__ModuleLoader
         size_t __for_i = 0;
         while (__for_i < __for_n) {
             compiler__loader__ModuleFile file = std__collections__List_compiler__loader__ModuleFile_at(&files, __for_i);
-            compiler__ast__AstNode* prog = compiler__loader__ModuleLoader_parse_source(self, file.path, file.source);
+            compiler__ast__AstNode* prog = compiler__loader__ModuleLoader_parse_source(self, file.path, file.source, module_name);
             if (prog == NULL) {
                 {
                     __for_i = (__for_i + 1);
@@ -10105,7 +10126,7 @@ void compiler__loader__ModuleLoader_ensure_module(compiler__loader__ModuleLoader
                 }
             }
             compiler__loader__ModuleLoader_process_uses(self, prog, module_name);
-            std__collections__List_compiler__loader__LoadedModule_plus_assign(&self->ordered, (compiler__loader__LoadedModule){ module_name, file.path, prog });
+            std__collections__List_compiler__loader__LoadedModule_plus_assign(&self->ordered, (compiler__loader__LoadedModule){ module_name, file.path, prog, prog->span.file_id });
             __for_i = (__for_i + 1);
         }
     }
@@ -10137,7 +10158,7 @@ void compiler__loader__ModuleLoader_process_uses(compiler__loader__ModuleLoader*
 }
 
 compiler__ast__AstNode* compiler__loader__ModuleLoader_load_program(compiler__loader__ModuleLoader* self, kobel_str entry_path, kobel_str entry_source) {
-    compiler__ast__AstNode* prog = compiler__loader__ModuleLoader_parse_source(self, entry_path, entry_source);
+    compiler__ast__AstNode* prog = compiler__loader__ModuleLoader_parse_source(self, entry_path, entry_source, KOBEL_STR(""));
     if (prog == NULL) {
         return NULL;
     }
@@ -10151,10 +10172,14 @@ compiler__ast__AstNode* compiler__loader__ModuleLoader_load_program(compiler__lo
     if (str_empty(entry_name)) {
         entry_name = str_path_to_module(str_base_name(entry_path));
     }
+    compiler__core__SourceFile* entry_sf = compiler__core__SourceMap_get_file(&self->sources, prog->span.file_id);
+    if ((entry_sf != NULL) && str_empty(entry_sf->module_name)) {
+        entry_sf->module_name = entry_name;
+    }
     std__collections__HashSet_str_plus_assign(&self->known, entry_name);
-    std__collections__List_compiler__loader__LoadedModule_plus_assign(&self->modules, (compiler__loader__LoadedModule){ entry_name, entry_path, prog });
+    std__collections__List_compiler__loader__LoadedModule_plus_assign(&self->modules, (compiler__loader__LoadedModule){ entry_name, entry_path, prog, prog->span.file_id });
     compiler__loader__ModuleLoader_process_uses(self, prog, entry_name);
-    std__collections__List_compiler__loader__LoadedModule_plus_assign(&self->ordered, (compiler__loader__LoadedModule){ entry_name, entry_path, prog });
+    std__collections__List_compiler__loader__LoadedModule_plus_assign(&self->ordered, (compiler__loader__LoadedModule){ entry_name, entry_path, prog, prog->span.file_id });
     return compiler__loader__ModuleLoader_build_merged_program(self);
 }
 
@@ -10222,12 +10247,13 @@ kobel_str compiler__driver__resolve_file_path(kobel_str target, kobel_str defaul
 void compiler__driver__print_diagnostics(std__collections__List_str errors, kobel_str default_file, compiler__loader__ModuleLoader* loader) {
     std__collections__HashSet_str seen = std__collections__HashSet_str_init(16);
     size_t printed_count = 0;
+    compiler__core__SourceMap* src_map = ((loader != NULL) ? &loader->sources : NULL);
     {
         size_t __for_n = std__collections__List_str_count(&errors);
         size_t __for_i = 0;
         while (__for_i < __for_n) {
             kobel_str err = std__collections__List_str_at(&errors, __for_i);
-            compiler__core__Diagnostic diag = compiler__core__Diagnostic_parse_legacy(err, default_file, 0, NULL);
+            compiler__core__Diagnostic diag = compiler__core__Diagnostic_parse_legacy(err, default_file, 0, src_map);
             diag.file_path = compiler__driver__resolve_file_path(diag.file_path, default_file, loader);
             kobel_str key = compiler__core__Diagnostic_key(&diag);
             if (std__collections__HashSet_str_contains(&seen, key)) {
@@ -10237,7 +10263,7 @@ void compiler__driver__print_diagnostics(std__collections__List_str errors, kobe
                 }
             }
             std__collections__HashSet_str_plus_assign(&seen, key);
-            std__io__print(compiler__core__Diagnostic_render(&diag, NULL));
+            std__io__print(compiler__core__Diagnostic_render(&diag, src_map));
             std__io__println(KOBEL_STR(""));
             printed_count++;
             __for_i = (__for_i + 1);
@@ -10249,12 +10275,13 @@ void compiler__driver__print_diagnostics(std__collections__List_str errors, kobe
 
 void compiler__driver__print_warnings(std__collections__List_str warnings, kobel_str default_file, compiler__loader__ModuleLoader* loader) {
     std__collections__HashSet_str seen = std__collections__HashSet_str_init(16);
+    compiler__core__SourceMap* src_map = ((loader != NULL) ? &loader->sources : NULL);
     {
         size_t __for_n = std__collections__List_str_count(&warnings);
         size_t __for_i = 0;
         while (__for_i < __for_n) {
             kobel_str w = std__collections__List_str_at(&warnings, __for_i);
-            compiler__core__Diagnostic diag = compiler__core__Diagnostic_parse_legacy(w, default_file, 1, NULL);
+            compiler__core__Diagnostic diag = compiler__core__Diagnostic_parse_legacy(w, default_file, 1, src_map);
             diag.file_path = compiler__driver__resolve_file_path(diag.file_path, default_file, loader);
             kobel_str key = compiler__core__Diagnostic_key(&diag);
             if (std__collections__HashSet_str_contains(&seen, key)) {
@@ -10264,7 +10291,7 @@ void compiler__driver__print_warnings(std__collections__List_str warnings, kobel
                 }
             }
             std__collections__HashSet_str_plus_assign(&seen, key);
-            std__io__print(compiler__core__Diagnostic_render(&diag, NULL));
+            std__io__print(compiler__core__Diagnostic_render(&diag, src_map));
             std__io__println(KOBEL_STR(""));
             __for_i = (__for_i + 1);
         }
@@ -33995,7 +34022,7 @@ intptr_t std__collections__List_compiler__loader__LoadedModule_index_of(std__col
         }
         while (__for_go) {
             size_t i = __for_i;
-            if (kobel_memeq(&self->data[i], &value, 40)) {
+            if (kobel_memeq(&self->data[i], &value, 48)) {
                 return i;
             }
             if (__for_up) {
@@ -34021,7 +34048,7 @@ intptr_t std__collections__List_compiler__loader__LoadedModule_last_index_of(std
     }
     size_t i = (self->len - 1);
     while (true) {
-        if (kobel_memeq(&self->data[i], &value, 40)) {
+        if (kobel_memeq(&self->data[i], &value, 48)) {
             return i;
         }
         if (i == 0) {
@@ -34057,7 +34084,7 @@ size_t std__collections__List_compiler__loader__LoadedModule_remove_all(std__col
         }
         while (__for_go) {
             size_t i = __for_i;
-            if (kobel_memeq(&self->data[i], &value, 40)) {
+            if (kobel_memeq(&self->data[i], &value, 48)) {
                 removed++;
             } else {
                 if (write != i) {
@@ -46918,11 +46945,11 @@ compiler__lexer__Token* std__memory__Heap_resize_compiler__lexer__Token(compiler
 }
 
 compiler__loader__LoadedModule* std__memory__Heap_create_array_compiler__loader__LoadedModule(size_t count) {
-    return (compiler__loader__LoadedModule*)malloc((count * 40));
+    return (compiler__loader__LoadedModule*)malloc((count * 48));
 }
 
 compiler__loader__LoadedModule* std__memory__Heap_resize_compiler__loader__LoadedModule(compiler__loader__LoadedModule* ptr, size_t count) {
-    return (compiler__loader__LoadedModule*)realloc((uint8_t*)ptr, (count * 40));
+    return (compiler__loader__LoadedModule*)realloc((uint8_t*)ptr, (count * 48));
 }
 
 compiler__sema__EnumMemberInfo** std__memory__Heap_create_array_ptr_compiler__sema__EnumMemberInfo(size_t count) {

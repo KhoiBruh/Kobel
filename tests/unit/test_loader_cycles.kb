@@ -30,6 +30,10 @@ fn main(): i32 {
 		println("ASSERTION FAILED: the cyclic modules must load");
 		return 1;
 	}
+	if (loader.sources.count() < 3) {
+		println("ASSERTION FAILED: loader must register all 3 source files in SourceMap");
+		return 1;
+	}
 
 	var dp = DeclPass();
 	dp.collect_program(prog!);

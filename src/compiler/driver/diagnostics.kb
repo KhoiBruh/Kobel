@@ -52,9 +52,10 @@ pub fn print_diagnostics(errors: List<str>, default_file: str, loader: *ModuleLo
 	var seen = HashSet<str>();
 	defer seen.free();
 	var printed_count: usz = 0;
+	val src_map = if (loader != null) &loader.sources else null;
 
 	for (err in errors) {
-		var diag = CoreDiagnostic.parse_legacy(err, default_file, Severity.ERROR, null);
+		var diag = CoreDiagnostic.parse_legacy(err, default_file, Severity.ERROR, src_map);
 		diag.file_path = resolve_file_path(diag.file_path, default_file, loader);
 		val key = diag.key();
 		if (key in seen) {
@@ -62,7 +63,7 @@ pub fn print_diagnostics(errors: List<str>, default_file: str, loader: *ModuleLo
 		}
 		seen += key;
 
-		print(diag.render());
+		print(diag.render(src_map));
 		println("");
 		printed_count++;
 	}
@@ -73,9 +74,10 @@ pub fn print_diagnostics(errors: List<str>, default_file: str, loader: *ModuleLo
 pub fn print_warnings(warnings: List<str>, default_file: str, loader: *ModuleLoader? = null) {
 	var seen = HashSet<str>();
 	defer seen.free();
+	val src_map = if (loader != null) &loader.sources else null;
 
 	for (w in warnings) {
-		var diag = CoreDiagnostic.parse_legacy(w, default_file, Severity.WARNING, null);
+		var diag = CoreDiagnostic.parse_legacy(w, default_file, Severity.WARNING, src_map);
 		diag.file_path = resolve_file_path(diag.file_path, default_file, loader);
 		val key = diag.key();
 		if (key in seen) {
@@ -83,7 +85,7 @@ pub fn print_warnings(warnings: List<str>, default_file: str, loader: *ModuleLoa
 		}
 		seen += key;
 
-		print(diag.render());
+		print(diag.render(src_map));
 		println("");
 	}
 }

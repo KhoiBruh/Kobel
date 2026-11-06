@@ -1,34 +1,37 @@
 mod compiler.loader;
 
-// ============================================================================
-// ModuleLoader
-//
-// Loads the entry point's source file, then follows every `use a.b.c.Sym;` to
-// load the dependent modules (recursively, without duplicates). The result is a
-// merged AST `Program`: each module is inserted with a `mod <module name>;`
-// declaration so DeclPass/BodyPass know which symbol belongs to which module.
-//
-// File lookup rules (same as v0): module `a.b.c` -> `<root>/a/b/c.kb` with roots
-// in order: the entry file's directory -> extra roots passed in (-I) -> "lib"
-// (standard library) -> "src" (compiler source).
-// ============================================================================
-
 use std.memory.*;
 use std.filesystem.*;
 use std.collections.*;
 
 use compiler.core.*;
-
 use compiler.lexer.*;
-
 use compiler.ast.*;
-
 use compiler.parser.Parser;
+
+/*
+ * ============================================================================
+ * compiler.loader — Module and package resolution, lexing, and parsing
+ *
+ * Loads the entry point's source file, registers every source buffer in
+ * `SourceMap` with a unique `file_id`, and follows every `use a.b.c.Sym;` to
+ * load dependent modules recursively without duplicates. Produces a merged AST
+ * `Program` where each module is preceded by `mod <module name>;`.
+ *
+ * File lookup order:
+ *   1. Entry file directory
+ *   2. Extra roots passed via `-I`
+ *   3. `lib/` (standard library)
+ *   4. `src/` (compiler source)
+ *   5. Auto-detected project root (`kobel.toml`)
+ * ============================================================================
+ */
 
 pub struct LoadedModule {
 	pub name: str,
 	pub path: str,
-	pub program: *AstNode? = null
+	pub program: *AstNode? = null,
+	pub file_id: u32 = 0
 }
 
 pub struct ModuleFile {
@@ -43,7 +46,8 @@ pub struct ModuleLoader {
 	pub ordered: List<LoadedModule>,
 	pub errors: List<str>,
 	pub arena: Arena,
-	known: HashSet<str>
+	known: HashSet<str>,
+	pub sources: SourceMap
 }
 
 pub fn detect_project_root(start_dir: str): str {
@@ -69,6 +73,18 @@ fn str_less(a: str, b: str): bool {
 		if (a[i] > b[i]) return false;
 	}
 	return a.len < b.len;
+}
+
+fn sort_strings(var items: List<str>) {
+	for (i in 0..<items.len) {
+		for (j in (i + 1)..<items.len) {
+			if (str_less(items[j], items[i])) {
+				val tmp = items[i];
+				items[i] = items[j];
+				items[j] = tmp;
+			}
+		}
+	}
 }
 
 impl ModuleLoader {
@@ -97,7 +113,8 @@ impl ModuleLoader {
 			List<LoadedModule>(),
 			List<str>(),
 			Arena(524288),
-			HashSet<str>()
+			HashSet<str>(),
+			SourceMap()
 		);
 	}
 
@@ -109,12 +126,16 @@ impl ModuleLoader {
 
 	pub fn count(val self) => self.ordered.len;
 
+	pub fn find_source_file(val self, file_id: u32): *SourceFile?
+		=> self.sources.get_file(file_id);
+
 	// ============================================================================
 	// Parsing
 	// ============================================================================
 
-	pub fn parse_source(var self, path: str, source: str): *AstNode? {
-		var lexer = Lexer(source);
+	pub fn parse_source(var self, path: str, source: str, module_name: str = ""): *AstNode? {
+		val file_id = self.sources.add_file(path, source, module_name);
+		var lexer = Lexer(source, file_id);
 		val tokens = lexer.tokenize();
 
 		if (!lexer.errors.empty()) {
@@ -158,15 +179,7 @@ impl ModuleLoader {
 				for (e in entries) {
 					if (e.ends_with(".kb")) kb_files += e;
 				}
-				for (i in 0..<kb_files.len) {
-					for (j in (i + 1)..<kb_files.len) {
-						if (str_less(kb_files[j], kb_files[i])) {
-							val tmp = kb_files[i];
-							kb_files[i] = kb_files[j];
-							kb_files[j] = tmp;
-						}
-					}
-				}
+				sort_strings(kb_files);
 
 				for (f in kb_files) {
 					val f_path = dir_path.join_path(f);
@@ -199,7 +212,7 @@ impl ModuleLoader {
 		if (self.is_known(module_name)) return;
 
 		self.known += module_name;
-		self.modules += LoadedModule(module_name, "", null);
+		self.modules += LoadedModule(module_name, "", null, 0);
 
 		val files = self.find_module_files(module_name);
 		if (files.empty()) {
@@ -217,7 +230,7 @@ impl ModuleLoader {
 		}
 
 		for (file in files) {
-			val prog = self.parse_source(file.path, file.source) ?: continue;
+			val prog = self.parse_source(file.path, file.source, module_name) ?: continue;
 
 			var declared = "";
 			if (prog is Program as p) declared = p.declared_module_name();
@@ -233,20 +246,20 @@ impl ModuleLoader {
 			}
 
 			self.process_uses(prog, module_name);
-			self.ordered += LoadedModule(module_name, file.path, prog);
+			self.ordered += LoadedModule(module_name, file.path, prog, prog.span.file_id);
 		}
 	}
 
 	pub fn process_uses(var self, program_node: *AstNode, parent_mod: str) {
 		if (program_node is Program as prog) {
 			for (decl in prog) {
-			if (decl is UseDecl as u) {
-				val mod_name = when {
-					u.wildcard -> str_join_dots(u.path, u.path.len);
-					u.path.len >= 2 -> str_join_dots(u.path, u.path.len - 1);
-					else -> "";
-				};
-				if (!mod_name.empty()) self.ensure_module(mod_name, decl.line, decl.col, parent_mod);
+				if (decl is UseDecl as u) {
+					val mod_name = when {
+						u.wildcard -> str_join_dots(u.path, u.path.len);
+						u.path.len >= 2 -> str_join_dots(u.path, u.path.len - 1);
+						else -> "";
+					};
+					if (!mod_name.empty()) self.ensure_module(mod_name, decl.line, decl.col, parent_mod);
 				}
 			}
 		}
@@ -263,10 +276,15 @@ impl ModuleLoader {
 		if (prog is Program as p) entry_name = p.declared_module_name();
 		if (entry_name.empty()) entry_name = entry_path.base_name().path_to_module();
 
+		val entry_sf = self.sources.get_file(prog.span.file_id);
+		if (entry_sf != null && entry_sf.module_name.empty()) {
+			entry_sf.module_name = entry_name;
+		}
+
 		self.known += entry_name;
-		self.modules += LoadedModule(entry_name, entry_path, prog);
+		self.modules += LoadedModule(entry_name, entry_path, prog, prog.span.file_id);
 		self.process_uses(prog, entry_name);
-		self.ordered += LoadedModule(entry_name, entry_path, prog);
+		self.ordered += LoadedModule(entry_name, entry_path, prog, prog.span.file_id);
 
 		return self.build_merged_program();
 	}

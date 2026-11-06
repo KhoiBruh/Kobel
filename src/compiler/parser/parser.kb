@@ -18,15 +18,26 @@ pub struct Parser {
 	pub current: usz = 0,
 	pub arena: Arena = Arena(),
 	pub errors: List<str> = List(),
-	pub struct_consts: List<*AstNode> = List()
+	pub struct_consts: List<*AstNode> = List(),
+	pub file_id: u32 = 0
 }
 
 impl Parser {
 
-	pub init(tokens: List<Token>) => Self(tokens);
+	pub init(tokens: List<Token>) {
+		var p = Self(tokens);
+		if (!tokens.empty()) {
+			val first_tok = tokens[0];
+			p.file_id = first_tok.span.file_id;
+		}
+		return p;
+	}
 
-	pub fn node(var self, data: NodeData, line: usz = 0, col: usz = 0): *AstNode
-		=> self.arena.node(data, line, col);
+	pub fn node(var self, data: NodeData, line: usz = 0, col: usz = 0): *AstNode {
+		var n = self.arena.node(data, line, col);
+		n.span.file_id = self.file_id;
+		return n;
+	}
 
 	pub fn node_at(var self, data: NodeData, tok: Token): *AstNode {
 		var n = self.arena.node(data, tok.line, tok.col);
