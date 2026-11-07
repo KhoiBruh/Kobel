@@ -1,31 +1,27 @@
-mod compiler.sema.body;
+mod compiler.semantic.checker;
 
-// ============================================================================
-// BodyPass - String Interpolation Checking
-//
-// String interpolation: checking the holes and their Stringer contract.
-// The concat chain itself is built by the `lower` pass.
-// ============================================================================
+/*
+ * ============================================================================
+ * BodyChecker - String Interpolation Checking
+ *
+ * String interpolation: checking the holes and their Stringer contract.
+ * The concat chain itself is built by the lowering pass.
+ * ============================================================================
+ */
 
 use std.memory.*;
 use std.collections.*;
 
-
-
 use compiler.ast.*;
-
 use compiler.lexer.*;
-
 use compiler.sema.*;
 use compiler.semantic.types.*;
 use compiler.semantic.symbols.*;
 use compiler.sema.decl.*;
 use compiler.sema.desugar.*;
 
-impl BodyPass {
+impl BodyChecker {
 
-	// The `kobel_concat` chain is built by the `lower` pass; checking a hole means
-	// checking its expression and requiring a `Stringer` conversion.
 	pub fn check_interp_expr(var self, node: *AstNode): *Type {
 		if (node is InterpExpr as ie) {
 			for (part in ie.parts) {
@@ -41,8 +37,6 @@ impl BodyPass {
 		return self.prims().t_str();
 	}
 
-	// A hole is fine when it is `str` or implements the `Stringer` trait;
-	// `lower` picks that implementation while rewriting.
 	fn ensure_to_str(var self, node: *AstNode, ty: *Type) {
 		if (ty == null || ty.kind == DataType.STR) return;
 

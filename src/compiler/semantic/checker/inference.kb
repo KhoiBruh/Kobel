@@ -1,0 +1,153 @@
+mod compiler.semantic.checker;
+
+/*
+ * ============================================================================
+ * BodyChecker - Generic Type Argument Inference & Pattern Matching
+ *
+ * Infers concrete type arguments at call sites for generic functions, methods,
+ * and struct constructors through structural unification of parameter types.
+ * ============================================================================
+ */
+
+use std.memory.*;
+use std.collections.*;
+
+use compiler.ast.*;
+use compiler.semantic.types.*;
+use compiler.semantic.symbols.*;
+
+impl BodyChecker {
+
+	pub fn infer_type_args_for_fn(
+		var self,
+		fn_decl: *FnDecl,
+		call_args: List<*AstNode>,
+		is_method: bool
+	): List<*AstNode> {
+		val type_params = fn_decl.type_params;
+		if (type_params.empty()) return List<*AstNode>();
+
+		val num_tparams = type_params.len;
+		var inferred = List<*Type>();
+		for (k in 0..<num_tparams) {
+			inferred.add(self.prims().t_none());
+		}
+
+		val params = fn_decl.params;
+		for (i in 0..<call_args.len) {
+			val param_idx = if (is_method) i + 1 else i;
+			if (param_idx >= params.len) break;
+			val p = params[param_idx];
+			if (p.type_node == null) continue;
+
+			val arg_ty = self.check_expr(call_args[i]);
+			if (arg_ty == null || arg_ty.kind == DataType.NONE) continue;
+
+			self.match_type_param(p.type_node!, arg_ty, type_params, inferred.data);
+		}
+
+		for (k in 0..<num_tparams) {
+			if (inferred[k].kind == DataType.NONE) return List<*AstNode>();
+		}
+
+		var result = List<*AstNode>();
+		for (k in 0..<num_tparams) {
+			result += self.arena.ast_type_from_type(inferred[k]);
+		}
+		return result;
+	}
+
+	pub fn infer_type_args_for_struct(
+		var self,
+		decl: *StructDecl,
+		call_args: List<*AstNode>
+	): List<*AstNode> {
+		val type_params = decl.type_params;
+		if (type_params.empty()) return List<*AstNode>();
+
+		val num_tparams = type_params.len;
+		var inferred = List<*Type>();
+		for (k in 0..<num_tparams) {
+			inferred.add(self.prims().t_none());
+		}
+
+		val fields = decl.fields;
+		for (i in 0..<call_args.len) {
+			if (i >= fields.len) break;
+			val f = fields[i];
+
+			val arg_ty = self.check_expr(call_args[i]);
+			if (arg_ty == null || arg_ty.kind == DataType.NONE) continue;
+
+			self.match_type_param(f.type_node, arg_ty, type_params, inferred.data);
+		}
+
+		for (k in 0..<num_tparams) {
+			if (inferred[k].kind == DataType.NONE) return List<*AstNode>();
+		}
+
+		var result = List<*AstNode>();
+		for (k in 0..<num_tparams) {
+			result += self.arena.ast_type_from_type(inferred[k]);
+		}
+		return result;
+	}
+
+	pub fn match_type_param(
+		var self,
+		param_ty_node: *AstNode,
+		arg_ty: *Type,
+		type_params: List<GenericParam>,
+		inferred: &*Type
+	) {
+		if (param_ty_node == null || arg_ty == null) return;
+
+		when (param_ty_node) {
+			is NamedType as nt -> {
+				if (nt.type_args.empty()) {
+					for (k in 0..<type_params.len) {
+						if (type_params[k].name != nt.name) continue;
+						if (inferred[k].kind == DataType.NONE) {
+							inferred[k] = arg_ty;
+						} else {
+							val can_widen = !inferred[k].equals(arg_ty) &&
+								inferred[k].is_integer() &&
+								arg_ty.is_integer() &&
+								arg_ty.size > inferred[k].size;
+							if (can_widen) inferred[k] = arg_ty;
+						}
+						return;
+					}
+				} else if (arg_ty.kind == DataType.STRUCT) {
+					val st = arg_ty.as_struct()!;
+					val rec = self.symtab.gen.find_record_by_cname(st.c_name);
+					if (rec != null && rec.args.len == nt.type_args.len) {
+						for (j in 0..<nt.type_args.len) {
+							self.match_type_param(nt.type_args[j], rec.args[j], type_params, inferred);
+						}
+					}
+				} else if (nt.name == "List" && nt.type_args.len == 1 && arg_ty.kind == DataType.ARRAY) {
+					self.match_type_param(nt.type_args[0], arg_ty.as_array()!.elem, type_params, inferred);
+				}
+			}
+			is PointerType as pt -> {
+				if (arg_ty.kind == DataType.POINTER) {
+					self.match_type_param(pt.pointee, arg_ty.as_pointer().pointee, type_params, inferred);
+				} else {
+					self.match_type_param(pt.pointee, arg_ty, type_params, inferred);
+				}
+			}
+			is NullableType as nult -> {
+				if (arg_ty.kind == DataType.POINTER) {
+					self.match_type_param(nult.inner_type, arg_ty, type_params, inferred);
+				}
+			}
+			is ArrayType as at -> {
+				if (arg_ty.kind == DataType.ARRAY) {
+					self.match_type_param(at.element_type, arg_ty.as_array().elem, type_params, inferred);
+				}
+			}
+		}
+	}
+
+}

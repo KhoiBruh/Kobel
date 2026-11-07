@@ -14,6 +14,7 @@ use std.collections.*;
 use compiler.ast.*;
 use compiler.lexer.*;
 use compiler.sema.body.*;
+use compiler.semantic.checker.*;
 
 // ============================================================================
 // For-loop AST Lowering (Desugaring)
@@ -108,31 +109,31 @@ impl Arena {
 	// alone: their `continue` targets the inner loop. When `bp` is set (an
 	// instance body is being checked), the replacement is recorded per instance
 	// instead of on the shared continue node.
-	pub fn for_inject_step(var self, node: *AstNode?, step: &List<*AstNode>, bp: *BodyPass? = null) {
+	pub fn for_inject_step(var self, node: *AstNode?, step: &List<*AstNode>, bc: *BodyChecker? = null) {
 		if (node == null) return;
 
 		val target = node;
 		when (target) {
-			is BlockStmt -> for (stmt in target.statements) self.for_inject_step(stmt, step, bp);
+			is BlockStmt -> for (stmt in target.statements) self.for_inject_step(stmt, step, bc);
 			is IfStmt -> {
-				self.for_inject_step(target.then_branch, step, bp);
-				self.for_inject_step(target.else_branch, step, bp);
+				self.for_inject_step(target.then_branch, step, bc);
+				self.for_inject_step(target.else_branch, step, bc);
 			}
-			is WhenStmt -> for (arm in target.arms) self.for_inject_step(arm.body, step, bp);
-			is VarDeclStmt -> self.for_inject_step_expr(target.initializer, step, bp);
-			is ExprStmt -> self.for_inject_step_expr(target.expr, step, bp);
+			is WhenStmt -> for (arm in target.arms) self.for_inject_step(arm.body, step, bc);
+			is VarDeclStmt -> self.for_inject_step_expr(target.initializer, step, bc);
+			is ExprStmt -> self.for_inject_step_expr(target.expr, step, bc);
 			is ContinueStmt -> {
 				var stmts = List<*AstNode>();
 				for (s in step) stmts += s;
 				stmts += self.node(NodeData.ContinueStmt, node.line, node.col);
 				val block = self.loop_block(stmts, node.line, node.col);
-				if (bp != null) bp.set_resolved(node!, block);
+				if (bc != null) bc.set_resolved(node!, block);
 
 			}
 		}
 	}
 
-	fn for_inject_step_expr(var self, expr: *AstNode?, step: &List<*AstNode>, bp: *BodyPass? = null) {
+	fn for_inject_step_expr(var self, expr: *AstNode?, step: &List<*AstNode>, bc: *BodyChecker? = null) {
 		if (expr == null) return;
 		var cur = expr;
 		while (cur != null) {
@@ -141,9 +142,9 @@ impl Arena {
 		}
 		if (cur == null) return;
 		if (cur is BinaryExpr as bin && bin.op == TokenType.QUESTION_COLON) {
-			self.for_inject_step(bin.right, step, bp);
+			self.for_inject_step(bin.right, step, bc);
 		} else if (cur is AssignExpr as asg) {
-			self.for_inject_step_expr(asg.value, step, bp);
+			self.for_inject_step_expr(asg.value, step, bc);
 		}
 	}
 
@@ -274,7 +275,7 @@ impl Arena {
 	// Builds the block that replaces a STMT_FOR: hidden locals plus a while-loop.
 	// The checker stores it as `resolved_node` and checks that block directly;
 	// `lower` installs it, so nothing swaps a node's kind here.
-	pub fn desugar_for(var self, node: *AstNode, fs: *ForStmt, use_iter_trait: bool, bp: *BodyPass = null): *AstNode {
+	pub fn desugar_for(var self, node: *AstNode, fs: *ForStmt, use_iter_trait: bool, bc: *BodyChecker = null): *AstNode {
 		val line = node.line;
 		val col = node.col;
 
@@ -297,7 +298,7 @@ impl Arena {
 		for (s in step) body_stmts += s;
 
 		// A `continue` inside the body must still advance the counter.
-		self.for_inject_step(fs.body, &step, bp);
+		self.for_inject_step(fs.body, &step, bc);
 
 		pre += self.loop_while(cond, self.loop_block(body_stmts, line, col), line, col);
 
