@@ -356,6 +356,31 @@ fn test_filesystem(): bool {
 	if (!File.remove(moved.to_str())) return false;
 	if (File.exists(moved.to_str())) return false;
 
+	// Test OOP Path and File APIs
+	val nested_dir = Path("build/test_oop_fs/sub1/sub2");
+	if (!nested_dir.create_dir_all()) return false;
+	if (!nested_dir.exists() || !nested_dir.is_dir()) return false;
+
+	val oop_file = nested_dir.join("hello.txt");
+	if (oop_file.exists()) oop_file.remove();
+	if (!oop_file.write_text("Kobel OOP Filesystem")) return false;
+	if (!oop_file.exists() || !oop_file.is_file()) return false;
+	if (oop_file.read_text() != "Kobel OOP Filesystem") return false;
+
+	if (!oop_file.append_text(" - Appended")) return false;
+	if (oop_file.read_text() != "Kobel OOP Filesystem - Appended") return false;
+
+	var oop_stream = oop_file.open_read();
+	if (!oop_stream.is_valid()) return false;
+	if (oop_stream.size() <= 0) return false;
+	oop_stream.seek(0, 0);
+	if (oop_stream.tell() != 0) return false;
+	if (oop_stream.read_all() != "Kobel OOP Filesystem - Appended") return false;
+	oop_stream.close();
+
+	if (!oop_file.remove()) return false;
+	if (oop_file.exists()) return false;
+
 	return true;
 }
 

@@ -16,8 +16,13 @@ const C_PRELUDE = """
 #ifdef _WIN32
 #include <io.h>
 #include <fcntl.h>
+#include <direct.h>
+#include <sys/stat.h>
 #else
 #include <dirent.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
 #endif
 
 typedef struct {
@@ -174,6 +179,98 @@ static kobel_str kobel_list_dir(kobel_str dir_path) {
 	buf[len] = 0;
 	return (kobel_str){ buf, len };
 #endif
+}
+
+/* Directory creation and filesystem status helpers */
+static int kobel_mkdir(const char* path) {
+#ifdef _WIN32
+	return _mkdir(path);
+#else
+	return mkdir(path, 0777);
+#endif
+}
+
+static int kobel_path_exists(kobel_str p) {
+	if (!p.data || p.len == 0) return 0;
+	char path[1024];
+	if (p.len >= 1023) return 0;
+	memcpy(path, p.data, p.len);
+	path[p.len] = 0;
+#ifdef _WIN32
+	struct _stat st;
+	return _stat(path, &st) == 0;
+#else
+	struct stat st;
+	return stat(path, &st) == 0;
+#endif
+}
+
+static int kobel_path_is_dir(kobel_str p) {
+	if (!p.data || p.len == 0) return 0;
+	char path[1024];
+	if (p.len >= 1023) return 0;
+	memcpy(path, p.data, p.len);
+	path[p.len] = 0;
+#ifdef _WIN32
+	struct _stat st;
+	if (_stat(path, &st) != 0) return 0;
+	return (st.st_mode & _S_IFDIR) != 0;
+#else
+	struct stat st;
+	if (stat(path, &st) != 0) return 0;
+	return S_ISDIR(st.st_mode);
+#endif
+}
+
+static int kobel_path_is_file(kobel_str p) {
+	if (!p.data || p.len == 0) return 0;
+	char path[1024];
+	if (p.len >= 1023) return 0;
+	memcpy(path, p.data, p.len);
+	path[p.len] = 0;
+#ifdef _WIN32
+	struct _stat st;
+	if (_stat(path, &st) != 0) return 0;
+	return (st.st_mode & _S_IFREG) != 0;
+#else
+	struct stat st;
+	if (stat(path, &st) != 0) return 0;
+	return S_ISREG(st.st_mode);
+#endif
+}
+
+static int kobel_create_dir(kobel_str dir_path) {
+	if (!dir_path.data || dir_path.len == 0) return 0;
+	char path[1024];
+	if (dir_path.len >= 1023) return 0;
+	memcpy(path, dir_path.data, dir_path.len);
+	path[dir_path.len] = 0;
+	if (kobel_mkdir(path) == 0) return 1;
+	return kobel_path_is_dir(dir_path);
+}
+
+static int kobel_create_dir_all(kobel_str dir_path) {
+	if (!dir_path.data || dir_path.len == 0) return 1;
+	if (kobel_path_is_dir(dir_path)) return 1;
+	char path[1024];
+	if (dir_path.len >= 1023) return 0;
+	memcpy(path, dir_path.data, dir_path.len);
+	path[dir_path.len] = 0;
+
+	for (size_t i = 1; i < dir_path.len; i++) {
+		if (path[i] == '/' || path[i] == 92) {
+			char saved = path[i];
+			path[i] = 0;
+			if (i == 2 && path[1] == ':') {
+				path[i] = saved;
+				continue;
+			}
+			kobel_mkdir(path);
+			path[i] = saved;
+		}
+	}
+	kobel_mkdir(path);
+	return kobel_path_is_dir(dir_path);
 }
 
 """;

@@ -7,16 +7,21 @@ use std.traits.Stringer;
 
 /*
  * ============================================================================
- * std.filesystem.path — file system path manipulation and directory listing
+ * std.filesystem.path — file system path manipulation and filesystem operations
  *
  * `Path` wraps a `str` and provides zero-cost path manipulation methods along
- * with `impl str` path extensions (`dir_of`, `base_name`, `join_path`,
- * `normalize_path`, `to_win_path`, `to_posix_path`) and directory queries.
+ * with filesystem queries (exists, is_dir, is_file), directory creation,
+ * text reading/writing, and stream opening.
  * ============================================================================
  */
 
 extern "C" {
 	fn kobel_list_dir(dir_path: str): str;
+	fn kobel_path_exists(path: str): i32;
+	fn kobel_path_is_dir(path: str): i32;
+	fn kobel_path_is_file(path: str): i32;
+	fn kobel_create_dir(dir_path: str): i32;
+	fn kobel_create_dir_all(dir_path: str): i32;
 }
 
 pub fn str_is_sep(c: char) => c == '/' || c == '\\';
@@ -100,29 +105,6 @@ impl Path {
 
 	pub fn is_sep(c: char) => str_is_sep(c);
 
-	pub fn list_dir(path: str): List<str> {
-		val raw = kobel_list_dir(path);
-		if (raw.empty()) {
-			return List<str>();
-		}
-
-		var res = List<str>();
-		var start: usz = 0;
-		for (i in 0..<raw.len) {
-			if (raw[i] == '\n') {
-				if (i > start) {
-					res += raw.slice(start, i);
-				}
-				start = i + 1;
-			}
-		}
-
-		if (start < raw.len) {
-			res += raw.slice(start, raw.len);
-		}
-		return res;
-	}
-
 	pub fn c_str(val self) => self.raw.c_str();
 
 	pub fn empty(val self) => self.raw.empty();
@@ -195,13 +177,108 @@ impl Path {
 		return Path("${self.raw}/${part}");
 	}
 
-	pub fn join_path(val self, other: Path) => self.join(other.raw);
+	pub fn join_path(val self, other: Path): Path => self.join(other.raw);
 
 	pub fn to_win_path(val self): Path => Path(self.raw.to_win_path());
 
 	pub fn to_posix_path(val self): Path => Path(self.raw.to_posix_path());
 
 	pub fn normalize(val self): Path => Path(self.raw.normalize_path());
+
+	// ------------------------------------------------------------------------
+	// Filesystem state queries
+	// ------------------------------------------------------------------------
+
+	pub fn exists(val self): bool => kobel_path_exists(self.raw) != 0;
+
+	pub fn is_dir(val self): bool => kobel_path_is_dir(self.raw) != 0;
+
+	pub fn is_file(val self): bool => kobel_path_is_file(self.raw) != 0;
+
+	// ------------------------------------------------------------------------
+	// Filesystem directory manipulation
+	// ------------------------------------------------------------------------
+
+	pub fn create_dir(val self): bool => kobel_create_dir(self.raw) != 0;
+
+	pub fn create_dir_all(val self): bool => kobel_create_dir_all(self.raw) != 0;
+
+	pub fn remove(val self): bool => remove(self.raw.c_str()) == 0;
+
+	pub fn rename_to(val self, target: Path): bool {
+		if (target.exists()) {
+			target.remove();
+		}
+		return rename(self.raw.c_str(), target.raw.c_str()) == 0;
+	}
+
+	// Directory entries listing returning List<Path>
+	pub fn entries(val self): List<Path> {
+		val raw = kobel_list_dir(self.raw);
+		if (raw.empty()) {
+			return List<Path>();
+		}
+
+		var res = List<Path>();
+		var start: usz = 0;
+		for (i in 0..<raw.len) {
+			if (raw[i] == '\n') {
+				if (i > start) {
+					res += Path(raw.slice(start, i));
+				}
+				start = i + 1;
+			}
+		}
+
+		if (start < raw.len) {
+			res += Path(raw.slice(start, raw.len));
+		}
+		return res;
+	}
+
+	// Legacy static helper for directory listing
+	pub fn list_dir(path: str): List<str> {
+		val raw = kobel_list_dir(path);
+		if (raw.empty()) {
+			return List<str>();
+		}
+
+		var res = List<str>();
+		var start: usz = 0;
+		for (i in 0..<raw.len) {
+			if (raw[i] == '\n') {
+				if (i > start) {
+					res += raw.slice(start, i);
+				}
+				start = i + 1;
+			}
+		}
+
+		if (start < raw.len) {
+			res += raw.slice(start, raw.len);
+		}
+		return res;
+	}
+
+	// ------------------------------------------------------------------------
+	// High-level text I/O operations
+	// ------------------------------------------------------------------------
+
+	pub fn read_text(val self): str => File.read(self.raw);
+
+	pub fn write_text(val self, content: str): bool => File.write(self.raw, content);
+
+	pub fn append_text(val self, content: str): bool => File.append(self.raw, content);
+
+	// ------------------------------------------------------------------------
+	// Stream factory
+	// ------------------------------------------------------------------------
+
+	pub fn open_read(val self): File => File.open_read(self.raw);
+
+	pub fn open_write(val self): File => File.open_write(self.raw);
+
+	pub fn open_append(val self): File => File.open_append(self.raw);
 
 }
 

@@ -34,15 +34,10 @@ pub fn resolve_host_cc(cc: str): str {
 }
 
 pub fn ensure_dir(path: str) {
-	if (path.empty() || File.exists(path)) return;
-	val entries = Path.list_dir(path);
-	defer entries.free();
-	if (!entries.empty()) return;
-	if (System.is_windows()) {
-		Process.exec("cmd /c mkdir \"${path.to_win_path()}\" >nul 2>nul");
-	} else {
-		Process.exec("mkdir -p \"${path.to_posix_path()}\" >/dev/null 2>&1");
-	}
+	if (path.empty()) return;
+	val p = Path(path);
+	if (p.exists()) return;
+	p.create_dir_all();
 }
 
 // Command line that turns `c_path` into `exe_path` with the given backend.
