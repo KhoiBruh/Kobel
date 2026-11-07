@@ -30,6 +30,7 @@ fn overloaded_names(im: *ImplDecl): List<str> {
 		var na = "";
 		if (ma is FnDecl as fna) na = fna.name;
 		if (na.empty() || na in names) continue;
+
 		for (b in (a + 1)..<im.methods.len) {
 			val mb = im.methods[b];
 			if (mb is FnDecl as fnb && fnb.name == na) {
@@ -38,15 +39,19 @@ fn overloaded_names(im: *ImplDecl): List<str> {
 			}
 		}
 	}
+
 	return names;
 }
 
 fn method_c_name(base: str, argc: usz, overloaded: bool, taken: List<str>): str {
 	if (!overloaded) return base;
+
 	val cand = "${base}_${argc}";
 	if (!(cand in taken)) return cand;
+
 	var k = 2;
 	while ("${cand}_${k}" in taken) k++;
+
 	return "${cand}_${k}";
 }
 
@@ -58,6 +63,7 @@ fn trait_put_method(out: &List<*TraitMethod>, m: *TraitMethod) {
 			return;
 		}
 	}
+
 	out += m;
 }
 
@@ -88,10 +94,15 @@ impl TypeResolver {
 			val st = s_type.as_struct();
 			st.c_name = cname;
 			st.module = tmpl.module;
-			self.symtab.gen.add_inst(self.arena.create_val(Symbol(
-				cname, cname, SymbolKind.STRUCT, s_type, false, decl.public,
-				tmpl.node.line, tmpl.node.col, tmpl.node
-			)));
+			self.symtab.gen.add_inst(
+				self.arena.create_val(
+					Symbol(
+						cname, cname, SymbolKind.STRUCT,
+						s_type, false, decl.public,
+						tmpl.node.line, tmpl.node.col, tmpl.node
+					)
+				)
+			);
 
 			val mark = self.subst.push(tmpl.param_names(), args, self.prims().t_none());
 
@@ -143,6 +154,7 @@ impl TypeResolver {
 						),
 						impl_tmpl.node.line, impl_tmpl.node.col
 					);
+
 					self.register_instance_impl(iview);
 					self.queue_decl(impl_tmpl.module, iview);
 				}
@@ -176,6 +188,7 @@ impl TypeResolver {
 					val ty = self.resolve_ast_type(p.type_node!);
 					pt = self.arena.ast_type_from_type(ty);
 				}
+
 				val dflt = if (p.default_val != null)
 					self.clone_expr(p.default_val!, self.alloc_subst(tmpl.param_names(), arg_asts))
 					else null;
@@ -199,6 +212,7 @@ impl TypeResolver {
 				fn_node.line, fn_node.col
 			);
 		}
+
 		return fn_node;
 	}
 
@@ -248,31 +262,36 @@ impl TypeResolver {
 		for (f in fields) {
 			ast_fields += AstStructField(f.name, self.arena.ast_type_from_type(f.type_ptr), f.public, f.default_val);
 		}
-		return self.arena.node(NodeData.StructDecl(name, List<GenericParam>(), ast_fields, public, false, true), line, col);
+
+		return self.arena.node(
+			NodeData.StructDecl(name, List<GenericParam>(), ast_fields, public, false, true),
+			line, col
+		);
 	}
 
 	fn canonical_type_token(val self, ty: *Type): str {
 		if (ty.is_enum()) return ty.as_enum().c_name;
-		if (ty.kind == DataType.STRUCT) {
-			val s_info = ty.as_struct();
-			if (!s_info.c_name.empty()) return s_info.c_name;
-			return s_info.name;
-		}
-		if (ty.kind == DataType.POINTER) {
-			return "ptr_${self.canonical_type_token(ty.as_pointer().pointee)}";
-		}
-		if (ty.kind == DataType.ARRAY) {
-			val a = ty.as_array();
-			return "arr${a.length}_${self.canonical_type_token(a.elem)}";
-		}
-		return self.type_token(ty);
+
+		return when (ty.kind) {
+			DataType.STRUCT -> {
+				val s_info = ty.as_struct();
+				if (!s_info.c_name.empty()) yield s_info.c_name;
+				yield s_info.name;
+			}
+			DataType.POINTER -> "ptr_${self.canonical_type_token(ty.as_pointer().pointee)}";
+			DataType.ARRAY -> {
+				val a = ty.as_array();
+				yield "arr${a.length}_${self.canonical_type_token(a.elem)}";
+			}
+			else -> self.type_token(ty);
+		};
 	}
 
 	fn type_token_list_of(val self, args: List<*Type>): str {
 		var res = "";
 		for (i in 0..<args.len) {
 			res = if (i > 0) "${res}_${self.canonical_type_token(args[i])}"
-			else self.canonical_type_token(args[i]);
+				else self.canonical_type_token(args[i]);
 		}
 		return res;
 	}
@@ -313,11 +332,22 @@ impl TypeResolver {
 	pub fn collect_fn_as(var self, node: *AstNode, final_name: str, sig: *Type? = null) {
 		if (node is FnDecl as f) {
 			var param_types = List<*Type>();
-			for (p in f.params) param_types += if (p.type_node != null) self.resolve_ast_type(p.type_node!) else self.prims().t_none();
-			val ret_type = if (f.return_type != null) self.resolve_ast_type(f.return_type!) else self.prims().t_none();
+			for (p in f.params) param_types += if (p.type_node != null) self.resolve_ast_type(p.type_node!)
+												else self.prims().t_none();
+
+			val ret_type = if (f.return_type != null) self.resolve_ast_type(f.return_type!)
+							else self.prims().t_none();
 
 			val fn_type = sig ?: self.arena.fn_type(param_types, ret_type);
-			self.symtab.gen.add_inst(self.arena.create_val(Symbol(final_name, final_name, SymbolKind.FN, fn_type, false, f.public, node.line, node.col, node)));
+			self.symtab.gen.add_inst(
+				self.arena.create_val(
+					Symbol(
+						final_name, final_name, SymbolKind.FN, fn_type, false,
+						f.public, node.line, node.col, node
+					)
+				)
+			);
+
 			f.name = final_name;
 		}
 	}
@@ -325,6 +355,7 @@ impl TypeResolver {
 	pub fn trait_record_impl(var self, t: *TraitInfo?, struct_name: str) {
 		if (t == null) return;
 		if (t.has_impl(struct_name)) return;
+
 		t.impls += struct_name;
 		for (bname in t.bases) self.trait_record_impl(self.symtab.find_trait(bname), struct_name);
 	}
@@ -332,8 +363,8 @@ impl TypeResolver {
 	pub fn trait_effective(var self, t: *TraitInfo?, out: &List<*TraitMethod>, seen: &HashSet<str>) {
 		if (t == null) return;
 		if (t.name in seen) return;
-		seen += t.name;
 
+		seen += t.name;
 		for (bname in t.bases) self.trait_effective(self.symtab.find_trait(bname), out, seen);
 		for (m in t.methods) trait_put_method(out, m);
 	}
@@ -438,13 +469,12 @@ impl TypeResolver {
 					var param_types = List<*Type>();
 					for (p in f.params) {
 						var pt: *Type = self.prims().t_none();
-						if (p.name == "self" && p.type_node == null) {
-							pt = self.arena.pointer_type(st_type, p.mutable);
-						} else if (p.type_node != null) {
-							pt = self.resolve_ast_type(p.type_node!);
-						} else {
-							pt = self.prims().t_none();
-						}
+						pt = when {
+							p.name == "self" && p.type_node == null -> self.arena.pointer_type(st_type, p.mutable);
+							p.type_node != null -> self.resolve_ast_type(p.type_node!);
+							else -> self.prims().t_none();
+						};
+
 						param_types += pt;
 					}
 
@@ -460,7 +490,12 @@ impl TypeResolver {
 					used_names += m_c_name;
 
 					val is_static = f.params.empty() || f.params[0].name != "self";
-					val mi = self.arena.create_val(MethodInfo(f.name, m_c_name, fn_type, m_node, self.current_module, f.operator, is_static, f.initializer));
+					val mi = self.arena.create_val(
+						MethodInfo(
+							f.name, m_c_name, fn_type, m_node, self.current_module,
+							f.operator, is_static, f.initializer
+						)
+					);
 					st_info.methods += mi;
 
 					f.name = m_c_name;

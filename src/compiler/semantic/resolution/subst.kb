@@ -20,12 +20,9 @@ pub struct TypeSubst {
 
 impl TypeSubst {
 
-	pub init(names: List<str> = List(), types: List<*Type> = List()) =>
-		Self(names, types);
+	pub fn empty(val self) => self.names.empty();
 
-	pub fn is_empty(val self): bool => self.names.empty();
-
-	pub fn len(val self): usz => self.names.len;
+	pub fn len(val self) => self.names.len;
 
 	// Looks up a type parameter name; innermost (latest) binding wins.
 	pub fn lookup(val self, name: str): *Type? {

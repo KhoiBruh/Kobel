@@ -28,26 +28,28 @@ impl TypeResolver {
 	 * Propagates generic type arguments from a target type annotation (e.g. `List<i32>`)
 	 * to a call expression initializer without type arguments (e.g. `List()`).
 	 */
-	pub fn propagate_target_type(var self, target_type_node: *AstNode?, init_node: *AstNode?) {
-		if (target_type_node == null || init_node == null) return;
-		if (target_type_node is NamedType as nt) {
+	pub fn propagate_target_type(var self, node: *AstNode?, init_node: *AstNode?) {
+		if (node == null || init_node == null) return;
+
+		if (node is NamedType as nt) {
 			var cur = init_node;
 			while (cur != null) {
 				if (cur is GroupExpr as g) cur = g.expr;
 				else break;
 			}
+
 			if (cur == null) return;
 
 			when (cur) {
 				is CallExpr as var call -> self.propagate_call_target_type(nt, call);
+
 				is IfExpr as ife -> {
-					self.propagate_target_type(target_type_node, ife.then_branch);
-					self.propagate_target_type(target_type_node, ife.else_branch);
+					self.propagate_target_type(node, ife.then_branch);
+					self.propagate_target_type(node, ife.else_branch);
 				}
+
 				is WhenExpr as we -> {
-					for (arm in we.arms) {
-						self.propagate_target_type(target_type_node, arm.body);
-					}
+					for (arm in we.arms) self.propagate_target_type(node, arm.body);
 				}
 			}
 		}
@@ -55,6 +57,7 @@ impl TypeResolver {
 
 	fn propagate_call_target_type(val self, nt: *NamedType, var call: *CallExpr) {
 		if (!call.type_args.empty()) return;
+
 		if (call.callee is IdentifierExpr as var cid) {
 			if (nt.type_args.len > 0) {
 				if (cid.name == nt.name) {
@@ -67,9 +70,8 @@ impl TypeResolver {
 
 			val tmpl = self.find_struct_template(cid.name) ?: return;
 			val prefix = "${tmpl.module.mangle_symbol(tmpl.name)}_";
-			if (nt.name.starts_with(prefix)) {
-				cid.name = nt.name;
-			}
+
+			if (nt.name.starts_with(prefix)) cid.name = nt.name;
 		}
 	}
 
@@ -99,10 +101,11 @@ impl TypeResolver {
 	 */
 	fn rewrite_type_generics(var self, node: *AstNode): bool {
 		val target = node;
+
 		return when (target) {
 			is NamedType -> self.rewrite_named_type(node);
-			is PointerType as pt -> self.rewrite_child(pt.pointee);
-			is ArrayType as at -> self.rewrite_child(at.element_type);
+			is PointerType -> self.rewrite_child(target.pointee);
+			is ArrayType -> self.rewrite_child(target.element_type);
 			else -> false;
 		};
 	}
@@ -118,8 +121,10 @@ impl TypeResolver {
 					return true;
 				}
 			}
+
 			for (ta in nt.type_args) self.rewrite_generics(ta);
 		}
+
 		return true;
 	}
 
@@ -131,8 +136,8 @@ impl TypeResolver {
 	 */
 	fn rewrite_call_target(var self, node: *AstNode, c: &CallExpr) {
 		if (c.type_args.empty()) return;
-		val callee = c.callee;
 
+		val callee = c.callee;
 		if (callee is IdentifierExpr as var cid) {
 			val ft = self.find_fn_template(cid.name);
 			if (ft != null) {

@@ -36,30 +36,6 @@ pub struct TypeResolver {
 
 impl TypeResolver {
 
-	pub init(
-		symtab: SymbolTable,
-		arena: Arena,
-		current_module: str = "",
-		errors: List<str> = List(),
-		is_extern: bool = false,
-		current_self_type: *Type? = null,
-		subst: TypeSubst = TypeSubst(),
-		current_fn_return_type: *AstNode? = null,
-		mat_rec: *InstanceRecord? = null
-	) {
-		return Self(
-			symtab,
-			arena,
-			current_module,
-			errors,
-			is_extern,
-			current_self_type,
-			subst,
-			current_fn_return_type,
-			mat_rec
-		);
-	}
-
 	pub fn prims(val self) => self.symtab.prims;
 
 	pub fn enter_module(var self, module: str): str {
@@ -101,7 +77,7 @@ impl TypeResolver {
 				if (subst_res != null) yield subst_res;
 
 				if (name == "Self" && self.current_self_type != null) {
-					if (self.subst.is_empty()) {
+					if (self.subst.empty()) {
 						val sinfo = self.current_self_type.as_struct();
 						if (!sinfo.c_name.empty()) named.name = sinfo.c_name;
 						else named.name = sinfo.name;
@@ -125,7 +101,7 @@ impl TypeResolver {
 						self.report_error(node, "Associated type '${assoc}' must be a named type (struct, enum or primitive)");
 						yield self.prims().t_none();
 					}
-					if (self.subst.is_empty()) named.name = self.ast_type_name_of(bound!);
+					if (self.subst.empty()) named.name = self.ast_type_name_of(bound!);
 					yield bound;
 				}
 
@@ -136,7 +112,7 @@ impl TypeResolver {
 					val tmpl = self.find_struct_template(name);
 					if (tmpl != null) {
 						val cty = self.instantiate_struct(tmpl, named.type_args);
-						if (self.subst.is_empty()) {
+						if (self.subst.empty()) {
 							named.name = cty.as_struct().name;
 							named.type_args = List<*AstNode>();
 						}
@@ -153,14 +129,17 @@ impl TypeResolver {
 				self.report_error(node, "Unknown type '${name}'");
 				yield self.prims().t_none();
 			}
+
 			is PointerType as ptr_ast -> {
 				val pointee = self.resolve_ast_type(ptr_ast.pointee);
 				yield self.arena.pointer_type(pointee, ptr_ast.mutable);
 			}
+
 			is ArrayType as arr_ast -> {
 				val elem = self.resolve_ast_type(arr_ast.element_type);
 				yield self.arena.array_type(elem, arr_ast.size);
 			}
+
 			is NullableType as null_ast -> {
 				val inner_ty = self.resolve_ast_type(null_ast.inner_type);
 				var res_ty = inner_ty;
@@ -172,6 +151,7 @@ impl TypeResolver {
 				}
 				yield res_ty;
 			}
+
 			else -> self.prims().t_none();
 		};
 	}
@@ -182,7 +162,9 @@ impl TypeResolver {
 			if (!s_info.c_name.empty()) return s_info.c_name;
 			return s_info.name;
 		}
+
 		if (ty.is_enum()) return ty.as_enum().c_name;
+
 		return primitive_type_name(ty);
 	}
 
