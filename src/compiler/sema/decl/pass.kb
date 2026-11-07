@@ -200,63 +200,11 @@ impl DeclPass {
 			for (m in st_info.methods) used_names += m.c_name;
 
 			for (m_node in im.methods) {
-				if (m_node is FnDecl as f) {
+				if (m_node is FnDecl as var f) {
 					if (f.type_params.len > 0) continue;
 
-					if (f.name == "new" || f.initializer) {
-						for (p in f.params) {
-							if (p.name == "self") {
-								self.report_error(m_node,
-									"Constructor 'new' cannot have a 'self' "
-									"parameter in struct '${st_info.name}'"
-								);
-							}
-						}
-					}
-
-					if (f.operator) {
-						if (f.params.empty() || f.params[0].name != "self") {
-							self.report_error(m_node, "Operator '${f.name}' must have 'self' as its first parameter in struct '${st_info.name}'");
-						} else {
-							val mutable_self = f.params[0].mutable;
-							when (f.name) {
-								"plus", "minus", "mul", "div", "rem",
-								"bit_and", "bit_or", "bit_xor", "shl", "shr",
-								"equals", "compare", "contains" -> {
-									if (f.params.len != 2) {
-										self.report_error(m_node, "Binary operator '${f.name}' must take exactly 1 parameter besides 'self'");
-									}
-								}
-								"plus_assign", "minus_assign", "mul_assign", "div_assign", "rem_assign",
-								"bit_and_assign", "bit_or_assign", "bit_xor_assign", "shl_assign", "shr_assign" -> {
-									if (!mutable_self) {
-										self.report_error(m_node, "Compound assignment operator '${f.name}' requires a mutable receiver 'var self'");
-									}
-									if (f.params.len != 2) {
-										self.report_error(m_node, "Compound assignment operator '${f.name}' must take exactly 1 parameter besides 'self'");
-									}
-								}
-								"get" -> {
-									if (f.params.len < 2) {
-										self.report_error(m_node, "Index operator 'get' must take at least 1 parameter besides 'self'");
-									}
-								}
-								"set" -> {
-									if (!mutable_self) {
-										self.report_error(m_node, "Index assignment operator 'set' requires a mutable receiver 'var self'");
-									}
-									if (f.params.len < 3) {
-										self.report_error(m_node, "Index assignment operator 'set' must take at least 2 parameters besides 'self' (index and value)");
-									}
-								}
-								"negate", "not" -> {
-									if (f.params.len != 1) {
-										self.report_error(m_node, "Unary operator '${f.name}' cannot take parameters besides 'self'");
-									}
-								}
-							}
-						}
-					}
+					self.validate_constructor_signature(f, m_node, st_info.name);
+					if (f.operator) self.validate_operator_signature(f, m_node, st_info.name);
 
 					var param_types = List<*Type>();
 
@@ -297,6 +245,63 @@ impl DeclPass {
 			}
 
 			self.current_self_type = null;
+		}
+	}
+
+	fn validate_constructor_signature(var self, f: *FnDecl, m_node: *AstNode, struct_name: str) {
+		if (f.name != "new" && !f.initializer) return;
+		for (p in f.params) {
+			if (p.name == "self") {
+				self.report_error(
+					m_node,
+					"Constructor 'new' cannot have a 'self' parameter in struct '${struct_name}'"
+				);
+			}
+		}
+	}
+
+	fn validate_operator_signature(var self, f: *FnDecl, m_node: *AstNode, struct_name: str) {
+		if (f.params.empty() || f.params[0].name != "self") {
+			self.report_error(m_node, "Operator '${f.name}' must have 'self' as its first parameter in struct '${struct_name}'");
+			return;
+		}
+
+		val mutable_self = f.params[0].mutable;
+		when (f.name) {
+			"plus", "minus", "mul", "div", "rem",
+			"bit_and", "bit_or", "bit_xor", "shl", "shr",
+			"equals", "compare", "contains" -> {
+				if (f.params.len != 2) {
+					self.report_error(m_node, "Binary operator '${f.name}' must take exactly 1 parameter besides 'self'");
+				}
+			}
+			"plus_assign", "minus_assign", "mul_assign", "div_assign", "rem_assign",
+			"bit_and_assign", "bit_or_assign", "bit_xor_assign", "shl_assign", "shr_assign" -> {
+				if (!mutable_self) {
+					self.report_error(m_node, "Compound assignment operator '${f.name}' requires a mutable receiver 'var self'");
+				}
+				if (f.params.len != 2) {
+					self.report_error(m_node, "Compound assignment operator '${f.name}' must take exactly 1 parameter besides 'self'");
+				}
+			}
+			"get" -> {
+				if (f.params.len < 2) {
+					self.report_error(m_node, "Index operator 'get' must take at least 1 parameter besides 'self'");
+				}
+			}
+			"set" -> {
+				if (!mutable_self) {
+					self.report_error(m_node, "Index assignment operator 'set' requires a mutable receiver 'var self'");
+				}
+				if (f.params.len < 3) {
+					self.report_error(m_node, "Index assignment operator 'set' must take at least 2 parameters besides 'self' (index and value)");
+				}
+			}
+			"negate", "not" -> {
+				if (f.params.len != 1) {
+					self.report_error(m_node, "Unary operator '${f.name}' cannot take parameters besides 'self'");
+				}
+			}
 		}
 	}
 

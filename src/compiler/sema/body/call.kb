@@ -993,29 +993,24 @@ fn infer_type_args_for_fn(
 			is NamedType as nt -> {
 				if (nt.type_args.empty()) {
 					for (k in 0..<type_params.len) {
-						if (type_params[k].name == nt.name) {
-							if (inferred[k].kind == DataType.NONE) {
-								inferred[k] = arg_ty;
-							} else if (!inferred[k].equals(arg_ty)) {
-								if (inferred[k].is_integer() && arg_ty.is_integer() && arg_ty.size > inferred[k].size) {
-									inferred[k] = arg_ty;
-								}
-							}
-							return;
+						if (type_params[k].name != nt.name) continue;
+						if (inferred[k].kind == DataType.NONE) {
+							inferred[k] = arg_ty;
+						} else if (!inferred[k].equals(arg_ty) && inferred[k].is_integer() && arg_ty.is_integer() && arg_ty.size > inferred[k].size) {
+							inferred[k] = arg_ty;
+						}
+						return;
+					}
+				} else if (arg_ty.kind == DataType.STRUCT) {
+					val st = arg_ty.as_struct()!;
+					val rec = self.symtab.gen.find_record_by_cname(st.c_name);
+					if (rec != null && rec.args.len == nt.type_args.len) {
+						for (j in 0..<nt.type_args.len) {
+							self.match_type_param(nt.type_args[j], rec.args[j], type_params, inferred);
 						}
 					}
-				} else {
-					if (arg_ty.kind == DataType.STRUCT) {
-						val st = arg_ty.as_struct();
-						val rec = self.symtab.gen.find_record_by_cname(st.c_name);
-						if (rec != null && rec.args.len == nt.type_args.len) {
-							for (j in 0..<nt.type_args.len) {
-								self.match_type_param(nt.type_args[j], rec.args[j], type_params, inferred);
-							}
-						}
-					} else if (nt.name == "List" && nt.type_args.len == 1 && arg_ty.kind == DataType.ARRAY) {
-						self.match_type_param(nt.type_args[0], arg_ty.as_array().elem, type_params, inferred);
-					}
+				} else if (nt.name == "List" && nt.type_args.len == 1 && arg_ty.kind == DataType.ARRAY) {
+					self.match_type_param(nt.type_args[0], arg_ty.as_array()!.elem, type_params, inferred);
 				}
 			}
 			is PointerType as pt -> {

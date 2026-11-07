@@ -2587,6 +2587,8 @@ void compiler__semantic__resolution__TypeResolver_apply_trait(compiler__semantic
 void compiler__semantic__resolution__TypeResolver_register_instance_impl(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node);
 bool compiler__semantic__resolution__template_matches(compiler__semantic__symbols__TemplateKind kind, compiler__semantic__symbols__GenericTemplate* t, kobel_str name);
 void compiler__semantic__resolution__TypeResolver_register_template(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node);
+void compiler__semantic__resolution__TypeResolver_collect_generic_impl_methods(compiler__semantic__resolution__TypeResolver* self, compiler__ast__NodeData__ImplDecl* im);
+void compiler__semantic__resolution__TypeResolver_normalize_generic_self_param(compiler__semantic__resolution__TypeResolver* self, compiler__ast__NodeData__FnDecl* f, kobel_str struct_name, int32_t line, int32_t col);
 compiler__semantic__symbols__GenericTemplate* compiler__semantic__resolution__TypeResolver_generic_template(compiler__semantic__resolution__TypeResolver* self, kobel_str name, compiler__ast__AstNode* node, bool is_method, kobel_str self_type);
 bool compiler__semantic__resolution__TypeResolver_template_in_module(compiler__semantic__resolution__TypeResolver* self, kobel_str module, kobel_str name);
 compiler__semantic__symbols__Symbol* compiler__semantic__resolution__TypeResolver_find_instance_symbol(compiler__semantic__resolution__TypeResolver* self, kobel_str name);
@@ -2611,6 +2613,7 @@ void compiler__semantic__resolution__TypeResolver_report_error(compiler__semanti
 compiler__semantic__types__Type* compiler__semantic__resolution__TypeResolver_resolve_ast_type(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node);
 kobel_str compiler__semantic__resolution__TypeResolver_ast_type_name_of(compiler__semantic__resolution__TypeResolver* self, compiler__semantic__types__Type* ty);
 void compiler__semantic__resolution__TypeResolver_propagate_target_type(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* target_type_node, compiler__ast__AstNode* init_node);
+void compiler__semantic__resolution__TypeResolver_propagate_call_target_type(compiler__semantic__resolution__TypeResolver* self, compiler__ast__NodeData__NamedType* nt, compiler__ast__NodeData__CallExpr* call);
 void compiler__semantic__resolution__TypeResolver_rewrite_generics(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node);
 bool compiler__semantic__resolution__TypeResolver_rewrite_child(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* child);
 bool compiler__semantic__resolution__TypeResolver_rewrite_type_generics(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node);
@@ -2650,6 +2653,8 @@ kobel_str compiler__sema__decl__DeclPass_c_name_for(compiler__sema__decl__DeclPa
 void compiler__sema__decl__DeclPass_report_error(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node, kobel_str msg);
 int64_t compiler__sema__decl__DeclPass_enum_const_i64(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* expr);
 void compiler__sema__decl__DeclPass_collect_impl(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node);
+void compiler__sema__decl__DeclPass_validate_constructor_signature(compiler__sema__decl__DeclPass* self, compiler__ast__NodeData__FnDecl* f, compiler__ast__AstNode* m_node, kobel_str struct_name);
+void compiler__sema__decl__DeclPass_validate_operator_signature(compiler__sema__decl__DeclPass* self, compiler__ast__NodeData__FnDecl* f, compiler__ast__AstNode* m_node, kobel_str struct_name);
 compiler__semantic__types__Type* compiler__sema__decl__DeclPass_infer_const_type(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* expr);
 compiler__semantic__types__Type* compiler__sema__decl__DeclPass_infer_expr_type_quick(compiler__sema__decl__DeclPass* self, compiler__ast__NodeData__FnDecl* f, compiler__ast__AstNode* expr);
 void compiler__sema__decl__DeclPass_collect_return_exprs(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* stmt, std__collections__List_ptr_compiler__ast__AstNode* out_returns);
@@ -13344,52 +13349,77 @@ void compiler__semantic__resolution__TypeResolver_register_template(compiler__se
         if (im->type_params.len > 0) {
             std__collections__List_ptr_compiler__semantic__symbols__GenericTemplate_plus_assign(&self->symtab.gen.impl_templates, compiler__semantic__resolution__TypeResolver_generic_template(self, im->struct_name, node, true, KOBEL_STR("")));
         } else {
+            compiler__semantic__resolution__TypeResolver_collect_generic_impl_methods(self, im);
+        }
+    }
+}
+
+void compiler__semantic__resolution__TypeResolver_collect_generic_impl_methods(compiler__semantic__resolution__TypeResolver* self, compiler__ast__NodeData__ImplDecl* im) {
+    {
+        size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&im->methods);
+        size_t __for_i = 0;
+        while (__for_i < __for_n) {
+            compiler__ast__AstNode* m = std__collections__List_ptr_compiler__ast__AstNode_at(&im->methods, __for_i);
             {
-                size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&im->methods);
-                size_t __for_i = 0;
-                while (__for_i < __for_n) {
-                    compiler__ast__AstNode* m = std__collections__List_ptr_compiler__ast__AstNode_at(&im->methods, __for_i);
-                    {
-                        compiler__ast__NodeData__FnDecl* f = NULL;
-                        if ((m != NULL && m->data.tag == compiler__ast__NodeData__FnDecl__TAG && (f = (compiler__ast__NodeData__FnDecl*)(&(m)->data.u.FnDecl), 1)) && (f->type_params.len > 0)) {
-                            {
-                                size_t __for_e = f->params.len;
-                                size_t __for_i = __for_e;
-                                __for_i = 0;
-                                bool __for_up = (__for_i <= __for_e);
-                                bool __for_go = false;
-                                if (__for_up) {
-                                    __for_go = (__for_i < __for_e);
-                                } else {
-                                    __for_go = (__for_i > __for_e);
-                                }
-                                while (__for_go) {
-                                    size_t i = __for_i;
-                                    compiler__ast__Param p = std__collections__List_compiler__ast__Param_get(&f->params, i);
-                                    if (kobel_streq(p.name, KOBEL_STR("self")) && (p.type_node == NULL)) {
-                                        compiler__semantic__types__Type* prim = compiler__semantic__types__resolve_primitive_name(self->symtab.prims, im->struct_name);
-                                        compiler__ast__AstNode* named = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 1, .u.NamedType = { im->struct_name, std__collections__List_ptr_compiler__ast__AstNode_init(4) } }, m->line, m->col);
-                                        compiler__ast__AstNode* self_ty_node = ((prim != NULL) ? named : std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 2, .u.PointerType = { p.mutable, named } }, m->line, m->col));
-                                        std__collections__List_compiler__ast__Param_set(&f->params, i, (compiler__ast__Param){ p.name, self_ty_node, p.mutable, p.has_val, p.default_val });
-                                    }
-                                    if (__for_up) {
-                                        __for_go = ((__for_i + 1) < __for_e);
-                                    } else {
-                                        __for_go = ((__for_i - 1) > __for_e);
-                                    }
-                                    if (__for_go) {
-                                        if (__for_up) {
-                                            __for_i = (__for_i + 1);
-                                        } else {
-                                            __for_i = (__for_i - 1);
-                                        }
-                                    }
-                                }
-                            }
-                            std__collections__List_ptr_compiler__semantic__symbols__GenericTemplate_plus_assign(&self->symtab.gen.fn_templates, compiler__semantic__resolution__TypeResolver_generic_template(self, f->name, m, true, im->struct_name));
-                        }
+                compiler__ast__NodeData__FnDecl* f = NULL;
+                if ((m != NULL && m->data.tag == compiler__ast__NodeData__FnDecl__TAG && (f = (compiler__ast__NodeData__FnDecl*)(&(m)->data.u.FnDecl), 1))) {
+                    if (f->type_params.len == 0) {
+                        __for_i = (__for_i + 1);
+                        continue;
                     }
+                    compiler__semantic__resolution__TypeResolver_normalize_generic_self_param(self, f, im->struct_name, m->line, m->col);
+                    std__collections__List_ptr_compiler__semantic__symbols__GenericTemplate_plus_assign(&self->symtab.gen.fn_templates, compiler__semantic__resolution__TypeResolver_generic_template(self, f->name, m, true, im->struct_name));
+                }
+            }
+            __for_i = (__for_i + 1);
+        }
+    }
+}
+
+void compiler__semantic__resolution__TypeResolver_normalize_generic_self_param(compiler__semantic__resolution__TypeResolver* self, compiler__ast__NodeData__FnDecl* f, kobel_str struct_name, int32_t line, int32_t col) {
+    {
+        size_t __for_e = f->params.len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            compiler__ast__Param p = std__collections__List_compiler__ast__Param_get(&f->params, i);
+            if (!kobel_streq(p.name, KOBEL_STR("self")) || (p.type_node != NULL)) {
+                if (__for_up) {
+                    __for_go = ((__for_i + 1) < __for_e);
+                } else {
+                    __for_go = ((__for_i - 1) > __for_e);
+                }
+                if (__for_go) {
+                    if (__for_up) {
+                        __for_i = (__for_i + 1);
+                    } else {
+                        __for_i = (__for_i - 1);
+                    }
+                }
+                continue;
+            }
+            compiler__semantic__types__Type* prim = compiler__semantic__types__resolve_primitive_name(self->symtab.prims, struct_name);
+            compiler__ast__AstNode* named = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 1, .u.NamedType = { struct_name, std__collections__List_ptr_compiler__ast__AstNode_init(4) } }, line, col);
+            compiler__ast__AstNode* self_ty_node = ((prim != NULL) ? named : std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 2, .u.PointerType = { p.mutable, named } }, line, col));
+            std__collections__List_compiler__ast__Param_set(&f->params, i, (compiler__ast__Param){ p.name, self_ty_node, p.mutable, p.has_val, p.default_val });
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
                     __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
                 }
             }
         }
@@ -13916,37 +13946,7 @@ void compiler__semantic__resolution__TypeResolver_propagate_target_type(compiler
             }
             if (cur != NULL && cur->data.tag == compiler__ast__NodeData__CallExpr__TAG) {
                 compiler__ast__NodeData__CallExpr* call = (compiler__ast__NodeData__CallExpr*)(&(cur)->data.u.CallExpr);
-                compiler__ast__AstNode* callee = call->callee;
-                {
-                    compiler__ast__NodeData__IdentifierExpr* cid = NULL;
-                    if ((callee != NULL && callee->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (cid = (compiler__ast__NodeData__IdentifierExpr*)(&(callee)->data.u.IdentifierExpr), 1))) {
-                        if (std__collections__List_ptr_compiler__ast__AstNode_empty(&call->type_args)) {
-                            if (nt->type_args.len > 0) {
-                                if (kobel_streq(cid->name, nt->name)) {
-                                    std__collections__List_ptr_compiler__ast__AstNode new_targs = std__collections__List_ptr_compiler__ast__AstNode_init(4);
-                                    {
-                                        size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&nt->type_args);
-                                        size_t __for_i = 0;
-                                        while (__for_i < __for_n) {
-                                            compiler__ast__AstNode* ta = std__collections__List_ptr_compiler__ast__AstNode_at(&nt->type_args, __for_i);
-                                            std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&new_targs, ta);
-                                            __for_i = (__for_i + 1);
-                                        }
-                                    }
-                                    call->type_args = new_targs;
-                                }
-                            } else {
-                                compiler__semantic__symbols__GenericTemplate* tmpl = compiler__semantic__resolution__TypeResolver_find_struct_template(self, cid->name);
-                                if (tmpl != NULL) {
-                                    kobel_str prefix = kobel_concat(str_mangle_symbol(tmpl->module, tmpl->name), KOBEL_STR("_"));
-                                    if (str_starts_with(nt->name, prefix)) {
-                                        cid->name = nt->name;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+                compiler__semantic__resolution__TypeResolver_propagate_call_target_type(self, nt, call);
             } else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__IfExpr__TAG) {
                 compiler__ast__NodeData__IfExpr* ife = (compiler__ast__NodeData__IfExpr*)(&(cur)->data.u.IfExpr);
                 compiler__semantic__resolution__TypeResolver_propagate_target_type(self, target_type_node, ife->then_branch);
@@ -13962,6 +13962,41 @@ void compiler__semantic__resolution__TypeResolver_propagate_target_type(compiler
                         __for_i = (__for_i + 1);
                     }
                 }
+            }
+        }
+    }
+}
+
+void compiler__semantic__resolution__TypeResolver_propagate_call_target_type(compiler__semantic__resolution__TypeResolver* self, compiler__ast__NodeData__NamedType* nt, compiler__ast__NodeData__CallExpr* call) {
+    if (!std__collections__List_ptr_compiler__ast__AstNode_empty(&call->type_args)) {
+        return;
+    }
+    {
+        compiler__ast__NodeData__IdentifierExpr* cid = NULL;
+        if ((call->callee != NULL && call->callee->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (cid = (compiler__ast__NodeData__IdentifierExpr*)(&(call->callee)->data.u.IdentifierExpr), 1))) {
+            if (nt->type_args.len > 0) {
+                if (kobel_streq(cid->name, nt->name)) {
+                    std__collections__List_ptr_compiler__ast__AstNode new_targs = std__collections__List_ptr_compiler__ast__AstNode_init(4);
+                    {
+                        size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&nt->type_args);
+                        size_t __for_i = 0;
+                        while (__for_i < __for_n) {
+                            compiler__ast__AstNode* ta = std__collections__List_ptr_compiler__ast__AstNode_at(&nt->type_args, __for_i);
+                            std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&new_targs, ta);
+                            __for_i = (__for_i + 1);
+                        }
+                    }
+                    call->type_args = new_targs;
+                }
+                return;
+            }
+            compiler__semantic__symbols__GenericTemplate* tmpl = compiler__semantic__resolution__TypeResolver_find_struct_template(self, cid->name);
+            if (tmpl == NULL) {
+                return;
+            }
+            kobel_str prefix = kobel_concat(str_mangle_symbol(tmpl->module, tmpl->name), KOBEL_STR("_"));
+            if (str_starts_with(nt->name, prefix)) {
+                cid->name = nt->name;
             }
         }
     }
@@ -15462,52 +15497,9 @@ void compiler__sema__decl__DeclPass_collect_impl(compiler__sema__decl__DeclPass*
                                 __for_i = (__for_i + 1);
                                 continue;
                             }
-                            if (kobel_streq(f->name, KOBEL_STR("new")) || f->initializer) {
-                                {
-                                    size_t __for_n = std__collections__List_compiler__ast__Param_count(&f->params);
-                                    size_t __for_i = 0;
-                                    while (__for_i < __for_n) {
-                                        compiler__ast__Param p = std__collections__List_compiler__ast__Param_at(&f->params, __for_i);
-                                        if (kobel_streq(p.name, KOBEL_STR("self"))) {
-                                            compiler__sema__decl__DeclPass_report_error(self, m_node, kobel_concat3(KOBEL_STR("Constructor 'new' cannot have a 'self' parameter in struct '"), st_info->name, KOBEL_STR("'")));
-                                        }
-                                        __for_i = (__for_i + 1);
-                                    }
-                                }
-                            }
+                            compiler__sema__decl__DeclPass_validate_constructor_signature(self, f, m_node, st_info->name);
                             if (f->operator) {
-                                if (std__collections__List_compiler__ast__Param_empty(&f->params) || !kobel_streq(std__collections__List_compiler__ast__Param_get(&f->params, 0).name, KOBEL_STR("self"))) {
-                                    compiler__sema__decl__DeclPass_report_error(self, m_node, kobel_concat5(KOBEL_STR("Operator '"), f->name, KOBEL_STR("' must have 'self' as its first parameter in struct '"), st_info->name, KOBEL_STR("'")));
-                                } else {
-                                    bool mutable_self = std__collections__List_compiler__ast__Param_get(&f->params, 0).mutable;
-                                    if (kobel_streq(f->name, KOBEL_STR("plus")) || kobel_streq(f->name, KOBEL_STR("minus")) || kobel_streq(f->name, KOBEL_STR("mul")) || kobel_streq(f->name, KOBEL_STR("div")) || kobel_streq(f->name, KOBEL_STR("rem")) || kobel_streq(f->name, KOBEL_STR("bit_and")) || kobel_streq(f->name, KOBEL_STR("bit_or")) || kobel_streq(f->name, KOBEL_STR("bit_xor")) || kobel_streq(f->name, KOBEL_STR("shl")) || kobel_streq(f->name, KOBEL_STR("shr")) || kobel_streq(f->name, KOBEL_STR("equals")) || kobel_streq(f->name, KOBEL_STR("compare")) || kobel_streq(f->name, KOBEL_STR("contains"))) {
-                                        if (f->params.len != 2) {
-                                            compiler__sema__decl__DeclPass_report_error(self, m_node, kobel_concat3(KOBEL_STR("Binary operator '"), f->name, KOBEL_STR("' must take exactly 1 parameter besides 'self'")));
-                                        }
-                                    } else if (kobel_streq(f->name, KOBEL_STR("plus_assign")) || kobel_streq(f->name, KOBEL_STR("minus_assign")) || kobel_streq(f->name, KOBEL_STR("mul_assign")) || kobel_streq(f->name, KOBEL_STR("div_assign")) || kobel_streq(f->name, KOBEL_STR("rem_assign")) || kobel_streq(f->name, KOBEL_STR("bit_and_assign")) || kobel_streq(f->name, KOBEL_STR("bit_or_assign")) || kobel_streq(f->name, KOBEL_STR("bit_xor_assign")) || kobel_streq(f->name, KOBEL_STR("shl_assign")) || kobel_streq(f->name, KOBEL_STR("shr_assign"))) {
-                                        if (!mutable_self) {
-                                            compiler__sema__decl__DeclPass_report_error(self, m_node, kobel_concat3(KOBEL_STR("Compound assignment operator '"), f->name, KOBEL_STR("' requires a mutable receiver 'var self'")));
-                                        }
-                                        if (f->params.len != 2) {
-                                            compiler__sema__decl__DeclPass_report_error(self, m_node, kobel_concat3(KOBEL_STR("Compound assignment operator '"), f->name, KOBEL_STR("' must take exactly 1 parameter besides 'self'")));
-                                        }
-                                    } else if (kobel_streq(f->name, KOBEL_STR("get"))) {
-                                        if (f->params.len < 2) {
-                                            compiler__sema__decl__DeclPass_report_error(self, m_node, KOBEL_STR("Index operator 'get' must take at least 1 parameter besides 'self'"));
-                                        }
-                                    } else if (kobel_streq(f->name, KOBEL_STR("set"))) {
-                                        if (!mutable_self) {
-                                            compiler__sema__decl__DeclPass_report_error(self, m_node, KOBEL_STR("Index assignment operator 'set' requires a mutable receiver 'var self'"));
-                                        }
-                                        if (f->params.len < 3) {
-                                            compiler__sema__decl__DeclPass_report_error(self, m_node, KOBEL_STR("Index assignment operator 'set' must take at least 2 parameters besides 'self' (index and value)"));
-                                        }
-                                    } else if (kobel_streq(f->name, KOBEL_STR("negate")) || kobel_streq(f->name, KOBEL_STR("not"))) {
-                                        if (f->params.len != 1) {
-                                            compiler__sema__decl__DeclPass_report_error(self, m_node, kobel_concat3(KOBEL_STR("Unary operator '"), f->name, KOBEL_STR("' cannot take parameters besides 'self'")));
-                                        }
-                                    }
-                                }
+                                compiler__sema__decl__DeclPass_validate_operator_signature(self, f, m_node, st_info->name);
                             }
                             std__collections__List_ptr_compiler__semantic__types__Type param_types = std__collections__List_ptr_compiler__semantic__types__Type_init(4);
                             {
@@ -15543,6 +15535,58 @@ void compiler__sema__decl__DeclPass_collect_impl(compiler__sema__decl__DeclPass*
                 }
             }
             self->current_self_type = NULL;
+        }
+    }
+}
+
+void compiler__sema__decl__DeclPass_validate_constructor_signature(compiler__sema__decl__DeclPass* self, compiler__ast__NodeData__FnDecl* f, compiler__ast__AstNode* m_node, kobel_str struct_name) {
+    if (!kobel_streq(f->name, KOBEL_STR("new")) && !f->initializer) {
+        return;
+    }
+    {
+        size_t __for_n = std__collections__List_compiler__ast__Param_count(&f->params);
+        size_t __for_i = 0;
+        while (__for_i < __for_n) {
+            compiler__ast__Param p = std__collections__List_compiler__ast__Param_at(&f->params, __for_i);
+            if (kobel_streq(p.name, KOBEL_STR("self"))) {
+                compiler__sema__decl__DeclPass_report_error(self, m_node, kobel_concat3(KOBEL_STR("Constructor 'new' cannot have a 'self' parameter in struct '"), struct_name, KOBEL_STR("'")));
+            }
+            __for_i = (__for_i + 1);
+        }
+    }
+}
+
+void compiler__sema__decl__DeclPass_validate_operator_signature(compiler__sema__decl__DeclPass* self, compiler__ast__NodeData__FnDecl* f, compiler__ast__AstNode* m_node, kobel_str struct_name) {
+    if (std__collections__List_compiler__ast__Param_empty(&f->params) || !kobel_streq(std__collections__List_compiler__ast__Param_get(&f->params, 0).name, KOBEL_STR("self"))) {
+        compiler__sema__decl__DeclPass_report_error(self, m_node, kobel_concat5(KOBEL_STR("Operator '"), f->name, KOBEL_STR("' must have 'self' as its first parameter in struct '"), struct_name, KOBEL_STR("'")));
+        return;
+    }
+    bool mutable_self = std__collections__List_compiler__ast__Param_get(&f->params, 0).mutable;
+    if (kobel_streq(f->name, KOBEL_STR("plus")) || kobel_streq(f->name, KOBEL_STR("minus")) || kobel_streq(f->name, KOBEL_STR("mul")) || kobel_streq(f->name, KOBEL_STR("div")) || kobel_streq(f->name, KOBEL_STR("rem")) || kobel_streq(f->name, KOBEL_STR("bit_and")) || kobel_streq(f->name, KOBEL_STR("bit_or")) || kobel_streq(f->name, KOBEL_STR("bit_xor")) || kobel_streq(f->name, KOBEL_STR("shl")) || kobel_streq(f->name, KOBEL_STR("shr")) || kobel_streq(f->name, KOBEL_STR("equals")) || kobel_streq(f->name, KOBEL_STR("compare")) || kobel_streq(f->name, KOBEL_STR("contains"))) {
+        if (f->params.len != 2) {
+            compiler__sema__decl__DeclPass_report_error(self, m_node, kobel_concat3(KOBEL_STR("Binary operator '"), f->name, KOBEL_STR("' must take exactly 1 parameter besides 'self'")));
+        }
+    } else if (kobel_streq(f->name, KOBEL_STR("plus_assign")) || kobel_streq(f->name, KOBEL_STR("minus_assign")) || kobel_streq(f->name, KOBEL_STR("mul_assign")) || kobel_streq(f->name, KOBEL_STR("div_assign")) || kobel_streq(f->name, KOBEL_STR("rem_assign")) || kobel_streq(f->name, KOBEL_STR("bit_and_assign")) || kobel_streq(f->name, KOBEL_STR("bit_or_assign")) || kobel_streq(f->name, KOBEL_STR("bit_xor_assign")) || kobel_streq(f->name, KOBEL_STR("shl_assign")) || kobel_streq(f->name, KOBEL_STR("shr_assign"))) {
+        if (!mutable_self) {
+            compiler__sema__decl__DeclPass_report_error(self, m_node, kobel_concat3(KOBEL_STR("Compound assignment operator '"), f->name, KOBEL_STR("' requires a mutable receiver 'var self'")));
+        }
+        if (f->params.len != 2) {
+            compiler__sema__decl__DeclPass_report_error(self, m_node, kobel_concat3(KOBEL_STR("Compound assignment operator '"), f->name, KOBEL_STR("' must take exactly 1 parameter besides 'self'")));
+        }
+    } else if (kobel_streq(f->name, KOBEL_STR("get"))) {
+        if (f->params.len < 2) {
+            compiler__sema__decl__DeclPass_report_error(self, m_node, KOBEL_STR("Index operator 'get' must take at least 1 parameter besides 'self'"));
+        }
+    } else if (kobel_streq(f->name, KOBEL_STR("set"))) {
+        if (!mutable_self) {
+            compiler__sema__decl__DeclPass_report_error(self, m_node, KOBEL_STR("Index assignment operator 'set' requires a mutable receiver 'var self'"));
+        }
+        if (f->params.len < 3) {
+            compiler__sema__decl__DeclPass_report_error(self, m_node, KOBEL_STR("Index assignment operator 'set' must take at least 2 parameters besides 'self' (index and value)"));
+        }
+    } else if (kobel_streq(f->name, KOBEL_STR("negate")) || kobel_streq(f->name, KOBEL_STR("not"))) {
+        if (f->params.len != 1) {
+            compiler__sema__decl__DeclPass_report_error(self, m_node, kobel_concat3(KOBEL_STR("Unary operator '"), f->name, KOBEL_STR("' cannot take parameters besides 'self'")));
         }
     }
 }
@@ -18181,16 +18225,27 @@ void compiler__sema__body__BodyPass_match_type_param(compiler__sema__body__BodyP
                 }
                 while (__for_go) {
                     size_t k = __for_i;
-                    if (kobel_streq(std__collections__List_compiler__ast__GenericParam_get(&type_params, k).name, nt->name)) {
-                        if ((*inferred[k]).kind == 0) {
-                            inferred[k] = arg_ty;
-                        } else if (!compiler__semantic__types__Type_equals(inferred[k], arg_ty)) {
-                            if ((compiler__semantic__types__Type_is_integer(inferred[k]) && compiler__semantic__types__Type_is_integer(arg_ty)) && (arg_ty->size > (*inferred[k]).size)) {
-                                inferred[k] = arg_ty;
+                    if (!kobel_streq(std__collections__List_compiler__ast__GenericParam_get(&type_params, k).name, nt->name)) {
+                        if (__for_up) {
+                            __for_go = ((__for_i + 1) < __for_e);
+                        } else {
+                            __for_go = ((__for_i - 1) > __for_e);
+                        }
+                        if (__for_go) {
+                            if (__for_up) {
+                                __for_i = (__for_i + 1);
+                            } else {
+                                __for_i = (__for_i - 1);
                             }
                         }
-                        return;
+                        continue;
                     }
+                    if ((*inferred[k]).kind == 0) {
+                        inferred[k] = arg_ty;
+                    } else if (((!compiler__semantic__types__Type_equals(inferred[k], arg_ty) && compiler__semantic__types__Type_is_integer(inferred[k])) && compiler__semantic__types__Type_is_integer(arg_ty)) && (arg_ty->size > (*inferred[k]).size)) {
+                        inferred[k] = arg_ty;
+                    }
+                    return;
                     if (__for_up) {
                         __for_go = ((__for_i + 1) < __for_e);
                     } else {
@@ -18205,43 +18260,41 @@ void compiler__sema__body__BodyPass_match_type_param(compiler__sema__body__BodyP
                     }
                 }
             }
-        } else {
-            if (arg_ty->kind == 18) {
-                compiler__semantic__types__StructType* st = compiler__semantic__types__Type_as_struct(arg_ty);
-                compiler__semantic__symbols__InstanceRecord* rec = compiler__semantic__symbols__GenericRegistry_find_record_by_cname(&self->symtab.gen, st->c_name);
-                if ((rec != NULL) && (rec->args.len == nt->type_args.len)) {
-                    {
-                        size_t __for_e = nt->type_args.len;
-                        size_t __for_i = __for_e;
-                        __for_i = 0;
-                        bool __for_up = (__for_i <= __for_e);
-                        bool __for_go = false;
+        } else if (arg_ty->kind == 18) {
+            compiler__semantic__types__StructType* st = compiler__semantic__types__Type_as_struct(arg_ty);
+            compiler__semantic__symbols__InstanceRecord* rec = compiler__semantic__symbols__GenericRegistry_find_record_by_cname(&self->symtab.gen, st->c_name);
+            if ((rec != NULL) && (rec->args.len == nt->type_args.len)) {
+                {
+                    size_t __for_e = nt->type_args.len;
+                    size_t __for_i = __for_e;
+                    __for_i = 0;
+                    bool __for_up = (__for_i <= __for_e);
+                    bool __for_go = false;
+                    if (__for_up) {
+                        __for_go = (__for_i < __for_e);
+                    } else {
+                        __for_go = (__for_i > __for_e);
+                    }
+                    while (__for_go) {
+                        size_t j = __for_i;
+                        compiler__sema__body__BodyPass_match_type_param(self, std__collections__List_ptr_compiler__ast__AstNode_get(&nt->type_args, j), std__collections__List_ptr_compiler__semantic__types__Type_get(&rec->args, j), type_params, inferred);
                         if (__for_up) {
-                            __for_go = (__for_i < __for_e);
+                            __for_go = ((__for_i + 1) < __for_e);
                         } else {
-                            __for_go = (__for_i > __for_e);
+                            __for_go = ((__for_i - 1) > __for_e);
                         }
-                        while (__for_go) {
-                            size_t j = __for_i;
-                            compiler__sema__body__BodyPass_match_type_param(self, std__collections__List_ptr_compiler__ast__AstNode_get(&nt->type_args, j), std__collections__List_ptr_compiler__semantic__types__Type_get(&rec->args, j), type_params, inferred);
+                        if (__for_go) {
                             if (__for_up) {
-                                __for_go = ((__for_i + 1) < __for_e);
+                                __for_i = (__for_i + 1);
                             } else {
-                                __for_go = ((__for_i - 1) > __for_e);
-                            }
-                            if (__for_go) {
-                                if (__for_up) {
-                                    __for_i = (__for_i + 1);
-                                } else {
-                                    __for_i = (__for_i - 1);
-                                }
+                                __for_i = (__for_i - 1);
                             }
                         }
                     }
                 }
-            } else if ((kobel_streq(nt->name, KOBEL_STR("List")) && (nt->type_args.len == 1)) && (arg_ty->kind == 17)) {
-                compiler__sema__body__BodyPass_match_type_param(self, std__collections__List_ptr_compiler__ast__AstNode_get(&nt->type_args, 0), (*compiler__semantic__types__Type_as_array(arg_ty)).elem, type_params, inferred);
             }
+        } else if ((kobel_streq(nt->name, KOBEL_STR("List")) && (nt->type_args.len == 1)) && (arg_ty->kind == 17)) {
+            compiler__sema__body__BodyPass_match_type_param(self, std__collections__List_ptr_compiler__ast__AstNode_get(&nt->type_args, 0), (*compiler__semantic__types__Type_as_array(arg_ty)).elem, type_params, inferred);
         }
     } else if (param_ty_node != NULL && param_ty_node->data.tag == compiler__ast__NodeData__PointerType__TAG) {
         compiler__ast__NodeData__PointerType* pt = (compiler__ast__NodeData__PointerType*)(&(param_ty_node)->data.u.PointerType);
