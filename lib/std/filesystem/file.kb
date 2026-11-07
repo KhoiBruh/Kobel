@@ -46,19 +46,15 @@ impl File {
 	}
 
 	pub fn flush(val self) {
-		if (self.handle != null) {
-			fflush(self.handle);
-		}
+		if (self.handle != null) fflush(self.handle);
 	}
 
-	pub fn seek(val self, offset: i64, origin: i32): i32 => fseek(self.handle, offset, origin);
+	pub fn seek(val self, offset: i64, origin: i32) => fseek(self.handle, offset, origin);
 
-	pub fn tell(val self): i64 => ftell(self.handle);
+	pub fn tell(val self) => ftell(self.handle);
 
 	pub fn size(val self): i64 {
-		if (self.handle == null) {
-			return 0;
-		}
+		if (self.handle == null) return 0;
 
 		val cur = ftell(self.handle);
 		fseek(self.handle, 0, 2);
@@ -70,17 +66,13 @@ impl File {
 	}
 
 	pub fn write_all(val self, content: str): bool {
-		if (self.handle == null) {
-			return false;
-		}
+		if (self.handle == null) return false;
 		val written = fwrite(content.data, 1, content.len, self.handle);
 		return written == content.len;
 	}
 
 	pub fn read_all(val self): str {
-		if (self.handle == null) {
-			return "";
-		}
+		if (self.handle == null) return "";
 
 		val cur = ftell(self.handle);
 		fseek(self.handle, 0, 2);
@@ -89,6 +81,7 @@ impl File {
 			fseek(self.handle, cur, 0);
 			return "";
 		}
+
 		fseek(self.handle, cur, 0);
 
 		val size = end_pos - cur;
