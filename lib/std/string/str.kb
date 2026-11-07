@@ -51,9 +51,11 @@ fn common_whitespace_prefix(lines: List<str>, start_idx: usz, end_idx: usz): str
 		} else {
 			var match_len = 0;
 			val max_l = if (prefix.len < ws.len) prefix.len else ws.len;
-			while (match_len < max_l && prefix[match_len] == ws[match_len]) {
-				match_len++;
-			}
+			while (
+				match_len < max_l
+				&& prefix[match_len] == ws[match_len]
+			) match_len++;
+
 			prefix = prefix.slice(0, match_len);
 		}
 	}
@@ -67,9 +69,12 @@ impl str {
 
 	pub fn blank(val self): bool {
 		for (c in self) {
-			if (c != ' ' && c != '\t' && c != '\r' && c != '\n') {
-				return false;
-			}
+			if (
+				c != ' '
+				&& c != '\t'
+				&& c != '\r'
+				&& c != '\n'
+			) return false;
 		}
 		return true;
 	}
@@ -89,9 +94,7 @@ impl str {
 
 		val off = self.len - suffix.len;
 		for (i in 0..<suffix.len) {
-			if (self[off + i] != suffix[i]) {
-				return false;
-			}
+			if (self[off + i] != suffix[i]) return false;
 		}
 
 		return true;
@@ -157,8 +160,8 @@ impl str {
 		var w = 0;
 
 		for (k in 0..<n) {
-			for (i in 0..<self.len) {
-				buf[w] = self[i].code();
+			for (c in self) {
+				buf[w] = c.code();
 				w++;
 			}
 		}
@@ -312,9 +315,7 @@ impl str {
 			val c = self[i];
 			if (c == '\n') {
 				var line_end = i;
-				if (line_end > start && self[line_end - 1] == '\r') {
-					line_end = line_end - 1;
-				}
+				if (line_end > start && self[line_end - 1] == '\r') line_end--;
 				res += self.slice(start, line_end);
 				start = i + 1;
 			}
@@ -323,11 +324,10 @@ impl str {
 
 		if (start <= self.len) {
 			var line_end = self.len;
-			if (line_end > start && self[line_end - 1] == '\r') {
-				line_end = line_end - 1;
-			}
+			if (line_end > start && self[line_end - 1] == '\r') line_end--;
 			res += self.slice(start, line_end);
 		}
+
 		return res;
 	}
 
@@ -338,18 +338,20 @@ impl str {
 		if (lines.empty()) return "";
 		if (lines.len == 1) return lines[0];
 
-		var start_idx: usz = 0;
+		var start_idx = 0;
 		if (lines[0].blank()) start_idx = 1;
 
-		var end_idx: usz = lines.len;
-		if (end_idx > start_idx && lines[end_idx - 1].blank()) {
-			end_idx = end_idx - 1;
-		}
+		var end_idx = lines.len;
+		if (
+			end_idx > start_idx
+			&& lines[end_idx - 1].blank()
+		) end_idx = end_idx - 1;
 
 		val prefix = common_whitespace_prefix(lines, start_idx, end_idx);
 
 		var sb = StringBuilder();
 		defer sb.free();
+
 		var first = true;
 		for (i in start_idx..<end_idx) {
 			val line = lines[i];

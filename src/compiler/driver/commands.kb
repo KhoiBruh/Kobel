@@ -27,10 +27,12 @@ pub fn collect_kb_files(dir: str, prefix: str, var out: &List<str>) {
 	val dir_p = Path(dir);
 	val entries = dir_p.list_dir();
 	defer entries.free();
+
 	if (entries.empty()) return;
 
 	var sorted = List<str>();
 	defer sorted.free();
+
 	for (e in entries) sorted += e;
 	for (i in 0..<sorted.len) {
 		for (j in (i + 1)..<sorted.len) {
@@ -144,19 +146,19 @@ pub fn cmd_run(manifest_path: str, extra_args: List<str>): i32 {
 	} else println("No changes detected. Running '${cfg.output}'...");
 
 	// Prepare run command safely without triggering Windows cmd /c quote stripping
-	var out_bin = if (System.is_windows()) cfg.output.to_win_path() else cfg.output.to_posix_path();
-	if (System.is_windows()) {
-		if (
-			!out_bin.starts_with(".") &&
-			!out_bin.starts_with("\\") &&
-			out_bin.index_of(":") < 0
-		) out_bin = ".\\${out_bin}";
-	} else {
-		if (
-			!out_bin.starts_with(".") &&
-			!out_bin.starts_with("/")
-		) out_bin = "./${out_bin}";
-	}
+	var out_bin = if (System.is_windows()) cfg.output.to_win_path()
+				else cfg.output.to_posix_path();
+
+	if (
+		System.is_windows()
+		&& !out_bin.starts_with(".")
+		&& !out_bin.starts_with("\\")
+		&& out_bin.index_of(":") < 0
+	) out_bin = ".\\${out_bin}";
+	else if (
+		!out_bin.starts_with(".")
+		&& !out_bin.starts_with("/")
+	) out_bin = "./${out_bin}";
 
 	var run_cmd = if (" " in out_bin) "\"${out_bin}\"" else out_bin;
 	for (arg in extra_args) {
@@ -175,7 +177,9 @@ pub fn discover_test_files(test_dir: str): List<str> {
 
 pub fn cmd_test(manifest_path: str, filter: str): i32 {
 	val man_p = Path(manifest_path);
-	val cfg = if (man_p.exists()) ProjectConfig(manifest_path) else ProjectConfig();
+	val cfg = if (man_p.exists()) ProjectConfig(manifest_path)
+			else ProjectConfig();
+
 	val all_tests = discover_test_files(cfg.test_dir);
 	var active_tests = List<str>();
 

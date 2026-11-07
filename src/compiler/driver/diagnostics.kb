@@ -4,7 +4,6 @@ use std.io.*;
 use std.filesystem.*;
 use std.collections.*;
 
-
 use compiler.core.Span;
 use compiler.core.Severity;
 use compiler.core.Diagnostic as CoreDiagnostic;
@@ -20,33 +19,28 @@ use compiler.loader.ModuleLoader;
  */
 
 fn resolve_file_path(target: str, default_file: str, loader: *ModuleLoader?): str {
-	if (target.empty()) {
-		return default_file;
-	}
-	if (target.ends_with(".kb") || "/" in target || "\\" in target) {
-		return target.to_posix_path();
-	}
+	if (target.empty()) return default_file;
+
+	if (
+		target.ends_with(".kb")
+		|| "/" in target
+		|| "\\" in target
+	) return target.to_posix_path();
 
 	if (loader != null) {
 		val resolved = loader.find_module(target);
-		if (resolved.found) {
-			return resolved.path.to_posix_path();
-		}
+		if (resolved.found) return resolved.path.to_posix_path();
 	}
 
 	val rel = "${target.module_to_rel()}.kb";
 	val src_p = Path("src/${rel}");
-	if (src_p.exists()) {
-		return "src/${rel}";
-	}
+	if (src_p.exists()) return "src/${rel}";
+
 	val lib_p = Path("lib/${rel}");
-	if (lib_p.exists()) {
-		return "lib/${rel}";
-	}
+	if (lib_p.exists()) return "lib/${rel}";
+
 	val rel_p = Path(rel);
-	if (rel_p.exists()) {
-		return rel;
-	}
+	if (rel_p.exists()) return rel;
 
 	return target;
 }
@@ -54,16 +48,15 @@ fn resolve_file_path(target: str, default_file: str, loader: *ModuleLoader?): st
 pub fn print_diagnostics(errors: List<str>, default_file: str, loader: *ModuleLoader? = null) {
 	var seen = HashSet<str>();
 	defer seen.free();
-	var printed_count: usz = 0;
+
+	var printed_count = 0;
 	val src_map = if (loader != null) &loader.sources else null;
 
 	for (err in errors) {
 		var diag = CoreDiagnostic.parse_legacy(err, default_file, Severity.ERROR, src_map);
 		diag.file_path = resolve_file_path(diag.file_path, default_file, loader);
 		val key = diag.key();
-		if (key in seen) {
-			continue;
-		}
+		if (key in seen) continue;
 		seen += key;
 
 		print(diag.render(src_map));
@@ -79,15 +72,14 @@ pub fn print_diagnostics(errors: List<str>, default_file: str, loader: *ModuleLo
 pub fn print_warnings(warnings: List<str>, default_file: str, loader: *ModuleLoader? = null) {
 	var seen = HashSet<str>();
 	defer seen.free();
+
 	val src_map = if (loader != null) &loader.sources else null;
 
 	for (w in warnings) {
 		var diag = CoreDiagnostic.parse_legacy(w, default_file, Severity.WARNING, src_map);
 		diag.file_path = resolve_file_path(diag.file_path, default_file, loader);
 		val key = diag.key();
-		if (key in seen) {
-			continue;
-		}
+		if (key in seen) continue;
 		seen += key;
 
 		print(diag.render(src_map));
