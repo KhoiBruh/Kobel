@@ -9,11 +9,10 @@ use compiler.core.*;
 use compiler.lexer.*;
 use compiler.parser.*;
 use compiler.ast.*;
-use compiler.sema.*;
 use compiler.semantic.types.*;
 use compiler.semantic.symbols.*;
-use compiler.sema.decl.*;
-use compiler.sema.body.*;
+use compiler.semantic.declaration.*;
+use compiler.semantic.checker.*;
 use compiler.loader.*;
 
 use fmt.*;
@@ -461,7 +460,7 @@ impl AnalysisResult {
 		}
 
 		if (full_prog != null) {
-			var decl_p = DeclPass();
+			var decl_p = DeclarationCollector();
 			decl_p.collect_program(full_prog);
 			if (decl_p.errors.len > 0) {
 				for (err_msg in decl_p.errors) {
@@ -472,7 +471,7 @@ impl AnalysisResult {
 			}
 
 			// 4. Type & body semantic analysis (BodyPass)
-			var body_p = BodyPass(decl_p.symtab, decl_p);
+			var body_p = BodyChecker(decl_p.symtab, decl_p);
 			body_p.check_program(full_prog);
 			if (body_p.errors.len > 0) {
 				for (err_msg in body_p.errors) {

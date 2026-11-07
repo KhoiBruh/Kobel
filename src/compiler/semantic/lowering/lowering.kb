@@ -18,12 +18,11 @@ use compiler.lexer.*;
 use compiler.semantic.types.*;
 use compiler.semantic.symbols.*;
 use compiler.semantic.declaration.*;
-use compiler.sema.decl.*;
 
 pub struct LoweringPass {
 	pub symtab: SymbolTable = SymbolTable(),
 	pub arena: Arena = Arena(),
-	pub decl: DeclPass = DeclPass()
+	pub decl: DeclarationCollector = DeclarationCollector()
 }
 
 impl LoweringPass {
@@ -39,7 +38,7 @@ impl LoweringPass {
 		return lp;
 	}
 
-	pub init(symtab: SymbolTable, arena: Arena, decl: DeclPass) {
+	pub init(symtab: SymbolTable, arena: Arena, decl: DeclarationCollector) {
 		var lp = Self();
 		lp.symtab = symtab;
 		lp.arena = arena;

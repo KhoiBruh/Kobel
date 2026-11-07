@@ -11,8 +11,8 @@ use std.io.println;
 use std.filesystem.File;
 
 use compiler.loader.ModuleLoader;
-use compiler.sema.decl.DeclPass;
-use compiler.sema.decl.*;
+use compiler.semantic.declaration.DeclarationCollector;
+
 use compiler.semantic.types.DataType;
 use compiler.ast.*;
 
@@ -35,7 +35,7 @@ fn main(): i32 {
 		return 1;
 	}
 
-	var dp = DeclPass();
+	var dp = DeclarationCollector();
 	dp.collect_program(prog!);
 	if (!dp.errors.empty()) {
 		println("ASSERTION FAILED: cyclic modules must collect without errors");

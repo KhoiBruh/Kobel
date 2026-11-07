@@ -56,6 +56,8 @@ pub struct DeclarationCollector {
 
 impl DeclarationCollector {
 
+	pub init() => Self(SymbolTable(), Arena(), "", List<str>());
+
 	pub fn prims(val self) => self.symtab.prims;
 
 	pub fn enter_module(var self, module: str): str {

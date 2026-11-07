@@ -14,10 +14,9 @@ use std.collections.*;
 
 use compiler.ast.*;
 use compiler.lexer.*;
-use compiler.sema.*;
 use compiler.semantic.types.*;
 use compiler.semantic.symbols.*;
-use compiler.sema.decl.*;
+use compiler.semantic.declaration.*;
 use compiler.semantic.lowering.*;
 
 /*
@@ -208,7 +207,7 @@ impl BodyChecker {
 
 	pub fn check_program(var self, program_node: *AstNode) {
 		if (!self.has_symtab) {
-			var decl_p = DeclPass();
+			var decl_p = DeclarationCollector();
 			decl_p.collect_program(program_node);
 
 			self.symtab = decl_p.symtab;

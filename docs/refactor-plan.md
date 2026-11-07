@@ -150,8 +150,8 @@ To execute Phase 6 safely while keeping the compiler verifiable at every step:
 - [x] **Step 6.4**: Create `src/compiler/semantic/declaration/{collector,registration}.kb` (`mod compiler.semantic.declaration;`).
 - [x] **Step 6.5**: Create `src/compiler/semantic/checker/{checker,program,statement,expression,access,call,inference,pattern,interpolation}.kb` (`mod compiler.semantic.checker;`). Split `inference.kb` cleanly out of `call.kb`.
 - [x] **Step 6.6**: Create `src/compiler/semantic/lowering/{loop,string,lowering}.kb` (`mod compiler.semantic.lowering;`). Move `desugar` methods off `impl Arena` into `compiler.semantic.lowering`.
-- [ ] **Step 6.7**: Update all consumers (`src/compiler/codegen/*`, `src/compiler/driver/*`, `src/lsp/*`, `tests/unit/test_sema_*.kb`) to import `compiler.semantic.*` and delete `src/compiler/sema/` completely.
-- [ ] **Step 6.8**: Build with `.\build\seed\kobel_seed.exe build`, run `powershell -ExecutionPolicy Bypass -File scripts/check.ps1 -Update`, regenerate `dist/bootstrap.c`, rebuild `build/seed/kobel_seed.exe`, and commit Phase 6.
+- [x] **Step 6.7**: Update all consumers (`src/compiler/codegen/*`, `src/compiler/driver/*`, `src/lsp/*`, `tests/unit/test_sema_*.kb`) to import `compiler.semantic.*` and delete `src/compiler/sema/` completely.
+- [x] **Step 6.8**: Build with `.\build\seed\kobel_seed.exe build`, run `powershell -ExecutionPolicy Bypass -File scripts/check.ps1 -Update`, regenerate `dist/bootstrap.c`, rebuild `build/seed/kobel_seed.exe`, and commit Phase 6.
 
 ---
 

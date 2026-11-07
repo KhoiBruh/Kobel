@@ -9,11 +9,11 @@ use std.collections.*;
 use compiler.core.*;
 
 use compiler.ast.*;
-use compiler.sema.*;
 use compiler.semantic.types.*;
 use compiler.semantic.symbols.*;
-use compiler.sema.decl.*;
-use compiler.sema.body.*;
+use compiler.semantic.declaration.*;
+use compiler.semantic.checker.*;
+use compiler.semantic.lowering.*;
 use compiler.codegen.*;
 use compiler.loader.*;
 
@@ -136,7 +136,7 @@ impl CompileOptions {
 		if (!self.quiet) println("  ${loader.count()} module(s) loaded");
 
 		if (!self.quiet) println("[2/4] Semantic analysis (declarations)...");
-		var decl_p = DeclPass();
+		var decl_p = DeclarationCollector();
 		decl_p.collect_program(prog);
 		if (!decl_p.errors.empty()) {
 			print_diagnostics(decl_p.errors, input_path, &loader);
@@ -144,7 +144,7 @@ impl CompileOptions {
 		}
 
 		if (!self.quiet) println("[3/4] Semantic analysis (bodies)...");
-		var body_p = BodyPass(decl_p.symtab, decl_p);
+		var body_p = BodyChecker(decl_p.symtab, decl_p);
 		body_p.check_program(prog);
 		if (!body_p.warnings.empty() && !self.quiet) {
 			print_warnings(body_p.warnings, input_path, &loader);
@@ -156,10 +156,11 @@ impl CompileOptions {
 
 		// Sugar that needs no further checking is lowered in a separate pass, so
 		// the checker never rewrites a node's kind in place.
-		body_p.lower_program(prog);
+		var lower_p = LoweringPass(body_p.symtab, body_p.arena, decl_p);
+		lower_p.lower_program(prog);
 
 		if (!self.quiet) println("[4/4] Generating C99 code...");
-		var codegen = CCodeGen(&body_p.symtab);
+		var codegen = CCodeGen(&lower_p.symtab);
 		val c_code = codegen.gen_program(prog);
 
 		if (self.only_emit_c) {

@@ -14,10 +14,9 @@ use std.collections.*;
 
 use compiler.ast.*;
 use compiler.lexer.*;
-use compiler.sema.*;
 use compiler.semantic.types.*;
 use compiler.semantic.symbols.*;
-use compiler.sema.decl.*;
+use compiler.semantic.declaration.*;
 
 impl BodyChecker {
 
@@ -758,7 +757,7 @@ impl BodyChecker {
 
 	fn find_fn_template_for(var self, name: str): *GenericTemplate? {
 		if (self.has_decl) return self.decl.find_fn_template(name);
-		var decl_p = DeclPass(
+		var decl_p = DeclarationCollector(
 			self.symtab, self.arena, self.symtab.current_module,
 			self.errors, false, self.current_self_type
 		);
@@ -770,7 +769,7 @@ impl BodyChecker {
 
 	fn find_struct_template_for(var self, name: str): *GenericTemplate? {
 		if (self.has_decl) return self.decl.find_struct_template(name);
-		var decl_p = DeclPass(
+		var decl_p = DeclarationCollector(
 			self.symtab, self.arena, self.symtab.current_module,
 			self.errors, false, self.current_self_type
 		);

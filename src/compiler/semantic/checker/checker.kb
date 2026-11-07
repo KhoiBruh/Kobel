@@ -28,7 +28,6 @@ use compiler.semantic.types.*;
 use compiler.semantic.symbols.*;
 use compiler.semantic.resolution.*;
 use compiler.semantic.declaration.*;
-use compiler.sema.decl.*;
 use compiler.semantic.lowering.*;
 
 pub struct BodyChecker {
@@ -44,7 +43,7 @@ pub struct BodyChecker {
 	pub is_stmt_level: bool = false,
 	pub in_safe_nav_context: bool = false,
 	pub defer_depth: usz = 0,
-	pub decl: DeclPass = DeclPass(),
+	pub decl: DeclarationCollector = DeclarationCollector(),
 	pub has_decl: bool = false,
 	pub infer_blocked: bool = false,
 	pub inferring: bool = false,
@@ -61,7 +60,7 @@ impl BodyChecker {
 
 	pub init() {
 		var arena = Arena();
-		var decl_p = DeclPass();
+		var decl_p = DeclarationCollector();
 		val none_ty = decl_p.symtab.prims.t_none();
 		return Self(decl_p.symtab, arena, none_ty, 0, List<str>(), null, false);
 	}
@@ -72,7 +71,7 @@ impl BodyChecker {
 		return Self(symtab, arena, none_ty, 0, List<str>(), null, true);
 	}
 
-	pub init(symtab: SymbolTable, decl: DeclPass) {
+	pub init(symtab: SymbolTable, decl: DeclarationCollector) {
 		var arena = Arena();
 		val none_ty = symtab.prims.t_none();
 		var bc = Self(symtab, arena, none_ty, 0, List<str>(), null, true);
@@ -156,7 +155,7 @@ impl BodyChecker {
 			return ty;
 		}
 
-		var decl_p = DeclPass(
+		var decl_p = DeclarationCollector(
 			self.symtab, self.arena, self.symtab.current_module,
 			self.errors, false, self.current_self_type
 		);
@@ -169,7 +168,7 @@ impl BodyChecker {
 	pub fn find_method_template_for(var self, name: str, self_type: str): *GenericTemplate? {
 		if (self.has_decl) return self.decl.find_method_template(name, self_type);
 
-		var decl_p = DeclPass(
+		var decl_p = DeclarationCollector(
 			self.symtab, self.arena, self.symtab.current_module,
 			self.errors, false, self.current_self_type
 		);
@@ -196,7 +195,7 @@ impl BodyChecker {
 			return cname;
 		}
 
-		var decl_p = DeclPass(
+		var decl_p = DeclarationCollector(
 			self.symtab, self.arena, self.symtab.current_module,
 			self.errors, false, obj_ty
 		);

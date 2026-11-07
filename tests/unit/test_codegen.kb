@@ -7,8 +7,8 @@ use std.filesystem.File;
 use compiler.lexer.Lexer;
 use compiler.parser.*;
 
-use compiler.sema.body.BodyPass;
-use compiler.sema.body.*;
+use compiler.semantic.checker.BodyChecker;
+
 
 use compiler.codegen.*;
 
@@ -55,7 +55,7 @@ fn test_end_to_end_codegen() {
 	assert_eq_usz(parser.errors.len, 0, "Parser must have 0 syntax errors");
 
 	// 3. Semantic Analysis (DeclPass + BodyPass)
-	var bp = BodyPass();
+	var bp = BodyChecker();
 	bp.check_program(prog);
 	assert_eq_usz(bp.errors.len, 0, "Semantic analysis must have 0 errors");
 

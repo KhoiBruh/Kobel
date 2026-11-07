@@ -7,7 +7,6 @@ use std.string.StringBuilder;
 use compiler.lexer.*;
 use compiler.ast.*;
 
-use compiler.sema.*;
 use compiler.semantic.types.*;
 use compiler.semantic.symbols.*;
 
