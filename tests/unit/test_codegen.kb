@@ -2,7 +2,7 @@ mod test.bootstrap_codegen;
 
 use std.io.print;
 use std.io.println;
-use std.filesystem.File;
+use std.filesystem.Path;
 
 use compiler.lexer.Lexer;
 use compiler.parser.*;
@@ -66,7 +66,8 @@ fn test_end_to_end_codegen() {
 	assert_true(c_code.len > 100, "Generated C code must not be empty");
 
 	// Write the C code to a file so it can be compiled natively
-	val ok_write = File.write("build/sample_pipeline_output.c", c_code);
+	val out_p = Path("build/sample_pipeline_output.c");
+	val ok_write = out_p.write_text(c_code);
 	assert_true(ok_write, "Must write generated C code to file");
 
 	println("  [PASS] test_end_to_end_codegen");

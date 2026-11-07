@@ -11,7 +11,7 @@ use std.traits.Stringer;
  *
  * `Path` wraps a `str` and provides zero-cost path manipulation methods along
  * with filesystem queries (exists, is_dir, is_file), directory creation,
- * text reading/writing, and stream opening.
+ * directory listing, text reading/writing, and stream opening.
  * ============================================================================
  */
 
@@ -23,6 +23,7 @@ extern "C" {
 	fn kobel_create_dir(dir_path: str): i32;
 	fn kobel_create_dir_all(dir_path: str): i32;
 }
+
 
 pub fn str_is_sep(c: char) => c == '/' || c == '\\';
 
@@ -212,33 +213,9 @@ impl Path {
 		return rename(self.raw.c_str(), target.raw.c_str()) == 0;
 	}
 
-	// Directory entries listing returning List<Path>
-	pub fn entries(val self): List<Path> {
+	// Directory listing returning list of filename strings
+	pub fn list_dir(val self): List<str> {
 		val raw = kobel_list_dir(self.raw);
-		if (raw.empty()) {
-			return List<Path>();
-		}
-
-		var res = List<Path>();
-		var start: usz = 0;
-		for (i in 0..<raw.len) {
-			if (raw[i] == '\n') {
-				if (i > start) {
-					res += Path(raw.slice(start, i));
-				}
-				start = i + 1;
-			}
-		}
-
-		if (start < raw.len) {
-			res += Path(raw.slice(start, raw.len));
-		}
-		return res;
-	}
-
-	// Legacy static helper for directory listing
-	pub fn list_dir(path: str): List<str> {
-		val raw = kobel_list_dir(path);
 		if (raw.empty()) {
 			return List<str>();
 		}
@@ -260,25 +237,72 @@ impl Path {
 		return res;
 	}
 
+	// Directory entries listing returning List<Path>
+	pub fn entries(val self): List<Path> {
+		val names = self.list_dir();
+		defer names.free();
+		var res = List<Path>();
+		for (name in names) {
+			res += self.join(name);
+		}
+		return res;
+	}
+
 	// ------------------------------------------------------------------------
 	// High-level text I/O operations
 	// ------------------------------------------------------------------------
 
-	pub fn read_text(val self): str => File.read(self.raw);
+	pub fn read_text(val self): str {
+		val f = fopen(self.raw.c_str(), "rb");
+		if (f == null) return "";
 
-	pub fn write_text(val self, content: str): bool => File.write(self.raw, content);
+		fseek(f, 0, 2);
+		val size_i64 = ftell(f);
+		if (size_i64 <= 0) {
+			fclose(f);
+			return "";
+		}
 
-	pub fn append_text(val self, content: str): bool => File.append(self.raw, content);
+		fseek(f, 0, 0);
+		val sz = size_i64 as usz;
+		val buf = Heap.create_array<u8>(sz + 1);
+		if (buf == null) {
+			fclose(f);
+			return "";
+		}
+
+		val read_bytes = fread(buf, 1, sz, f);
+		fclose(f);
+		buf[read_bytes] = 0;
+
+		return str_from_bytes(buf, read_bytes);
+	}
+
+	pub fn write_text(val self, content: str): bool {
+		val f = fopen(self.raw.c_str(), "wb");
+		if (f == null) return false;
+		val written = fwrite(content.data, 1, content.len, f);
+		fclose(f);
+		return written == content.len;
+	}
+
+	pub fn append_text(val self, content: str): bool {
+		val f = fopen(self.raw.c_str(), "ab");
+		if (f == null) return false;
+		val written = fwrite(content.data, 1, content.len, f);
+		fclose(f);
+		return written == content.len;
+	}
 
 	// ------------------------------------------------------------------------
 	// Stream factory
 	// ------------------------------------------------------------------------
 
-	pub fn open_read(val self): File => File.open_read(self.raw);
+	pub fn open_read(val self): File => File.open(self.raw, "rb");
 
-	pub fn open_write(val self): File => File.open_write(self.raw);
+	pub fn open_write(val self): File => File.open(self.raw, "wb");
 
-	pub fn open_append(val self): File => File.open_append(self.raw);
+	pub fn open_append(val self): File => File.open(self.raw, "ab");
 
 }
 

@@ -108,7 +108,8 @@ impl CompileOptions {
 
 	pub fn compile(val self): i32 {
 		val input_path = self.input_path;
-		val src = File.read(input_path);
+		val in_p = Path(input_path);
+		val src = in_p.read_text();
 		if (src.empty()) {
 			println("Error: Could not read source file or file is empty: ${input_path}");
 			return 1;
@@ -170,7 +171,8 @@ impl CompileOptions {
 		val c_code = codegen.gen_program(prog);
 
 		if (self.only_emit_c) {
-			val ok = File.write(self.emit_c_path, c_code);
+			val emit_p = Path(self.emit_c_path);
+			val ok = emit_p.write_text(c_code);
 			if (!ok) {
 				println("Error: Failed to write output file: ${self.emit_c_path}");
 				return 1;
@@ -190,7 +192,8 @@ impl CompileOptions {
 		val base_name = out_path.base_name();
 		val c_tmp_path = "build/${base_name}.tmp.c";
 		val obj_tmp_path = "build/${base_name}.tmp.obj";
-		val write_ok = File.write(c_tmp_path, c_code);
+		val c_tmp_p = Path(c_tmp_path);
+		val write_ok = c_tmp_p.write_text(c_code);
 		if (!write_ok) {
 			println("Error: Failed to write temporary C file: ${c_tmp_path}");
 			return 1;
@@ -202,9 +205,11 @@ impl CompileOptions {
 		// If the output binary already exists, move it aside to avoid Windows LNK1104
 		// file locking issues (especially during self-hosting builds).
 		val old_bin = "${out_path}.old";
-		if (File.exists(out_path)) {
-			File.remove(old_bin);
-			File.rename(out_path, old_bin);
+		val out_p = Path(out_path);
+		val old_p = Path(old_bin);
+		if (out_p.exists()) {
+			old_p.remove();
+			out_p.rename_to(old_p);
 		}
 
 		var compile_cmd = c_compile_cmd(c_tmp_path, out_path, obj_tmp_path, self.c_compiler, self.quiet);
@@ -212,8 +217,8 @@ impl CompileOptions {
 		val exit_code = Process.exec(compile_cmd);
 		if (exit_code != 0) {
 			// Restore previous binary if compilation failed
-			if (File.exists(old_bin) && !File.exists(out_path)) {
-				File.rename(old_bin, out_path);
+			if (old_p.exists() && !out_p.exists()) {
+				old_p.rename_to(out_p);
 			}
 			println("Error: Backend C compiler failed with exit code ${exit_code}:");
 			println("  cmd was '${compile_cmd}'");
@@ -224,17 +229,19 @@ impl CompileOptions {
 		// silently skipped the link step) can return 0 without writing the binary.
 		// Without this check the build would report success while the previous
 		// executable sits moved aside as `<out>.old`.
-		if (!File.exists(out_path)) {
-			if (File.exists(old_bin))
-				File.rename(old_bin, out_path);
+		if (!out_p.exists()) {
+			if (old_p.exists()) {
+				old_p.rename_to(out_p);
+			}
 			println("Error: Backend C compiler returned 0 but produced no executable: ${out_path}");
 			return 1;
 		}
 
 		// Clean up temporary C, object, and old binary files
-		File.remove(c_tmp_path);
-		File.remove(obj_tmp_path);
-		File.remove(old_bin);
+		c_tmp_p.remove();
+		val obj_tmp_p = Path(obj_tmp_path);
+		obj_tmp_p.remove();
+		old_p.remove();
 
 		if (!self.quiet) println("[SUCCESS] Executable created: ${out_path}");
 		return 0;

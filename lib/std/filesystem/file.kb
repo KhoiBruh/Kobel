@@ -32,66 +32,6 @@ impl File {
 		return File(f);
 	}
 
-	pub fn open_read(path: str) => File.open(path, "rb");
-
-	pub fn open_write(path: str) => File.open(path, "wb");
-
-	pub fn open_append(path: str) => File.open(path, "ab");
-
-	// ------------------------------------------------------------------------
-	// Backward-compatible static forwarding helpers
-	// ------------------------------------------------------------------------
-
-	pub fn exists(path: str): bool => kobel_path_exists(path) != 0;
-
-	pub fn remove(path: str) => remove(path.c_str()) == 0;
-
-	pub fn rename(src: str, dst: str): bool {
-		if (File.exists(dst)) {
-			File.remove(dst);
-		}
-		return rename(src.c_str(), dst.c_str()) == 0;
-	}
-
-	pub fn read(path: str): str {
-		val f = fopen(path.c_str(), "rb") ?: return "";
-
-		fseek(f, 0, 2);
-		val size_i64 = ftell(f);
-		if (size_i64 <= 0) {
-			fclose(f);
-			return "";
-		}
-
-		fseek(f, 0, 0);
-		val sz = size_i64 as usz;
-		val buf = Heap.create_array<u8>(sz + 1);
-		if (buf == null) {
-			fclose(f);
-			return "";
-		}
-
-		val read_bytes = fread(buf, 1, sz, f);
-		fclose(f);
-		buf[read_bytes] = 0;
-
-		return str_from_bytes(buf, read_bytes);
-	}
-
-	pub fn write(path: str, content: str): bool {
-		val f = fopen(path.c_str(), "wb") ?: return false;
-		val written = fwrite(content.data, 1, content.len, f);
-		fclose(f);
-		return written == content.len;
-	}
-
-	pub fn append(path: str, content: str): bool {
-		val f = fopen(path.c_str(), "ab") ?: return false;
-		val written = fwrite(content.data, 1, content.len, f);
-		fclose(f);
-		return written == content.len;
-	}
-
 	// ------------------------------------------------------------------------
 	// Instance methods on File handle
 	// ------------------------------------------------------------------------

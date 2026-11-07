@@ -254,17 +254,19 @@ fn test_collections(): bool {
 
 fn test_io(): bool {
 	val tmp_file: str = "build/tmp_std_test.txt";
+	val p = Path(tmp_file);
 	val content: str = "Testing Kobel standard library I/O!";
-	val written: bool = File.write(tmp_file, content);
+	val written: bool = p.write_text(content);
 	if (!written) return false;
-	if (!File.exists(tmp_file)) return false;
-	if (File.exists("non_existent_file_xyz_123.txt")) return false;
+	if (!p.exists()) return false;
+	val non_exist = Path("non_existent_file_xyz_123.txt");
+	if (non_exist.exists()) return false;
 
 	val extra: str = "\nAppended line.";
-	val appended: bool = File.append(tmp_file, extra);
+	val appended: bool = p.append_text(extra);
 	if (!appended) return false;
 
-	val read_back: str = File.read(tmp_file);
+	val read_back: str = p.read_text();
 	if (read_back != "Testing Kobel standard library I/O!\nAppended line.") return false;
 
 	return true;
@@ -333,28 +335,29 @@ fn test_filesystem(): bool {
 	if (joined.to_str() != "dir/sub/file.txt") return false;
 	if (joined.extension() != "txt") return false;
 
-	val entries = Path.list_dir("lib/std/filesystem");
+	val fs_dir = Path("lib/std/filesystem");
+	val entries = fs_dir.list_dir();
 	defer entries.free();
 	if (entries.empty()) return false;
 
 	val tmp = Path("build/tmp_fs_test.txt");
-	if (File.exists(tmp.to_str())) File.remove(tmp.to_str());
+	if (tmp.exists()) tmp.remove();
 
-	if (!File.write(tmp.to_str(), "Hello Filesystem!")) return false;
-	if (!File.exists(tmp.to_str())) return false;
-	if (File.read(tmp.to_str()) != "Hello Filesystem!") return false;
+	if (!tmp.write_text("Hello Filesystem!")) return false;
+	if (!tmp.exists()) return false;
+	if (tmp.read_text() != "Hello Filesystem!") return false;
 
-	var f = File.open_read(tmp.to_str());
+	var f = tmp.open_read();
 	if (!f.is_valid()) return false;
 	if (f.read_all() != "Hello Filesystem!") return false;
 	f.close();
 
 	val moved = Path("build/tmp_fs_test_moved.txt");
-	if (!File.rename(tmp.to_str(), moved.to_str())) return false;
-	if (File.exists(tmp.to_str()) || !File.exists(moved.to_str())) return false;
+	if (!tmp.rename_to(moved)) return false;
+	if (tmp.exists() || !moved.exists()) return false;
 
-	if (!File.remove(moved.to_str())) return false;
-	if (File.exists(moved.to_str())) return false;
+	if (!moved.remove()) return false;
+	if (moved.exists()) return false;
 
 	// Test OOP Path and File APIs
 	val nested_dir = Path("build/test_oop_fs/sub1/sub2");

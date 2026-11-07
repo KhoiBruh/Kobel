@@ -8,7 +8,7 @@ mod test.loader_cycles;
 use std.collections.*;
 use std.io.print;
 use std.io.println;
-use std.filesystem.File;
+use std.filesystem.Path;
 
 use compiler.loader.ModuleLoader;
 use compiler.semantic.declaration.DeclarationCollector;
@@ -18,10 +18,10 @@ use compiler.ast.*;
 
 fn main(): i32 {
 	// The modules live under build/ (ignored by git) and are rewritten per run.
-	File.write("build/cyc_a.kb",
-		"mod cyc_a;\nuse cyc_b.*;\npub struct A { pub b: *B, pub v: i32 }\n");
-	File.write("build/cyc_b.kb",
-		"mod cyc_b;\nuse cyc_a.*;\npub struct B { pub a: *A, pub w: i32 }\n");
+	val ca_p = Path("build/cyc_a.kb");
+	ca_p.write_text("mod cyc_a;\nuse cyc_b.*;\npub struct A { pub b: *B, pub v: i32 }\n");
+	val cb_p = Path("build/cyc_b.kb");
+	cb_p.write_text("mod cyc_b;\nuse cyc_a.*;\npub struct B { pub a: *A, pub w: i32 }\n");
 
 	val entry = "mod cyc_entry;\nuse cyc_a.*;\nuse cyc_b.*;\nfn main(): i32 { return 0; }\n";
 	var loader = ModuleLoader("build", List<str>());

@@ -56,12 +56,13 @@ impl Diagnostic {
 		}
 
 		val rel = "${target.module_to_rel()}.kb";
-		return when {
-			File.exists("src/${rel}") -> "src/${rel}";
-			File.exists("lib/${rel}") -> "lib/${rel}";
-			File.exists(rel) -> rel;
-			else -> target;
-		};
+		val src_p = Path("src/${rel}");
+		if (src_p.exists()) return "src/${rel}";
+		val lib_p = Path("lib/${rel}");
+		if (lib_p.exists()) return "lib/${rel}";
+		val rel_p = Path(rel);
+		if (rel_p.exists()) return rel;
+		return target;
 	}
 
 	pub fn error(span: Span, file_path: str, message: str, hint: str = "")
@@ -188,8 +189,10 @@ impl Diagnostic {
 				}
 			}
 
-			if (!have_line && !self.file_path.empty() && File.exists(self.file_path)) {
-				val content = File.read(self.file_path);
+			if (!have_line && !self.file_path.empty()) {
+				val fp = Path(self.file_path);
+				if (fp.exists()) {
+					val content = fp.read_text();
 				if (!content.empty()) {
 					val lines = content.split_lines();
 					defer lines.free();
@@ -198,6 +201,7 @@ impl Diagnostic {
 						raw_line = lines[self.span.line - 1];
 						have_line = true;
 					}
+				}
 				}
 			}
 		}

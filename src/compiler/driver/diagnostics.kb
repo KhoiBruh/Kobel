@@ -35,13 +35,16 @@ fn resolve_file_path(target: str, default_file: str, loader: *ModuleLoader?): st
 	}
 
 	val rel = "${target.module_to_rel()}.kb";
-	if (File.exists("src/${rel}")) {
+	val src_p = Path("src/${rel}");
+	if (src_p.exists()) {
 		return "src/${rel}";
 	}
-	if (File.exists("lib/${rel}")) {
+	val lib_p = Path("lib/${rel}");
+	if (lib_p.exists()) {
 		return "lib/${rel}";
 	}
-	if (File.exists(rel)) {
+	val rel_p = Path(rel);
+	if (rel_p.exists()) {
 		return rel;
 	}
 

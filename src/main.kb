@@ -55,7 +55,8 @@ fn run_snap(argc: i32, argv: &*char): i32 {
 fn run_fixpoint(): i32 => cmd_fixpoint("kobel.toml");
 
 fn run_emit_c(argc: i32, argv: &*char): i32 {
-	val cfg = if (File.exists("kobel.toml")) ProjectConfig("kobel.toml") else ProjectConfig();
+	val manifest_p = Path("kobel.toml");
+	val cfg = if (manifest_p.exists()) ProjectConfig("kobel.toml") else ProjectConfig();
 	val out_path = if (argc >= 3) str(argv[2]) else "dist/bootstrap.c";
 
 	var opts = CompileOptions();
@@ -95,12 +96,13 @@ fn run_fmt(argc: i32, argv: &*char): i32 {
 
 	val options = FormatOptions();
 	for (fpath in files) {
-		val src = File.read(fpath);
+		val fp = Path(fpath);
+		val src = fp.read_text();
 		if (src.empty()) continue;
 
 		val formatted = format_source(src, options);
 		if (write_in_place) {
-			val ok = File.write(fpath, formatted);
+			val ok = fp.write_text(formatted);
 			if (!ok) {
 				println("Error: Failed to write to ${fpath}");
 				return 1;
