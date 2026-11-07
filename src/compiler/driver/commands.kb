@@ -214,7 +214,8 @@ pub fn cmd_test(manifest_path: str, filter: str): i32 {
 		} else {
 			var posix_bin = test_bin.to_posix_path();
 			if (!posix_bin.starts_with(".") && !posix_bin.starts_with("/")) posix_bin = "./${posix_bin}";
-			run_cmd = if (" " in posix_bin) "\"${posix_bin}\" >/dev/null 2>&1" else "${posix_bin} >/dev/null 2>&1";
+			val bin_str = if (" " in posix_bin) "\"${posix_bin}\"" else posix_bin;
+			run_cmd = "${bin_str} >/dev/null 2>&1";
 		}
 		val test_res = Process.exec(run_cmd);
 
@@ -337,7 +338,8 @@ pub fn cmd_snap(manifest_path: str, update: bool): i32 {
 
 	println("------------------------------------------------------------");
 	if (fail_count > 0) {
-		println("[ERROR] ${fail_count} snapshot(s) changed. If the change is intended, run 'kobel snap --update' and commit tests/golden.");
+		println("[ERROR] ${fail_count} snapshot(s) changed. "
+			"If the change is intended, run 'kobel snap --update' and commit tests/golden.");
 		return 1;
 	}
 	println("[SUCCESS] All ${corpus.len} snapshots match.");
@@ -392,7 +394,8 @@ pub fn cmd_fixpoint(manifest_path: str): i32 {
 		return 0;
 	}
 
-	println("[ERROR] Fixpoint broken: stage1.c (${first.len} bytes) != stage2.c (${second.len} bytes).");
+	println("[ERROR] Fixpoint broken: stage1.c (${first.len} bytes) != "
+		"stage2.c (${second.len} bytes).");
 	val a_lines = first.split_lines();
 	val b_lines = second.split_lines();
 	var i: usz = 0;

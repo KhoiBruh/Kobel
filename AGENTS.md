@@ -43,8 +43,9 @@ build/kobel.exe src/main.kb -emit-c dist/bootstrap.c
 
 ```
 src/main.kb                  :: entry
-src/compiler/loader|lexer|parser|ast|sema|codegen|driver
-src/compiler/sema/{body,decl,mono,desugar} + types/methods/structs/enums/prims/symbol/lower.kb
+src/compiler/loader|lexer|parser|ast|semantic|codegen|driver
+src/compiler/semantic/{types,symbols,resolution,declaration,checker,lowering}
+src/compiler/codegen/{generator,program,statement,expression,types,runtime}
 src/{config,fmt,lsp,util}    :: toml/project, formatter, LSP, strutil
 lib/std/                     :: stdlib (io, sys, ascii, str, fmt, collections/*, mem/*, traits/*)
 tests/{features,golden,stdlib,unit}
@@ -52,18 +53,18 @@ docs/{architecture,sema,parameterised-ir}.md :: architecture + sema map
 docs/spec.md           :: language spec (source of truth for syntax/semantics)
 ```
 
-v1 pipeline has exactly 4 steps (`src/compiler/driver/pipeline.kb`): `load_program` → `collect_program` (decl.collect + mono) → `check_program` + `lower_program` → `gen_program` (emit C99).
+v1 pipeline has exactly 4 steps (`src/compiler/driver/pipeline.kb`): `load_program` → `collect_program` (DeclarationCollector) → `check_program` (BodyChecker) + `lower_program` (LoweringPass) → `gen_program` (CCodeGen emit C99).
 
 ## Hard conventions
 
-- **Module path = file path**: `sema/body/pass.kb` → `compiler.sema.body.pass`. Segments must be IDENTIFIERs, so avoid keywords (`desugar/loop.kb`, `traits.kb`).
-- **One-way dependencies, no cycles.** Sole exception: `sema/types.kb` ↔ `methods/structs/enums` is a **pointer-only** cycle (every transitive field is `*T` or `List<*T>`); no by-value field may point back around the cycle.
+- **Module path = file path**: `semantic/checker/statement.kb` → `compiler.semantic.checker`. Segments must be IDENTIFIERs, so avoid keywords.
+- **One-way dependencies, strictly acyclic.** Zero dependency cycles across subsystems.
 - **Full dependency graph**: see `docs/architecture.md` §3.3. Any new import must keep the graph acyclic.
-- **codegen is read-only**: it reads AST + `type_ptr`/`resolved_*` only, never infers types. All type resolution lives in `sema/decl` + `sema/body`.
+- **codegen is read-only**: it reads AST + `type_ptr`/`resolved_*` only, never infers types. All type resolution lives in `compiler.semantic.*`.
 - **Null-safety**: use safe navigation `?.` + Elvis `?:` instead of manual null checks; safe-nav on a non-pointer must be paired with `?:`; comparisons in conditions must short-circuit. See commits `38384ab`, `0d8ee3d`.
-- **Generics**: templates registered in `decl.collect`, instantiated via `mono/*` (registry + worklist + rewrite + clone), generic methods flushed late in `body.program`.
+- **Generics**: templates registered in `semantic.declaration`, instantiated via `semantic.resolution` (registry + worklist + instantiate + clone + rewrite), generic methods flushed late in `semantic.checker.program`.
 - **Surgical edits**: touch only what the request requires; match existing style; no drive-by refactors, no unrelated dead-code removal.
-- **Commits**: `check.ps1` gate must be green before committing; message names the scope (`feat/fix/refactor(sema|codegen|...)`).
+- **Commits**: `check.ps1` gate must be green before committing; message names the scope (`feat/fix/refactor(semantic|codegen|...)`).
 
 ## Code standards (Kobel `.kb`)
 
@@ -74,7 +75,7 @@ Enforceable rules with correct / incorrect examples. All code and docs are 100% 
 Every file starts with `mod`, then `use` imports grouped and ordered: `std.*` → `compiler.*`/`util.*` → specific symbol imports. Non-trivial modules carry a `// ===...` banner describing ownership.
 
 ```kobel
-mod compiler.sema.mono.registry;
+mod compiler.semantic.resolution.registry;
 
 use std.collections.list.*;
 use std.memory.Arena;
@@ -82,11 +83,11 @@ use std.memory.Arena;
 use compiler.ast.node.*;
 // ... wildcard group imports before single-symbol imports ...
 
-use compiler.sema.types.DataType;
-use compiler.sema.types.Type;
+use compiler.semantic.types.DataType;
+use compiler.semantic.types.Type;
 ```
 
-- One concept per file; file name = snake_case of the main type (`mono/registry.kb` → registry/worklist).
+- One concept per file; file name = snake_case of the main type (`resolution/registry.kb` → registry/worklist).
 - Never add an import that creates a dependency cycle (see Hard conventions).
 
 ### 2. Formatting

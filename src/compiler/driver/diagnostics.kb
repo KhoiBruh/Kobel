@@ -68,7 +68,9 @@ pub fn print_diagnostics(errors: List<str>, default_file: str, loader: *ModuleLo
 		printed_count++;
 	}
 
-	println("\x1b[1;31merror\x1b[0m: could not compile '${default_file}' due to ${printed_count} previous error(s)");
+	val summary = "\x1b[1;31merror\x1b[0m: could not compile '${default_file}'"
+		" due to ${printed_count} previous error(s)";
+	println(summary);
 }
 
 pub fn print_warnings(warnings: List<str>, default_file: str, loader: *ModuleLoader? = null) {

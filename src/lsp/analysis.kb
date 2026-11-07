@@ -205,7 +205,8 @@ pub fn match_doc_prefix(prefix: str, doc_mod: str, doc_path: str): bool {
 
 		if (norm_p == norm_d) return true;
 
-		// If norm_d ends with norm_p (e.g. norm_d is "c:/users/.../src/lsp/analysis.kb" and norm_p is "src/lsp/analysis.kb")
+		// If norm_d ends with norm_p (e.g. norm_d is "c:/users/.../src/lsp/analysis.kb"
+		// and norm_p is "src/lsp/analysis.kb")
 		if (norm_d.len > norm_p.len && norm_d.ends_with(norm_p)) {
 			val sep_char = norm_d[norm_d.len - norm_p.len - 1];
 			if (sep_char == '/') return true;

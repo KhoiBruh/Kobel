@@ -7401,7 +7401,8 @@ int32_t compiler__driver__cmd_test(kobel_str manifest_path, kobel_str filter) {
                 if (!str_starts_with(posix_bin, KOBEL_STR(".")) && !str_starts_with(posix_bin, KOBEL_STR("/"))) {
                     posix_bin = kobel_concat(KOBEL_STR("./"), posix_bin);
                 }
-                run_cmd = (str_contains(posix_bin, KOBEL_STR(" ")) ? kobel_concat3(KOBEL_STR("\""), posix_bin, KOBEL_STR("\" >/dev/null 2>&1")) : kobel_concat(posix_bin, KOBEL_STR(" >/dev/null 2>&1")));
+                kobel_str bin_str = (str_contains(posix_bin, KOBEL_STR(" ")) ? kobel_concat3(KOBEL_STR("\""), posix_bin, KOBEL_STR("\"")) : posix_bin);
+                run_cmd = kobel_concat(bin_str, KOBEL_STR(" >/dev/null 2>&1"));
             }
             int32_t test_res = std__process__Process_exec(run_cmd);
             std__filesystem__File_remove(test_bin);
@@ -10348,7 +10349,8 @@ void compiler__driver__print_diagnostics(std__collections__List_str errors, kobe
             __for_i = (__for_i + 1);
         }
     }
-    std__io__println(kobel_concat5(KOBEL_STR("\x1b[1;31merror\x1b[0m: could not compile '"), default_file, KOBEL_STR("' due to "), usz_to_str(printed_count), KOBEL_STR(" previous error(s)")));
+    kobel_str summary = kobel_concat5(KOBEL_STR("\x1b[1;31merror\x1b[0m: could not compile '"), default_file, KOBEL_STR("' due to "), usz_to_str(printed_count), KOBEL_STR(" previous error(s)"));
+    std__io__println(summary);
     std__collections__HashSet_str_free(&seen);
 }
 
@@ -25194,7 +25196,8 @@ void compiler__driver__ensure_dir(kobel_str path) {
 
 kobel_str compiler__driver__c_compile_cmd(kobel_str c_path, kobel_str exe_path, kobel_str obj_path, kobel_str cc, bool quiet) {
     kobel_str host_cc = compiler__driver__resolve_host_cc(cc);
-    bool is_path_with_spaces = (((str_contains(host_cc, KOBEL_STR("/")) || str_contains(host_cc, KOBEL_STR("\\"))) && (str_contains(host_cc, KOBEL_STR(" ")))) && !str_starts_with(host_cc, KOBEL_STR("\"")));
+    bool has_spaces = ((str_contains(host_cc, KOBEL_STR(" "))) && !str_starts_with(host_cc, KOBEL_STR("\"")));
+    bool is_path_with_spaces = ((str_contains(host_cc, KOBEL_STR("/")) || str_contains(host_cc, KOBEL_STR("\\"))) && has_spaces);
     kobel_str cc_bin = (is_path_with_spaces ? kobel_concat3(KOBEL_STR("\""), host_cc, KOBEL_STR("\"")) : host_cc);
     if (!std__system__System_is_windows()) {
         kobel_str posix_exe = str_to_posix_path(exe_path);
@@ -25214,7 +25217,13 @@ kobel_str compiler__driver__c_compile_cmd(kobel_str c_path, kobel_str exe_path, 
     kobel_str obj_arg = (str_contains(win_obj, KOBEL_STR(" ")) ? kobel_concat3(KOBEL_STR("\""), win_obj, KOBEL_STR("\"")) : win_obj);
     kobel_str c_arg = (str_contains(win_c, KOBEL_STR(" ")) ? kobel_concat3(KOBEL_STR("\""), win_c, KOBEL_STR("\"")) : win_c);
     kobel_str tmp_setup = KOBEL_STR("set \"TMP=%CD%\\build\" && set \"TEMP=%CD%\\build\"");
-    kobel_str vcvars_setup = KOBEL_STR("(where cl >nul 2>nul || if exist \"%ProgramFiles%\\Microsoft Visual Studio\\18\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" (call \"%ProgramFiles%\\Microsoft Visual Studio\\18\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" >nul) else if exist \"%ProgramFiles%\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" (call \"%ProgramFiles%\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat\" >nul) else if exist \"%ProgramFiles%\\Microsoft Visual Studio\\2022\\Professional\\VC\\Auxiliary\\Build\\vcvars64.bat\" (call \"%ProgramFiles%\\Microsoft Visual Studio\\2022\\Professional\\VC\\Auxiliary\\Build\\vcvars64.bat\" >nul) else if exist \"%ProgramFiles%\\Microsoft Visual Studio\\2022\\Enterprise\\VC\\Auxiliary\\Build\\vcvars64.bat\" (call \"%ProgramFiles%\\Microsoft Visual Studio\\2022\\Enterprise\\VC\\Auxiliary\\Build\\vcvars64.bat\" >nul))");
+    kobel_str vs_base = KOBEL_STR("\"%ProgramFiles%\\Microsoft Visual Studio");
+    kobel_str bat_sub = KOBEL_STR("VC\\Auxiliary\\Build\\vcvars64.bat\"");
+    kobel_str vs18 = kobel_concat3(vs_base, KOBEL_STR("\\18\\Community\\"), bat_sub);
+    kobel_str vs22_c = kobel_concat3(vs_base, KOBEL_STR("\\2022\\Community\\"), bat_sub);
+    kobel_str vs22_p = kobel_concat3(vs_base, KOBEL_STR("\\2022\\Professional\\"), bat_sub);
+    kobel_str vs22_e = kobel_concat3(vs_base, KOBEL_STR("\\2022\\Enterprise\\"), bat_sub);
+    kobel_str vcvars_setup = kobel_concat5(kobel_concat5(kobel_concat5(kobel_concat5(KOBEL_STR("(where cl >nul 2>nul || if exist "), vs18, KOBEL_STR(" (call "), vs18, KOBEL_STR(" >nul) else if exist ")), vs22_c, KOBEL_STR(" (call "), vs22_c, KOBEL_STR(" >nul) else if exist ")), vs22_p, KOBEL_STR(" (call "), vs22_p, KOBEL_STR(" >nul) else if exist ")), vs22_e, KOBEL_STR(" (call "), vs22_e, KOBEL_STR(" >nul))"));
     kobel_str cl_invoke = kobel_concat3(kobel_concat5(cc_bin, KOBEL_STR(" /nologo /O2 /std:c11 /Fe:"), exe_arg, KOBEL_STR(" /Fo:"), obj_arg), KOBEL_STR(" "), c_arg);
     kobel_str cmd = (compiler__driver__is_msvc_compiler(host_cc) ? (std__system__System_has_env(KOBEL_STR("VCINSTALLDIR")) ? kobel_concat3(tmp_setup, KOBEL_STR(" && "), cl_invoke) : kobel_concat5(tmp_setup, KOBEL_STR(" && "), vcvars_setup, KOBEL_STR(" && "), cl_invoke)) : kobel_concat3(kobel_concat5(tmp_setup, KOBEL_STR(" && "), cc_bin, KOBEL_STR(" -O2 -o "), exe_arg), KOBEL_STR(" "), c_arg));
     if (quiet) {
@@ -25322,7 +25331,8 @@ int32_t compiler__driver__CompileOptions_compile(compiler__driver__CompileOption
         if (std__filesystem__File_exists(old_bin) && !std__filesystem__File_exists(out_path)) {
             std__filesystem__File_rename(old_bin, out_path);
         }
-        std__io__println(kobel_concat5(KOBEL_STR("Error: Backend C compiler failed with exit code "), i32_to_str(exit_code), KOBEL_STR(": cmd was '"), compile_cmd, KOBEL_STR("'")));
+        std__io__println(kobel_concat3(KOBEL_STR("Error: Backend C compiler failed with exit code "), i32_to_str(exit_code), KOBEL_STR(":")));
+        std__io__println(kobel_concat3(KOBEL_STR("  cmd was '"), compile_cmd, KOBEL_STR("'")));
         return exit_code;
     }
     if (!std__filesystem__File_exists(out_path)) {

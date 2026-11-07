@@ -162,9 +162,9 @@ To execute Phase 6 safely while keeping the compiler verifiable at every step:
   - `generator.kb`, `program.kb`, `statement.kb`, `expression.kb`, `types.kb`, `runtime.kb`
 - [x] Ensure `codegen` is 100% read-only over `AstNode` and `SemanticTable`.
 
-### Phase 8: `driver`, `config`, `formatter`, `lsp` & Documentation Sync
-- Review and clean up `src/compiler/driver/`, `src/config/`, `src/fmt/`, and `src/lsp/`.
-- Update `docs/architecture.md`, `docs/sema.md`, `docs/parameterised-ir.md`, and `AGENTS.md` to reflect the finalized module hierarchy.
+### Phase 8: `driver`, `config`, `formatter`, `lsp` & Documentation Sync (Completed)
+- [x] Review and clean up `src/compiler/driver/`, `src/config/`, `src/fmt/`, and `src/lsp/`.
+- [x] Update `docs/architecture.md`, `docs/sema.md`, `docs/parameterised-ir.md`, and `AGENTS.md` to reflect the finalized module hierarchy.
 
 ---
 

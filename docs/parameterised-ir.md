@@ -31,29 +31,29 @@ List<i32> InstanceRecord                    List<str> InstanceRecord
     └── node_2 -> AnnEntry (ident: ...)         └── node_2 -> AnnEntry (ident: ...)
 ```
 
-### 1. `GenTemplate` (`src/compiler/sema/template.kb`)
+### 1. `GenericTemplate` (`src/compiler/semantic/symbols/generics.kb`)
 Stores the original generic declaration (`struct`, `fn`, or `impl`), its type parameter names (`T`, `K`, `V`), and the owning module.
 
-### 2. `InstanceRecord` (`src/compiler/sema/instance.kb`)
+### 2. `InstanceRecord` (`src/compiler/semantic/symbols/generics.kb`)
 Represents a specialized instance of a template.
 - **Identity:** Uniquely keyed by `(template, args: List<*Type>)`. Lookup uses structural type equivalence (`Type.equals`), preventing redundant instantiations across modules.
 - **Mangled Name:** Deterministically generated from the template's module and the mangled C names of its type arguments (e.g. `std__List_i32`).
 
-### 3. View-Based Struct Instantiation (`src/compiler/sema/mono/instantiate.kb`)
+### 3. View-Based Struct Instantiation (`src/compiler/semantic/resolution/instantiate.kb`)
 When a generic struct is instantiated:
-- Type parameters are bound to concrete `*Type` values in `DeclPass.subst_types`.
+- Type parameters are bound to concrete `*Type` values in `DeclarationCollector.subst_types`.
 - Field types are resolved against this environment to construct a concrete `StructType` and compute exact memory layouts (`layout_struct`).
 - The template struct AST is **never cloned**; a lightweight declaration view is constructed solely for the C code generator.
 
 ### 4. Per-Node Side Table (`InstanceRecord.ann_map`)
-When `BodyPass` typechecks a function or method body for an instance:
+When `BodyChecker` typechecks a function or method body for an instance:
 - `push_instance_env(rec)` activates the concrete type parameter bindings.
 - Expressions in the shared template AST are visited.
 - Type annotations, resolved method calls, and mangled identifier names are written to `rec.ann_map` (`HashMap<usz, *AnnEntry>`) indexed by node address.
 - `pop_instance_env()` restores the outer environment.
 
 ### 5. Emission Materialization (`materialize_body`)
-In `src/compiler/sema/mono/clone.kb`:
+In `src/compiler/semantic/resolution/clone.kb`:
 - During Stage 3 (`lower_program`), `materialize_body(rec)` clones the template AST into a concrete AST tree.
 - The recorded decisions from `rec.ann_map` are applied onto the newly created nodes.
 - High-level syntax is lowered, and the resulting declarations are appended to the compilation unit for C99 emission.
