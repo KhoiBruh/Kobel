@@ -134,40 +134,40 @@ impl Arena {
 
 impl Type {
 
-	pub fn as_pointer(val self): *TypePayload.Pointer {
+	pub fn as_pointer(val self): *TypePayload.Pointer? {
 		return when (self.data) {
 			is TypePayload.Pointer as p -> p;
-			else -> null as *TypePayload.Pointer;
+			else -> null;
 		};
 	}
 
-	pub fn as_array(val self): *TypePayload.Array {
+	pub fn as_array(val self): *TypePayload.Array? {
 		return when (self.data) {
 			is TypePayload.Array as p -> p;
-			else -> null as *TypePayload.Array;
+			else -> null;
 		};
 	}
 
-	pub fn as_struct(val self): *StructType {
+	pub fn as_struct(val self): *StructType? {
 		val data = self.data;
 		return when (data) {
 			is TypePayload.Struct as p -> p.inner;
-			else -> null as *StructType;
+			else -> null;
 		};
 	}
 
-	pub fn as_fn(val self): *TypePayload.Fn {
+	pub fn as_fn(val self): *TypePayload.Fn? {
 		return when (self.data) {
 			is TypePayload.Fn as p -> p;
-			else -> null as *TypePayload.Fn;
+			else -> null;
 		};
 	}
 
-	pub fn as_enum(val self): *EnumInfo {
+	pub fn as_enum(val self): *EnumInfo? {
 		val data = self.data;
 		return when (data) {
 			is TypePayload.Enum as p -> p.inner;
-			else -> null as *EnumInfo;
+			else -> null;
 		};
 	}
 

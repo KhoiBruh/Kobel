@@ -735,7 +735,7 @@ impl DeclPass {
 		return res;
 	}
 
-	pub fn clone_expr(var self, node: *AstNode?, subst: *GenericSubst? = null): *AstNode {
+	pub fn clone_expr(var self, node: *AstNode, subst: *GenericSubst? = null): *AstNode {
 		var r = self.to_resolver();
 		val res = r.clone_expr(node, subst);
 		self.apply_resolver(r);
@@ -749,14 +749,14 @@ impl DeclPass {
 		return res;
 	}
 
-	pub fn clone_stmt(var self, node: *AstNode?, subst: *GenericSubst? = null): *AstNode {
+	pub fn clone_stmt(var self, node: *AstNode, subst: *GenericSubst? = null): *AstNode {
 		var r = self.to_resolver();
 		val res = r.clone_stmt(node, subst);
 		self.apply_resolver(r);
 		return res;
 	}
 
-	pub fn clone_type(var self, node: *AstNode?, subst: *GenericSubst? = null): *AstNode {
+	pub fn clone_type(var self, node: *AstNode, subst: *GenericSubst? = null): *AstNode {
 		var r = self.to_resolver();
 		val res = r.clone_type(node, subst);
 		self.apply_resolver(r);

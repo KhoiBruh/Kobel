@@ -572,6 +572,11 @@ impl BodyPass {
 			if (src_ty?.is_integer() && ty?.kind == DataType.CHAR) {
 				self.report_error(node, "Cannot cast integer to 'char' with 'as'. Use 'char(code)' instead");
 			}
+			if (src_ty?.kind == DataType.POINTER && src_ty.as_pointer()!.nullable) {
+				if (ty?.kind == DataType.POINTER && !ty.as_pointer()!.nullable) {
+					self.report_error(node, "Cannot cast nullable pointer or 'null' to non-nullable pointer '${self.type_display(ty)}'. Use nullable pointer type '${self.type_display(ty)}?' or force unwrap '!' instead");
+				}
+			}
 			return ty;
 		}
 		return self.prims().t_none();

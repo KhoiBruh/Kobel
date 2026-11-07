@@ -10946,7 +10946,7 @@ compiler__semantic__types__TypePayload__Pointer* compiler__semantic__types__Type
         compiler__semantic__types__TypePayload__Pointer* p = (compiler__semantic__types__TypePayload__Pointer*)(&(self->data).u.Pointer);
         return p;
     } else {
-        return (compiler__semantic__types__TypePayload__Pointer*)NULL;
+        return NULL;
     }
 }
 
@@ -10955,7 +10955,7 @@ compiler__semantic__types__TypePayload__Array* compiler__semantic__types__Type_a
         compiler__semantic__types__TypePayload__Array* p = (compiler__semantic__types__TypePayload__Array*)(&(self->data).u.Array);
         return p;
     } else {
-        return (compiler__semantic__types__TypePayload__Array*)NULL;
+        return NULL;
     }
 }
 
@@ -10965,7 +10965,7 @@ compiler__semantic__types__StructType* compiler__semantic__types__Type_as_struct
         compiler__semantic__types__TypePayload__Struct* p = (compiler__semantic__types__TypePayload__Struct*)(&(data).u.Struct);
         return p->inner;
     } else {
-        return (compiler__semantic__types__StructType*)NULL;
+        return NULL;
     }
 }
 
@@ -10974,7 +10974,7 @@ compiler__semantic__types__TypePayload__Fn* compiler__semantic__types__Type_as_f
         compiler__semantic__types__TypePayload__Fn* p = (compiler__semantic__types__TypePayload__Fn*)(&(self->data).u.Fn);
         return p;
     } else {
-        return (compiler__semantic__types__TypePayload__Fn*)NULL;
+        return NULL;
     }
 }
 
@@ -10984,7 +10984,7 @@ compiler__semantic__types__EnumInfo* compiler__semantic__types__Type_as_enum(com
         compiler__semantic__types__TypePayload__Enum* p = (compiler__semantic__types__TypePayload__Enum*)(&(data).u.Enum);
         return p->inner;
     } else {
-        return (compiler__semantic__types__EnumInfo*)NULL;
+        return NULL;
     }
 }
 
@@ -12067,9 +12067,6 @@ compiler__semantic__symbols__AnnotationEntry* compiler__semantic__resolution__Ty
 }
 
 compiler__ast__AstNode* compiler__semantic__resolution__TypeResolver_clone_type(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node, compiler__semantic__symbols__GenericSubst* subst) {
-    if (node == NULL) {
-        return (compiler__ast__AstNode*)NULL;
-    }
     compiler__semantic__symbols__AnnotationEntry* e = compiler__semantic__resolution__TypeResolver_mat_ann(self, node);
     if (e != NULL && e->ty != NULL) {
         return std__memory__Arena_ast_type_from_type(&self->arena, e->ty);
@@ -12079,7 +12076,7 @@ compiler__ast__AstNode* compiler__semantic__resolution__TypeResolver_clone_type(
         compiler__ast__NodeData__NamedType* nt = (compiler__ast__NodeData__NamedType*)(&(target)->data.u.NamedType);
         compiler__ast__AstNode* sa = ((subst != NULL) ? compiler__semantic__symbols__GenericSubst_lookup(subst, nt->name) : NULL);
         if (sa != NULL) {
-            return compiler__semantic__resolution__TypeResolver_clone_type(self, (compiler__ast__AstNode*)sa, NULL);
+            return compiler__semantic__resolution__TypeResolver_clone_type(self, sa, NULL);
         }
         if (nt->type_args.len > 0) {
             compiler__semantic__symbols__GenericTemplate* tmpl = compiler__semantic__resolution__TypeResolver_find_struct_template(self, nt->name);
@@ -12124,9 +12121,6 @@ compiler__ast__AstNode* compiler__semantic__resolution__TypeResolver_clone_type(
 }
 
 compiler__ast__AstNode* compiler__semantic__resolution__TypeResolver_clone_expr(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node, compiler__semantic__symbols__GenericSubst* subst) {
-    if (node == NULL) {
-        return (compiler__ast__AstNode*)NULL;
-    }
     compiler__ast__AstNode* raw_node = node;
     if (((((raw_node != NULL && raw_node->data.tag == compiler__ast__NodeData__ReturnStmt__TAG) || (raw_node != NULL && raw_node->data.tag == compiler__ast__NodeData__BreakStmt__TAG)) || (raw_node != NULL && raw_node->data.tag == compiler__ast__NodeData__ContinueStmt__TAG)) || (raw_node != NULL && raw_node->data.tag == compiler__ast__NodeData__YieldStmt__TAG)) || (raw_node != NULL && raw_node->data.tag == compiler__ast__NodeData__BlockStmt__TAG)) {
         return compiler__semantic__resolution__TypeResolver_clone_stmt(self, node, subst);
@@ -12458,9 +12452,6 @@ std__collections__List_compiler__ast__InterpPart compiler__semantic__resolution_
 }
 
 compiler__ast__AstNode* compiler__semantic__resolution__TypeResolver_clone_stmt(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node, compiler__semantic__symbols__GenericSubst* subst) {
-    if (node == NULL) {
-        return (compiler__ast__AstNode*)NULL;
-    }
     compiler__semantic__symbols__AnnotationEntry* se = compiler__semantic__resolution__TypeResolver_mat_ann(self, node);
     if (se != NULL && se->resolved != NULL) {
         return compiler__semantic__resolution__TypeResolver_clone_stmt(self, se->resolved, subst);
@@ -12547,7 +12538,7 @@ compiler__ast__AstNode* compiler__semantic__resolution__TypeResolver_clone_stmt(
         compiler__ast__NodeData__DeferStmt* d = (compiler__ast__NodeData__DeferStmt*)(&(target)->data.u.DeferStmt);
         return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 35, .u.DeferStmt = { compiler__semantic__resolution__TypeResolver_clone_stmt(self, d->body, subst) } }, node->line, node->col);
     } else {
-        return (compiler__ast__AstNode*)NULL;
+        return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 25, .u.ExprStmt = { compiler__semantic__resolution__TypeResolver_clone_expr(self, target, subst) } }, node->line, node->col);
     }
 }
 
@@ -16673,6 +16664,11 @@ compiler__semantic__types__Type* compiler__sema__body__BodyPass_check_cast_expr(
             }
             if (((src_ty != NULL) && compiler__semantic__types__Type_is_integer(src_ty)) && (ty != NULL && ty->kind == 2)) {
                 compiler__sema__body__BodyPass_report_error(self, node, KOBEL_STR("Cannot cast integer to 'char' with 'as'. Use 'char(code)' instead"));
+            }
+            if ((src_ty != NULL && src_ty->kind == 16) && (*compiler__semantic__types__Type_as_pointer(src_ty)).nullable) {
+                if ((ty != NULL && ty->kind == 16) && !(*compiler__semantic__types__Type_as_pointer(ty)).nullable) {
+                    compiler__sema__body__BodyPass_report_error(self, node, kobel_concat5(KOBEL_STR("Cannot cast nullable pointer or 'null' to non-nullable pointer '"), compiler__sema__body__BodyPass_type_display(self, ty), KOBEL_STR("'. Use nullable pointer type '"), compiler__sema__body__BodyPass_type_display(self, ty), KOBEL_STR("?' or force unwrap '!' instead")));
+                }
             }
             return ty;
         }
@@ -21420,9 +21416,6 @@ void compiler__sema__body__BodyPass_lower_program(compiler__sema__body__BodyPass
 }
 
 compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_stmt(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node) {
-    if (node == NULL) {
-        return (compiler__ast__AstNode*)NULL;
-    }
     compiler__ast__AstNode* res_stmt = compiler__semantic__symbols__SymbolTable_get_resolved_node(&self->symtab, node);
     if (res_stmt != NULL) {
         return compiler__sema__body__BodyPass_lower_stmt(self, res_stmt);
@@ -21569,9 +21562,6 @@ compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_stmt(compiler__sema
 }
 
 compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_expr(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node) {
-    if (node == NULL) {
-        return (compiler__ast__AstNode*)NULL;
-    }
     compiler__ast__AstNode* res_expr = compiler__semantic__symbols__SymbolTable_get_resolved_node(&self->symtab, node);
     if (res_expr != NULL) {
         return compiler__sema__body__BodyPass_lowered(self, node, compiler__sema__body__BodyPass_lower_expr(self, res_expr));

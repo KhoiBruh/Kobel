@@ -271,12 +271,12 @@ impl BodyPass {
 			return null;
 		}
 
-		val base_s = base_ty.as_struct();
+		val base_s = base_ty.as_struct()!;
 
 		// Check whether base_s wraps a payload enum field `data` (e.g. AstNode.data: NodeData)
 		// that contains a variant matching target_s.
 		val data_ty = self.field_type_of(base_s, "data");
-		val data_enum = if (data_ty?.kind == DataType.STRUCT) self.symtab.find_enum_info(data_ty.as_struct().name) else null;
+		val data_enum = if (data_ty?.kind == DataType.STRUCT) self.symtab.find_enum_info(data_ty.as_struct()!.name) else null;
 		var is_payload_data = false;
 		var tag_field_name = "";
 		var tag_const_c_name = "";

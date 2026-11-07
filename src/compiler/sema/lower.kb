@@ -62,7 +62,7 @@ impl BodyPass {
 	// ============================================================================
 
 	pub fn lower_stmt(var self, node: *AstNode): *AstNode {
-		if (node == null) return null as *AstNode;
+
 		// `for` (and the continue step-injection) are built by the checker and
 		// installed here, so a statement node keeps its kind while being checked.
 		val res_stmt = self.symtab.get_resolved_node(node);
@@ -109,7 +109,7 @@ impl BodyPass {
 	// ============================================================================
 
 	pub fn lower_expr(var self, node: *AstNode): *AstNode {
-		if (node == null) return null as *AstNode;
+
 		// A node the checker already resolved (constant leaf, or a call it checked
 		// without installing): lower that instead, then carry this node's type.
 		val res_expr = self.symtab.get_resolved_node(node);

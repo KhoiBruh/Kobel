@@ -28,15 +28,14 @@ impl TypeResolver {
 		return self.mat_rec.find_ann(node!);
 	}
 
-	pub fn clone_type(var self, node: *AstNode?, subst: *GenericSubst? = null): *AstNode {
-		if (node == null) return null as *AstNode;
+	pub fn clone_type(var self, node: *AstNode, subst: *GenericSubst? = null): *AstNode {
 		val e = self.mat_ann(node);
 		if (e?.ty != null) return self.arena.ast_type_from_type(e.ty!);
 		val target = node;
 		return when (target) {
 			is NamedType as nt -> {
 				val sa = subst?.lookup(nt.name);
-				if (sa != null) yield self.clone_type(sa as *AstNode, null);
+				if (sa != null) yield self.clone_type(sa, null);
 
 				if (nt.type_args.len > 0) {
 					val tmpl = self.find_struct_template(nt.name);
@@ -44,7 +43,7 @@ impl TypeResolver {
 						var args = List<*AstNode>();
 						for (ta in nt.type_args) args += self.clone_type(ta, subst);
 						val cty = self.instantiate_struct(tmpl, args);
-						yield self.arena.node(NodeData.NamedType(cty.as_struct().name, List<*AstNode>()), node.line, node.col);
+						yield self.arena.node(NodeData.NamedType(cty.as_struct()!.name, List<*AstNode>()), node.line, node.col);
 					}
 				}
 
@@ -72,8 +71,7 @@ impl TypeResolver {
 		};
 	}
 
-	pub fn clone_expr(var self, node: *AstNode?, subst: *GenericSubst? = null): *AstNode {
-		if (node == null) return null as *AstNode;
+	pub fn clone_expr(var self, node: *AstNode, subst: *GenericSubst? = null): *AstNode {
 		val raw_node = node;
 		if (
 			raw_node is ReturnStmt
@@ -106,7 +104,7 @@ impl TypeResolver {
 				u.op, self.clone_expr(u.operand, subst), u.is_postfix
 			), node.line, node.col);
 
-			is CallExpr -> self.clone_call_expr(node!, subst);
+			is CallExpr -> self.clone_call_expr(node, subst);
 
 			is MemberExpr as m -> {
 				val obj_src = e?.obj_replace ?: m.object;
@@ -160,11 +158,11 @@ impl TypeResolver {
 
 			is WhenExpr as we -> self.arena.node(NodeData.WhenExpr(
 				if (we.condition != null) self.clone_expr(we.condition!, subst) else null,
-				self.clone_when_arms(node!, subst)
+				self.clone_when_arms(node, subst)
 			), node.line, node.col);
 
 			is InterpExpr -> self.arena.node(NodeData.InterpExpr(
-				self.clone_interp_parts(node!, subst)
+				self.clone_interp_parts(node, subst)
 			), node.line, node.col);
 
 			is IsExpr as is_e -> {
@@ -293,7 +291,7 @@ impl TypeResolver {
 					val cty = self.instantiate_struct(st, targs);
 					var cargs = List<*AstNode>();
 					for (a in c.args) cargs += self.clone_expr(a, subst);
-					val callee = self.arena.node(NodeData.IdentifierExpr(cty.as_struct().name), node.line, node.col);
+					val callee = self.arena.node(NodeData.IdentifierExpr(cty.as_struct()!.name), node.line, node.col);
 					return self.arena.node(
 						NodeData.CallExpr(callee, cargs, List<*AstNode>()),
 						node.line, node.col
@@ -349,8 +347,7 @@ impl TypeResolver {
 		return parts;
 	}
 
-	pub fn clone_stmt(var self, node: *AstNode?, subst: *GenericSubst? = null): *AstNode {
-		if (node == null) return null as *AstNode;
+	pub fn clone_stmt(var self, node: *AstNode, subst: *GenericSubst? = null): *AstNode {
 		val se = self.mat_ann(node);
 		if (se?.resolved != null) return self.clone_stmt(se.resolved!, subst);
 
@@ -434,7 +431,7 @@ impl TypeResolver {
 				node.line, node.col
 			);
 
-			else -> null as *AstNode;
+			else -> self.arena.node(NodeData.ExprStmt(self.clone_expr(target, subst)), node.line, node.col);
 		};
 	}
 

@@ -475,6 +475,25 @@ fn test_interpolation_requires_to_str() {
 }
 
 
+fn test_cast_null_to_non_null_pointer_rejected() {
+	val src = """
+		struct Node {
+		    pub id: i32
+		}
+		fn test_cast(p: *Node?) {
+		    val a = null as *Node;
+		    val b = p as *Node;
+		}
+	""";
+	var l = Lexer(src);
+	var p = Parser(l.tokenize());
+	var bp = BodyPass();
+	bp.check_program(p.parse_program());
+
+	assert_true(bp.errors.len >= 2, "Casting null or nullable pointer to non-nullable pointer must be rejected");
+	println("  [PASS] test_cast_null_to_non_null_pointer_rejected");
+}
+
 fn test_unused_mutability_warning() {
 	val src = """
 		struct Item {
@@ -497,6 +516,7 @@ fn test_unused_mutability_warning() {
 
 fn main(): i32 {
 	println("[RUNNING] Bootstrap Semantic BodyPass tests...");
+	test_cast_null_to_non_null_pointer_rejected();
 	test_unused_mutability_warning();
 	test_interpolation_requires_to_str();
 	test_valid_program();
