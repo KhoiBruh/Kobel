@@ -2885,21 +2885,6 @@ void compiler__semantic__checker__BodyChecker_check_when_stmt(compiler__semantic
 compiler__semantic__types__Type* compiler__semantic__checker__BodyChecker_for_iterable_type(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* node);
 compiler__ast__AstNode* compiler__semantic__checker__BodyChecker_propagate_instance_init(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* init_node, compiler__semantic__types__Type* var_ty);
 bool compiler__semantic__checker__BodyChecker_struct_implements_iterable(compiler__semantic__checker__BodyChecker* self, compiler__semantic__types__Type* ty);
-compiler__codegen__CCodeGen compiler__codegen__CCodeGen_init(compiler__semantic__symbols__SymbolTable* symtab);
-compiler__semantic__types__Type* compiler__codegen__CCodeGen_node_type(compiler__codegen__CCodeGen* self, compiler__ast__AstNode* node);
-compiler__semantic__symbols__IsPatternInfo compiler__codegen__CCodeGen_is_pattern_info(compiler__codegen__CCodeGen* self, compiler__ast__AstNode* node);
-void compiler__codegen__CCodeGen_enter_defer_scope(compiler__codegen__CCodeGen* self);
-void compiler__codegen__CCodeGen_add_defer(compiler__codegen__CCodeGen* self, compiler__ast__AstNode* stmt);
-void compiler__codegen__CCodeGen_mark_current_scope_jumped(compiler__codegen__CCodeGen* self);
-void compiler__codegen__CCodeGen_exit_defer_scope(compiler__codegen__CCodeGen* self);
-bool compiler__codegen__CCodeGen_has_active_defers(compiler__codegen__CCodeGen* self);
-void compiler__codegen__CCodeGen_gen_defers_unwind(compiler__codegen__CCodeGen* self, size_t depth);
-bool compiler__codegen__CCodeGen_enum_has_payload(compiler__codegen__CCodeGen* self, compiler__ast__NodeData__EnumDecl* e);
-kobel_str compiler__codegen__get_indent(size_t level);
-kobel_str compiler__codegen__c_format_int_literal(kobel_str raw);
-kobel_str compiler__codegen__c_int_literal_c_type(kobel_str raw);
-kobel_str compiler__codegen__c_float_literal_c_type(kobel_str raw);
-kobel_str compiler__codegen__c_format_float_literal(kobel_str raw);
 compiler__ast__AstNode* compiler__codegen__unwrap_group_expr(compiler__ast__AstNode* node);
 bool compiler__codegen__expr_needs_parens_for_member(compiler__ast__AstNode* node);
 kobel_str compiler__codegen__CCodeGen_gen_expr(compiler__codegen__CCodeGen* self, compiler__ast__AstNode* node);
@@ -2920,6 +2905,21 @@ kobel_str compiler__codegen__CCodeGen_c_type_or(compiler__codegen__CCodeGen* sel
 bool compiler__codegen__CCodeGen_is_pointer_value(compiler__codegen__CCodeGen* self, compiler__ast__AstNode* node);
 bool compiler__codegen__CCodeGen_is_str_value(compiler__codegen__CCodeGen* self, compiler__ast__AstNode* node);
 bool compiler__codegen__CCodeGen_is_char_value(compiler__codegen__CCodeGen* self, compiler__ast__AstNode* node);
+compiler__codegen__CCodeGen compiler__codegen__CCodeGen_init(compiler__semantic__symbols__SymbolTable* symtab);
+compiler__semantic__types__Type* compiler__codegen__CCodeGen_node_type(compiler__codegen__CCodeGen* self, compiler__ast__AstNode* node);
+compiler__semantic__symbols__IsPatternInfo compiler__codegen__CCodeGen_is_pattern_info(compiler__codegen__CCodeGen* self, compiler__ast__AstNode* node);
+void compiler__codegen__CCodeGen_enter_defer_scope(compiler__codegen__CCodeGen* self);
+void compiler__codegen__CCodeGen_add_defer(compiler__codegen__CCodeGen* self, compiler__ast__AstNode* stmt);
+void compiler__codegen__CCodeGen_mark_current_scope_jumped(compiler__codegen__CCodeGen* self);
+void compiler__codegen__CCodeGen_exit_defer_scope(compiler__codegen__CCodeGen* self);
+bool compiler__codegen__CCodeGen_has_active_defers(compiler__codegen__CCodeGen* self);
+void compiler__codegen__CCodeGen_gen_defers_unwind(compiler__codegen__CCodeGen* self, size_t depth);
+bool compiler__codegen__CCodeGen_enum_has_payload(compiler__codegen__CCodeGen* self, compiler__ast__NodeData__EnumDecl* e);
+kobel_str compiler__codegen__get_indent(size_t level);
+kobel_str compiler__codegen__c_format_int_literal(kobel_str raw);
+kobel_str compiler__codegen__c_int_literal_c_type(kobel_str raw);
+kobel_str compiler__codegen__c_float_literal_c_type(kobel_str raw);
+kobel_str compiler__codegen__c_format_float_literal(kobel_str raw);
 kobel_str compiler__codegen__CCodeGen_gen_program(compiler__codegen__CCodeGen* self, compiler__ast__AstNode* program_node);
 kobel_str compiler__codegen__CCodeGen_by_value_struct_name(compiler__codegen__CCodeGen* self, compiler__ast__AstNode* node);
 kobel_str compiler__codegen__CCodeGen_body_item_name(compiler__codegen__CCodeGen* self, compiler__ast__AstNode* item);
@@ -22432,138 +22432,6 @@ bool compiler__semantic__checker__BodyChecker_struct_implements_iterable(compile
     return compiler__semantic__types__TraitInfo_has_impl(t, (*compiler__semantic__types__Type_as_struct(cur)).name);
 }
 
-compiler__codegen__CCodeGen compiler__codegen__CCodeGen_init(compiler__semantic__symbols__SymbolTable* symtab) {
-    compiler__codegen__CCodeGen cg = (compiler__codegen__CCodeGen){ std__string__StringBuilder_init(32), 0, std__collections__List_str_init(4), KOBEL_STR(""), KOBEL_STR(""), false, KOBEL_STR(""), KOBEL_STR(""), 0, std__collections__List_ptr_compiler__ast__AstNode_init(4), std__collections__List_usz_init(4), std__collections__List_bool_init(4), std__collections__List_usz_init(4), NULL };
-    cg.symtab = symtab;
-    return cg;
-}
-
-compiler__semantic__types__Type* compiler__codegen__CCodeGen_node_type(compiler__codegen__CCodeGen* self, compiler__ast__AstNode* node) {
-    if ((node == NULL) || (self->symtab == NULL)) {
-        return NULL;
-    }
-    return compiler__semantic__symbols__SymbolTable_get_node_type(self->symtab, node);
-}
-
-compiler__semantic__symbols__IsPatternInfo compiler__codegen__CCodeGen_is_pattern_info(compiler__codegen__CCodeGen* self, compiler__ast__AstNode* node) {
-    if ((node == NULL) || (self->symtab == NULL)) {
-        return (compiler__semantic__symbols__IsPatternInfo){ KOBEL_STR(""), KOBEL_STR(""), false, KOBEL_STR(""), false, KOBEL_STR("") };
-    }
-    return compiler__semantic__symbols__SymbolTable_get_is_pattern(self->symtab, node);
-}
-
-void compiler__codegen__CCodeGen_enter_defer_scope(compiler__codegen__CCodeGen* self) {
-    std__collections__List_usz_plus_assign(&self->scope_starts, self->defer_nodes.len);
-    std__collections__List_bool_plus_assign(&self->scope_jumped, false);
-}
-
-void compiler__codegen__CCodeGen_add_defer(compiler__codegen__CCodeGen* self, compiler__ast__AstNode* stmt) {
-    std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&self->defer_nodes, stmt);
-}
-
-void compiler__codegen__CCodeGen_mark_current_scope_jumped(compiler__codegen__CCodeGen* self) {
-    if (!std__collections__List_bool_empty(&self->scope_jumped)) {
-        std__collections__List_bool_pop(&self->scope_jumped);
-        std__collections__List_bool_plus_assign(&self->scope_jumped, true);
-    }
-}
-
-void compiler__codegen__CCodeGen_exit_defer_scope(compiler__codegen__CCodeGen* self) {
-    if (std__collections__List_usz_empty(&self->scope_starts)) {
-        return;
-    }
-    size_t start_idx = std__collections__List_usz_pop(&self->scope_starts);
-    bool jumped = std__collections__List_bool_pop(&self->scope_jumped);
-    if (jumped || (self->defer_nodes.len <= start_idx)) {
-        while (self->defer_nodes.len > start_idx) {
-            std__collections__List_ptr_compiler__ast__AstNode_pop(&self->defer_nodes);
-        }
-        return;
-    }
-    size_t i = self->defer_nodes.len;
-    while (i > start_idx) {
-        i--;
-        compiler__codegen__CCodeGen_gen_statement(self, std__collections__List_ptr_compiler__ast__AstNode_get(&self->defer_nodes, i));
-    }
-    while (self->defer_nodes.len > start_idx) {
-        std__collections__List_ptr_compiler__ast__AstNode_pop(&self->defer_nodes);
-    }
-}
-
-bool compiler__codegen__CCodeGen_has_active_defers(compiler__codegen__CCodeGen* self) {
-    return !std__collections__List_ptr_compiler__ast__AstNode_empty(&self->defer_nodes);
-}
-
-void compiler__codegen__CCodeGen_gen_defers_unwind(compiler__codegen__CCodeGen* self, size_t depth) {
-    if (std__collections__List_ptr_compiler__ast__AstNode_empty(&self->defer_nodes)) {
-        return;
-    }
-    size_t min_idx = ((depth < self->scope_starts.len) ? std__collections__List_usz_get(&self->scope_starts, depth) : 0);
-    if (self->defer_nodes.len <= min_idx) {
-        return;
-    }
-    size_t i = self->defer_nodes.len;
-    while (i > min_idx) {
-        i--;
-        compiler__codegen__CCodeGen_gen_statement(self, std__collections__List_ptr_compiler__ast__AstNode_get(&self->defer_nodes, i));
-    }
-}
-
-bool compiler__codegen__CCodeGen_enum_has_payload(compiler__codegen__CCodeGen* self, compiler__ast__NodeData__EnumDecl* e) {
-    {
-        size_t __for_n = std__collections__List_compiler__ast__EnumMember_count(&e->members);
-        size_t __for_i = 0;
-        while (__for_i < __for_n) {
-            compiler__ast__EnumMember m = std__collections__List_compiler__ast__EnumMember_at(&e->members, __for_i);
-            if (!std__collections__List_compiler__ast__EnumField_empty(&m.payload)) {
-                return true;
-            }
-            __for_i = (__for_i + 1);
-        }
-    }
-    return false;
-}
-
-kobel_str compiler__codegen__get_indent(size_t level) {
-    return (level == 0 ? KOBEL_STR("") : (level == 1 ? KOBEL_STR("    ") : (level == 2 ? KOBEL_STR("        ") : (level == 3 ? KOBEL_STR("            ") : (level == 4 ? KOBEL_STR("                ") : (level == 5 ? KOBEL_STR("                    ") : (level == 6 ? KOBEL_STR("                        ") : (level == 7 ? KOBEL_STR("                            ") : (level == 8 ? KOBEL_STR("                                ") : str_repeat(KOBEL_STR("    "), level))))))))));
-}
-
-kobel_str compiler__codegen__c_format_int_literal(kobel_str raw) {
-    kobel_str sfx = str_num_suffix(raw);
-    kobel_str body = str_strip_char(str_strip_suffix(raw, sfx.len), '_');
-    return (kobel_streq(sfx, KOBEL_STR("Z")) ? kobel_concat3(KOBEL_STR("((intptr_t)"), body, KOBEL_STR("LL)")) : (kobel_streq(sfx, KOBEL_STR("L")) ? kobel_concat(body, KOBEL_STR("LL")) : (kobel_streq(sfx, KOBEL_STR("S")) ? kobel_concat3(KOBEL_STR("((int16_t)"), body, KOBEL_STR(")")) : (kobel_streq(sfx, KOBEL_STR("B")) ? kobel_concat3(KOBEL_STR("((int8_t)"), body, KOBEL_STR(")")) : (kobel_streq(sfx, KOBEL_STR("U")) ? kobel_concat(body, KOBEL_STR("U")) : (kobel_streq(sfx, KOBEL_STR("UZ")) ? kobel_concat3(KOBEL_STR("((size_t)"), body, KOBEL_STR("ULL)")) : (kobel_streq(sfx, KOBEL_STR("UL")) ? kobel_concat(body, KOBEL_STR("ULL")) : (kobel_streq(sfx, KOBEL_STR("UB")) ? kobel_concat3(KOBEL_STR("((uint8_t)"), body, KOBEL_STR(")")) : (kobel_streq(sfx, KOBEL_STR("US")) ? kobel_concat3(KOBEL_STR("((uint16_t)"), body, KOBEL_STR(")")) : body)))))))));
-}
-
-kobel_str compiler__codegen__c_int_literal_c_type(kobel_str raw) {
-    return (kobel_streq(str_num_suffix(raw), KOBEL_STR("Z")) ? KOBEL_STR("intptr_t") : (kobel_streq(str_num_suffix(raw), KOBEL_STR("L")) ? KOBEL_STR("int64_t") : (kobel_streq(str_num_suffix(raw), KOBEL_STR("S")) ? KOBEL_STR("int16_t") : (kobel_streq(str_num_suffix(raw), KOBEL_STR("B")) ? KOBEL_STR("int8_t") : (kobel_streq(str_num_suffix(raw), KOBEL_STR("U")) ? KOBEL_STR("uint32_t") : (kobel_streq(str_num_suffix(raw), KOBEL_STR("UZ")) ? KOBEL_STR("size_t") : (kobel_streq(str_num_suffix(raw), KOBEL_STR("UL")) ? KOBEL_STR("uint64_t") : (kobel_streq(str_num_suffix(raw), KOBEL_STR("US")) ? KOBEL_STR("uint16_t") : (kobel_streq(str_num_suffix(raw), KOBEL_STR("UB")) ? KOBEL_STR("uint8_t") : KOBEL_STR("int32_t"))))))))));
-}
-
-kobel_str compiler__codegen__c_float_literal_c_type(kobel_str raw) {
-    return (str_ends_with(raw, KOBEL_STR("F")) ? KOBEL_STR("float") : KOBEL_STR("double"));
-}
-
-kobel_str compiler__codegen__c_format_float_literal(kobel_str raw) {
-    kobel_str text = str_strip_char(raw, '_');
-    bool has_dot = false;
-    {
-        size_t __for_n = text.len;
-        size_t __for_i = 0;
-        while (__for_i < __for_n) {
-            char c = text.data[__for_i];
-            if (((c == '.') || (c == 'e')) || (c == 'E')) {
-                has_dot = true;
-                break;
-            }
-            __for_i = (__for_i + 1);
-        }
-    }
-    if (has_dot) {
-        return text;
-    }
-    size_t len = text.len;
-    return (str_ends_with(text, KOBEL_STR("F")) ? kobel_concat(kobel_slice(text, 0, (len - 1)), KOBEL_STR(".0f")) : (str_ends_with(text, KOBEL_STR("D")) ? kobel_concat(kobel_slice(text, 0, (len - 1)), KOBEL_STR(".0")) : kobel_concat(text, KOBEL_STR(".0"))));
-}
-
 compiler__ast__AstNode* compiler__codegen__unwrap_group_expr(compiler__ast__AstNode* node) {
     compiler__ast__AstNode* cur = node;
     while (cur != NULL) {
@@ -22743,10 +22611,12 @@ kobel_str compiler__codegen__CCodeGen_gen_binary_expr(compiler__codegen__CCodeGe
                 kobel_str obj_wrap = (compiler__codegen__expr_needs_parens_for_member(mem->object) ? kobel_concat3(KOBEL_STR("("), obj_s, KOBEL_STR(")")) : obj_s);
                 kobel_str r_s = compiler__codegen__CCodeGen_gen_expr(self, bin->right);
                 if (compiler__codegen__CCodeGen_is_str_value(self, unwrapped_l) || compiler__codegen__CCodeGen_is_str_value(self, bin->right)) {
-                    return kobel_concat5(kobel_concat5(kobel_concat5(KOBEL_STR("(("), obj_wrap, KOBEL_STR(" != NULL && "), obj_wrap, KOBEL_STR("->")), mem->member, KOBEL_STR(".data != NULL) ? "), obj_wrap, KOBEL_STR("->")), mem->member, KOBEL_STR(" : "), r_s, KOBEL_STR(")"));
+                    kobel_str mem_val = kobel_concat3(obj_wrap, KOBEL_STR("->"), mem->member);
+                    return kobel_concat5(kobel_concat5(KOBEL_STR("(("), obj_wrap, KOBEL_STR(" != NULL && "), mem_val, KOBEL_STR(".data != NULL) ? ")), mem_val, KOBEL_STR(" : "), r_s, KOBEL_STR(")"));
                 }
                 if (compiler__codegen__CCodeGen_is_pointer_value(self, unwrapped_l) || compiler__codegen__CCodeGen_is_pointer_value(self, bin->right)) {
-                    return kobel_concat5(kobel_concat5(kobel_concat5(KOBEL_STR("(("), obj_wrap, KOBEL_STR(" != NULL && "), obj_wrap, KOBEL_STR("->")), mem->member, KOBEL_STR(" != NULL) ? "), obj_wrap, KOBEL_STR("->")), mem->member, KOBEL_STR(" : "), r_s, KOBEL_STR(")"));
+                    kobel_str mem_val = kobel_concat3(obj_wrap, KOBEL_STR("->"), mem->member);
+                    return kobel_concat5(kobel_concat5(KOBEL_STR("(("), obj_wrap, KOBEL_STR(" != NULL && "), mem_val, KOBEL_STR(" != NULL) ? ")), mem_val, KOBEL_STR(" : "), r_s, KOBEL_STR(")"));
                 }
                 return kobel_concat5(kobel_concat5(KOBEL_STR("("), obj_wrap, KOBEL_STR(" != NULL ? "), obj_wrap, KOBEL_STR("->")), mem->member, KOBEL_STR(" : "), r_s, KOBEL_STR(")"));
             }
@@ -22824,7 +22694,9 @@ kobel_str compiler__codegen__CCodeGen_gen_binary_expr(compiler__codegen__CCodeGe
                 kobel_str obj_r_s = compiler__codegen__CCodeGen_gen_expr(self, mem_r_val->object);
                 kobel_str obj_l_wrap = (compiler__codegen__expr_needs_parens_for_member(mem_l_val->object) ? kobel_concat3(KOBEL_STR("("), obj_l_s, KOBEL_STR(")")) : obj_l_s);
                 kobel_str obj_r_wrap = (compiler__codegen__expr_needs_parens_for_member(mem_r_val->object) ? kobel_concat3(KOBEL_STR("("), obj_r_s, KOBEL_STR(")")) : obj_r_s);
-                return kobel_concat3(kobel_concat5(kobel_concat5(kobel_concat5(KOBEL_STR("("), obj_l_wrap, KOBEL_STR(" != NULL && "), obj_r_wrap, KOBEL_STR(" != NULL && ")), obj_l_wrap, KOBEL_STR("->"), mem_l_val->member, KOBEL_STR(" ")), op_str, KOBEL_STR(" "), obj_r_wrap, KOBEL_STR("->")), mem_r_val->member, KOBEL_STR(")"));
+                kobel_str l_acc = kobel_concat3(obj_l_wrap, KOBEL_STR("->"), mem_l_val->member);
+                kobel_str r_acc = kobel_concat3(obj_r_wrap, KOBEL_STR("->"), mem_r_val->member);
+                return kobel_concat3(kobel_concat5(kobel_concat5(KOBEL_STR("("), obj_l_wrap, KOBEL_STR(" != NULL && "), obj_r_wrap, KOBEL_STR(" != NULL && ")), l_acc, KOBEL_STR(" "), op_str, KOBEL_STR(" ")), r_acc, KOBEL_STR(")"));
             }
         }
     }
@@ -23057,7 +22929,8 @@ kobel_str compiler__codegen__CCodeGen_gen_is_expr(compiler__codegen__CCodeGen* s
     if (str_empty(tag_field)) {
         tag_field = KOBEL_STR("tag");
     }
-    kobel_str obj_str = (((is_e->expr != NULL) && compiler__codegen__expr_needs_parens_for_member(is_e->expr)) ? kobel_concat3(KOBEL_STR("("), obj, KOBEL_STR(")")) : obj);
+    bool needs_parens = ((is_e->expr != NULL) && compiler__codegen__expr_needs_parens_for_member(is_e->expr));
+    kobel_str obj_str = (needs_parens ? kobel_concat3(KOBEL_STR("("), obj, KOBEL_STR(")")) : obj);
     kobel_str tag_const = (str_empty(pat_info.tag_const) ? kobel_concat(target_name, KOBEL_STR("__TAG")) : pat_info.tag_const);
     kobel_str tag_test = compiler__codegen__CCodeGen_gen_tag_test(self, obj_str, pat_info.is_ptr, tag_field, tag_const);
     if (!str_empty(is_e->alias)) {
@@ -23169,6 +23042,138 @@ bool compiler__codegen__CCodeGen_is_char_value(compiler__codegen__CCodeGen* self
         return false;
     }
     return (ty->kind == 2);
+}
+
+compiler__codegen__CCodeGen compiler__codegen__CCodeGen_init(compiler__semantic__symbols__SymbolTable* symtab) {
+    compiler__codegen__CCodeGen cg = (compiler__codegen__CCodeGen){ std__string__StringBuilder_init(32), 0, std__collections__List_str_init(4), KOBEL_STR(""), KOBEL_STR(""), false, KOBEL_STR(""), KOBEL_STR(""), 0, std__collections__List_ptr_compiler__ast__AstNode_init(4), std__collections__List_usz_init(4), std__collections__List_bool_init(4), std__collections__List_usz_init(4), NULL };
+    cg.symtab = symtab;
+    return cg;
+}
+
+compiler__semantic__types__Type* compiler__codegen__CCodeGen_node_type(compiler__codegen__CCodeGen* self, compiler__ast__AstNode* node) {
+    if ((node == NULL) || (self->symtab == NULL)) {
+        return NULL;
+    }
+    return compiler__semantic__symbols__SymbolTable_get_node_type(self->symtab, node);
+}
+
+compiler__semantic__symbols__IsPatternInfo compiler__codegen__CCodeGen_is_pattern_info(compiler__codegen__CCodeGen* self, compiler__ast__AstNode* node) {
+    if ((node == NULL) || (self->symtab == NULL)) {
+        return (compiler__semantic__symbols__IsPatternInfo){ KOBEL_STR(""), KOBEL_STR(""), false, KOBEL_STR(""), false, KOBEL_STR("") };
+    }
+    return compiler__semantic__symbols__SymbolTable_get_is_pattern(self->symtab, node);
+}
+
+void compiler__codegen__CCodeGen_enter_defer_scope(compiler__codegen__CCodeGen* self) {
+    std__collections__List_usz_plus_assign(&self->scope_starts, self->defer_nodes.len);
+    std__collections__List_bool_plus_assign(&self->scope_jumped, false);
+}
+
+void compiler__codegen__CCodeGen_add_defer(compiler__codegen__CCodeGen* self, compiler__ast__AstNode* stmt) {
+    std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&self->defer_nodes, stmt);
+}
+
+void compiler__codegen__CCodeGen_mark_current_scope_jumped(compiler__codegen__CCodeGen* self) {
+    if (!std__collections__List_bool_empty(&self->scope_jumped)) {
+        std__collections__List_bool_pop(&self->scope_jumped);
+        std__collections__List_bool_plus_assign(&self->scope_jumped, true);
+    }
+}
+
+void compiler__codegen__CCodeGen_exit_defer_scope(compiler__codegen__CCodeGen* self) {
+    if (std__collections__List_usz_empty(&self->scope_starts)) {
+        return;
+    }
+    size_t start_idx = std__collections__List_usz_pop(&self->scope_starts);
+    bool jumped = std__collections__List_bool_pop(&self->scope_jumped);
+    if (jumped || (self->defer_nodes.len <= start_idx)) {
+        while (self->defer_nodes.len > start_idx) {
+            std__collections__List_ptr_compiler__ast__AstNode_pop(&self->defer_nodes);
+        }
+        return;
+    }
+    size_t i = self->defer_nodes.len;
+    while (i > start_idx) {
+        i--;
+        compiler__codegen__CCodeGen_gen_statement(self, std__collections__List_ptr_compiler__ast__AstNode_get(&self->defer_nodes, i));
+    }
+    while (self->defer_nodes.len > start_idx) {
+        std__collections__List_ptr_compiler__ast__AstNode_pop(&self->defer_nodes);
+    }
+}
+
+bool compiler__codegen__CCodeGen_has_active_defers(compiler__codegen__CCodeGen* self) {
+    return !std__collections__List_ptr_compiler__ast__AstNode_empty(&self->defer_nodes);
+}
+
+void compiler__codegen__CCodeGen_gen_defers_unwind(compiler__codegen__CCodeGen* self, size_t depth) {
+    if (std__collections__List_ptr_compiler__ast__AstNode_empty(&self->defer_nodes)) {
+        return;
+    }
+    size_t min_idx = ((depth < self->scope_starts.len) ? std__collections__List_usz_get(&self->scope_starts, depth) : 0);
+    if (self->defer_nodes.len <= min_idx) {
+        return;
+    }
+    size_t i = self->defer_nodes.len;
+    while (i > min_idx) {
+        i--;
+        compiler__codegen__CCodeGen_gen_statement(self, std__collections__List_ptr_compiler__ast__AstNode_get(&self->defer_nodes, i));
+    }
+}
+
+bool compiler__codegen__CCodeGen_enum_has_payload(compiler__codegen__CCodeGen* self, compiler__ast__NodeData__EnumDecl* e) {
+    {
+        size_t __for_n = std__collections__List_compiler__ast__EnumMember_count(&e->members);
+        size_t __for_i = 0;
+        while (__for_i < __for_n) {
+            compiler__ast__EnumMember m = std__collections__List_compiler__ast__EnumMember_at(&e->members, __for_i);
+            if (!std__collections__List_compiler__ast__EnumField_empty(&m.payload)) {
+                return true;
+            }
+            __for_i = (__for_i + 1);
+        }
+    }
+    return false;
+}
+
+kobel_str compiler__codegen__get_indent(size_t level) {
+    return (level == 0 ? KOBEL_STR("") : (level == 1 ? KOBEL_STR("    ") : (level == 2 ? KOBEL_STR("        ") : (level == 3 ? KOBEL_STR("            ") : (level == 4 ? KOBEL_STR("                ") : (level == 5 ? KOBEL_STR("                    ") : (level == 6 ? KOBEL_STR("                        ") : (level == 7 ? KOBEL_STR("                            ") : (level == 8 ? KOBEL_STR("                                ") : str_repeat(KOBEL_STR("    "), level))))))))));
+}
+
+kobel_str compiler__codegen__c_format_int_literal(kobel_str raw) {
+    kobel_str sfx = str_num_suffix(raw);
+    kobel_str body = str_strip_char(str_strip_suffix(raw, sfx.len), '_');
+    return (kobel_streq(sfx, KOBEL_STR("Z")) ? kobel_concat3(KOBEL_STR("((intptr_t)"), body, KOBEL_STR("LL)")) : (kobel_streq(sfx, KOBEL_STR("L")) ? kobel_concat(body, KOBEL_STR("LL")) : (kobel_streq(sfx, KOBEL_STR("S")) ? kobel_concat3(KOBEL_STR("((int16_t)"), body, KOBEL_STR(")")) : (kobel_streq(sfx, KOBEL_STR("B")) ? kobel_concat3(KOBEL_STR("((int8_t)"), body, KOBEL_STR(")")) : (kobel_streq(sfx, KOBEL_STR("U")) ? kobel_concat(body, KOBEL_STR("U")) : (kobel_streq(sfx, KOBEL_STR("UZ")) ? kobel_concat3(KOBEL_STR("((size_t)"), body, KOBEL_STR("ULL)")) : (kobel_streq(sfx, KOBEL_STR("UL")) ? kobel_concat(body, KOBEL_STR("ULL")) : (kobel_streq(sfx, KOBEL_STR("UB")) ? kobel_concat3(KOBEL_STR("((uint8_t)"), body, KOBEL_STR(")")) : (kobel_streq(sfx, KOBEL_STR("US")) ? kobel_concat3(KOBEL_STR("((uint16_t)"), body, KOBEL_STR(")")) : body)))))))));
+}
+
+kobel_str compiler__codegen__c_int_literal_c_type(kobel_str raw) {
+    return (kobel_streq(str_num_suffix(raw), KOBEL_STR("Z")) ? KOBEL_STR("intptr_t") : (kobel_streq(str_num_suffix(raw), KOBEL_STR("L")) ? KOBEL_STR("int64_t") : (kobel_streq(str_num_suffix(raw), KOBEL_STR("S")) ? KOBEL_STR("int16_t") : (kobel_streq(str_num_suffix(raw), KOBEL_STR("B")) ? KOBEL_STR("int8_t") : (kobel_streq(str_num_suffix(raw), KOBEL_STR("U")) ? KOBEL_STR("uint32_t") : (kobel_streq(str_num_suffix(raw), KOBEL_STR("UZ")) ? KOBEL_STR("size_t") : (kobel_streq(str_num_suffix(raw), KOBEL_STR("UL")) ? KOBEL_STR("uint64_t") : (kobel_streq(str_num_suffix(raw), KOBEL_STR("US")) ? KOBEL_STR("uint16_t") : (kobel_streq(str_num_suffix(raw), KOBEL_STR("UB")) ? KOBEL_STR("uint8_t") : KOBEL_STR("int32_t"))))))))));
+}
+
+kobel_str compiler__codegen__c_float_literal_c_type(kobel_str raw) {
+    return (str_ends_with(raw, KOBEL_STR("F")) ? KOBEL_STR("float") : KOBEL_STR("double"));
+}
+
+kobel_str compiler__codegen__c_format_float_literal(kobel_str raw) {
+    kobel_str text = str_strip_char(raw, '_');
+    bool has_dot = false;
+    {
+        size_t __for_n = text.len;
+        size_t __for_i = 0;
+        while (__for_i < __for_n) {
+            char c = text.data[__for_i];
+            if (((c == '.') || (c == 'e')) || (c == 'E')) {
+                has_dot = true;
+                break;
+            }
+            __for_i = (__for_i + 1);
+        }
+    }
+    if (has_dot) {
+        return text;
+    }
+    size_t len = text.len;
+    return (str_ends_with(text, KOBEL_STR("F")) ? kobel_concat(kobel_slice(text, 0, (len - 1)), KOBEL_STR(".0f")) : (str_ends_with(text, KOBEL_STR("D")) ? kobel_concat(kobel_slice(text, 0, (len - 1)), KOBEL_STR(".0")) : kobel_concat(text, KOBEL_STR(".0"))));
 }
 
 kobel_str compiler__codegen__CCodeGen_gen_program(compiler__codegen__CCodeGen* self, compiler__ast__AstNode* program_node) {

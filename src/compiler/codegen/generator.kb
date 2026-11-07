@@ -108,7 +108,9 @@ impl CCodeGen {
 	// True when the enum carries data on at least one variant; such an enum is
 	// emitted as a struct instead of a plain integer typedef.
 	pub fn enum_has_payload(val self, e: *EnumDecl): bool {
-		for (m in e.members) if (!m.payload.empty()) return true;
+		for (m in e.members) {
+			if (!m.payload.empty()) return true;
+		}
 		return false;
 	}
 

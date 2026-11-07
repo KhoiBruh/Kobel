@@ -69,7 +69,9 @@ impl CCodeGen {
 						} else {
 							// Enums lower to their underlying integer type; member access becomes
 							// an integer literal during semantic analysis.
-							val under = if (e.underlying_type != null) c_type_from_ast(e.underlying_type!) else "int32_t";
+							val under = if (e.underlying_type != null) {
+								c_type_from_ast(e.underlying_type!)
+							} else "int32_t";
 							self.out += "typedef ";
 							self.out += under;
 							self.out += ' ';
@@ -152,7 +154,10 @@ impl CCodeGen {
 				if (
 					!decl_is_template(decl_list) &&
 					decl_list is StructDecl as s &&
-					(s.name.starts_with("std__collections__list__List") || s.name.starts_with("std__collections__List"))
+					(
+						s.name.starts_with("std__collections__list__List") ||
+						s.name.starts_with("std__collections__List")
+					)
 				) {
 					self.out += """
 						static inline ${s.name} ${s.name}_from_array(const void* src, size_t n) {

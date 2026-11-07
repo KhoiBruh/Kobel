@@ -182,7 +182,11 @@ impl CCodeGen {
 		ind: str, ty_str: str
 	) {
 		val unwrapped_init = unwrap_group_expr(init_e);
-		if (unwrapped_init != null && unwrapped_init is BinaryExpr as eb && eb.op == TokenType.QUESTION_COLON) {
+		if (
+			unwrapped_init != null &&
+			unwrapped_init is BinaryExpr as eb &&
+			eb.op == TokenType.QUESTION_COLON
+		) {
 			val unwrapped_l = unwrap_group_expr(eb.left);
 			if (
 				unwrapped_l != null &&
@@ -671,7 +675,11 @@ impl CCodeGen {
 	fn gen_assign_elvis_stmt(var self, asg: *AssignExpr, asg_val: *AstNode, ind: str) {
 		val tgt = self.gen_expr(asg.target);
 		val unwrapped_val = unwrap_group_expr(asg_val);
-		if (unwrapped_val != null && unwrapped_val is BinaryExpr as eb && eb.op == TokenType.QUESTION_COLON) {
+		if (
+			unwrapped_val != null &&
+			unwrapped_val is BinaryExpr as eb &&
+			eb.op == TokenType.QUESTION_COLON
+		) {
 			val unwrapped_l = unwrap_group_expr(eb.left);
 			if (
 				unwrapped_l != null &&
@@ -900,7 +908,9 @@ impl CCodeGen {
 				if (pat_node is IsExpr as is_e) {
 					var subj_expr = self.gen_expr(ws.condition!);
 					if (ws.condition! is IdentifierExpr as id) subj_expr = id.name;
-					cast_decl = self.gen_smart_cast_decl(pat_node, is_e, is_e.expr!, subj_expr, self.indent_level + 1);
+					cast_decl = self.gen_smart_cast_decl(
+						pat_node, is_e, is_e.expr!, subj_expr, self.indent_level + 1
+					);
 				}
 			}
 
@@ -930,7 +940,10 @@ impl CCodeGen {
 		}
 	}
 
-	pub fn gen_smart_cast_decl(val self, is_node: *AstNode, is_e: *IsExpr, subject: *AstNode, var_name: str, ind_level: usz): str {
+	pub fn gen_smart_cast_decl(
+		val self, is_node: *AstNode, is_e: *IsExpr,
+		subject: *AstNode, var_name: str, ind_level: usz
+	): str {
 		val pat_info = self.is_pattern_info(is_node);
 		val target_name = c_type_from_ast(is_e.target_type);
 		val bound_name = if (!is_e.alias.empty()) is_e.alias else var_name;
@@ -939,14 +952,18 @@ impl CCodeGen {
 		if (!is_e.alias.empty()) {
 			if (is_ptr) {
 				if (!pat_info.payload_path.empty()) {
-					if (pat_info.payload_ptr) return "${target_name}* ${bound_name} = (${var_name})->${pat_info.payload_path};";
+					if (pat_info.payload_ptr) {
+						return "${target_name}* ${bound_name} = (${var_name})->${pat_info.payload_path};";
+					}
 					return "${target_name}* ${bound_name} = (${target_name}*)"
 							"(&(${var_name})->${pat_info.payload_path});";
 				}
 				return "${target_name}* ${bound_name} = (${target_name}*)${var_name};";
 			} else {
 				if (!pat_info.payload_path.empty()) {
-					if (pat_info.payload_ptr) return "${target_name}* ${bound_name} = (${var_name}).${pat_info.payload_path};";
+					if (pat_info.payload_ptr) {
+						return "${target_name}* ${bound_name} = (${var_name}).${pat_info.payload_path};";
+					}
 					return "${target_name}* ${bound_name} = (${target_name}*)"
 							"(&(${var_name}).${pat_info.payload_path});";
 				}
@@ -1006,7 +1023,9 @@ impl CCodeGen {
 				if (pat_node is IsExpr as is_e) {
 					var subj_expr = self.gen_expr(we.condition!);
 					if (we.condition is IdentifierExpr as id) subj_expr = id.name;
-					cast_decl = self.gen_smart_cast_decl(pat_node, is_e, is_e.expr!, subj_expr, self.indent_level + 1);
+					cast_decl = self.gen_smart_cast_decl(
+						pat_node, is_e, is_e.expr!, subj_expr, self.indent_level + 1
+					);
 				}
 			}
 

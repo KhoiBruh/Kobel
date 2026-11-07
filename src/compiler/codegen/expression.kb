@@ -106,7 +106,9 @@ impl CCodeGen {
 
 			// A payload-enum value: tag plus the variant's union member.
 			is EnumCtorExpr -> {
-				if (node.payload_path.empty()) yield "(${node.c_name}){ .${node.tag_field} = ${node.tag_value} }";
+				if (node.payload_path.empty()) {
+					yield "(${node.c_name}){ .${node.tag_field} = ${node.tag_value} }";
+				}
 				var ctor_args = List<str>();
 				for (a in node.args) ctor_args += self.gen_expr(a);
 				val joined = ", ".join(ctor_args);
@@ -160,10 +162,12 @@ impl CCodeGen {
 				val obj_wrap = if (expr_needs_parens_for_member(mem.object)) "(${obj_s})" else obj_s;
 				val r_s = self.gen_expr(bin.right);
 				if (self.is_str_value(unwrapped_l) || self.is_str_value(bin.right)) {
-					return "((${obj_wrap} != NULL && ${obj_wrap}->${mem.member}.data != NULL) ? ${obj_wrap}->${mem.member} : ${r_s})";
+					val mem_val = "${obj_wrap}->${mem.member}";
+					return "((${obj_wrap} != NULL && ${mem_val}.data != NULL) ? ${mem_val} : ${r_s})";
 				}
 				if (self.is_pointer_value(unwrapped_l) || self.is_pointer_value(bin.right)) {
-					return "((${obj_wrap} != NULL && ${obj_wrap}->${mem.member} != NULL) ? ${obj_wrap}->${mem.member} : ${r_s})";
+					val mem_val = "${obj_wrap}->${mem.member}";
+					return "((${obj_wrap} != NULL && ${mem_val} != NULL) ? ${mem_val} : ${r_s})";
 				}
 				return "(${obj_wrap} != NULL ? ${obj_wrap}->${mem.member} : ${r_s})";
 			}
@@ -199,9 +203,13 @@ impl CCodeGen {
 			};
 
 			var l_is_null = false;
-			if (unwrapped_l != null && unwrapped_l is LiteralExpr as lit_l) l_is_null = (lit_l.literal_kind == Literal.NULL_VAL);
+			if (unwrapped_l != null && unwrapped_l is LiteralExpr as lit_l) {
+				l_is_null = (lit_l.literal_kind == Literal.NULL_VAL);
+			}
 			var r_is_null = false;
-			if (unwrapped_r != null && unwrapped_r is LiteralExpr as lit_r) r_is_null = (lit_r.literal_kind == Literal.NULL_VAL);
+			if (unwrapped_r != null && unwrapped_r is LiteralExpr as lit_r) {
+				r_is_null = (lit_r.literal_kind == Literal.NULL_VAL);
+			}
 
 			if (l_is_safe && !r_is_safe && unwrapped_l is MemberExpr as mem) {
 				val obj_s = self.gen_expr(mem.object);
@@ -221,12 +229,22 @@ impl CCodeGen {
 				}
 				return "(${obj_wrap} != NULL && ${l_s} ${op_str} ${obj_wrap}->${mem.member})";
 			}
-			if (l_is_safe && r_is_safe && unwrapped_l is MemberExpr as mem_l_val && unwrapped_r is MemberExpr as mem_r_val) {
+			if (
+				l_is_safe && r_is_safe &&
+				unwrapped_l is MemberExpr as mem_l_val &&
+				unwrapped_r is MemberExpr as mem_r_val
+			) {
 				val obj_l_s = self.gen_expr(mem_l_val.object);
 				val obj_r_s = self.gen_expr(mem_r_val.object);
-				val obj_l_wrap = if (expr_needs_parens_for_member(mem_l_val.object)) "(${obj_l_s})" else obj_l_s;
-				val obj_r_wrap = if (expr_needs_parens_for_member(mem_r_val.object)) "(${obj_r_s})" else obj_r_s;
-				return "(${obj_l_wrap} != NULL && ${obj_r_wrap} != NULL && ${obj_l_wrap}->${mem_l_val.member} ${op_str} ${obj_r_wrap}->${mem_r_val.member})";
+				val obj_l_wrap = if (expr_needs_parens_for_member(mem_l_val.object)) {
+					"(${obj_l_s})"
+				} else obj_l_s;
+				val obj_r_wrap = if (expr_needs_parens_for_member(mem_r_val.object)) {
+					"(${obj_r_s})"
+				} else obj_r_s;
+				val l_acc = "${obj_l_wrap}->${mem_l_val.member}";
+				val r_acc = "${obj_r_wrap}->${mem_r_val.member}";
+				return "(${obj_l_wrap} != NULL && ${obj_r_wrap} != NULL && ${l_acc} ${op_str} ${r_acc})";
 			}
 		}
 
@@ -353,7 +371,10 @@ impl CCodeGen {
 		// A member access on a pointer value needs `->`; the receiver of a
 		// non-identifier pointer is dereferenced by sema instead.
 		var is_ptr = false;
-		val raw_obj = obj_node; if (raw_obj is IdentifierExpr) is_ptr = self.c_type_of(obj_node).ends_with("*");
+		val raw_obj = obj_node;
+		if (raw_obj is IdentifierExpr) {
+			is_ptr = self.c_type_of(obj_node).ends_with("*");
+		}
 		val obj_str = if (expr_needs_parens_for_member(obj_node)) "(${obj})" else obj;
 		if (mem.is_safe) {
 			val mem_ty = self.node_type(ast_node);
@@ -469,7 +490,8 @@ impl CCodeGen {
 		val target_name = c_type_from_ast(is_e.target_type);
 		var tag_field = pat_info.tag_field;
 		if (tag_field.empty()) tag_field = "tag";
-		val obj_str = if (is_e.expr != null && expr_needs_parens_for_member(is_e.expr!)) "(${obj})" else obj;
+		val needs_parens = is_e.expr != null && expr_needs_parens_for_member(is_e.expr!);
+		val obj_str = if (needs_parens) "(${obj})" else obj;
 		val tag_const = if (pat_info.tag_const.empty()) "${target_name}__TAG" else pat_info.tag_const;
 		val tag_test = self.gen_tag_test(obj_str, pat_info.is_ptr, tag_field, tag_const);
 		if (!is_e.alias.empty()) {

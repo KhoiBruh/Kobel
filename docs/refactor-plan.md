@@ -157,10 +157,10 @@ To execute Phase 6 safely while keeping the compiler verifiable at every step:
 
 ## 4. Subsequent Phases (Phases 7–8)
 
-### Phase 7: `src/compiler/codegen/` Cleanup
-- Rename `c_codegen.kb`, `c_program.kb`, `c_stmt.kb`, `c_expr.kb`, `c_type.kb`, `c_runtime.kb` to clean, non-abbreviated names under `src/compiler/codegen/`:
+### Phase 7: `src/compiler/codegen/` Cleanup (Completed)
+- [x] Rename `c_codegen.kb`, `c_program.kb`, `c_stmt.kb`, `c_expr.kb`, `c_type.kb`, `c_runtime.kb` to clean, non-abbreviated names under `src/compiler/codegen/`:
   - `generator.kb`, `program.kb`, `statement.kb`, `expression.kb`, `types.kb`, `runtime.kb`
-- Ensure `codegen` is 100% read-only over `AstNode` and `SemanticTable`.
+- [x] Ensure `codegen` is 100% read-only over `AstNode` and `SemanticTable`.
 
 ### Phase 8: `driver`, `config`, `formatter`, `lsp` & Documentation Sync
 - Review and clean up `src/compiler/driver/`, `src/config/`, `src/fmt/`, and `src/lsp/`.
