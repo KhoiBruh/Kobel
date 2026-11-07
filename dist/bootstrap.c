@@ -346,6 +346,7 @@ typedef struct compiler__semantic__resolution__TypeResolver compiler__semantic__
 typedef struct compiler__semantic__resolution__TypeSubst compiler__semantic__resolution__TypeSubst;
 typedef struct compiler__semantic__declaration__DeclarationCollector compiler__semantic__declaration__DeclarationCollector;
 typedef struct compiler__sema__decl__DeclPass compiler__sema__decl__DeclPass;
+typedef struct compiler__semantic__lowering__LoweringPass compiler__semantic__lowering__LoweringPass;
 typedef struct compiler__semantic__checker__BodyChecker compiler__semantic__checker__BodyChecker;
 typedef struct compiler__semantic__checker__ArrowCandidate compiler__semantic__checker__ArrowCandidate;
 typedef struct compiler__sema__body__BodyPass compiler__sema__body__BodyPass;
@@ -1599,6 +1600,12 @@ struct compiler__sema__decl__DeclPass {
     compiler__semantic__symbols__InstanceRecord* mat_rec;
 };
 
+struct compiler__semantic__lowering__LoweringPass {
+    compiler__semantic__symbols__SymbolTable symtab;
+    std__memory__Arena arena;
+    compiler__sema__decl__DeclPass decl;
+};
+
 struct compiler__semantic__checker__BodyChecker {
     compiler__semantic__symbols__SymbolTable symtab;
     std__memory__Arena arena;
@@ -2593,9 +2600,6 @@ void compiler__semantic__symbols__SymbolTable_add_import(compiler__semantic__sym
 compiler__semantic__symbols__Symbol* compiler__semantic__symbols__SymbolTable_lookup_in_module(compiler__semantic__symbols__SymbolTable* self, kobel_str module_name, kobel_str name);
 compiler__semantic__symbols__Symbol* compiler__semantic__symbols__SymbolTable_lookup_c_name(compiler__semantic__symbols__SymbolTable* self, kobel_str c_name);
 compiler__semantic__symbols__Symbol* compiler__semantic__symbols__SymbolTable_lookup_struct_const(compiler__semantic__symbols__SymbolTable* self, kobel_str struct_name, kobel_str member_name);
-compiler__ast__AstNode* std__memory__Arena_interp_call(std__memory__Arena* self, kobel_str name, compiler__ast__AstNode* arg, size_t line, size_t col);
-compiler__ast__AstNode* std__memory__Arena_interp_concat(std__memory__Arena* self, compiler__ast__AstNode* a, compiler__ast__AstNode* b_node, size_t line, size_t col);
-compiler__ast__AstNode* std__memory__Arena_interp_concat_many(std__memory__Arena* self, std__collections__List_ptr_compiler__ast__AstNode pieces, size_t line, size_t col);
 compiler__semantic__symbols__AnnotationEntry* compiler__semantic__resolution__TypeResolver_mat_ann(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node);
 compiler__ast__AstNode* compiler__semantic__resolution__TypeResolver_clone_type(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node, compiler__semantic__symbols__GenericSubst* subst);
 compiler__ast__AstNode* compiler__semantic__resolution__TypeResolver_clone_expr(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node, compiler__semantic__symbols__GenericSubst* subst);
@@ -2782,6 +2786,51 @@ compiler__ast__AstNode* compiler__sema__decl__DeclPass_clone_expr(compiler__sema
 compiler__ast__AstNode* compiler__sema__decl__DeclPass_clone_fn(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node, compiler__semantic__symbols__GenericSubst* subst, kobel_str new_name);
 compiler__ast__AstNode* compiler__sema__decl__DeclPass_clone_stmt(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node, compiler__semantic__symbols__GenericSubst* subst);
 compiler__ast__AstNode* compiler__sema__decl__DeclPass_clone_type(compiler__sema__decl__DeclPass* self, compiler__ast__AstNode* node, compiler__semantic__symbols__GenericSubst* subst);
+bool compiler__semantic__lowering__for_is_lvalue(compiler__ast__AstNode* node);
+compiler__ast__AstNode* std__memory__Arena_loop_block(std__memory__Arena* self, std__collections__List_ptr_compiler__ast__AstNode stmts, size_t line, size_t col);
+compiler__ast__AstNode* std__memory__Arena_loop_expr(std__memory__Arena* self, compiler__ast__AstNode* expr, size_t line, size_t col);
+compiler__ast__AstNode* std__memory__Arena_loop_var(std__memory__Arena* self, bool mutable, kobel_str name, compiler__ast__AstNode* ty, compiler__ast__AstNode* initializer, size_t line, size_t col);
+compiler__ast__AstNode* std__memory__Arena_loop_if(std__memory__Arena* self, compiler__ast__AstNode* cond, compiler__ast__AstNode* then_b, compiler__ast__AstNode* else_b, size_t line, size_t col);
+compiler__ast__AstNode* std__memory__Arena_loop_while(std__memory__Arena* self, compiler__ast__AstNode* cond, compiler__ast__AstNode* body, size_t line, size_t col);
+compiler__ast__AstNode* std__memory__Arena_for_usz_type(std__memory__Arena* self, size_t line, size_t col);
+compiler__ast__AstNode* std__memory__Arena_for_id(std__memory__Arena* self, kobel_str name, size_t line, size_t col);
+compiler__ast__AstNode* std__memory__Arena_for_num(std__memory__Arena* self, kobel_str text, size_t line, size_t col);
+compiler__ast__AstNode* std__memory__Arena_for_i_cmp(std__memory__Arena* self, compiler__lexer__TokenType op, size_t line, size_t col);
+compiler__ast__AstNode* std__memory__Arena_for_set_go(std__memory__Arena* self, compiler__ast__AstNode* value, size_t line, size_t col);
+compiler__ast__AstNode* std__memory__Arena_for_bump(std__memory__Arena* self, compiler__lexer__TokenType op, size_t line, size_t col);
+compiler__ast__AstNode* std__memory__Arena_for_by_dir(std__memory__Arena* self, compiler__ast__AstNode* up_stmt, compiler__ast__AstNode* down_stmt, size_t line, size_t col);
+void std__memory__Arena_for_inject_step(std__memory__Arena* self, compiler__ast__AstNode* node, std__collections__List_ptr_compiler__ast__AstNode* step, compiler__semantic__checker__BodyChecker* bc);
+void std__memory__Arena_for_inject_step_expr(std__memory__Arena* self, compiler__ast__AstNode* expr, std__collections__List_ptr_compiler__ast__AstNode* step, compiler__semantic__checker__BodyChecker* bc);
+compiler__ast__AstNode* std__memory__Arena_desugar_for_iter_method(std__memory__Arena* self, std__collections__List_ptr_compiler__ast__AstNode* pre, std__collections__List_ptr_compiler__ast__AstNode* head, std__collections__List_ptr_compiler__ast__AstNode* step, compiler__ast__NodeData__ForStmt* fs, size_t line, size_t col);
+compiler__ast__AstNode* std__memory__Arena_desugar_for_iterable(std__memory__Arena* self, std__collections__List_ptr_compiler__ast__AstNode* pre, std__collections__List_ptr_compiler__ast__AstNode* head, std__collections__List_ptr_compiler__ast__AstNode* step, compiler__ast__NodeData__ForStmt* fs, size_t line, size_t col);
+compiler__ast__AstNode* std__memory__Arena_desugar_for_range(std__memory__Arena* self, std__collections__List_ptr_compiler__ast__AstNode* pre, std__collections__List_ptr_compiler__ast__AstNode* head, std__collections__List_ptr_compiler__ast__AstNode* step, compiler__ast__NodeData__ForStmt* fs, size_t line, size_t col);
+compiler__ast__AstNode* std__memory__Arena_desugar_for(std__memory__Arena* self, compiler__ast__AstNode* node, compiler__ast__NodeData__ForStmt* fs, bool use_iter_trait, compiler__semantic__checker__BodyChecker* bc);
+compiler__semantic__lowering__LoweringPass compiler__semantic__lowering__LoweringPass_init_0(void);
+compiler__semantic__lowering__LoweringPass compiler__semantic__lowering__LoweringPass_init_2(compiler__semantic__symbols__SymbolTable symtab, std__memory__Arena arena);
+compiler__semantic__lowering__LoweringPass compiler__semantic__lowering__LoweringPass_init_3(compiler__semantic__symbols__SymbolTable symtab, std__memory__Arena arena, compiler__sema__decl__DeclPass decl);
+void compiler__semantic__lowering__LoweringPass_lower_program(compiler__semantic__lowering__LoweringPass* self, compiler__ast__AstNode* program_node);
+compiler__ast__AstNode* compiler__semantic__lowering__LoweringPass_lower_stmt(compiler__semantic__lowering__LoweringPass* self, compiler__ast__AstNode* node);
+compiler__ast__AstNode* compiler__semantic__lowering__LoweringPass_lower_expr(compiler__semantic__lowering__LoweringPass* self, compiler__ast__AstNode* node);
+compiler__ast__AstNode* compiler__semantic__lowering__LoweringPass_lower_arm_body(compiler__semantic__lowering__LoweringPass* self, compiler__ast__AstNode* body);
+compiler__ast__AstNode* compiler__semantic__lowering__LoweringPass_lowered(compiler__semantic__lowering__LoweringPass* self, compiler__ast__AstNode* original, compiler__ast__AstNode* replacement);
+compiler__ast__AstNode* compiler__semantic__lowering__LoweringPass_lower_binary(compiler__semantic__lowering__LoweringPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__BinaryExpr* bin);
+compiler__ast__AstNode* compiler__semantic__lowering__LoweringPass_lower_assign(compiler__semantic__lowering__LoweringPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__AssignExpr* asgn);
+compiler__ast__AstNode* compiler__semantic__lowering__LoweringPass_lower_interp(compiler__semantic__lowering__LoweringPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__InterpExpr* ie);
+compiler__ast__AstNode* compiler__semantic__lowering__LoweringPass_to_str_expr(compiler__semantic__lowering__LoweringPass* self, compiler__ast__AstNode* expr, size_t line, size_t col);
+compiler__ast__AstNode* compiler__semantic__lowering__LoweringPass_lower_member(compiler__semantic__lowering__LoweringPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__MemberExpr* mem);
+compiler__ast__AstNode* compiler__semantic__lowering__LoweringPass_lower_unary(compiler__semantic__lowering__LoweringPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__UnaryExpr* un);
+compiler__ast__AstNode* compiler__semantic__lowering__LoweringPass_lower_index(compiler__semantic__lowering__LoweringPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__IndexExpr* idx);
+compiler__ast__AstNode* compiler__semantic__lowering__LoweringPass_lower_bound_call(compiler__semantic__lowering__LoweringPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__CallExpr* call);
+compiler__ast__AstNode* compiler__semantic__lowering__LoweringPass_lower_call(compiler__semantic__lowering__LoweringPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__CallExpr* call);
+compiler__semantic__types__Type* compiler__semantic__lowering__LoweringPass_type_of(compiler__semantic__lowering__LoweringPass* self, compiler__ast__AstNode* node);
+bool compiler__semantic__lowering__LoweringPass_is_str_expr(compiler__semantic__lowering__LoweringPass* self, compiler__ast__AstNode* node);
+bool compiler__semantic__lowering__LoweringPass_is_stmt_node(compiler__semantic__lowering__LoweringPass* self, compiler__ast__AstNode* node);
+bool compiler__semantic__lowering__LoweringPass_is_array_expr(compiler__semantic__lowering__LoweringPass* self, compiler__ast__AstNode* node);
+compiler__ast__AstNode* std__memory__Arena_interp_call(std__memory__Arena* self, kobel_str name, compiler__ast__AstNode* arg, size_t line, size_t col);
+compiler__ast__AstNode* std__memory__Arena_interp_concat(std__memory__Arena* self, compiler__ast__AstNode* a, compiler__ast__AstNode* b_node, size_t line, size_t col);
+compiler__ast__AstNode* std__memory__Arena_interp_concat_many(std__memory__Arena* self, std__collections__List_ptr_compiler__ast__AstNode pieces, size_t line, size_t col);
+compiler__ast__AstNode* std__memory__Arena_make_str_eq(std__memory__Arena* self, bool is_neq, compiler__ast__AstNode* left, compiler__ast__AstNode* right, size_t line, size_t col);
+compiler__ast__AstNode* std__memory__Arena_make_mem_eq(std__memory__Arena* self, bool is_neq, compiler__ast__AstNode* left, compiler__ast__AstNode* right, size_t size, size_t line, size_t col);
 compiler__semantic__types__Type* compiler__semantic__checker__BodyChecker_check_member_expr(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* node);
 compiler__semantic__types__Type* compiler__semantic__checker__BodyChecker_check_const_member(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* node, compiler__ast__NodeData__MemberExpr* mem);
 compiler__semantic__types__Type* compiler__semantic__checker__BodyChecker_member_on_str(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* node, compiler__ast__NodeData__MemberExpr* mem);
@@ -2835,6 +2884,7 @@ void compiler__semantic__checker__BodyChecker_leave_module(compiler__semantic__c
 compiler__semantic__types__Type* compiler__semantic__checker__BodyChecker_check_expr_stmt(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* expr, compiler__semantic__types__Type* expected);
 void compiler__semantic__checker__BodyChecker_report_warning(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* node, kobel_str msg);
 void compiler__semantic__checker__BodyChecker_report_error(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* node, kobel_str msg);
+void compiler__semantic__checker__BodyChecker_lower_program(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* program_node);
 compiler__semantic__types__Type* compiler__semantic__checker__BodyChecker_resolve_type(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* node);
 compiler__semantic__symbols__GenericTemplate* compiler__semantic__checker__BodyChecker_find_method_template_for(compiler__semantic__checker__BodyChecker* self, kobel_str name, kobel_str self_type);
 kobel_str compiler__semantic__checker__BodyChecker_instantiate_method(compiler__semantic__checker__BodyChecker* self, compiler__semantic__symbols__GenericTemplate* tmpl, std__collections__List_ptr_compiler__ast__AstNode arg_asts, compiler__semantic__types__Type* obj_ty);
@@ -2927,45 +2977,9 @@ compiler__semantic__checker__BodyChecker compiler__sema__body__BodyPass_to_check
 void compiler__sema__body__BodyPass_apply_checker(compiler__sema__body__BodyPass* self, compiler__semantic__checker__BodyChecker c);
 void compiler__sema__body__BodyPass_check_program(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* program_node);
 void compiler__sema__body__BodyPass_set_resolved(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__AstNode* r);
-bool compiler__sema__desugar__for_is_lvalue(compiler__ast__AstNode* node);
-compiler__ast__AstNode* std__memory__Arena_loop_block(std__memory__Arena* self, std__collections__List_ptr_compiler__ast__AstNode stmts, size_t line, size_t col);
-compiler__ast__AstNode* std__memory__Arena_loop_expr(std__memory__Arena* self, compiler__ast__AstNode* expr, size_t line, size_t col);
-compiler__ast__AstNode* std__memory__Arena_loop_var(std__memory__Arena* self, bool mutable, kobel_str name, compiler__ast__AstNode* ty, compiler__ast__AstNode* initializer, size_t line, size_t col);
-compiler__ast__AstNode* std__memory__Arena_loop_if(std__memory__Arena* self, compiler__ast__AstNode* cond, compiler__ast__AstNode* then_b, compiler__ast__AstNode* else_b, size_t line, size_t col);
-compiler__ast__AstNode* std__memory__Arena_loop_while(std__memory__Arena* self, compiler__ast__AstNode* cond, compiler__ast__AstNode* body, size_t line, size_t col);
-compiler__ast__AstNode* std__memory__Arena_for_usz_type(std__memory__Arena* self, size_t line, size_t col);
-compiler__ast__AstNode* std__memory__Arena_for_id(std__memory__Arena* self, kobel_str name, size_t line, size_t col);
-compiler__ast__AstNode* std__memory__Arena_for_num(std__memory__Arena* self, kobel_str text, size_t line, size_t col);
-compiler__ast__AstNode* std__memory__Arena_for_i_cmp(std__memory__Arena* self, compiler__lexer__TokenType op, size_t line, size_t col);
-compiler__ast__AstNode* std__memory__Arena_for_set_go(std__memory__Arena* self, compiler__ast__AstNode* value, size_t line, size_t col);
-compiler__ast__AstNode* std__memory__Arena_for_bump(std__memory__Arena* self, compiler__lexer__TokenType op, size_t line, size_t col);
-compiler__ast__AstNode* std__memory__Arena_for_by_dir(std__memory__Arena* self, compiler__ast__AstNode* up_stmt, compiler__ast__AstNode* down_stmt, size_t line, size_t col);
-void std__memory__Arena_for_inject_step(std__memory__Arena* self, compiler__ast__AstNode* node, std__collections__List_ptr_compiler__ast__AstNode* step, compiler__semantic__checker__BodyChecker* bc);
-void std__memory__Arena_for_inject_step_expr(std__memory__Arena* self, compiler__ast__AstNode* expr, std__collections__List_ptr_compiler__ast__AstNode* step, compiler__semantic__checker__BodyChecker* bc);
-compiler__ast__AstNode* std__memory__Arena_desugar_for_iter_method(std__memory__Arena* self, std__collections__List_ptr_compiler__ast__AstNode* pre, std__collections__List_ptr_compiler__ast__AstNode* head, std__collections__List_ptr_compiler__ast__AstNode* step, compiler__ast__NodeData__ForStmt* fs, size_t line, size_t col);
-compiler__ast__AstNode* std__memory__Arena_desugar_for_iterable(std__memory__Arena* self, std__collections__List_ptr_compiler__ast__AstNode* pre, std__collections__List_ptr_compiler__ast__AstNode* head, std__collections__List_ptr_compiler__ast__AstNode* step, compiler__ast__NodeData__ForStmt* fs, size_t line, size_t col);
-compiler__ast__AstNode* std__memory__Arena_desugar_for_range(std__memory__Arena* self, std__collections__List_ptr_compiler__ast__AstNode* pre, std__collections__List_ptr_compiler__ast__AstNode* head, std__collections__List_ptr_compiler__ast__AstNode* step, compiler__ast__NodeData__ForStmt* fs, size_t line, size_t col);
-compiler__ast__AstNode* std__memory__Arena_desugar_for(std__memory__Arena* self, compiler__ast__AstNode* node, compiler__ast__NodeData__ForStmt* fs, bool use_iter_trait, compiler__semantic__checker__BodyChecker* bc);
 void compiler__sema__body__BodyPass_lower_program(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* program_node);
 compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_stmt(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node);
 compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_expr(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node);
-compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_arm_body(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* body);
-compiler__ast__AstNode* compiler__sema__body__BodyPass_lowered(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* original, compiler__ast__AstNode* replacement);
-compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_binary(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__BinaryExpr* bin);
-compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_assign(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__AssignExpr* asgn);
-compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_interp(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__InterpExpr* ie);
-compiler__ast__AstNode* compiler__sema__body__BodyPass_to_str_expr(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* expr, size_t line, size_t col);
-compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_member(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__MemberExpr* mem);
-compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_unary(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__UnaryExpr* un);
-compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_index(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__IndexExpr* idx);
-compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_bound_call(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__CallExpr* call);
-compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_call(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__CallExpr* call);
-compiler__semantic__types__Type* compiler__sema__body__BodyPass_type_of(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node);
-bool compiler__sema__body__BodyPass_is_str_expr(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node);
-bool compiler__sema__body__BodyPass_is_stmt_node(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node);
-bool compiler__sema__body__BodyPass_is_array_expr(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node);
-compiler__ast__AstNode* std__memory__Arena_make_str_eq(std__memory__Arena* self, bool is_neq, compiler__ast__AstNode* left, compiler__ast__AstNode* right, size_t line, size_t col);
-compiler__ast__AstNode* std__memory__Arena_make_mem_eq(std__memory__Arena* self, bool is_neq, compiler__ast__AstNode* left, compiler__ast__AstNode* right, size_t size, size_t line, size_t col);
 compiler__codegen__CCodeGen compiler__codegen__CCodeGen_init(compiler__semantic__symbols__SymbolTable* symtab);
 compiler__semantic__types__Type* compiler__codegen__CCodeGen_node_type(compiler__codegen__CCodeGen* self, compiler__ast__AstNode* node);
 compiler__semantic__symbols__IsPatternInfo compiler__codegen__CCodeGen_is_pattern_info(compiler__codegen__CCodeGen* self, compiler__ast__AstNode* node);
@@ -12105,73 +12119,6 @@ compiler__semantic__symbols__Symbol* compiler__semantic__symbols__SymbolTable_lo
     return NULL;
 }
 
-compiler__ast__AstNode* std__memory__Arena_interp_call(std__memory__Arena* self, kobel_str name, compiler__ast__AstNode* arg, size_t line, size_t col) {
-    std__collections__List_ptr_compiler__ast__AstNode args = std__collections__List_ptr_compiler__ast__AstNode_init(4);
-    std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&args, arg);
-    compiler__ast__AstNode* callee = std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 6, .u.IdentifierExpr = { name } }, line, col);
-    return std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 9, .u.CallExpr = { callee, args, std__collections__List_ptr_compiler__ast__AstNode_init(4) } }, line, col);
-}
-
-compiler__ast__AstNode* std__memory__Arena_interp_concat(std__memory__Arena* self, compiler__ast__AstNode* a, compiler__ast__AstNode* b_node, size_t line, size_t col) {
-    std__collections__List_ptr_compiler__ast__AstNode args = std__collections__List_ptr_compiler__ast__AstNode_init(4);
-    std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&args, a);
-    std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&args, b_node);
-    compiler__ast__AstNode* callee = std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 6, .u.IdentifierExpr = { KOBEL_STR("kobel_concat") } }, line, col);
-    return std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 9, .u.CallExpr = { callee, args, std__collections__List_ptr_compiler__ast__AstNode_init(4) } }, line, col);
-}
-
-compiler__ast__AstNode* std__memory__Arena_interp_concat_many(std__memory__Arena* self, std__collections__List_ptr_compiler__ast__AstNode pieces, size_t line, size_t col) {
-    if (std__collections__List_ptr_compiler__ast__AstNode_empty(&pieces)) {
-        return NULL;
-    }
-    if (pieces.len == 1) {
-        return std__collections__List_ptr_compiler__ast__AstNode_get(&pieces, 0);
-    }
-    compiler__ast__AstNode* acc = std__collections__List_ptr_compiler__ast__AstNode_get(&pieces, 0);
-    size_t i = 1;
-    while (i < pieces.len) {
-        bool first_group = (i == 1);
-        size_t max_take = (first_group ? 4 : 4);
-        size_t rem = (pieces.len - i);
-        size_t take = ((rem < max_take) ? rem : max_take);
-        std__collections__List_ptr_compiler__ast__AstNode args = std__collections__List_ptr_compiler__ast__AstNode_init(4);
-        std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&args, acc);
-        {
-            size_t __for_e = take;
-            size_t __for_i = __for_e;
-            __for_i = 0;
-            bool __for_up = (__for_i <= __for_e);
-            bool __for_go = false;
-            if (__for_up) {
-                __for_go = (__for_i < __for_e);
-            } else {
-                __for_go = (__for_i > __for_e);
-            }
-            while (__for_go) {
-                size_t k = __for_i;
-                std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&args, std__collections__List_ptr_compiler__ast__AstNode_get(&pieces, (i + k)));
-                if (__for_up) {
-                    __for_go = ((__for_i + 1) < __for_e);
-                } else {
-                    __for_go = ((__for_i - 1) > __for_e);
-                }
-                if (__for_go) {
-                    if (__for_up) {
-                        __for_i = (__for_i + 1);
-                    } else {
-                        __for_i = (__for_i - 1);
-                    }
-                }
-            }
-        }
-        kobel_str helper = (args.len == 2 ? KOBEL_STR("kobel_concat") : (args.len == 3 ? KOBEL_STR("kobel_concat3") : (args.len == 4 ? KOBEL_STR("kobel_concat4") : KOBEL_STR("kobel_concat5"))));
-        compiler__ast__AstNode* callee = std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 6, .u.IdentifierExpr = { helper } }, line, col);
-        acc = std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 9, .u.CallExpr = { callee, args, std__collections__List_ptr_compiler__ast__AstNode_init(4) } }, line, col);
-        i += take;
-    }
-    return acc;
-}
-
 compiler__semantic__symbols__AnnotationEntry* compiler__semantic__resolution__TypeResolver_mat_ann(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node) {
     if ((node == NULL) || (self->mat_rec == NULL)) {
         return NULL;
@@ -16580,6 +16527,1324 @@ compiler__ast__AstNode* compiler__sema__decl__DeclPass_clone_type(compiler__sema
     return res;
 }
 
+bool compiler__semantic__lowering__for_is_lvalue(compiler__ast__AstNode* node) {
+    if (node == NULL) {
+        return false;
+    }
+    compiler__ast__AstNode* target = node;
+    if (target != NULL && target->data.tag == compiler__ast__NodeData__MemberExpr__TAG) {
+        void* __orig_target = (void*)target;
+        compiler__ast__NodeData__MemberExpr* target = (compiler__ast__NodeData__MemberExpr*)((&((compiler__ast__AstNode*)__orig_target)->data.u.MemberExpr));
+        return (target->is_safe ? false : compiler__semantic__lowering__for_is_lvalue(target->object));
+    } else if (target != NULL && target->data.tag == compiler__ast__NodeData__GroupExpr__TAG) {
+        void* __orig_target = (void*)target;
+        compiler__ast__NodeData__GroupExpr* target = (compiler__ast__NodeData__GroupExpr*)((&((compiler__ast__AstNode*)__orig_target)->data.u.GroupExpr));
+        return compiler__semantic__lowering__for_is_lvalue(target->expr);
+    } else if (target != NULL && target->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG) {
+        void* __orig_target = (void*)target;
+        compiler__ast__NodeData__IdentifierExpr* target = (compiler__ast__NodeData__IdentifierExpr*)((&((compiler__ast__AstNode*)__orig_target)->data.u.IdentifierExpr));
+        return true;
+    } else {
+        return false;
+    }
+}
+
+compiler__ast__AstNode* std__memory__Arena_loop_block(std__memory__Arena* self, std__collections__List_ptr_compiler__ast__AstNode stmts, size_t line, size_t col) {
+    return std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 24, .u.BlockStmt = { stmts } }, line, col);
+}
+
+compiler__ast__AstNode* std__memory__Arena_loop_expr(std__memory__Arena* self, compiler__ast__AstNode* expr, size_t line, size_t col) {
+    return std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 25, .u.ExprStmt = { expr } }, line, col);
+}
+
+compiler__ast__AstNode* std__memory__Arena_loop_var(std__memory__Arena* self, bool mutable, kobel_str name, compiler__ast__AstNode* ty, compiler__ast__AstNode* initializer, size_t line, size_t col) {
+    return std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 26, .u.VarDeclStmt = { mutable, name, ty, initializer } }, line, col);
+}
+
+compiler__ast__AstNode* std__memory__Arena_loop_if(std__memory__Arena* self, compiler__ast__AstNode* cond, compiler__ast__AstNode* then_b, compiler__ast__AstNode* else_b, size_t line, size_t col) {
+    return std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 27, .u.IfStmt = { cond, then_b, else_b } }, line, col);
+}
+
+compiler__ast__AstNode* std__memory__Arena_loop_while(std__memory__Arena* self, compiler__ast__AstNode* cond, compiler__ast__AstNode* body, size_t line, size_t col) {
+    return std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 28, .u.WhileStmt = { cond, body } }, line, col);
+}
+
+compiler__ast__AstNode* std__memory__Arena_for_usz_type(std__memory__Arena* self, size_t line, size_t col) {
+    return std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 1, .u.NamedType = { KOBEL_STR("usz"), std__collections__List_ptr_compiler__ast__AstNode_init(4) } }, line, col);
+}
+
+compiler__ast__AstNode* std__memory__Arena_for_id(std__memory__Arena* self, kobel_str name, size_t line, size_t col) {
+    return std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 6, .u.IdentifierExpr = { name } }, line, col);
+}
+
+compiler__ast__AstNode* std__memory__Arena_for_num(std__memory__Arena* self, kobel_str text, size_t line, size_t col) {
+    return std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 5, .u.LiteralExpr = { 0, text } }, line, col);
+}
+
+compiler__ast__AstNode* std__memory__Arena_for_i_cmp(std__memory__Arena* self, compiler__lexer__TokenType op, size_t line, size_t col) {
+    compiler__ast__AstNode* lhs = std__memory__Arena_for_id(self, KOBEL_STR("__for_i"), line, col);
+    compiler__ast__AstNode* rhs = std__memory__Arena_for_id(self, KOBEL_STR("__for_e"), line, col);
+    return std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 7, .u.BinaryExpr = { lhs, op, rhs } }, line, col);
+}
+
+compiler__ast__AstNode* std__memory__Arena_for_set_go(std__memory__Arena* self, compiler__ast__AstNode* value, size_t line, size_t col) {
+    compiler__ast__AstNode* lhs = std__memory__Arena_for_id(self, KOBEL_STR("__for_go"), line, col);
+    compiler__ast__AstNode* asgn = std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 12, .u.AssignExpr = { lhs, 5, value } }, line, col);
+    return std__memory__Arena_loop_expr(self, asgn, line, col);
+}
+
+compiler__ast__AstNode* std__memory__Arena_for_bump(std__memory__Arena* self, compiler__lexer__TokenType op, size_t line, size_t col) {
+    compiler__ast__AstNode* target = std__memory__Arena_for_id(self, KOBEL_STR("__for_i"), line, col);
+    compiler__ast__AstNode* lhs = std__memory__Arena_for_id(self, KOBEL_STR("__for_i"), line, col);
+    compiler__ast__AstNode* one = std__memory__Arena_for_num(self, KOBEL_STR("1"), line, col);
+    compiler__ast__AstNode* bin = std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 7, .u.BinaryExpr = { lhs, op, one } }, line, col);
+    compiler__ast__AstNode* asgn = std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 12, .u.AssignExpr = { target, 5, bin } }, line, col);
+    return std__memory__Arena_loop_expr(self, asgn, line, col);
+}
+
+compiler__ast__AstNode* std__memory__Arena_for_by_dir(std__memory__Arena* self, compiler__ast__AstNode* up_stmt, compiler__ast__AstNode* down_stmt, size_t line, size_t col) {
+    std__collections__List_ptr_compiler__ast__AstNode up_stmts = std__collections__List_ptr_compiler__ast__AstNode_init(4);
+    std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&up_stmts, up_stmt);
+    std__collections__List_ptr_compiler__ast__AstNode down_stmts = std__collections__List_ptr_compiler__ast__AstNode_init(4);
+    std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&down_stmts, down_stmt);
+    return std__memory__Arena_loop_if(self, std__memory__Arena_for_id(self, KOBEL_STR("__for_up"), line, col), std__memory__Arena_loop_block(self, up_stmts, line, col), std__memory__Arena_loop_block(self, down_stmts, line, col), line, col);
+}
+
+void std__memory__Arena_for_inject_step(std__memory__Arena* self, compiler__ast__AstNode* node, std__collections__List_ptr_compiler__ast__AstNode* step, compiler__semantic__checker__BodyChecker* bc) {
+    if (node == NULL) {
+        return;
+    }
+    compiler__ast__AstNode* target = node;
+    if (target != NULL && target->data.tag == compiler__ast__NodeData__BlockStmt__TAG) {
+        void* __orig_target = (void*)target;
+        compiler__ast__NodeData__BlockStmt* target = (compiler__ast__NodeData__BlockStmt*)((&((compiler__ast__AstNode*)__orig_target)->data.u.BlockStmt));
+        size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&target->statements);
+        size_t __for_i = 0;
+        while (__for_i < __for_n) {
+            compiler__ast__AstNode* stmt = std__collections__List_ptr_compiler__ast__AstNode_at(&target->statements, __for_i);
+            std__memory__Arena_for_inject_step(self, stmt, step, bc);
+            __for_i = (__for_i + 1);
+        }
+    } else if (target != NULL && target->data.tag == compiler__ast__NodeData__IfStmt__TAG) {
+        void* __orig_target = (void*)target;
+        compiler__ast__NodeData__IfStmt* target = (compiler__ast__NodeData__IfStmt*)((&((compiler__ast__AstNode*)__orig_target)->data.u.IfStmt));
+        std__memory__Arena_for_inject_step(self, target->then_branch, step, bc);
+        std__memory__Arena_for_inject_step(self, target->else_branch, step, bc);
+    } else if (target != NULL && target->data.tag == compiler__ast__NodeData__WhenStmt__TAG) {
+        void* __orig_target = (void*)target;
+        compiler__ast__NodeData__WhenStmt* target = (compiler__ast__NodeData__WhenStmt*)((&((compiler__ast__AstNode*)__orig_target)->data.u.WhenStmt));
+        size_t __for_n = std__collections__List_compiler__ast__WhenArm_count(&target->arms);
+        size_t __for_i = 0;
+        while (__for_i < __for_n) {
+            compiler__ast__WhenArm arm = std__collections__List_compiler__ast__WhenArm_at(&target->arms, __for_i);
+            std__memory__Arena_for_inject_step(self, arm.body, step, bc);
+            __for_i = (__for_i + 1);
+        }
+    } else if (target != NULL && target->data.tag == compiler__ast__NodeData__VarDeclStmt__TAG) {
+        void* __orig_target = (void*)target;
+        compiler__ast__NodeData__VarDeclStmt* target = (compiler__ast__NodeData__VarDeclStmt*)((&((compiler__ast__AstNode*)__orig_target)->data.u.VarDeclStmt));
+        std__memory__Arena_for_inject_step_expr(self, target->initializer, step, bc);
+    } else if (target != NULL && target->data.tag == compiler__ast__NodeData__ExprStmt__TAG) {
+        void* __orig_target = (void*)target;
+        compiler__ast__NodeData__ExprStmt* target = (compiler__ast__NodeData__ExprStmt*)((&((compiler__ast__AstNode*)__orig_target)->data.u.ExprStmt));
+        std__memory__Arena_for_inject_step_expr(self, target->expr, step, bc);
+    } else if (target != NULL && target->data.tag == compiler__ast__NodeData__ContinueStmt__TAG) {
+        void* __orig_target = (void*)target;
+        compiler__ast__NodeData__ContinueStmt* target = (compiler__ast__NodeData__ContinueStmt*)((&((compiler__ast__AstNode*)__orig_target)->data.u.ContinueStmt));
+        std__collections__List_ptr_compiler__ast__AstNode stmts = std__collections__List_ptr_compiler__ast__AstNode_init(4);
+        {
+            size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(step);
+            size_t __for_i = 0;
+            while (__for_i < __for_n) {
+                compiler__ast__AstNode* s = std__collections__List_ptr_compiler__ast__AstNode_at(step, __for_i);
+                std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&stmts, s);
+                __for_i = (__for_i + 1);
+            }
+        }
+        std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&stmts, std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 32 }, node->line, node->col));
+        compiler__ast__AstNode* block = std__memory__Arena_loop_block(self, stmts, node->line, node->col);
+        if (bc != NULL) {
+            compiler__semantic__checker__BodyChecker_set_resolved(bc, node, block);
+        }
+    }
+}
+
+void std__memory__Arena_for_inject_step_expr(std__memory__Arena* self, compiler__ast__AstNode* expr, std__collections__List_ptr_compiler__ast__AstNode* step, compiler__semantic__checker__BodyChecker* bc) {
+    if (expr == NULL) {
+        return;
+    }
+    compiler__ast__AstNode* cur = expr;
+    while (cur != NULL) {
+        {
+            compiler__ast__NodeData__GroupExpr* g = NULL;
+            if ((cur != NULL && cur->data.tag == compiler__ast__NodeData__GroupExpr__TAG && (g = (compiler__ast__NodeData__GroupExpr*)(&(cur)->data.u.GroupExpr), 1))) {
+                cur = g->expr;
+            } else {
+                break;
+            }
+        }
+    }
+    if (cur == NULL) {
+        return;
+    }
+    {
+        compiler__ast__NodeData__BinaryExpr* bin = NULL;
+        compiler__ast__NodeData__AssignExpr* asg = NULL;
+        if ((cur != NULL && cur->data.tag == compiler__ast__NodeData__BinaryExpr__TAG && (bin = (compiler__ast__NodeData__BinaryExpr*)(&(cur)->data.u.BinaryExpr), 1)) && (bin->op == 37)) {
+            std__memory__Arena_for_inject_step(self, bin->right, step, bc);
+        } else if ((cur != NULL && cur->data.tag == compiler__ast__NodeData__AssignExpr__TAG && (asg = (compiler__ast__NodeData__AssignExpr*)(&(cur)->data.u.AssignExpr), 1))) {
+            std__memory__Arena_for_inject_step_expr(self, asg->value, step, bc);
+        }
+    }
+}
+
+compiler__ast__AstNode* std__memory__Arena_desugar_for_iter_method(std__memory__Arena* self, std__collections__List_ptr_compiler__ast__AstNode* pre, std__collections__List_ptr_compiler__ast__AstNode* head, std__collections__List_ptr_compiler__ast__AstNode* step, compiler__ast__NodeData__ForStmt* fs, size_t line, size_t col) {
+    compiler__ast__AstNode* count_mem = std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 10, .u.MemberExpr = { fs->iterable, KOBEL_STR("count"), false } }, line, col);
+    compiler__ast__AstNode* count_call = std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 9, .u.CallExpr = { count_mem, std__collections__List_ptr_compiler__ast__AstNode_init(4), std__collections__List_ptr_compiler__ast__AstNode_init(4) } }, line, col);
+    std__collections__List_ptr_compiler__ast__AstNode_plus_assign(pre, std__memory__Arena_loop_var(self, false, KOBEL_STR("__for_n"), std__memory__Arena_for_usz_type(self, line, col), count_call, line, col));
+    std__collections__List_ptr_compiler__ast__AstNode_plus_assign(pre, std__memory__Arena_loop_var(self, true, KOBEL_STR("__for_i"), std__memory__Arena_for_usz_type(self, line, col), std__memory__Arena_for_num(self, KOBEL_STR("0"), line, col), line, col));
+    std__collections__List_ptr_compiler__ast__AstNode at_args = std__collections__List_ptr_compiler__ast__AstNode_init(4);
+    std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&at_args, std__memory__Arena_for_id(self, KOBEL_STR("__for_i"), line, col));
+    compiler__ast__AstNode* at_mem = std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 10, .u.MemberExpr = { fs->iterable, KOBEL_STR("at"), false } }, line, col);
+    compiler__ast__AstNode* at_call = std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 9, .u.CallExpr = { at_mem, at_args, std__collections__List_ptr_compiler__ast__AstNode_init(4) } }, line, col);
+    std__collections__List_ptr_compiler__ast__AstNode_plus_assign(head, std__memory__Arena_loop_var(self, false, fs->var_name, NULL, at_call, line, col));
+    std__collections__List_ptr_compiler__ast__AstNode_plus_assign(step, std__memory__Arena_for_bump(self, 6, line, col));
+    return std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 7, .u.BinaryExpr = { std__memory__Arena_for_id(self, KOBEL_STR("__for_i"), line, col), 12, std__memory__Arena_for_id(self, KOBEL_STR("__for_n"), line, col) } }, line, col);
+}
+
+compiler__ast__AstNode* std__memory__Arena_desugar_for_iterable(std__memory__Arena* self, std__collections__List_ptr_compiler__ast__AstNode* pre, std__collections__List_ptr_compiler__ast__AstNode* head, std__collections__List_ptr_compiler__ast__AstNode* step, compiler__ast__NodeData__ForStmt* fs, size_t line, size_t col) {
+    compiler__ast__AstNode* len_mem = std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 10, .u.MemberExpr = { fs->iterable, KOBEL_STR("len"), false } }, line, col);
+    std__collections__List_ptr_compiler__ast__AstNode_plus_assign(pre, std__memory__Arena_loop_var(self, false, KOBEL_STR("__for_n"), std__memory__Arena_for_usz_type(self, line, col), len_mem, line, col));
+    std__collections__List_ptr_compiler__ast__AstNode_plus_assign(pre, std__memory__Arena_loop_var(self, true, KOBEL_STR("__for_i"), std__memory__Arena_for_usz_type(self, line, col), std__memory__Arena_for_num(self, KOBEL_STR("0"), line, col), line, col));
+    compiler__ast__AstNode* data_mem = std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 10, .u.MemberExpr = { fs->iterable, KOBEL_STR("data"), false } }, line, col);
+    compiler__ast__AstNode* idx_expr = std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 11, .u.IndexExpr = { data_mem, std__memory__Arena_for_id(self, KOBEL_STR("__for_i"), line, col) } }, line, col);
+    std__collections__List_ptr_compiler__ast__AstNode_plus_assign(head, std__memory__Arena_loop_var(self, false, fs->var_name, NULL, idx_expr, line, col));
+    std__collections__List_ptr_compiler__ast__AstNode_plus_assign(step, std__memory__Arena_for_bump(self, 6, line, col));
+    return std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 7, .u.BinaryExpr = { std__memory__Arena_for_id(self, KOBEL_STR("__for_i"), line, col), 12, std__memory__Arena_for_id(self, KOBEL_STR("__for_n"), line, col) } }, line, col);
+}
+
+compiler__ast__AstNode* std__memory__Arena_desugar_for_range(std__memory__Arena* self, std__collections__List_ptr_compiler__ast__AstNode* pre, std__collections__List_ptr_compiler__ast__AstNode* head, std__collections__List_ptr_compiler__ast__AstNode* step, compiler__ast__NodeData__ForStmt* fs, size_t line, size_t col) {
+    std__collections__List_ptr_compiler__ast__AstNode_plus_assign(pre, std__memory__Arena_loop_var(self, false, KOBEL_STR("__for_e"), NULL, fs->range_end, line, col));
+    std__collections__List_ptr_compiler__ast__AstNode_plus_assign(pre, std__memory__Arena_loop_var(self, true, KOBEL_STR("__for_i"), NULL, std__memory__Arena_for_id(self, KOBEL_STR("__for_e"), line, col), line, col));
+    compiler__ast__AstNode* init_asgn = std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 12, .u.AssignExpr = { std__memory__Arena_for_id(self, KOBEL_STR("__for_i"), line, col), 5, fs->range_start } }, line, col);
+    std__collections__List_ptr_compiler__ast__AstNode_plus_assign(pre, std__memory__Arena_loop_expr(self, init_asgn, line, col));
+    compiler__ast__AstNode* cmp_up = std__memory__Arena_for_i_cmp(self, 23, line, col);
+    std__collections__List_ptr_compiler__ast__AstNode_plus_assign(pre, std__memory__Arena_loop_var(self, false, KOBEL_STR("__for_up"), NULL, cmp_up, line, col));
+    if (fs->is_open) {
+        std__collections__List_ptr_compiler__ast__AstNode_plus_assign(pre, std__memory__Arena_for_by_dir(self, std__memory__Arena_for_bump(self, 6, line, col), std__memory__Arena_for_bump(self, 7, line, col), line, col));
+    }
+    compiler__ast__AstNode* false_lit = std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 5, .u.LiteralExpr = { 2, KOBEL_STR("false") } }, line, col);
+    std__collections__List_ptr_compiler__ast__AstNode_plus_assign(pre, std__memory__Arena_loop_var(self, true, KOBEL_STR("__for_go"), NULL, false_lit, line, col));
+    if (fs->is_open || fs->is_half_open) {
+        std__collections__List_ptr_compiler__ast__AstNode_plus_assign(pre, std__memory__Arena_for_by_dir(self, std__memory__Arena_for_set_go(self, std__memory__Arena_for_i_cmp(self, 12, line, col), line, col), std__memory__Arena_for_set_go(self, std__memory__Arena_for_i_cmp(self, 11, line, col), line, col), line, col));
+    } else {
+        std__collections__List_ptr_compiler__ast__AstNode_plus_assign(pre, std__memory__Arena_for_by_dir(self, std__memory__Arena_for_set_go(self, std__memory__Arena_for_i_cmp(self, 23, line, col), line, col), std__memory__Arena_for_set_go(self, std__memory__Arena_for_i_cmp(self, 24, line, col), line, col), line, col));
+    }
+    std__collections__List_ptr_compiler__ast__AstNode_plus_assign(head, std__memory__Arena_loop_var(self, false, fs->var_name, NULL, std__memory__Arena_for_id(self, KOBEL_STR("__for_i"), line, col), line, col));
+    if (fs->is_open || fs->is_half_open) {
+        compiler__ast__AstNode* up_inc = std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 7, .u.BinaryExpr = { std__memory__Arena_for_id(self, KOBEL_STR("__for_i"), line, col), 6, std__memory__Arena_for_num(self, KOBEL_STR("1"), line, col) } }, line, col);
+        compiler__ast__AstNode* up_chk = std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 7, .u.BinaryExpr = { up_inc, 12, std__memory__Arena_for_id(self, KOBEL_STR("__for_e"), line, col) } }, line, col);
+        compiler__ast__AstNode* dn_dec = std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 7, .u.BinaryExpr = { std__memory__Arena_for_id(self, KOBEL_STR("__for_i"), line, col), 7, std__memory__Arena_for_num(self, KOBEL_STR("1"), line, col) } }, line, col);
+        compiler__ast__AstNode* dn_chk = std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 7, .u.BinaryExpr = { dn_dec, 11, std__memory__Arena_for_id(self, KOBEL_STR("__for_e"), line, col) } }, line, col);
+        std__collections__List_ptr_compiler__ast__AstNode_plus_assign(step, std__memory__Arena_for_by_dir(self, std__memory__Arena_for_set_go(self, up_chk, line, col), std__memory__Arena_for_set_go(self, dn_chk, line, col), line, col));
+    } else {
+        std__collections__List_ptr_compiler__ast__AstNode_plus_assign(step, std__memory__Arena_for_by_dir(self, std__memory__Arena_for_set_go(self, std__memory__Arena_for_i_cmp(self, 12, line, col), line, col), std__memory__Arena_for_set_go(self, std__memory__Arena_for_i_cmp(self, 11, line, col), line, col), line, col));
+    }
+    compiler__ast__AstNode* bump_dir = std__memory__Arena_for_by_dir(self, std__memory__Arena_for_bump(self, 6, line, col), std__memory__Arena_for_bump(self, 7, line, col), line, col);
+    std__collections__List_ptr_compiler__ast__AstNode_plus_assign(step, std__memory__Arena_loop_if(self, std__memory__Arena_for_id(self, KOBEL_STR("__for_go"), line, col), bump_dir, NULL, line, col));
+    return std__memory__Arena_for_id(self, KOBEL_STR("__for_go"), line, col);
+}
+
+compiler__ast__AstNode* std__memory__Arena_desugar_for(std__memory__Arena* self, compiler__ast__AstNode* node, compiler__ast__NodeData__ForStmt* fs, bool use_iter_trait, compiler__semantic__checker__BodyChecker* bc) {
+    size_t line = node->line;
+    size_t col = node->col;
+    std__collections__List_ptr_compiler__ast__AstNode pre = std__collections__List_ptr_compiler__ast__AstNode_init(4);
+    std__collections__List_ptr_compiler__ast__AstNode head = std__collections__List_ptr_compiler__ast__AstNode_init(4);
+    std__collections__List_ptr_compiler__ast__AstNode step = std__collections__List_ptr_compiler__ast__AstNode_init(4);
+    compiler__ast__AstNode* cond = (fs->is_range ? std__memory__Arena_desugar_for_range(self, &pre, &head, &step, fs, line, col) : (use_iter_trait ? std__memory__Arena_desugar_for_iter_method(self, &pre, &head, &step, fs, line, col) : std__memory__Arena_desugar_for_iterable(self, &pre, &head, &step, fs, line, col)));
+    std__collections__List_ptr_compiler__ast__AstNode body_stmts = std__collections__List_ptr_compiler__ast__AstNode_init(4);
+    {
+        size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&head);
+        size_t __for_i = 0;
+        while (__for_i < __for_n) {
+            compiler__ast__AstNode* s = std__collections__List_ptr_compiler__ast__AstNode_at(&head, __for_i);
+            std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&body_stmts, s);
+            __for_i = (__for_i + 1);
+        }
+    }
+    compiler__ast__AstNode* fbody = fs->body;
+    {
+        compiler__ast__NodeData__BlockStmt* b = NULL;
+        if ((fbody != NULL && fbody->data.tag == compiler__ast__NodeData__BlockStmt__TAG && (b = (compiler__ast__NodeData__BlockStmt*)(&(fbody)->data.u.BlockStmt), 1))) {
+            {
+                size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&b->statements);
+                size_t __for_i = 0;
+                while (__for_i < __for_n) {
+                    compiler__ast__AstNode* s = std__collections__List_ptr_compiler__ast__AstNode_at(&b->statements, __for_i);
+                    std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&body_stmts, s);
+                    __for_i = (__for_i + 1);
+                }
+            }
+        } else if (fbody != NULL) {
+            std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&body_stmts, fbody);
+        }
+    }
+    {
+        size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&step);
+        size_t __for_i = 0;
+        while (__for_i < __for_n) {
+            compiler__ast__AstNode* s = std__collections__List_ptr_compiler__ast__AstNode_at(&step, __for_i);
+            std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&body_stmts, s);
+            __for_i = (__for_i + 1);
+        }
+    }
+    std__memory__Arena_for_inject_step(self, fs->body, &step, bc);
+    std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&pre, std__memory__Arena_loop_while(self, cond, std__memory__Arena_loop_block(self, body_stmts, line, col), line, col));
+    return std__memory__Arena_loop_block(self, pre, line, col);
+}
+
+compiler__semantic__lowering__LoweringPass compiler__semantic__lowering__LoweringPass_init_0(void) {
+    return (compiler__semantic__lowering__LoweringPass){ compiler__semantic__symbols__SymbolTable_init(), std__memory__Arena_init(65536), compiler__sema__decl__DeclPass_init() };
+}
+
+compiler__semantic__lowering__LoweringPass compiler__semantic__lowering__LoweringPass_init_2(compiler__semantic__symbols__SymbolTable symtab, std__memory__Arena arena) {
+    compiler__semantic__lowering__LoweringPass lp = (compiler__semantic__lowering__LoweringPass){ compiler__semantic__symbols__SymbolTable_init(), std__memory__Arena_init(65536), compiler__sema__decl__DeclPass_init() };
+    lp.symtab = symtab;
+    lp.arena = arena;
+    return lp;
+}
+
+compiler__semantic__lowering__LoweringPass compiler__semantic__lowering__LoweringPass_init_3(compiler__semantic__symbols__SymbolTable symtab, std__memory__Arena arena, compiler__sema__decl__DeclPass decl) {
+    compiler__semantic__lowering__LoweringPass lp = (compiler__semantic__lowering__LoweringPass){ compiler__semantic__symbols__SymbolTable_init(), std__memory__Arena_init(65536), compiler__sema__decl__DeclPass_init() };
+    lp.symtab = symtab;
+    lp.arena = arena;
+    lp.decl = decl;
+    return lp;
+}
+
+void compiler__semantic__lowering__LoweringPass_lower_program(compiler__semantic__lowering__LoweringPass* self, compiler__ast__AstNode* program_node) {
+    {
+        compiler__ast__NodeData__Program* prog = NULL;
+        if ((program_node != NULL && program_node->data.tag == compiler__ast__NodeData__Program__TAG && (prog = (compiler__ast__NodeData__Program*)(&(program_node)->data.u.Program), 1))) {
+            {
+                size_t __for_n = compiler__ast__NodeData__Program_count(prog);
+                size_t __for_i = 0;
+                while (__for_i < __for_n) {
+                    compiler__ast__AstNode* decl = compiler__ast__NodeData__Program_at(prog, __for_i);
+                    if (decl != NULL && decl->data.tag == compiler__ast__NodeData__FnDecl__TAG) {
+                        compiler__ast__NodeData__FnDecl* f = (compiler__ast__NodeData__FnDecl*)(&(decl)->data.u.FnDecl);
+                        if (f->type_params.len > 0) {
+                            __for_i = (__for_i + 1);
+                            continue;
+                        }
+                        compiler__semantic__symbols__InstanceRecord* rec = compiler__semantic__symbols__SymbolTable_get_node_instance(&self->symtab, decl);
+                        if (rec != NULL) {
+                            f->body = compiler__semantic__lowering__LoweringPass_lower_stmt(self, compiler__sema__decl__DeclPass_materialize_body(&self->decl, rec));
+                        } else if (f->body != NULL) {
+                            f->body = compiler__semantic__lowering__LoweringPass_lower_stmt(self, f->body);
+                        }
+                    } else if (decl != NULL && decl->data.tag == compiler__ast__NodeData__ImplDecl__TAG) {
+                        compiler__ast__NodeData__ImplDecl* im = (compiler__ast__NodeData__ImplDecl*)(&(decl)->data.u.ImplDecl);
+                        {
+                            size_t __for_e = im->methods.len;
+                            size_t __for_i = __for_e;
+                            __for_i = 0;
+                            bool __for_up = (__for_i <= __for_e);
+                            bool __for_go = false;
+                            if (__for_up) {
+                                __for_go = (__for_i < __for_e);
+                            } else {
+                                __for_go = (__for_i > __for_e);
+                            }
+                            while (__for_go) {
+                                size_t i = __for_i;
+                                compiler__ast__AstNode* m = std__collections__List_ptr_compiler__ast__AstNode_get(&im->methods, i);
+                                {
+                                    compiler__ast__NodeData__FnDecl* mf = NULL;
+                                    if ((m != NULL && m->data.tag == compiler__ast__NodeData__FnDecl__TAG && (mf = (compiler__ast__NodeData__FnDecl*)(&(m)->data.u.FnDecl), 1))) {
+                                        if (mf->type_params.len > 0) {
+                                            if (__for_up) {
+                                                __for_go = ((__for_i + 1) < __for_e);
+                                            } else {
+                                                __for_go = ((__for_i - 1) > __for_e);
+                                            }
+                                            if (__for_go) {
+                                                if (__for_up) {
+                                                    __for_i = (__for_i + 1);
+                                                } else {
+                                                    __for_i = (__for_i - 1);
+                                                }
+                                            }
+                                            continue;
+                                        }
+                                        compiler__semantic__symbols__InstanceRecord* rec = compiler__semantic__symbols__SymbolTable_get_node_instance(&self->symtab, m);
+                                        if (rec != NULL) {
+                                            mf->body = compiler__semantic__lowering__LoweringPass_lower_stmt(self, compiler__sema__decl__DeclPass_materialize_body(&self->decl, rec));
+                                        } else if (mf->body != NULL) {
+                                            mf->body = compiler__semantic__lowering__LoweringPass_lower_stmt(self, mf->body);
+                                        }
+                                    }
+                                }
+                                if (__for_up) {
+                                    __for_go = ((__for_i + 1) < __for_e);
+                                } else {
+                                    __for_go = ((__for_i - 1) > __for_e);
+                                }
+                                if (__for_go) {
+                                    if (__for_up) {
+                                        __for_i = (__for_i + 1);
+                                    } else {
+                                        __for_i = (__for_i - 1);
+                                    }
+                                }
+                            }
+                        }
+                    } else if (decl != NULL && decl->data.tag == compiler__ast__NodeData__ConstDecl__TAG) {
+                        compiler__ast__NodeData__ConstDecl* c = (compiler__ast__NodeData__ConstDecl*)(&(decl)->data.u.ConstDecl);
+                        if (c->value != NULL) {
+                            c->value = compiler__semantic__lowering__LoweringPass_lower_expr(self, c->value);
+                        }
+                    }
+                    __for_i = (__for_i + 1);
+                }
+            }
+        }
+    }
+}
+
+compiler__ast__AstNode* compiler__semantic__lowering__LoweringPass_lower_stmt(compiler__semantic__lowering__LoweringPass* self, compiler__ast__AstNode* node) {
+    compiler__ast__AstNode* res_stmt = compiler__semantic__symbols__SymbolTable_get_resolved_node(&self->symtab, node);
+    if (res_stmt != NULL) {
+        return compiler__semantic__lowering__LoweringPass_lower_stmt(self, res_stmt);
+    }
+    if (node != NULL && node->data.tag == compiler__ast__NodeData__BlockStmt__TAG) {
+        compiler__ast__NodeData__BlockStmt* blk = (compiler__ast__NodeData__BlockStmt*)(&(node)->data.u.BlockStmt);
+        {
+            size_t __for_e = blk->statements.len;
+            size_t __for_i = __for_e;
+            __for_i = 0;
+            bool __for_up = (__for_i <= __for_e);
+            bool __for_go = false;
+            if (__for_up) {
+                __for_go = (__for_i < __for_e);
+            } else {
+                __for_go = (__for_i > __for_e);
+            }
+            while (__for_go) {
+                size_t i = __for_i;
+                std__collections__List_ptr_compiler__ast__AstNode_set(&blk->statements, i, compiler__semantic__lowering__LoweringPass_lower_stmt(self, std__collections__List_ptr_compiler__ast__AstNode_get(&blk->statements, i)));
+                if (__for_up) {
+                    __for_go = ((__for_i + 1) < __for_e);
+                } else {
+                    __for_go = ((__for_i - 1) > __for_e);
+                }
+                if (__for_go) {
+                    if (__for_up) {
+                        __for_i = (__for_i + 1);
+                    } else {
+                        __for_i = (__for_i - 1);
+                    }
+                }
+            }
+        }
+    } else if (node != NULL && node->data.tag == compiler__ast__NodeData__ExprStmt__TAG) {
+        compiler__ast__NodeData__ExprStmt* es = (compiler__ast__NodeData__ExprStmt*)(&(node)->data.u.ExprStmt);
+        es->expr = compiler__semantic__lowering__LoweringPass_lower_expr(self, es->expr);
+    } else if (node != NULL && node->data.tag == compiler__ast__NodeData__VarDeclStmt__TAG) {
+        compiler__ast__NodeData__VarDeclStmt* vd = (compiler__ast__NodeData__VarDeclStmt*)(&(node)->data.u.VarDeclStmt);
+        if (vd->initializer != NULL) {
+            vd->initializer = compiler__semantic__lowering__LoweringPass_lower_expr(self, vd->initializer);
+        }
+    } else if (node != NULL && node->data.tag == compiler__ast__NodeData__IfStmt__TAG) {
+        compiler__ast__NodeData__IfStmt* ifs = (compiler__ast__NodeData__IfStmt*)(&(node)->data.u.IfStmt);
+        ifs->condition = compiler__semantic__lowering__LoweringPass_lower_expr(self, ifs->condition);
+        ifs->then_branch = compiler__semantic__lowering__LoweringPass_lower_stmt(self, ifs->then_branch);
+        if (ifs->else_branch != NULL) {
+            ifs->else_branch = compiler__semantic__lowering__LoweringPass_lower_stmt(self, ifs->else_branch);
+        }
+    } else if (node != NULL && node->data.tag == compiler__ast__NodeData__WhileStmt__TAG) {
+        compiler__ast__NodeData__WhileStmt* wh = (compiler__ast__NodeData__WhileStmt*)(&(node)->data.u.WhileStmt);
+        wh->condition = compiler__semantic__lowering__LoweringPass_lower_expr(self, wh->condition);
+        wh->body = compiler__semantic__lowering__LoweringPass_lower_stmt(self, wh->body);
+    } else if (node != NULL && node->data.tag == compiler__ast__NodeData__ForStmt__TAG) {
+        compiler__ast__NodeData__ForStmt* fr = (compiler__ast__NodeData__ForStmt*)(&(node)->data.u.ForStmt);
+        if (fr->iterable != NULL) {
+            fr->iterable = compiler__semantic__lowering__LoweringPass_lower_expr(self, fr->iterable);
+        }
+        if (fr->range_start != NULL) {
+            fr->range_start = compiler__semantic__lowering__LoweringPass_lower_expr(self, fr->range_start);
+        }
+        if (fr->range_end != NULL) {
+            fr->range_end = compiler__semantic__lowering__LoweringPass_lower_expr(self, fr->range_end);
+        }
+        fr->body = compiler__semantic__lowering__LoweringPass_lower_stmt(self, fr->body);
+    } else if (node != NULL && node->data.tag == compiler__ast__NodeData__ReturnStmt__TAG) {
+        compiler__ast__NodeData__ReturnStmt* ret = (compiler__ast__NodeData__ReturnStmt*)(&(node)->data.u.ReturnStmt);
+        if (ret->value != NULL) {
+            ret->value = compiler__semantic__lowering__LoweringPass_lower_expr(self, ret->value);
+        }
+    } else if (node != NULL && node->data.tag == compiler__ast__NodeData__WhenStmt__TAG) {
+        compiler__ast__NodeData__WhenStmt* ws = (compiler__ast__NodeData__WhenStmt*)(&(node)->data.u.WhenStmt);
+        if (ws->condition != NULL) {
+            ws->condition = compiler__semantic__lowering__LoweringPass_lower_expr(self, ws->condition);
+        }
+        {
+            size_t __for_e = ws->arms.len;
+            size_t __for_i = __for_e;
+            __for_i = 0;
+            bool __for_up = (__for_i <= __for_e);
+            bool __for_go = false;
+            if (__for_up) {
+                __for_go = (__for_i < __for_e);
+            } else {
+                __for_go = (__for_i > __for_e);
+            }
+            while (__for_go) {
+                size_t i = __for_i;
+                compiler__ast__WhenArm arm = std__collections__List_compiler__ast__WhenArm_get(&ws->arms, i);
+                arm.body = compiler__semantic__lowering__LoweringPass_lower_stmt(self, arm.body);
+                {
+                    size_t __for_e = arm.patterns.len;
+                    size_t __for_i = __for_e;
+                    __for_i = 0;
+                    bool __for_up = (__for_i <= __for_e);
+                    bool __for_go = false;
+                    if (__for_up) {
+                        __for_go = (__for_i < __for_e);
+                    } else {
+                        __for_go = (__for_i > __for_e);
+                    }
+                    while (__for_go) {
+                        size_t k = __for_i;
+                        std__collections__List_ptr_compiler__ast__AstNode_set(&arm.patterns, k, compiler__semantic__lowering__LoweringPass_lower_expr(self, std__collections__List_ptr_compiler__ast__AstNode_get(&arm.patterns, k)));
+                        if (__for_up) {
+                            __for_go = ((__for_i + 1) < __for_e);
+                        } else {
+                            __for_go = ((__for_i - 1) > __for_e);
+                        }
+                        if (__for_go) {
+                            if (__for_up) {
+                                __for_i = (__for_i + 1);
+                            } else {
+                                __for_i = (__for_i - 1);
+                            }
+                        }
+                    }
+                }
+                std__collections__List_compiler__ast__WhenArm_set(&ws->arms, i, arm);
+                if (__for_up) {
+                    __for_go = ((__for_i + 1) < __for_e);
+                } else {
+                    __for_go = ((__for_i - 1) > __for_e);
+                }
+                if (__for_go) {
+                    if (__for_up) {
+                        __for_i = (__for_i + 1);
+                    } else {
+                        __for_i = (__for_i - 1);
+                    }
+                }
+            }
+        }
+    } else if (node != NULL && node->data.tag == compiler__ast__NodeData__YieldStmt__TAG) {
+        compiler__ast__NodeData__YieldStmt* ys = (compiler__ast__NodeData__YieldStmt*)(&(node)->data.u.YieldStmt);
+        if (ys->value != NULL) {
+            ys->value = compiler__semantic__lowering__LoweringPass_lower_expr(self, ys->value);
+        }
+    } else if (node != NULL && node->data.tag == compiler__ast__NodeData__DeferStmt__TAG) {
+        compiler__ast__NodeData__DeferStmt* ds = (compiler__ast__NodeData__DeferStmt*)(&(node)->data.u.DeferStmt);
+        ds->body = compiler__semantic__lowering__LoweringPass_lower_stmt(self, ds->body);
+    }
+    return node;
+}
+
+compiler__ast__AstNode* compiler__semantic__lowering__LoweringPass_lower_expr(compiler__semantic__lowering__LoweringPass* self, compiler__ast__AstNode* node) {
+    compiler__ast__AstNode* res_expr = compiler__semantic__symbols__SymbolTable_get_resolved_node(&self->symtab, node);
+    if (res_expr != NULL) {
+        return compiler__semantic__lowering__LoweringPass_lowered(self, node, compiler__semantic__lowering__LoweringPass_lower_expr(self, res_expr));
+    }
+    compiler__ast__AstNode* out = node;
+    if (node != NULL && node->data.tag == compiler__ast__NodeData__BinaryExpr__TAG) {
+        compiler__ast__NodeData__BinaryExpr* b = (compiler__ast__NodeData__BinaryExpr*)(&(node)->data.u.BinaryExpr);
+        b->left = compiler__semantic__lowering__LoweringPass_lower_expr(self, b->left);
+        b->right = compiler__semantic__lowering__LoweringPass_lower_expr(self, b->right);
+        out = compiler__semantic__lowering__LoweringPass_lower_binary(self, node, b);
+    } else if (node != NULL && node->data.tag == compiler__ast__NodeData__UnaryExpr__TAG) {
+        compiler__ast__NodeData__UnaryExpr* u = (compiler__ast__NodeData__UnaryExpr*)(&(node)->data.u.UnaryExpr);
+        u->operand = compiler__semantic__lowering__LoweringPass_lower_expr(self, u->operand);
+        out = compiler__semantic__lowering__LoweringPass_lower_unary(self, node, u);
+    } else if (node != NULL && node->data.tag == compiler__ast__NodeData__CallExpr__TAG) {
+        compiler__ast__NodeData__CallExpr* c = (compiler__ast__NodeData__CallExpr*)(&(node)->data.u.CallExpr);
+        c->callee = compiler__semantic__lowering__LoweringPass_lower_expr(self, c->callee);
+        {
+            size_t __for_e = c->args.len;
+            size_t __for_i = __for_e;
+            __for_i = 0;
+            bool __for_up = (__for_i <= __for_e);
+            bool __for_go = false;
+            if (__for_up) {
+                __for_go = (__for_i < __for_e);
+            } else {
+                __for_go = (__for_i > __for_e);
+            }
+            while (__for_go) {
+                size_t i = __for_i;
+                std__collections__List_ptr_compiler__ast__AstNode_set(&c->args, i, compiler__semantic__lowering__LoweringPass_lower_expr(self, std__collections__List_ptr_compiler__ast__AstNode_get(&c->args, i)));
+                if (__for_up) {
+                    __for_go = ((__for_i + 1) < __for_e);
+                } else {
+                    __for_go = ((__for_i - 1) > __for_e);
+                }
+                if (__for_go) {
+                    if (__for_up) {
+                        __for_i = (__for_i + 1);
+                    } else {
+                        __for_i = (__for_i - 1);
+                    }
+                }
+            }
+        }
+        if (compiler__semantic__symbols__SymbolTable_get_resolved_method(&self->symtab, node) != NULL) {
+            out = compiler__semantic__lowering__LoweringPass_lower_bound_call(self, node, c);
+        } else {
+            out = compiler__semantic__lowering__LoweringPass_lower_call(self, node, c);
+        }
+    } else if (node != NULL && node->data.tag == compiler__ast__NodeData__MemberExpr__TAG) {
+        compiler__ast__NodeData__MemberExpr* m = (compiler__ast__NodeData__MemberExpr*)(&(node)->data.u.MemberExpr);
+        m->object = compiler__semantic__lowering__LoweringPass_lower_expr(self, m->object);
+        out = compiler__semantic__lowering__LoweringPass_lower_member(self, node, m);
+    } else if (node != NULL && node->data.tag == compiler__ast__NodeData__IndexExpr__TAG) {
+        compiler__ast__NodeData__IndexExpr* ix = (compiler__ast__NodeData__IndexExpr*)(&(node)->data.u.IndexExpr);
+        ix->target = compiler__semantic__lowering__LoweringPass_lower_expr(self, ix->target);
+        ix->index = compiler__semantic__lowering__LoweringPass_lower_expr(self, ix->index);
+        out = compiler__semantic__lowering__LoweringPass_lower_index(self, node, ix);
+    } else if (node != NULL && node->data.tag == compiler__ast__NodeData__AssignExpr__TAG) {
+        compiler__ast__NodeData__AssignExpr* asg = (compiler__ast__NodeData__AssignExpr*)(&(node)->data.u.AssignExpr);
+        asg->target = compiler__semantic__lowering__LoweringPass_lower_expr(self, asg->target);
+        asg->value = compiler__semantic__lowering__LoweringPass_lower_expr(self, asg->value);
+        out = compiler__semantic__lowering__LoweringPass_lower_assign(self, node, asg);
+    } else if (node != NULL && node->data.tag == compiler__ast__NodeData__UpdateExpr__TAG) {
+        compiler__ast__NodeData__UpdateExpr* up = (compiler__ast__NodeData__UpdateExpr*)(&(node)->data.u.UpdateExpr);
+        up->target = compiler__semantic__lowering__LoweringPass_lower_expr(self, up->target);
+    } else if (node != NULL && node->data.tag == compiler__ast__NodeData__CastExpr__TAG) {
+        compiler__ast__NodeData__CastExpr* cst = (compiler__ast__NodeData__CastExpr*)(&(node)->data.u.CastExpr);
+        if (cst->expr != NULL) {
+            cst->expr = compiler__semantic__lowering__LoweringPass_lower_expr(self, cst->expr);
+        }
+    } else if (node != NULL && node->data.tag == compiler__ast__NodeData__GroupExpr__TAG) {
+        compiler__ast__NodeData__GroupExpr* g = (compiler__ast__NodeData__GroupExpr*)(&(node)->data.u.GroupExpr);
+        g->expr = compiler__semantic__lowering__LoweringPass_lower_expr(self, g->expr);
+    } else if (node != NULL && node->data.tag == compiler__ast__NodeData__ArrayLiteralExpr__TAG) {
+        compiler__ast__NodeData__ArrayLiteralExpr* al = (compiler__ast__NodeData__ArrayLiteralExpr*)(&(node)->data.u.ArrayLiteralExpr);
+        {
+            size_t __for_e = al->elements.len;
+            size_t __for_i = __for_e;
+            __for_i = 0;
+            bool __for_up = (__for_i <= __for_e);
+            bool __for_go = false;
+            if (__for_up) {
+                __for_go = (__for_i < __for_e);
+            } else {
+                __for_go = (__for_i > __for_e);
+            }
+            while (__for_go) {
+                size_t i = __for_i;
+                std__collections__List_ptr_compiler__ast__AstNode_set(&al->elements, i, compiler__semantic__lowering__LoweringPass_lower_expr(self, std__collections__List_ptr_compiler__ast__AstNode_get(&al->elements, i)));
+                if (__for_up) {
+                    __for_go = ((__for_i + 1) < __for_e);
+                } else {
+                    __for_go = ((__for_i - 1) > __for_e);
+                }
+                if (__for_go) {
+                    if (__for_up) {
+                        __for_i = (__for_i + 1);
+                    } else {
+                        __for_i = (__for_i - 1);
+                    }
+                }
+            }
+        }
+    } else if (node != NULL && node->data.tag == compiler__ast__NodeData__IfExpr__TAG) {
+        compiler__ast__NodeData__IfExpr* ie = (compiler__ast__NodeData__IfExpr*)(&(node)->data.u.IfExpr);
+        ie->condition = compiler__semantic__lowering__LoweringPass_lower_expr(self, ie->condition);
+        ie->then_branch = compiler__semantic__lowering__LoweringPass_lower_expr(self, ie->then_branch);
+        ie->else_branch = compiler__semantic__lowering__LoweringPass_lower_expr(self, ie->else_branch);
+    } else if (node != NULL && node->data.tag == compiler__ast__NodeData__WhenExpr__TAG) {
+        compiler__ast__NodeData__WhenExpr* we = (compiler__ast__NodeData__WhenExpr*)(&(node)->data.u.WhenExpr);
+        if (we->condition != NULL) {
+            we->condition = compiler__semantic__lowering__LoweringPass_lower_expr(self, we->condition);
+        }
+        {
+            size_t __for_e = we->arms.len;
+            size_t __for_i = __for_e;
+            __for_i = 0;
+            bool __for_up = (__for_i <= __for_e);
+            bool __for_go = false;
+            if (__for_up) {
+                __for_go = (__for_i < __for_e);
+            } else {
+                __for_go = (__for_i > __for_e);
+            }
+            while (__for_go) {
+                size_t i = __for_i;
+                compiler__ast__WhenArm arm = std__collections__List_compiler__ast__WhenArm_get(&we->arms, i);
+                arm.body = compiler__semantic__lowering__LoweringPass_lower_arm_body(self, arm.body);
+                {
+                    size_t __for_e = arm.patterns.len;
+                    size_t __for_i = __for_e;
+                    __for_i = 0;
+                    bool __for_up = (__for_i <= __for_e);
+                    bool __for_go = false;
+                    if (__for_up) {
+                        __for_go = (__for_i < __for_e);
+                    } else {
+                        __for_go = (__for_i > __for_e);
+                    }
+                    while (__for_go) {
+                        size_t k = __for_i;
+                        std__collections__List_ptr_compiler__ast__AstNode_set(&arm.patterns, k, compiler__semantic__lowering__LoweringPass_lower_expr(self, std__collections__List_ptr_compiler__ast__AstNode_get(&arm.patterns, k)));
+                        if (__for_up) {
+                            __for_go = ((__for_i + 1) < __for_e);
+                        } else {
+                            __for_go = ((__for_i - 1) > __for_e);
+                        }
+                        if (__for_go) {
+                            if (__for_up) {
+                                __for_i = (__for_i + 1);
+                            } else {
+                                __for_i = (__for_i - 1);
+                            }
+                        }
+                    }
+                }
+                std__collections__List_compiler__ast__WhenArm_set(&we->arms, i, arm);
+                if (__for_up) {
+                    __for_go = ((__for_i + 1) < __for_e);
+                } else {
+                    __for_go = ((__for_i - 1) > __for_e);
+                }
+                if (__for_go) {
+                    if (__for_up) {
+                        __for_i = (__for_i + 1);
+                    } else {
+                        __for_i = (__for_i - 1);
+                    }
+                }
+            }
+        }
+    } else if (node != NULL && node->data.tag == compiler__ast__NodeData__InterpExpr__TAG) {
+        compiler__ast__NodeData__InterpExpr* ip = (compiler__ast__NodeData__InterpExpr*)(&(node)->data.u.InterpExpr);
+        {
+            size_t __for_e = ip->parts.len;
+            size_t __for_i = __for_e;
+            __for_i = 0;
+            bool __for_up = (__for_i <= __for_e);
+            bool __for_go = false;
+            if (__for_up) {
+                __for_go = (__for_i < __for_e);
+            } else {
+                __for_go = (__for_i > __for_e);
+            }
+            while (__for_go) {
+                size_t i = __for_i;
+                compiler__ast__InterpPart part = std__collections__List_compiler__ast__InterpPart_get(&ip->parts, i);
+                if (part.tag == compiler__ast__InterpPart__Literal__TAG) {
+                    compiler__ast__InterpPart__Literal* lit = (compiler__ast__InterpPart__Literal*)(&(part).u.Literal);
+                    std__collections__List_compiler__ast__InterpPart_set(&ip->parts, i, (compiler__ast__InterpPart){ .tag = 0, .u.Literal = { compiler__semantic__lowering__LoweringPass_lower_expr(self, lit->node) } });
+                } else if (part.tag == compiler__ast__InterpPart__Hole__TAG) {
+                    compiler__ast__InterpPart__Hole* hole = (compiler__ast__InterpPart__Hole*)(&(part).u.Hole);
+                    std__collections__List_compiler__ast__InterpPart_set(&ip->parts, i, (compiler__ast__InterpPart){ .tag = 1, .u.Hole = { compiler__semantic__lowering__LoweringPass_lower_expr(self, hole->node) } });
+                }
+                if (__for_up) {
+                    __for_go = ((__for_i + 1) < __for_e);
+                } else {
+                    __for_go = ((__for_i - 1) > __for_e);
+                }
+                if (__for_go) {
+                    if (__for_up) {
+                        __for_i = (__for_i + 1);
+                    } else {
+                        __for_i = (__for_i - 1);
+                    }
+                }
+            }
+        }
+        out = compiler__semantic__lowering__LoweringPass_lower_interp(self, node, ip);
+    } else if (node != NULL && node->data.tag == compiler__ast__NodeData__IsExpr__TAG) {
+        compiler__ast__NodeData__IsExpr* ise = (compiler__ast__NodeData__IsExpr*)(&(node)->data.u.IsExpr);
+        if (ise->expr != NULL) {
+            ise->expr = compiler__semantic__lowering__LoweringPass_lower_expr(self, ise->expr);
+        }
+    } else if (node != NULL && node->data.tag == compiler__ast__NodeData__StructCtorExpr__TAG) {
+        compiler__ast__NodeData__StructCtorExpr* sc = (compiler__ast__NodeData__StructCtorExpr*)(&(node)->data.u.StructCtorExpr);
+        {
+            size_t __for_e = sc->args.len;
+            size_t __for_i = __for_e;
+            __for_i = 0;
+            bool __for_up = (__for_i <= __for_e);
+            bool __for_go = false;
+            if (__for_up) {
+                __for_go = (__for_i < __for_e);
+            } else {
+                __for_go = (__for_i > __for_e);
+            }
+            while (__for_go) {
+                size_t i = __for_i;
+                std__collections__List_ptr_compiler__ast__AstNode_set(&sc->args, i, compiler__semantic__lowering__LoweringPass_lower_expr(self, std__collections__List_ptr_compiler__ast__AstNode_get(&sc->args, i)));
+                if (__for_up) {
+                    __for_go = ((__for_i + 1) < __for_e);
+                } else {
+                    __for_go = ((__for_i - 1) > __for_e);
+                }
+                if (__for_go) {
+                    if (__for_up) {
+                        __for_i = (__for_i + 1);
+                    } else {
+                        __for_i = (__for_i - 1);
+                    }
+                }
+            }
+        }
+    } else if (node != NULL && node->data.tag == compiler__ast__NodeData__EnumCtorExpr__TAG) {
+        compiler__ast__NodeData__EnumCtorExpr* ec = (compiler__ast__NodeData__EnumCtorExpr*)(&(node)->data.u.EnumCtorExpr);
+        {
+            size_t __for_e = ec->args.len;
+            size_t __for_i = __for_e;
+            __for_i = 0;
+            bool __for_up = (__for_i <= __for_e);
+            bool __for_go = false;
+            if (__for_up) {
+                __for_go = (__for_i < __for_e);
+            } else {
+                __for_go = (__for_i > __for_e);
+            }
+            while (__for_go) {
+                size_t i = __for_i;
+                std__collections__List_ptr_compiler__ast__AstNode_set(&ec->args, i, compiler__semantic__lowering__LoweringPass_lower_expr(self, std__collections__List_ptr_compiler__ast__AstNode_get(&ec->args, i)));
+                if (__for_up) {
+                    __for_go = ((__for_i + 1) < __for_e);
+                } else {
+                    __for_go = ((__for_i - 1) > __for_e);
+                }
+                if (__for_go) {
+                    if (__for_up) {
+                        __for_i = (__for_i + 1);
+                    } else {
+                        __for_i = (__for_i - 1);
+                    }
+                }
+            }
+        }
+    }
+    return out;
+}
+
+compiler__ast__AstNode* compiler__semantic__lowering__LoweringPass_lower_arm_body(compiler__semantic__lowering__LoweringPass* self, compiler__ast__AstNode* body) {
+    compiler__ast__AstNode* t = body;
+    if ((t != NULL && t->data.tag == compiler__ast__NodeData__BlockStmt__TAG)) {
+        void* __orig_t = (void*)t;
+        compiler__ast__NodeData__BlockStmt* t = (compiler__ast__NodeData__BlockStmt*)((&((compiler__ast__AstNode*)__orig_t)->data.u.BlockStmt));
+        return compiler__semantic__lowering__LoweringPass_lower_stmt(self, body);
+    }
+    return compiler__semantic__lowering__LoweringPass_lower_expr(self, body);
+}
+
+compiler__ast__AstNode* compiler__semantic__lowering__LoweringPass_lowered(compiler__semantic__lowering__LoweringPass* self, compiler__ast__AstNode* original, compiler__ast__AstNode* replacement) {
+    compiler__semantic__types__Type* orig_ty = compiler__semantic__symbols__SymbolTable_get_node_type(&self->symtab, original);
+    if (orig_ty != NULL) {
+        compiler__semantic__symbols__SymbolTable_set_node_type(&self->symtab, replacement, orig_ty);
+    }
+    return replacement;
+}
+
+compiler__ast__AstNode* compiler__semantic__lowering__LoweringPass_lower_binary(compiler__semantic__lowering__LoweringPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__BinaryExpr* bin) {
+    if (bin->op == 37) {
+        if (compiler__semantic__lowering__LoweringPass_is_stmt_node(self, bin->right)) {
+            bin->right = compiler__semantic__lowering__LoweringPass_lower_stmt(self, bin->right);
+        }
+        return node;
+    }
+    if ((bin->op == 6) && compiler__semantic__lowering__LoweringPass_is_str_expr(self, bin->left)) {
+        compiler__ast__AstNode* cat = std__memory__Arena_interp_concat(&self->arena, bin->left, bin->right, node->line, node->col);
+        return compiler__semantic__lowering__LoweringPass_lowered(self, node, cat);
+    }
+    if ((bin->op == 21) || (bin->op == 22)) {
+        if (compiler__semantic__lowering__LoweringPass_is_str_expr(self, bin->left) && compiler__semantic__lowering__LoweringPass_is_str_expr(self, bin->right)) {
+            bool is_neq = (bin->op == 22);
+            compiler__ast__AstNode* eq = std__memory__Arena_make_str_eq(&self->arena, is_neq, bin->left, bin->right, node->line, node->col);
+            return compiler__semantic__lowering__LoweringPass_lowered(self, node, eq);
+        }
+    }
+    if ((bin->op == 67) && (compiler__semantic__symbols__SymbolTable_get_resolved_method(&self->symtab, node) != NULL)) {
+        compiler__semantic__types__MethodInfo* mi = compiler__semantic__symbols__SymbolTable_get_resolved_method(&self->symtab, node);
+        compiler__semantic__types__Type* right_ty = compiler__semantic__lowering__LoweringPass_type_of(self, bin->right);
+        bool r_is_ptr = (right_ty != NULL && right_ty->kind == 16);
+        std__collections__List_ptr_compiler__ast__AstNode args = std__collections__List_ptr_compiler__ast__AstNode_init(4);
+        if (r_is_ptr) {
+            std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&args, bin->right);
+        } else {
+            compiler__ast__AstNode* ref_arg = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 8, .u.UnaryExpr = { 19, bin->right, false } }, node->line, node->col);
+            std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&args, ref_arg);
+        }
+        std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&args, bin->left);
+        compiler__ast__AstNode* callee = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 6, .u.IdentifierExpr = { mi->c_name } }, node->line, node->col);
+        compiler__ast__AstNode* call = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 9, .u.CallExpr = { callee, args, std__collections__List_ptr_compiler__ast__AstNode_init(4) } }, node->line, node->col);
+        return compiler__semantic__lowering__LoweringPass_lowered(self, node, call);
+    }
+    if (compiler__semantic__symbols__SymbolTable_get_resolved_method(&self->symtab, node) != NULL) {
+        compiler__semantic__types__MethodInfo* mi = compiler__semantic__symbols__SymbolTable_get_resolved_method(&self->symtab, node);
+        std__collections__List_ptr_compiler__ast__AstNode args = std__collections__List_ptr_compiler__ast__AstNode_init(4);
+        compiler__ast__AstNode* ref_arg = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 8, .u.UnaryExpr = { 19, bin->left, false } }, node->line, node->col);
+        std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&args, ref_arg);
+        std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&args, bin->right);
+        compiler__ast__AstNode* callee = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 6, .u.IdentifierExpr = { mi->c_name } }, node->line, node->col);
+        compiler__ast__AstNode* call = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 9, .u.CallExpr = { callee, args, std__collections__List_ptr_compiler__ast__AstNode_init(4) } }, node->line, node->col);
+        if (bin->op == 22) {
+            compiler__ast__AstNode* not_call = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 8, .u.UnaryExpr = { 4, call, false } }, node->line, node->col);
+            return compiler__semantic__lowering__LoweringPass_lowered(self, node, not_call);
+        }
+        return compiler__semantic__lowering__LoweringPass_lowered(self, node, call);
+    }
+    if ((bin->op == 21) || (bin->op == 22)) {
+        compiler__semantic__types__Type* lt = compiler__semantic__lowering__LoweringPass_type_of(self, bin->left);
+        if (lt != NULL && lt->kind == 18) {
+            bool is_neq = (bin->op == 22);
+            compiler__ast__AstNode* eq = std__memory__Arena_make_mem_eq(&self->arena, is_neq, bin->left, bin->right, lt->size, node->line, node->col);
+            return compiler__semantic__lowering__LoweringPass_lowered(self, node, eq);
+        }
+    }
+    return node;
+}
+
+compiler__ast__AstNode* compiler__semantic__lowering__LoweringPass_lower_assign(compiler__semantic__lowering__LoweringPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__AssignExpr* asgn) {
+    if (compiler__semantic__symbols__SymbolTable_get_resolved_method(&self->symtab, node) != NULL) {
+        compiler__semantic__types__MethodInfo* mi = compiler__semantic__symbols__SymbolTable_get_resolved_method(&self->symtab, node);
+        compiler__semantic__types__Type* target_ty = compiler__semantic__lowering__LoweringPass_type_of(self, asgn->target);
+        bool t_is_ptr = (target_ty != NULL && target_ty->kind == 16);
+        std__collections__List_ptr_compiler__ast__AstNode args = std__collections__List_ptr_compiler__ast__AstNode_init(4);
+        if (t_is_ptr) {
+            std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&args, asgn->target);
+        } else {
+            compiler__ast__AstNode* ref_arg = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 8, .u.UnaryExpr = { 19, asgn->target, false } }, node->line, node->col);
+            std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&args, ref_arg);
+        }
+        std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&args, asgn->value);
+        compiler__ast__AstNode* callee = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 6, .u.IdentifierExpr = { mi->c_name } }, node->line, node->col);
+        compiler__ast__AstNode* call = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 9, .u.CallExpr = { callee, args, std__collections__List_ptr_compiler__ast__AstNode_init(4) } }, node->line, node->col);
+        return compiler__semantic__lowering__LoweringPass_lowered(self, node, call);
+    }
+    if (asgn->op != 32) {
+        return node;
+    }
+    if (!compiler__semantic__lowering__LoweringPass_is_str_expr(self, asgn->target)) {
+        return node;
+    }
+    compiler__ast__AstNode* cat = std__memory__Arena_interp_concat(&self->arena, asgn->target, asgn->value, node->line, node->col);
+    compiler__semantic__types__Type* cat_ty = compiler__semantic__symbols__SymbolTable_get_node_type(&self->symtab, node);
+    if (cat_ty != NULL) {
+        compiler__semantic__symbols__SymbolTable_set_node_type(&self->symtab, cat, cat_ty);
+    }
+    asgn->value = cat;
+    asgn->op = 5;
+    return node;
+}
+
+compiler__ast__AstNode* compiler__semantic__lowering__LoweringPass_lower_interp(compiler__semantic__lowering__LoweringPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__InterpExpr* ie) {
+    std__collections__List_ptr_compiler__ast__AstNode pieces = std__collections__List_ptr_compiler__ast__AstNode_init(4);
+    {
+        size_t __for_e = ie->parts.len;
+        size_t __for_i = __for_e;
+        __for_i = 0;
+        bool __for_up = (__for_i <= __for_e);
+        bool __for_go = false;
+        if (__for_up) {
+            __for_go = (__for_i < __for_e);
+        } else {
+            __for_go = (__for_i > __for_e);
+        }
+        while (__for_go) {
+            size_t i = __for_i;
+            compiler__ast__InterpPart part = std__collections__List_compiler__ast__InterpPart_get(&ie->parts, i);
+            if (part.tag == compiler__ast__InterpPart__Literal__TAG) {
+                compiler__ast__InterpPart__Literal* lit = (compiler__ast__InterpPart__Literal*)(&(part).u.Literal);
+                std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&pieces, lit->node);
+            } else if (part.tag == compiler__ast__InterpPart__Hole__TAG) {
+                compiler__ast__InterpPart__Hole* hole = (compiler__ast__InterpPart__Hole*)(&(part).u.Hole);
+                compiler__ast__AstNode* piece = hole->node;
+                compiler__ast__AstNode* conv = compiler__semantic__lowering__LoweringPass_to_str_expr(self, piece, node->line, node->col);
+                if (conv != NULL) {
+                    piece = conv;
+                }
+                std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&pieces, piece);
+            }
+            if (__for_up) {
+                __for_go = ((__for_i + 1) < __for_e);
+            } else {
+                __for_go = ((__for_i - 1) > __for_e);
+            }
+            if (__for_go) {
+                if (__for_up) {
+                    __for_i = (__for_i + 1);
+                } else {
+                    __for_i = (__for_i - 1);
+                }
+            }
+        }
+    }
+    compiler__ast__AstNode* acc = std__memory__Arena_interp_concat_many(&self->arena, pieces, node->line, node->col);
+    if (acc == NULL) {
+        acc = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 5, .u.LiteralExpr = { 4, KOBEL_STR("\"\"") } }, node->line, node->col);
+    }
+    {
+        compiler__ast__AstNode* __ret_tmp = compiler__semantic__lowering__LoweringPass_lowered(self, node, acc);
+        std__collections__List_ptr_compiler__ast__AstNode_free(&pieces);
+        return __ret_tmp;
+    }
+}
+
+compiler__ast__AstNode* compiler__semantic__lowering__LoweringPass_to_str_expr(compiler__semantic__lowering__LoweringPass* self, compiler__ast__AstNode* expr, size_t line, size_t col) {
+    compiler__semantic__types__Type* ty = compiler__semantic__lowering__LoweringPass_type_of(self, expr);
+    if (ty == NULL) {
+        return NULL;
+    }
+    if (ty->kind == 15) {
+        return expr;
+    }
+    compiler__semantic__types__MethodInfo* pmi = compiler__semantic__symbols__SymbolTable_find_prim_method(&self->symtab, ty->kind, KOBEL_STR("to_str"));
+    if (pmi != NULL) {
+        return std__memory__Arena_interp_call(&self->arena, pmi->c_name, expr, line, col);
+    }
+    compiler__semantic__types__Type* cur_ty = ty;
+    bool is_ptr = false;
+    if (cur_ty->kind == 16) {
+        is_ptr = true;
+        cur_ty = (*compiler__semantic__types__Type_as_pointer(cur_ty)).pointee;
+    }
+    if (cur_ty->kind == 18) {
+        compiler__semantic__types__MethodInfo* mi = compiler__semantic__types__StructType_find_method(compiler__semantic__types__Type_as_struct(cur_ty), KOBEL_STR("to_str"));
+        if (mi != NULL) {
+            compiler__ast__AstNode* arg = expr;
+            if (!is_ptr) {
+                arg = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 8, .u.UnaryExpr = { 19, expr, false } }, line, col);
+            }
+            return std__memory__Arena_interp_call(&self->arena, mi->c_name, arg, line, col);
+        }
+    }
+    return NULL;
+}
+
+compiler__ast__AstNode* compiler__semantic__lowering__LoweringPass_lower_member(compiler__semantic__lowering__LoweringPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__MemberExpr* mem) {
+    compiler__ast__AstNode* obj = mem->object;
+    if (obj == NULL) {
+        return node;
+    }
+    compiler__semantic__types__Type* obj_ty = compiler__semantic__lowering__LoweringPass_type_of(self, obj);
+    if (((obj_ty != NULL) && compiler__semantic__types__Type_is_enum(obj_ty)) && kobel_streq(mem->member, KOBEL_STR("value"))) {
+        return compiler__semantic__lowering__LoweringPass_lowered(self, node, obj);
+    }
+    if (compiler__semantic__lowering__LoweringPass_is_str_expr(self, obj)) {
+        if (kobel_streq(mem->member, KOBEL_STR("size"))) {
+            compiler__ast__AstNode* len_mem = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 10, .u.MemberExpr = { obj, KOBEL_STR("len"), false } }, node->line, node->col);
+            return compiler__semantic__lowering__LoweringPass_lowered(self, node, len_mem);
+        }
+        return node;
+    }
+    if (compiler__semantic__lowering__LoweringPass_is_array_expr(self, obj)) {
+        if (kobel_streq(mem->member, KOBEL_STR("len")) || kobel_streq(mem->member, KOBEL_STR("size"))) {
+            compiler__semantic__types__TypePayload__Array* arr = compiler__semantic__types__Type_as_array(compiler__semantic__lowering__LoweringPass_type_of(self, obj));
+            compiler__ast__AstNode* lit = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 5, .u.LiteralExpr = { 0, usz_to_str(arr->length) } }, node->line, node->col);
+            return compiler__semantic__lowering__LoweringPass_lowered(self, node, lit);
+        }
+        if (kobel_streq(mem->member, KOBEL_STR("data"))) {
+            return compiler__semantic__lowering__LoweringPass_lowered(self, node, obj);
+        }
+    }
+    return node;
+}
+
+compiler__ast__AstNode* compiler__semantic__lowering__LoweringPass_lower_unary(compiler__semantic__lowering__LoweringPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__UnaryExpr* un) {
+    if (compiler__semantic__symbols__SymbolTable_get_resolved_method(&self->symtab, node) == NULL) {
+        return node;
+    }
+    compiler__semantic__types__MethodInfo* mi = compiler__semantic__symbols__SymbolTable_get_resolved_method(&self->symtab, node);
+    std__collections__List_ptr_compiler__ast__AstNode args = std__collections__List_ptr_compiler__ast__AstNode_init(4);
+    compiler__ast__AstNode* ref_arg = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 8, .u.UnaryExpr = { 19, un->operand, false } }, node->line, node->col);
+    std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&args, ref_arg);
+    compiler__ast__AstNode* callee = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 6, .u.IdentifierExpr = { mi->c_name } }, node->line, node->col);
+    compiler__ast__AstNode* call = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 9, .u.CallExpr = { callee, args, std__collections__List_ptr_compiler__ast__AstNode_init(4) } }, node->line, node->col);
+    return compiler__semantic__lowering__LoweringPass_lowered(self, node, call);
+}
+
+compiler__ast__AstNode* compiler__semantic__lowering__LoweringPass_lower_index(compiler__semantic__lowering__LoweringPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__IndexExpr* idx) {
+    if (compiler__semantic__symbols__SymbolTable_get_resolved_method(&self->symtab, node) == NULL) {
+        return node;
+    }
+    compiler__semantic__types__MethodInfo* mi = compiler__semantic__symbols__SymbolTable_get_resolved_method(&self->symtab, node);
+    compiler__semantic__types__Type* target_ty = compiler__semantic__lowering__LoweringPass_type_of(self, idx->target);
+    bool t_is_ptr = (target_ty != NULL && target_ty->kind == 16);
+    std__collections__List_ptr_compiler__ast__AstNode args = std__collections__List_ptr_compiler__ast__AstNode_init(4);
+    if (t_is_ptr) {
+        std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&args, idx->target);
+    } else {
+        compiler__ast__AstNode* ref_arg = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 8, .u.UnaryExpr = { 19, idx->target, false } }, node->line, node->col);
+        std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&args, ref_arg);
+    }
+    std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&args, idx->index);
+    compiler__ast__AstNode* callee = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 6, .u.IdentifierExpr = { mi->c_name } }, node->line, node->col);
+    compiler__ast__AstNode* call = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 9, .u.CallExpr = { callee, args, std__collections__List_ptr_compiler__ast__AstNode_init(4) } }, node->line, node->col);
+    return compiler__semantic__lowering__LoweringPass_lowered(self, node, call);
+}
+
+compiler__ast__AstNode* compiler__semantic__lowering__LoweringPass_lower_bound_call(compiler__semantic__lowering__LoweringPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__CallExpr* call) {
+    compiler__ast__AstNode* callee = call->callee;
+    if (callee == NULL) {
+        return node;
+    }
+    if ((callee != NULL && callee->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG)) {
+        void* __orig_callee = (void*)callee;
+        compiler__ast__NodeData__IdentifierExpr* callee = (compiler__ast__NodeData__IdentifierExpr*)((&((compiler__ast__AstNode*)__orig_callee)->data.u.IdentifierExpr));
+        compiler__semantic__types__MethodInfo* new_mi = compiler__semantic__symbols__SymbolTable_get_resolved_method(&self->symtab, node);
+        std__collections__List_ptr_compiler__ast__AstNode ctor_args = std__collections__List_ptr_compiler__ast__AstNode_init(4);
+        {
+            size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&call->args);
+            size_t __for_i = 0;
+            while (__for_i < __for_n) {
+                compiler__ast__AstNode* arg = std__collections__List_ptr_compiler__ast__AstNode_at(&call->args, __for_i);
+                std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&ctor_args, arg);
+                __for_i = (__for_i + 1);
+            }
+        }
+        compiler__ast__AstNode* fn_id = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 6, .u.IdentifierExpr = { new_mi->c_name } }, node->line, node->col);
+        compiler__ast__AstNode* ctor_call = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 9, .u.CallExpr = { fn_id, ctor_args, std__collections__List_ptr_compiler__ast__AstNode_init(4) } }, node->line, node->col);
+        return compiler__semantic__lowering__LoweringPass_lowered(self, node, ctor_call);
+    }
+    {
+        compiler__ast__NodeData__MemberExpr* mem = NULL;
+        if ((callee != NULL && callee->data.tag == compiler__ast__NodeData__MemberExpr__TAG && (mem = (compiler__ast__NodeData__MemberExpr*)(&(callee)->data.u.MemberExpr), 1))) {
+            compiler__semantic__types__MethodInfo* mi = compiler__semantic__symbols__SymbolTable_get_resolved_method(&self->symtab, node);
+            if (mi->is_static) {
+                std__collections__List_ptr_compiler__ast__AstNode static_args = std__collections__List_ptr_compiler__ast__AstNode_init(4);
+                {
+                    size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&call->args);
+                    size_t __for_i = 0;
+                    while (__for_i < __for_n) {
+                        compiler__ast__AstNode* arg = std__collections__List_ptr_compiler__ast__AstNode_at(&call->args, __for_i);
+                        std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&static_args, arg);
+                        __for_i = (__for_i + 1);
+                    }
+                }
+                compiler__ast__AstNode* fn_id = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 6, .u.IdentifierExpr = { mi->c_name } }, node->line, node->col);
+                compiler__ast__AstNode* direct = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 9, .u.CallExpr = { fn_id, static_args, std__collections__List_ptr_compiler__ast__AstNode_init(4) } }, node->line, node->col);
+                return compiler__semantic__lowering__LoweringPass_lowered(self, node, direct);
+            }
+            compiler__ast__AstNode* recv = mem->object;
+            compiler__semantic__types__Type* recv_ty = compiler__semantic__lowering__LoweringPass_type_of(self, recv);
+            bool obj_is_ptr = (recv_ty != NULL && recv_ty->kind == 16);
+            compiler__semantic__types__Type* inner_ty = recv_ty;
+            if (obj_is_ptr) {
+                inner_ty = (*compiler__semantic__types__Type_as_pointer(recv_ty)).pointee;
+            }
+            bool by_ref = (inner_ty != NULL && inner_ty->kind == 18);
+            std__collections__List_ptr_compiler__ast__AstNode new_args = std__collections__List_ptr_compiler__ast__AstNode_init(4);
+            if (by_ref == obj_is_ptr) {
+                std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&new_args, recv);
+            } else {
+                compiler__lexer__TokenType op = (by_ref ? 19 : 8);
+                compiler__ast__AstNode* ref_arg = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 8, .u.UnaryExpr = { op, recv, false } }, node->line, node->col);
+                std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&new_args, ref_arg);
+            }
+            {
+                size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&call->args);
+                size_t __for_i = 0;
+                while (__for_i < __for_n) {
+                    compiler__ast__AstNode* arg = std__collections__List_ptr_compiler__ast__AstNode_at(&call->args, __for_i);
+                    std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&new_args, arg);
+                    __for_i = (__for_i + 1);
+                }
+            }
+            compiler__ast__AstNode* fn_id = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 6, .u.IdentifierExpr = { mi->c_name } }, node->line, node->col);
+            compiler__ast__AstNode* direct = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 9, .u.CallExpr = { fn_id, new_args, std__collections__List_ptr_compiler__ast__AstNode_init(4) } }, node->line, node->col);
+            if (!mem->is_safe) {
+                return compiler__semantic__lowering__LoweringPass_lowered(self, node, direct);
+            }
+            compiler__semantic__types__Type* call_ty = compiler__semantic__lowering__LoweringPass_type_of(self, node);
+            compiler__ast__AstNode* null_lit = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 5, .u.LiteralExpr = { 5, KOBEL_STR("null") } }, node->line, node->col);
+            compiler__ast__AstNode* cond = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 7, .u.BinaryExpr = { recv, 22, null_lit } }, node->line, node->col);
+            if (call_ty != NULL && call_ty->kind == 1) {
+                compiler__ast__AstNode* maybe = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 7, .u.BinaryExpr = { cond, 25, direct } }, node->line, node->col);
+                return compiler__semantic__lowering__LoweringPass_lowered(self, node, maybe);
+            }
+            compiler__ast__AstNode* fallback = ((call_ty != NULL && call_ty->kind == 15) ? std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 9, .u.CallExpr = { std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 6, .u.IdentifierExpr = { KOBEL_STR("kobel_null_str") } }, node->line, node->col), std__collections__List_ptr_compiler__ast__AstNode_init(4), std__collections__List_ptr_compiler__ast__AstNode_init(4) } }, node->line, node->col) : (((((call_ty != NULL) && compiler__semantic__types__Type_is_integer(call_ty)) || ((call_ty != NULL) && compiler__semantic__types__Type_is_enum(call_ty))) || (call_ty != NULL && call_ty->kind == 2)) ? std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 5, .u.LiteralExpr = { 0, KOBEL_STR("0") } }, node->line, node->col) : (((call_ty != NULL && call_ty->kind == 13) || (call_ty != NULL && call_ty->kind == 14)) ? std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 5, .u.LiteralExpr = { 1, KOBEL_STR("0.0") } }, node->line, node->col) : null_lit)));
+            compiler__ast__AstNode* maybe = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 17, .u.IfExpr = { cond, direct, fallback } }, node->line, node->col);
+            return compiler__semantic__lowering__LoweringPass_lowered(self, node, maybe);
+        }
+    }
+    return node;
+}
+
+compiler__ast__AstNode* compiler__semantic__lowering__LoweringPass_lower_call(compiler__semantic__lowering__LoweringPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__CallExpr* call) {
+    compiler__ast__AstNode* callee = call->callee;
+    if (callee == NULL) {
+        return node;
+    }
+    {
+        compiler__ast__NodeData__MemberExpr* mem = NULL;
+        if ((callee != NULL && callee->data.tag == compiler__ast__NodeData__MemberExpr__TAG && (mem = (compiler__ast__NodeData__MemberExpr*)(&(callee)->data.u.MemberExpr), 1))) {
+            if (!kobel_streq(mem->member, KOBEL_STR("slice"))) {
+                return node;
+            }
+            if (!compiler__semantic__lowering__LoweringPass_is_str_expr(self, mem->object)) {
+                return node;
+            }
+            std__collections__List_ptr_compiler__ast__AstNode args = std__collections__List_ptr_compiler__ast__AstNode_init(4);
+            std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&args, mem->object);
+            if (!std__collections__List_ptr_compiler__ast__AstNode_empty(&call->args)) {
+                std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&args, std__collections__List_ptr_compiler__ast__AstNode_first(&call->args));
+            } else {
+                compiler__ast__AstNode* zero = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 5, .u.LiteralExpr = { 0, KOBEL_STR("0") } }, node->line, node->col);
+                std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&args, zero);
+            }
+            if (call->args.len >= 2) {
+                std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&args, std__collections__List_ptr_compiler__ast__AstNode_get(&call->args, 1));
+                compiler__ast__AstNode* callee_id = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 6, .u.IdentifierExpr = { KOBEL_STR("kobel_slice") } }, node->line, node->col);
+                compiler__ast__AstNode* slice_call = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 9, .u.CallExpr = { callee_id, args, std__collections__List_ptr_compiler__ast__AstNode_init(4) } }, node->line, node->col);
+                return compiler__semantic__lowering__LoweringPass_lowered(self, node, slice_call);
+            }
+            compiler__ast__AstNode* callee_id = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 6, .u.IdentifierExpr = { KOBEL_STR("kobel_slice1") } }, node->line, node->col);
+            compiler__ast__AstNode* slice1_call = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 9, .u.CallExpr = { callee_id, args, std__collections__List_ptr_compiler__ast__AstNode_init(4) } }, node->line, node->col);
+            return compiler__semantic__lowering__LoweringPass_lowered(self, node, slice1_call);
+        }
+    }
+    return node;
+}
+
+compiler__semantic__types__Type* compiler__semantic__lowering__LoweringPass_type_of(compiler__semantic__lowering__LoweringPass* self, compiler__ast__AstNode* node) {
+    compiler__ast__AstNode* cur = node;
+    while (cur != NULL) {
+        {
+            compiler__ast__NodeData__GroupExpr* g = NULL;
+            if ((cur != NULL && cur->data.tag == compiler__ast__NodeData__GroupExpr__TAG && (g = (compiler__ast__NodeData__GroupExpr*)(&(cur)->data.u.GroupExpr), 1))) {
+                cur = g->expr;
+            } else {
+                break;
+            }
+        }
+    }
+    if (cur == NULL) {
+        return NULL;
+    }
+    return compiler__semantic__symbols__SymbolTable_get_node_type(&self->symtab, cur);
+}
+
+bool compiler__semantic__lowering__LoweringPass_is_str_expr(compiler__semantic__lowering__LoweringPass* self, compiler__ast__AstNode* node) {
+    compiler__semantic__types__Type* t = compiler__semantic__lowering__LoweringPass_type_of(self, node);
+    return (t != NULL && t->kind == 15);
+}
+
+bool compiler__semantic__lowering__LoweringPass_is_stmt_node(compiler__semantic__lowering__LoweringPass* self, compiler__ast__AstNode* node) {
+    if (node == NULL) {
+        return false;
+    }
+    return (((((node != NULL && node->data.tag == compiler__ast__NodeData__ReturnStmt__TAG) || (node != NULL && node->data.tag == compiler__ast__NodeData__BreakStmt__TAG)) || (node != NULL && node->data.tag == compiler__ast__NodeData__ContinueStmt__TAG)) || (node != NULL && node->data.tag == compiler__ast__NodeData__YieldStmt__TAG)) || (node != NULL && node->data.tag == compiler__ast__NodeData__BlockStmt__TAG));
+}
+
+bool compiler__semantic__lowering__LoweringPass_is_array_expr(compiler__semantic__lowering__LoweringPass* self, compiler__ast__AstNode* node) {
+    compiler__semantic__types__Type* t = compiler__semantic__lowering__LoweringPass_type_of(self, node);
+    return (t != NULL && t->kind == 17);
+}
+
+compiler__ast__AstNode* std__memory__Arena_interp_call(std__memory__Arena* self, kobel_str name, compiler__ast__AstNode* arg, size_t line, size_t col) {
+    std__collections__List_ptr_compiler__ast__AstNode args = std__collections__List_ptr_compiler__ast__AstNode_init(4);
+    std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&args, arg);
+    compiler__ast__AstNode* callee = std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 6, .u.IdentifierExpr = { name } }, line, col);
+    return std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 9, .u.CallExpr = { callee, args, std__collections__List_ptr_compiler__ast__AstNode_init(4) } }, line, col);
+}
+
+compiler__ast__AstNode* std__memory__Arena_interp_concat(std__memory__Arena* self, compiler__ast__AstNode* a, compiler__ast__AstNode* b_node, size_t line, size_t col) {
+    std__collections__List_ptr_compiler__ast__AstNode args = std__collections__List_ptr_compiler__ast__AstNode_init(4);
+    std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&args, a);
+    std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&args, b_node);
+    compiler__ast__AstNode* callee = std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 6, .u.IdentifierExpr = { KOBEL_STR("kobel_concat") } }, line, col);
+    return std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 9, .u.CallExpr = { callee, args, std__collections__List_ptr_compiler__ast__AstNode_init(4) } }, line, col);
+}
+
+compiler__ast__AstNode* std__memory__Arena_interp_concat_many(std__memory__Arena* self, std__collections__List_ptr_compiler__ast__AstNode pieces, size_t line, size_t col) {
+    if (std__collections__List_ptr_compiler__ast__AstNode_empty(&pieces)) {
+        return NULL;
+    }
+    if (pieces.len == 1) {
+        return std__collections__List_ptr_compiler__ast__AstNode_get(&pieces, 0);
+    }
+    compiler__ast__AstNode* acc = std__collections__List_ptr_compiler__ast__AstNode_get(&pieces, 0);
+    size_t i = 1;
+    while (i < pieces.len) {
+        bool first_group = (i == 1);
+        size_t max_take = (first_group ? 4 : 4);
+        size_t rem = (pieces.len - i);
+        size_t take = ((rem < max_take) ? rem : max_take);
+        std__collections__List_ptr_compiler__ast__AstNode args = std__collections__List_ptr_compiler__ast__AstNode_init(4);
+        std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&args, acc);
+        {
+            size_t __for_e = take;
+            size_t __for_i = __for_e;
+            __for_i = 0;
+            bool __for_up = (__for_i <= __for_e);
+            bool __for_go = false;
+            if (__for_up) {
+                __for_go = (__for_i < __for_e);
+            } else {
+                __for_go = (__for_i > __for_e);
+            }
+            while (__for_go) {
+                size_t k = __for_i;
+                std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&args, std__collections__List_ptr_compiler__ast__AstNode_get(&pieces, (i + k)));
+                if (__for_up) {
+                    __for_go = ((__for_i + 1) < __for_e);
+                } else {
+                    __for_go = ((__for_i - 1) > __for_e);
+                }
+                if (__for_go) {
+                    if (__for_up) {
+                        __for_i = (__for_i + 1);
+                    } else {
+                        __for_i = (__for_i - 1);
+                    }
+                }
+            }
+        }
+        kobel_str helper = (args.len == 2 ? KOBEL_STR("kobel_concat") : (args.len == 3 ? KOBEL_STR("kobel_concat3") : (args.len == 4 ? KOBEL_STR("kobel_concat4") : KOBEL_STR("kobel_concat5"))));
+        compiler__ast__AstNode* callee = std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 6, .u.IdentifierExpr = { helper } }, line, col);
+        acc = std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 9, .u.CallExpr = { callee, args, std__collections__List_ptr_compiler__ast__AstNode_init(4) } }, line, col);
+        i += take;
+    }
+    return acc;
+}
+
+compiler__ast__AstNode* std__memory__Arena_make_str_eq(std__memory__Arena* self, bool is_neq, compiler__ast__AstNode* left, compiler__ast__AstNode* right, size_t line, size_t col) {
+    std__collections__List_ptr_compiler__ast__AstNode eargs = std__collections__List_ptr_compiler__ast__AstNode_init(4);
+    std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&eargs, left);
+    std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&eargs, right);
+    compiler__ast__AstNode* callee = std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 6, .u.IdentifierExpr = { KOBEL_STR("kobel_streq") } }, line, col);
+    compiler__ast__AstNode* eq_call = std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 9, .u.CallExpr = { callee, eargs, std__collections__List_ptr_compiler__ast__AstNode_init(4) } }, line, col);
+    if (is_neq) {
+        return std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 8, .u.UnaryExpr = { 4, eq_call, false } }, line, col);
+    }
+    return eq_call;
+}
+
+compiler__ast__AstNode* std__memory__Arena_make_mem_eq(std__memory__Arena* self, bool is_neq, compiler__ast__AstNode* left, compiler__ast__AstNode* right, size_t size, size_t line, size_t col) {
+    std__collections__List_ptr_compiler__ast__AstNode eargs = std__collections__List_ptr_compiler__ast__AstNode_init(4);
+    std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&eargs, std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 8, .u.UnaryExpr = { 19, left, false } }, line, col));
+    std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&eargs, std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 8, .u.UnaryExpr = { 19, right, false } }, line, col));
+    std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&eargs, std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 5, .u.LiteralExpr = { 0, usz_to_str(size) } }, line, col));
+    compiler__ast__AstNode* callee = std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 6, .u.IdentifierExpr = { KOBEL_STR("kobel_memeq") } }, line, col);
+    compiler__ast__AstNode* eq_call = std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 9, .u.CallExpr = { callee, eargs, std__collections__List_ptr_compiler__ast__AstNode_init(4) } }, line, col);
+    if (is_neq) {
+        return std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 8, .u.UnaryExpr = { 4, eq_call, false } }, line, col);
+    }
+    return eq_call;
+}
+
 compiler__semantic__types__Type* compiler__semantic__checker__BodyChecker_check_member_expr(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* node) {
     {
         compiler__ast__NodeData__MemberExpr* mem = NULL;
@@ -18419,6 +19684,14 @@ void compiler__semantic__checker__BodyChecker_report_error(compiler__semantic__c
     } else {
         std__collections__List_str_plus_assign(&self->errors, loc);
     }
+}
+
+void compiler__semantic__checker__BodyChecker_lower_program(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* program_node) {
+    compiler__semantic__lowering__LoweringPass lp = compiler__semantic__lowering__LoweringPass_init_3(self->symtab, self->arena, self->decl);
+    compiler__semantic__lowering__LoweringPass_lower_program(&lp, program_node);
+    self->symtab = lp.symtab;
+    self->arena = lp.arena;
+    self->decl = lp.decl;
 }
 
 compiler__semantic__types__Type* compiler__semantic__checker__BodyChecker_resolve_type(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* node) {
@@ -21369,7 +22642,7 @@ void compiler__semantic__checker__BodyChecker_check_for_stmt(compiler__semantic_
     {
         compiler__ast__NodeData__ForStmt* fs = NULL;
         if ((node != NULL && node->data.tag == compiler__ast__NodeData__ForStmt__TAG && (fs = (compiler__ast__NodeData__ForStmt*)(&(node)->data.u.ForStmt), 1))) {
-            compiler__semantic__checker__BodyChecker_ensure(self, (fs->is_range || compiler__sema__desugar__for_is_lvalue(fs->iterable)), node, KOBEL_STR("The iterated expression of a 'for' must be a variable or a field"));
+            compiler__semantic__checker__BodyChecker_ensure(self, (fs->is_range || compiler__semantic__lowering__for_is_lvalue(fs->iterable)), node, KOBEL_STR("The iterated expression of a 'for' must be a variable or a field"));
             bool use_iter_trait = false;
             if (!fs->is_range) {
                 use_iter_trait = compiler__semantic__checker__BodyChecker_struct_implements_iterable(self, compiler__semantic__checker__BodyChecker_for_iterable_type(self, fs->iterable));
@@ -21631,1209 +22904,28 @@ void compiler__sema__body__BodyPass_set_resolved(compiler__sema__body__BodyPass*
     compiler__semantic__symbols__SymbolTable_set_resolved_node(&self->symtab, node, r);
 }
 
-bool compiler__sema__desugar__for_is_lvalue(compiler__ast__AstNode* node) {
-    if (node == NULL) {
-        return false;
-    }
-    compiler__ast__AstNode* target = node;
-    if (target != NULL && target->data.tag == compiler__ast__NodeData__MemberExpr__TAG) {
-        void* __orig_target = (void*)target;
-        compiler__ast__NodeData__MemberExpr* target = (compiler__ast__NodeData__MemberExpr*)((&((compiler__ast__AstNode*)__orig_target)->data.u.MemberExpr));
-        return (target->is_safe ? false : compiler__sema__desugar__for_is_lvalue(target->object));
-    } else if (target != NULL && target->data.tag == compiler__ast__NodeData__GroupExpr__TAG) {
-        void* __orig_target = (void*)target;
-        compiler__ast__NodeData__GroupExpr* target = (compiler__ast__NodeData__GroupExpr*)((&((compiler__ast__AstNode*)__orig_target)->data.u.GroupExpr));
-        return compiler__sema__desugar__for_is_lvalue(target->expr);
-    } else if (target != NULL && target->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG) {
-        void* __orig_target = (void*)target;
-        compiler__ast__NodeData__IdentifierExpr* target = (compiler__ast__NodeData__IdentifierExpr*)((&((compiler__ast__AstNode*)__orig_target)->data.u.IdentifierExpr));
-        return true;
-    } else {
-        return false;
-    }
-}
-
-compiler__ast__AstNode* std__memory__Arena_loop_block(std__memory__Arena* self, std__collections__List_ptr_compiler__ast__AstNode stmts, size_t line, size_t col) {
-    return std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 24, .u.BlockStmt = { stmts } }, line, col);
-}
-
-compiler__ast__AstNode* std__memory__Arena_loop_expr(std__memory__Arena* self, compiler__ast__AstNode* expr, size_t line, size_t col) {
-    return std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 25, .u.ExprStmt = { expr } }, line, col);
-}
-
-compiler__ast__AstNode* std__memory__Arena_loop_var(std__memory__Arena* self, bool mutable, kobel_str name, compiler__ast__AstNode* ty, compiler__ast__AstNode* initializer, size_t line, size_t col) {
-    return std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 26, .u.VarDeclStmt = { mutable, name, ty, initializer } }, line, col);
-}
-
-compiler__ast__AstNode* std__memory__Arena_loop_if(std__memory__Arena* self, compiler__ast__AstNode* cond, compiler__ast__AstNode* then_b, compiler__ast__AstNode* else_b, size_t line, size_t col) {
-    return std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 27, .u.IfStmt = { cond, then_b, else_b } }, line, col);
-}
-
-compiler__ast__AstNode* std__memory__Arena_loop_while(std__memory__Arena* self, compiler__ast__AstNode* cond, compiler__ast__AstNode* body, size_t line, size_t col) {
-    return std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 28, .u.WhileStmt = { cond, body } }, line, col);
-}
-
-compiler__ast__AstNode* std__memory__Arena_for_usz_type(std__memory__Arena* self, size_t line, size_t col) {
-    return std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 1, .u.NamedType = { KOBEL_STR("usz"), std__collections__List_ptr_compiler__ast__AstNode_init(4) } }, line, col);
-}
-
-compiler__ast__AstNode* std__memory__Arena_for_id(std__memory__Arena* self, kobel_str name, size_t line, size_t col) {
-    return std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 6, .u.IdentifierExpr = { name } }, line, col);
-}
-
-compiler__ast__AstNode* std__memory__Arena_for_num(std__memory__Arena* self, kobel_str text, size_t line, size_t col) {
-    return std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 5, .u.LiteralExpr = { 0, text } }, line, col);
-}
-
-compiler__ast__AstNode* std__memory__Arena_for_i_cmp(std__memory__Arena* self, compiler__lexer__TokenType op, size_t line, size_t col) {
-    return std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 7, .u.BinaryExpr = { std__memory__Arena_for_id(self, KOBEL_STR("__for_i"), line, col), op, std__memory__Arena_for_id(self, KOBEL_STR("__for_e"), line, col) } }, line, col);
-}
-
-compiler__ast__AstNode* std__memory__Arena_for_set_go(std__memory__Arena* self, compiler__ast__AstNode* value, size_t line, size_t col) {
-    return std__memory__Arena_loop_expr(self, std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 12, .u.AssignExpr = { std__memory__Arena_for_id(self, KOBEL_STR("__for_go"), line, col), 5, value } }, line, col), line, col);
-}
-
-compiler__ast__AstNode* std__memory__Arena_for_bump(std__memory__Arena* self, compiler__lexer__TokenType op, size_t line, size_t col) {
-    return std__memory__Arena_loop_expr(self, std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 12, .u.AssignExpr = { std__memory__Arena_for_id(self, KOBEL_STR("__for_i"), line, col), 5, std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 7, .u.BinaryExpr = { std__memory__Arena_for_id(self, KOBEL_STR("__for_i"), line, col), op, std__memory__Arena_for_num(self, KOBEL_STR("1"), line, col) } }, line, col) } }, line, col), line, col);
-}
-
-compiler__ast__AstNode* std__memory__Arena_for_by_dir(std__memory__Arena* self, compiler__ast__AstNode* up_stmt, compiler__ast__AstNode* down_stmt, size_t line, size_t col) {
-    std__collections__List_ptr_compiler__ast__AstNode up_stmts = std__collections__List_ptr_compiler__ast__AstNode_init(4);
-    std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&up_stmts, up_stmt);
-    std__collections__List_ptr_compiler__ast__AstNode down_stmts = std__collections__List_ptr_compiler__ast__AstNode_init(4);
-    std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&down_stmts, down_stmt);
-    return std__memory__Arena_loop_if(self, std__memory__Arena_for_id(self, KOBEL_STR("__for_up"), line, col), std__memory__Arena_loop_block(self, up_stmts, line, col), std__memory__Arena_loop_block(self, down_stmts, line, col), line, col);
-}
-
-void std__memory__Arena_for_inject_step(std__memory__Arena* self, compiler__ast__AstNode* node, std__collections__List_ptr_compiler__ast__AstNode* step, compiler__semantic__checker__BodyChecker* bc) {
-    if (node == NULL) {
-        return;
-    }
-    compiler__ast__AstNode* target = node;
-    if (target != NULL && target->data.tag == compiler__ast__NodeData__BlockStmt__TAG) {
-        void* __orig_target = (void*)target;
-        compiler__ast__NodeData__BlockStmt* target = (compiler__ast__NodeData__BlockStmt*)((&((compiler__ast__AstNode*)__orig_target)->data.u.BlockStmt));
-        size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&target->statements);
-        size_t __for_i = 0;
-        while (__for_i < __for_n) {
-            compiler__ast__AstNode* stmt = std__collections__List_ptr_compiler__ast__AstNode_at(&target->statements, __for_i);
-            std__memory__Arena_for_inject_step(self, stmt, step, bc);
-            __for_i = (__for_i + 1);
-        }
-    } else if (target != NULL && target->data.tag == compiler__ast__NodeData__IfStmt__TAG) {
-        void* __orig_target = (void*)target;
-        compiler__ast__NodeData__IfStmt* target = (compiler__ast__NodeData__IfStmt*)((&((compiler__ast__AstNode*)__orig_target)->data.u.IfStmt));
-        std__memory__Arena_for_inject_step(self, target->then_branch, step, bc);
-        std__memory__Arena_for_inject_step(self, target->else_branch, step, bc);
-    } else if (target != NULL && target->data.tag == compiler__ast__NodeData__WhenStmt__TAG) {
-        void* __orig_target = (void*)target;
-        compiler__ast__NodeData__WhenStmt* target = (compiler__ast__NodeData__WhenStmt*)((&((compiler__ast__AstNode*)__orig_target)->data.u.WhenStmt));
-        size_t __for_n = std__collections__List_compiler__ast__WhenArm_count(&target->arms);
-        size_t __for_i = 0;
-        while (__for_i < __for_n) {
-            compiler__ast__WhenArm arm = std__collections__List_compiler__ast__WhenArm_at(&target->arms, __for_i);
-            std__memory__Arena_for_inject_step(self, arm.body, step, bc);
-            __for_i = (__for_i + 1);
-        }
-    } else if (target != NULL && target->data.tag == compiler__ast__NodeData__VarDeclStmt__TAG) {
-        void* __orig_target = (void*)target;
-        compiler__ast__NodeData__VarDeclStmt* target = (compiler__ast__NodeData__VarDeclStmt*)((&((compiler__ast__AstNode*)__orig_target)->data.u.VarDeclStmt));
-        std__memory__Arena_for_inject_step_expr(self, target->initializer, step, bc);
-    } else if (target != NULL && target->data.tag == compiler__ast__NodeData__ExprStmt__TAG) {
-        void* __orig_target = (void*)target;
-        compiler__ast__NodeData__ExprStmt* target = (compiler__ast__NodeData__ExprStmt*)((&((compiler__ast__AstNode*)__orig_target)->data.u.ExprStmt));
-        std__memory__Arena_for_inject_step_expr(self, target->expr, step, bc);
-    } else if (target != NULL && target->data.tag == compiler__ast__NodeData__ContinueStmt__TAG) {
-        void* __orig_target = (void*)target;
-        compiler__ast__NodeData__ContinueStmt* target = (compiler__ast__NodeData__ContinueStmt*)((&((compiler__ast__AstNode*)__orig_target)->data.u.ContinueStmt));
-        std__collections__List_ptr_compiler__ast__AstNode stmts = std__collections__List_ptr_compiler__ast__AstNode_init(4);
-        {
-            size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(step);
-            size_t __for_i = 0;
-            while (__for_i < __for_n) {
-                compiler__ast__AstNode* s = std__collections__List_ptr_compiler__ast__AstNode_at(step, __for_i);
-                std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&stmts, s);
-                __for_i = (__for_i + 1);
-            }
-        }
-        std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&stmts, std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 32 }, node->line, node->col));
-        compiler__ast__AstNode* block = std__memory__Arena_loop_block(self, stmts, node->line, node->col);
-        if (bc != NULL) {
-            compiler__semantic__checker__BodyChecker_set_resolved(bc, node, block);
-        }
-    }
-}
-
-void std__memory__Arena_for_inject_step_expr(std__memory__Arena* self, compiler__ast__AstNode* expr, std__collections__List_ptr_compiler__ast__AstNode* step, compiler__semantic__checker__BodyChecker* bc) {
-    if (expr == NULL) {
-        return;
-    }
-    compiler__ast__AstNode* cur = expr;
-    while (cur != NULL) {
-        {
-            compiler__ast__NodeData__GroupExpr* g = NULL;
-            if ((cur != NULL && cur->data.tag == compiler__ast__NodeData__GroupExpr__TAG && (g = (compiler__ast__NodeData__GroupExpr*)(&(cur)->data.u.GroupExpr), 1))) {
-                cur = g->expr;
-            } else {
-                break;
-            }
-        }
-    }
-    if (cur == NULL) {
-        return;
-    }
-    {
-        compiler__ast__NodeData__BinaryExpr* bin = NULL;
-        compiler__ast__NodeData__AssignExpr* asg = NULL;
-        if ((cur != NULL && cur->data.tag == compiler__ast__NodeData__BinaryExpr__TAG && (bin = (compiler__ast__NodeData__BinaryExpr*)(&(cur)->data.u.BinaryExpr), 1)) && (bin->op == 37)) {
-            std__memory__Arena_for_inject_step(self, bin->right, step, bc);
-        } else if ((cur != NULL && cur->data.tag == compiler__ast__NodeData__AssignExpr__TAG && (asg = (compiler__ast__NodeData__AssignExpr*)(&(cur)->data.u.AssignExpr), 1))) {
-            std__memory__Arena_for_inject_step_expr(self, asg->value, step, bc);
-        }
-    }
-}
-
-compiler__ast__AstNode* std__memory__Arena_desugar_for_iter_method(std__memory__Arena* self, std__collections__List_ptr_compiler__ast__AstNode* pre, std__collections__List_ptr_compiler__ast__AstNode* head, std__collections__List_ptr_compiler__ast__AstNode* step, compiler__ast__NodeData__ForStmt* fs, size_t line, size_t col) {
-    compiler__ast__AstNode* count_mem = std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 10, .u.MemberExpr = { fs->iterable, KOBEL_STR("count"), false } }, line, col);
-    compiler__ast__AstNode* count_call = std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 9, .u.CallExpr = { count_mem, std__collections__List_ptr_compiler__ast__AstNode_init(4), std__collections__List_ptr_compiler__ast__AstNode_init(4) } }, line, col);
-    std__collections__List_ptr_compiler__ast__AstNode_plus_assign(pre, std__memory__Arena_loop_var(self, false, KOBEL_STR("__for_n"), std__memory__Arena_for_usz_type(self, line, col), count_call, line, col));
-    std__collections__List_ptr_compiler__ast__AstNode_plus_assign(pre, std__memory__Arena_loop_var(self, true, KOBEL_STR("__for_i"), std__memory__Arena_for_usz_type(self, line, col), std__memory__Arena_for_num(self, KOBEL_STR("0"), line, col), line, col));
-    std__collections__List_ptr_compiler__ast__AstNode at_args = std__collections__List_ptr_compiler__ast__AstNode_init(4);
-    std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&at_args, std__memory__Arena_for_id(self, KOBEL_STR("__for_i"), line, col));
-    compiler__ast__AstNode* at_mem = std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 10, .u.MemberExpr = { fs->iterable, KOBEL_STR("at"), false } }, line, col);
-    compiler__ast__AstNode* at_call = std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 9, .u.CallExpr = { at_mem, at_args, std__collections__List_ptr_compiler__ast__AstNode_init(4) } }, line, col);
-    std__collections__List_ptr_compiler__ast__AstNode_plus_assign(head, std__memory__Arena_loop_var(self, false, fs->var_name, NULL, at_call, line, col));
-    std__collections__List_ptr_compiler__ast__AstNode_plus_assign(step, std__memory__Arena_for_bump(self, 6, line, col));
-    return std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 7, .u.BinaryExpr = { std__memory__Arena_for_id(self, KOBEL_STR("__for_i"), line, col), 12, std__memory__Arena_for_id(self, KOBEL_STR("__for_n"), line, col) } }, line, col);
-}
-
-compiler__ast__AstNode* std__memory__Arena_desugar_for_iterable(std__memory__Arena* self, std__collections__List_ptr_compiler__ast__AstNode* pre, std__collections__List_ptr_compiler__ast__AstNode* head, std__collections__List_ptr_compiler__ast__AstNode* step, compiler__ast__NodeData__ForStmt* fs, size_t line, size_t col) {
-    std__collections__List_ptr_compiler__ast__AstNode_plus_assign(pre, std__memory__Arena_loop_var(self, false, KOBEL_STR("__for_n"), std__memory__Arena_for_usz_type(self, line, col), std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 10, .u.MemberExpr = { fs->iterable, KOBEL_STR("len"), false } }, line, col), line, col));
-    std__collections__List_ptr_compiler__ast__AstNode_plus_assign(pre, std__memory__Arena_loop_var(self, true, KOBEL_STR("__for_i"), std__memory__Arena_for_usz_type(self, line, col), std__memory__Arena_for_num(self, KOBEL_STR("0"), line, col), line, col));
-    std__collections__List_ptr_compiler__ast__AstNode_plus_assign(head, std__memory__Arena_loop_var(self, false, fs->var_name, NULL, std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 11, .u.IndexExpr = { std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 10, .u.MemberExpr = { fs->iterable, KOBEL_STR("data"), false } }, line, col), std__memory__Arena_for_id(self, KOBEL_STR("__for_i"), line, col) } }, line, col), line, col));
-    std__collections__List_ptr_compiler__ast__AstNode_plus_assign(step, std__memory__Arena_for_bump(self, 6, line, col));
-    return std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 7, .u.BinaryExpr = { std__memory__Arena_for_id(self, KOBEL_STR("__for_i"), line, col), 12, std__memory__Arena_for_id(self, KOBEL_STR("__for_n"), line, col) } }, line, col);
-}
-
-compiler__ast__AstNode* std__memory__Arena_desugar_for_range(std__memory__Arena* self, std__collections__List_ptr_compiler__ast__AstNode* pre, std__collections__List_ptr_compiler__ast__AstNode* head, std__collections__List_ptr_compiler__ast__AstNode* step, compiler__ast__NodeData__ForStmt* fs, size_t line, size_t col) {
-    std__collections__List_ptr_compiler__ast__AstNode_plus_assign(pre, std__memory__Arena_loop_var(self, false, KOBEL_STR("__for_e"), NULL, fs->range_end, line, col));
-    std__collections__List_ptr_compiler__ast__AstNode_plus_assign(pre, std__memory__Arena_loop_var(self, true, KOBEL_STR("__for_i"), NULL, std__memory__Arena_for_id(self, KOBEL_STR("__for_e"), line, col), line, col));
-    std__collections__List_ptr_compiler__ast__AstNode_plus_assign(pre, std__memory__Arena_loop_expr(self, std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 12, .u.AssignExpr = { std__memory__Arena_for_id(self, KOBEL_STR("__for_i"), line, col), 5, fs->range_start } }, line, col), line, col));
-    std__collections__List_ptr_compiler__ast__AstNode_plus_assign(pre, std__memory__Arena_loop_var(self, false, KOBEL_STR("__for_up"), NULL, std__memory__Arena_for_i_cmp(self, 23, line, col), line, col));
-    if (fs->is_open) {
-        std__collections__List_ptr_compiler__ast__AstNode_plus_assign(pre, std__memory__Arena_for_by_dir(self, std__memory__Arena_for_bump(self, 6, line, col), std__memory__Arena_for_bump(self, 7, line, col), line, col));
-    }
-    std__collections__List_ptr_compiler__ast__AstNode_plus_assign(pre, std__memory__Arena_loop_var(self, true, KOBEL_STR("__for_go"), NULL, std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 5, .u.LiteralExpr = { 2, KOBEL_STR("false") } }, line, col), line, col));
-    if (fs->is_open || fs->is_half_open) {
-        std__collections__List_ptr_compiler__ast__AstNode_plus_assign(pre, std__memory__Arena_for_by_dir(self, std__memory__Arena_for_set_go(self, std__memory__Arena_for_i_cmp(self, 12, line, col), line, col), std__memory__Arena_for_set_go(self, std__memory__Arena_for_i_cmp(self, 11, line, col), line, col), line, col));
-    } else {
-        std__collections__List_ptr_compiler__ast__AstNode_plus_assign(pre, std__memory__Arena_for_by_dir(self, std__memory__Arena_for_set_go(self, std__memory__Arena_for_i_cmp(self, 23, line, col), line, col), std__memory__Arena_for_set_go(self, std__memory__Arena_for_i_cmp(self, 24, line, col), line, col), line, col));
-    }
-    std__collections__List_ptr_compiler__ast__AstNode_plus_assign(head, std__memory__Arena_loop_var(self, false, fs->var_name, NULL, std__memory__Arena_for_id(self, KOBEL_STR("__for_i"), line, col), line, col));
-    if (fs->is_open || fs->is_half_open) {
-        std__collections__List_ptr_compiler__ast__AstNode_plus_assign(step, std__memory__Arena_for_by_dir(self, std__memory__Arena_for_set_go(self, std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 7, .u.BinaryExpr = { std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 7, .u.BinaryExpr = { std__memory__Arena_for_id(self, KOBEL_STR("__for_i"), line, col), 6, std__memory__Arena_for_num(self, KOBEL_STR("1"), line, col) } }, line, col), 12, std__memory__Arena_for_id(self, KOBEL_STR("__for_e"), line, col) } }, line, col), line, col), std__memory__Arena_for_set_go(self, std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 7, .u.BinaryExpr = { std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 7, .u.BinaryExpr = { std__memory__Arena_for_id(self, KOBEL_STR("__for_i"), line, col), 7, std__memory__Arena_for_num(self, KOBEL_STR("1"), line, col) } }, line, col), 11, std__memory__Arena_for_id(self, KOBEL_STR("__for_e"), line, col) } }, line, col), line, col), line, col));
-    } else {
-        std__collections__List_ptr_compiler__ast__AstNode_plus_assign(step, std__memory__Arena_for_by_dir(self, std__memory__Arena_for_set_go(self, std__memory__Arena_for_i_cmp(self, 12, line, col), line, col), std__memory__Arena_for_set_go(self, std__memory__Arena_for_i_cmp(self, 11, line, col), line, col), line, col));
-    }
-    std__collections__List_ptr_compiler__ast__AstNode_plus_assign(step, std__memory__Arena_loop_if(self, std__memory__Arena_for_id(self, KOBEL_STR("__for_go"), line, col), std__memory__Arena_for_by_dir(self, std__memory__Arena_for_bump(self, 6, line, col), std__memory__Arena_for_bump(self, 7, line, col), line, col), NULL, line, col));
-    return std__memory__Arena_for_id(self, KOBEL_STR("__for_go"), line, col);
-}
-
-compiler__ast__AstNode* std__memory__Arena_desugar_for(std__memory__Arena* self, compiler__ast__AstNode* node, compiler__ast__NodeData__ForStmt* fs, bool use_iter_trait, compiler__semantic__checker__BodyChecker* bc) {
-    size_t line = node->line;
-    size_t col = node->col;
-    std__collections__List_ptr_compiler__ast__AstNode pre = std__collections__List_ptr_compiler__ast__AstNode_init(4);
-    std__collections__List_ptr_compiler__ast__AstNode head = std__collections__List_ptr_compiler__ast__AstNode_init(4);
-    std__collections__List_ptr_compiler__ast__AstNode step = std__collections__List_ptr_compiler__ast__AstNode_init(4);
-    compiler__ast__AstNode* cond = (fs->is_range ? std__memory__Arena_desugar_for_range(self, &pre, &head, &step, fs, line, col) : (use_iter_trait ? std__memory__Arena_desugar_for_iter_method(self, &pre, &head, &step, fs, line, col) : std__memory__Arena_desugar_for_iterable(self, &pre, &head, &step, fs, line, col)));
-    std__collections__List_ptr_compiler__ast__AstNode body_stmts = std__collections__List_ptr_compiler__ast__AstNode_init(4);
-    {
-        size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&head);
-        size_t __for_i = 0;
-        while (__for_i < __for_n) {
-            compiler__ast__AstNode* s = std__collections__List_ptr_compiler__ast__AstNode_at(&head, __for_i);
-            std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&body_stmts, s);
-            __for_i = (__for_i + 1);
-        }
-    }
-    compiler__ast__AstNode* fbody = fs->body;
-    {
-        compiler__ast__NodeData__BlockStmt* b = NULL;
-        if ((fbody != NULL && fbody->data.tag == compiler__ast__NodeData__BlockStmt__TAG && (b = (compiler__ast__NodeData__BlockStmt*)(&(fbody)->data.u.BlockStmt), 1))) {
-            {
-                size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&b->statements);
-                size_t __for_i = 0;
-                while (__for_i < __for_n) {
-                    compiler__ast__AstNode* s = std__collections__List_ptr_compiler__ast__AstNode_at(&b->statements, __for_i);
-                    std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&body_stmts, s);
-                    __for_i = (__for_i + 1);
-                }
-            }
-        } else if (fbody != NULL) {
-            std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&body_stmts, fbody);
-        }
-    }
-    {
-        size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&step);
-        size_t __for_i = 0;
-        while (__for_i < __for_n) {
-            compiler__ast__AstNode* s = std__collections__List_ptr_compiler__ast__AstNode_at(&step, __for_i);
-            std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&body_stmts, s);
-            __for_i = (__for_i + 1);
-        }
-    }
-    std__memory__Arena_for_inject_step(self, fs->body, &step, bc);
-    std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&pre, std__memory__Arena_loop_while(self, cond, std__memory__Arena_loop_block(self, body_stmts, line, col), line, col));
-    return std__memory__Arena_loop_block(self, pre, line, col);
-}
-
 void compiler__sema__body__BodyPass_lower_program(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* program_node) {
-    {
-        compiler__ast__NodeData__Program* prog = NULL;
-        if ((program_node != NULL && program_node->data.tag == compiler__ast__NodeData__Program__TAG && (prog = (compiler__ast__NodeData__Program*)(&(program_node)->data.u.Program), 1))) {
-            {
-                size_t __for_n = compiler__ast__NodeData__Program_count(prog);
-                size_t __for_i = 0;
-                while (__for_i < __for_n) {
-                    compiler__ast__AstNode* decl = compiler__ast__NodeData__Program_at(prog, __for_i);
-                    if (decl != NULL && decl->data.tag == compiler__ast__NodeData__FnDecl__TAG) {
-                        compiler__ast__NodeData__FnDecl* f = (compiler__ast__NodeData__FnDecl*)(&(decl)->data.u.FnDecl);
-                        if (f->type_params.len > 0) {
-                            __for_i = (__for_i + 1);
-                            continue;
-                        }
-                        compiler__semantic__symbols__InstanceRecord* rec = compiler__semantic__symbols__SymbolTable_get_node_instance(&self->symtab, decl);
-                        if (rec != NULL) {
-                            f->body = compiler__sema__body__BodyPass_lower_stmt(self, compiler__sema__decl__DeclPass_materialize_body(&self->decl, rec));
-                        } else if (f->body != NULL) {
-                            f->body = compiler__sema__body__BodyPass_lower_stmt(self, f->body);
-                        }
-                    } else if (decl != NULL && decl->data.tag == compiler__ast__NodeData__ImplDecl__TAG) {
-                        compiler__ast__NodeData__ImplDecl* im = (compiler__ast__NodeData__ImplDecl*)(&(decl)->data.u.ImplDecl);
-                        {
-                            size_t __for_e = im->methods.len;
-                            size_t __for_i = __for_e;
-                            __for_i = 0;
-                            bool __for_up = (__for_i <= __for_e);
-                            bool __for_go = false;
-                            if (__for_up) {
-                                __for_go = (__for_i < __for_e);
-                            } else {
-                                __for_go = (__for_i > __for_e);
-                            }
-                            while (__for_go) {
-                                size_t i = __for_i;
-                                compiler__ast__AstNode* m = std__collections__List_ptr_compiler__ast__AstNode_get(&im->methods, i);
-                                {
-                                    compiler__ast__NodeData__FnDecl* mf = NULL;
-                                    if ((m != NULL && m->data.tag == compiler__ast__NodeData__FnDecl__TAG && (mf = (compiler__ast__NodeData__FnDecl*)(&(m)->data.u.FnDecl), 1))) {
-                                        if (mf->type_params.len > 0) {
-                                            if (__for_up) {
-                                                __for_go = ((__for_i + 1) < __for_e);
-                                            } else {
-                                                __for_go = ((__for_i - 1) > __for_e);
-                                            }
-                                            if (__for_go) {
-                                                if (__for_up) {
-                                                    __for_i = (__for_i + 1);
-                                                } else {
-                                                    __for_i = (__for_i - 1);
-                                                }
-                                            }
-                                            continue;
-                                        }
-                                        compiler__semantic__symbols__InstanceRecord* rec = compiler__semantic__symbols__SymbolTable_get_node_instance(&self->symtab, m);
-                                        if (rec != NULL) {
-                                            mf->body = compiler__sema__body__BodyPass_lower_stmt(self, compiler__sema__decl__DeclPass_materialize_body(&self->decl, rec));
-                                        } else if (mf->body != NULL) {
-                                            mf->body = compiler__sema__body__BodyPass_lower_stmt(self, mf->body);
-                                        }
-                                    }
-                                }
-                                if (__for_up) {
-                                    __for_go = ((__for_i + 1) < __for_e);
-                                } else {
-                                    __for_go = ((__for_i - 1) > __for_e);
-                                }
-                                if (__for_go) {
-                                    if (__for_up) {
-                                        __for_i = (__for_i + 1);
-                                    } else {
-                                        __for_i = (__for_i - 1);
-                                    }
-                                }
-                            }
-                        }
-                    } else if (decl != NULL && decl->data.tag == compiler__ast__NodeData__ConstDecl__TAG) {
-                        compiler__ast__NodeData__ConstDecl* c = (compiler__ast__NodeData__ConstDecl*)(&(decl)->data.u.ConstDecl);
-                        if (c->value != NULL) {
-                            c->value = compiler__sema__body__BodyPass_lower_expr(self, c->value);
-                        }
-                    }
-                    __for_i = (__for_i + 1);
-                }
-            }
-        }
-    }
+    compiler__semantic__lowering__LoweringPass lp = compiler__semantic__lowering__LoweringPass_init_3(self->symtab, self->arena, self->decl);
+    compiler__semantic__lowering__LoweringPass_lower_program(&lp, program_node);
+    self->symtab = lp.symtab;
+    self->arena = lp.arena;
+    self->decl = lp.decl;
 }
 
 compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_stmt(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node) {
-    compiler__ast__AstNode* res_stmt = compiler__semantic__symbols__SymbolTable_get_resolved_node(&self->symtab, node);
-    if (res_stmt != NULL) {
-        return compiler__sema__body__BodyPass_lower_stmt(self, res_stmt);
-    }
-    if (node != NULL && node->data.tag == compiler__ast__NodeData__BlockStmt__TAG) {
-        compiler__ast__NodeData__BlockStmt* blk = (compiler__ast__NodeData__BlockStmt*)(&(node)->data.u.BlockStmt);
-        {
-            size_t __for_e = blk->statements.len;
-            size_t __for_i = __for_e;
-            __for_i = 0;
-            bool __for_up = (__for_i <= __for_e);
-            bool __for_go = false;
-            if (__for_up) {
-                __for_go = (__for_i < __for_e);
-            } else {
-                __for_go = (__for_i > __for_e);
-            }
-            while (__for_go) {
-                size_t i = __for_i;
-                std__collections__List_ptr_compiler__ast__AstNode_set(&blk->statements, i, compiler__sema__body__BodyPass_lower_stmt(self, std__collections__List_ptr_compiler__ast__AstNode_get(&blk->statements, i)));
-                if (__for_up) {
-                    __for_go = ((__for_i + 1) < __for_e);
-                } else {
-                    __for_go = ((__for_i - 1) > __for_e);
-                }
-                if (__for_go) {
-                    if (__for_up) {
-                        __for_i = (__for_i + 1);
-                    } else {
-                        __for_i = (__for_i - 1);
-                    }
-                }
-            }
-        }
-    } else if (node != NULL && node->data.tag == compiler__ast__NodeData__ExprStmt__TAG) {
-        compiler__ast__NodeData__ExprStmt* es = (compiler__ast__NodeData__ExprStmt*)(&(node)->data.u.ExprStmt);
-        es->expr = compiler__sema__body__BodyPass_lower_expr(self, es->expr);
-    } else if (node != NULL && node->data.tag == compiler__ast__NodeData__VarDeclStmt__TAG) {
-        compiler__ast__NodeData__VarDeclStmt* vd = (compiler__ast__NodeData__VarDeclStmt*)(&(node)->data.u.VarDeclStmt);
-        if (vd->initializer != NULL) {
-            vd->initializer = compiler__sema__body__BodyPass_lower_expr(self, vd->initializer);
-        }
-    } else if (node != NULL && node->data.tag == compiler__ast__NodeData__IfStmt__TAG) {
-        compiler__ast__NodeData__IfStmt* ifs = (compiler__ast__NodeData__IfStmt*)(&(node)->data.u.IfStmt);
-        ifs->condition = compiler__sema__body__BodyPass_lower_expr(self, ifs->condition);
-        ifs->then_branch = compiler__sema__body__BodyPass_lower_stmt(self, ifs->then_branch);
-        if (ifs->else_branch != NULL) {
-            ifs->else_branch = compiler__sema__body__BodyPass_lower_stmt(self, ifs->else_branch);
-        }
-    } else if (node != NULL && node->data.tag == compiler__ast__NodeData__WhileStmt__TAG) {
-        compiler__ast__NodeData__WhileStmt* wh = (compiler__ast__NodeData__WhileStmt*)(&(node)->data.u.WhileStmt);
-        wh->condition = compiler__sema__body__BodyPass_lower_expr(self, wh->condition);
-        wh->body = compiler__sema__body__BodyPass_lower_stmt(self, wh->body);
-    } else if (node != NULL && node->data.tag == compiler__ast__NodeData__ForStmt__TAG) {
-        compiler__ast__NodeData__ForStmt* fr = (compiler__ast__NodeData__ForStmt*)(&(node)->data.u.ForStmt);
-        if (fr->iterable != NULL) {
-            fr->iterable = compiler__sema__body__BodyPass_lower_expr(self, fr->iterable);
-        }
-        if (fr->range_start != NULL) {
-            fr->range_start = compiler__sema__body__BodyPass_lower_expr(self, fr->range_start);
-        }
-        if (fr->range_end != NULL) {
-            fr->range_end = compiler__sema__body__BodyPass_lower_expr(self, fr->range_end);
-        }
-        fr->body = compiler__sema__body__BodyPass_lower_stmt(self, fr->body);
-    } else if (node != NULL && node->data.tag == compiler__ast__NodeData__ReturnStmt__TAG) {
-        compiler__ast__NodeData__ReturnStmt* ret = (compiler__ast__NodeData__ReturnStmt*)(&(node)->data.u.ReturnStmt);
-        if (ret->value != NULL) {
-            ret->value = compiler__sema__body__BodyPass_lower_expr(self, ret->value);
-        }
-    } else if (node != NULL && node->data.tag == compiler__ast__NodeData__WhenStmt__TAG) {
-        compiler__ast__NodeData__WhenStmt* ws = (compiler__ast__NodeData__WhenStmt*)(&(node)->data.u.WhenStmt);
-        if (ws->condition != NULL) {
-            ws->condition = compiler__sema__body__BodyPass_lower_expr(self, ws->condition);
-        }
-        {
-            size_t __for_e = ws->arms.len;
-            size_t __for_i = __for_e;
-            __for_i = 0;
-            bool __for_up = (__for_i <= __for_e);
-            bool __for_go = false;
-            if (__for_up) {
-                __for_go = (__for_i < __for_e);
-            } else {
-                __for_go = (__for_i > __for_e);
-            }
-            while (__for_go) {
-                size_t i = __for_i;
-                compiler__ast__WhenArm arm = std__collections__List_compiler__ast__WhenArm_get(&ws->arms, i);
-                arm.body = compiler__sema__body__BodyPass_lower_stmt(self, arm.body);
-                {
-                    size_t __for_e = arm.patterns.len;
-                    size_t __for_i = __for_e;
-                    __for_i = 0;
-                    bool __for_up = (__for_i <= __for_e);
-                    bool __for_go = false;
-                    if (__for_up) {
-                        __for_go = (__for_i < __for_e);
-                    } else {
-                        __for_go = (__for_i > __for_e);
-                    }
-                    while (__for_go) {
-                        size_t k = __for_i;
-                        std__collections__List_ptr_compiler__ast__AstNode_set(&arm.patterns, k, compiler__sema__body__BodyPass_lower_expr(self, std__collections__List_ptr_compiler__ast__AstNode_get(&arm.patterns, k)));
-                        if (__for_up) {
-                            __for_go = ((__for_i + 1) < __for_e);
-                        } else {
-                            __for_go = ((__for_i - 1) > __for_e);
-                        }
-                        if (__for_go) {
-                            if (__for_up) {
-                                __for_i = (__for_i + 1);
-                            } else {
-                                __for_i = (__for_i - 1);
-                            }
-                        }
-                    }
-                }
-                std__collections__List_compiler__ast__WhenArm_set(&ws->arms, i, arm);
-                if (__for_up) {
-                    __for_go = ((__for_i + 1) < __for_e);
-                } else {
-                    __for_go = ((__for_i - 1) > __for_e);
-                }
-                if (__for_go) {
-                    if (__for_up) {
-                        __for_i = (__for_i + 1);
-                    } else {
-                        __for_i = (__for_i - 1);
-                    }
-                }
-            }
-        }
-    } else if (node != NULL && node->data.tag == compiler__ast__NodeData__YieldStmt__TAG) {
-        compiler__ast__NodeData__YieldStmt* ys = (compiler__ast__NodeData__YieldStmt*)(&(node)->data.u.YieldStmt);
-        if (ys->value != NULL) {
-            ys->value = compiler__sema__body__BodyPass_lower_expr(self, ys->value);
-        }
-    } else if (node != NULL && node->data.tag == compiler__ast__NodeData__DeferStmt__TAG) {
-        compiler__ast__NodeData__DeferStmt* ds = (compiler__ast__NodeData__DeferStmt*)(&(node)->data.u.DeferStmt);
-        ds->body = compiler__sema__body__BodyPass_lower_stmt(self, ds->body);
-    }
-    return node;
+    compiler__semantic__lowering__LoweringPass lp = compiler__semantic__lowering__LoweringPass_init_3(self->symtab, self->arena, self->decl);
+    compiler__ast__AstNode* res = compiler__semantic__lowering__LoweringPass_lower_stmt(&lp, node);
+    self->symtab = lp.symtab;
+    self->arena = lp.arena;
+    return res;
 }
 
 compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_expr(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node) {
-    compiler__ast__AstNode* res_expr = compiler__semantic__symbols__SymbolTable_get_resolved_node(&self->symtab, node);
-    if (res_expr != NULL) {
-        return compiler__sema__body__BodyPass_lowered(self, node, compiler__sema__body__BodyPass_lower_expr(self, res_expr));
-    }
-    compiler__ast__AstNode* out = node;
-    if (node != NULL && node->data.tag == compiler__ast__NodeData__BinaryExpr__TAG) {
-        compiler__ast__NodeData__BinaryExpr* b = (compiler__ast__NodeData__BinaryExpr*)(&(node)->data.u.BinaryExpr);
-        b->left = compiler__sema__body__BodyPass_lower_expr(self, b->left);
-        b->right = compiler__sema__body__BodyPass_lower_expr(self, b->right);
-        out = compiler__sema__body__BodyPass_lower_binary(self, node, b);
-    } else if (node != NULL && node->data.tag == compiler__ast__NodeData__UnaryExpr__TAG) {
-        compiler__ast__NodeData__UnaryExpr* u = (compiler__ast__NodeData__UnaryExpr*)(&(node)->data.u.UnaryExpr);
-        u->operand = compiler__sema__body__BodyPass_lower_expr(self, u->operand);
-        out = compiler__sema__body__BodyPass_lower_unary(self, node, u);
-    } else if (node != NULL && node->data.tag == compiler__ast__NodeData__CallExpr__TAG) {
-        compiler__ast__NodeData__CallExpr* c = (compiler__ast__NodeData__CallExpr*)(&(node)->data.u.CallExpr);
-        c->callee = compiler__sema__body__BodyPass_lower_expr(self, c->callee);
-        {
-            size_t __for_e = c->args.len;
-            size_t __for_i = __for_e;
-            __for_i = 0;
-            bool __for_up = (__for_i <= __for_e);
-            bool __for_go = false;
-            if (__for_up) {
-                __for_go = (__for_i < __for_e);
-            } else {
-                __for_go = (__for_i > __for_e);
-            }
-            while (__for_go) {
-                size_t i = __for_i;
-                std__collections__List_ptr_compiler__ast__AstNode_set(&c->args, i, compiler__sema__body__BodyPass_lower_expr(self, std__collections__List_ptr_compiler__ast__AstNode_get(&c->args, i)));
-                if (__for_up) {
-                    __for_go = ((__for_i + 1) < __for_e);
-                } else {
-                    __for_go = ((__for_i - 1) > __for_e);
-                }
-                if (__for_go) {
-                    if (__for_up) {
-                        __for_i = (__for_i + 1);
-                    } else {
-                        __for_i = (__for_i - 1);
-                    }
-                }
-            }
-        }
-        if (compiler__semantic__symbols__SymbolTable_get_resolved_method(&self->symtab, node) != NULL) {
-            out = compiler__sema__body__BodyPass_lower_bound_call(self, node, c);
-        } else {
-            out = compiler__sema__body__BodyPass_lower_call(self, node, c);
-        }
-    } else if (node != NULL && node->data.tag == compiler__ast__NodeData__MemberExpr__TAG) {
-        compiler__ast__NodeData__MemberExpr* m = (compiler__ast__NodeData__MemberExpr*)(&(node)->data.u.MemberExpr);
-        m->object = compiler__sema__body__BodyPass_lower_expr(self, m->object);
-        out = compiler__sema__body__BodyPass_lower_member(self, node, m);
-    } else if (node != NULL && node->data.tag == compiler__ast__NodeData__IndexExpr__TAG) {
-        compiler__ast__NodeData__IndexExpr* ix = (compiler__ast__NodeData__IndexExpr*)(&(node)->data.u.IndexExpr);
-        ix->target = compiler__sema__body__BodyPass_lower_expr(self, ix->target);
-        ix->index = compiler__sema__body__BodyPass_lower_expr(self, ix->index);
-        out = compiler__sema__body__BodyPass_lower_index(self, node, ix);
-    } else if (node != NULL && node->data.tag == compiler__ast__NodeData__AssignExpr__TAG) {
-        compiler__ast__NodeData__AssignExpr* asg = (compiler__ast__NodeData__AssignExpr*)(&(node)->data.u.AssignExpr);
-        asg->target = compiler__sema__body__BodyPass_lower_expr(self, asg->target);
-        asg->value = compiler__sema__body__BodyPass_lower_expr(self, asg->value);
-        out = compiler__sema__body__BodyPass_lower_assign(self, node, asg);
-    } else if (node != NULL && node->data.tag == compiler__ast__NodeData__UpdateExpr__TAG) {
-        compiler__ast__NodeData__UpdateExpr* up = (compiler__ast__NodeData__UpdateExpr*)(&(node)->data.u.UpdateExpr);
-        up->target = compiler__sema__body__BodyPass_lower_expr(self, up->target);
-    } else if (node != NULL && node->data.tag == compiler__ast__NodeData__CastExpr__TAG) {
-        compiler__ast__NodeData__CastExpr* cst = (compiler__ast__NodeData__CastExpr*)(&(node)->data.u.CastExpr);
-        if (cst->expr != NULL) {
-            cst->expr = compiler__sema__body__BodyPass_lower_expr(self, cst->expr);
-        }
-    } else if (node != NULL && node->data.tag == compiler__ast__NodeData__GroupExpr__TAG) {
-        compiler__ast__NodeData__GroupExpr* g = (compiler__ast__NodeData__GroupExpr*)(&(node)->data.u.GroupExpr);
-        g->expr = compiler__sema__body__BodyPass_lower_expr(self, g->expr);
-    } else if (node != NULL && node->data.tag == compiler__ast__NodeData__ArrayLiteralExpr__TAG) {
-        compiler__ast__NodeData__ArrayLiteralExpr* al = (compiler__ast__NodeData__ArrayLiteralExpr*)(&(node)->data.u.ArrayLiteralExpr);
-        {
-            size_t __for_e = al->elements.len;
-            size_t __for_i = __for_e;
-            __for_i = 0;
-            bool __for_up = (__for_i <= __for_e);
-            bool __for_go = false;
-            if (__for_up) {
-                __for_go = (__for_i < __for_e);
-            } else {
-                __for_go = (__for_i > __for_e);
-            }
-            while (__for_go) {
-                size_t i = __for_i;
-                std__collections__List_ptr_compiler__ast__AstNode_set(&al->elements, i, compiler__sema__body__BodyPass_lower_expr(self, std__collections__List_ptr_compiler__ast__AstNode_get(&al->elements, i)));
-                if (__for_up) {
-                    __for_go = ((__for_i + 1) < __for_e);
-                } else {
-                    __for_go = ((__for_i - 1) > __for_e);
-                }
-                if (__for_go) {
-                    if (__for_up) {
-                        __for_i = (__for_i + 1);
-                    } else {
-                        __for_i = (__for_i - 1);
-                    }
-                }
-            }
-        }
-    } else if (node != NULL && node->data.tag == compiler__ast__NodeData__IfExpr__TAG) {
-        compiler__ast__NodeData__IfExpr* ie = (compiler__ast__NodeData__IfExpr*)(&(node)->data.u.IfExpr);
-        ie->condition = compiler__sema__body__BodyPass_lower_expr(self, ie->condition);
-        ie->then_branch = compiler__sema__body__BodyPass_lower_expr(self, ie->then_branch);
-        ie->else_branch = compiler__sema__body__BodyPass_lower_expr(self, ie->else_branch);
-    } else if (node != NULL && node->data.tag == compiler__ast__NodeData__WhenExpr__TAG) {
-        compiler__ast__NodeData__WhenExpr* we = (compiler__ast__NodeData__WhenExpr*)(&(node)->data.u.WhenExpr);
-        if (we->condition != NULL) {
-            we->condition = compiler__sema__body__BodyPass_lower_expr(self, we->condition);
-        }
-        {
-            size_t __for_e = we->arms.len;
-            size_t __for_i = __for_e;
-            __for_i = 0;
-            bool __for_up = (__for_i <= __for_e);
-            bool __for_go = false;
-            if (__for_up) {
-                __for_go = (__for_i < __for_e);
-            } else {
-                __for_go = (__for_i > __for_e);
-            }
-            while (__for_go) {
-                size_t i = __for_i;
-                compiler__ast__WhenArm arm = std__collections__List_compiler__ast__WhenArm_get(&we->arms, i);
-                arm.body = compiler__sema__body__BodyPass_lower_arm_body(self, arm.body);
-                {
-                    size_t __for_e = arm.patterns.len;
-                    size_t __for_i = __for_e;
-                    __for_i = 0;
-                    bool __for_up = (__for_i <= __for_e);
-                    bool __for_go = false;
-                    if (__for_up) {
-                        __for_go = (__for_i < __for_e);
-                    } else {
-                        __for_go = (__for_i > __for_e);
-                    }
-                    while (__for_go) {
-                        size_t k = __for_i;
-                        std__collections__List_ptr_compiler__ast__AstNode_set(&arm.patterns, k, compiler__sema__body__BodyPass_lower_expr(self, std__collections__List_ptr_compiler__ast__AstNode_get(&arm.patterns, k)));
-                        if (__for_up) {
-                            __for_go = ((__for_i + 1) < __for_e);
-                        } else {
-                            __for_go = ((__for_i - 1) > __for_e);
-                        }
-                        if (__for_go) {
-                            if (__for_up) {
-                                __for_i = (__for_i + 1);
-                            } else {
-                                __for_i = (__for_i - 1);
-                            }
-                        }
-                    }
-                }
-                std__collections__List_compiler__ast__WhenArm_set(&we->arms, i, arm);
-                if (__for_up) {
-                    __for_go = ((__for_i + 1) < __for_e);
-                } else {
-                    __for_go = ((__for_i - 1) > __for_e);
-                }
-                if (__for_go) {
-                    if (__for_up) {
-                        __for_i = (__for_i + 1);
-                    } else {
-                        __for_i = (__for_i - 1);
-                    }
-                }
-            }
-        }
-    } else if (node != NULL && node->data.tag == compiler__ast__NodeData__InterpExpr__TAG) {
-        compiler__ast__NodeData__InterpExpr* ip = (compiler__ast__NodeData__InterpExpr*)(&(node)->data.u.InterpExpr);
-        {
-            size_t __for_e = ip->parts.len;
-            size_t __for_i = __for_e;
-            __for_i = 0;
-            bool __for_up = (__for_i <= __for_e);
-            bool __for_go = false;
-            if (__for_up) {
-                __for_go = (__for_i < __for_e);
-            } else {
-                __for_go = (__for_i > __for_e);
-            }
-            while (__for_go) {
-                size_t i = __for_i;
-                compiler__ast__InterpPart part = std__collections__List_compiler__ast__InterpPart_get(&ip->parts, i);
-                if (part.tag == compiler__ast__InterpPart__Literal__TAG) {
-                    compiler__ast__InterpPart__Literal* lit = (compiler__ast__InterpPart__Literal*)(&(part).u.Literal);
-                    std__collections__List_compiler__ast__InterpPart_set(&ip->parts, i, (compiler__ast__InterpPart){ .tag = 0, .u.Literal = { compiler__sema__body__BodyPass_lower_expr(self, lit->node) } });
-                } else if (part.tag == compiler__ast__InterpPart__Hole__TAG) {
-                    compiler__ast__InterpPart__Hole* hole = (compiler__ast__InterpPart__Hole*)(&(part).u.Hole);
-                    std__collections__List_compiler__ast__InterpPart_set(&ip->parts, i, (compiler__ast__InterpPart){ .tag = 1, .u.Hole = { compiler__sema__body__BodyPass_lower_expr(self, hole->node) } });
-                }
-                if (__for_up) {
-                    __for_go = ((__for_i + 1) < __for_e);
-                } else {
-                    __for_go = ((__for_i - 1) > __for_e);
-                }
-                if (__for_go) {
-                    if (__for_up) {
-                        __for_i = (__for_i + 1);
-                    } else {
-                        __for_i = (__for_i - 1);
-                    }
-                }
-            }
-        }
-        out = compiler__sema__body__BodyPass_lower_interp(self, node, ip);
-    } else if (node != NULL && node->data.tag == compiler__ast__NodeData__IsExpr__TAG) {
-        compiler__ast__NodeData__IsExpr* ise = (compiler__ast__NodeData__IsExpr*)(&(node)->data.u.IsExpr);
-        if (ise->expr != NULL) {
-            ise->expr = compiler__sema__body__BodyPass_lower_expr(self, ise->expr);
-        }
-    } else if (node != NULL && node->data.tag == compiler__ast__NodeData__StructCtorExpr__TAG) {
-        compiler__ast__NodeData__StructCtorExpr* sc = (compiler__ast__NodeData__StructCtorExpr*)(&(node)->data.u.StructCtorExpr);
-        {
-            size_t __for_e = sc->args.len;
-            size_t __for_i = __for_e;
-            __for_i = 0;
-            bool __for_up = (__for_i <= __for_e);
-            bool __for_go = false;
-            if (__for_up) {
-                __for_go = (__for_i < __for_e);
-            } else {
-                __for_go = (__for_i > __for_e);
-            }
-            while (__for_go) {
-                size_t i = __for_i;
-                std__collections__List_ptr_compiler__ast__AstNode_set(&sc->args, i, compiler__sema__body__BodyPass_lower_expr(self, std__collections__List_ptr_compiler__ast__AstNode_get(&sc->args, i)));
-                if (__for_up) {
-                    __for_go = ((__for_i + 1) < __for_e);
-                } else {
-                    __for_go = ((__for_i - 1) > __for_e);
-                }
-                if (__for_go) {
-                    if (__for_up) {
-                        __for_i = (__for_i + 1);
-                    } else {
-                        __for_i = (__for_i - 1);
-                    }
-                }
-            }
-        }
-    } else if (node != NULL && node->data.tag == compiler__ast__NodeData__EnumCtorExpr__TAG) {
-        compiler__ast__NodeData__EnumCtorExpr* ec = (compiler__ast__NodeData__EnumCtorExpr*)(&(node)->data.u.EnumCtorExpr);
-        {
-            size_t __for_e = ec->args.len;
-            size_t __for_i = __for_e;
-            __for_i = 0;
-            bool __for_up = (__for_i <= __for_e);
-            bool __for_go = false;
-            if (__for_up) {
-                __for_go = (__for_i < __for_e);
-            } else {
-                __for_go = (__for_i > __for_e);
-            }
-            while (__for_go) {
-                size_t i = __for_i;
-                std__collections__List_ptr_compiler__ast__AstNode_set(&ec->args, i, compiler__sema__body__BodyPass_lower_expr(self, std__collections__List_ptr_compiler__ast__AstNode_get(&ec->args, i)));
-                if (__for_up) {
-                    __for_go = ((__for_i + 1) < __for_e);
-                } else {
-                    __for_go = ((__for_i - 1) > __for_e);
-                }
-                if (__for_go) {
-                    if (__for_up) {
-                        __for_i = (__for_i + 1);
-                    } else {
-                        __for_i = (__for_i - 1);
-                    }
-                }
-            }
-        }
-    }
-    return out;
-}
-
-compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_arm_body(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* body) {
-    compiler__ast__AstNode* t = body;
-    if ((t != NULL && t->data.tag == compiler__ast__NodeData__BlockStmt__TAG)) {
-        void* __orig_t = (void*)t;
-        compiler__ast__NodeData__BlockStmt* t = (compiler__ast__NodeData__BlockStmt*)((&((compiler__ast__AstNode*)__orig_t)->data.u.BlockStmt));
-        return compiler__sema__body__BodyPass_lower_stmt(self, body);
-    }
-    return compiler__sema__body__BodyPass_lower_expr(self, body);
-}
-
-compiler__ast__AstNode* compiler__sema__body__BodyPass_lowered(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* original, compiler__ast__AstNode* replacement) {
-    compiler__semantic__types__Type* orig_ty = compiler__semantic__symbols__SymbolTable_get_node_type(&self->symtab, original);
-    if (orig_ty != NULL) {
-        compiler__semantic__symbols__SymbolTable_set_node_type(&self->symtab, replacement, orig_ty);
-    }
-    return replacement;
-}
-
-compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_binary(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__BinaryExpr* bin) {
-    if (bin->op == 37) {
-        if (compiler__sema__body__BodyPass_is_stmt_node(self, bin->right)) {
-            bin->right = compiler__sema__body__BodyPass_lower_stmt(self, bin->right);
-        }
-        return node;
-    }
-    if ((bin->op == 6) && compiler__sema__body__BodyPass_is_str_expr(self, bin->left)) {
-        compiler__ast__AstNode* cat = std__memory__Arena_interp_concat(&self->arena, bin->left, bin->right, node->line, node->col);
-        return compiler__sema__body__BodyPass_lowered(self, node, cat);
-    }
-    if ((bin->op == 21) || (bin->op == 22)) {
-        if (compiler__sema__body__BodyPass_is_str_expr(self, bin->left) && compiler__sema__body__BodyPass_is_str_expr(self, bin->right)) {
-            compiler__ast__AstNode* eq = std__memory__Arena_make_str_eq(&self->arena, (bin->op == 22), bin->left, bin->right, node->line, node->col);
-            return compiler__sema__body__BodyPass_lowered(self, node, eq);
-        }
-    }
-    if ((bin->op == 67) && (compiler__semantic__symbols__SymbolTable_get_resolved_method(&self->symtab, node) != NULL)) {
-        compiler__semantic__types__MethodInfo* mi = compiler__semantic__symbols__SymbolTable_get_resolved_method(&self->symtab, node);
-        compiler__semantic__types__Type* right_ty = compiler__sema__body__BodyPass_type_of(self, bin->right);
-        bool r_is_ptr = (right_ty != NULL && right_ty->kind == 16);
-        std__collections__List_ptr_compiler__ast__AstNode args = std__collections__List_ptr_compiler__ast__AstNode_init(4);
-        if (r_is_ptr) {
-            std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&args, bin->right);
-        } else {
-            std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&args, std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 8, .u.UnaryExpr = { 19, bin->right, false } }, node->line, node->col));
-        }
-        std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&args, bin->left);
-        compiler__ast__AstNode* callee = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 6, .u.IdentifierExpr = { mi->c_name } }, node->line, node->col);
-        compiler__ast__AstNode* call = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 9, .u.CallExpr = { callee, args, std__collections__List_ptr_compiler__ast__AstNode_init(4) } }, node->line, node->col);
-        return compiler__sema__body__BodyPass_lowered(self, node, call);
-    }
-    if (compiler__semantic__symbols__SymbolTable_get_resolved_method(&self->symtab, node) != NULL) {
-        compiler__semantic__types__MethodInfo* mi = compiler__semantic__symbols__SymbolTable_get_resolved_method(&self->symtab, node);
-        std__collections__List_ptr_compiler__ast__AstNode args = std__collections__List_ptr_compiler__ast__AstNode_init(4);
-        std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&args, std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 8, .u.UnaryExpr = { 19, bin->left, false } }, node->line, node->col));
-        std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&args, bin->right);
-        compiler__ast__AstNode* callee = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 6, .u.IdentifierExpr = { mi->c_name } }, node->line, node->col);
-        compiler__ast__AstNode* call = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 9, .u.CallExpr = { callee, args, std__collections__List_ptr_compiler__ast__AstNode_init(4) } }, node->line, node->col);
-        if (bin->op == 22) {
-            return compiler__sema__body__BodyPass_lowered(self, node, std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 8, .u.UnaryExpr = { 4, call, false } }, node->line, node->col));
-        }
-        return compiler__sema__body__BodyPass_lowered(self, node, call);
-    }
-    if ((bin->op == 21) || (bin->op == 22)) {
-        compiler__semantic__types__Type* lt = compiler__sema__body__BodyPass_type_of(self, bin->left);
-        if (lt != NULL && lt->kind == 18) {
-            compiler__ast__AstNode* eq = std__memory__Arena_make_mem_eq(&self->arena, (bin->op == 22), bin->left, bin->right, lt->size, node->line, node->col);
-            return compiler__sema__body__BodyPass_lowered(self, node, eq);
-        }
-    }
-    return node;
-}
-
-compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_assign(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__AssignExpr* asgn) {
-    if (compiler__semantic__symbols__SymbolTable_get_resolved_method(&self->symtab, node) != NULL) {
-        compiler__semantic__types__MethodInfo* mi = compiler__semantic__symbols__SymbolTable_get_resolved_method(&self->symtab, node);
-        compiler__semantic__types__Type* target_ty = compiler__sema__body__BodyPass_type_of(self, asgn->target);
-        bool t_is_ptr = (target_ty != NULL && target_ty->kind == 16);
-        std__collections__List_ptr_compiler__ast__AstNode args = std__collections__List_ptr_compiler__ast__AstNode_init(4);
-        if (t_is_ptr) {
-            std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&args, asgn->target);
-        } else {
-            std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&args, std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 8, .u.UnaryExpr = { 19, asgn->target, false } }, node->line, node->col));
-        }
-        std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&args, asgn->value);
-        compiler__ast__AstNode* callee = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 6, .u.IdentifierExpr = { mi->c_name } }, node->line, node->col);
-        compiler__ast__AstNode* call = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 9, .u.CallExpr = { callee, args, std__collections__List_ptr_compiler__ast__AstNode_init(4) } }, node->line, node->col);
-        return compiler__sema__body__BodyPass_lowered(self, node, call);
-    }
-    if (asgn->op != 32) {
-        return node;
-    }
-    if (!compiler__sema__body__BodyPass_is_str_expr(self, asgn->target)) {
-        return node;
-    }
-    compiler__ast__AstNode* cat = std__memory__Arena_interp_concat(&self->arena, asgn->target, asgn->value, node->line, node->col);
-    compiler__semantic__types__Type* cat_ty = compiler__semantic__symbols__SymbolTable_get_node_type(&self->symtab, node);
-    if (cat_ty != NULL) {
-        compiler__semantic__symbols__SymbolTable_set_node_type(&self->symtab, cat, cat_ty);
-    }
-    asgn->value = cat;
-    asgn->op = 5;
-    return node;
-}
-
-compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_interp(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__InterpExpr* ie) {
-    std__collections__List_ptr_compiler__ast__AstNode pieces = std__collections__List_ptr_compiler__ast__AstNode_init(4);
-    {
-        size_t __for_e = ie->parts.len;
-        size_t __for_i = __for_e;
-        __for_i = 0;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            __for_go = (__for_i < __for_e);
-        } else {
-            __for_go = (__for_i > __for_e);
-        }
-        while (__for_go) {
-            size_t i = __for_i;
-            compiler__ast__InterpPart part = std__collections__List_compiler__ast__InterpPart_get(&ie->parts, i);
-            if (part.tag == compiler__ast__InterpPart__Literal__TAG) {
-                compiler__ast__InterpPart__Literal* lit = (compiler__ast__InterpPart__Literal*)(&(part).u.Literal);
-                std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&pieces, lit->node);
-            } else if (part.tag == compiler__ast__InterpPart__Hole__TAG) {
-                compiler__ast__InterpPart__Hole* hole = (compiler__ast__InterpPart__Hole*)(&(part).u.Hole);
-                compiler__ast__AstNode* piece = hole->node;
-                compiler__ast__AstNode* conv = compiler__sema__body__BodyPass_to_str_expr(self, piece, node->line, node->col);
-                if (conv != NULL) {
-                    piece = conv;
-                }
-                std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&pieces, piece);
-            }
-            if (__for_up) {
-                __for_go = ((__for_i + 1) < __for_e);
-            } else {
-                __for_go = ((__for_i - 1) > __for_e);
-            }
-            if (__for_go) {
-                if (__for_up) {
-                    __for_i = (__for_i + 1);
-                } else {
-                    __for_i = (__for_i - 1);
-                }
-            }
-        }
-    }
-    compiler__ast__AstNode* acc = std__memory__Arena_interp_concat_many(&self->arena, pieces, node->line, node->col);
-    if (acc == NULL) {
-        acc = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 5, .u.LiteralExpr = { 4, KOBEL_STR("\"\"") } }, node->line, node->col);
-    }
-    {
-        compiler__ast__AstNode* __ret_tmp = compiler__sema__body__BodyPass_lowered(self, node, acc);
-        std__collections__List_ptr_compiler__ast__AstNode_free(&pieces);
-        return __ret_tmp;
-    }
-}
-
-compiler__ast__AstNode* compiler__sema__body__BodyPass_to_str_expr(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* expr, size_t line, size_t col) {
-    compiler__semantic__types__Type* ty = compiler__sema__body__BodyPass_type_of(self, expr);
-    if (ty == NULL) {
-        return NULL;
-    }
-    if (ty->kind == 15) {
-        return expr;
-    }
-    compiler__semantic__types__MethodInfo* pmi = compiler__semantic__symbols__SymbolTable_find_prim_method(&self->symtab, ty->kind, KOBEL_STR("to_str"));
-    if (pmi != NULL) {
-        return std__memory__Arena_interp_call(&self->arena, pmi->c_name, expr, line, col);
-    }
-    compiler__semantic__types__Type* cur_ty = ty;
-    bool is_ptr = false;
-    if (cur_ty->kind == 16) {
-        is_ptr = true;
-        cur_ty = (*compiler__semantic__types__Type_as_pointer(cur_ty)).pointee;
-    }
-    if (cur_ty->kind == 18) {
-        compiler__semantic__types__MethodInfo* mi = compiler__semantic__types__StructType_find_method(compiler__semantic__types__Type_as_struct(cur_ty), KOBEL_STR("to_str"));
-        if (mi != NULL) {
-            compiler__ast__AstNode* arg = expr;
-            if (!is_ptr) {
-                arg = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 8, .u.UnaryExpr = { 19, expr, false } }, line, col);
-            }
-            return std__memory__Arena_interp_call(&self->arena, mi->c_name, arg, line, col);
-        }
-    }
-    return NULL;
-}
-
-compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_member(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__MemberExpr* mem) {
-    compiler__ast__AstNode* obj = mem->object;
-    if (obj == NULL) {
-        return node;
-    }
-    compiler__semantic__types__Type* obj_ty = compiler__sema__body__BodyPass_type_of(self, obj);
-    if (((obj_ty != NULL) && compiler__semantic__types__Type_is_enum(obj_ty)) && kobel_streq(mem->member, KOBEL_STR("value"))) {
-        return compiler__sema__body__BodyPass_lowered(self, node, obj);
-    }
-    if (compiler__sema__body__BodyPass_is_str_expr(self, obj)) {
-        if (kobel_streq(mem->member, KOBEL_STR("size"))) {
-            compiler__ast__AstNode* len_mem = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 10, .u.MemberExpr = { obj, KOBEL_STR("len"), false } }, node->line, node->col);
-            return compiler__sema__body__BodyPass_lowered(self, node, len_mem);
-        }
-        return node;
-    }
-    if (compiler__sema__body__BodyPass_is_array_expr(self, obj)) {
-        if (kobel_streq(mem->member, KOBEL_STR("len")) || kobel_streq(mem->member, KOBEL_STR("size"))) {
-            compiler__semantic__types__TypePayload__Array* arr = compiler__semantic__types__Type_as_array(compiler__sema__body__BodyPass_type_of(self, obj));
-            compiler__ast__AstNode* lit = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 5, .u.LiteralExpr = { 0, usz_to_str(arr->length) } }, node->line, node->col);
-            return compiler__sema__body__BodyPass_lowered(self, node, lit);
-        }
-        if (kobel_streq(mem->member, KOBEL_STR("data"))) {
-            return compiler__sema__body__BodyPass_lowered(self, node, obj);
-        }
-    }
-    return node;
-}
-
-compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_unary(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__UnaryExpr* un) {
-    if (compiler__semantic__symbols__SymbolTable_get_resolved_method(&self->symtab, node) == NULL) {
-        return node;
-    }
-    compiler__semantic__types__MethodInfo* mi = compiler__semantic__symbols__SymbolTable_get_resolved_method(&self->symtab, node);
-    std__collections__List_ptr_compiler__ast__AstNode args = std__collections__List_ptr_compiler__ast__AstNode_init(4);
-    std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&args, std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 8, .u.UnaryExpr = { 19, un->operand, false } }, node->line, node->col));
-    compiler__ast__AstNode* callee = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 6, .u.IdentifierExpr = { mi->c_name } }, node->line, node->col);
-    compiler__ast__AstNode* call = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 9, .u.CallExpr = { callee, args, std__collections__List_ptr_compiler__ast__AstNode_init(4) } }, node->line, node->col);
-    return compiler__sema__body__BodyPass_lowered(self, node, call);
-}
-
-compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_index(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__IndexExpr* idx) {
-    if (compiler__semantic__symbols__SymbolTable_get_resolved_method(&self->symtab, node) == NULL) {
-        return node;
-    }
-    compiler__semantic__types__MethodInfo* mi = compiler__semantic__symbols__SymbolTable_get_resolved_method(&self->symtab, node);
-    compiler__semantic__types__Type* target_ty = compiler__sema__body__BodyPass_type_of(self, idx->target);
-    bool t_is_ptr = (target_ty != NULL && target_ty->kind == 16);
-    std__collections__List_ptr_compiler__ast__AstNode args = std__collections__List_ptr_compiler__ast__AstNode_init(4);
-    if (t_is_ptr) {
-        std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&args, idx->target);
-    } else {
-        std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&args, std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 8, .u.UnaryExpr = { 19, idx->target, false } }, node->line, node->col));
-    }
-    std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&args, idx->index);
-    compiler__ast__AstNode* callee = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 6, .u.IdentifierExpr = { mi->c_name } }, node->line, node->col);
-    compiler__ast__AstNode* call = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 9, .u.CallExpr = { callee, args, std__collections__List_ptr_compiler__ast__AstNode_init(4) } }, node->line, node->col);
-    return compiler__sema__body__BodyPass_lowered(self, node, call);
-}
-
-compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_bound_call(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__CallExpr* call) {
-    compiler__ast__AstNode* callee = call->callee;
-    if (callee == NULL) {
-        return node;
-    }
-    if ((callee != NULL && callee->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG)) {
-        void* __orig_callee = (void*)callee;
-        compiler__ast__NodeData__IdentifierExpr* callee = (compiler__ast__NodeData__IdentifierExpr*)((&((compiler__ast__AstNode*)__orig_callee)->data.u.IdentifierExpr));
-        compiler__semantic__types__MethodInfo* new_mi = compiler__semantic__symbols__SymbolTable_get_resolved_method(&self->symtab, node);
-        std__collections__List_ptr_compiler__ast__AstNode ctor_args = std__collections__List_ptr_compiler__ast__AstNode_init(4);
-        {
-            size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&call->args);
-            size_t __for_i = 0;
-            while (__for_i < __for_n) {
-                compiler__ast__AstNode* arg = std__collections__List_ptr_compiler__ast__AstNode_at(&call->args, __for_i);
-                std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&ctor_args, arg);
-                __for_i = (__for_i + 1);
-            }
-        }
-        compiler__ast__AstNode* fn_id = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 6, .u.IdentifierExpr = { new_mi->c_name } }, node->line, node->col);
-        compiler__ast__AstNode* ctor_call = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 9, .u.CallExpr = { fn_id, ctor_args, std__collections__List_ptr_compiler__ast__AstNode_init(4) } }, node->line, node->col);
-        return compiler__sema__body__BodyPass_lowered(self, node, ctor_call);
-    }
-    {
-        compiler__ast__NodeData__MemberExpr* mem = NULL;
-        if ((callee != NULL && callee->data.tag == compiler__ast__NodeData__MemberExpr__TAG && (mem = (compiler__ast__NodeData__MemberExpr*)(&(callee)->data.u.MemberExpr), 1))) {
-            compiler__semantic__types__MethodInfo* mi = compiler__semantic__symbols__SymbolTable_get_resolved_method(&self->symtab, node);
-            if (mi->is_static) {
-                std__collections__List_ptr_compiler__ast__AstNode static_args = std__collections__List_ptr_compiler__ast__AstNode_init(4);
-                {
-                    size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&call->args);
-                    size_t __for_i = 0;
-                    while (__for_i < __for_n) {
-                        compiler__ast__AstNode* arg = std__collections__List_ptr_compiler__ast__AstNode_at(&call->args, __for_i);
-                        std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&static_args, arg);
-                        __for_i = (__for_i + 1);
-                    }
-                }
-                compiler__ast__AstNode* fn_id = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 6, .u.IdentifierExpr = { mi->c_name } }, node->line, node->col);
-                compiler__ast__AstNode* direct = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 9, .u.CallExpr = { fn_id, static_args, std__collections__List_ptr_compiler__ast__AstNode_init(4) } }, node->line, node->col);
-                return compiler__sema__body__BodyPass_lowered(self, node, direct);
-            }
-            compiler__ast__AstNode* recv = mem->object;
-            compiler__semantic__types__Type* recv_ty = compiler__sema__body__BodyPass_type_of(self, recv);
-            bool obj_is_ptr = (recv_ty != NULL && recv_ty->kind == 16);
-            compiler__semantic__types__Type* inner_ty = recv_ty;
-            if (obj_is_ptr) {
-                inner_ty = (*compiler__semantic__types__Type_as_pointer(recv_ty)).pointee;
-            }
-            bool by_ref = (inner_ty != NULL && inner_ty->kind == 18);
-            std__collections__List_ptr_compiler__ast__AstNode new_args = std__collections__List_ptr_compiler__ast__AstNode_init(4);
-            if (by_ref == obj_is_ptr) {
-                std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&new_args, recv);
-            } else {
-                compiler__lexer__TokenType op = 8;
-                if (by_ref) {
-                    op = 19;
-                }
-                std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&new_args, std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 8, .u.UnaryExpr = { op, recv, false } }, node->line, node->col));
-            }
-            {
-                size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&call->args);
-                size_t __for_i = 0;
-                while (__for_i < __for_n) {
-                    compiler__ast__AstNode* arg = std__collections__List_ptr_compiler__ast__AstNode_at(&call->args, __for_i);
-                    std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&new_args, arg);
-                    __for_i = (__for_i + 1);
-                }
-            }
-            compiler__ast__AstNode* fn_id = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 6, .u.IdentifierExpr = { mi->c_name } }, node->line, node->col);
-            compiler__ast__AstNode* direct = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 9, .u.CallExpr = { fn_id, new_args, std__collections__List_ptr_compiler__ast__AstNode_init(4) } }, node->line, node->col);
-            if (!mem->is_safe) {
-                return compiler__sema__body__BodyPass_lowered(self, node, direct);
-            }
-            compiler__semantic__types__Type* call_ty = compiler__sema__body__BodyPass_type_of(self, node);
-            compiler__ast__AstNode* null_lit = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 5, .u.LiteralExpr = { 5, KOBEL_STR("null") } }, node->line, node->col);
-            compiler__ast__AstNode* cond = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 7, .u.BinaryExpr = { recv, 22, null_lit } }, node->line, node->col);
-            if (call_ty != NULL && call_ty->kind == 1) {
-                compiler__ast__AstNode* maybe = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 7, .u.BinaryExpr = { cond, 25, direct } }, node->line, node->col);
-                return compiler__sema__body__BodyPass_lowered(self, node, maybe);
-            }
-            compiler__ast__AstNode* fallback = ((call_ty != NULL && call_ty->kind == 15) ? std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 9, .u.CallExpr = { std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 6, .u.IdentifierExpr = { KOBEL_STR("kobel_null_str") } }, node->line, node->col), std__collections__List_ptr_compiler__ast__AstNode_init(4), std__collections__List_ptr_compiler__ast__AstNode_init(4) } }, node->line, node->col) : (((((call_ty != NULL) && compiler__semantic__types__Type_is_integer(call_ty)) || ((call_ty != NULL) && compiler__semantic__types__Type_is_enum(call_ty))) || (call_ty != NULL && call_ty->kind == 2)) ? std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 5, .u.LiteralExpr = { 0, KOBEL_STR("0") } }, node->line, node->col) : (((call_ty != NULL && call_ty->kind == 13) || (call_ty != NULL && call_ty->kind == 14)) ? std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 5, .u.LiteralExpr = { 1, KOBEL_STR("0.0") } }, node->line, node->col) : null_lit)));
-            compiler__ast__AstNode* maybe = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 17, .u.IfExpr = { cond, direct, fallback } }, node->line, node->col);
-            return compiler__sema__body__BodyPass_lowered(self, node, maybe);
-        }
-    }
-    return node;
-}
-
-compiler__ast__AstNode* compiler__sema__body__BodyPass_lower_call(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__CallExpr* call) {
-    compiler__ast__AstNode* callee = call->callee;
-    if (callee == NULL) {
-        return node;
-    }
-    {
-        compiler__ast__NodeData__MemberExpr* mem = NULL;
-        if ((callee != NULL && callee->data.tag == compiler__ast__NodeData__MemberExpr__TAG && (mem = (compiler__ast__NodeData__MemberExpr*)(&(callee)->data.u.MemberExpr), 1))) {
-            if (!kobel_streq(mem->member, KOBEL_STR("slice"))) {
-                return node;
-            }
-            if (!compiler__sema__body__BodyPass_is_str_expr(self, mem->object)) {
-                return node;
-            }
-            std__collections__List_ptr_compiler__ast__AstNode args = std__collections__List_ptr_compiler__ast__AstNode_init(4);
-            std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&args, mem->object);
-            if (!std__collections__List_ptr_compiler__ast__AstNode_empty(&call->args)) {
-                std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&args, std__collections__List_ptr_compiler__ast__AstNode_first(&call->args));
-            } else {
-                std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&args, std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 5, .u.LiteralExpr = { 0, KOBEL_STR("0") } }, node->line, node->col));
-            }
-            if (call->args.len >= 2) {
-                std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&args, std__collections__List_ptr_compiler__ast__AstNode_get(&call->args, 1));
-                compiler__ast__AstNode* callee = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 6, .u.IdentifierExpr = { KOBEL_STR("kobel_slice") } }, node->line, node->col);
-                compiler__ast__AstNode* slice_call = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 9, .u.CallExpr = { callee, args, std__collections__List_ptr_compiler__ast__AstNode_init(4) } }, node->line, node->col);
-                return compiler__sema__body__BodyPass_lowered(self, node, slice_call);
-            }
-            compiler__ast__AstNode* callee = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 6, .u.IdentifierExpr = { KOBEL_STR("kobel_slice1") } }, node->line, node->col);
-            compiler__ast__AstNode* slice1_call = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 9, .u.CallExpr = { callee, args, std__collections__List_ptr_compiler__ast__AstNode_init(4) } }, node->line, node->col);
-            return compiler__sema__body__BodyPass_lowered(self, node, slice1_call);
-        }
-    }
-    return node;
-}
-
-compiler__semantic__types__Type* compiler__sema__body__BodyPass_type_of(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node) {
-    compiler__ast__AstNode* cur = node;
-    while (cur != NULL) {
-        {
-            compiler__ast__NodeData__GroupExpr* g = NULL;
-            if ((cur != NULL && cur->data.tag == compiler__ast__NodeData__GroupExpr__TAG && (g = (compiler__ast__NodeData__GroupExpr*)(&(cur)->data.u.GroupExpr), 1))) {
-                cur = g->expr;
-            } else {
-                break;
-            }
-        }
-    }
-    if (cur == NULL) {
-        return NULL;
-    }
-    return compiler__semantic__symbols__SymbolTable_get_node_type(&self->symtab, cur);
-}
-
-bool compiler__sema__body__BodyPass_is_str_expr(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node) {
-    compiler__semantic__types__Type* t = compiler__sema__body__BodyPass_type_of(self, node);
-    return (t != NULL && t->kind == 15);
-}
-
-bool compiler__sema__body__BodyPass_is_stmt_node(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node) {
-    if (node == NULL) {
-        return false;
-    }
-    return (((((node != NULL && node->data.tag == compiler__ast__NodeData__ReturnStmt__TAG) || (node != NULL && node->data.tag == compiler__ast__NodeData__BreakStmt__TAG)) || (node != NULL && node->data.tag == compiler__ast__NodeData__ContinueStmt__TAG)) || (node != NULL && node->data.tag == compiler__ast__NodeData__YieldStmt__TAG)) || (node != NULL && node->data.tag == compiler__ast__NodeData__BlockStmt__TAG));
-}
-
-bool compiler__sema__body__BodyPass_is_array_expr(compiler__sema__body__BodyPass* self, compiler__ast__AstNode* node) {
-    compiler__semantic__types__Type* t = compiler__sema__body__BodyPass_type_of(self, node);
-    return (t != NULL && t->kind == 17);
-}
-
-compiler__ast__AstNode* std__memory__Arena_make_str_eq(std__memory__Arena* self, bool is_neq, compiler__ast__AstNode* left, compiler__ast__AstNode* right, size_t line, size_t col) {
-    std__collections__List_ptr_compiler__ast__AstNode eargs = std__collections__List_ptr_compiler__ast__AstNode_init(4);
-    std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&eargs, left);
-    std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&eargs, right);
-    compiler__ast__AstNode* callee = std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 6, .u.IdentifierExpr = { KOBEL_STR("kobel_streq") } }, line, col);
-    compiler__ast__AstNode* eq_call = std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 9, .u.CallExpr = { callee, eargs, std__collections__List_ptr_compiler__ast__AstNode_init(4) } }, line, col);
-    if (is_neq) {
-        return std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 8, .u.UnaryExpr = { 4, eq_call, false } }, line, col);
-    }
-    return eq_call;
-}
-
-compiler__ast__AstNode* std__memory__Arena_make_mem_eq(std__memory__Arena* self, bool is_neq, compiler__ast__AstNode* left, compiler__ast__AstNode* right, size_t size, size_t line, size_t col) {
-    std__collections__List_ptr_compiler__ast__AstNode eargs = std__collections__List_ptr_compiler__ast__AstNode_init(4);
-    std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&eargs, std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 8, .u.UnaryExpr = { 19, left, false } }, line, col));
-    std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&eargs, std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 8, .u.UnaryExpr = { 19, right, false } }, line, col));
-    std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&eargs, std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 5, .u.LiteralExpr = { 0, usz_to_str(size) } }, line, col));
-    compiler__ast__AstNode* callee = std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 6, .u.IdentifierExpr = { KOBEL_STR("kobel_memeq") } }, line, col);
-    compiler__ast__AstNode* eq_call = std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 9, .u.CallExpr = { callee, eargs, std__collections__List_ptr_compiler__ast__AstNode_init(4) } }, line, col);
-    if (is_neq) {
-        return std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 8, .u.UnaryExpr = { 4, eq_call, false } }, line, col);
-    }
-    return eq_call;
+    compiler__semantic__lowering__LoweringPass lp = compiler__semantic__lowering__LoweringPass_init_3(self->symtab, self->arena, self->decl);
+    compiler__ast__AstNode* res = compiler__semantic__lowering__LoweringPass_lower_expr(&lp, node);
+    self->symtab = lp.symtab;
+    self->arena = lp.arena;
+    return res;
 }
 
 compiler__codegen__CCodeGen compiler__codegen__CCodeGen_init(compiler__semantic__symbols__SymbolTable* symtab) {

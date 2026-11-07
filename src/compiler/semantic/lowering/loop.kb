@@ -1,24 +1,21 @@
-mod compiler.sema.desugar;
+mod compiler.semantic.lowering;
 
-// ============================================================================
-// Body checker helper - `for` desugaring
-//
-// Rewrites `for (x in seq)` (Iterable vs `.len`/`.data`) and the three range
-// forms into a block + `while`, keeping `continue` semantics (step injection)
-// and unsigned-safe counters. Called from `body.stmt` while checking.
-// ============================================================================
+/*
+ * ============================================================================
+ * For-Loop AST Lowering (Desugaring)
+ *
+ * Rewrites `for (x in seq)` (Iterable vs `.len`/`.data`) and the three range
+ * forms into a block + `while`, keeping `continue` semantics (step injection)
+ * and unsigned-safe counters.
+ * ============================================================================
+ */
 
-use std.memory.*;
-use std.collections.*;
+use std.memory.Arena;
+use std.collections.List;
 
+use compiler.lexer.TokenType;
 use compiler.ast.*;
-use compiler.lexer.*;
-use compiler.sema.body.*;
-use compiler.semantic.checker.*;
-
-// ============================================================================
-// For-loop AST Lowering (Desugaring)
-// ============================================================================
+use compiler.semantic.checker.BodyChecker;
 
 // The iterated expression is re-evaluated on every iteration, so only lvalues
 // are accepted: a temporary would dangle and a call would run once per element.
@@ -34,64 +31,76 @@ pub fn for_is_lvalue(node: *AstNode?): bool {
 }
 
 impl Arena {
-	fn loop_block(var self, stmts: List<*AstNode>, line: usz, col: usz): *AstNode
-		=> self.node(NodeData.BlockStmt(stmts), line, col);
 
-	fn loop_expr(var self, expr: *AstNode, line: usz, col: usz): *AstNode
-		=> self.node(NodeData.ExprStmt(expr), line, col);
+	fn loop_block(var self, stmts: List<*AstNode>, line: usz, col: usz): *AstNode =>
+		self.node(NodeData.BlockStmt(stmts), line, col);
 
-	fn loop_var(var self, mutable: bool, name: str, ty: *AstNode?, initializer: *AstNode?, line: usz, col: usz): *AstNode
-		=> self.node(NodeData.VarDeclStmt(mutable, name, ty, initializer), line, col);
+	fn loop_expr(var self, expr: *AstNode, line: usz, col: usz): *AstNode =>
+		self.node(NodeData.ExprStmt(expr), line, col);
 
-	fn loop_if(var self, cond: *AstNode, then_b: *AstNode, else_b: *AstNode?, line: usz, col: usz): *AstNode
-		=> self.node(NodeData.IfStmt(cond, then_b, else_b), line, col);
+	fn loop_var(
+		var self,
+		mutable: bool,
+		name: str,
+		ty: *AstNode?,
+		initializer: *AstNode?,
+		line: usz,
+		col: usz
+	): *AstNode => self.node(NodeData.VarDeclStmt(mutable, name, ty, initializer), line, col);
 
-	fn loop_while(var self, cond: *AstNode, body: *AstNode, line: usz, col: usz): *AstNode
-		=> self.node(NodeData.WhileStmt(cond, body), line, col);
+	fn loop_if(
+		var self,
+		cond: *AstNode,
+		then_b: *AstNode,
+		else_b: *AstNode?,
+		line: usz,
+		col: usz
+	): *AstNode => self.node(NodeData.IfStmt(cond, then_b, else_b), line, col);
 
-	pub fn for_usz_type(var self, line: usz, col: usz) =>
+	fn loop_while(var self, cond: *AstNode, body: *AstNode, line: usz, col: usz): *AstNode =>
+		self.node(NodeData.WhileStmt(cond, body), line, col);
+
+	pub fn for_usz_type(var self, line: usz, col: usz): *AstNode =>
 		self.node(NodeData.NamedType("usz", List<*AstNode>()), line, col);
 
-	pub fn for_id(var self, name: str, line: usz, col: usz) =>
+	pub fn for_id(var self, name: str, line: usz, col: usz): *AstNode =>
 		self.node(NodeData.IdentifierExpr(name), line, col);
 
-	pub fn for_num(var self, text: str, line: usz, col: usz) =>
+	pub fn for_num(var self, text: str, line: usz, col: usz): *AstNode =>
 		self.node(NodeData.LiteralExpr(Literal.INTEGER, text), line, col);
 
 	// `__for_i <cmp> __for_e`
-	pub fn for_i_cmp(var self, op: TokenType, line: usz, col: usz) => self.node(
-		NodeData.BinaryExpr(self.for_id("__for_i", line, col), op, self.for_id("__for_e", line, col)),
-		line, col
-	);
+	pub fn for_i_cmp(var self, op: TokenType, line: usz, col: usz): *AstNode {
+		val lhs = self.for_id("__for_i", line, col);
+		val rhs = self.for_id("__for_e", line, col);
+		return self.node(NodeData.BinaryExpr(lhs, op, rhs), line, col);
+	}
 
 	// `__for_go = <value>;`
-	pub fn for_set_go(var self, value: *AstNode, line: usz, col: usz) => self.loop_expr(
-		self.node(NodeData.AssignExpr(self.for_id("__for_go", line, col), TokenType.EQUAL, value), line, col),
-		line, col
-	);
+	pub fn for_set_go(var self, value: *AstNode, line: usz, col: usz): *AstNode {
+		val lhs = self.for_id("__for_go", line, col);
+		val asgn = self.node(NodeData.AssignExpr(lhs, TokenType.EQUAL, value), line, col);
+		return self.loop_expr(asgn, line, col);
+	}
 
 	// `__for_i = __for_i <+|-> 1;`
-	pub fn for_bump(var self, op: TokenType, line: usz, col: usz) => self.loop_expr(
-		self.node(
-			NodeData.AssignExpr(
-				self.for_id("__for_i", line, col),
-				TokenType.EQUAL,
-				self.node(
-					NodeData.BinaryExpr(
-						self.for_id("__for_i", line, col),
-						op,
-						self.for_num("1", line, col)
-					),
-					line, col
-				)
-			),
-			line, col
-		),
-		line, col
-	);
+	pub fn for_bump(var self, op: TokenType, line: usz, col: usz): *AstNode {
+		val target = self.for_id("__for_i", line, col);
+		val lhs = self.for_id("__for_i", line, col);
+		val one = self.for_num("1", line, col);
+		val bin = self.node(NodeData.BinaryExpr(lhs, op, one), line, col);
+		val asgn = self.node(NodeData.AssignExpr(target, TokenType.EQUAL, bin), line, col);
+		return self.loop_expr(asgn, line, col);
+	}
 
 	// `if (__for_up) { <up_stmt> } else { <down_stmt> }`
-	pub fn for_by_dir(var self, up_stmt: *AstNode, down_stmt: *AstNode, line: usz, col: usz): *AstNode {
+	pub fn for_by_dir(
+		var self,
+		up_stmt: *AstNode,
+		down_stmt: *AstNode,
+		line: usz,
+		col: usz
+	): *AstNode {
 		var up_stmts = List<*AstNode>();
 		up_stmts += up_stmt;
 		var down_stmts = List<*AstNode>();
@@ -105,11 +114,13 @@ impl Arena {
 	}
 
 	// Replaces every `continue` belonging to this loop with `{ <step>; continue; }`
-	// so `continue` cannot skip the counter update. Bodies of nested loops are left
-	// alone: their `continue` targets the inner loop. When `bp` is set (an
-	// instance body is being checked), the replacement is recorded per instance
-	// instead of on the shared continue node.
-	pub fn for_inject_step(var self, node: *AstNode?, step: &List<*AstNode>, bc: *BodyChecker? = null) {
+	// so `continue` cannot skip the counter update.
+	pub fn for_inject_step(
+		var self,
+		node: *AstNode?,
+		step: &List<*AstNode>,
+		bc: *BodyChecker? = null
+	) {
 		if (node == null) return;
 
 		val target = node;
@@ -128,12 +139,16 @@ impl Arena {
 				stmts += self.node(NodeData.ContinueStmt, node.line, node.col);
 				val block = self.loop_block(stmts, node.line, node.col);
 				if (bc != null) bc.set_resolved(node!, block);
-
 			}
 		}
 	}
 
-	fn for_inject_step_expr(var self, expr: *AstNode?, step: &List<*AstNode>, bc: *BodyChecker? = null) {
+	fn for_inject_step_expr(
+		var self,
+		expr: *AstNode?,
+		step: &List<*AstNode>,
+		bc: *BodyChecker? = null
+	) {
 		if (expr == null) return;
 		var cur = expr;
 		while (cur != null) {
@@ -160,11 +175,17 @@ impl Arena {
 	): *AstNode {
 		// val __for_n: usz = <iterable>.count();
 		val count_mem = self.node(NodeData.MemberExpr(fs.iterable!, "count", false), line, col);
-		val count_call = self.node(NodeData.CallExpr(count_mem, List<*AstNode>(), List<*AstNode>()), line, col);
+		val count_call = self.node(
+			NodeData.CallExpr(count_mem, List<*AstNode>(), List<*AstNode>()),
+			line, col
+		);
 		pre += self.loop_var(false, "__for_n", self.for_usz_type(line, col), count_call, line, col);
+
 		// var __for_i: usz = 0;
-		pre += self.loop_var(true, "__for_i", self.for_usz_type(line, col),
-			self.for_num("0", line, col), line, col);
+		pre += self.loop_var(
+			true, "__for_i", self.for_usz_type(line, col),
+			self.for_num("0", line, col), line, col
+		);
 
 		// val <v> = <iterable>.at(__for_i);
 		var at_args = List<*AstNode>();
@@ -176,11 +197,17 @@ impl Arena {
 		step += self.for_bump(TokenType.PLUS, line, col);
 
 		// __for_i < __for_n
-		return self.node(NodeData.BinaryExpr(self.for_id("__for_i", line, col), TokenType.LESS, self.for_id("__for_n", line, col)), line, col);
+		return self.node(
+			NodeData.BinaryExpr(
+				self.for_id("__for_i", line, col),
+				TokenType.LESS,
+				self.for_id("__for_n", line, col)
+			),
+			line, col
+		);
 	}
 
-	// `for (v in <iterable>)`: index over the container's `.data` storage, caching
-	// `.len` up front (for `str` that also removes a strlen call per iteration).
+	// `for (v in <iterable>)`: index over the container's `.data` storage.
 	pub fn desugar_for_iterable(
 		var self,
 		pre: &List<*AstNode>,
@@ -191,21 +218,34 @@ impl Arena {
 		col: usz
 	): *AstNode {
 		// val __for_n: usz = <iterable>.len;
-		pre += self.loop_var(false, "__for_n", self.for_usz_type(line, col),
-			self.node(NodeData.MemberExpr(fs.iterable!, "len", false), line, col), line, col);
+		val len_mem = self.node(NodeData.MemberExpr(fs.iterable!, "len", false), line, col);
+		pre += self.loop_var(false, "__for_n", self.for_usz_type(line, col), len_mem, line, col);
+
 		// var __for_i: usz = 0;
-		pre += self.loop_var(true, "__for_i", self.for_usz_type(line, col),
-			self.for_num("0", line, col), line, col);
+		pre += self.loop_var(
+			true, "__for_i", self.for_usz_type(line, col),
+			self.for_num("0", line, col), line, col
+		);
 
 		// val <v> = <iterable>.data[__for_i];
-		head += self.loop_var(false, fs.var_name, null,
-			self.node(NodeData.IndexExpr(self.node(NodeData.MemberExpr(fs.iterable!, "data", false), line, col), self.for_id("__for_i", line, col)), line, col),
-			line, col);
+		val data_mem = self.node(NodeData.MemberExpr(fs.iterable!, "data", false), line, col);
+		val idx_expr = self.node(
+			NodeData.IndexExpr(data_mem, self.for_id("__for_i", line, col)),
+			line, col
+		);
+		head += self.loop_var(false, fs.var_name, null, idx_expr, line, col);
 
 		step += self.for_bump(TokenType.PLUS, line, col);
 
 		// __for_i < __for_n
-		return self.node(NodeData.BinaryExpr(self.for_id("__for_i", line, col), TokenType.LESS, self.for_id("__for_n", line, col)), line, col);
+		return self.node(
+			NodeData.BinaryExpr(
+				self.for_id("__for_i", line, col),
+				TokenType.LESS,
+				self.for_id("__for_n", line, col)
+			),
+			line, col
+		);
 	}
 
 	// `for (v in a..b)` (closed) / `for (v in a..<b)` (half-open) /
@@ -221,61 +261,104 @@ impl Arena {
 	): *AstNode {
 		// val __for_e = <end>;
 		pre += self.loop_var(false, "__for_e", null, fs.range_end, line, col);
+
 		// var __for_i = __for_e;  then __for_i = <start>;
 		pre += self.loop_var(true, "__for_i", null, self.for_id("__for_e", line, col), line, col);
-		pre += self.loop_expr(self.node(NodeData.AssignExpr(self.for_id("__for_i", line, col), TokenType.EQUAL, fs.range_start!), line, col), line, col);
+		val init_asgn = self.node(
+			NodeData.AssignExpr(self.for_id("__for_i", line, col), TokenType.EQUAL, fs.range_start!),
+			line, col
+		);
+		pre += self.loop_expr(init_asgn, line, col);
+
 		// val __for_up = __for_i <= __for_e;
-		pre += self.loop_var(false, "__for_up", null, self.for_i_cmp(TokenType.LESS_EQUAL, line, col), line, col);
+		val cmp_up = self.for_i_cmp(TokenType.LESS_EQUAL, line, col);
+		pre += self.loop_var(false, "__for_up", null, cmp_up, line, col);
 
 		if (fs.is_open) {
-			pre += self.for_by_dir(self.for_bump(TokenType.PLUS, line, col), self.for_bump(TokenType.MINUS, line, col), line, col);
+			pre += self.for_by_dir(
+				self.for_bump(TokenType.PLUS, line, col),
+				self.for_bump(TokenType.MINUS, line, col),
+				line, col
+			);
 		}
 
-		pre += self.loop_var(true, "__for_go", null, self.node(NodeData.LiteralExpr(Literal.BOOLEAN, "false"), line, col), line, col);
+		val false_lit = self.node(NodeData.LiteralExpr(Literal.BOOLEAN, "false"), line, col);
+		pre += self.loop_var(true, "__for_go", null, false_lit, line, col);
+
 		if (fs.is_open || fs.is_half_open) {
 			pre += self.for_by_dir(
 				self.for_set_go(self.for_i_cmp(TokenType.LESS, line, col), line, col),
 				self.for_set_go(self.for_i_cmp(TokenType.GREATER, line, col), line, col),
-				line, col);
+				line, col
+			);
 		} else {
 			pre += self.for_by_dir(
 				self.for_set_go(self.for_i_cmp(TokenType.LESS_EQUAL, line, col), line, col),
 				self.for_set_go(self.for_i_cmp(TokenType.GREATER_EQUAL, line, col), line, col),
-				line, col);
+				line, col
+			);
 		}
 
 		// val <v> = __for_i;
 		head += self.loop_var(false, fs.var_name, null, self.for_id("__for_i", line, col), line, col);
 
-		// Is there another element? Then move the counter (never past the end).
+		// Next element check
 		if (fs.is_open || fs.is_half_open) {
+			val up_inc = self.node(
+				NodeData.BinaryExpr(
+					self.for_id("__for_i", line, col),
+					TokenType.PLUS,
+					self.for_num("1", line, col)
+				),
+				line, col
+			);
+			val up_chk = self.node(
+				NodeData.BinaryExpr(up_inc, TokenType.LESS, self.for_id("__for_e", line, col)),
+				line, col
+			);
+			val dn_dec = self.node(
+				NodeData.BinaryExpr(
+					self.for_id("__for_i", line, col),
+					TokenType.MINUS,
+					self.for_num("1", line, col)
+				),
+				line, col
+			);
+			val dn_chk = self.node(
+				NodeData.BinaryExpr(dn_dec, TokenType.GREATER, self.for_id("__for_e", line, col)),
+				line, col
+			);
 			step += self.for_by_dir(
-				self.for_set_go(self.node(NodeData.BinaryExpr(
-					self.node(NodeData.BinaryExpr(self.for_id("__for_i", line, col), TokenType.PLUS, self.for_num("1", line, col)), line, col),
-					TokenType.LESS,
-					self.for_id("__for_e", line, col)), line, col), line, col),
-				self.for_set_go(self.node(NodeData.BinaryExpr(
-					self.node(NodeData.BinaryExpr(self.for_id("__for_i", line, col), TokenType.MINUS, self.for_num("1", line, col)), line, col),
-					TokenType.GREATER,
-					self.for_id("__for_e", line, col)), line, col), line, col),
-				line, col);
+				self.for_set_go(up_chk, line, col),
+				self.for_set_go(dn_chk, line, col),
+				line, col
+			);
 		} else {
 			step += self.for_by_dir(
 				self.for_set_go(self.for_i_cmp(TokenType.LESS, line, col), line, col),
 				self.for_set_go(self.for_i_cmp(TokenType.GREATER, line, col), line, col),
-				line, col);
+				line, col
+			);
 		}
-		step += self.loop_if(self.for_id("__for_go", line, col),
-			self.for_by_dir(self.for_bump(TokenType.PLUS, line, col), self.for_bump(TokenType.MINUS, line, col), line, col),
-			null, line, col);
+
+		val bump_dir = self.for_by_dir(
+			self.for_bump(TokenType.PLUS, line, col),
+			self.for_bump(TokenType.MINUS, line, col),
+			line, col
+		);
+		step += self.loop_if(self.for_id("__for_go", line, col), bump_dir, null, line, col);
 
 		return self.for_id("__for_go", line, col);
 	}
 
 	// Builds the block that replaces a STMT_FOR: hidden locals plus a while-loop.
-	// The checker stores it as `resolved_node` and checks that block directly;
-	// `lower` installs it, so nothing swaps a node's kind here.
-	pub fn desugar_for(var self, node: *AstNode, fs: *ForStmt, use_iter_trait: bool, bc: *BodyChecker = null): *AstNode {
+	pub fn desugar_for(
+		var self,
+		node: *AstNode,
+		fs: *ForStmt,
+		use_iter_trait: bool,
+		bc: *BodyChecker = null
+	): *AstNode {
 		val line = node.line;
 		val col = node.col;
 
@@ -288,21 +371,21 @@ impl Arena {
 			else -> self.desugar_for_iterable(&pre, &head, &step, fs, line, col);
 		};
 
-		// Body: loop variable, the original statements, then the counter update.
 		var body_stmts = List<*AstNode>();
 		for (s in head) body_stmts += s;
 		val fbody = fs.body;
 		if (fbody is BlockStmt as b) {
 			for (s in b.statements) body_stmts += s;
-		} else if (fbody != null) body_stmts += fbody;
+		} else if (fbody != null) {
+			body_stmts += fbody;
+		}
 		for (s in step) body_stmts += s;
 
 		// A `continue` inside the body must still advance the counter.
 		self.for_inject_step(fs.body, &step, bc);
 
 		pre += self.loop_while(cond, self.loop_block(body_stmts, line, col), line, col);
-
 		return self.loop_block(pre, line, col);
 	}
-}
 
+}

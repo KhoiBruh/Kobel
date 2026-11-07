@@ -18,7 +18,7 @@ use compiler.sema.*;
 use compiler.semantic.types.*;
 use compiler.semantic.symbols.*;
 use compiler.sema.decl.*;
-use compiler.sema.desugar.*;
+use compiler.semantic.lowering.*;
 
 /*
  * One arrow-bodied function whose return type is still unknown, together with

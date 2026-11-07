@@ -20,7 +20,7 @@ use compiler.semantic.resolution.*;
 use compiler.semantic.declaration.*;
 use compiler.semantic.checker.*;
 use compiler.sema.decl.*;
-use compiler.sema.desugar.*;
+use compiler.semantic.lowering.*;
 
 pub struct BodyPass {
 	pub symtab: SymbolTable = SymbolTable(),

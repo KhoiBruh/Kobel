@@ -1,0 +1,672 @@
+mod compiler.semantic.lowering;
+
+/*
+ * ============================================================================
+ * Lowering Pass
+ *
+ * Runs after `check_program`, when every checked expression already carries its
+ * resolved type. It rewrites sugar into forms the C backend can emit directly
+ * and returns replacement nodes instead of mutating a node's kind in place.
+ * ============================================================================
+ */
+
+use std.memory.*;
+use std.collections.*;
+
+use compiler.ast.*;
+use compiler.lexer.*;
+use compiler.semantic.types.*;
+use compiler.semantic.symbols.*;
+use compiler.semantic.declaration.*;
+use compiler.sema.decl.*;
+
+pub struct LoweringPass {
+	pub symtab: SymbolTable = SymbolTable(),
+	pub arena: Arena = Arena(),
+	pub decl: DeclPass = DeclPass()
+}
+
+impl LoweringPass {
+
+	pub init() {
+		return Self();
+	}
+
+	pub init(symtab: SymbolTable, arena: Arena) {
+		var lp = Self();
+		lp.symtab = symtab;
+		lp.arena = arena;
+		return lp;
+	}
+
+	pub init(symtab: SymbolTable, arena: Arena, decl: DeclPass) {
+		var lp = Self();
+		lp.symtab = symtab;
+		lp.arena = arena;
+		lp.decl = decl;
+		return lp;
+	}
+
+	pub fn lower_program(var self, program_node: *AstNode) {
+		if (program_node is Program as prog) {
+			for (decl in prog) {
+				when (decl) {
+					is FnDecl as var f -> {
+						if (f.type_params.len > 0) continue;
+						val rec = self.symtab.get_node_instance(decl);
+						if (rec != null) {
+							f.body = self.lower_stmt(self.decl.materialize_body(rec));
+						} else if (f.body != null) {
+							f.body = self.lower_stmt(f.body!);
+						}
+					}
+					is ImplDecl as var im -> {
+						for (i in 0..<im.methods.len) {
+							val m = im.methods[i];
+							if (m is FnDecl as var mf) {
+								if (mf.type_params.len > 0) continue;
+								val rec = self.symtab.get_node_instance(m);
+								if (rec != null) {
+									mf.body = self.lower_stmt(self.decl.materialize_body(rec));
+								} else if (mf.body != null) {
+									mf.body = self.lower_stmt(mf.body!);
+								}
+							}
+						}
+					}
+					is ConstDecl as var c -> {
+						if (c.value != null) c.value = self.lower_expr(c.value!);
+					}
+				}
+			}
+		}
+	}
+
+	// ============================================================================
+	// Statements
+	// ============================================================================
+
+	pub fn lower_stmt(var self, node: *AstNode): *AstNode {
+		val res_stmt = self.symtab.get_resolved_node(node);
+		if (res_stmt != null) return self.lower_stmt(res_stmt);
+
+		when (node) {
+			is BlockStmt as var blk -> {
+				for (i in 0..<blk.statements.len) {
+					blk.statements[i] = self.lower_stmt(blk.statements[i]);
+				}
+			}
+			is ExprStmt as var es -> {
+				es.expr = self.lower_expr(es.expr);
+			}
+			is VarDeclStmt as var vd -> {
+				if (vd.initializer != null) vd.initializer = self.lower_expr(vd.initializer!);
+			}
+			is IfStmt as var ifs -> {
+				ifs.condition = self.lower_expr(ifs.condition);
+				ifs.then_branch = self.lower_stmt(ifs.then_branch);
+				if (ifs.else_branch != null) {
+					ifs.else_branch = self.lower_stmt(ifs.else_branch!);
+				}
+			}
+			is WhileStmt as var wh -> {
+				wh.condition = self.lower_expr(wh.condition);
+				wh.body = self.lower_stmt(wh.body);
+			}
+			is ForStmt as var fr -> {
+				if (fr.iterable != null) fr.iterable = self.lower_expr(fr.iterable!);
+				if (fr.range_start != null) fr.range_start = self.lower_expr(fr.range_start!);
+				if (fr.range_end != null) fr.range_end = self.lower_expr(fr.range_end!);
+				fr.body = self.lower_stmt(fr.body);
+			}
+			is ReturnStmt as var ret -> {
+				if (ret.value != null) ret.value = self.lower_expr(ret.value!);
+			}
+			is WhenStmt as var ws -> {
+				if (ws.condition != null) ws.condition = self.lower_expr(ws.condition!);
+				for (i in 0..<ws.arms.len) {
+					var arm = ws.arms[i];
+					arm.body = self.lower_stmt(arm.body);
+					for (k in 0..<arm.patterns.len) {
+						arm.patterns[k] = self.lower_expr(arm.patterns[k]);
+					}
+					ws.arms[i] = arm;
+				}
+			}
+			is YieldStmt as var ys -> {
+				if (ys.value != null) ys.value = self.lower_expr(ys.value!);
+			}
+			is DeferStmt as var ds -> {
+				ds.body = self.lower_stmt(ds.body);
+			}
+		}
+		return node;
+	}
+
+	// ============================================================================
+	// Expressions
+	// ============================================================================
+
+	pub fn lower_expr(var self, node: *AstNode): *AstNode {
+		val res_expr = self.symtab.get_resolved_node(node);
+		if (res_expr != null) return self.lowered(node, self.lower_expr(res_expr));
+
+		var out = node;
+		when (node) {
+			is BinaryExpr as var b -> {
+				b.left = self.lower_expr(b.left);
+				b.right = self.lower_expr(b.right);
+				out = self.lower_binary(node, b);
+			}
+			is UnaryExpr as var u -> {
+				u.operand = self.lower_expr(u.operand);
+				out = self.lower_unary(node, u);
+			}
+			is CallExpr as var c -> {
+				c.callee = self.lower_expr(c.callee);
+				for (i in 0..<c.args.len) c.args[i] = self.lower_expr(c.args[i]);
+				if (self.symtab.get_resolved_method(node) != null) {
+					out = self.lower_bound_call(node, c);
+				} else {
+					out = self.lower_call(node, c);
+				}
+			}
+			is MemberExpr as var m -> {
+				m.object = self.lower_expr(m.object);
+				out = self.lower_member(node, m);
+			}
+			is IndexExpr as var ix -> {
+				ix.target = self.lower_expr(ix.target);
+				ix.index = self.lower_expr(ix.index);
+				out = self.lower_index(node, ix);
+			}
+			is AssignExpr as var asg -> {
+				asg.target = self.lower_expr(asg.target);
+				asg.value = self.lower_expr(asg.value);
+				out = self.lower_assign(node, asg);
+			}
+			is UpdateExpr as var up -> {
+				up.target = self.lower_expr(up.target);
+			}
+			is CastExpr as var cst -> {
+				if (cst.expr != null) cst.expr = self.lower_expr(cst.expr!);
+			}
+			is GroupExpr as var g -> {
+				g.expr = self.lower_expr(g.expr);
+			}
+			is ArrayLiteralExpr as var al -> {
+				for (i in 0..<al.elements.len) al.elements[i] = self.lower_expr(al.elements[i]);
+			}
+			is IfExpr as var ie -> {
+				ie.condition = self.lower_expr(ie.condition);
+				ie.then_branch = self.lower_expr(ie.then_branch);
+				ie.else_branch = self.lower_expr(ie.else_branch);
+			}
+			is WhenExpr as var we -> {
+				if (we.condition != null) we.condition = self.lower_expr(we.condition!);
+				for (i in 0..<we.arms.len) {
+					var arm = we.arms[i];
+					arm.body = self.lower_arm_body(arm.body);
+					for (k in 0..<arm.patterns.len) {
+						arm.patterns[k] = self.lower_expr(arm.patterns[k]);
+					}
+					we.arms[i] = arm;
+				}
+			}
+			is InterpExpr as var ip -> {
+				for (i in 0..<ip.parts.len) {
+					var part = ip.parts[i];
+					when (part) {
+						is InterpPart.Literal as lit -> {
+							ip.parts[i] = InterpPart.Literal(self.lower_expr(lit.node));
+						}
+						is InterpPart.Hole as hole -> {
+							ip.parts[i] = InterpPart.Hole(self.lower_expr(hole.node));
+						}
+					}
+				}
+				out = self.lower_interp(node, ip);
+			}
+			is IsExpr as var ise -> {
+				if (ise.expr != null) ise.expr = self.lower_expr(ise.expr!);
+			}
+			is StructCtorExpr as var sc -> {
+				for (i in 0..<sc.args.len) sc.args[i] = self.lower_expr(sc.args[i]);
+			}
+			is EnumCtorExpr as var ec -> {
+				for (i in 0..<ec.args.len) ec.args[i] = self.lower_expr(ec.args[i]);
+			}
+		}
+		return out;
+	}
+
+	// ============================================================================
+	// Rewrite rules
+	// ============================================================================
+
+	fn lower_arm_body(var self, body: *AstNode): *AstNode {
+		val t = body;
+		if (t is BlockStmt) return self.lower_stmt(body);
+		return self.lower_expr(body);
+	}
+
+	fn lowered(val self, original: *AstNode, replacement: *AstNode): *AstNode {
+		val orig_ty = self.symtab.get_node_type(original);
+		if (orig_ty != null) self.symtab.set_node_type(replacement, orig_ty);
+		return replacement;
+	}
+
+	fn lower_binary(var self, node: *AstNode, bin: &BinaryExpr): *AstNode {
+		if (bin.op == TokenType.QUESTION_COLON) {
+			if (self.is_stmt_node(bin.right)) bin.right = self.lower_stmt(bin.right);
+			return node;
+		}
+
+		if (bin.op == TokenType.PLUS && self.is_str_expr(bin.left)) {
+			val cat = self.arena.interp_concat(bin.left, bin.right, node.line, node.col);
+			return self.lowered(node, cat);
+		}
+
+		if (bin.op == TokenType.EQUAL_EQUAL || bin.op == TokenType.BANG_EQUAL) {
+			if (self.is_str_expr(bin.left) && self.is_str_expr(bin.right)) {
+				val is_neq = bin.op == TokenType.BANG_EQUAL;
+				val eq = self.arena.make_str_eq(
+					is_neq, bin.left, bin.right, node.line, node.col
+				);
+				return self.lowered(node, eq);
+			}
+		}
+
+		if (bin.op == TokenType.KW_IN && self.symtab.get_resolved_method(node) != null) {
+			val mi = self.symtab.get_resolved_method(node)!;
+			val right_ty = self.type_of(bin.right);
+			val r_is_ptr = right_ty?.kind == DataType.POINTER;
+			var args = List<*AstNode>();
+			if (r_is_ptr) args += bin.right;
+			else {
+				val ref_arg = self.arena.node(
+					NodeData.UnaryExpr(TokenType.AMPERSAND, bin.right, false),
+					node.line, node.col
+				);
+				args += ref_arg;
+			}
+			args += bin.left;
+			val callee = self.arena.node(NodeData.IdentifierExpr(mi.c_name), node.line, node.col);
+			val call = self.arena.node(
+				NodeData.CallExpr(callee, args, List<*AstNode>()),
+				node.line, node.col
+			);
+			return self.lowered(node, call);
+		}
+
+		if (self.symtab.get_resolved_method(node) != null) {
+			val mi = self.symtab.get_resolved_method(node)!;
+			var args = List<*AstNode>();
+			val ref_arg = self.arena.node(
+				NodeData.UnaryExpr(TokenType.AMPERSAND, bin.left, false),
+				node.line, node.col
+			);
+			args += ref_arg;
+			args += bin.right;
+			val callee = self.arena.node(NodeData.IdentifierExpr(mi.c_name), node.line, node.col);
+			val call = self.arena.node(
+				NodeData.CallExpr(callee, args, List<*AstNode>()),
+				node.line, node.col
+			);
+			if (bin.op == TokenType.BANG_EQUAL) {
+				val not_call = self.arena.node(
+					NodeData.UnaryExpr(TokenType.BANG, call, false),
+					node.line, node.col
+				);
+				return self.lowered(node, not_call);
+			}
+			return self.lowered(node, call);
+		}
+
+		if (bin.op == TokenType.EQUAL_EQUAL || bin.op == TokenType.BANG_EQUAL) {
+			val lt = self.type_of(bin.left);
+			if (lt?.kind == DataType.STRUCT) {
+				val is_neq = bin.op == TokenType.BANG_EQUAL;
+				val eq = self.arena.make_mem_eq(
+					is_neq, bin.left, bin.right, lt.size, node.line, node.col
+				);
+				return self.lowered(node, eq);
+			}
+		}
+		return node;
+	}
+
+	fn lower_assign(var self, node: *AstNode, asgn: &AssignExpr): *AstNode {
+		if (self.symtab.get_resolved_method(node) != null) {
+			val mi = self.symtab.get_resolved_method(node)!;
+			val target_ty = self.type_of(asgn.target);
+			val t_is_ptr = target_ty?.kind == DataType.POINTER;
+			var args = List<*AstNode>();
+			if (t_is_ptr) args += asgn.target;
+			else {
+				val ref_arg = self.arena.node(
+					NodeData.UnaryExpr(TokenType.AMPERSAND, asgn.target, false),
+					node.line, node.col
+				);
+				args += ref_arg;
+			}
+			args += asgn.value;
+			val callee = self.arena.node(NodeData.IdentifierExpr(mi.c_name), node.line, node.col);
+			val call = self.arena.node(
+				NodeData.CallExpr(callee, args, List<*AstNode>()),
+				node.line, node.col
+			);
+			return self.lowered(node, call);
+		}
+
+		if (asgn.op != TokenType.PLUS_EQUAL) return node;
+		if (!self.is_str_expr(asgn.target)) return node;
+		val cat = self.arena.interp_concat(asgn.target, asgn.value, node.line, node.col);
+		val cat_ty = self.symtab.get_node_type(node);
+		if (cat_ty != null) self.symtab.set_node_type(cat, cat_ty);
+		asgn.value = cat;
+		asgn.op = TokenType.EQUAL;
+		return node;
+	}
+
+	fn lower_interp(var self, node: *AstNode, ie: &InterpExpr): *AstNode {
+		var pieces = List<*AstNode>();
+		defer pieces.free();
+		for (i in 0..<ie.parts.len) {
+			val part = ie.parts[i];
+			when (part) {
+				is InterpPart.Literal as lit -> pieces += lit.node;
+				is InterpPart.Hole as hole -> {
+					var piece = hole.node;
+					val conv = self.to_str_expr(piece, node.line, node.col);
+					if (conv != null) piece = conv;
+					pieces += piece;
+				}
+			}
+		}
+		var acc = self.arena.interp_concat_many(pieces, node.line, node.col);
+		if (acc == null) {
+			acc = self.arena.node(NodeData.LiteralExpr(Literal.STRING, "\"\""), node.line, node.col);
+		}
+		return self.lowered(node, acc!);
+	}
+
+	fn to_str_expr(var self, expr: *AstNode, line: usz, col: usz): *AstNode? {
+		val ty = self.type_of(expr);
+		if (ty == null) return null;
+		if (ty.kind == DataType.STR) return expr;
+
+		val pmi = self.symtab.find_prim_method(ty.kind, "to_str");
+		if (pmi != null) return self.arena.interp_call(pmi.c_name, expr, line, col);
+
+		var cur_ty = ty;
+		var is_ptr = false;
+		if (cur_ty.kind == DataType.POINTER) {
+			is_ptr = true;
+			cur_ty = cur_ty.as_pointer().pointee;
+		}
+		if (cur_ty.kind == DataType.STRUCT) {
+			val mi = cur_ty.as_struct().find_method("to_str");
+			if (mi != null) {
+				var arg = expr;
+				if (!is_ptr) {
+					arg = self.arena.node(
+						NodeData.UnaryExpr(TokenType.AMPERSAND, expr, false),
+						line, col
+					);
+				}
+				return self.arena.interp_call(mi.c_name, arg, line, col);
+			}
+		}
+		return null;
+	}
+
+	fn lower_member(var self, node: *AstNode, mem: &MemberExpr): *AstNode {
+		val obj = mem.object ?: return node;
+
+		val obj_ty = self.type_of(obj);
+		if (obj_ty?.is_enum() && mem.member == "value") return self.lowered(node, obj);
+
+		if (self.is_str_expr(obj)) {
+			if (mem.member == "size") {
+				val len_mem = self.arena.node(
+					NodeData.MemberExpr(obj, "len", false),
+					node.line, node.col
+				);
+				return self.lowered(node, len_mem);
+			}
+			return node;
+		}
+
+		if (self.is_array_expr(obj)) {
+			if (mem.member == "len" || mem.member == "size") {
+				val arr = self.type_of(obj).as_array();
+				val lit = self.arena.node(
+					NodeData.LiteralExpr(Literal.INTEGER, "${arr.length}"),
+					node.line, node.col
+				);
+				return self.lowered(node, lit);
+			}
+			if (mem.member == "data") return self.lowered(node, obj);
+		}
+
+		return node;
+	}
+
+	fn lower_unary(var self, node: *AstNode, un: &UnaryExpr): *AstNode {
+		if (self.symtab.get_resolved_method(node) == null) return node;
+		val mi = self.symtab.get_resolved_method(node)!;
+		var args = List<*AstNode>();
+		val ref_arg = self.arena.node(
+			NodeData.UnaryExpr(TokenType.AMPERSAND, un.operand, false),
+			node.line, node.col
+		);
+		args += ref_arg;
+		val callee = self.arena.node(NodeData.IdentifierExpr(mi.c_name), node.line, node.col);
+		val call = self.arena.node(
+			NodeData.CallExpr(callee, args, List<*AstNode>()),
+			node.line, node.col
+		);
+		return self.lowered(node, call);
+	}
+
+	fn lower_index(var self, node: *AstNode, idx: &IndexExpr): *AstNode {
+		if (self.symtab.get_resolved_method(node) == null) return node;
+		val mi = self.symtab.get_resolved_method(node)!;
+		val target_ty = self.type_of(idx.target);
+		val t_is_ptr = target_ty?.kind == DataType.POINTER;
+		var args = List<*AstNode>();
+		if (t_is_ptr) args += idx.target;
+		else {
+			val ref_arg = self.arena.node(
+				NodeData.UnaryExpr(TokenType.AMPERSAND, idx.target, false),
+				node.line, node.col
+			);
+			args += ref_arg;
+		}
+		args += idx.index;
+		val callee = self.arena.node(NodeData.IdentifierExpr(mi.c_name), node.line, node.col);
+		val call = self.arena.node(
+			NodeData.CallExpr(callee, args, List<*AstNode>()),
+			node.line, node.col
+		);
+		return self.lowered(node, call);
+	}
+
+	fn lower_bound_call(var self, node: *AstNode, call: &CallExpr): *AstNode {
+		val callee = call.callee;
+		if (callee == null) return node;
+
+		if (callee is IdentifierExpr) {
+			val new_mi = self.symtab.get_resolved_method(node)!;
+			var ctor_args = List<*AstNode>();
+			for (arg in call.args) ctor_args += arg;
+			val fn_id = self.arena.node(NodeData.IdentifierExpr(new_mi.c_name), node.line, node.col);
+			val ctor_call = self.arena.node(
+				NodeData.CallExpr(fn_id, ctor_args, List<*AstNode>()),
+				node.line, node.col
+			);
+			return self.lowered(node, ctor_call);
+		}
+
+		if (callee is MemberExpr as mem) {
+			val mi = self.symtab.get_resolved_method(node)!;
+
+			if (mi.is_static) {
+				var static_args = List<*AstNode>();
+				for (arg in call.args) static_args += arg;
+				val fn_id = self.arena.node(
+					NodeData.IdentifierExpr(mi.c_name),
+					node.line, node.col
+				);
+				val direct = self.arena.node(
+					NodeData.CallExpr(fn_id, static_args, List<*AstNode>()),
+					node.line, node.col
+				);
+				return self.lowered(node, direct);
+			}
+
+			val recv = mem.object;
+			val recv_ty = self.type_of(recv);
+			val obj_is_ptr = recv_ty?.kind == DataType.POINTER;
+			var inner_ty = recv_ty;
+			if (obj_is_ptr) inner_ty = recv_ty.as_pointer().pointee;
+			val by_ref = inner_ty?.kind == DataType.STRUCT;
+
+			var new_args = List<*AstNode>();
+			if (by_ref == obj_is_ptr) new_args += recv;
+			else {
+				val op = if (by_ref) TokenType.AMPERSAND else TokenType.STAR;
+				val ref_arg = self.arena.node(
+					NodeData.UnaryExpr(op, recv, false),
+					node.line, node.col
+				);
+				new_args += ref_arg;
+			}
+			for (arg in call.args) new_args += arg;
+
+			val fn_id = self.arena.node(NodeData.IdentifierExpr(mi.c_name), node.line, node.col);
+			val direct = self.arena.node(
+				NodeData.CallExpr(fn_id, new_args, List<*AstNode>()),
+				node.line, node.col
+			);
+			if (!mem.is_safe) return self.lowered(node, direct);
+
+			val call_ty = self.type_of(node);
+			val null_lit = self.arena.node(
+				NodeData.LiteralExpr(Literal.NULL_VAL, "null"),
+				node.line, node.col
+			);
+			val cond = self.arena.node(
+				NodeData.BinaryExpr(recv, TokenType.BANG_EQUAL, null_lit),
+				node.line, node.col
+			);
+
+			if (call_ty?.kind == DataType.BOOL) {
+				val maybe = self.arena.node(
+					NodeData.BinaryExpr(cond, TokenType.AND_AND, direct),
+					node.line, node.col
+				);
+				return self.lowered(node, maybe);
+			}
+
+			val fallback = if (call_ty?.kind == DataType.STR)
+				self.arena.node(
+					NodeData.CallExpr(
+						self.arena.node(
+							NodeData.IdentifierExpr("kobel_null_str"),
+							node.line, node.col
+						),
+						List<*AstNode>(), List<*AstNode>()
+					),
+					node.line, node.col
+				)
+			else if (call_ty?.is_integer() || call_ty?.is_enum() || call_ty?.kind == DataType.CHAR)
+				self.arena.node(NodeData.LiteralExpr(Literal.INTEGER, "0"), node.line, node.col)
+			else if (call_ty?.kind == DataType.F32 || call_ty?.kind == DataType.F64)
+				self.arena.node(NodeData.LiteralExpr(Literal.FLOAT, "0.0"), node.line, node.col)
+			else null_lit;
+
+			val maybe = self.arena.node(NodeData.IfExpr(cond, direct, fallback), node.line, node.col);
+			return self.lowered(node, maybe);
+		}
+		return node;
+	}
+
+	fn lower_call(var self, node: *AstNode, call: &CallExpr): *AstNode {
+		val callee = call.callee ?: return node;
+		if (callee is MemberExpr as mem) {
+			if (mem.member != "slice") return node;
+			if (!self.is_str_expr(mem.object)) return node;
+
+			var args = List<*AstNode>();
+			args += mem.object;
+			if (!call.args.empty()) args += call.args.first();
+			else {
+				val zero = self.arena.node(
+					NodeData.LiteralExpr(Literal.INTEGER, "0"),
+					node.line, node.col
+				);
+				args += zero;
+			}
+
+			if (call.args.len >= 2) {
+				args += call.args[1];
+				val callee_id = self.arena.node(
+					NodeData.IdentifierExpr("kobel_slice"),
+					node.line, node.col
+				);
+				val slice_call = self.arena.node(
+					NodeData.CallExpr(callee_id, args, List<*AstNode>()),
+					node.line, node.col
+				);
+				return self.lowered(node, slice_call);
+			}
+
+			val callee_id = self.arena.node(
+				NodeData.IdentifierExpr("kobel_slice1"),
+				node.line, node.col
+			);
+			val slice1_call = self.arena.node(
+				NodeData.CallExpr(callee_id, args, List<*AstNode>()),
+				node.line, node.col
+			);
+			return self.lowered(node, slice1_call);
+		}
+		return node;
+	}
+
+	// ============================================================================
+	// Type predicates over the checked annotations
+	// ============================================================================
+
+	fn type_of(val self, node: *AstNode): *Type? {
+		var cur = node;
+		while (cur != null) {
+			if (cur is GroupExpr as g) cur = g.expr;
+			else break;
+		}
+		if (cur == null) return null;
+		return self.symtab.get_node_type(cur);
+	}
+
+	fn is_str_expr(val self, node: *AstNode): bool {
+		val t = self.type_of(node);
+		return t?.kind == DataType.STR;
+	}
+
+	fn is_stmt_node(val self, node: *AstNode): bool {
+		if (node == null) return false;
+		return node is ReturnStmt ||
+			node is BreakStmt ||
+			node is ContinueStmt ||
+			node is YieldStmt ||
+			node is BlockStmt;
+	}
+
+	fn is_array_expr(val self, node: *AstNode): bool {
+		val t = self.type_of(node);
+		return t?.kind == DataType.ARRAY;
+	}
+
+}

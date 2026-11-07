@@ -1,0 +1,111 @@
+mod compiler.semantic.lowering;
+
+/*
+ * ============================================================================
+ * String Lowering Helpers
+ *
+ * Builders for string concatenation chains (`kobel_concat*`), string equality
+ * (`kobel_streq`), and raw memory byte equality (`kobel_memeq`).
+ * ============================================================================
+ */
+
+use std.memory.Arena;
+use std.collections.List;
+
+use compiler.lexer.TokenType;
+use compiler.ast.*;
+
+impl Arena {
+
+	// A call to a prelude helper without symbol table lookup.
+	pub fn interp_call(var self, name: str, arg: *AstNode, line: usz, col: usz): *AstNode {
+		var args = List<*AstNode>();
+		args += arg;
+		val callee = self.node(NodeData.IdentifierExpr(name), line, col);
+		return self.node(NodeData.CallExpr(callee, args, List<*AstNode>()), line, col);
+	}
+
+	// Two-operand concatenation: `kobel_concat(a, b)`.
+	pub fn interp_concat(var self, a: *AstNode, b_node: *AstNode, line: usz, col: usz): *AstNode {
+		var args = List<*AstNode>();
+		args += a;
+		args += b_node;
+		val callee = self.node(NodeData.IdentifierExpr("kobel_concat"), line, col);
+		return self.node(NodeData.CallExpr(callee, args, List<*AstNode>()), line, col);
+	}
+
+	// Joins `pieces` in batches of up to 5 per call to minimize allocations.
+	pub fn interp_concat_many(var self, pieces: List<*AstNode>, line: usz, col: usz): *AstNode? {
+		if (pieces.empty()) return null;
+		if (pieces.len == 1) return pieces[0];
+
+		var acc = pieces[0];
+		var i: usz = 1;
+		while (i < pieces.len) {
+			val first_group = i == 1;
+			val max_take: usz = if (first_group) 4 else 4;
+			val rem = pieces.len - i;
+			val take = if (rem < max_take) rem else max_take;
+
+			var args = List<*AstNode>();
+			args += acc;
+			for (k in 0..<take) {
+				args += pieces[i + k];
+			}
+
+			val helper = when (args.len) {
+				2 -> "kobel_concat";
+				3 -> "kobel_concat3";
+				4 -> "kobel_concat4";
+				else -> "kobel_concat5";
+			};
+			val callee = self.node(NodeData.IdentifierExpr(helper), line, col);
+			acc = self.node(NodeData.CallExpr(callee, args, List<*AstNode>()), line, col);
+			i += take;
+		}
+		return acc;
+	}
+
+	// Builds `kobel_streq(a, b)`, optionally negated for `!=`.
+	pub fn make_str_eq(
+		var self,
+		is_neq: bool,
+		left: *AstNode,
+		right: *AstNode,
+		line: usz,
+		col: usz
+	): *AstNode {
+		var eargs = List<*AstNode>();
+		eargs += left;
+		eargs += right;
+		val callee = self.node(NodeData.IdentifierExpr("kobel_streq"), line, col);
+		val eq_call = self.node(NodeData.CallExpr(callee, eargs, List<*AstNode>()), line, col);
+		if (is_neq) {
+			return self.node(NodeData.UnaryExpr(TokenType.BANG, eq_call, false), line, col);
+		}
+		return eq_call;
+	}
+
+	// Builds `kobel_memeq(&a, &b, sizeof)`, optionally negated for struct equality.
+	pub fn make_mem_eq(
+		var self,
+		is_neq: bool,
+		left: *AstNode,
+		right: *AstNode,
+		size: usz,
+		line: usz,
+		col: usz
+	): *AstNode {
+		var eargs = List<*AstNode>();
+		eargs += self.node(NodeData.UnaryExpr(TokenType.AMPERSAND, left, false), line, col);
+		eargs += self.node(NodeData.UnaryExpr(TokenType.AMPERSAND, right, false), line, col);
+		eargs += self.node(NodeData.LiteralExpr(Literal.INTEGER, "${size}"), line, col);
+		val callee = self.node(NodeData.IdentifierExpr("kobel_memeq"), line, col);
+		val eq_call = self.node(NodeData.CallExpr(callee, eargs, List<*AstNode>()), line, col);
+		if (is_neq) {
+			return self.node(NodeData.UnaryExpr(TokenType.BANG, eq_call, false), line, col);
+		}
+		return eq_call;
+	}
+
+}
