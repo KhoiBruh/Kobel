@@ -422,70 +422,8 @@ impl DeclarationCollector {
 			var members = List<*EnumMemberInfo>();
 			var next_int_val: i64 = 0;
 			for (m in e.members) {
-				var v: i64 = 0;
-				var raw_text = "";
-				var lit_kind = Literal.INTEGER;
-
-				if (is_int) {
-					v = next_int_val;
-					if (m.value != null) v = self.enum_const_i64(m.value!);
-					raw_text = "${v}";
-					lit_kind = Literal.INTEGER;
-					next_int_val = v + 1;
-				} else if (is_str) {
-					lit_kind = Literal.STRING;
-					if (m.value != null) {
-						if (m.value is LiteralExpr as lit && lit.literal_kind == Literal.STRING) {
-							raw_text = lit.raw_text;
-						} else {
-							self.report_error(m.value!, "Enum member value for 'str' enum must be a string literal");
-							raw_text = "\"${m.name}\"";
-						}
-					} else {
-						raw_text = "\"${m.name}\"";
-					}
-				} else if (is_char) {
-					lit_kind = Literal.CHARACTER;
-					if (m.value != null) {
-						if (m.value is LiteralExpr as lit && lit.literal_kind == Literal.CHARACTER) {
-							raw_text = lit.raw_text;
-						} else {
-							self.report_error(m.value!, "Enum member value for 'char' enum must be a character literal");
-							raw_text = "'?'";
-						}
-					} else {
-						self.report_error(node, "Enum member '${m.name}' of 'char' enum requires an explicit character literal");
-						raw_text = "'?'";
-					}
-				} else if (is_float) {
-					lit_kind = Literal.FLOAT;
-					if (m.value != null) {
-						if (m.value is LiteralExpr as lit && (lit.literal_kind == Literal.FLOAT || lit.literal_kind == Literal.INTEGER)) {
-							raw_text = lit.raw_text;
-						} else {
-							self.report_error(m.value!, "Enum member value for float enum must be a number literal");
-							raw_text = "0.0";
-						}
-					} else {
-						self.report_error(node, "Enum member '${m.name}' of float enum requires an explicit float literal");
-						raw_text = "0.0";
-					}
-				} else if (is_bool) {
-					lit_kind = Literal.BOOLEAN;
-					if (m.value != null) {
-						if (m.value is LiteralExpr as lit && lit.literal_kind == Literal.BOOLEAN) {
-							raw_text = lit.raw_text;
-						} else {
-							self.report_error(m.value!, "Enum member value for 'bool' enum must be a bool literal");
-							raw_text = "false";
-						}
-					} else {
-						self.report_error(node, "Enum member '${m.name}' of 'bool' enum requires an explicit bool literal");
-						raw_text = "false";
-					}
-				}
-
-				val mi = self.arena.create_val(EnumMemberInfo(m.name, v, null, "", raw_text, lit_kind));
+				val mi = self.collect_enum_member(node, m, under_type, next_int_val);
+				if (under_type.is_integer()) next_int_val = mi.value + 1;
 				members += mi;
 			}
 
@@ -504,6 +442,74 @@ impl DeclarationCollector {
 			self.symtab.register_enum_info(info);
 			e.name = c_name;
 		}
+	}
+
+	fn collect_enum_member(
+		var self, node: *AstNode, m: EnumMember, under_type: *Type, current_int_val: i64
+	): *EnumMemberInfo {
+		var v: i64 = 0;
+		var raw_text = "";
+		var lit_kind = Literal.INTEGER;
+
+		if (under_type.is_integer()) {
+			v = current_int_val;
+			if (m.value != null) v = self.enum_const_i64(m.value!);
+			raw_text = "${v}";
+			lit_kind = Literal.INTEGER;
+		} else if (under_type.kind == DataType.STR) {
+			lit_kind = Literal.STRING;
+			raw_text = self.eval_str_enum_member(node, m);
+		} else if (under_type.kind == DataType.CHAR) {
+			lit_kind = Literal.CHARACTER;
+			raw_text = self.eval_char_enum_member(node, m);
+		} else if (under_type.is_float()) {
+			lit_kind = Literal.FLOAT;
+			raw_text = self.eval_float_enum_member(node, m);
+		} else if (under_type.kind == DataType.BOOL) {
+			lit_kind = Literal.BOOLEAN;
+			raw_text = self.eval_bool_enum_member(node, m);
+		}
+
+		return self.arena.create_val(EnumMemberInfo(m.name, v, null, "", raw_text, lit_kind));
+	}
+
+	fn eval_str_enum_member(var self, node: *AstNode, m: EnumMember): str {
+		if (m.value == null) return "\"${m.name}\"";
+		if (m.value is LiteralExpr as lit && lit.literal_kind == Literal.STRING) return lit.raw_text;
+		self.report_error(m.value!, "Enum member value for 'str' enum must be a string literal");
+		return "\"${m.name}\"";
+	}
+
+	fn eval_char_enum_member(var self, node: *AstNode, m: EnumMember): str {
+		if (m.value != null) {
+			if (m.value is LiteralExpr as lit && lit.literal_kind == Literal.CHARACTER) return lit.raw_text;
+			self.report_error(m.value!, "Enum member value for 'char' enum must be a character literal");
+			return "'?'";
+		}
+		self.report_error(node, "Enum member '${m.name}' of 'char' enum requires an explicit character literal");
+		return "'?'";
+	}
+
+	fn eval_float_enum_member(var self, node: *AstNode, m: EnumMember): str {
+		if (m.value != null) {
+			if (m.value is LiteralExpr as lit && (lit.literal_kind == Literal.FLOAT || lit.literal_kind == Literal.INTEGER)) {
+				return lit.raw_text;
+			}
+			self.report_error(m.value!, "Enum member value for float enum must be a number literal");
+			return "0.0";
+		}
+		self.report_error(node, "Enum member '${m.name}' of float enum requires an explicit float literal");
+		return "0.0";
+	}
+
+	fn eval_bool_enum_member(var self, node: *AstNode, m: EnumMember): str {
+		if (m.value != null) {
+			if (m.value is LiteralExpr as lit && lit.literal_kind == Literal.BOOLEAN) return lit.raw_text;
+			self.report_error(m.value!, "Enum member value for 'bool' enum must be a bool literal");
+			return "false";
+		}
+		self.report_error(node, "Enum member '${m.name}' of 'bool' enum requires an explicit bool literal");
+		return "false";
 	}
 
 	// A payload enum becomes a struct: a `tag` field plus a union of per-variant
@@ -669,129 +675,117 @@ impl DeclarationCollector {
 
 	pub fn collect_program(var self, program_node: *AstNode) {
 		if (program_node is Program as prog) {
-			// Pass 0: register generic templates so any use can instantiate them.
-			// Module markers are processed here too, so each template records its module.
-			for (d0 in prog) {
-				val t0 = d0;
-				when (t0) {
-					is ModuleDecl -> self.collect_module(d0);
-					is TraitDecl -> self.collect_trait(d0);
-					else -> self.register_template(d0);
-				}
-			}
-
-			// Pass 0.4: register wildcard imports before anything resolves a name, so
-			// the shell pass below can find a type forward-declared in another module.
-			// Explicit imports need their target symbol, so they wait for pass 1a.
-			for (d_use in prog) {
-				val t_use = d_use;
-				when (t_use) {
-					is ModuleDecl -> self.collect_module(d_use);
-					is UseDecl as u_wild -> {
-						if (u_wild.wildcard) self.collect_use(d_use);
-					}
-				}
-			}
-
-			// Pass 0.5: declare every struct name with an opaque type before any field
-			// is resolved. Imports may form cycles, so a field can mention a type from
-			// a module that is collected later; the passes below fill these shells.
-			for (d_half in prog) {
-				val t_half = d_half;
-				when (t_half) {
-					is ModuleDecl -> self.collect_module(d_half);
-					is StructDecl as s_half -> {
-						if (s_half.type_params.empty()) {
-							// Global lookup: a forward declaration in another module is the
-							// shell this definition will fill in.
-							val existing_half = self.symtab.lookup_in_module(self.current_module, s_half.name);
-							if (existing_half == null) self.declare_struct_shell(d_half, s_half);
-						}
-					}
-				}
-			}
-
-			// Pass 0.6: record trait implementations early so generic bound checks
-			// can succeed during signature collection (struct fields, function parameters).
-			for (d_impl in prog) {
-				val t_impl = d_impl;
-				when (t_impl) {
-					is ModuleDecl -> self.collect_module(d_impl);
-					is ImplDecl as im -> {
-						if (im.type_params.empty() && !im.trait_name.empty()) {
-							val t = self.symtab.find_trait(im.trait_name);
-							if (t != null) self.trait_record_impl(t, im.struct_name);
-						}
-					}
-				}
-			}
-
-			// Pass 1a: collect ordinary enums first so their types exist before payload enums or signatures are resolved.
-			for (d1 in prog) {
-				val t1 = d1;
-				when (t1) {
-					is ModuleDecl -> self.collect_module(d1);
-					is EnumDecl as e -> {
-						var has_p = false;
-						for (m in e.members) if (!m.payload.empty()) has_p = true;
-						if (!has_p) self.collect_enum(d1);
-					}
-				}
-			}
-
-			// Pass 1a2: collect payload enums now that all ordinary enums and struct shells exist.
-			for (d1 in prog) {
-				val t1 = d1;
-				when (t1) {
-					is ModuleDecl -> self.collect_module(d1);
-					is EnumDecl as e -> {
-						var has_p = false;
-						for (m in e.members) if (!m.payload.empty()) has_p = true;
-						if (has_p) self.collect_enum(d1);
-					}
-				}
-			}
-
-			// Pass 1b: collect ordinary declarations (structs, functions, consts, extern blocks).
-			for (d1 in prog) {
-				if (!(d1 is ImplDecl) && !(d1 is EnumDecl)) self.collect_declaration(d1);
-			}
-
-			// Pass 1c: collect impl blocks now that all types are registered.
-			for (d1 in prog) {
-				val t1 = d1;
-				when (t1) {
-					is ModuleDecl -> self.collect_module(d1);
-					is ImplDecl -> self.collect_impl(d1);
-				}
-			}
-
-			// Pass 2: rewrite generic uses across signatures and bodies, instantiating
-			// concrete structs / functions / methods as needed. Module markers are
-			// replayed so each declaration resolves names in its own module.
-			for (d in prog) {
-				if (d is ModuleDecl as m2) {
-					self.current_module = m2.full_path;
-					self.symtab.set_current_module(m2.full_path);
-				} else if (!is_template_decl(d)) {
-					self.rewrite_generics(d);
-				}
-			}
-
-			// Pass 3: drain the instance worklist. Each instance was cloned with type
-			// arguments substituted syntactically, so its own generic uses are still
-			// unresolved; rewriting it here (to a fixpoint) instantiates them in the
-			// same declaration pass instead of leaving it to body checking.
+			self.pass0_register_templates(prog);
+			self.pass0_wildcard_imports(prog);
+			self.pass0_struct_shells(prog);
+			self.pass0_trait_records(prog);
+			self.pass1_enums(prog, false);
+			self.pass1_enums(prog, true);
+			self.pass1_declarations(prog);
+			self.pass1_impls(prog);
+			self.pass2_rewrite_generics(prog);
 			self.drain_instances();
+			self.append_monomorphized_instances(prog);
+		}
+	}
 
-			// Pass 4: append the monomorphized declarations after the source program,
-			// in creation order (step 5 / instance graph).
-			if (self.symtab.gen.instances.len > 0) {
-				var combined = List<*AstNode>();
-				for (d in prog.declarations) combined += d;
-				for (pn in self.symtab.gen.instances) combined += pn;
-				prog.declarations = combined;
+	fn pass0_register_templates(var self, prog: *Program) {
+		for (d in prog) {
+			val t = d;
+			when (t) {
+				is ModuleDecl -> self.collect_module(d);
+				is TraitDecl -> self.collect_trait(d);
+				else -> self.register_template(d);
 			}
 		}
+	}
+
+	fn pass0_wildcard_imports(var self, prog: *Program) {
+		for (d in prog) {
+			val t = d;
+			when (t) {
+				is ModuleDecl -> self.collect_module(d);
+				is UseDecl as u -> if (u.wildcard) self.collect_use(d);
+			}
+		}
+	}
+
+	fn pass0_struct_shells(var self, prog: *Program) {
+		for (d in prog) {
+			val t = d;
+			when (t) {
+				is ModuleDecl -> self.collect_module(d);
+				is StructDecl as s -> {
+					if (s.type_params.empty()) {
+						val existing = self.symtab.lookup_in_module(self.current_module, s.name);
+						if (existing == null) self.declare_struct_shell(d, s);
+					}
+				}
+			}
+		}
+	}
+
+	fn pass0_trait_records(var self, prog: *Program) {
+		for (d in prog) {
+			val t = d;
+			when (t) {
+				is ModuleDecl -> self.collect_module(d);
+				is ImplDecl as im -> {
+					if (im.type_params.empty() && !im.trait_name.empty()) {
+						val tr = self.symtab.find_trait(im.trait_name);
+						if (tr != null) self.trait_record_impl(tr, im.struct_name);
+					}
+				}
+			}
+		}
+	}
+
+	fn pass1_enums(var self, prog: *Program, want_payload: bool) {
+		for (d in prog) {
+			val t = d;
+			when (t) {
+				is ModuleDecl -> self.collect_module(d);
+				is EnumDecl as e -> {
+					var has_p = false;
+					for (m in e.members) if (!m.payload.empty()) has_p = true;
+					if (has_p == want_payload) self.collect_enum(d);
+				}
+			}
+		}
+	}
+
+	fn pass1_declarations(var self, prog: *Program) {
+		for (d in prog) {
+			if (!(d is ImplDecl) && !(d is EnumDecl)) self.collect_declaration(d);
+		}
+	}
+
+	fn pass1_impls(var self, prog: *Program) {
+		for (d in prog) {
+			val t = d;
+			when (t) {
+				is ModuleDecl -> self.collect_module(d);
+				is ImplDecl -> self.collect_impl(d);
+			}
+		}
+	}
+
+	fn pass2_rewrite_generics(var self, prog: *Program) {
+		for (d in prog) {
+			if (d is ModuleDecl as m) {
+				self.current_module = m.full_path;
+				self.symtab.set_current_module(m.full_path);
+			} else if (!is_template_decl(d)) {
+				self.rewrite_generics(d);
+			}
+		}
+	}
+
+	fn append_monomorphized_instances(val self, prog: *Program) {
+		if (self.symtab.gen.instances.empty()) return;
+		var combined = List<*AstNode>();
+		for (d in prog.declarations) combined += d;
+		for (pn in self.symtab.gen.instances) combined += pn;
+		prog.declarations = combined;
 	}
 }

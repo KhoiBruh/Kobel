@@ -140,51 +140,62 @@ impl DeclarationCollector {
 
 			for (m_node in im.methods) {
 				if (m_node is FnDecl as var f) {
-					if (f.type_params.len > 0) continue;
-
-					self.validate_constructor_signature(f, m_node, st_info.name);
-					if (f.operator) self.validate_operator_signature(f, m_node, st_info.name);
-
-					var param_types = List<*Type>();
-
-					for (p in f.params) {
-						var pt: *Type = self.prims().t_none();
-						if (p.name == "self" && p.type_node == null) {
-							// Receiver: `*Struct` for `val self`, `*mut Struct` for `var self`.
-							pt = self.arena.pointer_type(st_type, p.mutable);
-						} else if (p.type_node != null) {
-							pt = self.resolve_ast_type(p.type_node!);
-						} else {
-							pt = self.prims().t_none();
-						}
-						param_types += pt;
-					}
-
-					val ret_type = if (f.return_type != null) self.resolve_ast_type(f.return_type!)
-					else self.infer_decl_return_type(f) ?: self.prims().t_none();
-
-					// A function-instance method view owns its own FnType (built at view
-					// creation), so two instances never mutate a shared signature object.
-					val rec_sig = self.symtab.get_node_instance(m_node)?.sig;
-					val fn_type = rec_sig ?: self.arena.fn_type(param_types, ret_type);
-
-					// Two methods with the same name and arity still need distinct names.
-					val m_c_name = method_c_name(
-						"${st_c_name}_${f.name}", param_types.len, f.name in overloaded, used_names
+					self.collect_single_impl_method(
+						m_node, f, st_type, st_c_name, st_info, overloaded, &used_names
 					);
-					used_names += m_c_name;
-
-					val is_static = f.params.empty() || f.params[0].name != "self";
-					val mi = self.arena.create_val(MethodInfo(f.name, m_c_name, fn_type, m_node, self.current_module, f.operator, is_static, f.initializer));
-					st_info.methods += mi;
-
-					// Uniquify the AST name so the backend emits the mangled method name.
-					f.name = m_c_name;
 				}
 			}
 
 			self.current_self_type = null;
 		}
+	}
+
+	fn collect_single_impl_method(
+		var self, m_node: *AstNode, f: *FnDecl, st_type: *Type,
+		st_c_name: str, st_info: *StructType, overloaded: List<str>, var used_names: &List<str>
+	) {
+		if (f.type_params.len > 0) return;
+
+		self.validate_constructor_signature(f, m_node, st_info.name);
+		if (f.operator) self.validate_operator_signature(f, m_node, st_info.name);
+
+		var param_types = List<*Type>();
+		for (p in f.params) {
+			var pt: *Type = self.prims().t_none();
+			if (p.name == "self" && p.type_node == null) {
+				// Receiver: `*Struct` for `val self`, `*mut Struct` for `var self`.
+				pt = self.arena.pointer_type(st_type, p.mutable);
+			} else if (p.type_node != null) {
+				pt = self.resolve_ast_type(p.type_node!);
+			}
+			param_types += pt;
+		}
+
+		val ret_type = if (f.return_type != null) self.resolve_ast_type(f.return_type!)
+		else self.infer_decl_return_type(f) ?: self.prims().t_none();
+
+		// A function-instance method view owns its own FnType (built at view
+		// creation), so two instances never mutate a shared signature object.
+		val rec_sig = self.symtab.get_node_instance(m_node)?.sig;
+		val fn_type = rec_sig ?: self.arena.fn_type(param_types, ret_type);
+
+		// Two methods with the same name and arity still need distinct names.
+		val m_c_name = method_c_name(
+			"${st_c_name}_${f.name}", param_types.len, f.name in overloaded, *used_names
+		);
+		used_names += m_c_name;
+
+		val is_static = f.params.empty() || f.params[0].name != "self";
+		val mi = self.arena.create_val(
+			MethodInfo(
+				f.name, m_c_name, fn_type, m_node,
+				self.current_module, f.operator, is_static, f.initializer
+			)
+		);
+		st_info.methods += mi;
+
+		// Uniquify the AST name so the backend emits the mangled method name.
+		f.name = m_c_name;
 	}
 
 	fn validate_constructor_signature(var self, f: *FnDecl, m_node: *AstNode, struct_name: str) {
@@ -253,8 +264,8 @@ impl DeclarationCollector {
 				Literal.FLOAT -> {
 					val raw = lit.raw_text;
 					if (
-						raw.ends_with("f") ||
-						raw.ends_with("F")
+						raw.ends_with("f")
+						|| raw.ends_with("F")
 					) yield self.prims().t_prim(Type.f32());
 					yield self.prims().t_prim(Type.f64());
 				}
@@ -267,9 +278,14 @@ impl DeclarationCollector {
 
 		if (expr is InterpExpr) return self.prims().t_str();
 
-		if (expr is CallExpr as call && call.callee is IdentifierExpr as cid) {
-			if (cid.name == "str") return self.prims().t_str();
-			if (cid.name == "char") return self.prims().t_char();
+		if (
+			expr is CallExpr as call
+			&& call.callee is IdentifierExpr as cid
+		) {
+			when (cid.name) {
+				"str" -> return self.prims().t_str();
+				"char" -> return self.prims().t_char();
+			}
 		}
 
 		if (expr is MemberExpr as mem && mem.object is IdentifierExpr as id) {
@@ -278,11 +294,10 @@ impl DeclarationCollector {
 		}
 
 		if (expr is UnaryExpr as un) {
-			if (
-				un.op == TokenType.MINUS ||
-				un.op == TokenType.PLUS
-			) return self.infer_const_type(un.operand);
-			if (un.op == TokenType.BANG) return self.prims().t_bool();
+			when (un.op) {
+				TokenType.MINUS, TokenType.PLUS -> return self.infer_const_type(un.operand);
+				TokenType.BANG -> return self.prims().t_bool();
+			}
 		}
 
 		if (expr is GroupExpr as g) return self.infer_const_type(g.expr);
@@ -292,6 +307,7 @@ impl DeclarationCollector {
 
 	fn infer_expr_type_quick(var self, f: *FnDecl, expr: *AstNode): *Type? {
 		if (expr == null) return null;
+
 		val const_ty = self.infer_const_type(expr);
 		if (const_ty != null) return const_ty;
 
@@ -303,11 +319,12 @@ impl DeclarationCollector {
 					}
 				}
 			}
+
 			if (
-				u.target is MemberExpr as mem &&
-				mem.object is IdentifierExpr as obj_id &&
-				obj_id.name == "self" &&
-				self.current_self_type?.kind == DataType.STRUCT
+				u.target is MemberExpr as mem
+				&& mem.object is IdentifierExpr as obj_id
+				&& obj_id.name == "self"
+				&& self.current_self_type?.kind == DataType.STRUCT
 			) {
 				val s_info = self.current_self_type!.as_struct()!;
 				for (fld in s_info.fields) {
@@ -316,6 +333,7 @@ impl DeclarationCollector {
 					}
 				}
 			}
+
 			return null;
 		}
 
@@ -355,7 +373,11 @@ impl DeclarationCollector {
 			var rets = List<*AstNode>();
 			if (f.body != null) self.collect_return_exprs(f.body!, &rets);
 			if (rets.empty()) {
-				f.return_type = self.arena.node(NodeData.NamedType("none", List<*AstNode>()), f.body.line, f.body.col);
+				f.return_type = self.arena.node(
+					NodeData.NamedType("none", List<*AstNode>()),
+					f.body.line, f.body.col
+				);
+
 				return self.prims().t_none();
 			}
 
@@ -397,49 +419,61 @@ impl DeclarationCollector {
 
 		for (m_node in im.methods) {
 			if (m_node is FnDecl as f) {
-				if (f.type_params.len > 0) continue;
-				var param_types = List<*Type>();
-
-				for (i in 0..<f.params.len) {
-					val p = f.params[i];
-					var pt: *Type = self.prims().t_none();
-					if (p.name == "self" && p.type_node == null) {
-						pt = prim;
-						val rt = self.arena.node(NodeData.NamedType(prim_name, List<*AstNode>()), node.line, node.col);
-						f.params[i] = Param(p.name, rt, p.mutable, p.has_val, p.default_val);
-					} else if (p.type_node != null) {
-						pt = self.resolve_ast_type(p.type_node!);
-					} else {
-						pt = self.prims().t_none();
-					}
-					param_types += pt;
-				}
-
-				val ret_type = if (f.return_type != null) self.resolve_ast_type(f.return_type!)
-				else self.infer_decl_return_type(f) ?: self.prims().t_none();
-
-				val fn_type = self.arena.fn_type(param_types, ret_type);
-
-				val m_c_name = method_c_name(
-					"${prim_name}_${f.name}", param_types.len,
-					f.name in overloaded, used_names
+				self.collect_single_prim_method(
+					node, m_node, f, prim, prim_name, overloaded, &used_names
 				);
-				used_names += m_c_name;
-
-				if (self.symtab.find_prim_method_arity(prim.kind, f.name, f.params.len) != null) {
-					self.report_error(m_node,
-						"Duplicate method '${f.name}' "
-						"with ${f.params.len} parameter(s) "
-						"for built-in type '${prim_name}'"
-					);
-				}
-
-				val mi = self.arena.create_val(MethodInfo(f.name, m_c_name, fn_type, m_node, self.current_module, f.operator, false, false));
-				self.symtab.register_prim_method(prim, mi);
-
-				f.name = m_c_name;
 			}
 		}
+	}
+
+	fn collect_single_prim_method(
+		var self, node: *AstNode, m_node: *AstNode, f: *FnDecl,
+		prim: *Type, prim_name: str, overloaded: List<str>, var used_names: &List<str>
+	) {
+		if (f.type_params.len > 0) return;
+		var param_types = List<*Type>();
+
+		for (i in 0..<f.params.len) {
+			val p = f.params[i];
+			var pt: *Type = self.prims().t_none();
+			if (p.name == "self" && p.type_node == null) {
+				pt = prim;
+				val rt = self.arena.node(NodeData.NamedType(prim_name, List<*AstNode>()), node.line, node.col);
+				f.params[i] = Param(p.name, rt, p.mutable, p.has_val, p.default_val);
+			} else if (p.type_node != null) {
+				pt = self.resolve_ast_type(p.type_node!);
+			}
+			param_types += pt;
+		}
+
+		val ret_type = if (f.return_type != null) self.resolve_ast_type(f.return_type!)
+		else self.infer_decl_return_type(f) ?: self.prims().t_none();
+
+		val fn_type = self.arena.fn_type(param_types, ret_type);
+
+		val m_c_name = method_c_name(
+			"${prim_name}_${f.name}", param_types.len,
+			f.name in overloaded, *used_names
+		);
+		used_names += m_c_name;
+
+		if (self.symtab.find_prim_method_arity(prim.kind, f.name, f.params.len) != null) {
+			self.report_error(m_node,
+				"Duplicate method '${f.name}' "
+				"with ${f.params.len} parameter(s) "
+				"for built-in type '${prim_name}'"
+			);
+		}
+
+		val mi = self.arena.create_val(
+			MethodInfo(
+				f.name, m_c_name, fn_type, m_node,
+				self.current_module, f.operator, false, false
+			)
+		);
+		self.symtab.register_prim_method(prim, mi);
+
+		f.name = m_c_name;
 	}
 
 	pub fn trait_record_impl(var self, t: *TraitInfo?, struct_name: str) {
@@ -474,6 +508,7 @@ impl DeclarationCollector {
 		for (b in im.assoc_bindings) {
 			var declared = false;
 			for (a in assoc_decls) if (a == b.name) declared = true;
+
 			if (!declared) {
 				self.report_error(node,
 					"Trait '${trait_info.name}' has no associated type '${b.name}'"
@@ -520,7 +555,11 @@ impl DeclarationCollector {
 		for (tm in effective) {
 			var have = false;
 			for (m in im.methods) {
-				if (m is FnDecl as f && f.name == tm.name && f.params.len == tm.arity) have = true;
+				if (
+					m is FnDecl as f
+					&& f.name == tm.name
+					&& f.params.len == tm.arity
+				) have = true;
 			}
 			if (have) continue;
 
