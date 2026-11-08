@@ -131,8 +131,8 @@ compiler.semantic.declaration   compiler.semantic.checker
   - `interpolation.kb` *(from `sema/body/interp.kb`)*: String interpolation part checking and `Stringer` protocol verification.
 
 #### Subsystem 6: `compiler.semantic.lowering` (`src/compiler/semantic/lowering/`)
-*Responsibility*: Stage 3b post-check AST desugaring and lowering into C99-ready AST nodes (`lower_program`). No longer attaches methods to `std.memory.Arena` or `BodyPass`.
-- **Dependencies**: `std.*`, `compiler.core`, `compiler.lexer`, `compiler.ast`, `compiler.semantic.types`, `compiler.semantic.symbols`, `compiler.semantic.resolution`, `compiler.semantic.checker`
+*Responsibility*: Stage 3b post-check AST desugaring and lowering into C99-ready AST nodes (`lower_program`). It must never import `compiler.semantic.checker`: `checker` calls `desugar_for` while checking a `for` body, so a checker dependency here would recreate the only cycle the module graph ever had.
+- **Dependencies**: `std.*`, `compiler.core`, `compiler.lexer`, `compiler.ast`, `compiler.semantic.types`, `compiler.semantic.symbols`, `compiler.semantic.resolution`, `compiler.semantic.declaration`
 - **Files**:
   - `loop.kb` *(from `sema/desugar/loop.kb`)*: `lower_for_range` and `lower_for_iterable` (`for` loop desugaring into `while` blocks).
   - `string.kb` *(from `sema/desugar/interp.kb`)*: String interpolation and string concatenation/comparison AST builders.
@@ -195,3 +195,21 @@ Any agent working on this codebase MUST keep these language/compiler mechanics i
      .\build\kobel.exe src/main.kb -emit-c dist/bootstrap.c
      cmd /c scripts\build_seed.bat
      ```
+
+---
+
+## 6. Known Remaining Debt
+
+Tracked here instead of as `TODO` markers in `src/`:
+
+1. **`for` lowering still lives on `impl Arena`.** `src/compiler/semantic/lowering/loop.kb` no
+   longer imports `BodyChecker` (the checker applies the returned `PendingResolve` records),
+   but the helpers are still methods on the stdlib `Arena`. Moving them into a `LoopLowerer`
+   struct is a mechanical follow-up that must keep C output byte-identical.
+2. **Diagnostics are still strings.** Collector/checker accumulate `List<str>`, the driver
+   parses them back with `Diagnostic.parse_legacy`, and the LSP parses the same format again
+   by hand. Converting passes to `DiagnosticBag` removes both parsers.
+3. **Formatter fidelity.** No line wrapping at `max_width` (100), and `"""` multiline strings
+   are emitted as escaped single-line literals. Both are valid output but destroy layout.
+4. **Golden files store a digest, not the C text.** `tests/golden/*.txt` is one hash, so the
+   "review the C diff" step of the snapshot workflow cannot be done from git alone.

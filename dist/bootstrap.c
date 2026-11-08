@@ -301,8 +301,6 @@ typedef struct std__system__System std__system__System;
 typedef int32_t compiler__core__Severity;
 typedef struct compiler__core__Diagnostic compiler__core__Diagnostic;
 typedef struct compiler__core__DiagnosticBag compiler__core__DiagnosticBag;
-typedef struct compiler__core__SymbolId compiler__core__SymbolId;
-typedef struct compiler__core__InternPool compiler__core__InternPool;
 typedef struct compiler__core__Span compiler__core__Span;
 typedef struct compiler__core__SourceFile compiler__core__SourceFile;
 typedef struct compiler__core__SourceMap compiler__core__SourceMap;
@@ -503,9 +501,9 @@ typedef struct std__collections__List_ptr_compiler__semantic__types__Type std__c
 typedef struct std__collections__HashMap_str_str std__collections__HashMap_str_str;
 typedef struct std__collections__List_compiler__core__Diagnostic std__collections__List_compiler__core__Diagnostic;
 typedef struct std__collections__HashSet_str std__collections__HashSet_str;
+typedef struct std__collections__List_compiler__core__SourceFile std__collections__List_compiler__core__SourceFile;
 typedef struct std__collections__List_u32 std__collections__List_u32;
 typedef struct std__collections__HashMap_str_u32 std__collections__HashMap_str_u32;
-typedef struct std__collections__List_compiler__core__SourceFile std__collections__List_compiler__core__SourceFile;
 typedef struct std__collections__List_compiler__ast__EnumField std__collections__List_compiler__ast__EnumField;
 typedef struct std__collections__List_compiler__lexer__Token std__collections__List_compiler__lexer__Token;
 typedef struct std__collections__List_compiler__loader__LoadedModule std__collections__List_compiler__loader__LoadedModule;
@@ -587,10 +585,6 @@ struct config__ProjectConfig {
     kobel_str output;
     kobel_str cc;
     kobel_str test_dir;
-};
-
-struct compiler__core__SymbolId {
-    uint32_t id;
 };
 
 struct compiler__core__Span {
@@ -892,6 +886,12 @@ struct std__collections__HashSet_str {
     size_t cap;
 };
 
+struct std__collections__List_compiler__core__SourceFile {
+    compiler__core__SourceFile* data;
+    size_t len;
+    size_t cap;
+};
+
 struct std__collections__List_u32 {
     uint32_t* data;
     size_t len;
@@ -903,12 +903,6 @@ struct std__collections__HashMap_str_u32 {
     uint32_t* values;
     size_t* hashes;
     bool* occupied;
-    size_t len;
-    size_t cap;
-};
-
-struct std__collections__List_compiler__core__SourceFile {
-    compiler__core__SourceFile* data;
     size_t len;
     size_t cap;
 };
@@ -1218,11 +1212,6 @@ struct compiler__core__DiagnosticBag {
     std__collections__HashSet_str seen;
     size_t error_count;
     size_t warning_count;
-};
-
-struct compiler__core__InternPool {
-    std__collections__List_str strings;
-    std__collections__HashMap_str_u32 lookup;
 };
 
 struct compiler__core__SourceFile {
@@ -1787,7 +1776,6 @@ struct compiler__driver__CompileOptions {
 
 struct compiler__Compiler {
     compiler__driver__CompileOptions options;
-    std__memory__Arena arena;
 };
 
 struct fmt__FormatBuffer {
@@ -1964,22 +1952,22 @@ static inline std__collections__List_ptr_compiler__ast__AstNode std__collections
 	l.len = n;
 	l.cap = cap;
 	return l;
-}static inline std__collections__List_u32 std__collections__List_u32_from_array(const void* src, size_t n) {
-	size_t elem_size = sizeof(*(((std__collections__List_u32*)0)->data));
-	size_t cap = (n < 4) ? 4 : n;
-	void* data = malloc(cap * elem_size);
-	if (n > 0 && src != NULL) memcpy(data, src, n * elem_size);
-	std__collections__List_u32 l;
-	l.data = data;
-	l.len = n;
-	l.cap = cap;
-	return l;
 }static inline std__collections__List_compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_from_array(const void* src, size_t n) {
 	size_t elem_size = sizeof(*(((std__collections__List_compiler__core__SourceFile*)0)->data));
 	size_t cap = (n < 4) ? 4 : n;
 	void* data = malloc(cap * elem_size);
 	if (n > 0 && src != NULL) memcpy(data, src, n * elem_size);
 	std__collections__List_compiler__core__SourceFile l;
+	l.data = data;
+	l.len = n;
+	l.cap = cap;
+	return l;
+}static inline std__collections__List_u32 std__collections__List_u32_from_array(const void* src, size_t n) {
+	size_t elem_size = sizeof(*(((std__collections__List_u32*)0)->data));
+	size_t cap = (n < 4) ? 4 : n;
+	void* data = malloc(cap * elem_size);
+	if (n > 0 && src != NULL) memcpy(data, src, n * elem_size);
+	std__collections__List_u32 l;
 	l.data = data;
 	l.len = n;
 	l.cap = cap;
@@ -2433,15 +2421,6 @@ void compiler__core__DiagnosticBag_report_error(compiler__core__DiagnosticBag* s
 void compiler__core__DiagnosticBag_report_warning(compiler__core__DiagnosticBag* self, compiler__core__Span span, kobel_str file_path, kobel_str message, kobel_str hint);
 void compiler__core__DiagnosticBag_print_all(compiler__core__DiagnosticBag* self, kobel_str default_file, compiler__core__SourceMap* sources);
 void compiler__core__DiagnosticBag_free(compiler__core__DiagnosticBag* self);
-bool compiler__core__SymbolId_is_valid(compiler__core__SymbolId* self);
-bool compiler__core__SymbolId_equals(compiler__core__SymbolId* self, compiler__core__SymbolId other);
-size_t compiler__core__SymbolId_hash(compiler__core__SymbolId* self);
-kobel_str compiler__core__SymbolId_to_str(compiler__core__SymbolId* self);
-compiler__core__InternPool compiler__core__InternPool_init(void);
-compiler__core__SymbolId compiler__core__InternPool_intern(compiler__core__InternPool* self, kobel_str text);
-kobel_str compiler__core__InternPool_resolve(compiler__core__InternPool* self, compiler__core__SymbolId sym);
-size_t compiler__core__InternPool_count(compiler__core__InternPool* self);
-void compiler__core__InternPool_free(compiler__core__InternPool* self);
 kobel_str str_module_to_rel(kobel_str self);
 kobel_str str_path_to_module(kobel_str self);
 bool str_has_kb_suffix(kobel_str self);
@@ -3137,11 +3116,9 @@ kobel_str compiler__codegen__c_type_from_ast(compiler__ast__AstNode* node);
 kobel_str compiler__codegen__c_type_from_type(compiler__semantic__types__Type* ty);
 bool compiler__driver__is_msvc_compiler(kobel_str cc);
 kobel_str compiler__driver__resolve_host_cc(kobel_str cc);
-void compiler__driver__ensure_dir(kobel_str path);
 kobel_str compiler__driver__c_compile_cmd(kobel_str c_path, kobel_str exe_path, kobel_str obj_path, kobel_str cc, bool quiet);
 int32_t compiler__driver__CompileOptions_compile(compiler__driver__CompileOptions* self);
 compiler__Compiler compiler__Compiler_init(compiler__driver__CompileOptions options);
-void compiler__Compiler_free(compiler__Compiler* self);
 int32_t compiler__Compiler_compile(compiler__Compiler* self);
 int32_t compiler__Compiler_build(kobel_str manifest_path);
 int32_t compiler__Compiler_run_project(kobel_str manifest_path, std__collections__List_str extra_args);
@@ -3608,6 +3585,34 @@ bool std__collections__HashSet_str_plus_assign(std__collections__HashSet_str* se
 bool std__collections__HashSet_str_contains(std__collections__HashSet_str* self, kobel_str key);
 size_t std__collections__HashSet_str_count(std__collections__HashSet_str* self);
 kobel_str std__collections__HashSet_str_at(std__collections__HashSet_str* self, size_t i);
+size_t std__collections__List_compiler__core__SourceFile_count(std__collections__List_compiler__core__SourceFile* self);
+compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_at(std__collections__List_compiler__core__SourceFile* self, size_t i);
+std__collections__List_compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_init(size_t cap);
+compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_first(std__collections__List_compiler__core__SourceFile* self);
+compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_last(std__collections__List_compiler__core__SourceFile* self);
+bool std__collections__List_compiler__core__SourceFile_empty(std__collections__List_compiler__core__SourceFile* self);
+void std__collections__List_compiler__core__SourceFile_add(std__collections__List_compiler__core__SourceFile* self, compiler__core__SourceFile value);
+compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_pop(std__collections__List_compiler__core__SourceFile* self);
+void std__collections__List_compiler__core__SourceFile_extend(std__collections__List_compiler__core__SourceFile* self, std__collections__List_compiler__core__SourceFile other);
+size_t std__collections__List_compiler__core__SourceFile_clear(std__collections__List_compiler__core__SourceFile* self);
+void std__collections__List_compiler__core__SourceFile_grow(std__collections__List_compiler__core__SourceFile* self);
+void std__collections__List_compiler__core__SourceFile_reserve(std__collections__List_compiler__core__SourceFile* self, size_t min_cap);
+compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_remove_at(std__collections__List_compiler__core__SourceFile* self, size_t index);
+void std__collections__List_compiler__core__SourceFile_insert(std__collections__List_compiler__core__SourceFile* self, size_t index, compiler__core__SourceFile value);
+std__collections__List_compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_clone(std__collections__List_compiler__core__SourceFile* self);
+compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_pop_or(std__collections__List_compiler__core__SourceFile* self, compiler__core__SourceFile value);
+void std__collections__List_compiler__core__SourceFile_swap(std__collections__List_compiler__core__SourceFile* self, size_t a, size_t b);
+void std__collections__List_compiler__core__SourceFile_reverse(std__collections__List_compiler__core__SourceFile* self);
+std__collections__List_compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_sub(std__collections__List_compiler__core__SourceFile* self, size_t start, size_t count);
+intptr_t std__collections__List_compiler__core__SourceFile_index_of(std__collections__List_compiler__core__SourceFile* self, compiler__core__SourceFile value);
+intptr_t std__collections__List_compiler__core__SourceFile_last_index_of(std__collections__List_compiler__core__SourceFile* self, compiler__core__SourceFile value);
+bool std__collections__List_compiler__core__SourceFile_remove(std__collections__List_compiler__core__SourceFile* self, compiler__core__SourceFile value);
+size_t std__collections__List_compiler__core__SourceFile_remove_all(std__collections__List_compiler__core__SourceFile* self, compiler__core__SourceFile value);
+void std__collections__List_compiler__core__SourceFile_free(std__collections__List_compiler__core__SourceFile* self);
+compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_get(std__collections__List_compiler__core__SourceFile* self, size_t index);
+bool std__collections__List_compiler__core__SourceFile_contains(std__collections__List_compiler__core__SourceFile* self, compiler__core__SourceFile value);
+compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_set(std__collections__List_compiler__core__SourceFile* self, size_t index, compiler__core__SourceFile value);
+void std__collections__List_compiler__core__SourceFile_plus_assign(std__collections__List_compiler__core__SourceFile* self, compiler__core__SourceFile value);
 size_t std__collections__List_u32_count(std__collections__List_u32* self);
 uint32_t std__collections__List_u32_at(std__collections__List_u32* self, size_t i);
 std__collections__List_u32 std__collections__List_u32_init(size_t cap);
@@ -3650,34 +3655,6 @@ void std__collections__HashMap_str_u32_free(std__collections__HashMap_str_u32* s
 void std__collections__HashMap_str_u32_set(std__collections__HashMap_str_u32* self, kobel_str key, uint32_t value);
 uint32_t* std__collections__HashMap_str_u32_get(std__collections__HashMap_str_u32* self, kobel_str key);
 bool std__collections__HashMap_str_u32_contains(std__collections__HashMap_str_u32* self, kobel_str key);
-size_t std__collections__List_compiler__core__SourceFile_count(std__collections__List_compiler__core__SourceFile* self);
-compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_at(std__collections__List_compiler__core__SourceFile* self, size_t i);
-std__collections__List_compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_init(size_t cap);
-compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_first(std__collections__List_compiler__core__SourceFile* self);
-compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_last(std__collections__List_compiler__core__SourceFile* self);
-bool std__collections__List_compiler__core__SourceFile_empty(std__collections__List_compiler__core__SourceFile* self);
-void std__collections__List_compiler__core__SourceFile_add(std__collections__List_compiler__core__SourceFile* self, compiler__core__SourceFile value);
-compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_pop(std__collections__List_compiler__core__SourceFile* self);
-void std__collections__List_compiler__core__SourceFile_extend(std__collections__List_compiler__core__SourceFile* self, std__collections__List_compiler__core__SourceFile other);
-size_t std__collections__List_compiler__core__SourceFile_clear(std__collections__List_compiler__core__SourceFile* self);
-void std__collections__List_compiler__core__SourceFile_grow(std__collections__List_compiler__core__SourceFile* self);
-void std__collections__List_compiler__core__SourceFile_reserve(std__collections__List_compiler__core__SourceFile* self, size_t min_cap);
-compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_remove_at(std__collections__List_compiler__core__SourceFile* self, size_t index);
-void std__collections__List_compiler__core__SourceFile_insert(std__collections__List_compiler__core__SourceFile* self, size_t index, compiler__core__SourceFile value);
-std__collections__List_compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_clone(std__collections__List_compiler__core__SourceFile* self);
-compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_pop_or(std__collections__List_compiler__core__SourceFile* self, compiler__core__SourceFile value);
-void std__collections__List_compiler__core__SourceFile_swap(std__collections__List_compiler__core__SourceFile* self, size_t a, size_t b);
-void std__collections__List_compiler__core__SourceFile_reverse(std__collections__List_compiler__core__SourceFile* self);
-std__collections__List_compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_sub(std__collections__List_compiler__core__SourceFile* self, size_t start, size_t count);
-intptr_t std__collections__List_compiler__core__SourceFile_index_of(std__collections__List_compiler__core__SourceFile* self, compiler__core__SourceFile value);
-intptr_t std__collections__List_compiler__core__SourceFile_last_index_of(std__collections__List_compiler__core__SourceFile* self, compiler__core__SourceFile value);
-bool std__collections__List_compiler__core__SourceFile_remove(std__collections__List_compiler__core__SourceFile* self, compiler__core__SourceFile value);
-size_t std__collections__List_compiler__core__SourceFile_remove_all(std__collections__List_compiler__core__SourceFile* self, compiler__core__SourceFile value);
-void std__collections__List_compiler__core__SourceFile_free(std__collections__List_compiler__core__SourceFile* self);
-compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_get(std__collections__List_compiler__core__SourceFile* self, size_t index);
-bool std__collections__List_compiler__core__SourceFile_contains(std__collections__List_compiler__core__SourceFile* self, compiler__core__SourceFile value);
-compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_set(std__collections__List_compiler__core__SourceFile* self, size_t index, compiler__core__SourceFile value);
-void std__collections__List_compiler__core__SourceFile_plus_assign(std__collections__List_compiler__core__SourceFile* self, compiler__core__SourceFile value);
 size_t std__collections__List_compiler__ast__EnumField_count(std__collections__List_compiler__ast__EnumField* self);
 compiler__ast__EnumField std__collections__List_compiler__ast__EnumField_at(std__collections__List_compiler__ast__EnumField* self, size_t i);
 std__collections__List_compiler__ast__EnumField std__collections__List_compiler__ast__EnumField_init(size_t cap);
@@ -4645,8 +4622,8 @@ void std__memory__Heap_free_compiler__ast__AssocBinding(compiler__ast__AssocBind
 void std__memory__Heap_free_compiler__ast__EnumMember(compiler__ast__EnumMember* ptr);
 void std__memory__Heap_free_ptr_compiler__semantic__types__Type(compiler__semantic__types__Type** ptr);
 void std__memory__Heap_free_compiler__core__Diagnostic(compiler__core__Diagnostic* ptr);
-void std__memory__Heap_free_u32(uint32_t* ptr);
 void std__memory__Heap_free_compiler__core__SourceFile(compiler__core__SourceFile* ptr);
+void std__memory__Heap_free_u32(uint32_t* ptr);
 void std__memory__Heap_free_compiler__ast__EnumField(compiler__ast__EnumField* ptr);
 void std__memory__Heap_free_compiler__lexer__Token(compiler__lexer__Token* ptr);
 void std__memory__Heap_free_compiler__loader__LoadedModule(compiler__loader__LoadedModule* ptr);
@@ -4719,10 +4696,10 @@ size_t* std__memory__Heap_create_array_usz(size_t count);
 bool* std__memory__Heap_create_array_bool(size_t count);
 compiler__core__Diagnostic* std__memory__Heap_create_array_compiler__core__Diagnostic(size_t count);
 compiler__core__Diagnostic* std__memory__Heap_resize_compiler__core__Diagnostic(compiler__core__Diagnostic* ptr, size_t count);
-uint32_t* std__memory__Heap_create_array_u32(size_t count);
-uint32_t* std__memory__Heap_resize_u32(uint32_t* ptr, size_t count);
 compiler__core__SourceFile* std__memory__Heap_create_array_compiler__core__SourceFile(size_t count);
 compiler__core__SourceFile* std__memory__Heap_resize_compiler__core__SourceFile(compiler__core__SourceFile* ptr, size_t count);
+uint32_t* std__memory__Heap_create_array_u32(size_t count);
+uint32_t* std__memory__Heap_resize_u32(uint32_t* ptr, size_t count);
 compiler__ast__EnumField* std__memory__Heap_create_array_compiler__ast__EnumField(size_t count);
 compiler__ast__EnumField* std__memory__Heap_resize_compiler__ast__EnumField(compiler__ast__EnumField* ptr, size_t count);
 compiler__lexer__Token* std__memory__Heap_create_array_compiler__lexer__Token(size_t count);
@@ -7009,56 +6986,6 @@ std__io__println(kobel_concat(5, KOBEL_STR("\x1b[1;31merror\x1b[0m: could not co
 void compiler__core__DiagnosticBag_free(compiler__core__DiagnosticBag* self) {
 std__collections__List_compiler__core__Diagnostic_free(&self->items);
 std__collections__HashSet_str_free(&self->seen);
-}
-
-bool compiler__core__SymbolId_is_valid(compiler__core__SymbolId* self) {
-    return (self->id != 0);
-}
-
-bool compiler__core__SymbolId_equals(compiler__core__SymbolId* self, compiler__core__SymbolId other) {
-    return (self->id == other.id);
-}
-
-size_t compiler__core__SymbolId_hash(compiler__core__SymbolId* self) {
-    return usz_hash(((size_t)self->id));
-}
-
-kobel_str compiler__core__SymbolId_to_str(compiler__core__SymbolId* self) {
-    return u32_to_str(self->id);
-}
-
-compiler__core__InternPool compiler__core__InternPool_init(void) {
-    return (compiler__core__InternPool){ std__collections__List_str_init(4), std__collections__HashMap_str_u32_init(16) };
-}
-
-compiler__core__SymbolId compiler__core__InternPool_intern(compiler__core__InternPool* self, kobel_str text) {
-if (str_empty(text)) {
-return (compiler__core__SymbolId){ 0 };
-}
-uint32_t* found = std__collections__HashMap_str_u32_get(&self->lookup, text);
-if (found != NULL) {
-return (compiler__core__SymbolId){ *found };
-}
-uint32_t next_id = (uint32_t)(self->strings.len + 1);
-std__collections__List_str_plus_assign(&self->strings, text);
-std__collections__HashMap_str_u32_set(&self->lookup, text, next_id);
-return (compiler__core__SymbolId){ next_id };
-}
-
-kobel_str compiler__core__InternPool_resolve(compiler__core__InternPool* self, compiler__core__SymbolId sym) {
-if ((sym.id == 0) || (sym.id > self->strings.len)) {
-return KOBEL_STR("");
-}
-return std__collections__List_str_get(&self->strings, (sym.id - 1));
-}
-
-size_t compiler__core__InternPool_count(compiler__core__InternPool* self) {
-    return self->strings.len;
-}
-
-void compiler__core__InternPool_free(compiler__core__InternPool* self) {
-std__collections__List_str_free(&self->strings);
-std__collections__HashMap_str_u32_free(&self->lookup);
 }
 
 kobel_str str_module_to_rel(kobel_str self) {
@@ -25296,17 +25223,6 @@ return KOBEL_STR("cc");
 return cc;
 }
 
-void compiler__driver__ensure_dir(kobel_str path) {
-if (str_empty(path)) {
-return;
-}
-std__filesystem__Path p = std__filesystem__Path_init(path);
-if (std__filesystem__Path_exists(&p)) {
-return;
-}
-std__filesystem__Path_create_dir_all(&p);
-}
-
 kobel_str compiler__driver__c_compile_cmd(kobel_str c_path, kobel_str exe_path, kobel_str obj_path, kobel_str cc, bool quiet) {
 kobel_str host_cc = compiler__driver__resolve_host_cc(cc);
 bool has_spaces = ((str_contains(host_cc, KOBEL_STR(" "))) && !str_starts_with(host_cc, KOBEL_STR("\"")));
@@ -25473,11 +25389,7 @@ return 0;
 }
 
 compiler__Compiler compiler__Compiler_init(compiler__driver__CompileOptions options) {
-    return (compiler__Compiler){ options, std__memory__Arena_init(1048576) };
-}
-
-void compiler__Compiler_free(compiler__Compiler* self) {
-    std__memory__Arena_free(&self->arena);
+    return (compiler__Compiler){ options };
 }
 
 int32_t compiler__Compiler_compile(compiler__Compiler* self) {
@@ -33154,6 +33066,341 @@ __for_i = (__for_i - 1);
 return self->keys[0];
 }
 
+size_t std__collections__List_compiler__core__SourceFile_count(std__collections__List_compiler__core__SourceFile* self) {
+    return self->len;
+}
+
+compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_at(std__collections__List_compiler__core__SourceFile* self, size_t i) {
+    return self->data[i];
+}
+
+std__collections__List_compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_init(size_t cap) {
+    return (std__collections__List_compiler__core__SourceFile){ std__memory__Heap_create_array_compiler__core__SourceFile(cap), 0, cap };
+}
+
+compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_first(std__collections__List_compiler__core__SourceFile* self) {
+    return self->data[0];
+}
+
+compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_last(std__collections__List_compiler__core__SourceFile* self) {
+    return self->data[(self->len - 1)];
+}
+
+bool std__collections__List_compiler__core__SourceFile_empty(std__collections__List_compiler__core__SourceFile* self) {
+    return (self->len == 0);
+}
+
+void std__collections__List_compiler__core__SourceFile_add(std__collections__List_compiler__core__SourceFile* self, compiler__core__SourceFile value) {
+if (self->len == self->cap) {
+std__collections__List_compiler__core__SourceFile_grow(self);
+}
+self->data[self->len] = value;
+self->len++;
+}
+
+compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_pop(std__collections__List_compiler__core__SourceFile* self) {
+self->len--;
+return self->data[self->len];
+}
+
+void std__collections__List_compiler__core__SourceFile_extend(std__collections__List_compiler__core__SourceFile* self, std__collections__List_compiler__core__SourceFile other) {
+{
+size_t __for_n = std__collections__List_compiler__core__SourceFile_count(&other);
+size_t __for_i = 0;
+while (__for_i < __for_n) {
+compiler__core__SourceFile data = std__collections__List_compiler__core__SourceFile_at(&other, __for_i);
+std__collections__List_compiler__core__SourceFile_plus_assign(self, data);
+__for_i = (__for_i + 1);
+}
+}
+}
+
+size_t std__collections__List_compiler__core__SourceFile_clear(std__collections__List_compiler__core__SourceFile* self) {
+    return self->len = 0;
+}
+
+void std__collections__List_compiler__core__SourceFile_grow(std__collections__List_compiler__core__SourceFile* self) {
+size_t new_cap = (self->cap * 2);
+self->data = std__memory__Heap_resize_compiler__core__SourceFile(self->data, new_cap);
+self->cap = new_cap;
+}
+
+void std__collections__List_compiler__core__SourceFile_reserve(std__collections__List_compiler__core__SourceFile* self, size_t min_cap) {
+if (min_cap > self->cap) {
+size_t new_cap = self->cap;
+while (new_cap < min_cap) {
+new_cap *= 2;
+}
+self->data = std__memory__Heap_resize_compiler__core__SourceFile(self->data, new_cap);
+self->cap = new_cap;
+}
+}
+
+compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_remove_at(std__collections__List_compiler__core__SourceFile* self, size_t index) {
+compiler__core__SourceFile item = self->data[index];
+{
+size_t __for_e = (self->len - 1);
+size_t __for_i = __for_e;
+__for_i = index;
+bool __for_up = (__for_i <= __for_e);
+bool __for_go = false;
+if (__for_up) {
+__for_go = (__for_i < __for_e);
+} else {
+__for_go = (__for_i > __for_e);
+}
+while (__for_go) {
+size_t i = __for_i;
+self->data[i] = self->data[(i + 1)];
+if (__for_up) {
+__for_go = ((__for_i + 1) < __for_e);
+} else {
+__for_go = ((__for_i - 1) > __for_e);
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = (__for_i + 1);
+} else {
+__for_i = (__for_i - 1);
+}
+}
+}
+}
+self->len--;
+return item;
+}
+
+void std__collections__List_compiler__core__SourceFile_insert(std__collections__List_compiler__core__SourceFile* self, size_t index, compiler__core__SourceFile value) {
+if (self->len == self->cap) {
+std__collections__List_compiler__core__SourceFile_grow(self);
+}
+size_t i = self->len;
+while (i > index) {
+self->data[i] = self->data[(i - 1)];
+i--;
+}
+self->data[index] = value;
+self->len++;
+}
+
+std__collections__List_compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_clone(std__collections__List_compiler__core__SourceFile* self) {
+size_t cap = ((self->cap > 0) ? self->cap : 4);
+std__collections__List_compiler__core__SourceFile res = (std__collections__List_compiler__core__SourceFile){ std__memory__Heap_create_array_compiler__core__SourceFile(cap), 0, cap };
+{
+size_t __for_e = self->len;
+size_t __for_i = __for_e;
+__for_i = 0;
+bool __for_up = (__for_i <= __for_e);
+bool __for_go = false;
+if (__for_up) {
+__for_go = (__for_i < __for_e);
+} else {
+__for_go = (__for_i > __for_e);
+}
+while (__for_go) {
+size_t i = __for_i;
+std__collections__List_compiler__core__SourceFile_plus_assign(&res, self->data[i]);
+if (__for_up) {
+__for_go = ((__for_i + 1) < __for_e);
+} else {
+__for_go = ((__for_i - 1) > __for_e);
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = (__for_i + 1);
+} else {
+__for_i = (__for_i - 1);
+}
+}
+}
+}
+return res;
+}
+
+compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_pop_or(std__collections__List_compiler__core__SourceFile* self, compiler__core__SourceFile value) {
+    return ((self->len == 0) ? value : std__collections__List_compiler__core__SourceFile_pop(self));
+}
+
+void std__collections__List_compiler__core__SourceFile_swap(std__collections__List_compiler__core__SourceFile* self, size_t a, size_t b) {
+compiler__core__SourceFile tmp = self->data[a];
+self->data[a] = self->data[b];
+self->data[b] = tmp;
+}
+
+void std__collections__List_compiler__core__SourceFile_reverse(std__collections__List_compiler__core__SourceFile* self) {
+if (self->len <= 1) {
+return;
+}
+int32_t left = 0;
+size_t right = (self->len - 1);
+while (left < right) {
+compiler__core__SourceFile tmp = self->data[left];
+self->data[left] = self->data[right];
+self->data[right] = tmp;
+left++;
+right--;
+}
+}
+
+std__collections__List_compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_sub(std__collections__List_compiler__core__SourceFile* self, size_t start, size_t count) {
+std__collections__List_compiler__core__SourceFile res = (std__collections__List_compiler__core__SourceFile){ std__memory__Heap_create_array_compiler__core__SourceFile(count), 0, count };
+if (start >= self->len) {
+return res;
+}
+size_t end = (((start + count) > self->len) ? self->len : (start + count));
+{
+size_t __for_e = end;
+size_t __for_i = __for_e;
+__for_i = start;
+bool __for_up = (__for_i <= __for_e);
+bool __for_go = false;
+if (__for_up) {
+__for_go = (__for_i < __for_e);
+} else {
+__for_go = (__for_i > __for_e);
+}
+while (__for_go) {
+size_t i = __for_i;
+std__collections__List_compiler__core__SourceFile_plus_assign(&res, self->data[i]);
+if (__for_up) {
+__for_go = ((__for_i + 1) < __for_e);
+} else {
+__for_go = ((__for_i - 1) > __for_e);
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = (__for_i + 1);
+} else {
+__for_i = (__for_i - 1);
+}
+}
+}
+}
+return res;
+}
+
+intptr_t std__collections__List_compiler__core__SourceFile_index_of(std__collections__List_compiler__core__SourceFile* self, compiler__core__SourceFile value) {
+{
+size_t __for_e = self->len;
+size_t __for_i = __for_e;
+__for_i = 0;
+bool __for_up = (__for_i <= __for_e);
+bool __for_go = false;
+if (__for_up) {
+__for_go = (__for_i < __for_e);
+} else {
+__for_go = (__for_i > __for_e);
+}
+while (__for_go) {
+size_t i = __for_i;
+if (kobel_memeq(&self->data[i], &value, 80)) {
+return i;
+}
+if (__for_up) {
+__for_go = ((__for_i + 1) < __for_e);
+} else {
+__for_go = ((__for_i - 1) > __for_e);
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = (__for_i + 1);
+} else {
+__for_i = (__for_i - 1);
+}
+}
+}
+}
+return -1;
+}
+
+intptr_t std__collections__List_compiler__core__SourceFile_last_index_of(std__collections__List_compiler__core__SourceFile* self, compiler__core__SourceFile value) {
+if (self->len == 0) {
+return -1;
+}
+size_t i = (self->len - 1);
+while (true) {
+if (kobel_memeq(&self->data[i], &value, 80)) {
+return i;
+}
+if (i == 0) {
+break;
+}
+i--;
+}
+return -1;
+}
+
+bool std__collections__List_compiler__core__SourceFile_remove(std__collections__List_compiler__core__SourceFile* self, compiler__core__SourceFile value) {
+intptr_t idx = std__collections__List_compiler__core__SourceFile_index_of(self, value);
+if (idx < 0) {
+return false;
+}
+std__collections__List_compiler__core__SourceFile_remove_at(self, (size_t)idx);
+return true;
+}
+
+size_t std__collections__List_compiler__core__SourceFile_remove_all(std__collections__List_compiler__core__SourceFile* self, compiler__core__SourceFile value) {
+int32_t write = 0;
+int32_t removed = 0;
+{
+size_t __for_e = self->len;
+size_t __for_i = __for_e;
+__for_i = 0;
+bool __for_up = (__for_i <= __for_e);
+bool __for_go = false;
+if (__for_up) {
+__for_go = (__for_i < __for_e);
+} else {
+__for_go = (__for_i > __for_e);
+}
+while (__for_go) {
+size_t i = __for_i;
+if (kobel_memeq(&self->data[i], &value, 80)) {
+removed++;
+} else {
+if (write != i) {
+self->data[write] = self->data[i];
+}
+write++;
+}
+if (__for_up) {
+__for_go = ((__for_i + 1) < __for_e);
+} else {
+__for_go = ((__for_i - 1) > __for_e);
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = (__for_i + 1);
+} else {
+__for_i = (__for_i - 1);
+}
+}
+}
+}
+self->len = write;
+return removed;
+}
+
+void std__collections__List_compiler__core__SourceFile_free(std__collections__List_compiler__core__SourceFile* self) {
+    std__memory__Heap_free_compiler__core__SourceFile(self->data);
+}
+
+compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_get(std__collections__List_compiler__core__SourceFile* self, size_t index) {
+    return self->data[index];
+}
+
+bool std__collections__List_compiler__core__SourceFile_contains(std__collections__List_compiler__core__SourceFile* self, compiler__core__SourceFile value) {
+    return (std__collections__List_compiler__core__SourceFile_index_of(self, value) != -1);
+}
+
+compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_set(std__collections__List_compiler__core__SourceFile* self, size_t index, compiler__core__SourceFile value) {
+    return self->data[index] = value;
+}
+
+void std__collections__List_compiler__core__SourceFile_plus_assign(std__collections__List_compiler__core__SourceFile* self, compiler__core__SourceFile value) {
+    std__collections__List_compiler__core__SourceFile_add(self, value);
+}
+
 size_t std__collections__List_u32_count(std__collections__List_u32* self) {
     return self->len;
 }
@@ -33846,341 +34093,6 @@ return true;
 idx = ((idx + 1) % self->cap);
 }
 return false;
-}
-
-size_t std__collections__List_compiler__core__SourceFile_count(std__collections__List_compiler__core__SourceFile* self) {
-    return self->len;
-}
-
-compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_at(std__collections__List_compiler__core__SourceFile* self, size_t i) {
-    return self->data[i];
-}
-
-std__collections__List_compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_init(size_t cap) {
-    return (std__collections__List_compiler__core__SourceFile){ std__memory__Heap_create_array_compiler__core__SourceFile(cap), 0, cap };
-}
-
-compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_first(std__collections__List_compiler__core__SourceFile* self) {
-    return self->data[0];
-}
-
-compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_last(std__collections__List_compiler__core__SourceFile* self) {
-    return self->data[(self->len - 1)];
-}
-
-bool std__collections__List_compiler__core__SourceFile_empty(std__collections__List_compiler__core__SourceFile* self) {
-    return (self->len == 0);
-}
-
-void std__collections__List_compiler__core__SourceFile_add(std__collections__List_compiler__core__SourceFile* self, compiler__core__SourceFile value) {
-if (self->len == self->cap) {
-std__collections__List_compiler__core__SourceFile_grow(self);
-}
-self->data[self->len] = value;
-self->len++;
-}
-
-compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_pop(std__collections__List_compiler__core__SourceFile* self) {
-self->len--;
-return self->data[self->len];
-}
-
-void std__collections__List_compiler__core__SourceFile_extend(std__collections__List_compiler__core__SourceFile* self, std__collections__List_compiler__core__SourceFile other) {
-{
-size_t __for_n = std__collections__List_compiler__core__SourceFile_count(&other);
-size_t __for_i = 0;
-while (__for_i < __for_n) {
-compiler__core__SourceFile data = std__collections__List_compiler__core__SourceFile_at(&other, __for_i);
-std__collections__List_compiler__core__SourceFile_plus_assign(self, data);
-__for_i = (__for_i + 1);
-}
-}
-}
-
-size_t std__collections__List_compiler__core__SourceFile_clear(std__collections__List_compiler__core__SourceFile* self) {
-    return self->len = 0;
-}
-
-void std__collections__List_compiler__core__SourceFile_grow(std__collections__List_compiler__core__SourceFile* self) {
-size_t new_cap = (self->cap * 2);
-self->data = std__memory__Heap_resize_compiler__core__SourceFile(self->data, new_cap);
-self->cap = new_cap;
-}
-
-void std__collections__List_compiler__core__SourceFile_reserve(std__collections__List_compiler__core__SourceFile* self, size_t min_cap) {
-if (min_cap > self->cap) {
-size_t new_cap = self->cap;
-while (new_cap < min_cap) {
-new_cap *= 2;
-}
-self->data = std__memory__Heap_resize_compiler__core__SourceFile(self->data, new_cap);
-self->cap = new_cap;
-}
-}
-
-compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_remove_at(std__collections__List_compiler__core__SourceFile* self, size_t index) {
-compiler__core__SourceFile item = self->data[index];
-{
-size_t __for_e = (self->len - 1);
-size_t __for_i = __for_e;
-__for_i = index;
-bool __for_up = (__for_i <= __for_e);
-bool __for_go = false;
-if (__for_up) {
-__for_go = (__for_i < __for_e);
-} else {
-__for_go = (__for_i > __for_e);
-}
-while (__for_go) {
-size_t i = __for_i;
-self->data[i] = self->data[(i + 1)];
-if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
-} else {
-__for_go = ((__for_i - 1) > __for_e);
-}
-if (__for_go) {
-if (__for_up) {
-__for_i = (__for_i + 1);
-} else {
-__for_i = (__for_i - 1);
-}
-}
-}
-}
-self->len--;
-return item;
-}
-
-void std__collections__List_compiler__core__SourceFile_insert(std__collections__List_compiler__core__SourceFile* self, size_t index, compiler__core__SourceFile value) {
-if (self->len == self->cap) {
-std__collections__List_compiler__core__SourceFile_grow(self);
-}
-size_t i = self->len;
-while (i > index) {
-self->data[i] = self->data[(i - 1)];
-i--;
-}
-self->data[index] = value;
-self->len++;
-}
-
-std__collections__List_compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_clone(std__collections__List_compiler__core__SourceFile* self) {
-size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_compiler__core__SourceFile res = (std__collections__List_compiler__core__SourceFile){ std__memory__Heap_create_array_compiler__core__SourceFile(cap), 0, cap };
-{
-size_t __for_e = self->len;
-size_t __for_i = __for_e;
-__for_i = 0;
-bool __for_up = (__for_i <= __for_e);
-bool __for_go = false;
-if (__for_up) {
-__for_go = (__for_i < __for_e);
-} else {
-__for_go = (__for_i > __for_e);
-}
-while (__for_go) {
-size_t i = __for_i;
-std__collections__List_compiler__core__SourceFile_plus_assign(&res, self->data[i]);
-if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
-} else {
-__for_go = ((__for_i - 1) > __for_e);
-}
-if (__for_go) {
-if (__for_up) {
-__for_i = (__for_i + 1);
-} else {
-__for_i = (__for_i - 1);
-}
-}
-}
-}
-return res;
-}
-
-compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_pop_or(std__collections__List_compiler__core__SourceFile* self, compiler__core__SourceFile value) {
-    return ((self->len == 0) ? value : std__collections__List_compiler__core__SourceFile_pop(self));
-}
-
-void std__collections__List_compiler__core__SourceFile_swap(std__collections__List_compiler__core__SourceFile* self, size_t a, size_t b) {
-compiler__core__SourceFile tmp = self->data[a];
-self->data[a] = self->data[b];
-self->data[b] = tmp;
-}
-
-void std__collections__List_compiler__core__SourceFile_reverse(std__collections__List_compiler__core__SourceFile* self) {
-if (self->len <= 1) {
-return;
-}
-int32_t left = 0;
-size_t right = (self->len - 1);
-while (left < right) {
-compiler__core__SourceFile tmp = self->data[left];
-self->data[left] = self->data[right];
-self->data[right] = tmp;
-left++;
-right--;
-}
-}
-
-std__collections__List_compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_sub(std__collections__List_compiler__core__SourceFile* self, size_t start, size_t count) {
-std__collections__List_compiler__core__SourceFile res = (std__collections__List_compiler__core__SourceFile){ std__memory__Heap_create_array_compiler__core__SourceFile(count), 0, count };
-if (start >= self->len) {
-return res;
-}
-size_t end = (((start + count) > self->len) ? self->len : (start + count));
-{
-size_t __for_e = end;
-size_t __for_i = __for_e;
-__for_i = start;
-bool __for_up = (__for_i <= __for_e);
-bool __for_go = false;
-if (__for_up) {
-__for_go = (__for_i < __for_e);
-} else {
-__for_go = (__for_i > __for_e);
-}
-while (__for_go) {
-size_t i = __for_i;
-std__collections__List_compiler__core__SourceFile_plus_assign(&res, self->data[i]);
-if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
-} else {
-__for_go = ((__for_i - 1) > __for_e);
-}
-if (__for_go) {
-if (__for_up) {
-__for_i = (__for_i + 1);
-} else {
-__for_i = (__for_i - 1);
-}
-}
-}
-}
-return res;
-}
-
-intptr_t std__collections__List_compiler__core__SourceFile_index_of(std__collections__List_compiler__core__SourceFile* self, compiler__core__SourceFile value) {
-{
-size_t __for_e = self->len;
-size_t __for_i = __for_e;
-__for_i = 0;
-bool __for_up = (__for_i <= __for_e);
-bool __for_go = false;
-if (__for_up) {
-__for_go = (__for_i < __for_e);
-} else {
-__for_go = (__for_i > __for_e);
-}
-while (__for_go) {
-size_t i = __for_i;
-if (kobel_memeq(&self->data[i], &value, 80)) {
-return i;
-}
-if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
-} else {
-__for_go = ((__for_i - 1) > __for_e);
-}
-if (__for_go) {
-if (__for_up) {
-__for_i = (__for_i + 1);
-} else {
-__for_i = (__for_i - 1);
-}
-}
-}
-}
-return -1;
-}
-
-intptr_t std__collections__List_compiler__core__SourceFile_last_index_of(std__collections__List_compiler__core__SourceFile* self, compiler__core__SourceFile value) {
-if (self->len == 0) {
-return -1;
-}
-size_t i = (self->len - 1);
-while (true) {
-if (kobel_memeq(&self->data[i], &value, 80)) {
-return i;
-}
-if (i == 0) {
-break;
-}
-i--;
-}
-return -1;
-}
-
-bool std__collections__List_compiler__core__SourceFile_remove(std__collections__List_compiler__core__SourceFile* self, compiler__core__SourceFile value) {
-intptr_t idx = std__collections__List_compiler__core__SourceFile_index_of(self, value);
-if (idx < 0) {
-return false;
-}
-std__collections__List_compiler__core__SourceFile_remove_at(self, (size_t)idx);
-return true;
-}
-
-size_t std__collections__List_compiler__core__SourceFile_remove_all(std__collections__List_compiler__core__SourceFile* self, compiler__core__SourceFile value) {
-int32_t write = 0;
-int32_t removed = 0;
-{
-size_t __for_e = self->len;
-size_t __for_i = __for_e;
-__for_i = 0;
-bool __for_up = (__for_i <= __for_e);
-bool __for_go = false;
-if (__for_up) {
-__for_go = (__for_i < __for_e);
-} else {
-__for_go = (__for_i > __for_e);
-}
-while (__for_go) {
-size_t i = __for_i;
-if (kobel_memeq(&self->data[i], &value, 80)) {
-removed++;
-} else {
-if (write != i) {
-self->data[write] = self->data[i];
-}
-write++;
-}
-if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
-} else {
-__for_go = ((__for_i - 1) > __for_e);
-}
-if (__for_go) {
-if (__for_up) {
-__for_i = (__for_i + 1);
-} else {
-__for_i = (__for_i - 1);
-}
-}
-}
-}
-self->len = write;
-return removed;
-}
-
-void std__collections__List_compiler__core__SourceFile_free(std__collections__List_compiler__core__SourceFile* self) {
-    std__memory__Heap_free_compiler__core__SourceFile(self->data);
-}
-
-compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_get(std__collections__List_compiler__core__SourceFile* self, size_t index) {
-    return self->data[index];
-}
-
-bool std__collections__List_compiler__core__SourceFile_contains(std__collections__List_compiler__core__SourceFile* self, compiler__core__SourceFile value) {
-    return (std__collections__List_compiler__core__SourceFile_index_of(self, value) != -1);
-}
-
-compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_set(std__collections__List_compiler__core__SourceFile* self, size_t index, compiler__core__SourceFile value) {
-    return self->data[index] = value;
-}
-
-void std__collections__List_compiler__core__SourceFile_plus_assign(std__collections__List_compiler__core__SourceFile* self, compiler__core__SourceFile value) {
-    std__collections__List_compiler__core__SourceFile_add(self, value);
 }
 
 size_t std__collections__List_compiler__ast__EnumField_count(std__collections__List_compiler__ast__EnumField* self) {
@@ -48320,11 +48232,11 @@ void std__memory__Heap_free_compiler__core__Diagnostic(compiler__core__Diagnosti
     free((uint8_t*)ptr);
 }
 
-void std__memory__Heap_free_u32(uint32_t* ptr) {
+void std__memory__Heap_free_compiler__core__SourceFile(compiler__core__SourceFile* ptr) {
     free((uint8_t*)ptr);
 }
 
-void std__memory__Heap_free_compiler__core__SourceFile(compiler__core__SourceFile* ptr) {
+void std__memory__Heap_free_u32(uint32_t* ptr) {
     free((uint8_t*)ptr);
 }
 
@@ -48648,20 +48560,20 @@ compiler__core__Diagnostic* std__memory__Heap_resize_compiler__core__Diagnostic(
     return (compiler__core__Diagnostic*)realloc((uint8_t*)ptr, (count * 56));
 }
 
-uint32_t* std__memory__Heap_create_array_u32(size_t count) {
-    return (uint32_t*)malloc((count * 4));
-}
-
-uint32_t* std__memory__Heap_resize_u32(uint32_t* ptr, size_t count) {
-    return (uint32_t*)realloc((uint8_t*)ptr, (count * 4));
-}
-
 compiler__core__SourceFile* std__memory__Heap_create_array_compiler__core__SourceFile(size_t count) {
     return (compiler__core__SourceFile*)malloc((count * 80));
 }
 
 compiler__core__SourceFile* std__memory__Heap_resize_compiler__core__SourceFile(compiler__core__SourceFile* ptr, size_t count) {
     return (compiler__core__SourceFile*)realloc((uint8_t*)ptr, (count * 80));
+}
+
+uint32_t* std__memory__Heap_create_array_u32(size_t count) {
+    return (uint32_t*)malloc((count * 4));
+}
+
+uint32_t* std__memory__Heap_resize_u32(uint32_t* ptr, size_t count) {
+    return (uint32_t*)realloc((uint8_t*)ptr, (count * 4));
 }
 
 compiler__ast__EnumField* std__memory__Heap_create_array_compiler__ast__EnumField(size_t count) {

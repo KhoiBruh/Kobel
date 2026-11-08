@@ -106,9 +106,12 @@ Kobel/
 ├── src/
 │   ├── main.kb                       # Compiler entry point and CLI router
 │   ├── compiler/
+│   │   ├── compiler.kb               # Compiler facade: options + project commands
+│   │   ├── core/                     # Span, SourceMap, diagnostics, identifier naming
 │   │   ├── ast/                      # AST node definitions and Arena builders
 │   │   ├── lexer/                    # Token types and scanner
 │   │   ├── parser/                   # Recursive descent parser
+│   │   ├── loader/                   # Module loader (file-path modules, SourceMap)
 │   │   ├── semantic/                 # Semantic analysis passes & type system
 │   │   │   ├── types/                # Core types, primitives, and composite layouts
 │   │   │   ├── symbols/              # Symbol, SymbolTable, Generics, Annotations
@@ -120,8 +123,7 @@ Kobel/
 │   │   └── driver/                   # Pipeline driver, options, and commands
 │   ├── config/                       # TOML configuration parser
 │   ├── fmt/                          # Code formatter
-│   ├── lsp/                          # Language Server Protocol implementation
-│   └── util/                         # Common string and path utilities
+│   └── lsp/                          # Language Server Protocol implementation
 ├── lib/
 │   └── std/                          # Standard library (io, sys, collections, mem, etc.)
 ├── tests/
@@ -145,6 +147,6 @@ Kobel/
 1. **AST Immutability (I1):** AST nodes parsed during Stage 1 remain structurally immutable. Per-instance type information, method resolutions, and identifier mangling are recorded in semantic side tables (`InstanceRecord.ann_map`). High-level nodes are never mutated in place; transformed nodes are substituted via `resolved_node`.
 2. **Codegen Type-Blindness (I2):** The C99 code generator performs zero type inference. It strictly reads `node.type_ptr` and `node.resolved_*` annotations produced by semantic analysis. If an expression lacks a resolved type, semantic analysis has failed.
 3. **One-Way Module Dependencies:** The dependency graph is strictly acyclic:
-   `std.*` → `compiler.core` → `compiler.lexer` → `compiler.ast` → `compiler.parser` → `compiler.loader` → `compiler.semantic.types` → `compiler.semantic.symbols` → `compiler.semantic.resolution` → `compiler.semantic.declaration` / `compiler.semantic.checker` → `compiler.semantic.lowering` → `compiler.codegen` → `compiler.driver` → `main`.
-   Zero dependency cycles across subsystems.
+   `std.*` → `compiler.core` → `compiler.lexer` → `compiler.ast` → `compiler.parser` → `compiler.loader` → `compiler.semantic.types` → `compiler.semantic.symbols` → `compiler.semantic.resolution` → `compiler.semantic.declaration` → `compiler.semantic.lowering` → `compiler.semantic.checker` → `compiler.codegen` → `compiler.driver` → `main`.
+   Zero dependency cycles across subsystems. Check it by walking every `mod`/`use` pair before adding an import; `checker` depends on `lowering` (it calls `desugar_for` while checking a `for` body), so lowering must never import checker.
 4. **Byte-Identical Fixpoint:** Any valid refactoring of compiler passes must preserve byte-identical C output when the compiler compiles itself.

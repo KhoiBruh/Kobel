@@ -33,13 +33,6 @@ pub fn resolve_host_cc(cc: str): str {
 	return cc;
 }
 
-pub fn ensure_dir(path: str) {
-	if (path.empty()) return;
-	val p = Path(path);
-	if (p.exists()) return;
-	p.create_dir_all();
-}
-
 // Command line that turns `c_path` into `exe_path` with the given backend.
 // `obj_path` is only used by MSVC; `quiet` silences the backend's diagnostics.
 // Shared by `compile()` and the fixpoint gate so both invoke the same toolchain.

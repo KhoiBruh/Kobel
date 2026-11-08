@@ -48,44 +48,6 @@ fn test_source_map(): bool {
 	return true;
 }
 
-fn test_intern_pool(): bool {
-	var pool = InternPool();
-	defer pool.free();
-
-	val empty_sym = pool.intern("");
-	if (empty_sym.is_valid() || !pool.resolve(empty_sym).empty()) {
-		return false;
-	}
-
-	val s_fn = pool.intern("fn");
-	val s_val = pool.intern("val");
-	val s_fn_again = pool.intern("fn");
-
-	if (!s_fn.is_valid() || !s_val.is_valid()) {
-		return false;
-	}
-	if (s_fn != s_fn_again || s_fn == s_val) {
-		return false;
-	}
-	if (pool.count() != 2) {
-		return false;
-	}
-	if (pool.resolve(s_fn) != "fn" || pool.resolve(s_val) != "val") {
-		return false;
-	}
-
-	var sym_set = HashSet<SymbolId>();
-	defer sym_set.free();
-	sym_set += s_fn;
-	sym_set += s_val;
-	sym_set += s_fn_again;
-	if (sym_set.len != 2 || !(s_fn in sym_set) || !(s_val in sym_set)) {
-		return false;
-	}
-
-	return true;
-}
-
 fn test_diagnostics(): bool {
 	var sm = SourceMap();
 	defer sm.free();
@@ -176,12 +138,6 @@ fn main(): i32 {
 		return 1;
 	}
 	println("  [PASS] test_source_map");
-
-	if (!test_intern_pool()) {
-		println("  [FAIL] test_intern_pool");
-		return 1;
-	}
-	println("  [PASS] test_intern_pool");
 
 	if (!test_diagnostics()) {
 		println("  [FAIL] test_diagnostics");

@@ -43,10 +43,12 @@ build/kobel.exe src/main.kb -emit-c dist/bootstrap.c
 
 ```
 src/main.kb                  :: entry
+src/compiler/compiler.kb     :: Compiler facade (options + project commands)
+src/compiler/core/           :: Span, SourceMap, diagnostics, identifier naming
 src/compiler/loader|lexer|parser|ast|semantic|codegen|driver
 src/compiler/semantic/{types,symbols,resolution,declaration,checker,lowering}
 src/compiler/codegen/{generator,program,statement,expression,types,runtime}
-src/{config,fmt,lsp,util}    :: toml/project, formatter, LSP, strutil
+src/{config,fmt,lsp}         :: toml/project, formatter, LSP
 lib/std/                     :: stdlib (io, sys, ascii, str, fmt, collections/*, mem/*, traits/*)
 tests/{features,golden,stdlib,unit}
 docs/{architecture,sema,parameterised-ir}.md :: architecture + sema map
