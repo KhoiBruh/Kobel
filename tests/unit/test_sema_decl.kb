@@ -2,6 +2,7 @@ mod test.bootstrap_sema_decl;
 
 use std.io.print;
 use std.io.println;
+use std.process.Process;
 
 use compiler.lexer.Lexer;
 use compiler.parser.*;
@@ -17,6 +18,7 @@ fn assert_true(cond: bool, msg: str) {
 	if (!cond) {
 		print("ASSERTION FAILED: ");
 		println(msg);
+		Process.exit(1);
 	}
 }
 
@@ -29,6 +31,7 @@ fn assert_eq_str(actual: str, expected: str, msg: str) {
 		print("', got: '");
 		print(actual);
 		println("'");
+		Process.exit(1);
 	}
 }
 
@@ -37,6 +40,7 @@ fn assert_eq_usz(actual: usz, expected: usz, msg: str) {
 		print("ASSERTION FAILED: ");
 		print(msg);
 		println(" (usz mismatch)");
+		Process.exit(1);
 	}
 }
 

@@ -2,6 +2,7 @@ mod test.bootstrap_sema_symbol;
 
 use std.io.print;
 use std.io.println;
+use std.process.Process;
 
 use compiler.semantic.types.DataType;
 use compiler.semantic.types.Type;
@@ -13,6 +14,7 @@ fn assert_true(cond: bool, msg: str) {
 	if (!cond) {
 		print("ASSERTION FAILED: ");
 		println(msg);
+		Process.exit(1);
 	}
 }
 
@@ -25,6 +27,7 @@ fn assert_eq_str(actual: str, expected: str, msg: str) {
 		print("', got: '");
 		print(actual);
 		println("'");
+		Process.exit(1);
 	}
 }
 

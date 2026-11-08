@@ -2,6 +2,7 @@ mod test.bootstrap_codegen;
 
 use std.io.print;
 use std.io.println;
+use std.process.Process;
 use std.filesystem.Path;
 
 use compiler.lexer.Lexer;
@@ -16,6 +17,7 @@ fn assert_true(cond: bool, msg: str) {
 	if (!cond) {
 		print("ASSERTION FAILED: ");
 		println(msg);
+		Process.exit(1);
 	}
 }
 
@@ -24,6 +26,7 @@ fn assert_eq_usz(actual: usz, expected: usz, msg: str) {
 		print("ASSERTION FAILED: ");
 		print(msg);
 		println(" (usz mismatch)");
+		Process.exit(1);
 	}
 }
 

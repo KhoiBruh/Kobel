@@ -1,10 +1,13 @@
 use std.io.*;
+use std.process.Process;
+
 use fmt.*;
 
 fn assert_true(cond: bool, msg: str) {
 	if (!cond) {
 		print("ASSERTION FAILED: ");
 		println(msg);
+		Process.exit(1);
 	}
 }
 
@@ -16,6 +19,7 @@ fn assert_eq_str(actual: str, expected: str, msg: str) {
 		println(expected);
 		print("  Actual:\n");
 		println(actual);
+		Process.exit(1);
 	}
 }
 
