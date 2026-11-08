@@ -45,11 +45,11 @@ pub fn collect_kb_files(dir: str, prefix: str, var out: &List<str>) {
 	}
 
 	for (e in sorted) {
-		val full = dir.join_path(e);
+		val full_p = dir_p.join(e);
 		if (e.ends_with(".kb")) {
-			if (prefix.empty() || e.starts_with(prefix)) out += full.to_posix_path();
+			if (prefix.empty() || e.starts_with(prefix)) out += full_p.to_posix_path().raw;
 		} else if (!("." in e)) {
-			collect_kb_files(full, prefix, out);
+			collect_kb_files(full_p.raw, prefix, out);
 		}
 	}
 }
@@ -57,8 +57,9 @@ pub fn collect_kb_files(dir: str, prefix: str, var out: &List<str>) {
 pub fn compute_project_stamp(cfg: ProjectConfig, manifest_path: str): str {
 	val man_p = Path(manifest_path);
 	var stamp_seed = man_p.read_text();
-	val entry_dir = cfg.entry.dir_of();
-	val root_dir = if (!entry_dir.empty()) entry_dir else "src";
+	val entry_p = Path(cfg.entry);
+	val entry_dir = entry_p.parent();
+	val root_dir = if (!entry_dir.empty()) entry_dir.raw else "src";
 
 	var files = List<str>();
 	defer files.free();
@@ -94,10 +95,10 @@ pub fn cmd_build(manifest_path: str): i32 {
 
 	val exit_code = opts.compile();
 	if (exit_code == 0) {
-		ensure_dir("build");
-		val stamp_file = "build/.kobel_stamp";
+		val build_dir = Path("build");
+		if (!build_dir.exists()) build_dir.create_dir_all();
+		val stamp_p = build_dir.join(".kobel_stamp");
 		val stamp = compute_project_stamp(cfg, manifest_path);
-		val stamp_p = Path(stamp_file);
 		stamp_p.write_text(stamp);
 		println("[SUCCESS] Build complete: ${cfg.output}");
 	}
@@ -112,12 +113,12 @@ pub fn cmd_run(manifest_path: str, extra_args: List<str>): i32 {
 	}
 
 	val cfg = ProjectConfig(manifest_path);
-	ensure_dir("build");
-	val stamp_file = "build/.kobel_stamp";
+	val build_dir = Path("build");
+	if (!build_dir.exists()) build_dir.create_dir_all();
+	val stamp_p = build_dir.join(".kobel_stamp");
 	val current_stamp = compute_project_stamp(cfg, manifest_path);
 
 	val out_p = Path(cfg.output);
-	val stamp_p = Path(stamp_file);
 	var needs_build = when {
 		!out_p.exists() -> {
 			println("Target '${cfg.output}' not found. Building first...");
@@ -202,16 +203,18 @@ pub fn cmd_test(manifest_path: str, filter: str): i32 {
 	var fail_count = 0;
 	var failed_names = List<str>();
 
-	ensure_dir("build");
+	val build_dir = Path("build");
+	if (!build_dir.exists()) build_dir.create_dir_all();
 
 	for (tpath in active_tests) {
 		print("[*] ${tpath} ... ");
 
-		val test_name = tpath.strip_kb().base_name();
-		val test_bin = "build/${test_name}.test_bin.exe";
+		val test_p = Path(tpath);
+		val test_name = test_p.stem();
+		val test_bin_p = build_dir.join("${test_name}.test_bin.exe");
 		var opts = CompileOptions();
 		opts.input_path = tpath;
-		opts.output_bin = test_bin;
+		opts.output_bin = test_bin_p.raw;
 		opts.c_compiler = cfg.cc;
 		opts.quiet = true;
 
@@ -225,10 +228,10 @@ pub fn cmd_test(manifest_path: str, filter: str): i32 {
 
 		var run_cmd = "";
 		if (System.is_windows()) {
-			val win_bin = test_bin.to_win_path();
+			val win_bin = test_bin_p.to_win_path().raw;
 			run_cmd = if (" " in win_bin) "\"${win_bin}\" >nul 2>nul" else "${win_bin} >nul 2>nul";
 		} else {
-			var posix_bin = test_bin.to_posix_path();
+			var posix_bin = test_bin_p.to_posix_path().raw;
 			if (!posix_bin.starts_with(".") && !posix_bin.starts_with("/")) posix_bin = "./${posix_bin}";
 			val bin_str = if (" " in posix_bin) "\"${posix_bin}\"" else posix_bin;
 			run_cmd = "${bin_str} >/dev/null 2>&1";
@@ -236,8 +239,7 @@ pub fn cmd_test(manifest_path: str, filter: str): i32 {
 		val test_res = Process.exec(run_cmd);
 
 		// Clean up the temporary test binary
-		val t_bin = Path(test_bin);
-		t_bin.remove();
+		test_bin_p.remove();
 
 		if (test_res == 0) {
 			println("PASS");
@@ -302,10 +304,10 @@ pub fn snap_name(path: str): str {
 pub fn cmd_snap(manifest_path: str, update: bool): i32 {
 	val man_p = Path(manifest_path);
 	val cfg = if (man_p.exists()) ProjectConfig(manifest_path) else ProjectConfig();
-	val golden_dir = "tests/golden";
-	val tmp_dir = "build/snap";
-	ensure_dir(golden_dir);
-	ensure_dir(tmp_dir);
+	val golden_dir = Path("tests/golden");
+	val tmp_dir = Path("build/snap");
+	if (!golden_dir.exists()) golden_dir.create_dir_all();
+	if (!tmp_dir.exists()) tmp_dir.create_dir_all();
 
 	val corpus = snap_corpus(cfg.test_dir);
 	println("============================================================");
@@ -317,11 +319,11 @@ pub fn cmd_snap(manifest_path: str, update: bool): i32 {
 	for (src in corpus) {
 		print("[*] ${src} ... ");
 		val flat = snap_name(src);
-		val c_path = "${tmp_dir}/${flat}.c";
+		val c_p = tmp_dir.join("${flat}.c");
 
 		var opts = CompileOptions();
 		opts.input_path = src;
-		opts.emit_c_path = c_path;
+		opts.emit_c_path = c_p.raw;
 		opts.only_emit_c = true;
 		opts.quiet = true;
 		if (opts.compile() != 0) {
@@ -330,10 +332,8 @@ pub fn cmd_snap(manifest_path: str, update: bool): i32 {
 			continue;
 		}
 
-		val cp = Path(c_path);
-		val digest = cp.read_text().hash_stamp();
-		val golden_path = "${golden_dir}/${flat}.txt";
-		val golden_p = Path(golden_path);
+		val digest = c_p.read_text().hash_stamp();
+		val golden_p = golden_dir.join("${flat}.txt");
 		if (update) {
 			golden_p.write_text("${digest}\n");
 			println("UPDATED");
@@ -369,18 +369,18 @@ pub fn cmd_snap(manifest_path: str, update: bool): i32 {
 pub fn cmd_fixpoint(manifest_path: str): i32 {
 	val man_p = Path(manifest_path);
 	val cfg = if (man_p.exists()) ProjectConfig(manifest_path) else ProjectConfig();
-	val dir = "build/fixpoint";
-	ensure_dir(dir);
+	val dir = Path("build/fixpoint");
+	if (!dir.exists()) dir.create_dir_all();
 
-	val stage1_c = "${dir}/stage1.c";
-	val stage2_c = "${dir}/stage2.c";
-	val stage2_exe = "${dir}/kobel_v2.exe";
-	val stage2_obj = "${dir}/kobel_v2.obj";
+	val s1_p = dir.join("stage1.c");
+	val s2_p = dir.join("stage2.c");
+	val s2_exe_p = dir.join("kobel_v2.exe");
+	val s2_obj_p = dir.join("kobel_v2.obj");
 
 	println("[1/3] Emitting C from the current compiler...");
 	var opts = CompileOptions();
 	opts.input_path = cfg.entry;
-	opts.emit_c_path = stage1_c;
+	opts.emit_c_path = s1_p.raw;
 	opts.only_emit_c = true;
 	opts.quiet = true;
 	if (opts.compile() != 0) {
@@ -389,28 +389,25 @@ pub fn cmd_fixpoint(manifest_path: str): i32 {
 	}
 
 	println("[2/3] Building the second-generation compiler...");
-	val s2_exe_p = Path(stage2_exe);
 	s2_exe_p.remove();
-	val compile_res = Process.exec(c_compile_cmd(stage1_c, stage2_exe, stage2_obj, cfg.cc, true));
+	val compile_res = Process.exec(c_compile_cmd(s1_p.raw, s2_exe_p.raw, s2_obj_p.raw, cfg.cc, true));
 	if (compile_res != 0 || !s2_exe_p.exists()) {
-		println("[ERROR] Backend compiler did not produce '${stage2_exe}'.");
+		println("[ERROR] Backend compiler did not produce '${s2_exe_p.raw}'.");
 		return 1;
 	}
 
 	println("[3/3] Re-emitting C with the second-generation compiler...");
-	var run_exe = if (System.is_windows()) stage2_exe.to_win_path() else stage2_exe.to_posix_path();
+	var run_exe = if (System.is_windows()) s2_exe_p.to_win_path().raw else s2_exe_p.to_posix_path().raw;
 	if (!System.is_windows() && !run_exe.starts_with(".") && !run_exe.starts_with("/")) {
 		run_exe = "./${run_exe}";
 	}
 	if (" " in run_exe) run_exe = "\"${run_exe}\"";
-	val exit_code = Process.exec("${run_exe} ${cfg.entry} -emit-c ${stage2_c}");
+	val exit_code = Process.exec("${run_exe} ${cfg.entry} -emit-c ${s2_p.raw}");
 	if (exit_code != 0) {
 		println("[ERROR] Second-generation compiler failed (exit ${exit_code}).");
 		return 1;
 	}
 
-	val s1_p = Path(stage1_c);
-	val s2_p = Path(stage2_c);
 	val first = s1_p.read_text();
 	val second = s2_p.read_text();
 	if (first == second) {

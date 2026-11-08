@@ -524,7 +524,10 @@ impl CCodeGen {
 			val p = patterns[i];
 			var test = "";
 			if (cond.empty()) {
-				test = self.gen_expr(p);
+				val raw = self.gen_expr(p);
+				test = if (patterns.len == 1 && raw.starts_with("(") && raw.ends_with(")"))
+					raw.slice(1, raw.len - 1)
+				else raw;
 			} else if (p is IsExpr as is_e) {
 				val pat_info = self.is_pattern_info(p);
 				val target_name = c_type_from_ast(is_e.target_type);

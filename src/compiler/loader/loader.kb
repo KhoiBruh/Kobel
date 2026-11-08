@@ -51,17 +51,15 @@ pub struct ModuleLoader {
 }
 
 pub fn detect_project_root(start_dir: str): str {
-	var curr = start_dir;
+	var curr = Path(start_dir);
 	var count: usz = 0;
 	while (!curr.empty() && count < 10) {
-		val manifest = curr.join_path("kobel.toml");
-		val man_p = Path(manifest);
-		if (man_p.exists()) return curr;
-		val test_file = curr.join_path("lib/std/io.kb");
-		val test_p = Path(test_file);
-		if (test_p.exists()) return curr;
-		val parent = curr.dir_of();
-		if (parent == curr || parent.empty()) break;
+		val man_p = curr.join("kobel.toml");
+		if (man_p.exists()) return curr.raw;
+		val test_p = curr.join("lib/std/io.kb");
+		if (test_p.exists()) return curr.raw;
+		val parent = curr.parent();
+		if (parent.raw == curr.raw || parent.empty()) break;
 		curr = parent;
 		count++;
 	}
@@ -104,9 +102,10 @@ impl ModuleLoader {
 		// Auto-detect project root if entry_dir is within a Kobel project tree
 		val proj = detect_project_root(entry_dir);
 		if (!proj.empty()) {
+			val proj_p = Path(proj);
 			roots += proj;
-			roots += proj.join_path("lib");
-			roots += proj.join_path("src");
+			roots += proj_p.join("lib").raw;
+			roots += proj_p.join("src").raw;
 		}
 
 		return Self(
@@ -166,17 +165,16 @@ impl ModuleLoader {
 		val rel_dir = module_name.module_to_rel();
 
 		for (root in self.roots) {
+			val root_p = Path(root);
 			// 1. Single-file module: <root>/<rel>.kb
-			val candidate = root.join_path(rel_file);
-			val cand_p = Path(candidate);
+			val cand_p = root_p.join(rel_file);
 			val src = cand_p.read_text();
 			if (!src.empty()) {
-				list += ModuleFile(true, candidate, src);
+				list += ModuleFile(true, cand_p.raw, src);
 			}
 
 			// 2. Folder-as-package: <root>/<rel>/
-			val dir_path = root.join_path(rel_dir);
-			val dir_p = Path(dir_path);
+			val dir_p = root_p.join(rel_dir);
 			val entries = dir_p.list_dir();
 			if (!entries.empty()) {
 				var kb_files = List<str>();
@@ -186,15 +184,14 @@ impl ModuleLoader {
 				sort_strings(kb_files);
 
 				for (f in kb_files) {
-					val f_path = dir_path.join_path(f);
+					val f_p = dir_p.join(f);
 					var already = false;
 					for (m in list) {
-						if (m.path == f_path) already = true;
+						if (m.path == f_p.raw) already = true;
 					}
 					if (!already) {
-						val fp = Path(f_path);
-						val f_src = fp.read_text();
-						if (!f_src.empty()) list += ModuleFile(true, f_path, f_src);
+						val f_src = f_p.read_text();
+						if (!f_src.empty()) list += ModuleFile(true, f_p.raw, f_src);
 					}
 				}
 			}

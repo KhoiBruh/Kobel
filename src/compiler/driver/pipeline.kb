@@ -182,17 +182,19 @@ impl CompileOptions {
 		var out_path = self.output_bin;
 		if (out_path.empty()) out_path = "${input_path.strip_kb()}.exe";
 
-		val out_dir = out_path.dir_of();
-		ensure_dir(out_dir);
-		ensure_dir("build");
+		val out_p = Path(out_path);
+		val out_dir = out_p.parent();
+		if (!out_dir.empty() && !out_dir.exists()) out_dir.create_dir_all();
 
-		val base_name = out_path.base_name();
-		val c_tmp_path = "build/${base_name}.tmp.c";
-		val obj_tmp_path = "build/${base_name}.tmp.obj";
-		val c_tmp_p = Path(c_tmp_path);
+		val build_dir = Path("build");
+		if (!build_dir.exists()) build_dir.create_dir_all();
+
+		val base_name = out_p.file_name();
+		val c_tmp_p = build_dir.join("${base_name}.tmp.c");
+		val obj_tmp_p = build_dir.join("${base_name}.tmp.obj");
 		val write_ok = c_tmp_p.write_text(c_code);
 		if (!write_ok) {
-			println("Error: Failed to write temporary C file: ${c_tmp_path}");
+			println("Error: Failed to write temporary C file: ${c_tmp_p.raw}");
 			return 1;
 		}
 
@@ -201,15 +203,13 @@ impl CompileOptions {
 
 		// If the output binary already exists, move it aside to avoid Windows LNK1104
 		// file locking issues (especially during self-hosting builds).
-		val old_bin = "${out_path}.old";
-		val out_p = Path(out_path);
-		val old_p = Path(old_bin);
+		val old_p = Path("${out_path}.old");
 		if (out_p.exists()) {
 			old_p.remove();
 			out_p.rename_to(old_p);
 		}
 
-		var compile_cmd = c_compile_cmd(c_tmp_path, out_path, obj_tmp_path, self.c_compiler, self.quiet);
+		var compile_cmd = c_compile_cmd(c_tmp_p.raw, out_path, obj_tmp_p.raw, self.c_compiler, self.quiet);
 
 		val exit_code = Process.exec(compile_cmd);
 		if (exit_code != 0) {
@@ -232,7 +232,6 @@ impl CompileOptions {
 
 		// Clean up temporary C, object, and old binary files
 		c_tmp_p.remove();
-		val obj_tmp_p = Path(obj_tmp_path);
 		obj_tmp_p.remove();
 		old_p.remove();
 

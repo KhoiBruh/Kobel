@@ -1,3 +1,0 @@
-mod compiler.ast;
-
-// Type node payloads are defined directly as variants in NodeData (node.kb).
