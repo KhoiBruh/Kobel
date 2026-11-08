@@ -1,4 +1,4 @@
-mod compiler.driver;
+mod compiler;
 
 use std.io.*;
 use std.filesystem.*;
@@ -6,15 +6,16 @@ use std.collections.*;
 use std.memory.Arena;
 
 use config.ProjectConfig;
+use compiler.driver.*;
 
 /*
  * ============================================================================
- * compiler.driver.compiler — Central Compiler Orchestrator
+ * compiler.compiler — Central Compiler Orchestrator
  *
- * `Compiler` serves as the primary entry point and facade for the Kobel
- * compilation subsystem. It owns the compilation arena, holds compilation
- * options, manages memory lifecycle, and orchestrates pipeline execution
- * as well as project commands (build, run, test, snap, fixpoint).
+ * `Compiler` serves as the primary facade and orchestrator for the Kobel
+ * compilation subsystem. It owns compilation options and arena lifecycle,
+ * and dispatches both single-file compilation and project-level commands
+ * (build, run, test, snap, fixpoint, emit-c).
  * ============================================================================
  */
 
@@ -25,7 +26,8 @@ pub struct Compiler {
 
 impl Compiler {
 
-	pub init(options: CompileOptions = CompileOptions()) => Self(options, Arena(1048576));
+	pub init() => Self(CompileOptions(), Arena(1048576));
+	pub init(options: CompileOptions) => Self(options, Arena(1048576));
 
 	pub fn free(var self) {
 		self.arena.free();

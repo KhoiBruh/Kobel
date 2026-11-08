@@ -3,15 +3,61 @@ use std.filesystem.*;
 use std.collections.*;
 
 use config.*;
-
+use compiler.*;
 use compiler.driver.*;
-
 use fmt.*;
-
 use lsp.*;
 
-fn print_usage() {
-	println("""
+/*
+ * ============================================================================
+ * main — Kobel Compiler CLI Entry Point & Command Router
+ *
+ * Implements the object-oriented `KobelCli` application interface, parsing
+ * command line arguments and dispatching execution to subsystem orchestrators
+ * (Compiler, Formatter, LanguageServer).
+ * ============================================================================
+ */
+
+pub struct KobelCli {
+	pub args: List<str>
+}
+
+impl KobelCli {
+
+	pub init(argc: i32, argv: &*char) {
+		var args = List<str>();
+		var i = 0;
+		while (i < argc) {
+			args += str(argv[i]);
+			i++;
+		}
+		return Self(args);
+	}
+
+	pub fn run(val self): i32 {
+		if (self.args.len < 2) {
+			self.print_usage();
+			return 0;
+		}
+
+		val command = self.args[1];
+		return when (command) {
+			"build" -> self.run_build();
+			"run" -> self.run_project();
+			"test" -> self.run_test();
+			"snap" -> self.run_snap();
+			"fixpoint" -> self.run_fixpoint();
+			"emit-c" -> self.run_emit_c();
+			"fmt" -> self.run_fmt();
+			"lsp" -> self.run_lsp();
+			"version", "-v", "--version" -> self.print_version();
+			"help", "-h", "--help" -> self.print_help();
+			else -> self.run_compile();
+		};
+	}
+
+	fn print_usage(val self) {
+		println("""
 		============================================================
 		  Kobel Compiler v1.0.0 (Self-Hosted compiler C99 Backend)  
 		============================================================
@@ -28,144 +74,129 @@ fn print_usage() {
 		  lsp               Start Language Server Protocol server
 		  version           Display compiler version
 	""");
-}
-
-fn run_build(): i32 => Compiler.build("kobel.toml");
-
-fn run_project(argc: i32, argv: &*char): i32 {
-	var extra_args = List<str>();
-	var i = 2;
-	while (i < argc) {
-		extra_args += str(argv[i]);
-		i++;
-	}
-	return Compiler.run_project("kobel.toml", extra_args);
-}
-
-fn run_test_suite(argc: i32, argv: &*char): i32 {
-	val filter = if (argc >= 3) str(argv[2]) else "";
-	return Compiler.test("kobel.toml", filter);
-}
-
-fn run_snap(argc: i32, argv: &*char): i32 {
-	val update = argc >= 3 && str(argv[2]) == "--update";
-	return Compiler.snap("kobel.toml", update);
-}
-
-fn run_fixpoint(): i32 => Compiler.fixpoint("kobel.toml");
-
-fn run_emit_c(argc: i32, argv: &*char): i32 {
-	val manifest_p = Path("kobel.toml");
-	val cfg = if (manifest_p.exists()) ProjectConfig("kobel.toml") else ProjectConfig();
-	val out_path = if (argc >= 3) str(argv[2]) else "dist/bootstrap.c";
-	var compiler = Compiler();
-	return compiler.emit_c(cfg.entry, out_path);
-}
-
-fn run_fmt(argc: i32, argv: &*char): i32 {
-	if (argc < 3) {
-		println("Usage: kobel fmt [-w] <files...>");
-		return 1;
 	}
 
-	var write_in_place = false;
-	var files = List<str>();
-
-	var i = 2;
-	while (i < argc) {
-		val arg = str(argv[i]);
-		when (arg) {
-			"-w", "--write" -> write_in_place = true;
-			"-h", "--help" -> {
-				println("Usage: kobel fmt [-w] <files...>");
-				return 0;
-			}
-			else -> files += arg;
-		}
-		i++;
-	}
-
-	if (files.empty()) {
-		println("Error: No files specified to format");
-		return 1;
-	}
-
-	return Formatter.format_files(files, write_in_place);
-}
-
-fn run_lsp(): i32 {
-	var server = LanguageServer();
-	return server.run();
-}
-
-fn run_compiler(argc: i32, argv: &*char): i32 {
-	var opts = CompileOptions();
-
-	var i = 1;
-	while (i < argc) {
-		val arg = str(argv[i]);
-		when (arg) {
-			"-o" -> {
-				i++;
-				if (i < argc) opts.output_bin = str(argv[i]);
-			}
-			"-emit-c" -> {
-				i++;
-				if (i < argc) {
-					opts.emit_c_path = str(argv[i]);
-					opts.only_emit_c = true;
-				}
-			}
-			"-cc" -> {
-				i++;
-				if (i < argc) opts.c_compiler = str(argv[i]);
-			}
-			else -> {
-				if (!arg.empty() && !arg.starts_with("-")) {
-					opts.input_path = arg;
-				}
-			}
-		}
-		i++;
-	}
-
-	if (opts.input_path.empty()) {
-		print_usage();
-		return 1;
-	}
-
-	val compiler = Compiler(opts);
-	return compiler.compile();
-}
-
-fn print_version(): i32 {
-	println("Kobel Compiler v1.0.0 (Self-Hosted compiler C99 Backend)");
-	return 0;
-}
-
-fn print_help(): i32 {
-	print_usage();
-	return 0;
-}
-
-fn main(argc: i32, argv: &*char): i32 {
-	if (argc < 2) {
-		print_usage();
+	fn print_version(val self): i32 {
+		println("Kobel Compiler v1.0.0 (Self-Hosted compiler C99 Backend)");
 		return 0;
 	}
 
-	val first_arg = str(argv[1]);
-	return when (first_arg) {
-		"build" -> run_build();
-		"run" -> run_project(argc, argv);
-		"test" -> run_test_suite(argc, argv);
-		"snap" -> run_snap(argc, argv);
-		"fixpoint" -> run_fixpoint();
-		"emit-c" -> run_emit_c(argc, argv);
-		"fmt" -> run_fmt(argc, argv);
-		"lsp" -> run_lsp();
-		"version", "-v", "--version" -> print_version();
-		"help", "-h", "--help" -> print_help();
-		else -> run_compiler(argc, argv);
-	};
+	fn print_help(val self): i32 {
+		self.print_usage();
+		return 0;
+	}
+
+	fn run_build(val self): i32 => Compiler.build("kobel.toml");
+
+	fn run_project(val self): i32 {
+		var extra_args = List<str>();
+		var i: usz = 2;
+		while (i < self.args.len) {
+			extra_args += self.args[i];
+			i++;
+		}
+		return Compiler.run_project("kobel.toml", extra_args);
+	}
+
+	fn run_test(val self): i32 {
+		val filter = if (self.args.len >= 3) self.args[2] else "";
+		return Compiler.test("kobel.toml", filter);
+	}
+
+	fn run_snap(val self): i32 {
+		val update = self.args.len >= 3 && self.args[2] == "--update";
+		return Compiler.snap("kobel.toml", update);
+	}
+
+	fn run_fixpoint(val self): i32 => Compiler.fixpoint("kobel.toml");
+
+	fn run_emit_c(val self): i32 {
+		val manifest_p = Path("kobel.toml");
+		val cfg = if (manifest_p.exists()) ProjectConfig("kobel.toml") else ProjectConfig();
+		val out_path = if (self.args.len >= 3) self.args[2] else "dist/bootstrap.c";
+		var compiler = Compiler();
+		return compiler.emit_c(cfg.entry, out_path);
+	}
+
+	fn run_fmt(val self): i32 {
+		if (self.args.len < 3) {
+			println("Usage: kobel fmt [-w] <files...>");
+			return 1;
+		}
+
+		var write_in_place = false;
+		var files = List<str>();
+
+		var i: usz = 2;
+		while (i < self.args.len) {
+			val arg = self.args[i];
+			when (arg) {
+				"-w", "--write" -> write_in_place = true;
+				"-h", "--help" -> {
+					println("Usage: kobel fmt [-w] <files...>");
+					return 0;
+				}
+				else -> files += arg;
+			}
+			i++;
+		}
+
+		if (files.empty()) {
+			println("Error: No files specified to format");
+			return 1;
+		}
+
+		return Formatter.format_files(files, write_in_place);
+	}
+
+	fn run_lsp(val self): i32 {
+		var server = LanguageServer();
+		return server.run();
+	}
+
+	fn run_compile(val self): i32 {
+		var opts = CompileOptions();
+
+		var i: usz = 1;
+		while (i < self.args.len) {
+			val arg = self.args[i];
+			when (arg) {
+				"-o" -> {
+					i++;
+					if (i < self.args.len) opts.output_bin = self.args[i];
+				}
+				"-emit-c" -> {
+					i++;
+					if (i < self.args.len) {
+						opts.emit_c_path = self.args[i];
+						opts.only_emit_c = true;
+					}
+				}
+				"-cc" -> {
+					i++;
+					if (i < self.args.len) opts.c_compiler = self.args[i];
+				}
+				else -> {
+					if (!arg.empty() && !arg.starts_with("-")) {
+						opts.input_path = arg;
+					}
+				}
+			}
+			i++;
+		}
+
+		if (opts.input_path.empty()) {
+			self.print_usage();
+			return 1;
+		}
+
+		val compiler = Compiler(opts);
+		return compiler.compile();
+	}
+
+}
+
+fn main(argc: i32, argv: &*char): i32 {
+	val app = KobelCli(argc, argv);
+	return app.run();
 }
