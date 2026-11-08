@@ -488,7 +488,7 @@ typedef struct lsp__JsonValue lsp__JsonValue;
 typedef struct lsp__JsonParser lsp__JsonParser;
 typedef kobel_str lsp__Method;
 typedef struct lsp__LanguageServer lsp__LanguageServer;
-typedef struct main__KobelCli main__KobelCli;
+typedef struct main__Kobel main__Kobel;
 typedef struct std__collections__List_ptr_compiler__ast__AstNode std__collections__List_ptr_compiler__ast__AstNode;
 typedef struct std__collections__List_compiler__ast__WhenArm std__collections__List_compiler__ast__WhenArm;
 typedef struct std__collections__List_compiler__ast__InterpPart std__collections__List_compiler__ast__InterpPart;
@@ -1825,7 +1825,7 @@ struct lsp__LanguageServer {
     kobel_str workspace_root;
 };
 
-struct main__KobelCli {
+struct main__Kobel {
     std__collections__List_str args;
 };
 
@@ -3117,8 +3117,7 @@ kobel_str compiler__driver__resolve_host_cc(kobel_str cc);
 void compiler__driver__ensure_dir(kobel_str path);
 kobel_str compiler__driver__c_compile_cmd(kobel_str c_path, kobel_str exe_path, kobel_str obj_path, kobel_str cc, bool quiet);
 int32_t compiler__driver__CompileOptions_compile(compiler__driver__CompileOptions* self);
-compiler__Compiler compiler__Compiler_init_0(void);
-compiler__Compiler compiler__Compiler_init_1(compiler__driver__CompileOptions options);
+compiler__Compiler compiler__Compiler_init(compiler__driver__CompileOptions options);
 void compiler__Compiler_free(compiler__Compiler* self);
 int32_t compiler__Compiler_compile(compiler__Compiler* self);
 int32_t compiler__Compiler_build(kobel_str manifest_path);
@@ -3228,23 +3227,22 @@ void lsp__send_error(lsp__JsonValue* id, int64_t code, kobel_str message);
 void lsp__send_notification(kobel_str method, lsp__JsonValue* params);
 kobel_str lsp__read_message(void);
 void lsp__publish_doc_diagnostics(kobel_str uri, kobel_str text, kobel_str workspace_root);
-lsp__LanguageServer lsp__LanguageServer_init(void);
 int32_t lsp__LanguageServer_run(lsp__LanguageServer* self);
 int32_t lsp__run_server(void);
-main__KobelCli main__KobelCli_init(int32_t argc, const char** argv);
-int32_t main__KobelCli_run(main__KobelCli* self);
-void main__KobelCli_print_usage(main__KobelCli* self);
-int32_t main__KobelCli_print_version(main__KobelCli* self);
-int32_t main__KobelCli_print_help(main__KobelCli* self);
-int32_t main__KobelCli_run_build(main__KobelCli* self);
-int32_t main__KobelCli_run_project(main__KobelCli* self);
-int32_t main__KobelCli_run_test(main__KobelCli* self);
-int32_t main__KobelCli_run_snap(main__KobelCli* self);
-int32_t main__KobelCli_run_fixpoint(main__KobelCli* self);
-int32_t main__KobelCli_run_emit_c(main__KobelCli* self);
-int32_t main__KobelCli_run_fmt(main__KobelCli* self);
-int32_t main__KobelCli_run_lsp(main__KobelCli* self);
-int32_t main__KobelCli_run_compile(main__KobelCli* self);
+main__Kobel main__Kobel_init(int32_t argc, const char** argv);
+int32_t main__Kobel_run(main__Kobel* self);
+void main__Kobel_print_usage(main__Kobel* self);
+int32_t main__Kobel_print_version(main__Kobel* self);
+int32_t main__Kobel_print_help(main__Kobel* self);
+int32_t main__Kobel_run_build(main__Kobel* self);
+int32_t main__Kobel_run_project(main__Kobel* self);
+int32_t main__Kobel_run_test(main__Kobel* self);
+int32_t main__Kobel_run_snap(main__Kobel* self);
+int32_t main__Kobel_run_fixpoint(main__Kobel* self);
+int32_t main__Kobel_run_emit_c(main__Kobel* self);
+int32_t main__Kobel_run_fmt(main__Kobel* self);
+int32_t main__Kobel_run_lsp(main__Kobel* self);
+int32_t main__Kobel_run_compile(main__Kobel* self);
 int32_t main(int32_t argc, const char** argv);
 size_t std__collections__List_ptr_compiler__ast__AstNode_count(std__collections__List_ptr_compiler__ast__AstNode* self);
 compiler__ast__AstNode* std__collections__List_ptr_compiler__ast__AstNode_at(std__collections__List_ptr_compiler__ast__AstNode* self, size_t i);
@@ -25408,16 +25406,12 @@ std__io__println(kobel_concat(2, KOBEL_STR("[SUCCESS] Executable created: "), ou
 return 0;
 }
 
-compiler__Compiler compiler__Compiler_init_0(void) {
-    return (compiler__Compiler){ (compiler__driver__CompileOptions){ KOBEL_STR(""), KOBEL_STR(""), KOBEL_STR(""), KOBEL_STR("cl"), false, std__collections__List_str_init(4), false }, std__memory__Arena_init(1048576) };
-}
-
-compiler__Compiler compiler__Compiler_init_1(compiler__driver__CompileOptions options) {
+compiler__Compiler compiler__Compiler_init(compiler__driver__CompileOptions options) {
     return (compiler__Compiler){ options, std__memory__Arena_init(1048576) };
 }
 
 void compiler__Compiler_free(compiler__Compiler* self) {
-std__memory__Arena_free(&self->arena);
+    std__memory__Arena_free(&self->arena);
 }
 
 int32_t compiler__Compiler_compile(compiler__Compiler* self) {
@@ -28231,10 +28225,6 @@ lsp__JsonValue_set(notif_params, KOBEL_STR("diagnostics"), diags_arr);
 lsp__send_notification(KOBEL_STR("textDocument/publishDiagnostics"), notif_params);
 }
 
-lsp__LanguageServer lsp__LanguageServer_init(void) {
-    return (lsp__LanguageServer){ (lsp__DocumentStore){ std__collections__HashMap_str_lsp__Document_init(16) }, false, KOBEL_STR("") };
-}
-
 int32_t lsp__LanguageServer_run(lsp__LanguageServer* self) {
 lsp__init_stdio();
 while (true) {
@@ -28392,48 +28382,48 @@ return 0;
 }
 
 int32_t lsp__run_server(void) {
-lsp__LanguageServer srv = lsp__LanguageServer_init();
-return lsp__LanguageServer_run(&srv);
+lsp__LanguageServer server = (lsp__LanguageServer){ (lsp__DocumentStore){ std__collections__HashMap_str_lsp__Document_init(16) }, false, KOBEL_STR("") };
+return lsp__LanguageServer_run(&server);
 }
 
-main__KobelCli main__KobelCli_init(int32_t argc, const char** argv) {
+main__Kobel main__Kobel_init(int32_t argc, const char** argv) {
 std__collections__List_str args = std__collections__List_str_init(4);
 int32_t i = 0;
 while (i < argc) {
 std__collections__List_str_plus_assign(&args, kobel_from_cstr((const char*)(argv[i])));
 i++;
 }
-return (main__KobelCli){ args };
+return (main__Kobel){ args };
 }
 
-int32_t main__KobelCli_run(main__KobelCli* self) {
+int32_t main__Kobel_run(main__Kobel* self) {
 if (self->args.len < 2) {
-main__KobelCli_print_usage(self);
+main__Kobel_print_usage(self);
 return 0;
 }
 kobel_str command = std__collections__List_str_get(&self->args, 1);
-return (kobel_streq(command, KOBEL_STR("build")) ? main__KobelCli_run_build(self) : (kobel_streq(command, KOBEL_STR("run")) ? main__KobelCli_run_project(self) : (kobel_streq(command, KOBEL_STR("test")) ? main__KobelCli_run_test(self) : (kobel_streq(command, KOBEL_STR("snap")) ? main__KobelCli_run_snap(self) : (kobel_streq(command, KOBEL_STR("fixpoint")) ? main__KobelCli_run_fixpoint(self) : (kobel_streq(command, KOBEL_STR("emit-c")) ? main__KobelCli_run_emit_c(self) : (kobel_streq(command, KOBEL_STR("fmt")) ? main__KobelCli_run_fmt(self) : (kobel_streq(command, KOBEL_STR("lsp")) ? main__KobelCli_run_lsp(self) : (kobel_streq(command, KOBEL_STR("version")) || kobel_streq(command, KOBEL_STR("-v")) || kobel_streq(command, KOBEL_STR("--version")) ? main__KobelCli_print_version(self) : (kobel_streq(command, KOBEL_STR("help")) || kobel_streq(command, KOBEL_STR("-h")) || kobel_streq(command, KOBEL_STR("--help")) ? main__KobelCli_print_help(self) : main__KobelCli_run_compile(self)))))))))));
+return (kobel_streq(command, KOBEL_STR("build")) ? main__Kobel_run_build(self) : (kobel_streq(command, KOBEL_STR("run")) ? main__Kobel_run_project(self) : (kobel_streq(command, KOBEL_STR("test")) ? main__Kobel_run_test(self) : (kobel_streq(command, KOBEL_STR("snap")) ? main__Kobel_run_snap(self) : (kobel_streq(command, KOBEL_STR("fixpoint")) ? main__Kobel_run_fixpoint(self) : (kobel_streq(command, KOBEL_STR("emit-c")) ? main__Kobel_run_emit_c(self) : (kobel_streq(command, KOBEL_STR("fmt")) ? main__Kobel_run_fmt(self) : (kobel_streq(command, KOBEL_STR("lsp")) ? main__Kobel_run_lsp(self) : (kobel_streq(command, KOBEL_STR("version")) || kobel_streq(command, KOBEL_STR("-v")) || kobel_streq(command, KOBEL_STR("--version")) ? main__Kobel_print_version(self) : (kobel_streq(command, KOBEL_STR("help")) || kobel_streq(command, KOBEL_STR("-h")) || kobel_streq(command, KOBEL_STR("--help")) ? main__Kobel_print_help(self) : main__Kobel_run_compile(self)))))))))));
 }
 
-void main__KobelCli_print_usage(main__KobelCli* self) {
+void main__Kobel_print_usage(main__Kobel* self) {
 std__io__println(KOBEL_STR("============================================================\n  Kobel Compiler v1.0.0 (Self-Hosted compiler C99 Backend)  \n============================================================\nUsage: kobel <command> [args]\n\nCommands:\n  build             Build project (kobel.toml)\n  run [args...]     Run project (rebuilds if changed)\n  test [filter]     Run test suite\n  snap [--update]   Check emitted C against tests/golden (or update it)\n  fixpoint          Verify the compiler reproduces its own C output\n  emit-c [file]     Emit generated C99 source (default: dist/bootstrap.c)\n  fmt [-w] <files>  Format Kobel source code\n  lsp               Start Language Server Protocol server\n  version           Display compiler version"));
 }
 
-int32_t main__KobelCli_print_version(main__KobelCli* self) {
+int32_t main__Kobel_print_version(main__Kobel* self) {
 std__io__println(KOBEL_STR("Kobel Compiler v1.0.0 (Self-Hosted compiler C99 Backend)"));
 return 0;
 }
 
-int32_t main__KobelCli_print_help(main__KobelCli* self) {
-main__KobelCli_print_usage(self);
+int32_t main__Kobel_print_help(main__Kobel* self) {
+main__Kobel_print_usage(self);
 return 0;
 }
 
-int32_t main__KobelCli_run_build(main__KobelCli* self) {
+int32_t main__Kobel_run_build(main__Kobel* self) {
     return compiler__Compiler_build(KOBEL_STR("kobel.toml"));
 }
 
-int32_t main__KobelCli_run_project(main__KobelCli* self) {
+int32_t main__Kobel_run_project(main__Kobel* self) {
 std__collections__List_str extra_args = std__collections__List_str_init(4);
 size_t i = 2;
 while (i < self->args.len) {
@@ -28443,29 +28433,29 @@ i++;
 return compiler__Compiler_run_project(KOBEL_STR("kobel.toml"), extra_args);
 }
 
-int32_t main__KobelCli_run_test(main__KobelCli* self) {
+int32_t main__Kobel_run_test(main__Kobel* self) {
 kobel_str filter = ((self->args.len >= 3) ? std__collections__List_str_get(&self->args, 2) : KOBEL_STR(""));
 return compiler__Compiler_test(KOBEL_STR("kobel.toml"), filter);
 }
 
-int32_t main__KobelCli_run_snap(main__KobelCli* self) {
+int32_t main__Kobel_run_snap(main__Kobel* self) {
 bool update = ((self->args.len >= 3) && kobel_streq(std__collections__List_str_get(&self->args, 2), KOBEL_STR("--update")));
 return compiler__Compiler_snap(KOBEL_STR("kobel.toml"), update);
 }
 
-int32_t main__KobelCli_run_fixpoint(main__KobelCli* self) {
+int32_t main__Kobel_run_fixpoint(main__Kobel* self) {
     return compiler__Compiler_fixpoint(KOBEL_STR("kobel.toml"));
 }
 
-int32_t main__KobelCli_run_emit_c(main__KobelCli* self) {
+int32_t main__Kobel_run_emit_c(main__Kobel* self) {
 std__filesystem__Path manifest_p = std__filesystem__Path_init(KOBEL_STR("kobel.toml"));
 config__ProjectConfig cfg = (std__filesystem__Path_exists(&manifest_p) ? config__ProjectConfig_init(KOBEL_STR("kobel.toml")) : (config__ProjectConfig){ KOBEL_STR("kobel"), KOBEL_STR("1.0.0"), KOBEL_STR("src/main.kb"), KOBEL_STR("build/kobel.exe"), KOBEL_STR("cl"), KOBEL_STR("tests") });
 kobel_str out_path = ((self->args.len >= 3) ? std__collections__List_str_get(&self->args, 2) : KOBEL_STR("dist/bootstrap.c"));
-compiler__Compiler compiler = compiler__Compiler_init_0();
+compiler__Compiler compiler = compiler__Compiler_init((compiler__driver__CompileOptions){ KOBEL_STR(""), KOBEL_STR(""), KOBEL_STR(""), KOBEL_STR("cl"), false, std__collections__List_str_init(4), false });
 return compiler__Compiler_emit_c(&compiler, cfg.entry, out_path);
 }
 
-int32_t main__KobelCli_run_fmt(main__KobelCli* self) {
+int32_t main__Kobel_run_fmt(main__Kobel* self) {
 if (self->args.len < 3) {
 std__io__println(KOBEL_STR("Usage: kobel fmt [-w] <files...>"));
 return 1;
@@ -28492,12 +28482,12 @@ return 1;
 return fmt__Formatter_format_files(files, write_in_place, (fmt__FormatOptions){ 4, true, 100, true });
 }
 
-int32_t main__KobelCli_run_lsp(main__KobelCli* self) {
-lsp__LanguageServer server = lsp__LanguageServer_init();
+int32_t main__Kobel_run_lsp(main__Kobel* self) {
+lsp__LanguageServer server = (lsp__LanguageServer){ (lsp__DocumentStore){ std__collections__HashMap_str_lsp__Document_init(16) }, false, KOBEL_STR("") };
 return lsp__LanguageServer_run(&server);
 }
 
-int32_t main__KobelCli_run_compile(main__KobelCli* self) {
+int32_t main__Kobel_run_compile(main__Kobel* self) {
 compiler__driver__CompileOptions opts = (compiler__driver__CompileOptions){ KOBEL_STR(""), KOBEL_STR(""), KOBEL_STR(""), KOBEL_STR("cl"), false, std__collections__List_str_init(4), false };
 size_t i = 1;
 while (i < self->args.len) {
@@ -28526,16 +28516,16 @@ opts.input_path = arg;
 i++;
 }
 if (str_empty(opts.input_path)) {
-main__KobelCli_print_usage(self);
+main__Kobel_print_usage(self);
 return 1;
 }
-compiler__Compiler compiler = compiler__Compiler_init_1(opts);
+compiler__Compiler compiler = compiler__Compiler_init(opts);
 return compiler__Compiler_compile(&compiler);
 }
 
 int32_t main(int32_t argc, const char** argv) {
-main__KobelCli app = main__KobelCli_init(argc, argv);
-return main__KobelCli_run(&app);
+main__Kobel app = main__Kobel_init(argc, argv);
+return main__Kobel_run(&app);
 }
 
 size_t std__collections__List_ptr_compiler__ast__AstNode_count(std__collections__List_ptr_compiler__ast__AstNode* self) {
