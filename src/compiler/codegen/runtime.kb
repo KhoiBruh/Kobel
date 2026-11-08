@@ -99,11 +99,47 @@ static inline int kobel_memeq(const void* a, const void* b, size_t n) {
 	return memcmp(a, b, n) == 0;
 }
 
+/* Path buffer helper — small-buffer optimization (SBO) for NUL-terminated paths */
+typedef struct {
+	char stack[1024];
+	char* buf;
+} kobel_path_buf;
+
+static inline char* kobel_path_buf_init(kobel_path_buf* pb, kobel_str s) {
+	if (!s.data || s.len == 0) {
+		pb->buf = NULL;
+		return NULL;
+	}
+	if (s.len < sizeof(pb->stack)) {
+		pb->buf = pb->stack;
+	} else {
+		pb->buf = (char*)malloc(s.len + 1);
+		if (!pb->buf) {
+			pb->buf = NULL;
+			return NULL;
+		}
+	}
+	memcpy(pb->buf, s.data, s.len);
+	pb->buf[s.len] = 0;
+	return pb->buf;
+}
+
+static inline void kobel_path_buf_free(kobel_path_buf* pb) {
+	if (pb->buf && pb->buf != pb->stack) {
+		free(pb->buf);
+	}
+}
+
 /* Directory listing helper — returns newline-separated filenames */
 static kobel_str kobel_list_dir(kobel_str dir_path) {
 #ifdef _WIN32
-	char pattern[1024];
-	if (dir_path.len >= 1020) return (kobel_str){ NULL, 0 };
+	if (!dir_path.data || dir_path.len == 0) return (kobel_str){ NULL, 0 };
+	char stack_pat[1024];
+	char* pattern = stack_pat;
+	if (dir_path.len + 3 > sizeof(stack_pat)) {
+		pattern = (char*)malloc(dir_path.len + 3);
+		if (!pattern) return (kobel_str){ NULL, 0 };
+	}
 	memcpy(pattern, dir_path.data, dir_path.len);
 	pattern[dir_path.len] = 92;
 	pattern[dir_path.len + 1] = '*';
@@ -111,6 +147,7 @@ static kobel_str kobel_list_dir(kobel_str dir_path) {
 
 	struct _finddata_t data;
 	intptr_t handle = _findfirst(pattern, &data);
+	if (pattern != stack_pat) free(pattern);
 	if (handle == -1) return (kobel_str){ NULL, 0 };
 
 	size_t cap = 1024;
@@ -133,12 +170,13 @@ static kobel_str kobel_list_dir(kobel_str dir_path) {
 	buf[len] = 0;
 	return (kobel_str){ buf, len };
 #else
-	char path[1024];
-	if (dir_path.len >= 1023) return (kobel_str){ NULL, 0 };
-	memcpy(path, dir_path.data, dir_path.len);
-	path[dir_path.len] = 0;
+	if (!dir_path.data || dir_path.len == 0) return (kobel_str){ NULL, 0 };
+	kobel_path_buf pb;
+	char* path = kobel_path_buf_init(&pb, dir_path);
+	if (!path) return (kobel_str){ NULL, 0 };
 
 	DIR* d = opendir(path);
+	kobel_path_buf_free(&pb);
 	if (!d) return (kobel_str){ NULL, 0 };
 
 	size_t cap = 1024;
@@ -163,81 +201,69 @@ static kobel_str kobel_list_dir(kobel_str dir_path) {
 #endif
 }
 
-/* Directory creation and filesystem status helpers */
-static int kobel_mkdir(const char* path) {
+/* Platform-abstracted stat & mkdir helpers */
 #ifdef _WIN32
-	return _mkdir(path);
+typedef struct _stat kobel_stat_t;
+#define kobel_stat_fn _stat
+static inline int kobel_mkdir(const char* path) { return _mkdir(path); }
 #else
-	return mkdir(path, 0777);
+typedef struct stat kobel_stat_t;
+#define kobel_stat_fn stat
+static inline int kobel_mkdir(const char* path) { return mkdir(path, 0777); }
 #endif
+
+static int kobel_path_stat(kobel_str p, kobel_stat_t* st) {
+	if (!p.data || p.len == 0) return 0;
+	kobel_path_buf pb;
+	char* path = kobel_path_buf_init(&pb, p);
+	if (!path) return 0;
+	int res = kobel_stat_fn(path, st);
+	kobel_path_buf_free(&pb);
+	return res == 0;
 }
 
 static int kobel_path_exists(kobel_str p) {
-	if (!p.data || p.len == 0) return 0;
-	char path[1024];
-	if (p.len >= 1023) return 0;
-	memcpy(path, p.data, p.len);
-	path[p.len] = 0;
-#ifdef _WIN32
-	struct _stat st;
-	return _stat(path, &st) == 0;
-#else
-	struct stat st;
-	return stat(path, &st) == 0;
-#endif
+	kobel_stat_t st;
+	return kobel_path_stat(p, &st);
 }
 
 static int kobel_path_is_dir(kobel_str p) {
-	if (!p.data || p.len == 0) return 0;
-	char path[1024];
-	if (p.len >= 1023) return 0;
-	memcpy(path, p.data, p.len);
-	path[p.len] = 0;
+	kobel_stat_t st;
+	if (!kobel_path_stat(p, &st)) return 0;
 #ifdef _WIN32
-	struct _stat st;
-	if (_stat(path, &st) != 0) return 0;
 	return (st.st_mode & _S_IFDIR) != 0;
 #else
-	struct stat st;
-	if (stat(path, &st) != 0) return 0;
 	return S_ISDIR(st.st_mode);
 #endif
 }
 
 static int kobel_path_is_file(kobel_str p) {
-	if (!p.data || p.len == 0) return 0;
-	char path[1024];
-	if (p.len >= 1023) return 0;
-	memcpy(path, p.data, p.len);
-	path[p.len] = 0;
+	kobel_stat_t st;
+	if (!kobel_path_stat(p, &st)) return 0;
 #ifdef _WIN32
-	struct _stat st;
-	if (_stat(path, &st) != 0) return 0;
 	return (st.st_mode & _S_IFREG) != 0;
 #else
-	struct stat st;
-	if (stat(path, &st) != 0) return 0;
 	return S_ISREG(st.st_mode);
 #endif
 }
 
 static int kobel_create_dir(kobel_str dir_path) {
 	if (!dir_path.data || dir_path.len == 0) return 0;
-	char path[1024];
-	if (dir_path.len >= 1023) return 0;
-	memcpy(path, dir_path.data, dir_path.len);
-	path[dir_path.len] = 0;
-	if (kobel_mkdir(path) == 0) return 1;
+	kobel_path_buf pb;
+	char* path = kobel_path_buf_init(&pb, dir_path);
+	if (!path) return 0;
+	int res = kobel_mkdir(path);
+	kobel_path_buf_free(&pb);
+	if (res == 0) return 1;
 	return kobel_path_is_dir(dir_path);
 }
 
 static int kobel_create_dir_all(kobel_str dir_path) {
 	if (!dir_path.data || dir_path.len == 0) return 1;
 	if (kobel_path_is_dir(dir_path)) return 1;
-	char path[1024];
-	if (dir_path.len >= 1023) return 0;
-	memcpy(path, dir_path.data, dir_path.len);
-	path[dir_path.len] = 0;
+	kobel_path_buf pb;
+	char* path = kobel_path_buf_init(&pb, dir_path);
+	if (!path) return 0;
 
 	for (size_t i = 1; i < dir_path.len; i++) {
 		if (path[i] == '/' || path[i] == 92) {
@@ -252,6 +278,7 @@ static int kobel_create_dir_all(kobel_str dir_path) {
 		}
 	}
 	kobel_mkdir(path);
+	kobel_path_buf_free(&pb);
 	return kobel_path_is_dir(dir_path);
 }
 

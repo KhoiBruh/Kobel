@@ -92,11 +92,47 @@ static inline int kobel_memeq(const void* a, const void* b, size_t n) {
 	return memcmp(a, b, n) == 0;
 }
 
+/* Path buffer helper — small-buffer optimization (SBO) for NUL-terminated paths */
+typedef struct {
+	char stack[1024];
+	char* buf;
+} kobel_path_buf;
+
+static inline char* kobel_path_buf_init(kobel_path_buf* pb, kobel_str s) {
+	if (!s.data || s.len == 0) {
+		pb->buf = NULL;
+		return NULL;
+	}
+	if (s.len < sizeof(pb->stack)) {
+		pb->buf = pb->stack;
+	} else {
+		pb->buf = (char*)malloc(s.len + 1);
+		if (!pb->buf) {
+			pb->buf = NULL;
+			return NULL;
+		}
+	}
+	memcpy(pb->buf, s.data, s.len);
+	pb->buf[s.len] = 0;
+	return pb->buf;
+}
+
+static inline void kobel_path_buf_free(kobel_path_buf* pb) {
+	if (pb->buf && pb->buf != pb->stack) {
+		free(pb->buf);
+	}
+}
+
 /* Directory listing helper — returns newline-separated filenames */
 static kobel_str kobel_list_dir(kobel_str dir_path) {
 #ifdef _WIN32
-	char pattern[1024];
-	if (dir_path.len >= 1020) return (kobel_str){ NULL, 0 };
+	if (!dir_path.data || dir_path.len == 0) return (kobel_str){ NULL, 0 };
+	char stack_pat[1024];
+	char* pattern = stack_pat;
+	if (dir_path.len + 3 > sizeof(stack_pat)) {
+		pattern = (char*)malloc(dir_path.len + 3);
+		if (!pattern) return (kobel_str){ NULL, 0 };
+	}
 	memcpy(pattern, dir_path.data, dir_path.len);
 	pattern[dir_path.len] = 92;
 	pattern[dir_path.len + 1] = '*';
@@ -104,6 +140,7 @@ static kobel_str kobel_list_dir(kobel_str dir_path) {
 
 	struct _finddata_t data;
 	intptr_t handle = _findfirst(pattern, &data);
+	if (pattern != stack_pat) free(pattern);
 	if (handle == -1) return (kobel_str){ NULL, 0 };
 
 	size_t cap = 1024;
@@ -126,12 +163,13 @@ static kobel_str kobel_list_dir(kobel_str dir_path) {
 	buf[len] = 0;
 	return (kobel_str){ buf, len };
 #else
-	char path[1024];
-	if (dir_path.len >= 1023) return (kobel_str){ NULL, 0 };
-	memcpy(path, dir_path.data, dir_path.len);
-	path[dir_path.len] = 0;
+	if (!dir_path.data || dir_path.len == 0) return (kobel_str){ NULL, 0 };
+	kobel_path_buf pb;
+	char* path = kobel_path_buf_init(&pb, dir_path);
+	if (!path) return (kobel_str){ NULL, 0 };
 
 	DIR* d = opendir(path);
+	kobel_path_buf_free(&pb);
 	if (!d) return (kobel_str){ NULL, 0 };
 
 	size_t cap = 1024;
@@ -156,81 +194,69 @@ static kobel_str kobel_list_dir(kobel_str dir_path) {
 #endif
 }
 
-/* Directory creation and filesystem status helpers */
-static int kobel_mkdir(const char* path) {
+/* Platform-abstracted stat & mkdir helpers */
 #ifdef _WIN32
-	return _mkdir(path);
+typedef struct _stat kobel_stat_t;
+#define kobel_stat_fn _stat
+static inline int kobel_mkdir(const char* path) { return _mkdir(path); }
 #else
-	return mkdir(path, 0777);
+typedef struct stat kobel_stat_t;
+#define kobel_stat_fn stat
+static inline int kobel_mkdir(const char* path) { return mkdir(path, 0777); }
 #endif
+
+static int kobel_path_stat(kobel_str p, kobel_stat_t* st) {
+	if (!p.data || p.len == 0) return 0;
+	kobel_path_buf pb;
+	char* path = kobel_path_buf_init(&pb, p);
+	if (!path) return 0;
+	int res = kobel_stat_fn(path, st);
+	kobel_path_buf_free(&pb);
+	return res == 0;
 }
 
 static int kobel_path_exists(kobel_str p) {
-	if (!p.data || p.len == 0) return 0;
-	char path[1024];
-	if (p.len >= 1023) return 0;
-	memcpy(path, p.data, p.len);
-	path[p.len] = 0;
-#ifdef _WIN32
-	struct _stat st;
-	return _stat(path, &st) == 0;
-#else
-	struct stat st;
-	return stat(path, &st) == 0;
-#endif
+	kobel_stat_t st;
+	return kobel_path_stat(p, &st);
 }
 
 static int kobel_path_is_dir(kobel_str p) {
-	if (!p.data || p.len == 0) return 0;
-	char path[1024];
-	if (p.len >= 1023) return 0;
-	memcpy(path, p.data, p.len);
-	path[p.len] = 0;
+	kobel_stat_t st;
+	if (!kobel_path_stat(p, &st)) return 0;
 #ifdef _WIN32
-	struct _stat st;
-	if (_stat(path, &st) != 0) return 0;
 	return (st.st_mode & _S_IFDIR) != 0;
 #else
-	struct stat st;
-	if (stat(path, &st) != 0) return 0;
 	return S_ISDIR(st.st_mode);
 #endif
 }
 
 static int kobel_path_is_file(kobel_str p) {
-	if (!p.data || p.len == 0) return 0;
-	char path[1024];
-	if (p.len >= 1023) return 0;
-	memcpy(path, p.data, p.len);
-	path[p.len] = 0;
+	kobel_stat_t st;
+	if (!kobel_path_stat(p, &st)) return 0;
 #ifdef _WIN32
-	struct _stat st;
-	if (_stat(path, &st) != 0) return 0;
 	return (st.st_mode & _S_IFREG) != 0;
 #else
-	struct stat st;
-	if (stat(path, &st) != 0) return 0;
 	return S_ISREG(st.st_mode);
 #endif
 }
 
 static int kobel_create_dir(kobel_str dir_path) {
 	if (!dir_path.data || dir_path.len == 0) return 0;
-	char path[1024];
-	if (dir_path.len >= 1023) return 0;
-	memcpy(path, dir_path.data, dir_path.len);
-	path[dir_path.len] = 0;
-	if (kobel_mkdir(path) == 0) return 1;
+	kobel_path_buf pb;
+	char* path = kobel_path_buf_init(&pb, dir_path);
+	if (!path) return 0;
+	int res = kobel_mkdir(path);
+	kobel_path_buf_free(&pb);
+	if (res == 0) return 1;
 	return kobel_path_is_dir(dir_path);
 }
 
 static int kobel_create_dir_all(kobel_str dir_path) {
 	if (!dir_path.data || dir_path.len == 0) return 1;
 	if (kobel_path_is_dir(dir_path)) return 1;
-	char path[1024];
-	if (dir_path.len >= 1023) return 0;
-	memcpy(path, dir_path.data, dir_path.len);
-	path[dir_path.len] = 0;
+	kobel_path_buf pb;
+	char* path = kobel_path_buf_init(&pb, dir_path);
+	if (!path) return 0;
 
 	for (size_t i = 1; i < dir_path.len; i++) {
 		if (path[i] == '/' || path[i] == 92) {
@@ -245,6 +271,7 @@ static int kobel_create_dir_all(kobel_str dir_path) {
 		}
 	}
 	kobel_mkdir(path);
+	kobel_path_buf_free(&pb);
 	return kobel_path_is_dir(dir_path);
 }
 typedef struct std__memory__ArenaBlock std__memory__ArenaBlock;
@@ -429,7 +456,7 @@ typedef struct compiler__semantic__checker__BodyChecker compiler__semantic__chec
 typedef struct compiler__semantic__checker__ArrowCandidate compiler__semantic__checker__ArrowCandidate;
 typedef struct compiler__codegen__ConditionAlias compiler__codegen__ConditionAlias;
 typedef struct compiler__codegen__CCodeGen compiler__codegen__CCodeGen;
-#define compiler__codegen__C_PRELUDE KOBEL_STR("/* Generated by Kobel compiler Compiler v1 */\n#include <stdint.h>\n#include <stdbool.h>\n#include <stddef.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n#include <stdarg.h>\n\n#ifdef _WIN32\n#include <io.h>\n#include <fcntl.h>\n#include <direct.h>\n#include <sys/stat.h>\n#else\n#include <dirent.h>\n#include <sys/stat.h>\n#include <sys/types.h>\n#include <unistd.h>\n#endif\n\ntypedef struct {\n	const char* data;\n	size_t len;\n} kobel_str;\n\n#define KOBEL_STR(s) ((kobel_str){ (s), sizeof(s) - 1 })\n\nstatic inline kobel_str kobel_null_str(void) {\n	return (kobel_str){ NULL, 0 };\n}\n\nstatic inline kobel_str kobel_from_cstr(const char* s) {\n	return s ? (kobel_str){ s, strlen(s) } : (kobel_str){ NULL, 0 };\n}\n\nstatic inline const char* kobel_cstr(kobel_str s) {\n	if (!s.data) return \"\";\n	if (s.data[s.len] == 0) return s.data;\n	char* r = (char*)malloc(s.len + 1);\n	memcpy(r, s.data, s.len);\n	r[s.len] = 0;\n	return r;\n}\n\n/* str.slice(start, end) helper — O(1) zero-allocation view */\nstatic inline kobel_str kobel_slice(kobel_str s, size_t start, size_t end) {\n	if (!s.data) return (kobel_str){ NULL, 0 };\n	if (end > s.len) end = s.len;\n	if (start > end) start = end;\n	return (kobel_str){ s.data + start, end - start };\n}\n\nstatic inline kobel_str kobel_slice1(kobel_str s, size_t start) {\n	return kobel_slice(s, start, s.len);\n}\n\n/* str concat helper — variadic, single allocation across all parts */\nstatic kobel_str kobel_concat(size_t count, ...) {\n	va_list args;\n	va_start(args, count);\n	size_t total = 0;\n	for (size_t i = 0; i < count; i++) {\n		kobel_str s = va_arg(args, kobel_str);\n		total += s.len;\n	}\n	va_end(args);\n\n	char* r = (char*)malloc(total + 1);\n	size_t off = 0;\n	va_start(args, count);\n	for (size_t i = 0; i < count; i++) {\n		kobel_str s = va_arg(args, kobel_str);\n		if (s.len > 0) {\n			memcpy(r + off, s.data, s.len);\n			off += s.len;\n		}\n	}\n	va_end(args);\n	r[total] = 0;\n	return (kobel_str){ r, total };\n}\n\n\n/* str == str helper — fast length check + memcmp */\nstatic inline int kobel_streq(kobel_str a, kobel_str b) {\n	return a.len == b.len && (a.len == 0 || memcmp(a.data, b.data, a.len) == 0);\n}\n\n/* struct == struct fallback helper */\nstatic inline int kobel_memeq(const void* a, const void* b, size_t n) {\n	return memcmp(a, b, n) == 0;\n}\n\n/* Directory listing helper — returns newline-separated filenames */\nstatic kobel_str kobel_list_dir(kobel_str dir_path) {\n#ifdef _WIN32\n	char pattern[1024];\n	if (dir_path.len >= 1020) return (kobel_str){ NULL, 0 };\n	memcpy(pattern, dir_path.data, dir_path.len);\n	pattern[dir_path.len] = 92;\n	pattern[dir_path.len + 1] = '*';\n	pattern[dir_path.len + 2] = 0;\n\n	struct _finddata_t data;\n	intptr_t handle = _findfirst(pattern, &data);\n	if (handle == -1) return (kobel_str){ NULL, 0 };\n\n	size_t cap = 1024;\n	size_t len = 0;\n	char* buf = (char*)malloc(cap);\n\n	do {\n		if (strcmp(data.name, \".\") == 0 || strcmp(data.name, \"..\") == 0) continue;\n		size_t nlen = strlen(data.name);\n		while (len + nlen + 2 > cap) {\n			cap *= 2;\n			buf = (char*)realloc(buf, cap);\n		}\n		memcpy(buf + len, data.name, nlen);\n		len += nlen;\n		buf[len++] = 10;\n	} while (_findnext(handle, &data) == 0);\n\n	_findclose(handle);\n	buf[len] = 0;\n	return (kobel_str){ buf, len };\n#else\n	char path[1024];\n	if (dir_path.len >= 1023) return (kobel_str){ NULL, 0 };\n	memcpy(path, dir_path.data, dir_path.len);\n	path[dir_path.len] = 0;\n\n	DIR* d = opendir(path);\n	if (!d) return (kobel_str){ NULL, 0 };\n\n	size_t cap = 1024;\n	size_t len = 0;\n	char* buf = (char*)malloc(cap);\n\n	struct dirent* ent;\n	while ((ent = readdir(d)) != NULL) {\n		if (strcmp(ent->d_name, \".\") == 0 || strcmp(ent->d_name, \"..\") == 0) continue;\n		size_t nlen = strlen(ent->d_name);\n		while (len + nlen + 2 > cap) {\n			cap *= 2;\n			buf = (char*)realloc(buf, cap);\n		}\n		memcpy(buf + len, ent->d_name, nlen);\n		len += nlen;\n		buf[len++] = 10;\n	}\n	closedir(d);\n	buf[len] = 0;\n	return (kobel_str){ buf, len };\n#endif\n}\n\n/* Directory creation and filesystem status helpers */\nstatic int kobel_mkdir(const char* path) {\n#ifdef _WIN32\n	return _mkdir(path);\n#else\n	return mkdir(path, 0777);\n#endif\n}\n\nstatic int kobel_path_exists(kobel_str p) {\n	if (!p.data || p.len == 0) return 0;\n	char path[1024];\n	if (p.len >= 1023) return 0;\n	memcpy(path, p.data, p.len);\n	path[p.len] = 0;\n#ifdef _WIN32\n	struct _stat st;\n	return _stat(path, &st) == 0;\n#else\n	struct stat st;\n	return stat(path, &st) == 0;\n#endif\n}\n\nstatic int kobel_path_is_dir(kobel_str p) {\n	if (!p.data || p.len == 0) return 0;\n	char path[1024];\n	if (p.len >= 1023) return 0;\n	memcpy(path, p.data, p.len);\n	path[p.len] = 0;\n#ifdef _WIN32\n	struct _stat st;\n	if (_stat(path, &st) != 0) return 0;\n	return (st.st_mode & _S_IFDIR) != 0;\n#else\n	struct stat st;\n	if (stat(path, &st) != 0) return 0;\n	return S_ISDIR(st.st_mode);\n#endif\n}\n\nstatic int kobel_path_is_file(kobel_str p) {\n	if (!p.data || p.len == 0) return 0;\n	char path[1024];\n	if (p.len >= 1023) return 0;\n	memcpy(path, p.data, p.len);\n	path[p.len] = 0;\n#ifdef _WIN32\n	struct _stat st;\n	if (_stat(path, &st) != 0) return 0;\n	return (st.st_mode & _S_IFREG) != 0;\n#else\n	struct stat st;\n	if (stat(path, &st) != 0) return 0;\n	return S_ISREG(st.st_mode);\n#endif\n}\n\nstatic int kobel_create_dir(kobel_str dir_path) {\n	if (!dir_path.data || dir_path.len == 0) return 0;\n	char path[1024];\n	if (dir_path.len >= 1023) return 0;\n	memcpy(path, dir_path.data, dir_path.len);\n	path[dir_path.len] = 0;\n	if (kobel_mkdir(path) == 0) return 1;\n	return kobel_path_is_dir(dir_path);\n}\n\nstatic int kobel_create_dir_all(kobel_str dir_path) {\n	if (!dir_path.data || dir_path.len == 0) return 1;\n	if (kobel_path_is_dir(dir_path)) return 1;\n	char path[1024];\n	if (dir_path.len >= 1023) return 0;\n	memcpy(path, dir_path.data, dir_path.len);\n	path[dir_path.len] = 0;\n\n	for (size_t i = 1; i < dir_path.len; i++) {\n		if (path[i] == '/' || path[i] == 92) {\n			char saved = path[i];\n			path[i] = 0;\n			if (i == 2 && path[1] == ':') {\n				path[i] = saved;\n				continue;\n			}\n			kobel_mkdir(path);\n			path[i] = saved;\n		}\n	}\n	kobel_mkdir(path);\n	return kobel_path_is_dir(dir_path);\n}\n")
+#define compiler__codegen__C_PRELUDE KOBEL_STR("/* Generated by Kobel compiler Compiler v1 */\n#include <stdint.h>\n#include <stdbool.h>\n#include <stddef.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n#include <stdarg.h>\n\n#ifdef _WIN32\n#include <io.h>\n#include <fcntl.h>\n#include <direct.h>\n#include <sys/stat.h>\n#else\n#include <dirent.h>\n#include <sys/stat.h>\n#include <sys/types.h>\n#include <unistd.h>\n#endif\n\ntypedef struct {\n	const char* data;\n	size_t len;\n} kobel_str;\n\n#define KOBEL_STR(s) ((kobel_str){ (s), sizeof(s) - 1 })\n\nstatic inline kobel_str kobel_null_str(void) {\n	return (kobel_str){ NULL, 0 };\n}\n\nstatic inline kobel_str kobel_from_cstr(const char* s) {\n	return s ? (kobel_str){ s, strlen(s) } : (kobel_str){ NULL, 0 };\n}\n\nstatic inline const char* kobel_cstr(kobel_str s) {\n	if (!s.data) return \"\";\n	if (s.data[s.len] == 0) return s.data;\n	char* r = (char*)malloc(s.len + 1);\n	memcpy(r, s.data, s.len);\n	r[s.len] = 0;\n	return r;\n}\n\n/* str.slice(start, end) helper — O(1) zero-allocation view */\nstatic inline kobel_str kobel_slice(kobel_str s, size_t start, size_t end) {\n	if (!s.data) return (kobel_str){ NULL, 0 };\n	if (end > s.len) end = s.len;\n	if (start > end) start = end;\n	return (kobel_str){ s.data + start, end - start };\n}\n\nstatic inline kobel_str kobel_slice1(kobel_str s, size_t start) {\n	return kobel_slice(s, start, s.len);\n}\n\n/* str concat helper — variadic, single allocation across all parts */\nstatic kobel_str kobel_concat(size_t count, ...) {\n	va_list args;\n	va_start(args, count);\n	size_t total = 0;\n	for (size_t i = 0; i < count; i++) {\n		kobel_str s = va_arg(args, kobel_str);\n		total += s.len;\n	}\n	va_end(args);\n\n	char* r = (char*)malloc(total + 1);\n	size_t off = 0;\n	va_start(args, count);\n	for (size_t i = 0; i < count; i++) {\n		kobel_str s = va_arg(args, kobel_str);\n		if (s.len > 0) {\n			memcpy(r + off, s.data, s.len);\n			off += s.len;\n		}\n	}\n	va_end(args);\n	r[total] = 0;\n	return (kobel_str){ r, total };\n}\n\n\n/* str == str helper — fast length check + memcmp */\nstatic inline int kobel_streq(kobel_str a, kobel_str b) {\n	return a.len == b.len && (a.len == 0 || memcmp(a.data, b.data, a.len) == 0);\n}\n\n/* struct == struct fallback helper */\nstatic inline int kobel_memeq(const void* a, const void* b, size_t n) {\n	return memcmp(a, b, n) == 0;\n}\n\n/* Path buffer helper — small-buffer optimization (SBO) for NUL-terminated paths */\ntypedef struct {\n	char stack[1024];\n	char* buf;\n} kobel_path_buf;\n\nstatic inline char* kobel_path_buf_init(kobel_path_buf* pb, kobel_str s) {\n	if (!s.data || s.len == 0) {\n		pb->buf = NULL;\n		return NULL;\n	}\n	if (s.len < sizeof(pb->stack)) {\n		pb->buf = pb->stack;\n	} else {\n		pb->buf = (char*)malloc(s.len + 1);\n		if (!pb->buf) {\n			pb->buf = NULL;\n			return NULL;\n		}\n	}\n	memcpy(pb->buf, s.data, s.len);\n	pb->buf[s.len] = 0;\n	return pb->buf;\n}\n\nstatic inline void kobel_path_buf_free(kobel_path_buf* pb) {\n	if (pb->buf && pb->buf != pb->stack) {\n		free(pb->buf);\n	}\n}\n\n/* Directory listing helper — returns newline-separated filenames */\nstatic kobel_str kobel_list_dir(kobel_str dir_path) {\n#ifdef _WIN32\n	if (!dir_path.data || dir_path.len == 0) return (kobel_str){ NULL, 0 };\n	char stack_pat[1024];\n	char* pattern = stack_pat;\n	if (dir_path.len + 3 > sizeof(stack_pat)) {\n		pattern = (char*)malloc(dir_path.len + 3);\n		if (!pattern) return (kobel_str){ NULL, 0 };\n	}\n	memcpy(pattern, dir_path.data, dir_path.len);\n	pattern[dir_path.len] = 92;\n	pattern[dir_path.len + 1] = '*';\n	pattern[dir_path.len + 2] = 0;\n\n	struct _finddata_t data;\n	intptr_t handle = _findfirst(pattern, &data);\n	if (pattern != stack_pat) free(pattern);\n	if (handle == -1) return (kobel_str){ NULL, 0 };\n\n	size_t cap = 1024;\n	size_t len = 0;\n	char* buf = (char*)malloc(cap);\n\n	do {\n		if (strcmp(data.name, \".\") == 0 || strcmp(data.name, \"..\") == 0) continue;\n		size_t nlen = strlen(data.name);\n		while (len + nlen + 2 > cap) {\n			cap *= 2;\n			buf = (char*)realloc(buf, cap);\n		}\n		memcpy(buf + len, data.name, nlen);\n		len += nlen;\n		buf[len++] = 10;\n	} while (_findnext(handle, &data) == 0);\n\n	_findclose(handle);\n	buf[len] = 0;\n	return (kobel_str){ buf, len };\n#else\n	if (!dir_path.data || dir_path.len == 0) return (kobel_str){ NULL, 0 };\n	kobel_path_buf pb;\n	char* path = kobel_path_buf_init(&pb, dir_path);\n	if (!path) return (kobel_str){ NULL, 0 };\n\n	DIR* d = opendir(path);\n	kobel_path_buf_free(&pb);\n	if (!d) return (kobel_str){ NULL, 0 };\n\n	size_t cap = 1024;\n	size_t len = 0;\n	char* buf = (char*)malloc(cap);\n\n	struct dirent* ent;\n	while ((ent = readdir(d)) != NULL) {\n		if (strcmp(ent->d_name, \".\") == 0 || strcmp(ent->d_name, \"..\") == 0) continue;\n		size_t nlen = strlen(ent->d_name);\n		while (len + nlen + 2 > cap) {\n			cap *= 2;\n			buf = (char*)realloc(buf, cap);\n		}\n		memcpy(buf + len, ent->d_name, nlen);\n		len += nlen;\n		buf[len++] = 10;\n	}\n	closedir(d);\n	buf[len] = 0;\n	return (kobel_str){ buf, len };\n#endif\n}\n\n/* Platform-abstracted stat & mkdir helpers */\n#ifdef _WIN32\ntypedef struct _stat kobel_stat_t;\n#define kobel_stat_fn _stat\nstatic inline int kobel_mkdir(const char* path) { return _mkdir(path); }\n#else\ntypedef struct stat kobel_stat_t;\n#define kobel_stat_fn stat\nstatic inline int kobel_mkdir(const char* path) { return mkdir(path, 0777); }\n#endif\n\nstatic int kobel_path_stat(kobel_str p, kobel_stat_t* st) {\n	if (!p.data || p.len == 0) return 0;\n	kobel_path_buf pb;\n	char* path = kobel_path_buf_init(&pb, p);\n	if (!path) return 0;\n	int res = kobel_stat_fn(path, st);\n	kobel_path_buf_free(&pb);\n	return res == 0;\n}\n\nstatic int kobel_path_exists(kobel_str p) {\n	kobel_stat_t st;\n	return kobel_path_stat(p, &st);\n}\n\nstatic int kobel_path_is_dir(kobel_str p) {\n	kobel_stat_t st;\n	if (!kobel_path_stat(p, &st)) return 0;\n#ifdef _WIN32\n	return (st.st_mode & _S_IFDIR) != 0;\n#else\n	return S_ISDIR(st.st_mode);\n#endif\n}\n\nstatic int kobel_path_is_file(kobel_str p) {\n	kobel_stat_t st;\n	if (!kobel_path_stat(p, &st)) return 0;\n#ifdef _WIN32\n	return (st.st_mode & _S_IFREG) != 0;\n#else\n	return S_ISREG(st.st_mode);\n#endif\n}\n\nstatic int kobel_create_dir(kobel_str dir_path) {\n	if (!dir_path.data || dir_path.len == 0) return 0;\n	kobel_path_buf pb;\n	char* path = kobel_path_buf_init(&pb, dir_path);\n	if (!path) return 0;\n	int res = kobel_mkdir(path);\n	kobel_path_buf_free(&pb);\n	if (res == 0) return 1;\n	return kobel_path_is_dir(dir_path);\n}\n\nstatic int kobel_create_dir_all(kobel_str dir_path) {\n	if (!dir_path.data || dir_path.len == 0) return 1;\n	if (kobel_path_is_dir(dir_path)) return 1;\n	kobel_path_buf pb;\n	char* path = kobel_path_buf_init(&pb, dir_path);\n	if (!path) return 0;\n\n	for (size_t i = 1; i < dir_path.len; i++) {\n		if (path[i] == '/' || path[i] == 92) {\n			char saved = path[i];\n			path[i] = 0;\n			if (i == 2 && path[1] == ':') {\n				path[i] = saved;\n				continue;\n			}\n			kobel_mkdir(path);\n			path[i] = saved;\n		}\n	}\n	kobel_mkdir(path);\n	kobel_path_buf_free(&pb);\n	return kobel_path_is_dir(dir_path);\n}\n")
 typedef struct compiler__driver__CompileOptions compiler__driver__CompileOptions;
 typedef struct fmt__FormatBuffer fmt__FormatBuffer;
 typedef struct fmt__Comment fmt__Comment;
