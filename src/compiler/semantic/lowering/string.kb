@@ -25,45 +25,28 @@ impl Arena {
 		return self.node(NodeData.CallExpr(callee, args, List<*AstNode>()), line, col);
 	}
 
-	// Two-operand concatenation: `kobel_concat(a, b)`.
+	// Two-operand concatenation: `kobel_concat(2, a, b)`.
 	pub fn interp_concat(var self, a: *AstNode, b_node: *AstNode, line: usz, col: usz): *AstNode {
 		var args = List<*AstNode>();
+		args += self.node(NodeData.LiteralExpr(Literal.INTEGER, "2"), line, col);
 		args += a;
 		args += b_node;
 		val callee = self.node(NodeData.IdentifierExpr("kobel_concat"), line, col);
 		return self.node(NodeData.CallExpr(callee, args, List<*AstNode>()), line, col);
 	}
 
-	// Joins `pieces` in batches of up to 5 per call to minimize allocations.
+	// Joins `pieces` in a single variadic call: `kobel_concat(count, p0, p1, ...)`.
 	pub fn interp_concat_many(var self, pieces: List<*AstNode>, line: usz, col: usz): *AstNode? {
 		if (pieces.empty()) return null;
 		if (pieces.len == 1) return pieces[0];
 
-		var acc = pieces[0];
-		var i: usz = 1;
-		while (i < pieces.len) {
-			val first_group = i == 1;
-			val max_take: usz = if (first_group) 4 else 4;
-			val rem = pieces.len - i;
-			val take = if (rem < max_take) rem else max_take;
-
-			var args = List<*AstNode>();
-			args += acc;
-			for (k in 0..<take) {
-				args += pieces[i + k];
-			}
-
-			val helper = when (args.len) {
-				2 -> "kobel_concat";
-				3 -> "kobel_concat3";
-				4 -> "kobel_concat4";
-				else -> "kobel_concat5";
-			};
-			val callee = self.node(NodeData.IdentifierExpr(helper), line, col);
-			acc = self.node(NodeData.CallExpr(callee, args, List<*AstNode>()), line, col);
-			i += take;
+		var args = List<*AstNode>();
+		args += self.node(NodeData.LiteralExpr(Literal.INTEGER, "${pieces.len}"), line, col);
+		for (p in pieces) {
+			args += p;
 		}
-		return acc;
+		val callee = self.node(NodeData.IdentifierExpr("kobel_concat"), line, col);
+		return self.node(NodeData.CallExpr(callee, args, List<*AstNode>()), line, col);
 	}
 
 	// Builds `kobel_streq(a, b)`, optionally negated for `!=`.

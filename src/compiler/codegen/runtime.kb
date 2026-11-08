@@ -12,6 +12,7 @@ const C_PRELUDE = """
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
 
 #ifdef _WIN32
 #include <io.h>
@@ -61,51 +62,32 @@ static inline kobel_str kobel_slice1(kobel_str s, size_t start) {
 	return kobel_slice(s, start, s.len);
 }
 
-/* str + str helpers — O(1) length lookup, single allocation */
-static kobel_str kobel_concat(kobel_str a, kobel_str b) {
-	size_t total = a.len + b.len;
+/* str concat helper — variadic, single allocation across all parts */
+static kobel_str kobel_concat(size_t count, ...) {
+	va_list args;
+	va_start(args, count);
+	size_t total = 0;
+	for (size_t i = 0; i < count; i++) {
+		kobel_str s = va_arg(args, kobel_str);
+		total += s.len;
+	}
+	va_end(args);
+
 	char* r = (char*)malloc(total + 1);
-	if (a.len > 0) memcpy(r, a.data, a.len);
-	if (b.len > 0) memcpy(r + a.len, b.data, b.len);
+	size_t off = 0;
+	va_start(args, count);
+	for (size_t i = 0; i < count; i++) {
+		kobel_str s = va_arg(args, kobel_str);
+		if (s.len > 0) {
+			memcpy(r + off, s.data, s.len);
+			off += s.len;
+		}
+	}
+	va_end(args);
 	r[total] = 0;
 	return (kobel_str){ r, total };
 }
 
-static kobel_str kobel_concat3(kobel_str a, kobel_str b, kobel_str c) {
-	size_t total = a.len + b.len + c.len;
-	char* r = (char*)malloc(total + 1);
-	size_t off = 0;
-	if (a.len > 0) { memcpy(r + off, a.data, a.len); off += a.len; }
-	if (b.len > 0) { memcpy(r + off, b.data, b.len); off += b.len; }
-	if (c.len > 0) { memcpy(r + off, c.data, c.len); }
-	r[total] = 0;
-	return (kobel_str){ r, total };
-}
-
-static kobel_str kobel_concat4(kobel_str a, kobel_str b, kobel_str c, kobel_str d) {
-	size_t total = a.len + b.len + c.len + d.len;
-	char* r = (char*)malloc(total + 1);
-	size_t off = 0;
-	if (a.len > 0) { memcpy(r + off, a.data, a.len); off += a.len; }
-	if (b.len > 0) { memcpy(r + off, b.data, b.len); off += b.len; }
-	if (c.len > 0) { memcpy(r + off, c.data, c.len); off += c.len; }
-	if (d.len > 0) { memcpy(r + off, d.data, d.len); }
-	r[total] = 0;
-	return (kobel_str){ r, total };
-}
-
-static kobel_str kobel_concat5(kobel_str a, kobel_str b, kobel_str c, kobel_str d, kobel_str e) {
-	size_t total = a.len + b.len + c.len + d.len + e.len;
-	char* r = (char*)malloc(total + 1);
-	size_t off = 0;
-	if (a.len > 0) { memcpy(r + off, a.data, a.len); off += a.len; }
-	if (b.len > 0) { memcpy(r + off, b.data, b.len); off += b.len; }
-	if (c.len > 0) { memcpy(r + off, c.data, c.len); off += c.len; }
-	if (d.len > 0) { memcpy(r + off, d.data, d.len); off += d.len; }
-	if (e.len > 0) { memcpy(r + off, e.data, e.len); }
-	r[total] = 0;
-	return (kobel_str){ r, total };
-}
 
 /* str == str helper — fast length check + memcmp */
 static inline int kobel_streq(kobel_str a, kobel_str b) {
