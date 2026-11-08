@@ -335,7 +335,6 @@ impl CCodeGen {
 		self.loop_defer_depths.clear();
 
 		self.out += " {\n";
-		self.indent_level = 1;
 
 		when (f_body) {
 			is BlockStmt as blk -> self.gen_block_body(f_body!);
@@ -402,7 +401,6 @@ impl CCodeGen {
 			}
 		}
 
-		self.indent_level = 0;
 		self.out += "}\n\n";
 	}
 

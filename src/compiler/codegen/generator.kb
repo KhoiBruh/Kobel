@@ -22,7 +22,6 @@ pub struct ConditionAlias {
 
 pub struct CCodeGen {
 	pub out: StringBuilder,
-	pub indent_level: usz = 0,
 
 	pub errors: List<str> = List(),
 	// C element type for the array literal being emitted, when the surrounding
@@ -115,19 +114,6 @@ impl CCodeGen {
 	}
 
 }
-
-pub fn get_indent(level: usz) => when (level) {
-	0 -> "";
-	1 -> "    ";
-	2 -> "        ";
-	3 -> "            ";
-	4 -> "                ";
-	5 -> "                    ";
-	6 -> "                        ";
-	7 -> "                            ";
-	8 -> "                                ";
-	else -> "    ".repeat(level);
-};
 
 pub fn c_format_int_literal(raw: str): str {
 	// The suffix is stripped through `num_suffix` so a hex digit is never taken for

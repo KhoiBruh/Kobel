@@ -1,12 +1,10 @@
 mod std.io;
 
-extern "libc" {
-	fn puts(s: *char): i32;
-	fn putchar(c: char): i32;
+extern "C" {
+	fn kobel_print(s: str);
+	fn kobel_println(s: str);
 }
 
-pub fn print(string: str) {
-	for (c in string) putchar(c);
-}
+pub fn print(string: str) => kobel_print(string);
 
-pub fn println(s: str) => puts(s.c_str());
+pub fn println(s: str) => kobel_println(s);

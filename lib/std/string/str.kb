@@ -160,10 +160,8 @@ impl str {
 		var w = 0;
 
 		for (k in 0..<n) {
-			for (c in self) {
-				buf[w] = c.code();
-				w++;
-			}
+			memcpy(&buf[w], self.data as *none, self.len);
+			w += self.len;
 		}
 
 		buf[w] = 0;
@@ -175,23 +173,21 @@ impl str {
 		if (list.len == 1) return list.data[0];
 
 		var total = 0;
-		for (path in list) total += path.len;
+		for (item in list) total += item.len;
 		total += self.len * (list.len - 1);
 
 		val buf = Heap.create_array<u8>(total + 1);
 		var w = 0;
 		for (i in 0..<list.len) {
 			val item = list.data[i];
-			for (c in item) {
-				buf[w] = c.code();
-				w++;
+			if (item.len > 0) {
+				memcpy(&buf[w], item.data as *none, item.len);
+				w += item.len;
 			}
 
-			if (i + 1 < list.len) {
-				for (c in self) {
-					buf[w] = c.code();
-					w++;
-				}
+			if (i + 1 < list.len && self.len > 0) {
+				memcpy(&buf[w], self.data as *none, self.len);
+				w += self.len;
 			}
 		}
 

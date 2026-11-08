@@ -50,6 +50,19 @@ static inline const char* kobel_cstr(kobel_str s) {
 	return r;
 }
 
+static inline void kobel_print(kobel_str s) {
+	if (s.data && s.len > 0) {
+		fwrite(s.data, 1, s.len, stdout);
+	}
+}
+
+static inline void kobel_println(kobel_str s) {
+	if (s.data && s.len > 0) {
+		fwrite(s.data, 1, s.len, stdout);
+	}
+	putchar(10);
+}
+
 /* str.slice(start, end) helper — O(1) zero-allocation view */
 static inline kobel_str kobel_slice(kobel_str s, size_t start, size_t end) {
 	if (!s.data) return (kobel_str){ NULL, 0 };
