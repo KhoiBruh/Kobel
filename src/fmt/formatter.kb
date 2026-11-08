@@ -671,6 +671,7 @@ impl Formatter {
 
 	pub fn format_program(var self, program: *AstNode) {
 		if (program == null) return;
+
 		when (program) {
 			is Program as p -> {
 				var prev_was_import = false;
@@ -694,7 +695,11 @@ impl Formatter {
 		}
 	}
 
-	pub fn format_file(path: str, write_in_place: bool = false, options: FormatOptions = FormatOptions()): bool {
+	pub fn format_file(
+		path: str,
+		write_in_place: bool = false,
+		options: FormatOptions = FormatOptions()
+	): bool {
 		val fp = Path(path);
 		val src = fp.read_text();
 		if (src.empty()) return false;
@@ -713,7 +718,11 @@ impl Formatter {
 		return true;
 	}
 
-	pub fn format_files(files: List<str>, write_in_place: bool = false, options: FormatOptions = FormatOptions()): i32 {
+	pub fn format_files(
+		files: List<str>,
+		write_in_place: bool = false,
+		options: FormatOptions = FormatOptions()
+	): i32 {
 		if (files.empty()) {
 			println("Error: No files specified to format");
 			return 1;

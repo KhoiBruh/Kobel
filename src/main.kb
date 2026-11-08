@@ -12,17 +12,17 @@ use lsp.*;
  * ============================================================================
  * main — Kobel Compiler CLI Entry Point & Command Router
  *
- * Implements the object-oriented `KobelCli` application interface, parsing
+ * Implements the object-oriented `Kobel` application interface, parsing
  * command line arguments and dispatching execution to subsystem orchestrators
  * (Compiler, Formatter, LanguageServer).
  * ============================================================================
  */
 
-pub struct KobelCli {
+pub struct Kobel {
 	pub args: List<str>
 }
 
-impl KobelCli {
+impl Kobel {
 
 	pub init(argc: i32, argv: &*char) {
 		var args = List<str>();
@@ -197,6 +197,6 @@ impl KobelCli {
 }
 
 fn main(argc: i32, argv: &*char): i32 {
-	val app = KobelCli(argc, argv);
+	val app = Kobel(argc, argv);
 	return app.run();
 }

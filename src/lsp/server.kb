@@ -42,205 +42,203 @@ fn publish_doc_diagnostics(uri: str, text: str, workspace_root: str) {
 // ============================================================================
 
 pub struct LanguageServer {
-	pub docs: DocumentStore,
+	pub docs: DocumentStore = DocumentStore(),
 	pub is_shutdown: bool = false,
 	pub workspace_root: str = ""
 }
 
 impl LanguageServer {
 
-	pub init() => Self(DocumentStore(), false, "");
-
 	pub fn run(var self): i32 {
 		init_stdio();
 
-	while (true) {
-		val raw_msg = read_message();
-		if (raw_msg.empty()) break; // EOF: editor closed pipe
+		while (true) {
+			val raw_msg = read_message();
+			if (raw_msg.empty()) break; // EOF: editor closed pipe
 
-		val msg = JsonValue.parse(raw_msg);
-		if (!msg.is_obj()) continue;
+			val msg = JsonValue.parse(raw_msg);
+			if (!msg.is_obj()) continue;
 
-		val method = msg.get_str("method", "");
-		val id = msg["id"];
-		val params = msg.get_obj("params");
+			val method = msg.get_str("method", "");
+			val id = msg["id"];
+			val params = msg.get_obj("params");
 
-		when (method) {
-			Method.INITIALIZE.value -> {
-				val root_uri = params.get_str("rootUri", "");
-				if (!root_uri.empty()) {
-					self.workspace_root = uri_to_path(root_uri);
-				} else {
-					val root_path = params.get_str("rootPath", "");
-					if (!root_path.empty()) {
-						self.workspace_root = root_path;
+			when (method) {
+				Method.INITIALIZE.value -> {
+					val root_uri = params.get_str("rootUri", "");
+					if (!root_uri.empty()) {
+						self.workspace_root = uri_to_path(root_uri);
 					} else {
-						val wf = params.get_arr("workspaceFolders");
-						val wf_uri = wf.at(0)?.get_str("uri", "") ?: "";
-						if (!wf_uri.empty()) self.workspace_root = uri_to_path(wf_uri);
+						val root_path = params.get_str("rootPath", "");
+						if (!root_path.empty()) {
+							self.workspace_root = root_path;
+						} else {
+							val wf = params.get_arr("workspaceFolders");
+							val wf_uri = wf.at(0)?.get_str("uri", "") ?: "";
+							if (!wf_uri.empty()) self.workspace_root = uri_to_path(wf_uri);
+						}
+					}
+
+					val res = JsonValue.obj();
+					val caps = JsonValue.obj();
+
+					// Capabilities:
+					// - textDocumentSync: 1 (Full sync)
+					// - hoverProvider: true
+					// - definitionProvider: true
+					// - documentFormattingProvider: true
+					// - documentSymbolProvider: true
+					// - completionProvider: triggers on '.' and ':'
+					caps["textDocumentSync"] = JsonValue.num(1);
+					caps["hoverProvider"] = JsonValue.bool(true);
+					caps["definitionProvider"] = JsonValue.bool(true);
+					caps["documentFormattingProvider"] = JsonValue.bool(true);
+					caps["documentSymbolProvider"] = JsonValue.bool(true);
+
+					val comp = JsonValue.obj();
+					val triggers = JsonValue.arr();
+					triggers += JsonValue.str(".");
+					triggers += JsonValue.str(":");
+					comp["triggerCharacters"] = triggers;
+					caps["completionProvider"] = comp;
+
+					val server_info = JsonValue.obj();
+					server_info["name"] = JsonValue.str("kobel-lsp");
+					server_info["version"] = JsonValue.str("1.0.0");
+
+					res["capabilities"] = caps;
+					res["serverInfo"] = server_info;
+					send_response(id, res);
+				}
+
+				Method.INITIALIZED.value -> {
+					// Notification from client confirming initialization
+				}
+
+				Method.SHUTDOWN.value -> {
+					self.is_shutdown = true;
+					send_response(id, JsonValue.null_val());
+				}
+
+				Method.EXIT.value -> {
+					if (self.is_shutdown) Process.exit(0);
+					else Process.exit(1);
+				}
+
+				Method.DID_OPEN.value -> {
+					val text_doc = params.get_obj("textDocument");
+					val uri = text_doc.get_str("uri", "");
+					val text = text_doc.get_str("text", "");
+					val version = text_doc.get_num("version", 0);
+
+					self.docs.set(uri, text, version);
+					publish_doc_diagnostics(uri, text, self.workspace_root);
+				}
+
+				Method.DID_CHANGE.value -> {
+					val text_doc = params.get_obj("textDocument");
+					val uri = text_doc.get_str("uri", "");
+					val version = text_doc.get_num("version", 0);
+					val changes = params.get_arr("contentChanges");
+					val new_text = changes.at(0)?.get_str("text", "") ?: "";
+					if (!new_text.empty()) {
+						self.docs.set(uri, new_text, version);
+						publish_doc_diagnostics(uri, new_text, self.workspace_root);
 					}
 				}
 
-				val res = JsonValue.obj();
-				val caps = JsonValue.obj();
+				Method.DID_CLOSE.value -> {
+					val text_doc = params.get_obj("textDocument");
+					val uri = text_doc.get_str("uri", "");
+					self.docs.remove(uri);
 
-				// Capabilities:
-				// - textDocumentSync: 1 (Full sync)
-				// - hoverProvider: true
-				// - definitionProvider: true
-				// - documentFormattingProvider: true
-				// - documentSymbolProvider: true
-				// - completionProvider: triggers on '.' and ':'
-				caps["textDocumentSync"] = JsonValue.num(1);
-				caps["hoverProvider"] = JsonValue.bool(true);
-				caps["definitionProvider"] = JsonValue.bool(true);
-				caps["documentFormattingProvider"] = JsonValue.bool(true);
-				caps["documentSymbolProvider"] = JsonValue.bool(true);
-
-				val comp = JsonValue.obj();
-				val triggers = JsonValue.arr();
-				triggers += JsonValue.str(".");
-				triggers += JsonValue.str(":");
-				comp["triggerCharacters"] = triggers;
-				caps["completionProvider"] = comp;
-
-				val server_info = JsonValue.obj();
-				server_info["name"] = JsonValue.str("kobel-lsp");
-				server_info["version"] = JsonValue.str("1.0.0");
-
-				res["capabilities"] = caps;
-				res["serverInfo"] = server_info;
-				send_response(id, res);
-			}
-
-			Method.INITIALIZED.value -> {
-				// Notification from client confirming initialization
-			}
-
-			Method.SHUTDOWN.value -> {
-				self.is_shutdown = true;
-				send_response(id, JsonValue.null_val());
-			}
-
-			Method.EXIT.value -> {
-				if (self.is_shutdown) Process.exit(0);
-				else Process.exit(1);
-			}
-
-			Method.DID_OPEN.value -> {
-				val text_doc = params.get_obj("textDocument");
-				val uri = text_doc.get_str("uri", "");
-				val text = text_doc.get_str("text", "");
-				val version = text_doc.get_num("version", 0);
-
-				self.docs.set(uri, text, version);
-				publish_doc_diagnostics(uri, text, self.workspace_root);
-			}
-
-			Method.DID_CHANGE.value -> {
-				val text_doc = params.get_obj("textDocument");
-				val uri = text_doc.get_str("uri", "");
-				val version = text_doc.get_num("version", 0);
-				val changes = params.get_arr("contentChanges");
-				val new_text = changes.at(0)?.get_str("text", "") ?: "";
-				if (!new_text.empty()) {
-					self.docs.set(uri, new_text, version);
-					publish_doc_diagnostics(uri, new_text, self.workspace_root);
+					// Clear diagnostics when file is closed
+					val p = JsonValue.obj();
+					p["uri"] = JsonValue.str(uri);
+					p["diagnostics"] = JsonValue.arr();
+					send_notification(Method.PUBLISH_DIAGNOSTICS.value, p);
 				}
-			}
 
-			Method.DID_CLOSE.value -> {
-				val text_doc = params.get_obj("textDocument");
-				val uri = text_doc.get_str("uri", "");
-				self.docs.remove(uri);
+				Method.HOVER.value -> {
+					val text_doc = params.get_obj("textDocument");
+					val uri = text_doc.get_str("uri", "");
+					val pos = params.get_obj("position");
+					val line = pos.get_num("line", 0) as usz;
+					val char_col = pos.get_num("character", 0) as usz;
 
-				// Clear diagnostics when file is closed
-				val p = JsonValue.obj();
-				p["uri"] = JsonValue.str(uri);
-				p["diagnostics"] = JsonValue.arr();
-				send_notification(Method.PUBLISH_DIAGNOSTICS.value, p);
-			}
-
-			Method.HOVER.value -> {
-				val text_doc = params.get_obj("textDocument");
-				val uri = text_doc.get_str("uri", "");
-				val pos = params.get_obj("position");
-				val line = pos.get_num("line", 0) as usz;
-				val char_col = pos.get_num("character", 0) as usz;
-
-				val doc = self.docs[uri];
-				if (!doc.text.empty()) {
-					val analysis = AnalysisResult(doc.path, doc.text, self.workspace_root);
-					val h = analysis.hover_at(line, char_col);
-					send_response(id, h);
-				} else {
-					send_response(id, JsonValue.null_val());
+					val doc = self.docs[uri];
+					if (!doc.text.empty()) {
+						val analysis = AnalysisResult(doc.path, doc.text, self.workspace_root);
+						val h = analysis.hover_at(line, char_col);
+						send_response(id, h);
+					} else {
+						send_response(id, JsonValue.null_val());
+					}
 				}
-			}
 
-			Method.DEFINITION.value -> {
-				val text_doc = params.get_obj("textDocument");
-				val uri = text_doc.get_str("uri", "");
-				val pos = params.get_obj("position");
-				val line = pos.get_num("line", 0) as usz;
-				val char_col = pos.get_num("character", 0) as usz;
+				Method.DEFINITION.value -> {
+					val text_doc = params.get_obj("textDocument");
+					val uri = text_doc.get_str("uri", "");
+					val pos = params.get_obj("position");
+					val line = pos.get_num("line", 0) as usz;
+					val char_col = pos.get_num("character", 0) as usz;
 
-				val doc = self.docs[uri];
-				if (!doc.text.empty()) {
-					val analysis = AnalysisResult(doc.path, doc.text, self.workspace_root);
-					val def_res = analysis.definition_at(uri, line, char_col);
-					send_response(id, def_res);
-				} else {
-					send_response(id, JsonValue.null_val());
+					val doc = self.docs[uri];
+					if (!doc.text.empty()) {
+						val analysis = AnalysisResult(doc.path, doc.text, self.workspace_root);
+						val def_res = analysis.definition_at(uri, line, char_col);
+						send_response(id, def_res);
+					} else {
+						send_response(id, JsonValue.null_val());
+					}
 				}
-			}
 
-			Method.FORMATTING.value -> {
-				val text_doc = params.get_obj("textDocument");
-				val uri = text_doc.get_str("uri", "");
-				val doc = self.docs[uri];
-				if (!doc.text.empty()) {
-					val edits = AnalysisResult.format_document(doc.text);
-					send_response(id, edits);
-				} else {
-					send_response(id, JsonValue.arr());
+				Method.FORMATTING.value -> {
+					val text_doc = params.get_obj("textDocument");
+					val uri = text_doc.get_str("uri", "");
+					val doc = self.docs[uri];
+					if (!doc.text.empty()) {
+						val edits = AnalysisResult.format_document(doc.text);
+						send_response(id, edits);
+					} else {
+						send_response(id, JsonValue.arr());
+					}
 				}
-			}
 
-			Method.DOCUMENT_SYMBOL.value -> {
-				val text_doc = params.get_obj("textDocument");
-				val uri = text_doc.get_str("uri", "");
-				val doc = self.docs[uri];
-				if (!doc.text.empty()) {
-					val syms = AnalysisResult.document_symbols(doc.text);
-					send_response(id, syms);
-				} else {
-					send_response(id, JsonValue.arr());
+				Method.DOCUMENT_SYMBOL.value -> {
+					val text_doc = params.get_obj("textDocument");
+					val uri = text_doc.get_str("uri", "");
+					val doc = self.docs[uri];
+					if (!doc.text.empty()) {
+						val syms = AnalysisResult.document_symbols(doc.text);
+						send_response(id, syms);
+					} else {
+						send_response(id, JsonValue.arr());
+					}
 				}
-			}
 
-			Method.COMPLETION.value -> {
-				val text_doc = params.get_obj("textDocument");
-				val uri = text_doc.get_str("uri", "");
-				val doc = self.docs[uri];
-				if (!doc.text.empty()) {
-					val analysis = AnalysisResult(doc.path, doc.text, self.workspace_root);
-					val items = analysis.complete_at();
-					send_response(id, items);
-				} else {
-					val empty_analysis = AnalysisResult("", "", self.workspace_root);
-					val items = empty_analysis.complete_at();
-					send_response(id, items);
+				Method.COMPLETION.value -> {
+					val text_doc = params.get_obj("textDocument");
+					val uri = text_doc.get_str("uri", "");
+					val doc = self.docs[uri];
+					if (!doc.text.empty()) {
+						val analysis = AnalysisResult(doc.path, doc.text, self.workspace_root);
+						val items = analysis.complete_at();
+						send_response(id, items);
+					} else {
+						val empty_analysis = AnalysisResult("", "", self.workspace_root);
+						val items = empty_analysis.complete_at();
+						send_response(id, items);
+					}
 				}
-			}
 
-			else -> {
-				if (id != null && !id.is_null()) {
-					send_error(id, -32601, "Method '${method}' not found");
+				else -> {
+					if (id != null && !id.is_null()) {
+						send_error(id, -32601, "Method '${method}' not found");
+					}
 				}
 			}
 		}
-	}
 
 		return 0;
 	}
@@ -248,6 +246,6 @@ impl LanguageServer {
 }
 
 pub fn run_server(): i32 {
-	var srv = LanguageServer();
-	return srv.run();
+	var server = LanguageServer();
+	return server.run();
 }
