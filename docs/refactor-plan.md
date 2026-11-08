@@ -202,8 +202,8 @@ Any agent working on this codebase MUST keep these language/compiler mechanics i
 
 Tracked here instead of as `TODO` markers in `src/`:
 
-1. **Formatter fidelity.** No line wrapping at `max_width` (100), and `"""` multiline strings
-   are emitted as escaped single-line literals. Both are valid output but destroy layout.
+1. **Formatter wrapping is partial.** Argument and parameter lists wrap at `max_width` (100);
+   long conditions, binary expressions and struct-field defaults are still emitted on one line.
 2. **Struct layout ordering.** A by-value struct field whose type is declared later in the
    same module can be laid out while its nested type still has size 0, so the outer struct
    gets a short size. `Diagnostic` stores its location fields flat to avoid this; the general

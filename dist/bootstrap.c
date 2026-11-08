@@ -1805,6 +1805,7 @@ struct fmt__Formatter {
     fmt__FormatBuffer buf;
     fmt__CommentTable comments;
     fmt__FormatOptions options;
+    kobel_str source;
 };
 
 struct lsp__AnalysisResult {
@@ -3157,8 +3158,13 @@ std__collections__List_fmt__Comment fmt__Comment_extract(kobel_str src);
 kobel_str fmt__strip_cr(kobel_str src);
 bool fmt__is_inline_stmt(compiler__ast__AstNode* node);
 kobel_str fmt__op_to_str(compiler__lexer__TokenType op);
-fmt__Formatter fmt__Formatter_init(fmt__FormatOptions options, fmt__CommentTable comments);
+fmt__Formatter fmt__Formatter_init(fmt__FormatOptions options, fmt__CommentTable comments, kobel_str source);
 kobel_str fmt__Formatter_to_str(fmt__Formatter* self);
+size_t fmt__Formatter_measure_expr(fmt__Formatter* self, compiler__ast__AstNode* node);
+size_t fmt__Formatter_measure_param(fmt__Formatter* self, compiler__ast__Param p);
+void fmt__Formatter_format_param(fmt__Formatter* self, compiler__ast__Param p);
+intptr_t fmt__Formatter_source_offset(fmt__Formatter* self, size_t line, size_t col);
+kobel_str fmt__Formatter_original_string(fmt__Formatter* self, compiler__ast__AstNode* node);
 void fmt__Formatter_format_type(fmt__Formatter* self, compiler__ast__AstNode* node);
 void fmt__Formatter_format_expr(fmt__Formatter* self, compiler__ast__AstNode* node);
 void fmt__Formatter_format_stmt(fmt__Formatter* self, compiler__ast__AstNode* node);
@@ -9246,7 +9252,9 @@ return compiler__parser__Parser_node(self, (compiler__ast__NodeData){ .tag = 5, 
 }
 return compiler__parser__Parser_node(self, (compiler__ast__NodeData){ .tag = 5, .u.LiteralExpr = { 0, tok.text } }, line, col);
 } else if (tok.type == 41) {
-return compiler__parser__Parser_parse_string_literal(self, tok, line, col);
+compiler__ast__AstNode* lit_node = compiler__parser__Parser_parse_string_literal(self, tok, line, col);
+lit_node->span = tok.span;
+return lit_node;
 } else if (tok.type == 39) {
 return compiler__parser__Parser_node(self, (compiler__ast__NodeData){ .tag = 5, .u.LiteralExpr = { 3, tok.text } }, line, col);
 } else if (tok.type == 50) {
@@ -25747,12 +25755,76 @@ kobel_str fmt__op_to_str(compiler__lexer__TokenType op) {
     return (op == 6 ? KOBEL_STR("+") : (op == 7 ? KOBEL_STR("-") : (op == 8 ? KOBEL_STR("*") : (op == 9 ? KOBEL_STR("/") : (op == 10 ? KOBEL_STR("%") : (op == 21 ? KOBEL_STR("==") : (op == 22 ? KOBEL_STR("!=") : (op == 12 ? KOBEL_STR("<") : (op == 23 ? KOBEL_STR("<=") : (op == 11 ? KOBEL_STR(">") : (op == 24 ? KOBEL_STR(">=") : (op == 25 ? KOBEL_STR("&&") : (op == 26 ? KOBEL_STR("||") : (op == 5 ? KOBEL_STR("=") : (op == 32 ? KOBEL_STR("+=") : (op == 33 ? KOBEL_STR("-=") : (op == 34 ? KOBEL_STR("*=") : (op == 35 ? KOBEL_STR("/=") : (op == 36 ? KOBEL_STR("%=") : (op == 37 ? KOBEL_STR("?:") : (op == 38 ? KOBEL_STR("?.") : (op == 29 ? KOBEL_STR("..") : (op == 4 ? KOBEL_STR("!") : (op == 30 ? KOBEL_STR("++") : (op == 31 ? KOBEL_STR("--") : (op == 19 ? KOBEL_STR("&") : (op == 20 ? KOBEL_STR("?") : KOBEL_STR(""))))))))))))))))))))))))))));
 }
 
-fmt__Formatter fmt__Formatter_init(fmt__FormatOptions options, fmt__CommentTable comments) {
-    return (fmt__Formatter){ fmt__FormatBuffer_init(options), comments, options };
+fmt__Formatter fmt__Formatter_init(fmt__FormatOptions options, fmt__CommentTable comments, kobel_str source) {
+    return (fmt__Formatter){ fmt__FormatBuffer_init(options), comments, options, source };
 }
 
 kobel_str fmt__Formatter_to_str(fmt__Formatter* self) {
     return fmt__FormatBuffer_to_str(&self->buf);
+}
+
+size_t fmt__Formatter_measure_expr(fmt__Formatter* self, compiler__ast__AstNode* node) {
+fmt__Formatter scratch = fmt__Formatter_init(self->options, (fmt__CommentTable){ std__collections__List_fmt__Comment_init(4), 0 }, KOBEL_STR(""));
+fmt__Formatter_format_expr(&scratch, node);
+return fmt__FormatBuffer_to_str(&scratch.buf).len;
+}
+
+size_t fmt__Formatter_measure_param(fmt__Formatter* self, compiler__ast__Param p) {
+fmt__Formatter scratch = fmt__Formatter_init(self->options, (fmt__CommentTable){ std__collections__List_fmt__Comment_init(4), 0 }, KOBEL_STR(""));
+fmt__Formatter_format_param(&scratch, p);
+return fmt__FormatBuffer_to_str(&scratch.buf).len;
+}
+
+void fmt__Formatter_format_param(fmt__Formatter* self, compiler__ast__Param p) {
+if (p.mutable) {
+fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR("var "));
+} else if (p.has_val) {
+fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR("val "));
+}
+fmt__FormatBuffer_plus_assign_2(&self->buf, p.name);
+if (p.type_node != NULL) {
+fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR(": "));
+fmt__Formatter_format_type(self, p.type_node);
+}
+if (p.default_val != NULL) {
+fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR(" = "));
+fmt__Formatter_format_expr(self, p.default_val);
+}
+}
+
+intptr_t fmt__Formatter_source_offset(fmt__Formatter* self, size_t line, size_t col) {
+size_t cur = 1;
+size_t i = 0;
+while ((cur < line) && (i < self->source.len)) {
+if (self->source.data[i] == '\n') {
+cur++;
+}
+i++;
+}
+if (cur != line) {
+return -1;
+}
+return (intptr_t)((i + col) - 1);
+}
+
+kobel_str fmt__Formatter_original_string(fmt__Formatter* self, compiler__ast__AstNode* node) {
+if ((str_empty(self->source) || (node->span.length == 0)) || (node->span.line == 0)) {
+return KOBEL_STR("");
+}
+intptr_t off = fmt__Formatter_source_offset(self, node->span.line, node->span.col);
+if (off < 0) {
+return KOBEL_STR("");
+}
+size_t start = (size_t)off;
+size_t end = (start + node->span.length);
+if (end > self->source.len) {
+return KOBEL_STR("");
+}
+kobel_str text = kobel_slice(self->source, start, end);
+if (str_starts_with(text, KOBEL_STR("\"\"\"")) && str_ends_with(text, KOBEL_STR("\"\"\""))) {
+return text;
+}
+return KOBEL_STR("");
 }
 
 void fmt__Formatter_format_type(fmt__Formatter* self, compiler__ast__AstNode* node) {
@@ -25825,7 +25897,12 @@ return;
 }
 if (node != NULL && node->data.tag == compiler__ast__NodeData__LiteralExpr__TAG) {
 compiler__ast__NodeData__LiteralExpr* lit = (compiler__ast__NodeData__LiteralExpr*)(&(node)->data.u.LiteralExpr);
+kobel_str preserved = ((lit->literal_kind == 4) ? fmt__Formatter_original_string(self, node) : KOBEL_STR(""));
+if (!str_empty(preserved)) {
+fmt__FormatBuffer_plus_assign_2(&self->buf, preserved);
+} else {
 fmt__FormatBuffer_plus_assign_2(&self->buf, lit->raw_text);
+}
 } else if (node != NULL && node->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG) {
 compiler__ast__NodeData__IdentifierExpr* id = (compiler__ast__NodeData__IdentifierExpr*)(&(node)->data.u.IdentifierExpr);
 fmt__FormatBuffer_plus_assign_2(&self->buf, id->name);
@@ -25884,6 +25961,7 @@ __for_i = (__for_i - 1);
 fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR(">"));
 }
 fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR("("));
+bool call_broke = false;
 {
 size_t __for_e = c->args.len;
 size_t __for_i = __for_e;
@@ -25898,7 +25976,17 @@ __for_go = (__for_i > __for_e);
 while (__for_go) {
 size_t j = __for_i;
 if (j > 0) {
+size_t need = (2 + fmt__Formatter_measure_expr(self, std__collections__List_ptr_compiler__ast__AstNode_get(&c->args, j)));
+if ((self->buf.current_col + need) > self->options.max_width) {
+fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR(","));
+fmt__FormatBuffer_newline(&self->buf);
+if (!call_broke) {
+fmt__FormatBuffer_indent(&self->buf);
+call_broke = true;
+}
+} else {
 fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR(", "));
+}
 }
 fmt__Formatter_format_expr(self, std__collections__List_ptr_compiler__ast__AstNode_get(&c->args, j));
 if (__for_up) {
@@ -25914,6 +26002,9 @@ __for_i = (__for_i - 1);
 }
 }
 }
+}
+if (call_broke) {
+fmt__FormatBuffer_dedent(&self->buf);
 }
 fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR(")"));
 } else if (node != NULL && node->data.tag == compiler__ast__NodeData__MemberExpr__TAG) {
@@ -26497,6 +26588,7 @@ fmt__FormatBuffer_plus_assign_2(&self->buf, f->name);
 }
 fmt__Formatter_format_type_params(self, f->type_params);
 fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR("("));
+bool params_broke = false;
 {
 size_t __for_e = f->params.len;
 size_t __for_i = __for_e;
@@ -26510,24 +26602,21 @@ __for_go = (__for_i > __for_e);
 }
 while (__for_go) {
 size_t i = __for_i;
+compiler__ast__Param p = std__collections__List_compiler__ast__Param_get(&f->params, i);
 if (i > 0) {
+size_t need = (2 + fmt__Formatter_measure_param(self, p));
+if ((self->buf.current_col + need) > self->options.max_width) {
+fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR(","));
+fmt__FormatBuffer_newline(&self->buf);
+if (!params_broke) {
+fmt__FormatBuffer_indent(&self->buf);
+params_broke = true;
+}
+} else {
 fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR(", "));
 }
-compiler__ast__Param p = std__collections__List_compiler__ast__Param_get(&f->params, i);
-if (p.mutable) {
-fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR("var "));
-} else if (p.has_val) {
-fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR("val "));
 }
-fmt__FormatBuffer_plus_assign_2(&self->buf, p.name);
-if (p.type_node != NULL) {
-fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR(": "));
-fmt__Formatter_format_type(self, p.type_node);
-}
-if (p.default_val != NULL) {
-fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR(" = "));
-fmt__Formatter_format_expr(self, p.default_val);
-}
+fmt__Formatter_format_param(self, p);
 if (__for_up) {
 __for_go = ((__for_i + 1) < __for_e);
 } else {
@@ -26541,6 +26630,9 @@ __for_i = (__for_i - 1);
 }
 }
 }
+}
+if (params_broke) {
+fmt__FormatBuffer_dedent(&self->buf);
 }
 fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR(")"));
 if (!f->initializer && (f->return_type != NULL)) {
@@ -26890,7 +26982,7 @@ compiler__lexer__Lexer lex = compiler__lexer__Lexer_init(normalized, 0);
 std__collections__List_compiler__lexer__Token tokens = compiler__lexer__Lexer_tokenize(&lex);
 compiler__parser__Parser parser = compiler__parser__Parser_init(tokens);
 compiler__ast__AstNode* program = compiler__parser__Parser_parse_program(&parser);
-fmt__Formatter fmt = fmt__Formatter_init(options, comment_table);
+fmt__Formatter fmt = fmt__Formatter_init(options, comment_table, normalized);
 fmt__Formatter_format_program(&fmt, program);
 return fmt__Formatter_to_str(&fmt);
 }

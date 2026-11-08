@@ -76,16 +76,73 @@ pub fn op_to_str(op: TokenType) => when (op) {
 pub struct Formatter {
 	pub buf: FormatBuffer,
 	pub comments: CommentTable,
-	pub options: FormatOptions
+	pub options: FormatOptions,
+	// Original text, used to re-emit string literals verbatim (notably `"""`).
+	pub source: str = ""
 }
 
 impl Formatter {
 
-	pub init(options: FormatOptions, comments: CommentTable) => Self(
-		FormatBuffer(options), comments, options
+	pub init(options: FormatOptions, comments: CommentTable, source: str = "") => Self(
+		FormatBuffer(options), comments, options, source
 	);
 
 	pub fn to_str(val self) => self.buf.to_str();
+
+	/*
+	 * Width bookkeeping: render a fragment into a scratch formatter so a long
+	 * argument/parameter list can break before it, without touching the line.
+	 */
+	fn measure_expr(val self, node: *AstNode): usz {
+		var scratch = Formatter(self.options, CommentTable(List<Comment>()), "");
+		scratch.format_expr(node);
+		return scratch.buf.to_str().len;
+	}
+
+	fn measure_param(val self, p: Param): usz {
+		var scratch = Formatter(self.options, CommentTable(List<Comment>()), "");
+		scratch.format_param(p);
+		return scratch.buf.to_str().len;
+	}
+
+	pub fn format_param(var self, p: Param) {
+		if (p.mutable) self.buf += "var ";
+		else if (p.has_val) self.buf += "val ";
+		self.buf += p.name;
+		if (p.type_node != null) {
+			self.buf += ": ";
+			self.format_type(p.type_node!);
+		}
+		if (p.default_val != null) {
+			self.buf += " = ";
+			self.format_expr(p.default_val!);
+		}
+	}
+
+	fn source_offset(val self, line: usz, col: usz): isz {
+		var cur: usz = 1;
+		var i: usz = 0;
+		while (cur < line && i < self.source.len) {
+			if (self.source[i] == '\n') cur++;
+			i++;
+		}
+		if (cur != line) return -1;
+		return (i + col - 1) as isz;
+	}
+
+	// A `"""` literal is re-emitted exactly as written; its indentation is part
+	// of the language semantics, so reconstructing it is not safe.
+	fn original_string(val self, node: *AstNode): str {
+		if (self.source.empty() || node.span.length == 0 || node.span.line == 0) return "";
+		val off = self.source_offset(node.span.line, node.span.col);
+		if (off < 0) return "";
+		val start = off as usz;
+		val end = start + node.span.length;
+		if (end > self.source.len) return "";
+		val text = self.source.slice(start, end);
+		if (text.starts_with("\"\"\"") && text.ends_with("\"\"\"")) return text;
+		return "";
+	}
 
 	// ------------------------------------------------------------------------
 	// Types
@@ -133,7 +190,11 @@ impl Formatter {
 		if (node == null) return;
 
 		when (node) {
-			is LiteralExpr as lit -> self.buf += lit.raw_text;
+			is LiteralExpr as lit -> {
+				val preserved = if (lit.literal_kind == Literal.STRING) self.original_string(node) else "";
+				if (!preserved.empty()) self.buf += preserved;
+				else self.buf += lit.raw_text;
+			}
 			is IdentifierExpr as id -> self.buf += id.name;
 			is BinaryExpr as b -> {
 				self.format_expr(b.left);
@@ -162,10 +223,22 @@ impl Formatter {
 					self.buf += ">";
 				}
 				self.buf += "(";
+				var call_broke = false;
 				for (j in 0..<c.args.len) {
-					if (j > 0) self.buf += ", ";
+					if (j > 0) {
+						val need = 2 + self.measure_expr(c.args[j]);
+						if (self.buf.current_col + need > self.options.max_width) {
+							self.buf += ",";
+							self.buf.newline();
+							if (!call_broke) {
+								self.buf.indent();
+								call_broke = true;
+							}
+						} else self.buf += ", ";
+					}
 					self.format_expr(c.args[j]);
 				}
+				if (call_broke) self.buf.dedent();
 				self.buf += ")";
 			}
 			is MemberExpr as m -> {
@@ -536,21 +609,23 @@ impl Formatter {
 				self.format_type_params(f.type_params);
 				self.buf += "(";
 
+				var params_broke = false;
 				for (i in 0..<f.params.len) {
-					if (i > 0) self.buf += ", ";
 					val p = f.params[i];
-					if (p.mutable) self.buf += "var ";
-					else if (p.has_val) self.buf += "val ";
-					self.buf += p.name;
-					if (p.type_node != null) {
-						self.buf += ": ";
-						self.format_type(p.type_node!);
+					if (i > 0) {
+						val need = 2 + self.measure_param(p);
+						if (self.buf.current_col + need > self.options.max_width) {
+							self.buf += ",";
+							self.buf.newline();
+							if (!params_broke) {
+								self.buf.indent();
+								params_broke = true;
+							}
+						} else self.buf += ", ";
 					}
-					if (p.default_val != null) {
-						self.buf += " = ";
-						self.format_expr(p.default_val!);
-					}
+					self.format_param(p);
 				}
+				if (params_broke) self.buf.dedent();
 				self.buf += ")";
 
 				if (!f.initializer && f.return_type != null) {
@@ -795,7 +870,7 @@ pub fn format_source(src: str, options: FormatOptions): str {
 	var parser = Parser(tokens);
 	val program = parser.parse_program();
 
-	var fmt = Formatter(options, comment_table);
+	var fmt = Formatter(options, comment_table, normalized);
 	fmt.format_program(program);
 
 	return fmt.to_str();

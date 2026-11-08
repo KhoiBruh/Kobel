@@ -90,6 +90,30 @@ fn test_idempotent() {
 	println("  [PASS] test_idempotent");
 }
 
+fn test_multiline_literal_preserved() {
+	val code = "fn msg(): str {\n\treturn \"\"\"\n\tline one\n\tline two\n\t\"\"\";\n}\n";
+	val formatted = format_source(code, FormatOptions());
+
+	assert_true(("\"\"\"" in formatted), "multiline literal must keep its triple quotes");
+	assert_true(("line one" in formatted), "multiline literal content must survive");
+	assert_true(("\n\tline two" in formatted), "multiline literal must keep its own line breaks");
+	println("  [PASS] test_multiline_literal_preserved");
+}
+
+fn test_wraps_long_lines() {
+	val code = "fn process(first_parameter: i32, second_parameter: i32, third_parameter: i32, fourth_parameter: i32, fifth_parameter: i32): i32 {\n\treturn 0;\n}\n";
+	val formatted = format_source(code, FormatOptions());
+
+	var longest: usz = 0;
+	val lines = formatted.split_lines();
+	for (line in lines) {
+		if (line.len > longest) longest = line.len;
+	}
+	assert_true(longest <= 100, "formatter must wrap lines wider than max_width");
+	assert_true((",\n" in formatted), "wrapped list must break after a comma");
+	println("  [PASS] test_wraps_long_lines");
+}
+
 fn main(): i32 {
 	println("[RUNNING] Kobel Formatter tests...");
 	test_basic_formatting();
@@ -97,6 +121,8 @@ fn main(): i32 {
 	test_comments();
 	test_impl_visibility();
 	test_whitespace_and_eol();
+	test_multiline_literal_preserved();
+	test_wraps_long_lines();
 	test_idempotent();
 	println("[ALL PASSED] Kobel Formatter tests passed successfully!");
 	return 0;

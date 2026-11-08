@@ -311,7 +311,12 @@ impl Parser {
 				if (num_literal_is_float(tok.text)) yield self.node(NodeData.LiteralExpr(Literal.FLOAT, tok.text), line, col);
 				yield self.node(NodeData.LiteralExpr(Literal.INTEGER, tok.text), line, col);
 			}
-			TokenType.STRING -> self.parse_string_literal(tok, line, col);
+			TokenType.STRING -> {
+				// Keep the token span so the formatter can re-emit a `"""` literal verbatim.
+				val lit_node = self.parse_string_literal(tok, line, col);
+				lit_node.span = tok.span;
+				yield lit_node;
+			}
 			TokenType.CHAR -> self.node(NodeData.LiteralExpr(Literal.CHARACTER, tok.text), line, col);
 			TokenType.KW_TRUE -> self.node(NodeData.LiteralExpr(Literal.BOOLEAN, "true"), line, col);
 			TokenType.KW_FALSE -> self.node(NodeData.LiteralExpr(Literal.BOOLEAN, "false"), line, col);
