@@ -2,31 +2,11 @@ mod test.test_operators;
 
 use std.io.print;
 use std.io.println;
-use std.process.Process;
 use std.collections.List;
 use std.collections.HashMap;
 use std.collections.HashSet;
 use std.string.StringBuilder;
-
-fn assert_true(cond: bool, msg: str) {
-	if (!cond) {
-		print("ASSERTION FAILED: ");
-		println(msg);
-		Process.exit(1);
-	}
-}
-
-fn assert_eq_i32(actual: i32, expected: i32, msg: str) {
-	if (actual != expected) {
-		print("ASSERTION FAILED: ");
-		print(msg);
-		print(" | Expected: ");
-		print("${expected}");
-		print(", got: ");
-		println("${actual}");
-		Process.exit(1);
-	}
-}
+use testsupport.assert.*;
 
 // ----------------------------------------------------------------------------
 // Test Struct: Vector2 with arithmetic and overloading

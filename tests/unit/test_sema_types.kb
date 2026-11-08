@@ -2,7 +2,6 @@ mod test.bootstrap_sema_types;
 
 use std.io.print;
 use std.io.println;
-use std.process.Process;
 use std.memory.Arena;
 use std.collections.List;
 
@@ -11,37 +10,7 @@ use compiler.semantic.types.Type;
 use compiler.semantic.types.StructField;
 use compiler.semantic.types.StructType;
 use compiler.semantic.types.*;
-
-
-fn assert_true(cond: bool, msg: str) {
-	if (!cond) {
-		print("ASSERTION FAILED: ");
-		println(msg);
-		Process.exit(1);
-	}
-}
-
-fn assert_eq_usz(actual: usz, expected: usz, msg: str) {
-	if (actual != expected) {
-		print("ASSERTION FAILED: ");
-		print(msg);
-		println(" (usz mismatch)");
-		Process.exit(1);
-	}
-}
-
-fn assert_eq_str(actual: str, expected: str, msg: str) {
-	if (actual != expected) {
-		print("ASSERTION FAILED: ");
-		print(msg);
-		print(" | Expected: '");
-		print(expected);
-		print("', got: '");
-		print(actual);
-		println("'");
-		Process.exit(1);
-	}
-}
+use testsupport.assert.*;
 
 // ============================================================================
 // Test 1: Primitive Types Properties

@@ -217,6 +217,9 @@ pub fn cmd_test(manifest_path: str, filter: str): i32 {
 		opts.output_bin = test_bin_p.raw;
 		opts.c_compiler = cfg.cc;
 		opts.quiet = true;
+		// Shared fixtures live under `tests/testsupport`, importable as
+		// `testsupport.*` from every suite.
+		opts.extra_roots += cfg.test_dir;
 
 		val compile_res = opts.compile();
 		if (compile_res != 0) {
@@ -326,6 +329,7 @@ pub fn cmd_snap(manifest_path: str, update: bool): i32 {
 		opts.emit_c_path = c_p.raw;
 		opts.only_emit_c = true;
 		opts.quiet = true;
+		opts.extra_roots += cfg.test_dir;
 		if (opts.compile() != 0) {
 			println("FAIL (emit-c error)");
 			fail_count++;

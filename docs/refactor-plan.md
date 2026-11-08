@@ -209,5 +209,3 @@ Tracked here instead of as `TODO` markers in `src/`:
    are emitted as escaped single-line literals. Both are valid output but destroy layout.
 3. **Golden files store a digest, not the C text.** `tests/golden/*.txt` is one hash, so the
    "review the C diff" step of the snapshot workflow cannot be done from git alone.
-4. **Test assertion helpers are copy-pasted** into each suite (`assert_true` and friends).
-   They belong in `testsupport/` once the test runner exposes a shared module root.

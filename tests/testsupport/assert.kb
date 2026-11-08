@@ -1,0 +1,55 @@
+mod testsupport.assert;
+
+use std.io.print;
+use std.io.println;
+use std.process.Process;
+
+/*
+ * ============================================================================
+ * Shared assertion helpers for the test suites
+ *
+ * A failed assertion prints the reason and terminates the test binary with
+ * exit code 1, which is how `kobel test` reports FAIL. Keeping these here
+ * means a fix (or a behaviour change) lands once for every suite.
+ * ============================================================================
+ */
+
+pub fn assert_true(cond: bool, msg: str) {
+	if (!cond) {
+		print("ASSERTION FAILED: ");
+		println(msg);
+		Process.exit(1);
+	}
+}
+
+pub fn assert_eq_str(actual: str, expected: str, msg: str) {
+	if (actual != expected) {
+		print("ASSERTION FAILED: ");
+		println(msg);
+		print("  Expected: ");
+		println(expected);
+		print("  Actual:   ");
+		println(actual);
+		Process.exit(1);
+	}
+}
+
+pub fn assert_eq_usz(actual: usz, expected: usz, msg: str) {
+	if (actual != expected) {
+		print("ASSERTION FAILED: ");
+		println(msg);
+		print("  Expected: ${expected}, actual: ${actual}");
+		println("");
+		Process.exit(1);
+	}
+}
+
+pub fn assert_eq_i32(actual: i32, expected: i32, msg: str) {
+	if (actual != expected) {
+		print("ASSERTION FAILED: ");
+		println(msg);
+		print("  Expected: ${expected}, actual: ${actual}");
+		println("");
+		Process.exit(1);
+	}
+}

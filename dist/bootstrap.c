@@ -7574,6 +7574,7 @@ opts.input_path = tpath;
 opts.output_bin = test_bin_p.raw;
 opts.c_compiler = cfg.cc;
 opts.quiet = true;
+std__collections__List_str_plus_assign(&opts.extra_roots, cfg.test_dir);
 int32_t compile_res = compiler__driver__CompileOptions_compile(&opts);
 if (compile_res != 0) {
 std__io__println(KOBEL_STR("FAIL (compilation error)"));
@@ -7686,6 +7687,7 @@ opts.input_path = src;
 opts.emit_c_path = c_p.raw;
 opts.only_emit_c = true;
 opts.quiet = true;
+std__collections__List_str_plus_assign(&opts.extra_roots, cfg.test_dir);
 if (compiler__driver__CompileOptions_compile(&opts) != 0) {
 std__io__println(KOBEL_STR("FAIL (emit-c error)"));
 fail_count++;
