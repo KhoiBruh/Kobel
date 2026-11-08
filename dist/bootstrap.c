@@ -4867,23 +4867,21 @@ kobel_str std__string__common_whitespace_prefix(std__collections__List_str lines
             size_t i = __for_i;
             kobel_str line = std__collections__List_str_get(&lines, i);
             if (str_blank(line)) {
-                {
-                    if (__for_up) {
-                        __for_go = ((__for_i + 1) < __for_e);
-                    } else {
-                        __for_go = ((__for_i - 1) > __for_e);
-                    }
-                    if (__for_go) {
-                        if (__for_up) {
-                            __for_i = (__for_i + 1);
-                        } else {
-                            __for_i = (__for_i - 1);
-                        }
-                    }
-                    continue;
+                if (__for_up) {
+                    __for_go = ((__for_i + 1) < __for_e);
+                } else {
+                    __for_go = ((__for_i - 1) > __for_e);
                 }
+                if (__for_go) {
+                    if (__for_up) {
+                        __for_i = (__for_i + 1);
+                    } else {
+                        __for_i = (__for_i - 1);
+                    }
+                }
+                continue;
             }
-            size_t ws_end = 0;
+            int32_t ws_end = 0;
             {
                 size_t __for_n = line.len;
                 size_t __for_i = 0;
@@ -4902,7 +4900,7 @@ kobel_str std__string__common_whitespace_prefix(std__collections__List_str lines
                 prefix = ws;
                 first = false;
             } else {
-                size_t match_len = 0;
+                int32_t match_len = 0;
                 size_t max_l = ((prefix.len < ws.len) ? prefix.len : ws.len);
                 while ((match_len < max_l) && (prefix.data[match_len] == ws.data[match_len])) {
                     match_len++;
@@ -5194,32 +5192,13 @@ kobel_str str_repeat(kobel_str self, size_t n) {
         while (__for_go) {
             size_t k = __for_i;
             {
-                size_t __for_e = self.len;
-                size_t __for_i = __for_e;
-                __for_i = 0;
-                bool __for_up = (__for_i <= __for_e);
-                bool __for_go = false;
-                if (__for_up) {
-                    __for_go = (__for_i < __for_e);
-                } else {
-                    __for_go = (__for_i > __for_e);
-                }
-                while (__for_go) {
-                    size_t i = __for_i;
-                    buf[w] = ((int32_t)(uint8_t)(self.data[i]));
+                size_t __for_n = self.len;
+                size_t __for_i = 0;
+                while (__for_i < __for_n) {
+                    char c = self.data[__for_i];
+                    buf[w] = ((int32_t)(uint8_t)(c));
                     w++;
-                    if (__for_up) {
-                        __for_go = ((__for_i + 1) < __for_e);
-                    } else {
-                        __for_go = ((__for_i - 1) > __for_e);
-                    }
-                    if (__for_go) {
-                        if (__for_up) {
-                            __for_i = (__for_i + 1);
-                        } else {
-                            __for_i = (__for_i - 1);
-                        }
-                    }
+                    __for_i = (__for_i + 1);
                 }
             }
             if (__for_up) {
@@ -5249,31 +5228,12 @@ kobel_str str_join(kobel_str self, std__collections__List_str list) {
     }
     int32_t total = 0;
     {
-        size_t __for_e = list.len;
-        size_t __for_i = __for_e;
-        __for_i = 0;
-        bool __for_up = (__for_i <= __for_e);
-        bool __for_go = false;
-        if (__for_up) {
-            __for_go = (__for_i < __for_e);
-        } else {
-            __for_go = (__for_i > __for_e);
-        }
-        while (__for_go) {
-            size_t i = __for_i;
-            total += list.data[i].len;
-            if (__for_up) {
-                __for_go = ((__for_i + 1) < __for_e);
-            } else {
-                __for_go = ((__for_i - 1) > __for_e);
-            }
-            if (__for_go) {
-                if (__for_up) {
-                    __for_i = (__for_i + 1);
-                } else {
-                    __for_i = (__for_i - 1);
-                }
-            }
+        size_t __for_n = std__collections__List_str_count(&list);
+        size_t __for_i = 0;
+        while (__for_i < __for_n) {
+            kobel_str path = std__collections__List_str_at(&list, __for_i);
+            total += path.len;
+            __for_i = (__for_i + 1);
         }
     }
     total += (self.len * (list.len - 1));
@@ -5407,7 +5367,7 @@ kobel_str str_trim(kobel_str self) {
     if (str_empty(self)) {
         return self;
     }
-    size_t start = 0;
+    int32_t start = 0;
     while (start < self.len) {
         char c = self.data[start];
         if ((((c == ' ') || (c == '\t')) || (c == '\r')) || (c == '\n')) {
@@ -5433,7 +5393,7 @@ kobel_str str_trim(kobel_str self) {
 
 std__collections__List_str str_split(kobel_str self, char delim) {
     std__collections__List_str parts = std__collections__List_str_init(4);
-    size_t start = 0;
+    int32_t start = 0;
     {
         size_t __for_e = self.len;
         size_t __for_i = __for_e;
@@ -5478,7 +5438,7 @@ std__collections__List_str str_split_lines(kobel_str self) {
         if (c == '\n') {
             int32_t line_end = i;
             if ((line_end > start) && (self.data[(line_end - 1)] == '\r')) {
-                line_end = (line_end - 1);
+                line_end--;
             }
             std__collections__List_str_plus_assign(&res, kobel_slice(self, start, line_end));
             start = (i + 1);
@@ -5488,7 +5448,7 @@ std__collections__List_str str_split_lines(kobel_str self) {
     if (start <= self.len) {
         size_t line_end = self.len;
         if ((line_end > start) && (self.data[(line_end - 1)] == '\r')) {
-            line_end = (line_end - 1);
+            line_end--;
         }
         std__collections__List_str_plus_assign(&res, kobel_slice(self, start, line_end));
     }
@@ -5506,7 +5466,7 @@ kobel_str str_multiline_trim_indent(kobel_str self) {
     if (lines.len == 1) {
         return std__collections__List_str_get(&lines, 0);
     }
-    size_t start_idx = 0;
+    int32_t start_idx = 0;
     if (str_blank(std__collections__List_str_get(&lines, 0))) {
         start_idx = 1;
     }
@@ -6142,7 +6102,7 @@ kobel_str std__filesystem__remap_path_bytes(kobel_str s, char from, char to, boo
 }
 
 kobel_str str_dir_of(kobel_str self) {
-    size_t last = 0;
+    int32_t last = 0;
     bool found = false;
     {
         size_t __for_e = self.len;
@@ -6182,7 +6142,7 @@ kobel_str str_dir_of(kobel_str self) {
 }
 
 kobel_str str_base_name(kobel_str self) {
-    size_t start = 0;
+    int32_t start = 0;
     {
         size_t __for_e = self.len;
         size_t __for_i = __for_e;
@@ -6309,7 +6269,7 @@ kobel_str std__filesystem__Path_extension(std__filesystem__Path* self) {
 
 kobel_str std__filesystem__Path_stem(std__filesystem__Path* self) {
     kobel_str fname = std__filesystem__Path_file_name(self);
-    size_t last_dot = 0;
+    int32_t last_dot = 0;
     bool found = false;
     {
         size_t __for_e = fname.len;
@@ -6417,7 +6377,7 @@ std__collections__List_str std__filesystem__Path_list_dir(std__filesystem__Path*
         return std__collections__List_str_init(4);
     }
     std__collections__List_str res = std__collections__List_str_init(4);
-    size_t start = 0;
+    int32_t start = 0;
     {
         size_t __for_e = raw.len;
         size_t __for_i = __for_e;
@@ -7526,14 +7486,10 @@ int32_t compiler__driver__cmd_run(kobel_str manifest_path, std__collections__Lis
         std__io__println(kobel_concat3(KOBEL_STR("No changes detected. Running '"), cfg.output, KOBEL_STR("'...")));
     }
     kobel_str out_bin = (std__system__System_is_windows() ? str_to_win_path(cfg.output) : str_to_posix_path(cfg.output));
-    if (std__system__System_is_windows()) {
-        if ((!str_starts_with(out_bin, KOBEL_STR(".")) && !str_starts_with(out_bin, KOBEL_STR("\\"))) && (str_index_of(out_bin, KOBEL_STR(":")) < 0)) {
-            out_bin = kobel_concat(KOBEL_STR(".\\"), out_bin);
-        }
-    } else {
-        if (!str_starts_with(out_bin, KOBEL_STR(".")) && !str_starts_with(out_bin, KOBEL_STR("/"))) {
-            out_bin = kobel_concat(KOBEL_STR("./"), out_bin);
-        }
+    if (((std__system__System_is_windows() && !str_starts_with(out_bin, KOBEL_STR("."))) && !str_starts_with(out_bin, KOBEL_STR("\\"))) && (str_index_of(out_bin, KOBEL_STR(":")) < 0)) {
+        out_bin = kobel_concat(KOBEL_STR(".\\"), out_bin);
+    } else if (!str_starts_with(out_bin, KOBEL_STR(".")) && !str_starts_with(out_bin, KOBEL_STR("/"))) {
+        out_bin = kobel_concat(KOBEL_STR("./"), out_bin);
     }
     kobel_str run_cmd = (str_contains(out_bin, KOBEL_STR(" ")) ? kobel_concat3(KOBEL_STR("\""), out_bin, KOBEL_STR("\"")) : out_bin);
     {
@@ -10558,7 +10514,7 @@ kobel_str compiler__driver__resolve_file_path(kobel_str target, kobel_str defaul
 
 void compiler__driver__print_diagnostics(std__collections__List_str errors, kobel_str default_file, compiler__loader__ModuleLoader* loader) {
     std__collections__HashSet_str seen = std__collections__HashSet_str_init(16);
-    size_t printed_count = 0;
+    int32_t printed_count = 0;
     compiler__core__SourceMap* src_map = ((loader != NULL) ? &loader->sources : NULL);
     {
         size_t __for_n = std__collections__List_str_count(&errors);
@@ -10569,10 +10525,8 @@ void compiler__driver__print_diagnostics(std__collections__List_str errors, kobe
             diag.file_path = compiler__driver__resolve_file_path(diag.file_path, default_file, loader);
             kobel_str key = compiler__core__Diagnostic_key(&diag);
             if (std__collections__HashSet_str_contains(&seen, key)) {
-                {
-                    __for_i = (__for_i + 1);
-                    continue;
-                }
+                __for_i = (__for_i + 1);
+                continue;
             }
             std__collections__HashSet_str_plus_assign(&seen, key);
             std__io__print(compiler__core__Diagnostic_render(&diag, src_map));
@@ -10581,7 +10535,7 @@ void compiler__driver__print_diagnostics(std__collections__List_str errors, kobe
             __for_i = (__for_i + 1);
         }
     }
-    kobel_str summary = kobel_concat5(KOBEL_STR("\x1b[1;31merror\x1b[0m: could not compile '"), default_file, KOBEL_STR("' due to "), usz_to_str(printed_count), KOBEL_STR(" previous error(s)"));
+    kobel_str summary = kobel_concat5(KOBEL_STR("\x1b[1;31merror\x1b[0m: could not compile '"), default_file, KOBEL_STR("' due to "), i32_to_str(printed_count), KOBEL_STR(" previous error(s)"));
     std__io__println(summary);
     std__collections__HashSet_str_free(&seen);
 }
@@ -10598,10 +10552,8 @@ void compiler__driver__print_warnings(std__collections__List_str warnings, kobel
             diag.file_path = compiler__driver__resolve_file_path(diag.file_path, default_file, loader);
             kobel_str key = compiler__core__Diagnostic_key(&diag);
             if (std__collections__HashSet_str_contains(&seen, key)) {
-                {
-                    __for_i = (__for_i + 1);
-                    continue;
-                }
+                __for_i = (__for_i + 1);
+                continue;
             }
             std__collections__HashSet_str_plus_assign(&seen, key);
             std__io__print(compiler__core__Diagnostic_render(&diag, src_map));
