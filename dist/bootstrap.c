@@ -464,6 +464,7 @@ typedef struct compiler__semantic__symbols__SymbolTable compiler__semantic__symb
 typedef struct compiler__semantic__resolution__TypeResolver compiler__semantic__resolution__TypeResolver;
 typedef struct compiler__semantic__resolution__TypeSubst compiler__semantic__resolution__TypeSubst;
 typedef struct compiler__semantic__declaration__DeclarationCollector compiler__semantic__declaration__DeclarationCollector;
+typedef struct compiler__semantic__lowering__PendingResolve compiler__semantic__lowering__PendingResolve;
 typedef struct compiler__semantic__lowering__LoweringPass compiler__semantic__lowering__LoweringPass;
 typedef struct compiler__semantic__checker__BodyChecker compiler__semantic__checker__BodyChecker;
 typedef struct compiler__semantic__checker__ArrowCandidate compiler__semantic__checker__ArrowCandidate;
@@ -543,6 +544,7 @@ typedef struct std__collections__HashMap_str_lsp__Document std__collections__Has
 typedef struct std__collections__List_ptr_lsp__JsonValue std__collections__List_ptr_lsp__JsonValue;
 typedef struct std__collections__List_std__filesystem__Path std__collections__List_std__filesystem__Path;
 typedef struct std__collections__List_compiler__loader__ModuleFile std__collections__List_compiler__loader__ModuleFile;
+typedef struct std__collections__List_compiler__semantic__lowering__PendingResolve std__collections__List_compiler__semantic__lowering__PendingResolve;
 typedef struct std__collections__List_ptr_compiler__semantic__checker__ArrowCandidate std__collections__List_ptr_compiler__semantic__checker__ArrowCandidate;
 typedef struct std__collections__List_compiler__codegen__ConditionAlias std__collections__List_compiler__codegen__ConditionAlias;
 
@@ -752,6 +754,11 @@ struct compiler__semantic__symbols__ImportBinding {
     kobel_str local_name;
     bool wildcard;
     kobel_str owner_module;
+};
+
+struct compiler__semantic__lowering__PendingResolve {
+    compiler__ast__AstNode* node;
+    compiler__ast__AstNode* target;
 };
 
 struct compiler__semantic__checker__ArrowCandidate {
@@ -1172,6 +1179,12 @@ struct std__collections__List_std__filesystem__Path {
 
 struct std__collections__List_compiler__loader__ModuleFile {
     compiler__loader__ModuleFile* data;
+    size_t len;
+    size_t cap;
+};
+
+struct std__collections__List_compiler__semantic__lowering__PendingResolve {
+    compiler__semantic__lowering__PendingResolve* data;
     size_t len;
     size_t cap;
 };
@@ -2211,6 +2224,16 @@ static inline std__collections__List_ptr_compiler__ast__AstNode std__collections
 	l.len = n;
 	l.cap = cap;
 	return l;
+}static inline std__collections__List_compiler__semantic__lowering__PendingResolve std__collections__List_compiler__semantic__lowering__PendingResolve_from_array(const void* src, size_t n) {
+	size_t elem_size = sizeof(*(((std__collections__List_compiler__semantic__lowering__PendingResolve*)0)->data));
+	size_t cap = (n < 4) ? 4 : n;
+	void* data = malloc(cap * elem_size);
+	if (n > 0 && src != NULL) memcpy(data, src, n * elem_size);
+	std__collections__List_compiler__semantic__lowering__PendingResolve l;
+	l.data = data;
+	l.len = n;
+	l.cap = cap;
+	return l;
 }static inline std__collections__List_ptr_compiler__semantic__checker__ArrowCandidate std__collections__List_ptr_compiler__semantic__checker__ArrowCandidate_from_array(const void* src, size_t n) {
 	size_t elem_size = sizeof(*(((std__collections__List_ptr_compiler__semantic__checker__ArrowCandidate*)0)->data));
 	size_t cap = (n < 4) ? 4 : n;
@@ -2874,12 +2897,12 @@ compiler__ast__AstNode* std__memory__Arena_for_i_cmp(std__memory__Arena* self, c
 compiler__ast__AstNode* std__memory__Arena_for_set_go(std__memory__Arena* self, compiler__ast__AstNode* value, size_t line, size_t col);
 compiler__ast__AstNode* std__memory__Arena_for_bump(std__memory__Arena* self, compiler__lexer__TokenType op, size_t line, size_t col);
 compiler__ast__AstNode* std__memory__Arena_for_by_dir(std__memory__Arena* self, compiler__ast__AstNode* up_stmt, compiler__ast__AstNode* down_stmt, size_t line, size_t col);
-void std__memory__Arena_for_inject_step(std__memory__Arena* self, compiler__ast__AstNode* node, std__collections__List_ptr_compiler__ast__AstNode* step, compiler__semantic__checker__BodyChecker* bc);
-void std__memory__Arena_for_inject_step_expr(std__memory__Arena* self, compiler__ast__AstNode* expr, std__collections__List_ptr_compiler__ast__AstNode* step, compiler__semantic__checker__BodyChecker* bc);
+void std__memory__Arena_for_inject_step(std__memory__Arena* self, compiler__ast__AstNode* node, std__collections__List_ptr_compiler__ast__AstNode* step, std__collections__List_compiler__semantic__lowering__PendingResolve* pending);
+void std__memory__Arena_for_inject_step_expr(std__memory__Arena* self, compiler__ast__AstNode* expr, std__collections__List_ptr_compiler__ast__AstNode* step, std__collections__List_compiler__semantic__lowering__PendingResolve* pending);
 compiler__ast__AstNode* std__memory__Arena_desugar_for_iter_method(std__memory__Arena* self, std__collections__List_ptr_compiler__ast__AstNode* pre, std__collections__List_ptr_compiler__ast__AstNode* head, std__collections__List_ptr_compiler__ast__AstNode* step, compiler__ast__NodeData__ForStmt* fs, size_t line, size_t col);
 compiler__ast__AstNode* std__memory__Arena_desugar_for_iterable(std__memory__Arena* self, std__collections__List_ptr_compiler__ast__AstNode* pre, std__collections__List_ptr_compiler__ast__AstNode* head, std__collections__List_ptr_compiler__ast__AstNode* step, compiler__ast__NodeData__ForStmt* fs, size_t line, size_t col);
 compiler__ast__AstNode* std__memory__Arena_desugar_for_range(std__memory__Arena* self, std__collections__List_ptr_compiler__ast__AstNode* pre, std__collections__List_ptr_compiler__ast__AstNode* head, std__collections__List_ptr_compiler__ast__AstNode* step, compiler__ast__NodeData__ForStmt* fs, size_t line, size_t col);
-compiler__ast__AstNode* std__memory__Arena_desugar_for(std__memory__Arena* self, compiler__ast__AstNode* node, compiler__ast__NodeData__ForStmt* fs, bool use_iter_trait, compiler__semantic__checker__BodyChecker* bc);
+compiler__ast__AstNode* std__memory__Arena_desugar_for(std__memory__Arena* self, compiler__ast__AstNode* node, compiler__ast__NodeData__ForStmt* fs, bool use_iter_trait, std__collections__List_compiler__semantic__lowering__PendingResolve* pending);
 compiler__semantic__lowering__LoweringPass compiler__semantic__lowering__LoweringPass_init_0(void);
 compiler__semantic__lowering__LoweringPass compiler__semantic__lowering__LoweringPass_init_2(compiler__semantic__symbols__SymbolTable symtab, std__memory__Arena arena);
 compiler__semantic__lowering__LoweringPass compiler__semantic__lowering__LoweringPass_init_3(compiler__semantic__symbols__SymbolTable symtab, std__memory__Arena arena, compiler__semantic__declaration__DeclarationCollector decl);
@@ -4523,6 +4546,34 @@ compiler__loader__ModuleFile std__collections__List_compiler__loader__ModuleFile
 bool std__collections__List_compiler__loader__ModuleFile_contains(std__collections__List_compiler__loader__ModuleFile* self, compiler__loader__ModuleFile value);
 compiler__loader__ModuleFile std__collections__List_compiler__loader__ModuleFile_set(std__collections__List_compiler__loader__ModuleFile* self, size_t index, compiler__loader__ModuleFile value);
 void std__collections__List_compiler__loader__ModuleFile_plus_assign(std__collections__List_compiler__loader__ModuleFile* self, compiler__loader__ModuleFile value);
+size_t std__collections__List_compiler__semantic__lowering__PendingResolve_count(std__collections__List_compiler__semantic__lowering__PendingResolve* self);
+compiler__semantic__lowering__PendingResolve std__collections__List_compiler__semantic__lowering__PendingResolve_at(std__collections__List_compiler__semantic__lowering__PendingResolve* self, size_t i);
+std__collections__List_compiler__semantic__lowering__PendingResolve std__collections__List_compiler__semantic__lowering__PendingResolve_init(size_t cap);
+compiler__semantic__lowering__PendingResolve std__collections__List_compiler__semantic__lowering__PendingResolve_first(std__collections__List_compiler__semantic__lowering__PendingResolve* self);
+compiler__semantic__lowering__PendingResolve std__collections__List_compiler__semantic__lowering__PendingResolve_last(std__collections__List_compiler__semantic__lowering__PendingResolve* self);
+bool std__collections__List_compiler__semantic__lowering__PendingResolve_empty(std__collections__List_compiler__semantic__lowering__PendingResolve* self);
+void std__collections__List_compiler__semantic__lowering__PendingResolve_add(std__collections__List_compiler__semantic__lowering__PendingResolve* self, compiler__semantic__lowering__PendingResolve value);
+compiler__semantic__lowering__PendingResolve std__collections__List_compiler__semantic__lowering__PendingResolve_pop(std__collections__List_compiler__semantic__lowering__PendingResolve* self);
+void std__collections__List_compiler__semantic__lowering__PendingResolve_extend(std__collections__List_compiler__semantic__lowering__PendingResolve* self, std__collections__List_compiler__semantic__lowering__PendingResolve other);
+size_t std__collections__List_compiler__semantic__lowering__PendingResolve_clear(std__collections__List_compiler__semantic__lowering__PendingResolve* self);
+void std__collections__List_compiler__semantic__lowering__PendingResolve_grow(std__collections__List_compiler__semantic__lowering__PendingResolve* self);
+void std__collections__List_compiler__semantic__lowering__PendingResolve_reserve(std__collections__List_compiler__semantic__lowering__PendingResolve* self, size_t min_cap);
+compiler__semantic__lowering__PendingResolve std__collections__List_compiler__semantic__lowering__PendingResolve_remove_at(std__collections__List_compiler__semantic__lowering__PendingResolve* self, size_t index);
+void std__collections__List_compiler__semantic__lowering__PendingResolve_insert(std__collections__List_compiler__semantic__lowering__PendingResolve* self, size_t index, compiler__semantic__lowering__PendingResolve value);
+std__collections__List_compiler__semantic__lowering__PendingResolve std__collections__List_compiler__semantic__lowering__PendingResolve_clone(std__collections__List_compiler__semantic__lowering__PendingResolve* self);
+compiler__semantic__lowering__PendingResolve std__collections__List_compiler__semantic__lowering__PendingResolve_pop_or(std__collections__List_compiler__semantic__lowering__PendingResolve* self, compiler__semantic__lowering__PendingResolve value);
+void std__collections__List_compiler__semantic__lowering__PendingResolve_swap(std__collections__List_compiler__semantic__lowering__PendingResolve* self, size_t a, size_t b);
+void std__collections__List_compiler__semantic__lowering__PendingResolve_reverse(std__collections__List_compiler__semantic__lowering__PendingResolve* self);
+std__collections__List_compiler__semantic__lowering__PendingResolve std__collections__List_compiler__semantic__lowering__PendingResolve_sub(std__collections__List_compiler__semantic__lowering__PendingResolve* self, size_t start, size_t count);
+intptr_t std__collections__List_compiler__semantic__lowering__PendingResolve_index_of(std__collections__List_compiler__semantic__lowering__PendingResolve* self, compiler__semantic__lowering__PendingResolve value);
+intptr_t std__collections__List_compiler__semantic__lowering__PendingResolve_last_index_of(std__collections__List_compiler__semantic__lowering__PendingResolve* self, compiler__semantic__lowering__PendingResolve value);
+bool std__collections__List_compiler__semantic__lowering__PendingResolve_remove(std__collections__List_compiler__semantic__lowering__PendingResolve* self, compiler__semantic__lowering__PendingResolve value);
+size_t std__collections__List_compiler__semantic__lowering__PendingResolve_remove_all(std__collections__List_compiler__semantic__lowering__PendingResolve* self, compiler__semantic__lowering__PendingResolve value);
+void std__collections__List_compiler__semantic__lowering__PendingResolve_free(std__collections__List_compiler__semantic__lowering__PendingResolve* self);
+compiler__semantic__lowering__PendingResolve std__collections__List_compiler__semantic__lowering__PendingResolve_get(std__collections__List_compiler__semantic__lowering__PendingResolve* self, size_t index);
+bool std__collections__List_compiler__semantic__lowering__PendingResolve_contains(std__collections__List_compiler__semantic__lowering__PendingResolve* self, compiler__semantic__lowering__PendingResolve value);
+compiler__semantic__lowering__PendingResolve std__collections__List_compiler__semantic__lowering__PendingResolve_set(std__collections__List_compiler__semantic__lowering__PendingResolve* self, size_t index, compiler__semantic__lowering__PendingResolve value);
+void std__collections__List_compiler__semantic__lowering__PendingResolve_plus_assign(std__collections__List_compiler__semantic__lowering__PendingResolve* self, compiler__semantic__lowering__PendingResolve value);
 size_t std__collections__List_ptr_compiler__semantic__checker__ArrowCandidate_count(std__collections__List_ptr_compiler__semantic__checker__ArrowCandidate* self);
 compiler__semantic__checker__ArrowCandidate* std__collections__List_ptr_compiler__semantic__checker__ArrowCandidate_at(std__collections__List_ptr_compiler__semantic__checker__ArrowCandidate* self, size_t i);
 std__collections__List_ptr_compiler__semantic__checker__ArrowCandidate std__collections__List_ptr_compiler__semantic__checker__ArrowCandidate_init(size_t cap);
@@ -4620,6 +4671,7 @@ void std__memory__Heap_free_lsp__Document(lsp__Document* ptr);
 void std__memory__Heap_free_ptr_lsp__JsonValue(lsp__JsonValue** ptr);
 void std__memory__Heap_free_std__filesystem__Path(std__filesystem__Path* ptr);
 void std__memory__Heap_free_compiler__loader__ModuleFile(compiler__loader__ModuleFile* ptr);
+void std__memory__Heap_free_compiler__semantic__lowering__PendingResolve(compiler__semantic__lowering__PendingResolve* ptr);
 void std__memory__Heap_free_ptr_compiler__semantic__checker__ArrowCandidate(compiler__semantic__checker__ArrowCandidate** ptr);
 void std__memory__Heap_free_compiler__codegen__ConditionAlias(compiler__codegen__ConditionAlias* ptr);
 uint8_t* std__memory__Heap_create_array_u8(size_t count);
@@ -4717,6 +4769,8 @@ std__filesystem__Path* std__memory__Heap_create_array_std__filesystem__Path(size
 std__filesystem__Path* std__memory__Heap_resize_std__filesystem__Path(std__filesystem__Path* ptr, size_t count);
 compiler__loader__ModuleFile* std__memory__Heap_create_array_compiler__loader__ModuleFile(size_t count);
 compiler__loader__ModuleFile* std__memory__Heap_resize_compiler__loader__ModuleFile(compiler__loader__ModuleFile* ptr, size_t count);
+compiler__semantic__lowering__PendingResolve* std__memory__Heap_create_array_compiler__semantic__lowering__PendingResolve(size_t count);
+compiler__semantic__lowering__PendingResolve* std__memory__Heap_resize_compiler__semantic__lowering__PendingResolve(compiler__semantic__lowering__PendingResolve* ptr, size_t count);
 compiler__semantic__checker__ArrowCandidate** std__memory__Heap_create_array_ptr_compiler__semantic__checker__ArrowCandidate(size_t count);
 compiler__semantic__checker__ArrowCandidate** std__memory__Heap_resize_ptr_compiler__semantic__checker__ArrowCandidate(compiler__semantic__checker__ArrowCandidate** ptr, size_t count);
 compiler__codegen__ConditionAlias* std__memory__Heap_create_array_compiler__codegen__ConditionAlias(size_t count);
@@ -16442,7 +16496,7 @@ std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&down_stmts, down_
 return std__memory__Arena_loop_if(self, std__memory__Arena_for_id(self, KOBEL_STR("__for_up"), line, col), std__memory__Arena_loop_block(self, up_stmts, line, col), std__memory__Arena_loop_block(self, down_stmts, line, col), line, col);
 }
 
-void std__memory__Arena_for_inject_step(std__memory__Arena* self, compiler__ast__AstNode* node, std__collections__List_ptr_compiler__ast__AstNode* step, compiler__semantic__checker__BodyChecker* bc) {
+void std__memory__Arena_for_inject_step(std__memory__Arena* self, compiler__ast__AstNode* node, std__collections__List_ptr_compiler__ast__AstNode* step, std__collections__List_compiler__semantic__lowering__PendingResolve* pending) {
 if (node == NULL) {
 return;
 }
@@ -16454,14 +16508,14 @@ size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&target
 size_t __for_i = 0;
 while (__for_i < __for_n) {
 compiler__ast__AstNode* stmt = std__collections__List_ptr_compiler__ast__AstNode_at(&target->statements, __for_i);
-std__memory__Arena_for_inject_step(self, stmt, step, bc);
+std__memory__Arena_for_inject_step(self, stmt, step, pending);
 __for_i = (__for_i + 1);
 }
 } else if (target != NULL && target->data.tag == compiler__ast__NodeData__IfStmt__TAG) {
 void* __orig_target = (void*)target;
 compiler__ast__NodeData__IfStmt* target = (compiler__ast__NodeData__IfStmt*)((&((compiler__ast__AstNode*)__orig_target)->data.u.IfStmt));
-std__memory__Arena_for_inject_step(self, target->then_branch, step, bc);
-std__memory__Arena_for_inject_step(self, target->else_branch, step, bc);
+std__memory__Arena_for_inject_step(self, target->then_branch, step, pending);
+std__memory__Arena_for_inject_step(self, target->else_branch, step, pending);
 } else if (target != NULL && target->data.tag == compiler__ast__NodeData__WhenStmt__TAG) {
 void* __orig_target = (void*)target;
 compiler__ast__NodeData__WhenStmt* target = (compiler__ast__NodeData__WhenStmt*)((&((compiler__ast__AstNode*)__orig_target)->data.u.WhenStmt));
@@ -16469,17 +16523,17 @@ size_t __for_n = std__collections__List_compiler__ast__WhenArm_count(&target->ar
 size_t __for_i = 0;
 while (__for_i < __for_n) {
 compiler__ast__WhenArm arm = std__collections__List_compiler__ast__WhenArm_at(&target->arms, __for_i);
-std__memory__Arena_for_inject_step(self, arm.body, step, bc);
+std__memory__Arena_for_inject_step(self, arm.body, step, pending);
 __for_i = (__for_i + 1);
 }
 } else if (target != NULL && target->data.tag == compiler__ast__NodeData__VarDeclStmt__TAG) {
 void* __orig_target = (void*)target;
 compiler__ast__NodeData__VarDeclStmt* target = (compiler__ast__NodeData__VarDeclStmt*)((&((compiler__ast__AstNode*)__orig_target)->data.u.VarDeclStmt));
-std__memory__Arena_for_inject_step_expr(self, target->initializer, step, bc);
+std__memory__Arena_for_inject_step_expr(self, target->initializer, step, pending);
 } else if (target != NULL && target->data.tag == compiler__ast__NodeData__ExprStmt__TAG) {
 void* __orig_target = (void*)target;
 compiler__ast__NodeData__ExprStmt* target = (compiler__ast__NodeData__ExprStmt*)((&((compiler__ast__AstNode*)__orig_target)->data.u.ExprStmt));
-std__memory__Arena_for_inject_step_expr(self, target->expr, step, bc);
+std__memory__Arena_for_inject_step_expr(self, target->expr, step, pending);
 } else if (target != NULL && target->data.tag == compiler__ast__NodeData__ContinueStmt__TAG) {
 void* __orig_target = (void*)target;
 compiler__ast__NodeData__ContinueStmt* target = (compiler__ast__NodeData__ContinueStmt*)((&((compiler__ast__AstNode*)__orig_target)->data.u.ContinueStmt));
@@ -16495,13 +16549,11 @@ __for_i = (__for_i + 1);
 }
 std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&stmts, std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 32 }, node->line, node->col));
 compiler__ast__AstNode* block = std__memory__Arena_loop_block(self, stmts, node->line, node->col);
-if (bc != NULL) {
-compiler__semantic__checker__BodyChecker_set_resolved(bc, node, block);
-}
+std__collections__List_compiler__semantic__lowering__PendingResolve_plus_assign(pending, (compiler__semantic__lowering__PendingResolve){ node, block });
 }
 }
 
-void std__memory__Arena_for_inject_step_expr(std__memory__Arena* self, compiler__ast__AstNode* expr, std__collections__List_ptr_compiler__ast__AstNode* step, compiler__semantic__checker__BodyChecker* bc) {
+void std__memory__Arena_for_inject_step_expr(std__memory__Arena* self, compiler__ast__AstNode* expr, std__collections__List_ptr_compiler__ast__AstNode* step, std__collections__List_compiler__semantic__lowering__PendingResolve* pending) {
 if (expr == NULL) {
 return;
 }
@@ -16523,9 +16575,9 @@ return;
 compiler__ast__NodeData__BinaryExpr* bin = NULL;
 compiler__ast__NodeData__AssignExpr* asg = NULL;
 if ((cur != NULL && cur->data.tag == compiler__ast__NodeData__BinaryExpr__TAG && (bin = (compiler__ast__NodeData__BinaryExpr*)(&(cur)->data.u.BinaryExpr), 1)) && (bin->op == 37)) {
-std__memory__Arena_for_inject_step(self, bin->right, step, bc);
+std__memory__Arena_for_inject_step(self, bin->right, step, pending);
 } else if ((cur != NULL && cur->data.tag == compiler__ast__NodeData__AssignExpr__TAG && (asg = (compiler__ast__NodeData__AssignExpr*)(&(cur)->data.u.AssignExpr), 1))) {
-std__memory__Arena_for_inject_step_expr(self, asg->value, step, bc);
+std__memory__Arena_for_inject_step_expr(self, asg->value, step, pending);
 }
 }
 }
@@ -16587,7 +16639,7 @@ std__collections__List_ptr_compiler__ast__AstNode_plus_assign(step, std__memory_
 return std__memory__Arena_for_id(self, KOBEL_STR("__for_go"), line, col);
 }
 
-compiler__ast__AstNode* std__memory__Arena_desugar_for(std__memory__Arena* self, compiler__ast__AstNode* node, compiler__ast__NodeData__ForStmt* fs, bool use_iter_trait, compiler__semantic__checker__BodyChecker* bc) {
+compiler__ast__AstNode* std__memory__Arena_desugar_for(std__memory__Arena* self, compiler__ast__AstNode* node, compiler__ast__NodeData__ForStmt* fs, bool use_iter_trait, std__collections__List_compiler__semantic__lowering__PendingResolve* pending) {
 size_t line = node->line;
 size_t col = node->col;
 std__collections__List_ptr_compiler__ast__AstNode pre = std__collections__List_ptr_compiler__ast__AstNode_init(4);
@@ -16630,7 +16682,7 @@ std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&body_stmts, s);
 __for_i = (__for_i + 1);
 }
 }
-std__memory__Arena_for_inject_step(self, fs->body, &step, bc);
+std__memory__Arena_for_inject_step(self, fs->body, &step, pending);
 std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&pre, std__memory__Arena_loop_while(self, cond, std__memory__Arena_loop_block(self, body_stmts, line, col), line, col));
 return std__memory__Arena_loop_block(self, pre, line, col);
 }
@@ -22450,7 +22502,17 @@ bool use_iter_trait = false;
 if (!fs->is_range) {
 use_iter_trait = compiler__semantic__checker__BodyChecker_struct_implements_iterable(self, compiler__semantic__checker__BodyChecker_for_iterable_type(self, fs->iterable));
 }
-compiler__ast__AstNode* block = std__memory__Arena_desugar_for(&self->arena, node, fs, use_iter_trait, self);
+std__collections__List_compiler__semantic__lowering__PendingResolve pending = std__collections__List_compiler__semantic__lowering__PendingResolve_init(4);
+compiler__ast__AstNode* block = std__memory__Arena_desugar_for(&self->arena, node, fs, use_iter_trait, &pending);
+{
+size_t __for_n = std__collections__List_compiler__semantic__lowering__PendingResolve_count(&pending);
+size_t __for_i = 0;
+while (__for_i < __for_n) {
+compiler__semantic__lowering__PendingResolve p = std__collections__List_compiler__semantic__lowering__PendingResolve_at(&pending, __for_i);
+compiler__semantic__checker__BodyChecker_set_resolved(self, p.node, p.target);
+__for_i = (__for_i + 1);
+}
+}
 compiler__semantic__checker__BodyChecker_set_resolved(self, node, block);
 compiler__semantic__checker__BodyChecker_check_statement(self, block);
 }
@@ -47187,6 +47249,341 @@ void std__collections__List_compiler__loader__ModuleFile_plus_assign(std__collec
     std__collections__List_compiler__loader__ModuleFile_add(self, value);
 }
 
+size_t std__collections__List_compiler__semantic__lowering__PendingResolve_count(std__collections__List_compiler__semantic__lowering__PendingResolve* self) {
+    return self->len;
+}
+
+compiler__semantic__lowering__PendingResolve std__collections__List_compiler__semantic__lowering__PendingResolve_at(std__collections__List_compiler__semantic__lowering__PendingResolve* self, size_t i) {
+    return self->data[i];
+}
+
+std__collections__List_compiler__semantic__lowering__PendingResolve std__collections__List_compiler__semantic__lowering__PendingResolve_init(size_t cap) {
+    return (std__collections__List_compiler__semantic__lowering__PendingResolve){ std__memory__Heap_create_array_compiler__semantic__lowering__PendingResolve(cap), 0, cap };
+}
+
+compiler__semantic__lowering__PendingResolve std__collections__List_compiler__semantic__lowering__PendingResolve_first(std__collections__List_compiler__semantic__lowering__PendingResolve* self) {
+    return self->data[0];
+}
+
+compiler__semantic__lowering__PendingResolve std__collections__List_compiler__semantic__lowering__PendingResolve_last(std__collections__List_compiler__semantic__lowering__PendingResolve* self) {
+    return self->data[(self->len - 1)];
+}
+
+bool std__collections__List_compiler__semantic__lowering__PendingResolve_empty(std__collections__List_compiler__semantic__lowering__PendingResolve* self) {
+    return (self->len == 0);
+}
+
+void std__collections__List_compiler__semantic__lowering__PendingResolve_add(std__collections__List_compiler__semantic__lowering__PendingResolve* self, compiler__semantic__lowering__PendingResolve value) {
+if (self->len == self->cap) {
+std__collections__List_compiler__semantic__lowering__PendingResolve_grow(self);
+}
+self->data[self->len] = value;
+self->len++;
+}
+
+compiler__semantic__lowering__PendingResolve std__collections__List_compiler__semantic__lowering__PendingResolve_pop(std__collections__List_compiler__semantic__lowering__PendingResolve* self) {
+self->len--;
+return self->data[self->len];
+}
+
+void std__collections__List_compiler__semantic__lowering__PendingResolve_extend(std__collections__List_compiler__semantic__lowering__PendingResolve* self, std__collections__List_compiler__semantic__lowering__PendingResolve other) {
+{
+size_t __for_n = std__collections__List_compiler__semantic__lowering__PendingResolve_count(&other);
+size_t __for_i = 0;
+while (__for_i < __for_n) {
+compiler__semantic__lowering__PendingResolve data = std__collections__List_compiler__semantic__lowering__PendingResolve_at(&other, __for_i);
+std__collections__List_compiler__semantic__lowering__PendingResolve_plus_assign(self, data);
+__for_i = (__for_i + 1);
+}
+}
+}
+
+size_t std__collections__List_compiler__semantic__lowering__PendingResolve_clear(std__collections__List_compiler__semantic__lowering__PendingResolve* self) {
+    return self->len = 0;
+}
+
+void std__collections__List_compiler__semantic__lowering__PendingResolve_grow(std__collections__List_compiler__semantic__lowering__PendingResolve* self) {
+size_t new_cap = (self->cap * 2);
+self->data = std__memory__Heap_resize_compiler__semantic__lowering__PendingResolve(self->data, new_cap);
+self->cap = new_cap;
+}
+
+void std__collections__List_compiler__semantic__lowering__PendingResolve_reserve(std__collections__List_compiler__semantic__lowering__PendingResolve* self, size_t min_cap) {
+if (min_cap > self->cap) {
+size_t new_cap = self->cap;
+while (new_cap < min_cap) {
+new_cap *= 2;
+}
+self->data = std__memory__Heap_resize_compiler__semantic__lowering__PendingResolve(self->data, new_cap);
+self->cap = new_cap;
+}
+}
+
+compiler__semantic__lowering__PendingResolve std__collections__List_compiler__semantic__lowering__PendingResolve_remove_at(std__collections__List_compiler__semantic__lowering__PendingResolve* self, size_t index) {
+compiler__semantic__lowering__PendingResolve item = self->data[index];
+{
+size_t __for_e = (self->len - 1);
+size_t __for_i = __for_e;
+__for_i = index;
+bool __for_up = (__for_i <= __for_e);
+bool __for_go = false;
+if (__for_up) {
+__for_go = (__for_i < __for_e);
+} else {
+__for_go = (__for_i > __for_e);
+}
+while (__for_go) {
+size_t i = __for_i;
+self->data[i] = self->data[(i + 1)];
+if (__for_up) {
+__for_go = ((__for_i + 1) < __for_e);
+} else {
+__for_go = ((__for_i - 1) > __for_e);
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = (__for_i + 1);
+} else {
+__for_i = (__for_i - 1);
+}
+}
+}
+}
+self->len--;
+return item;
+}
+
+void std__collections__List_compiler__semantic__lowering__PendingResolve_insert(std__collections__List_compiler__semantic__lowering__PendingResolve* self, size_t index, compiler__semantic__lowering__PendingResolve value) {
+if (self->len == self->cap) {
+std__collections__List_compiler__semantic__lowering__PendingResolve_grow(self);
+}
+size_t i = self->len;
+while (i > index) {
+self->data[i] = self->data[(i - 1)];
+i--;
+}
+self->data[index] = value;
+self->len++;
+}
+
+std__collections__List_compiler__semantic__lowering__PendingResolve std__collections__List_compiler__semantic__lowering__PendingResolve_clone(std__collections__List_compiler__semantic__lowering__PendingResolve* self) {
+size_t cap = ((self->cap > 0) ? self->cap : 4);
+std__collections__List_compiler__semantic__lowering__PendingResolve res = (std__collections__List_compiler__semantic__lowering__PendingResolve){ std__memory__Heap_create_array_compiler__semantic__lowering__PendingResolve(cap), 0, cap };
+{
+size_t __for_e = self->len;
+size_t __for_i = __for_e;
+__for_i = 0;
+bool __for_up = (__for_i <= __for_e);
+bool __for_go = false;
+if (__for_up) {
+__for_go = (__for_i < __for_e);
+} else {
+__for_go = (__for_i > __for_e);
+}
+while (__for_go) {
+size_t i = __for_i;
+std__collections__List_compiler__semantic__lowering__PendingResolve_plus_assign(&res, self->data[i]);
+if (__for_up) {
+__for_go = ((__for_i + 1) < __for_e);
+} else {
+__for_go = ((__for_i - 1) > __for_e);
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = (__for_i + 1);
+} else {
+__for_i = (__for_i - 1);
+}
+}
+}
+}
+return res;
+}
+
+compiler__semantic__lowering__PendingResolve std__collections__List_compiler__semantic__lowering__PendingResolve_pop_or(std__collections__List_compiler__semantic__lowering__PendingResolve* self, compiler__semantic__lowering__PendingResolve value) {
+    return ((self->len == 0) ? value : std__collections__List_compiler__semantic__lowering__PendingResolve_pop(self));
+}
+
+void std__collections__List_compiler__semantic__lowering__PendingResolve_swap(std__collections__List_compiler__semantic__lowering__PendingResolve* self, size_t a, size_t b) {
+compiler__semantic__lowering__PendingResolve tmp = self->data[a];
+self->data[a] = self->data[b];
+self->data[b] = tmp;
+}
+
+void std__collections__List_compiler__semantic__lowering__PendingResolve_reverse(std__collections__List_compiler__semantic__lowering__PendingResolve* self) {
+if (self->len <= 1) {
+return;
+}
+int32_t left = 0;
+size_t right = (self->len - 1);
+while (left < right) {
+compiler__semantic__lowering__PendingResolve tmp = self->data[left];
+self->data[left] = self->data[right];
+self->data[right] = tmp;
+left++;
+right--;
+}
+}
+
+std__collections__List_compiler__semantic__lowering__PendingResolve std__collections__List_compiler__semantic__lowering__PendingResolve_sub(std__collections__List_compiler__semantic__lowering__PendingResolve* self, size_t start, size_t count) {
+std__collections__List_compiler__semantic__lowering__PendingResolve res = (std__collections__List_compiler__semantic__lowering__PendingResolve){ std__memory__Heap_create_array_compiler__semantic__lowering__PendingResolve(count), 0, count };
+if (start >= self->len) {
+return res;
+}
+size_t end = (((start + count) > self->len) ? self->len : (start + count));
+{
+size_t __for_e = end;
+size_t __for_i = __for_e;
+__for_i = start;
+bool __for_up = (__for_i <= __for_e);
+bool __for_go = false;
+if (__for_up) {
+__for_go = (__for_i < __for_e);
+} else {
+__for_go = (__for_i > __for_e);
+}
+while (__for_go) {
+size_t i = __for_i;
+std__collections__List_compiler__semantic__lowering__PendingResolve_plus_assign(&res, self->data[i]);
+if (__for_up) {
+__for_go = ((__for_i + 1) < __for_e);
+} else {
+__for_go = ((__for_i - 1) > __for_e);
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = (__for_i + 1);
+} else {
+__for_i = (__for_i - 1);
+}
+}
+}
+}
+return res;
+}
+
+intptr_t std__collections__List_compiler__semantic__lowering__PendingResolve_index_of(std__collections__List_compiler__semantic__lowering__PendingResolve* self, compiler__semantic__lowering__PendingResolve value) {
+{
+size_t __for_e = self->len;
+size_t __for_i = __for_e;
+__for_i = 0;
+bool __for_up = (__for_i <= __for_e);
+bool __for_go = false;
+if (__for_up) {
+__for_go = (__for_i < __for_e);
+} else {
+__for_go = (__for_i > __for_e);
+}
+while (__for_go) {
+size_t i = __for_i;
+if (kobel_memeq(&self->data[i], &value, 16)) {
+return i;
+}
+if (__for_up) {
+__for_go = ((__for_i + 1) < __for_e);
+} else {
+__for_go = ((__for_i - 1) > __for_e);
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = (__for_i + 1);
+} else {
+__for_i = (__for_i - 1);
+}
+}
+}
+}
+return -1;
+}
+
+intptr_t std__collections__List_compiler__semantic__lowering__PendingResolve_last_index_of(std__collections__List_compiler__semantic__lowering__PendingResolve* self, compiler__semantic__lowering__PendingResolve value) {
+if (self->len == 0) {
+return -1;
+}
+size_t i = (self->len - 1);
+while (true) {
+if (kobel_memeq(&self->data[i], &value, 16)) {
+return i;
+}
+if (i == 0) {
+break;
+}
+i--;
+}
+return -1;
+}
+
+bool std__collections__List_compiler__semantic__lowering__PendingResolve_remove(std__collections__List_compiler__semantic__lowering__PendingResolve* self, compiler__semantic__lowering__PendingResolve value) {
+intptr_t idx = std__collections__List_compiler__semantic__lowering__PendingResolve_index_of(self, value);
+if (idx < 0) {
+return false;
+}
+std__collections__List_compiler__semantic__lowering__PendingResolve_remove_at(self, (size_t)idx);
+return true;
+}
+
+size_t std__collections__List_compiler__semantic__lowering__PendingResolve_remove_all(std__collections__List_compiler__semantic__lowering__PendingResolve* self, compiler__semantic__lowering__PendingResolve value) {
+int32_t write = 0;
+int32_t removed = 0;
+{
+size_t __for_e = self->len;
+size_t __for_i = __for_e;
+__for_i = 0;
+bool __for_up = (__for_i <= __for_e);
+bool __for_go = false;
+if (__for_up) {
+__for_go = (__for_i < __for_e);
+} else {
+__for_go = (__for_i > __for_e);
+}
+while (__for_go) {
+size_t i = __for_i;
+if (kobel_memeq(&self->data[i], &value, 16)) {
+removed++;
+} else {
+if (write != i) {
+self->data[write] = self->data[i];
+}
+write++;
+}
+if (__for_up) {
+__for_go = ((__for_i + 1) < __for_e);
+} else {
+__for_go = ((__for_i - 1) > __for_e);
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = (__for_i + 1);
+} else {
+__for_i = (__for_i - 1);
+}
+}
+}
+}
+self->len = write;
+return removed;
+}
+
+void std__collections__List_compiler__semantic__lowering__PendingResolve_free(std__collections__List_compiler__semantic__lowering__PendingResolve* self) {
+    std__memory__Heap_free_compiler__semantic__lowering__PendingResolve(self->data);
+}
+
+compiler__semantic__lowering__PendingResolve std__collections__List_compiler__semantic__lowering__PendingResolve_get(std__collections__List_compiler__semantic__lowering__PendingResolve* self, size_t index) {
+    return self->data[index];
+}
+
+bool std__collections__List_compiler__semantic__lowering__PendingResolve_contains(std__collections__List_compiler__semantic__lowering__PendingResolve* self, compiler__semantic__lowering__PendingResolve value) {
+    return (std__collections__List_compiler__semantic__lowering__PendingResolve_index_of(self, value) != -1);
+}
+
+compiler__semantic__lowering__PendingResolve std__collections__List_compiler__semantic__lowering__PendingResolve_set(std__collections__List_compiler__semantic__lowering__PendingResolve* self, size_t index, compiler__semantic__lowering__PendingResolve value) {
+    return self->data[index] = value;
+}
+
+void std__collections__List_compiler__semantic__lowering__PendingResolve_plus_assign(std__collections__List_compiler__semantic__lowering__PendingResolve* self, compiler__semantic__lowering__PendingResolve value) {
+    std__collections__List_compiler__semantic__lowering__PendingResolve_add(self, value);
+}
+
 size_t std__collections__List_ptr_compiler__semantic__checker__ArrowCandidate_count(std__collections__List_ptr_compiler__semantic__checker__ArrowCandidate* self) {
     return self->len;
 }
@@ -48027,6 +48424,10 @@ void std__memory__Heap_free_compiler__loader__ModuleFile(compiler__loader__Modul
     free((uint8_t*)ptr);
 }
 
+void std__memory__Heap_free_compiler__semantic__lowering__PendingResolve(compiler__semantic__lowering__PendingResolve* ptr) {
+    free((uint8_t*)ptr);
+}
+
 void std__memory__Heap_free_ptr_compiler__semantic__checker__ArrowCandidate(compiler__semantic__checker__ArrowCandidate** ptr) {
     free((uint8_t*)ptr);
 }
@@ -48445,6 +48846,14 @@ compiler__loader__ModuleFile* std__memory__Heap_create_array_compiler__loader__M
 
 compiler__loader__ModuleFile* std__memory__Heap_resize_compiler__loader__ModuleFile(compiler__loader__ModuleFile* ptr, size_t count) {
     return (compiler__loader__ModuleFile*)realloc((uint8_t*)ptr, (count * 40));
+}
+
+compiler__semantic__lowering__PendingResolve* std__memory__Heap_create_array_compiler__semantic__lowering__PendingResolve(size_t count) {
+    return (compiler__semantic__lowering__PendingResolve*)malloc((count * 16));
+}
+
+compiler__semantic__lowering__PendingResolve* std__memory__Heap_resize_compiler__semantic__lowering__PendingResolve(compiler__semantic__lowering__PendingResolve* ptr, size_t count) {
+    return (compiler__semantic__lowering__PendingResolve*)realloc((uint8_t*)ptr, (count * 16));
 }
 
 compiler__semantic__checker__ArrowCandidate** std__memory__Heap_create_array_ptr_compiler__semantic__checker__ArrowCandidate(size_t count) {
