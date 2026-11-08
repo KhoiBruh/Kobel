@@ -65,155 +65,155 @@ impl CommentTable {
 impl Comment {
 
 	pub fn extract(src: str): List<Comment> {
-	var comments = List<Comment>();
-	var i = 0;
-	val len = src.len;
-	var line = 1;
-	var col = 1;
+		var comments = List<Comment>();
+		var i = 0;
+		val len = src.len;
+		var line = 1;
+		var col = 1;
 
-	while (i < len) {
-		val c = src[i];
+		while (i < len) {
+			val c = src[i];
 
-		// Newline tracking
-		if (c == '\n') {
-			line++;
-			col = 1;
-			i++;
-			continue;
-		}
-		if (c == '\r') {
-			if (i + 1 < len && src[i + 1] == '\n') i++;
-			line++;
-			col = 1;
-			i++;
-			continue;
-		}
+			// Newline tracking
+			if (c == '\n') {
+				line++;
+				col = 1;
+				i++;
+				continue;
+			}
+			if (c == '\r') {
+				if (i + 1 < len && src[i + 1] == '\n') i++;
+				line++;
+				col = 1;
+				i++;
+				continue;
+			}
 
-		// Skip string literals
-		if (c == '"') {
-			if (i + 2 < len && src[i + 1] == '"' && src[i + 2] == '"') {
-				i += 3;
-				col += 3;
-				while (i < len) {
-					if (src[i] == '"' && i + 2 < len && src[i + 1] == '"' && src[i + 2] == '"') {
-						i += 3;
-						col += 3;
-						break;
+			// Skip string literals
+			if (c == '"') {
+				if (i + 2 < len && src[i + 1] == '"' && src[i + 2] == '"') {
+					i += 3;
+					col += 3;
+					while (i < len) {
+						if (src[i] == '"' && i + 2 < len && src[i + 1] == '"' && src[i + 2] == '"') {
+							i += 3;
+							col += 3;
+							break;
+						}
+						if (src[i] == '\\' && i + 1 < len) {
+							i += 2;
+							col += 2;
+							continue;
+						}
+						if (src[i] == '\n') {
+							line++;
+							col = 1;
+							i++;
+							continue;
+						}
+						if (src[i] == '\r') {
+							if (i + 1 < len && src[i + 1] == '\n') i++;
+							line++;
+							col = 1;
+							i++;
+							continue;
+						}
+						i++;
+						col++;
 					}
+					continue;
+				}
+
+				i++;
+				col++;
+				while (i < len && src[i] != '"') {
 					if (src[i] == '\\' && i + 1 < len) {
 						i += 2;
 						col += 2;
-						continue;
-					}
-					if (src[i] == '\n') {
+					} else if (src[i] == '\n') {
 						line++;
 						col = 1;
 						i++;
-						continue;
-					}
-					if (src[i] == '\r') {
-						if (i + 1 < len && src[i + 1] == '\n') i++;
-						line++;
-						col = 1;
+					} else {
 						i++;
-						continue;
+						col++;
 					}
+				}
+				if (i < len && src[i] == '"') {
 					i++;
 					col++;
 				}
 				continue;
 			}
 
+			// Skip char literals
+			if (c == '\'') {
+				i++;
+				col++;
+				while (i < len && src[i] != '\'') {
+					if (src[i] == '\\' && i + 1 < len) {
+						i += 2;
+						col += 2;
+					} else {
+						i++;
+						col++;
+					}
+				}
+				if (i < len && src[i] == '\'') {
+					i++;
+					col++;
+				}
+				continue;
+			}
+
+			// Line comment //
+			if (c == '/' && i + 1 < len && src[i + 1] == '/') {
+				val start_i = i;
+				val start_col = col;
+				val start_line = line;
+				i += 2;
+				col += 2;
+				while (i < len && src[i] != '\n' && src[i] != '\r') {
+					i++;
+					col++;
+				}
+				val text = src.slice(start_i, i);
+				comments += Comment(text, start_line, start_col, false);
+				continue;
+			}
+
+			// Block comment /* ... */
+			if (c == '/' && i + 1 < len && src[i + 1] == '*') {
+				val start_i = i;
+				val start_col = col;
+				val start_line = line;
+				i += 2;
+				col += 2;
+				while (i + 1 < len) {
+					if (src[i] == '*' && src[i + 1] == '/') {
+						i += 2;
+						col += 2;
+						break;
+					}
+					if (src[i] == '\n') {
+						line++;
+						col = 1;
+						i++;
+					} else {
+						i++;
+						col++;
+					}
+				}
+				val text = src.slice(start_i, i);
+				comments += Comment(text, start_line, start_col, true);
+				continue;
+			}
+
 			i++;
 			col++;
-			while (i < len && src[i] != '"') {
-				if (src[i] == '\\' && i + 1 < len) {
-					i += 2;
-					col += 2;
-				} else if (src[i] == '\n') {
-					line++;
-					col = 1;
-					i++;
-				} else {
-					i++;
-					col++;
-				}
-			}
-			if (i < len && src[i] == '"') {
-				i++;
-				col++;
-			}
-			continue;
 		}
 
-		// Skip char literals
-		if (c == '\'') {
-			i++;
-			col++;
-			while (i < len && src[i] != '\'') {
-				if (src[i] == '\\' && i + 1 < len) {
-					i += 2;
-					col += 2;
-				} else {
-					i++;
-					col++;
-				}
-			}
-			if (i < len && src[i] == '\'') {
-				i++;
-				col++;
-			}
-			continue;
-		}
-
-		// Line comment //
-		if (c == '/' && i + 1 < len && src[i + 1] == '/') {
-			val start_i = i;
-			val start_col = col;
-			val start_line = line;
-			i += 2;
-			col += 2;
-			while (i < len && src[i] != '\n' && src[i] != '\r') {
-				i++;
-				col++;
-			}
-			val text = src.slice(start_i, i);
-			comments += Comment(text, start_line, start_col, false);
-			continue;
-		}
-
-		// Block comment /* ... */
-		if (c == '/' && i + 1 < len && src[i + 1] == '*') {
-			val start_i = i;
-			val start_col = col;
-			val start_line = line;
-			i += 2;
-			col += 2;
-			while (i + 1 < len) {
-				if (src[i] == '*' && src[i + 1] == '/') {
-					i += 2;
-					col += 2;
-					break;
-				}
-				if (src[i] == '\n') {
-					line++;
-					col = 1;
-					i++;
-				} else {
-					i++;
-					col++;
-				}
-			}
-			val text = src.slice(start_i, i);
-			comments += Comment(text, start_line, start_col, true);
-			continue;
-		}
-
-		i++;
-		col++;
+		return comments;
 	}
-
-	return comments;
-}
 
 }

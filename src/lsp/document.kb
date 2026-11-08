@@ -4,8 +4,6 @@ use std.string.*;
 use std.ascii.*;
 use std.collections.*;
 
-
-
 // ============================================================================
 // Document Representation
 // ============================================================================
@@ -22,7 +20,7 @@ pub struct Document {
 // ============================================================================
 
 pub struct DocumentStore {
-	pub doc_map: HashMap<str, Document> = HashMap<str, Document>()
+	pub doc_map: HashMap<str, Document> = HashMap()
 }
 
 impl DocumentStore {
@@ -43,12 +41,13 @@ impl DocumentStore {
 pub fn uri_to_path(uri: str): str {
 	var s = uri;
 	s = if (s.len >= 8 && s.slice(0, 8) == "file:///") s.slice(8, s.len)
-	else if (s.len >= 7 && s.slice(0, 7) == "file://") s.slice(7, s.len)
-	else s;
+		else if (s.len >= 7 && s.slice(0, 7) == "file://") s.slice(7, s.len)
+		else s;
 
 	var sb = StringBuilder();
 	defer sb.free();
-	var i: usz = 0;
+
+	var i = 0;
 	while (i < s.len) {
 		val c = s[i];
 		if (c == '%' && i + 2 < s.len) {

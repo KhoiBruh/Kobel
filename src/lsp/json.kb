@@ -6,8 +6,6 @@ use std.ascii.*;
 use std.memory.*;
 use std.collections.*;
 
-
-
 // ============================================================================
 // JSON Data Types
 // ============================================================================
@@ -53,22 +51,22 @@ impl JsonValue {
 		return p as *JsonValue;
 	}
 
-	pub fn null_val(): *JsonValue => JsonValue.box(JsonValue(JsonKind.JNULL));
-	pub fn nil(): *JsonValue => JsonValue.null_val();
+	pub fn null_val() => JsonValue.box(JsonValue(JsonKind.JNULL));
+	pub fn nil() => JsonValue.null_val();
 
-	pub fn bool(b: bool): *JsonValue => JsonValue.box(JsonValue(JsonKind.JBOOL, b));
+	pub fn bool(b: bool) => JsonValue.box(JsonValue(JsonKind.JBOOL, b));
 
-	pub fn num(n: i64): *JsonValue => JsonValue.box(JsonValue(JsonKind.JNUM, false, n));
-	pub fn int(n: i64): *JsonValue => JsonValue.num(n);
+	pub fn num(n: i64) => JsonValue.box(JsonValue(JsonKind.JNUM, false, n));
+	pub fn int(n: i64) => JsonValue.num(n);
 
-	pub fn str(s: str): *JsonValue => JsonValue.box(JsonValue(JsonKind.JSTR, false, 0, s));
-	pub fn string(s: str): *JsonValue => JsonValue.str(s);
+	pub fn str(s: str) => JsonValue.box(JsonValue(JsonKind.JSTR, false, 0, s));
+	pub fn string(s: str) => JsonValue.str(s);
 
-	pub fn arr(): *JsonValue => JsonValue.box(JsonValue(JsonKind.JARR));
-	pub fn array(): *JsonValue => JsonValue.arr();
+	pub fn arr() => JsonValue.box(JsonValue(JsonKind.JARR));
+	pub fn array() => JsonValue.arr();
 
-	pub fn obj(): *JsonValue => JsonValue.box(JsonValue(JsonKind.JOBJ));
-	pub fn object(): *JsonValue => JsonValue.obj();
+	pub fn obj() => JsonValue.box(JsonValue(JsonKind.JOBJ));
+	pub fn object() => JsonValue.obj();
 
 	pub fn parse(src: str): *JsonValue {
 		var parser = JsonParser(src);
@@ -133,6 +131,7 @@ impl JsonValue {
 
 	pub op get(val self, key: str): *JsonValue {
 		if (self == null || self.kind != JsonKind.JOBJ) return JsonValue.null_val();
+
 		val idx = self.obj_keys.index_of(key);
 		if (idx >= 0) return self.obj_vals[idx as usz];
 		return JsonValue.null_val();

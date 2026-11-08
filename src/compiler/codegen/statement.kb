@@ -1088,13 +1088,10 @@ impl CCodeGen {
 
 }
 
-fn ws_is_id(node: *AstNode): bool => node is IdentifierExpr;
-
-fn is_jump_or_block(node: *AstNode?): bool =>
-	node != null && (
-		node is ReturnStmt ||
-		node is BreakStmt ||
-		node is ContinueStmt ||
-		node is YieldStmt ||
-		node is BlockStmt
-	);
+fn is_jump_or_block(node: *AstNode?) => node != null && (
+	node is ReturnStmt ||
+	node is BreakStmt ||
+	node is ContinueStmt ||
+	node is YieldStmt ||
+	node is BlockStmt
+);

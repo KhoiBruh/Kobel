@@ -11,7 +11,7 @@ use compiler.parser.*;
 // Operator token to string representation
 // ============================================================================
 
-pub fn op_to_str(op: TokenType): str => when (op) {
+pub fn op_to_str(op: TokenType) => when (op) {
 	TokenType.PLUS -> "+";
 	TokenType.MINUS -> "-";
 	TokenType.STAR -> "*";
@@ -66,6 +66,7 @@ impl Formatter {
 
 	pub fn format_type(var self, node: *AstNode) {
 		if (node == null) return;
+
 		when (node) {
 			is NamedType as nt -> {
 				self.buf += nt.name;
@@ -103,6 +104,7 @@ impl Formatter {
 
 	pub fn format_expr(var self, node: *AstNode) {
 		if (node == null) return;
+
 		when (node) {
 			is LiteralExpr as lit -> self.buf += lit.raw_text;
 			is IdentifierExpr as id -> self.buf += id.name;

@@ -645,101 +645,101 @@ impl AnalysisResult {
 impl AnalysisResult {
 
 	pub fn document_symbols(source: str): *JsonValue {
-	var lexer = Lexer(source);
-	val tokens = lexer.tokenize();
-	var parser = Parser(tokens);
-	val arr = JsonValue.arr();
-	val prog_node = parser.parse_program() ?: return arr;
+		var lexer = Lexer(source);
+		val tokens = lexer.tokenize();
+		var parser = Parser(tokens);
+		val arr = JsonValue.arr();
+		val prog_node = parser.parse_program() ?: return arr;
 
-	if (prog_node is Program as prog) {
-		for (decl in prog) {
-		var sym_name = "";
-		var sym_kind = DocSymbol.NONE;
+		if (prog_node is Program as prog) {
+			for (decl in prog) {
+			var sym_name = "";
+			var sym_kind = DocSymbol.NONE;
 
-		when (decl) {
-			is FnDecl -> {
-				sym_name = decl.name;
-				sym_kind = DocSymbol.FUNCTION;
+			when (decl) {
+				is FnDecl -> {
+					sym_name = decl.name;
+					sym_kind = DocSymbol.FUNCTION;
+				}
+				is StructDecl -> {
+					sym_name = decl.name;
+					sym_kind = DocSymbol.STRUCT;
+				}
+				is EnumDecl -> {
+					sym_name = decl.name;
+					sym_kind = DocSymbol.ENUM;
+				}
+				is TraitDecl -> {
+					sym_name = decl.name;
+					sym_kind = DocSymbol.INTERFACE;
+				}
+				is ImplDecl -> {
+					sym_name = "impl ${decl.struct_name}";
+					sym_kind = DocSymbol.CLASS;
+				}
+				is ConstDecl -> {
+					sym_name = decl.name;
+					sym_kind = DocSymbol.CONSTANT;
+				}
 			}
-			is StructDecl -> {
-				sym_name = decl.name;
-				sym_kind = DocSymbol.STRUCT;
-			}
-			is EnumDecl -> {
-				sym_name = decl.name;
-				sym_kind = DocSymbol.ENUM;
-			}
-			is TraitDecl -> {
-				sym_name = decl.name;
-				sym_kind = DocSymbol.INTERFACE;
-			}
-			is ImplDecl -> {
-				sym_name = "impl ${decl.struct_name}";
-				sym_kind = DocSymbol.CLASS;
-			}
-			is ConstDecl -> {
-				sym_name = decl.name;
-				sym_kind = DocSymbol.CONSTANT;
+
+			if (sym_name.len > 0) {
+				val item = JsonValue.obj();
+				item["name"] = JsonValue.str(sym_name);
+				item["kind"] = JsonValue.num(sym_kind.value);
+
+				val l0 = if (decl.line > 0) decl.line - 1 else 0;
+				val c0 = if (decl.col > 0) decl.col - 1 else 0;
+
+				val range = JsonValue.obj();
+				val s_pos = JsonValue.obj();
+				s_pos["line"] = JsonValue.num(l0);
+				s_pos["character"] = JsonValue.num(c0);
+
+				val e_pos = JsonValue.obj();
+				e_pos["line"] = JsonValue.num(l0);
+				e_pos["character"] = JsonValue.num(c0 + sym_name.len);
+				range["start"] = s_pos;
+				range["end"] = e_pos;
+
+				item["range"] = range;
+				item["selectionRange"] = range;
+
+				arr += item;
 			}
 		}
-
-		if (sym_name.len > 0) {
-			val item = JsonValue.obj();
-			item["name"] = JsonValue.str(sym_name);
-			item["kind"] = JsonValue.num(sym_kind.value);
-
-			val l0 = if (decl.line > 0) decl.line - 1 else 0;
-			val c0 = if (decl.col > 0) decl.col - 1 else 0;
-
-			val range = JsonValue.obj();
-			val s_pos = JsonValue.obj();
-			s_pos["line"] = JsonValue.num(l0);
-			s_pos["character"] = JsonValue.num(c0);
-
-			val e_pos = JsonValue.obj();
-			e_pos["line"] = JsonValue.num(l0);
-			e_pos["character"] = JsonValue.num(c0 + sym_name.len);
-			range["start"] = s_pos;
-			range["end"] = e_pos;
-
-			item["range"] = range;
-			item["selectionRange"] = range;
-
-			arr += item;
 		}
-	}
-	}
 
-	return arr;
-}
+		return arr;
+	}
 
 // ============================================================================
 // Formatting Provider
 // ============================================================================
 
-pub fn format_document(text: str): *JsonValue {
-	val options = FormatOptions();
-	val formatted = format_source(text, options);
+	pub fn format_document(text: str): *JsonValue {
+		val options = FormatOptions();
+		val formatted = format_source(text, options);
 
-	val edits = JsonValue.arr();
-	val edit = JsonValue.obj();
+		val edits = JsonValue.arr();
+		val edit = JsonValue.obj();
 
-	val range = JsonValue.obj();
-	val start_pos = JsonValue.obj();
-	start_pos["line"] = JsonValue.num(0);
-	start_pos["character"] = JsonValue.num(0);
+		val range = JsonValue.obj();
+		val start_pos = JsonValue.obj();
+		start_pos["line"] = JsonValue.num(0);
+		start_pos["character"] = JsonValue.num(0);
 
-	val end_pos = JsonValue.obj();
-	end_pos["line"] = JsonValue.num(999999);
-	end_pos["character"] = JsonValue.num(0);
-	range["start"] = start_pos;
-	range["end"] = end_pos;
+		val end_pos = JsonValue.obj();
+		end_pos["line"] = JsonValue.num(999999);
+		end_pos["character"] = JsonValue.num(0);
+		range["start"] = start_pos;
+		range["end"] = end_pos;
 
-	edit["range"] = range;
-	edit["newText"] = JsonValue.str(formatted);
-	edits += edit;
+		edit["range"] = range;
+		edit["newText"] = JsonValue.str(formatted);
+		edits += edit;
 
-	return edits;
-}
+		return edits;
+	}
 
 }
