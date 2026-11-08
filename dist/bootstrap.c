@@ -3146,6 +3146,8 @@ void fmt__CommentTable_emit_before(fmt__CommentTable* self, fmt__FormatBuffer* b
 void fmt__CommentTable_emit_trailing_on_line(fmt__CommentTable* self, fmt__FormatBuffer* buf, size_t current_line);
 void fmt__CommentTable_emit_remaining(fmt__CommentTable* self, fmt__FormatBuffer* buf);
 std__collections__List_fmt__Comment fmt__Comment_extract(kobel_str src);
+kobel_str fmt__strip_cr(kobel_str src);
+bool fmt__is_inline_stmt(compiler__ast__AstNode* node);
 kobel_str fmt__op_to_str(compiler__lexer__TokenType op);
 fmt__Formatter fmt__Formatter_init(fmt__FormatOptions options, fmt__CommentTable comments);
 kobel_str fmt__Formatter_to_str(fmt__Formatter* self);
@@ -3157,6 +3159,7 @@ void fmt__Formatter_format_decl(fmt__Formatter* self, compiler__ast__AstNode* no
 void fmt__Formatter_format_program(fmt__Formatter* self, compiler__ast__AstNode* program);
 bool fmt__Formatter_format_file(kobel_str path, bool write_in_place, fmt__FormatOptions options);
 int32_t fmt__Formatter_format_files(std__collections__List_str files, bool write_in_place, fmt__FormatOptions options);
+bool fmt__is_parseable(kobel_str src);
 kobel_str fmt__format_source(kobel_str src, fmt__FormatOptions options);
 lsp__LspDiagnostic lsp__LspDiagnostic_init(kobel_str err_str, kobel_str source);
 lsp__JsonValue* lsp__LspDiagnostic_to_json(lsp__LspDiagnostic* self);
@@ -8801,7 +8804,8 @@ while (!compiler__parser__Parser_check(self, 18) && !compiler__parser__Parser_is
 bool m_pub = false;
 if (compiler__parser__Parser_match_token(self, 63)) {
 m_pub = true;
-} else if (compiler__parser__Parser_check(self, 42) && kobel_streq(compiler__parser__Parser_peek(self).text, KOBEL_STR("type"))) {
+}
+if (compiler__parser__Parser_check(self, 42) && kobel_streq(compiler__parser__Parser_peek(self).text, KOBEL_STR("type"))) {
 compiler__parser__Parser_advance(self);
 compiler__lexer__Token a_name = compiler__parser__Parser_consume(self, 42, KOBEL_STR("Expected associated type name"));
 compiler__parser__Parser_consume(self, 5, KOBEL_STR("Expected '=' in associated type binding"));
@@ -25767,6 +25771,47 @@ col++;
 return comments;
 }
 
+kobel_str fmt__strip_cr(kobel_str src) {
+if (str_index_of(src, KOBEL_STR("\r")) < 0) {
+return src;
+}
+std__string__StringBuilder sb = std__string__StringBuilder_init(32);
+{
+size_t __for_n = src.len;
+size_t __for_i = 0;
+while (__for_i < __for_n) {
+char c = src.data[__for_i];
+if (c != '\r') {
+std__string__StringBuilder_plus_assign_2_2(&sb, c);
+}
+__for_i = (__for_i + 1);
+}
+}
+return std__string__StringBuilder_to_str(&sb);
+}
+
+bool fmt__is_inline_stmt(compiler__ast__AstNode* node) {
+if (node == NULL) {
+return false;
+}
+compiler__ast__AstNode* n = node;
+if (n != NULL && n->data.tag == compiler__ast__NodeData__BlockStmt__TAG) {
+void* __orig_n = (void*)n;
+compiler__ast__NodeData__BlockStmt* n = (compiler__ast__NodeData__BlockStmt*)((&((compiler__ast__AstNode*)__orig_n)->data.u.BlockStmt));
+return false;
+} else if (n != NULL && n->data.tag == compiler__ast__NodeData__IfStmt__TAG) {
+void* __orig_n = (void*)n;
+compiler__ast__NodeData__IfStmt* n = (compiler__ast__NodeData__IfStmt*)((&((compiler__ast__AstNode*)__orig_n)->data.u.IfStmt));
+return false;
+} else if (n != NULL && n->data.tag == compiler__ast__NodeData__WhenStmt__TAG) {
+void* __orig_n = (void*)n;
+compiler__ast__NodeData__WhenStmt* n = (compiler__ast__NodeData__WhenStmt*)((&((compiler__ast__AstNode*)__orig_n)->data.u.WhenStmt));
+return false;
+} else {
+return true;
+}
+}
+
 kobel_str fmt__op_to_str(compiler__lexer__TokenType op) {
     return (op == 6 ? KOBEL_STR("+") : (op == 7 ? KOBEL_STR("-") : (op == 8 ? KOBEL_STR("*") : (op == 9 ? KOBEL_STR("/") : (op == 10 ? KOBEL_STR("%") : (op == 21 ? KOBEL_STR("==") : (op == 22 ? KOBEL_STR("!=") : (op == 12 ? KOBEL_STR("<") : (op == 23 ? KOBEL_STR("<=") : (op == 11 ? KOBEL_STR(">") : (op == 24 ? KOBEL_STR(">=") : (op == 25 ? KOBEL_STR("&&") : (op == 26 ? KOBEL_STR("||") : (op == 5 ? KOBEL_STR("=") : (op == 32 ? KOBEL_STR("+=") : (op == 33 ? KOBEL_STR("-=") : (op == 34 ? KOBEL_STR("*=") : (op == 35 ? KOBEL_STR("/=") : (op == 36 ? KOBEL_STR("%=") : (op == 37 ? KOBEL_STR("?:") : (op == 38 ? KOBEL_STR("?.") : (op == 29 ? KOBEL_STR("..") : (op == 4 ? KOBEL_STR("!") : (op == 30 ? KOBEL_STR("++") : (op == 31 ? KOBEL_STR("--") : (op == 19 ? KOBEL_STR("&") : (op == 20 ? KOBEL_STR("?") : KOBEL_STR(""))))))))))))))))))))))))))));
 }
@@ -26191,7 +26236,8 @@ compiler__ast__NodeData__IfStmt* s = (compiler__ast__NodeData__IfStmt*)(&(node)-
 fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR("if ("));
 fmt__Formatter_format_expr(self, s->condition);
 fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR(") "));
-if ((s->then_branch != NULL && s->then_branch->data.tag == compiler__ast__NodeData__BlockStmt__TAG)) {
+bool inline_then = ((s->then_branch != NULL && s->then_branch->data.tag == compiler__ast__NodeData__BlockStmt__TAG) || fmt__is_inline_stmt(s->then_branch));
+if (inline_then) {
 fmt__Formatter_format_stmt(self, s->then_branch);
 } else {
 fmt__FormatBuffer_indent(&self->buf);
@@ -26200,18 +26246,20 @@ fmt__Formatter_format_stmt(self, s->then_branch);
 fmt__FormatBuffer_dedent(&self->buf);
 }
 if (s->else_branch != NULL) {
-if ((s->then_branch != NULL && s->then_branch->data.tag == compiler__ast__NodeData__BlockStmt__TAG)) {
+compiler__ast__AstNode* else_node = s->else_branch;
+if (inline_then) {
 fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR(" else "));
 } else {
 fmt__FormatBuffer_newline(&self->buf);
 fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR("else "));
 }
-if ((s->else_branch != NULL && s->else_branch->data.tag == compiler__ast__NodeData__IfStmt__TAG) || (s->else_branch != NULL && s->else_branch->data.tag == compiler__ast__NodeData__BlockStmt__TAG)) {
-fmt__Formatter_format_stmt(self, s->else_branch);
+bool inline_else = (((else_node != NULL && else_node->data.tag == compiler__ast__NodeData__IfStmt__TAG) || (else_node != NULL && else_node->data.tag == compiler__ast__NodeData__BlockStmt__TAG)) || fmt__is_inline_stmt(else_node));
+if (inline_else) {
+fmt__Formatter_format_stmt(self, else_node);
 } else {
 fmt__FormatBuffer_indent(&self->buf);
 fmt__FormatBuffer_newline(&self->buf);
-fmt__Formatter_format_stmt(self, s->else_branch);
+fmt__Formatter_format_stmt(self, else_node);
 fmt__FormatBuffer_dedent(&self->buf);
 }
 }
@@ -26220,7 +26268,7 @@ compiler__ast__NodeData__WhileStmt* w = (compiler__ast__NodeData__WhileStmt*)(&(
 fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR("while ("));
 fmt__Formatter_format_expr(self, w->condition);
 fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR(") "));
-if ((w->body != NULL && w->body->data.tag == compiler__ast__NodeData__BlockStmt__TAG)) {
+if ((w->body != NULL && w->body->data.tag == compiler__ast__NodeData__BlockStmt__TAG) || fmt__is_inline_stmt(w->body)) {
 fmt__Formatter_format_stmt(self, w->body);
 } else {
 fmt__FormatBuffer_indent(&self->buf);
@@ -26247,7 +26295,7 @@ fmt__Formatter_format_expr(self, f->range_end);
 fmt__Formatter_format_expr(self, f->iterable);
 }
 fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR(") "));
-if ((f->body != NULL && f->body->data.tag == compiler__ast__NodeData__BlockStmt__TAG)) {
+if ((f->body != NULL && f->body->data.tag == compiler__ast__NodeData__BlockStmt__TAG) || fmt__is_inline_stmt(f->body)) {
 fmt__Formatter_format_stmt(self, f->body);
 } else {
 fmt__FormatBuffer_indent(&self->buf);
@@ -26605,13 +26653,36 @@ fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR(" {"));
 if (im->methods.len > 0) {
 fmt__FormatBuffer_indent(&self->buf);
 {
-size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&im->methods);
-size_t __for_i = 0;
-while (__for_i < __for_n) {
-compiler__ast__AstNode* m = std__collections__List_ptr_compiler__ast__AstNode_at(&im->methods, __for_i);
+size_t __for_e = im->methods.len;
+size_t __for_i = __for_e;
+__for_i = 0;
+bool __for_up = (__for_i <= __for_e);
+bool __for_go = false;
+if (__for_up) {
+__for_go = (__for_i < __for_e);
+} else {
+__for_go = (__for_i > __for_e);
+}
+while (__for_go) {
+size_t i = __for_i;
+if (i > 0) {
 fmt__FormatBuffer_double_newline(&self->buf);
-fmt__Formatter_format_decl(self, m);
+} else {
+fmt__FormatBuffer_newline(&self->buf);
+}
+fmt__Formatter_format_decl(self, std__collections__List_ptr_compiler__ast__AstNode_get(&im->methods, i));
+if (__for_up) {
+__for_go = ((__for_i + 1) < __for_e);
+} else {
+__for_go = ((__for_i - 1) > __for_e);
+}
+if (__for_go) {
+if (__for_up) {
 __for_i = (__for_i + 1);
+} else {
+__for_i = (__for_i - 1);
+}
+}
 }
 }
 fmt__FormatBuffer_dedent(&self->buf);
@@ -26831,6 +26902,11 @@ bool fmt__Formatter_format_file(kobel_str path, bool write_in_place, fmt__Format
 std__filesystem__Path fp = std__filesystem__Path_init(path);
 kobel_str src = std__filesystem__Path_read_text(&fp);
 if (str_empty(src)) {
+std__io__println(kobel_concat(3, KOBEL_STR("Error: cannot format '"), path, KOBEL_STR("': file is empty or unreadable")));
+return false;
+}
+if (!fmt__is_parseable(src)) {
+std__io__println(kobel_concat(3, KOBEL_STR("Error: cannot format '"), path, KOBEL_STR("': source has syntax errors")));
 return false;
 }
 kobel_str formatted = fmt__format_source(src, options);
@@ -26852,22 +26928,34 @@ if (std__collections__List_str_empty(&files)) {
 std__io__println(KOBEL_STR("Error: No files specified to format"));
 return 1;
 }
+bool all_ok = true;
 {
 size_t __for_n = std__collections__List_str_count(&files);
 size_t __for_i = 0;
 while (__for_i < __for_n) {
 kobel_str fpath = std__collections__List_str_at(&files, __for_i);
-fmt__Formatter_format_file(fpath, write_in_place, options);
+if (!fmt__Formatter_format_file(fpath, write_in_place, options)) {
+all_ok = false;
+}
 __for_i = (__for_i + 1);
 }
 }
-return 0;
+return (all_ok ? 0 : 1);
+}
+
+bool fmt__is_parseable(kobel_str src) {
+kobel_str normalized = fmt__strip_cr(src);
+compiler__lexer__Lexer lex = compiler__lexer__Lexer_init(normalized, 0);
+compiler__parser__Parser parser = compiler__parser__Parser_init(compiler__lexer__Lexer_tokenize(&lex));
+compiler__parser__Parser_parse_program(&parser);
+return std__collections__List_str_empty(&parser.errors);
 }
 
 kobel_str fmt__format_source(kobel_str src, fmt__FormatOptions options) {
-std__collections__List_fmt__Comment comments = fmt__Comment_extract(src);
+kobel_str normalized = fmt__strip_cr(src);
+std__collections__List_fmt__Comment comments = fmt__Comment_extract(normalized);
 fmt__CommentTable comment_table = (fmt__CommentTable){ comments, 0 };
-compiler__lexer__Lexer lex = compiler__lexer__Lexer_init(src, 0);
+compiler__lexer__Lexer lex = compiler__lexer__Lexer_init(normalized, 0);
 std__collections__List_compiler__lexer__Token tokens = compiler__lexer__Lexer_tokenize(&lex);
 compiler__parser__Parser parser = compiler__parser__Parser_init(tokens);
 compiler__ast__AstNode* program = compiler__parser__Parser_parse_program(&parser);
