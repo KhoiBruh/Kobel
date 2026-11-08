@@ -40,13 +40,21 @@ pub fn for_is_lvalue(node: *AstNode?): bool {
 	};
 }
 
-impl Arena {
+/*
+ * Loop lowering owns an `Arena` for node construction; it must not add methods to the
+ * stdlib Arena type (module path = file path, and std stays compiler-agnostic).
+ */
+pub struct LoopLowerer {
+	pub arena: Arena
+}
+
+impl LoopLowerer {
 
 	fn loop_block(var self, stmts: List<*AstNode>, line: usz, col: usz): *AstNode =>
-		self.node(NodeData.BlockStmt(stmts), line, col);
+		self.arena.node(NodeData.BlockStmt(stmts), line, col);
 
 	fn loop_expr(var self, expr: *AstNode, line: usz, col: usz): *AstNode =>
-		self.node(NodeData.ExprStmt(expr), line, col);
+		self.arena.node(NodeData.ExprStmt(expr), line, col);
 
 	fn loop_var(
 		var self,
@@ -56,7 +64,7 @@ impl Arena {
 		initializer: *AstNode?,
 		line: usz,
 		col: usz
-	): *AstNode => self.node(NodeData.VarDeclStmt(mutable, name, ty, initializer), line, col);
+	): *AstNode => self.arena.node(NodeData.VarDeclStmt(mutable, name, ty, initializer), line, col);
 
 	fn loop_if(
 		var self,
@@ -65,31 +73,31 @@ impl Arena {
 		else_b: *AstNode?,
 		line: usz,
 		col: usz
-	): *AstNode => self.node(NodeData.IfStmt(cond, then_b, else_b), line, col);
+	): *AstNode => self.arena.node(NodeData.IfStmt(cond, then_b, else_b), line, col);
 
 	fn loop_while(var self, cond: *AstNode, body: *AstNode, line: usz, col: usz): *AstNode =>
-		self.node(NodeData.WhileStmt(cond, body), line, col);
+		self.arena.node(NodeData.WhileStmt(cond, body), line, col);
 
 	pub fn for_usz_type(var self, line: usz, col: usz): *AstNode =>
-		self.node(NodeData.NamedType("usz", List<*AstNode>()), line, col);
+		self.arena.node(NodeData.NamedType("usz", List<*AstNode>()), line, col);
 
 	pub fn for_id(var self, name: str, line: usz, col: usz): *AstNode =>
-		self.node(NodeData.IdentifierExpr(name), line, col);
+		self.arena.node(NodeData.IdentifierExpr(name), line, col);
 
 	pub fn for_num(var self, text: str, line: usz, col: usz): *AstNode =>
-		self.node(NodeData.LiteralExpr(Literal.INTEGER, text), line, col);
+		self.arena.node(NodeData.LiteralExpr(Literal.INTEGER, text), line, col);
 
 	// `__for_i <cmp> __for_e`
 	pub fn for_i_cmp(var self, op: TokenType, line: usz, col: usz): *AstNode {
 		val lhs = self.for_id("__for_i", line, col);
 		val rhs = self.for_id("__for_e", line, col);
-		return self.node(NodeData.BinaryExpr(lhs, op, rhs), line, col);
+		return self.arena.node(NodeData.BinaryExpr(lhs, op, rhs), line, col);
 	}
 
 	// `__for_go = <value>;`
 	pub fn for_set_go(var self, value: *AstNode, line: usz, col: usz): *AstNode {
 		val lhs = self.for_id("__for_go", line, col);
-		val asgn = self.node(NodeData.AssignExpr(lhs, TokenType.EQUAL, value), line, col);
+		val asgn = self.arena.node(NodeData.AssignExpr(lhs, TokenType.EQUAL, value), line, col);
 		return self.loop_expr(asgn, line, col);
 	}
 
@@ -98,8 +106,8 @@ impl Arena {
 		val target = self.for_id("__for_i", line, col);
 		val lhs = self.for_id("__for_i", line, col);
 		val one = self.for_num("1", line, col);
-		val bin = self.node(NodeData.BinaryExpr(lhs, op, one), line, col);
-		val asgn = self.node(NodeData.AssignExpr(target, TokenType.EQUAL, bin), line, col);
+		val bin = self.arena.node(NodeData.BinaryExpr(lhs, op, one), line, col);
+		val asgn = self.arena.node(NodeData.AssignExpr(target, TokenType.EQUAL, bin), line, col);
 		return self.loop_expr(asgn, line, col);
 	}
 
@@ -146,7 +154,7 @@ impl Arena {
 			is ContinueStmt -> {
 				var stmts = List<*AstNode>();
 				for (s in step) stmts += s;
-				stmts += self.node(NodeData.ContinueStmt, node.line, node.col);
+				stmts += self.arena.node(NodeData.ContinueStmt, node.line, node.col);
 				val block = self.loop_block(stmts, node.line, node.col);
 				pending += PendingResolve(node!, block);
 			}
@@ -184,8 +192,8 @@ impl Arena {
 		col: usz
 	): *AstNode {
 		// val __for_n: usz = <iterable>.count();
-		val count_mem = self.node(NodeData.MemberExpr(fs.iterable!, "count", false), line, col);
-		val count_call = self.node(
+		val count_mem = self.arena.node(NodeData.MemberExpr(fs.iterable!, "count", false), line, col);
+		val count_call = self.arena.node(
 			NodeData.CallExpr(count_mem, List<*AstNode>(), List<*AstNode>()),
 			line, col
 		);
@@ -200,14 +208,14 @@ impl Arena {
 		// val <v> = <iterable>.at(__for_i);
 		var at_args = List<*AstNode>();
 		at_args += self.for_id("__for_i", line, col);
-		val at_mem = self.node(NodeData.MemberExpr(fs.iterable!, "at", false), line, col);
-		val at_call = self.node(NodeData.CallExpr(at_mem, at_args, List<*AstNode>()), line, col);
+		val at_mem = self.arena.node(NodeData.MemberExpr(fs.iterable!, "at", false), line, col);
+		val at_call = self.arena.node(NodeData.CallExpr(at_mem, at_args, List<*AstNode>()), line, col);
 		head += self.loop_var(false, fs.var_name, null, at_call, line, col);
 
 		step += self.for_bump(TokenType.PLUS, line, col);
 
 		// __for_i < __for_n
-		return self.node(
+		return self.arena.node(
 			NodeData.BinaryExpr(
 				self.for_id("__for_i", line, col),
 				TokenType.LESS,
@@ -228,7 +236,7 @@ impl Arena {
 		col: usz
 	): *AstNode {
 		// val __for_n: usz = <iterable>.len;
-		val len_mem = self.node(NodeData.MemberExpr(fs.iterable!, "len", false), line, col);
+		val len_mem = self.arena.node(NodeData.MemberExpr(fs.iterable!, "len", false), line, col);
 		pre += self.loop_var(false, "__for_n", self.for_usz_type(line, col), len_mem, line, col);
 
 		// var __for_i: usz = 0;
@@ -238,8 +246,8 @@ impl Arena {
 		);
 
 		// val <v> = <iterable>.data[__for_i];
-		val data_mem = self.node(NodeData.MemberExpr(fs.iterable!, "data", false), line, col);
-		val idx_expr = self.node(
+		val data_mem = self.arena.node(NodeData.MemberExpr(fs.iterable!, "data", false), line, col);
+		val idx_expr = self.arena.node(
 			NodeData.IndexExpr(data_mem, self.for_id("__for_i", line, col)),
 			line, col
 		);
@@ -248,7 +256,7 @@ impl Arena {
 		step += self.for_bump(TokenType.PLUS, line, col);
 
 		// __for_i < __for_n
-		return self.node(
+		return self.arena.node(
 			NodeData.BinaryExpr(
 				self.for_id("__for_i", line, col),
 				TokenType.LESS,
@@ -274,7 +282,7 @@ impl Arena {
 
 		// var __for_i = __for_e;  then __for_i = <start>;
 		pre += self.loop_var(true, "__for_i", null, self.for_id("__for_e", line, col), line, col);
-		val init_asgn = self.node(
+		val init_asgn = self.arena.node(
 			NodeData.AssignExpr(self.for_id("__for_i", line, col), TokenType.EQUAL, fs.range_start!),
 			line, col
 		);
@@ -292,7 +300,7 @@ impl Arena {
 			);
 		}
 
-		val false_lit = self.node(NodeData.LiteralExpr(Literal.BOOLEAN, "false"), line, col);
+		val false_lit = self.arena.node(NodeData.LiteralExpr(Literal.BOOLEAN, "false"), line, col);
 		pre += self.loop_var(true, "__for_go", null, false_lit, line, col);
 
 		if (fs.is_open || fs.is_half_open) {
@@ -314,7 +322,7 @@ impl Arena {
 
 		// Next element check
 		if (fs.is_open || fs.is_half_open) {
-			val up_inc = self.node(
+			val up_inc = self.arena.node(
 				NodeData.BinaryExpr(
 					self.for_id("__for_i", line, col),
 					TokenType.PLUS,
@@ -322,11 +330,11 @@ impl Arena {
 				),
 				line, col
 			);
-			val up_chk = self.node(
+			val up_chk = self.arena.node(
 				NodeData.BinaryExpr(up_inc, TokenType.LESS, self.for_id("__for_e", line, col)),
 				line, col
 			);
-			val dn_dec = self.node(
+			val dn_dec = self.arena.node(
 				NodeData.BinaryExpr(
 					self.for_id("__for_i", line, col),
 					TokenType.MINUS,
@@ -334,7 +342,7 @@ impl Arena {
 				),
 				line, col
 			);
-			val dn_chk = self.node(
+			val dn_chk = self.arena.node(
 				NodeData.BinaryExpr(dn_dec, TokenType.GREATER, self.for_id("__for_e", line, col)),
 				line, col
 			);

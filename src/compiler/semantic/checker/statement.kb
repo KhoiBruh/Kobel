@@ -309,7 +309,8 @@ impl BodyChecker {
 			}
 
 			var pending = List<PendingResolve>();
-			val block = self.arena.desugar_for(node, fs, use_iter_trait, &pending);
+			var lowerer = LoopLowerer(self.arena);
+			val block = lowerer.desugar_for(node, fs, use_iter_trait, &pending);
 			for (p in pending) self.set_resolved(p.node, p.target);
 			self.set_resolved(node, block);
 			self.check_statement(block);

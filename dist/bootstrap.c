@@ -463,6 +463,7 @@ typedef struct compiler__semantic__resolution__TypeResolver compiler__semantic__
 typedef struct compiler__semantic__resolution__TypeSubst compiler__semantic__resolution__TypeSubst;
 typedef struct compiler__semantic__declaration__DeclarationCollector compiler__semantic__declaration__DeclarationCollector;
 typedef struct compiler__semantic__lowering__PendingResolve compiler__semantic__lowering__PendingResolve;
+typedef struct compiler__semantic__lowering__LoopLowerer compiler__semantic__lowering__LoopLowerer;
 typedef struct compiler__semantic__lowering__LoweringPass compiler__semantic__lowering__LoweringPass;
 typedef struct compiler__semantic__checker__BodyChecker compiler__semantic__checker__BodyChecker;
 typedef struct compiler__semantic__checker__ArrowCandidate compiler__semantic__checker__ArrowCandidate;
@@ -753,6 +754,10 @@ struct compiler__semantic__symbols__ImportBinding {
 struct compiler__semantic__lowering__PendingResolve {
     compiler__ast__AstNode* node;
     compiler__ast__AstNode* target;
+};
+
+struct compiler__semantic__lowering__LoopLowerer {
+    std__memory__Arena arena;
 };
 
 struct compiler__semantic__checker__ArrowCandidate {
@@ -2864,24 +2869,24 @@ void compiler__semantic__declaration__DeclarationCollector_trait_effective(compi
 void compiler__semantic__declaration__DeclarationCollector_register_assoc_bindings(compiler__semantic__declaration__DeclarationCollector* self, compiler__ast__AstNode* node, compiler__ast__NodeData__ImplDecl* im, compiler__semantic__types__Type* st_type, kobel_str struct_name);
 void compiler__semantic__declaration__DeclarationCollector_apply_trait(compiler__semantic__declaration__DeclarationCollector* self, compiler__ast__AstNode* node, compiler__ast__NodeData__ImplDecl* im, kobel_str struct_name);
 bool compiler__semantic__lowering__for_is_lvalue(compiler__ast__AstNode* node);
-compiler__ast__AstNode* std__memory__Arena_loop_block(std__memory__Arena* self, std__collections__List_ptr_compiler__ast__AstNode stmts, size_t line, size_t col);
-compiler__ast__AstNode* std__memory__Arena_loop_expr(std__memory__Arena* self, compiler__ast__AstNode* expr, size_t line, size_t col);
-compiler__ast__AstNode* std__memory__Arena_loop_var(std__memory__Arena* self, bool mutable, kobel_str name, compiler__ast__AstNode* ty, compiler__ast__AstNode* initializer, size_t line, size_t col);
-compiler__ast__AstNode* std__memory__Arena_loop_if(std__memory__Arena* self, compiler__ast__AstNode* cond, compiler__ast__AstNode* then_b, compiler__ast__AstNode* else_b, size_t line, size_t col);
-compiler__ast__AstNode* std__memory__Arena_loop_while(std__memory__Arena* self, compiler__ast__AstNode* cond, compiler__ast__AstNode* body, size_t line, size_t col);
-compiler__ast__AstNode* std__memory__Arena_for_usz_type(std__memory__Arena* self, size_t line, size_t col);
-compiler__ast__AstNode* std__memory__Arena_for_id(std__memory__Arena* self, kobel_str name, size_t line, size_t col);
-compiler__ast__AstNode* std__memory__Arena_for_num(std__memory__Arena* self, kobel_str text, size_t line, size_t col);
-compiler__ast__AstNode* std__memory__Arena_for_i_cmp(std__memory__Arena* self, compiler__lexer__TokenType op, size_t line, size_t col);
-compiler__ast__AstNode* std__memory__Arena_for_set_go(std__memory__Arena* self, compiler__ast__AstNode* value, size_t line, size_t col);
-compiler__ast__AstNode* std__memory__Arena_for_bump(std__memory__Arena* self, compiler__lexer__TokenType op, size_t line, size_t col);
-compiler__ast__AstNode* std__memory__Arena_for_by_dir(std__memory__Arena* self, compiler__ast__AstNode* up_stmt, compiler__ast__AstNode* down_stmt, size_t line, size_t col);
-void std__memory__Arena_for_inject_step(std__memory__Arena* self, compiler__ast__AstNode* node, std__collections__List_ptr_compiler__ast__AstNode* step, std__collections__List_compiler__semantic__lowering__PendingResolve* pending);
-void std__memory__Arena_for_inject_step_expr(std__memory__Arena* self, compiler__ast__AstNode* expr, std__collections__List_ptr_compiler__ast__AstNode* step, std__collections__List_compiler__semantic__lowering__PendingResolve* pending);
-compiler__ast__AstNode* std__memory__Arena_desugar_for_iter_method(std__memory__Arena* self, std__collections__List_ptr_compiler__ast__AstNode* pre, std__collections__List_ptr_compiler__ast__AstNode* head, std__collections__List_ptr_compiler__ast__AstNode* step, compiler__ast__NodeData__ForStmt* fs, size_t line, size_t col);
-compiler__ast__AstNode* std__memory__Arena_desugar_for_iterable(std__memory__Arena* self, std__collections__List_ptr_compiler__ast__AstNode* pre, std__collections__List_ptr_compiler__ast__AstNode* head, std__collections__List_ptr_compiler__ast__AstNode* step, compiler__ast__NodeData__ForStmt* fs, size_t line, size_t col);
-compiler__ast__AstNode* std__memory__Arena_desugar_for_range(std__memory__Arena* self, std__collections__List_ptr_compiler__ast__AstNode* pre, std__collections__List_ptr_compiler__ast__AstNode* head, std__collections__List_ptr_compiler__ast__AstNode* step, compiler__ast__NodeData__ForStmt* fs, size_t line, size_t col);
-compiler__ast__AstNode* std__memory__Arena_desugar_for(std__memory__Arena* self, compiler__ast__AstNode* node, compiler__ast__NodeData__ForStmt* fs, bool use_iter_trait, std__collections__List_compiler__semantic__lowering__PendingResolve* pending);
+compiler__ast__AstNode* compiler__semantic__lowering__LoopLowerer_loop_block(compiler__semantic__lowering__LoopLowerer* self, std__collections__List_ptr_compiler__ast__AstNode stmts, size_t line, size_t col);
+compiler__ast__AstNode* compiler__semantic__lowering__LoopLowerer_loop_expr(compiler__semantic__lowering__LoopLowerer* self, compiler__ast__AstNode* expr, size_t line, size_t col);
+compiler__ast__AstNode* compiler__semantic__lowering__LoopLowerer_loop_var(compiler__semantic__lowering__LoopLowerer* self, bool mutable, kobel_str name, compiler__ast__AstNode* ty, compiler__ast__AstNode* initializer, size_t line, size_t col);
+compiler__ast__AstNode* compiler__semantic__lowering__LoopLowerer_loop_if(compiler__semantic__lowering__LoopLowerer* self, compiler__ast__AstNode* cond, compiler__ast__AstNode* then_b, compiler__ast__AstNode* else_b, size_t line, size_t col);
+compiler__ast__AstNode* compiler__semantic__lowering__LoopLowerer_loop_while(compiler__semantic__lowering__LoopLowerer* self, compiler__ast__AstNode* cond, compiler__ast__AstNode* body, size_t line, size_t col);
+compiler__ast__AstNode* compiler__semantic__lowering__LoopLowerer_for_usz_type(compiler__semantic__lowering__LoopLowerer* self, size_t line, size_t col);
+compiler__ast__AstNode* compiler__semantic__lowering__LoopLowerer_for_id(compiler__semantic__lowering__LoopLowerer* self, kobel_str name, size_t line, size_t col);
+compiler__ast__AstNode* compiler__semantic__lowering__LoopLowerer_for_num(compiler__semantic__lowering__LoopLowerer* self, kobel_str text, size_t line, size_t col);
+compiler__ast__AstNode* compiler__semantic__lowering__LoopLowerer_for_i_cmp(compiler__semantic__lowering__LoopLowerer* self, compiler__lexer__TokenType op, size_t line, size_t col);
+compiler__ast__AstNode* compiler__semantic__lowering__LoopLowerer_for_set_go(compiler__semantic__lowering__LoopLowerer* self, compiler__ast__AstNode* value, size_t line, size_t col);
+compiler__ast__AstNode* compiler__semantic__lowering__LoopLowerer_for_bump(compiler__semantic__lowering__LoopLowerer* self, compiler__lexer__TokenType op, size_t line, size_t col);
+compiler__ast__AstNode* compiler__semantic__lowering__LoopLowerer_for_by_dir(compiler__semantic__lowering__LoopLowerer* self, compiler__ast__AstNode* up_stmt, compiler__ast__AstNode* down_stmt, size_t line, size_t col);
+void compiler__semantic__lowering__LoopLowerer_for_inject_step(compiler__semantic__lowering__LoopLowerer* self, compiler__ast__AstNode* node, std__collections__List_ptr_compiler__ast__AstNode* step, std__collections__List_compiler__semantic__lowering__PendingResolve* pending);
+void compiler__semantic__lowering__LoopLowerer_for_inject_step_expr(compiler__semantic__lowering__LoopLowerer* self, compiler__ast__AstNode* expr, std__collections__List_ptr_compiler__ast__AstNode* step, std__collections__List_compiler__semantic__lowering__PendingResolve* pending);
+compiler__ast__AstNode* compiler__semantic__lowering__LoopLowerer_desugar_for_iter_method(compiler__semantic__lowering__LoopLowerer* self, std__collections__List_ptr_compiler__ast__AstNode* pre, std__collections__List_ptr_compiler__ast__AstNode* head, std__collections__List_ptr_compiler__ast__AstNode* step, compiler__ast__NodeData__ForStmt* fs, size_t line, size_t col);
+compiler__ast__AstNode* compiler__semantic__lowering__LoopLowerer_desugar_for_iterable(compiler__semantic__lowering__LoopLowerer* self, std__collections__List_ptr_compiler__ast__AstNode* pre, std__collections__List_ptr_compiler__ast__AstNode* head, std__collections__List_ptr_compiler__ast__AstNode* step, compiler__ast__NodeData__ForStmt* fs, size_t line, size_t col);
+compiler__ast__AstNode* compiler__semantic__lowering__LoopLowerer_desugar_for_range(compiler__semantic__lowering__LoopLowerer* self, std__collections__List_ptr_compiler__ast__AstNode* pre, std__collections__List_ptr_compiler__ast__AstNode* head, std__collections__List_ptr_compiler__ast__AstNode* step, compiler__ast__NodeData__ForStmt* fs, size_t line, size_t col);
+compiler__ast__AstNode* compiler__semantic__lowering__LoopLowerer_desugar_for(compiler__semantic__lowering__LoopLowerer* self, compiler__ast__AstNode* node, compiler__ast__NodeData__ForStmt* fs, bool use_iter_trait, std__collections__List_compiler__semantic__lowering__PendingResolve* pending);
 compiler__semantic__lowering__LoweringPass compiler__semantic__lowering__LoweringPass_init_0(void);
 compiler__semantic__lowering__LoweringPass compiler__semantic__lowering__LoweringPass_init_2(compiler__semantic__symbols__SymbolTable symtab, std__memory__Arena arena);
 compiler__semantic__lowering__LoweringPass compiler__semantic__lowering__LoweringPass_init_3(compiler__semantic__symbols__SymbolTable symtab, std__memory__Arena arena, compiler__semantic__declaration__DeclarationCollector decl);
@@ -16362,68 +16367,68 @@ return false;
 }
 }
 
-compiler__ast__AstNode* std__memory__Arena_loop_block(std__memory__Arena* self, std__collections__List_ptr_compiler__ast__AstNode stmts, size_t line, size_t col) {
-    return std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 24, .u.BlockStmt = { stmts } }, line, col);
+compiler__ast__AstNode* compiler__semantic__lowering__LoopLowerer_loop_block(compiler__semantic__lowering__LoopLowerer* self, std__collections__List_ptr_compiler__ast__AstNode stmts, size_t line, size_t col) {
+    return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 24, .u.BlockStmt = { stmts } }, line, col);
 }
 
-compiler__ast__AstNode* std__memory__Arena_loop_expr(std__memory__Arena* self, compiler__ast__AstNode* expr, size_t line, size_t col) {
-    return std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 25, .u.ExprStmt = { expr } }, line, col);
+compiler__ast__AstNode* compiler__semantic__lowering__LoopLowerer_loop_expr(compiler__semantic__lowering__LoopLowerer* self, compiler__ast__AstNode* expr, size_t line, size_t col) {
+    return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 25, .u.ExprStmt = { expr } }, line, col);
 }
 
-compiler__ast__AstNode* std__memory__Arena_loop_var(std__memory__Arena* self, bool mutable, kobel_str name, compiler__ast__AstNode* ty, compiler__ast__AstNode* initializer, size_t line, size_t col) {
-    return std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 26, .u.VarDeclStmt = { mutable, name, ty, initializer } }, line, col);
+compiler__ast__AstNode* compiler__semantic__lowering__LoopLowerer_loop_var(compiler__semantic__lowering__LoopLowerer* self, bool mutable, kobel_str name, compiler__ast__AstNode* ty, compiler__ast__AstNode* initializer, size_t line, size_t col) {
+    return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 26, .u.VarDeclStmt = { mutable, name, ty, initializer } }, line, col);
 }
 
-compiler__ast__AstNode* std__memory__Arena_loop_if(std__memory__Arena* self, compiler__ast__AstNode* cond, compiler__ast__AstNode* then_b, compiler__ast__AstNode* else_b, size_t line, size_t col) {
-    return std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 27, .u.IfStmt = { cond, then_b, else_b } }, line, col);
+compiler__ast__AstNode* compiler__semantic__lowering__LoopLowerer_loop_if(compiler__semantic__lowering__LoopLowerer* self, compiler__ast__AstNode* cond, compiler__ast__AstNode* then_b, compiler__ast__AstNode* else_b, size_t line, size_t col) {
+    return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 27, .u.IfStmt = { cond, then_b, else_b } }, line, col);
 }
 
-compiler__ast__AstNode* std__memory__Arena_loop_while(std__memory__Arena* self, compiler__ast__AstNode* cond, compiler__ast__AstNode* body, size_t line, size_t col) {
-    return std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 28, .u.WhileStmt = { cond, body } }, line, col);
+compiler__ast__AstNode* compiler__semantic__lowering__LoopLowerer_loop_while(compiler__semantic__lowering__LoopLowerer* self, compiler__ast__AstNode* cond, compiler__ast__AstNode* body, size_t line, size_t col) {
+    return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 28, .u.WhileStmt = { cond, body } }, line, col);
 }
 
-compiler__ast__AstNode* std__memory__Arena_for_usz_type(std__memory__Arena* self, size_t line, size_t col) {
-    return std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 1, .u.NamedType = { KOBEL_STR("usz"), std__collections__List_ptr_compiler__ast__AstNode_init(4) } }, line, col);
+compiler__ast__AstNode* compiler__semantic__lowering__LoopLowerer_for_usz_type(compiler__semantic__lowering__LoopLowerer* self, size_t line, size_t col) {
+    return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 1, .u.NamedType = { KOBEL_STR("usz"), std__collections__List_ptr_compiler__ast__AstNode_init(4) } }, line, col);
 }
 
-compiler__ast__AstNode* std__memory__Arena_for_id(std__memory__Arena* self, kobel_str name, size_t line, size_t col) {
-    return std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 6, .u.IdentifierExpr = { name } }, line, col);
+compiler__ast__AstNode* compiler__semantic__lowering__LoopLowerer_for_id(compiler__semantic__lowering__LoopLowerer* self, kobel_str name, size_t line, size_t col) {
+    return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 6, .u.IdentifierExpr = { name } }, line, col);
 }
 
-compiler__ast__AstNode* std__memory__Arena_for_num(std__memory__Arena* self, kobel_str text, size_t line, size_t col) {
-    return std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 5, .u.LiteralExpr = { 0, text } }, line, col);
+compiler__ast__AstNode* compiler__semantic__lowering__LoopLowerer_for_num(compiler__semantic__lowering__LoopLowerer* self, kobel_str text, size_t line, size_t col) {
+    return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 5, .u.LiteralExpr = { 0, text } }, line, col);
 }
 
-compiler__ast__AstNode* std__memory__Arena_for_i_cmp(std__memory__Arena* self, compiler__lexer__TokenType op, size_t line, size_t col) {
-compiler__ast__AstNode* lhs = std__memory__Arena_for_id(self, KOBEL_STR("__for_i"), line, col);
-compiler__ast__AstNode* rhs = std__memory__Arena_for_id(self, KOBEL_STR("__for_e"), line, col);
-return std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 7, .u.BinaryExpr = { lhs, op, rhs } }, line, col);
+compiler__ast__AstNode* compiler__semantic__lowering__LoopLowerer_for_i_cmp(compiler__semantic__lowering__LoopLowerer* self, compiler__lexer__TokenType op, size_t line, size_t col) {
+compiler__ast__AstNode* lhs = compiler__semantic__lowering__LoopLowerer_for_id(self, KOBEL_STR("__for_i"), line, col);
+compiler__ast__AstNode* rhs = compiler__semantic__lowering__LoopLowerer_for_id(self, KOBEL_STR("__for_e"), line, col);
+return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 7, .u.BinaryExpr = { lhs, op, rhs } }, line, col);
 }
 
-compiler__ast__AstNode* std__memory__Arena_for_set_go(std__memory__Arena* self, compiler__ast__AstNode* value, size_t line, size_t col) {
-compiler__ast__AstNode* lhs = std__memory__Arena_for_id(self, KOBEL_STR("__for_go"), line, col);
-compiler__ast__AstNode* asgn = std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 12, .u.AssignExpr = { lhs, 5, value } }, line, col);
-return std__memory__Arena_loop_expr(self, asgn, line, col);
+compiler__ast__AstNode* compiler__semantic__lowering__LoopLowerer_for_set_go(compiler__semantic__lowering__LoopLowerer* self, compiler__ast__AstNode* value, size_t line, size_t col) {
+compiler__ast__AstNode* lhs = compiler__semantic__lowering__LoopLowerer_for_id(self, KOBEL_STR("__for_go"), line, col);
+compiler__ast__AstNode* asgn = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 12, .u.AssignExpr = { lhs, 5, value } }, line, col);
+return compiler__semantic__lowering__LoopLowerer_loop_expr(self, asgn, line, col);
 }
 
-compiler__ast__AstNode* std__memory__Arena_for_bump(std__memory__Arena* self, compiler__lexer__TokenType op, size_t line, size_t col) {
-compiler__ast__AstNode* target = std__memory__Arena_for_id(self, KOBEL_STR("__for_i"), line, col);
-compiler__ast__AstNode* lhs = std__memory__Arena_for_id(self, KOBEL_STR("__for_i"), line, col);
-compiler__ast__AstNode* one = std__memory__Arena_for_num(self, KOBEL_STR("1"), line, col);
-compiler__ast__AstNode* bin = std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 7, .u.BinaryExpr = { lhs, op, one } }, line, col);
-compiler__ast__AstNode* asgn = std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 12, .u.AssignExpr = { target, 5, bin } }, line, col);
-return std__memory__Arena_loop_expr(self, asgn, line, col);
+compiler__ast__AstNode* compiler__semantic__lowering__LoopLowerer_for_bump(compiler__semantic__lowering__LoopLowerer* self, compiler__lexer__TokenType op, size_t line, size_t col) {
+compiler__ast__AstNode* target = compiler__semantic__lowering__LoopLowerer_for_id(self, KOBEL_STR("__for_i"), line, col);
+compiler__ast__AstNode* lhs = compiler__semantic__lowering__LoopLowerer_for_id(self, KOBEL_STR("__for_i"), line, col);
+compiler__ast__AstNode* one = compiler__semantic__lowering__LoopLowerer_for_num(self, KOBEL_STR("1"), line, col);
+compiler__ast__AstNode* bin = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 7, .u.BinaryExpr = { lhs, op, one } }, line, col);
+compiler__ast__AstNode* asgn = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 12, .u.AssignExpr = { target, 5, bin } }, line, col);
+return compiler__semantic__lowering__LoopLowerer_loop_expr(self, asgn, line, col);
 }
 
-compiler__ast__AstNode* std__memory__Arena_for_by_dir(std__memory__Arena* self, compiler__ast__AstNode* up_stmt, compiler__ast__AstNode* down_stmt, size_t line, size_t col) {
+compiler__ast__AstNode* compiler__semantic__lowering__LoopLowerer_for_by_dir(compiler__semantic__lowering__LoopLowerer* self, compiler__ast__AstNode* up_stmt, compiler__ast__AstNode* down_stmt, size_t line, size_t col) {
 std__collections__List_ptr_compiler__ast__AstNode up_stmts = std__collections__List_ptr_compiler__ast__AstNode_init(4);
 std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&up_stmts, up_stmt);
 std__collections__List_ptr_compiler__ast__AstNode down_stmts = std__collections__List_ptr_compiler__ast__AstNode_init(4);
 std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&down_stmts, down_stmt);
-return std__memory__Arena_loop_if(self, std__memory__Arena_for_id(self, KOBEL_STR("__for_up"), line, col), std__memory__Arena_loop_block(self, up_stmts, line, col), std__memory__Arena_loop_block(self, down_stmts, line, col), line, col);
+return compiler__semantic__lowering__LoopLowerer_loop_if(self, compiler__semantic__lowering__LoopLowerer_for_id(self, KOBEL_STR("__for_up"), line, col), compiler__semantic__lowering__LoopLowerer_loop_block(self, up_stmts, line, col), compiler__semantic__lowering__LoopLowerer_loop_block(self, down_stmts, line, col), line, col);
 }
 
-void std__memory__Arena_for_inject_step(std__memory__Arena* self, compiler__ast__AstNode* node, std__collections__List_ptr_compiler__ast__AstNode* step, std__collections__List_compiler__semantic__lowering__PendingResolve* pending) {
+void compiler__semantic__lowering__LoopLowerer_for_inject_step(compiler__semantic__lowering__LoopLowerer* self, compiler__ast__AstNode* node, std__collections__List_ptr_compiler__ast__AstNode* step, std__collections__List_compiler__semantic__lowering__PendingResolve* pending) {
 if (node == NULL) {
 return;
 }
@@ -16435,14 +16440,14 @@ size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&target
 size_t __for_i = 0;
 while (__for_i < __for_n) {
 compiler__ast__AstNode* stmt = std__collections__List_ptr_compiler__ast__AstNode_at(&target->statements, __for_i);
-std__memory__Arena_for_inject_step(self, stmt, step, pending);
+compiler__semantic__lowering__LoopLowerer_for_inject_step(self, stmt, step, pending);
 __for_i = (__for_i + 1);
 }
 } else if (target != NULL && target->data.tag == compiler__ast__NodeData__IfStmt__TAG) {
 void* __orig_target = (void*)target;
 compiler__ast__NodeData__IfStmt* target = (compiler__ast__NodeData__IfStmt*)((&((compiler__ast__AstNode*)__orig_target)->data.u.IfStmt));
-std__memory__Arena_for_inject_step(self, target->then_branch, step, pending);
-std__memory__Arena_for_inject_step(self, target->else_branch, step, pending);
+compiler__semantic__lowering__LoopLowerer_for_inject_step(self, target->then_branch, step, pending);
+compiler__semantic__lowering__LoopLowerer_for_inject_step(self, target->else_branch, step, pending);
 } else if (target != NULL && target->data.tag == compiler__ast__NodeData__WhenStmt__TAG) {
 void* __orig_target = (void*)target;
 compiler__ast__NodeData__WhenStmt* target = (compiler__ast__NodeData__WhenStmt*)((&((compiler__ast__AstNode*)__orig_target)->data.u.WhenStmt));
@@ -16450,17 +16455,17 @@ size_t __for_n = std__collections__List_compiler__ast__WhenArm_count(&target->ar
 size_t __for_i = 0;
 while (__for_i < __for_n) {
 compiler__ast__WhenArm arm = std__collections__List_compiler__ast__WhenArm_at(&target->arms, __for_i);
-std__memory__Arena_for_inject_step(self, arm.body, step, pending);
+compiler__semantic__lowering__LoopLowerer_for_inject_step(self, arm.body, step, pending);
 __for_i = (__for_i + 1);
 }
 } else if (target != NULL && target->data.tag == compiler__ast__NodeData__VarDeclStmt__TAG) {
 void* __orig_target = (void*)target;
 compiler__ast__NodeData__VarDeclStmt* target = (compiler__ast__NodeData__VarDeclStmt*)((&((compiler__ast__AstNode*)__orig_target)->data.u.VarDeclStmt));
-std__memory__Arena_for_inject_step_expr(self, target->initializer, step, pending);
+compiler__semantic__lowering__LoopLowerer_for_inject_step_expr(self, target->initializer, step, pending);
 } else if (target != NULL && target->data.tag == compiler__ast__NodeData__ExprStmt__TAG) {
 void* __orig_target = (void*)target;
 compiler__ast__NodeData__ExprStmt* target = (compiler__ast__NodeData__ExprStmt*)((&((compiler__ast__AstNode*)__orig_target)->data.u.ExprStmt));
-std__memory__Arena_for_inject_step_expr(self, target->expr, step, pending);
+compiler__semantic__lowering__LoopLowerer_for_inject_step_expr(self, target->expr, step, pending);
 } else if (target != NULL && target->data.tag == compiler__ast__NodeData__ContinueStmt__TAG) {
 void* __orig_target = (void*)target;
 compiler__ast__NodeData__ContinueStmt* target = (compiler__ast__NodeData__ContinueStmt*)((&((compiler__ast__AstNode*)__orig_target)->data.u.ContinueStmt));
@@ -16474,13 +16479,13 @@ std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&stmts, s);
 __for_i = (__for_i + 1);
 }
 }
-std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&stmts, std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 32 }, node->line, node->col));
-compiler__ast__AstNode* block = std__memory__Arena_loop_block(self, stmts, node->line, node->col);
+std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&stmts, std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 32 }, node->line, node->col));
+compiler__ast__AstNode* block = compiler__semantic__lowering__LoopLowerer_loop_block(self, stmts, node->line, node->col);
 std__collections__List_compiler__semantic__lowering__PendingResolve_plus_assign(pending, (compiler__semantic__lowering__PendingResolve){ node, block });
 }
 }
 
-void std__memory__Arena_for_inject_step_expr(std__memory__Arena* self, compiler__ast__AstNode* expr, std__collections__List_ptr_compiler__ast__AstNode* step, std__collections__List_compiler__semantic__lowering__PendingResolve* pending) {
+void compiler__semantic__lowering__LoopLowerer_for_inject_step_expr(compiler__semantic__lowering__LoopLowerer* self, compiler__ast__AstNode* expr, std__collections__List_ptr_compiler__ast__AstNode* step, std__collections__List_compiler__semantic__lowering__PendingResolve* pending) {
 if (expr == NULL) {
 return;
 }
@@ -16502,77 +16507,77 @@ return;
 compiler__ast__NodeData__BinaryExpr* bin = NULL;
 compiler__ast__NodeData__AssignExpr* asg = NULL;
 if ((cur != NULL && cur->data.tag == compiler__ast__NodeData__BinaryExpr__TAG && (bin = (compiler__ast__NodeData__BinaryExpr*)(&(cur)->data.u.BinaryExpr), 1)) && (bin->op == 37)) {
-std__memory__Arena_for_inject_step(self, bin->right, step, pending);
+compiler__semantic__lowering__LoopLowerer_for_inject_step(self, bin->right, step, pending);
 } else if ((cur != NULL && cur->data.tag == compiler__ast__NodeData__AssignExpr__TAG && (asg = (compiler__ast__NodeData__AssignExpr*)(&(cur)->data.u.AssignExpr), 1))) {
-std__memory__Arena_for_inject_step_expr(self, asg->value, step, pending);
+compiler__semantic__lowering__LoopLowerer_for_inject_step_expr(self, asg->value, step, pending);
 }
 }
 }
 
-compiler__ast__AstNode* std__memory__Arena_desugar_for_iter_method(std__memory__Arena* self, std__collections__List_ptr_compiler__ast__AstNode* pre, std__collections__List_ptr_compiler__ast__AstNode* head, std__collections__List_ptr_compiler__ast__AstNode* step, compiler__ast__NodeData__ForStmt* fs, size_t line, size_t col) {
-compiler__ast__AstNode* count_mem = std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 10, .u.MemberExpr = { fs->iterable, KOBEL_STR("count"), false } }, line, col);
-compiler__ast__AstNode* count_call = std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 9, .u.CallExpr = { count_mem, std__collections__List_ptr_compiler__ast__AstNode_init(4), std__collections__List_ptr_compiler__ast__AstNode_init(4) } }, line, col);
-std__collections__List_ptr_compiler__ast__AstNode_plus_assign(pre, std__memory__Arena_loop_var(self, false, KOBEL_STR("__for_n"), std__memory__Arena_for_usz_type(self, line, col), count_call, line, col));
-std__collections__List_ptr_compiler__ast__AstNode_plus_assign(pre, std__memory__Arena_loop_var(self, true, KOBEL_STR("__for_i"), std__memory__Arena_for_usz_type(self, line, col), std__memory__Arena_for_num(self, KOBEL_STR("0"), line, col), line, col));
+compiler__ast__AstNode* compiler__semantic__lowering__LoopLowerer_desugar_for_iter_method(compiler__semantic__lowering__LoopLowerer* self, std__collections__List_ptr_compiler__ast__AstNode* pre, std__collections__List_ptr_compiler__ast__AstNode* head, std__collections__List_ptr_compiler__ast__AstNode* step, compiler__ast__NodeData__ForStmt* fs, size_t line, size_t col) {
+compiler__ast__AstNode* count_mem = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 10, .u.MemberExpr = { fs->iterable, KOBEL_STR("count"), false } }, line, col);
+compiler__ast__AstNode* count_call = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 9, .u.CallExpr = { count_mem, std__collections__List_ptr_compiler__ast__AstNode_init(4), std__collections__List_ptr_compiler__ast__AstNode_init(4) } }, line, col);
+std__collections__List_ptr_compiler__ast__AstNode_plus_assign(pre, compiler__semantic__lowering__LoopLowerer_loop_var(self, false, KOBEL_STR("__for_n"), compiler__semantic__lowering__LoopLowerer_for_usz_type(self, line, col), count_call, line, col));
+std__collections__List_ptr_compiler__ast__AstNode_plus_assign(pre, compiler__semantic__lowering__LoopLowerer_loop_var(self, true, KOBEL_STR("__for_i"), compiler__semantic__lowering__LoopLowerer_for_usz_type(self, line, col), compiler__semantic__lowering__LoopLowerer_for_num(self, KOBEL_STR("0"), line, col), line, col));
 std__collections__List_ptr_compiler__ast__AstNode at_args = std__collections__List_ptr_compiler__ast__AstNode_init(4);
-std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&at_args, std__memory__Arena_for_id(self, KOBEL_STR("__for_i"), line, col));
-compiler__ast__AstNode* at_mem = std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 10, .u.MemberExpr = { fs->iterable, KOBEL_STR("at"), false } }, line, col);
-compiler__ast__AstNode* at_call = std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 9, .u.CallExpr = { at_mem, at_args, std__collections__List_ptr_compiler__ast__AstNode_init(4) } }, line, col);
-std__collections__List_ptr_compiler__ast__AstNode_plus_assign(head, std__memory__Arena_loop_var(self, false, fs->var_name, NULL, at_call, line, col));
-std__collections__List_ptr_compiler__ast__AstNode_plus_assign(step, std__memory__Arena_for_bump(self, 6, line, col));
-return std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 7, .u.BinaryExpr = { std__memory__Arena_for_id(self, KOBEL_STR("__for_i"), line, col), 12, std__memory__Arena_for_id(self, KOBEL_STR("__for_n"), line, col) } }, line, col);
+std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&at_args, compiler__semantic__lowering__LoopLowerer_for_id(self, KOBEL_STR("__for_i"), line, col));
+compiler__ast__AstNode* at_mem = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 10, .u.MemberExpr = { fs->iterable, KOBEL_STR("at"), false } }, line, col);
+compiler__ast__AstNode* at_call = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 9, .u.CallExpr = { at_mem, at_args, std__collections__List_ptr_compiler__ast__AstNode_init(4) } }, line, col);
+std__collections__List_ptr_compiler__ast__AstNode_plus_assign(head, compiler__semantic__lowering__LoopLowerer_loop_var(self, false, fs->var_name, NULL, at_call, line, col));
+std__collections__List_ptr_compiler__ast__AstNode_plus_assign(step, compiler__semantic__lowering__LoopLowerer_for_bump(self, 6, line, col));
+return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 7, .u.BinaryExpr = { compiler__semantic__lowering__LoopLowerer_for_id(self, KOBEL_STR("__for_i"), line, col), 12, compiler__semantic__lowering__LoopLowerer_for_id(self, KOBEL_STR("__for_n"), line, col) } }, line, col);
 }
 
-compiler__ast__AstNode* std__memory__Arena_desugar_for_iterable(std__memory__Arena* self, std__collections__List_ptr_compiler__ast__AstNode* pre, std__collections__List_ptr_compiler__ast__AstNode* head, std__collections__List_ptr_compiler__ast__AstNode* step, compiler__ast__NodeData__ForStmt* fs, size_t line, size_t col) {
-compiler__ast__AstNode* len_mem = std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 10, .u.MemberExpr = { fs->iterable, KOBEL_STR("len"), false } }, line, col);
-std__collections__List_ptr_compiler__ast__AstNode_plus_assign(pre, std__memory__Arena_loop_var(self, false, KOBEL_STR("__for_n"), std__memory__Arena_for_usz_type(self, line, col), len_mem, line, col));
-std__collections__List_ptr_compiler__ast__AstNode_plus_assign(pre, std__memory__Arena_loop_var(self, true, KOBEL_STR("__for_i"), std__memory__Arena_for_usz_type(self, line, col), std__memory__Arena_for_num(self, KOBEL_STR("0"), line, col), line, col));
-compiler__ast__AstNode* data_mem = std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 10, .u.MemberExpr = { fs->iterable, KOBEL_STR("data"), false } }, line, col);
-compiler__ast__AstNode* idx_expr = std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 11, .u.IndexExpr = { data_mem, std__memory__Arena_for_id(self, KOBEL_STR("__for_i"), line, col) } }, line, col);
-std__collections__List_ptr_compiler__ast__AstNode_plus_assign(head, std__memory__Arena_loop_var(self, false, fs->var_name, NULL, idx_expr, line, col));
-std__collections__List_ptr_compiler__ast__AstNode_plus_assign(step, std__memory__Arena_for_bump(self, 6, line, col));
-return std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 7, .u.BinaryExpr = { std__memory__Arena_for_id(self, KOBEL_STR("__for_i"), line, col), 12, std__memory__Arena_for_id(self, KOBEL_STR("__for_n"), line, col) } }, line, col);
+compiler__ast__AstNode* compiler__semantic__lowering__LoopLowerer_desugar_for_iterable(compiler__semantic__lowering__LoopLowerer* self, std__collections__List_ptr_compiler__ast__AstNode* pre, std__collections__List_ptr_compiler__ast__AstNode* head, std__collections__List_ptr_compiler__ast__AstNode* step, compiler__ast__NodeData__ForStmt* fs, size_t line, size_t col) {
+compiler__ast__AstNode* len_mem = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 10, .u.MemberExpr = { fs->iterable, KOBEL_STR("len"), false } }, line, col);
+std__collections__List_ptr_compiler__ast__AstNode_plus_assign(pre, compiler__semantic__lowering__LoopLowerer_loop_var(self, false, KOBEL_STR("__for_n"), compiler__semantic__lowering__LoopLowerer_for_usz_type(self, line, col), len_mem, line, col));
+std__collections__List_ptr_compiler__ast__AstNode_plus_assign(pre, compiler__semantic__lowering__LoopLowerer_loop_var(self, true, KOBEL_STR("__for_i"), compiler__semantic__lowering__LoopLowerer_for_usz_type(self, line, col), compiler__semantic__lowering__LoopLowerer_for_num(self, KOBEL_STR("0"), line, col), line, col));
+compiler__ast__AstNode* data_mem = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 10, .u.MemberExpr = { fs->iterable, KOBEL_STR("data"), false } }, line, col);
+compiler__ast__AstNode* idx_expr = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 11, .u.IndexExpr = { data_mem, compiler__semantic__lowering__LoopLowerer_for_id(self, KOBEL_STR("__for_i"), line, col) } }, line, col);
+std__collections__List_ptr_compiler__ast__AstNode_plus_assign(head, compiler__semantic__lowering__LoopLowerer_loop_var(self, false, fs->var_name, NULL, idx_expr, line, col));
+std__collections__List_ptr_compiler__ast__AstNode_plus_assign(step, compiler__semantic__lowering__LoopLowerer_for_bump(self, 6, line, col));
+return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 7, .u.BinaryExpr = { compiler__semantic__lowering__LoopLowerer_for_id(self, KOBEL_STR("__for_i"), line, col), 12, compiler__semantic__lowering__LoopLowerer_for_id(self, KOBEL_STR("__for_n"), line, col) } }, line, col);
 }
 
-compiler__ast__AstNode* std__memory__Arena_desugar_for_range(std__memory__Arena* self, std__collections__List_ptr_compiler__ast__AstNode* pre, std__collections__List_ptr_compiler__ast__AstNode* head, std__collections__List_ptr_compiler__ast__AstNode* step, compiler__ast__NodeData__ForStmt* fs, size_t line, size_t col) {
-std__collections__List_ptr_compiler__ast__AstNode_plus_assign(pre, std__memory__Arena_loop_var(self, false, KOBEL_STR("__for_e"), NULL, fs->range_end, line, col));
-std__collections__List_ptr_compiler__ast__AstNode_plus_assign(pre, std__memory__Arena_loop_var(self, true, KOBEL_STR("__for_i"), NULL, std__memory__Arena_for_id(self, KOBEL_STR("__for_e"), line, col), line, col));
-compiler__ast__AstNode* init_asgn = std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 12, .u.AssignExpr = { std__memory__Arena_for_id(self, KOBEL_STR("__for_i"), line, col), 5, fs->range_start } }, line, col);
-std__collections__List_ptr_compiler__ast__AstNode_plus_assign(pre, std__memory__Arena_loop_expr(self, init_asgn, line, col));
-compiler__ast__AstNode* cmp_up = std__memory__Arena_for_i_cmp(self, 23, line, col);
-std__collections__List_ptr_compiler__ast__AstNode_plus_assign(pre, std__memory__Arena_loop_var(self, false, KOBEL_STR("__for_up"), NULL, cmp_up, line, col));
+compiler__ast__AstNode* compiler__semantic__lowering__LoopLowerer_desugar_for_range(compiler__semantic__lowering__LoopLowerer* self, std__collections__List_ptr_compiler__ast__AstNode* pre, std__collections__List_ptr_compiler__ast__AstNode* head, std__collections__List_ptr_compiler__ast__AstNode* step, compiler__ast__NodeData__ForStmt* fs, size_t line, size_t col) {
+std__collections__List_ptr_compiler__ast__AstNode_plus_assign(pre, compiler__semantic__lowering__LoopLowerer_loop_var(self, false, KOBEL_STR("__for_e"), NULL, fs->range_end, line, col));
+std__collections__List_ptr_compiler__ast__AstNode_plus_assign(pre, compiler__semantic__lowering__LoopLowerer_loop_var(self, true, KOBEL_STR("__for_i"), NULL, compiler__semantic__lowering__LoopLowerer_for_id(self, KOBEL_STR("__for_e"), line, col), line, col));
+compiler__ast__AstNode* init_asgn = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 12, .u.AssignExpr = { compiler__semantic__lowering__LoopLowerer_for_id(self, KOBEL_STR("__for_i"), line, col), 5, fs->range_start } }, line, col);
+std__collections__List_ptr_compiler__ast__AstNode_plus_assign(pre, compiler__semantic__lowering__LoopLowerer_loop_expr(self, init_asgn, line, col));
+compiler__ast__AstNode* cmp_up = compiler__semantic__lowering__LoopLowerer_for_i_cmp(self, 23, line, col);
+std__collections__List_ptr_compiler__ast__AstNode_plus_assign(pre, compiler__semantic__lowering__LoopLowerer_loop_var(self, false, KOBEL_STR("__for_up"), NULL, cmp_up, line, col));
 if (fs->is_open) {
-std__collections__List_ptr_compiler__ast__AstNode_plus_assign(pre, std__memory__Arena_for_by_dir(self, std__memory__Arena_for_bump(self, 6, line, col), std__memory__Arena_for_bump(self, 7, line, col), line, col));
+std__collections__List_ptr_compiler__ast__AstNode_plus_assign(pre, compiler__semantic__lowering__LoopLowerer_for_by_dir(self, compiler__semantic__lowering__LoopLowerer_for_bump(self, 6, line, col), compiler__semantic__lowering__LoopLowerer_for_bump(self, 7, line, col), line, col));
 }
-compiler__ast__AstNode* false_lit = std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 5, .u.LiteralExpr = { 2, KOBEL_STR("false") } }, line, col);
-std__collections__List_ptr_compiler__ast__AstNode_plus_assign(pre, std__memory__Arena_loop_var(self, true, KOBEL_STR("__for_go"), NULL, false_lit, line, col));
+compiler__ast__AstNode* false_lit = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 5, .u.LiteralExpr = { 2, KOBEL_STR("false") } }, line, col);
+std__collections__List_ptr_compiler__ast__AstNode_plus_assign(pre, compiler__semantic__lowering__LoopLowerer_loop_var(self, true, KOBEL_STR("__for_go"), NULL, false_lit, line, col));
 if (fs->is_open || fs->is_half_open) {
-std__collections__List_ptr_compiler__ast__AstNode_plus_assign(pre, std__memory__Arena_for_by_dir(self, std__memory__Arena_for_set_go(self, std__memory__Arena_for_i_cmp(self, 12, line, col), line, col), std__memory__Arena_for_set_go(self, std__memory__Arena_for_i_cmp(self, 11, line, col), line, col), line, col));
+std__collections__List_ptr_compiler__ast__AstNode_plus_assign(pre, compiler__semantic__lowering__LoopLowerer_for_by_dir(self, compiler__semantic__lowering__LoopLowerer_for_set_go(self, compiler__semantic__lowering__LoopLowerer_for_i_cmp(self, 12, line, col), line, col), compiler__semantic__lowering__LoopLowerer_for_set_go(self, compiler__semantic__lowering__LoopLowerer_for_i_cmp(self, 11, line, col), line, col), line, col));
 } else {
-std__collections__List_ptr_compiler__ast__AstNode_plus_assign(pre, std__memory__Arena_for_by_dir(self, std__memory__Arena_for_set_go(self, std__memory__Arena_for_i_cmp(self, 23, line, col), line, col), std__memory__Arena_for_set_go(self, std__memory__Arena_for_i_cmp(self, 24, line, col), line, col), line, col));
+std__collections__List_ptr_compiler__ast__AstNode_plus_assign(pre, compiler__semantic__lowering__LoopLowerer_for_by_dir(self, compiler__semantic__lowering__LoopLowerer_for_set_go(self, compiler__semantic__lowering__LoopLowerer_for_i_cmp(self, 23, line, col), line, col), compiler__semantic__lowering__LoopLowerer_for_set_go(self, compiler__semantic__lowering__LoopLowerer_for_i_cmp(self, 24, line, col), line, col), line, col));
 }
-std__collections__List_ptr_compiler__ast__AstNode_plus_assign(head, std__memory__Arena_loop_var(self, false, fs->var_name, NULL, std__memory__Arena_for_id(self, KOBEL_STR("__for_i"), line, col), line, col));
+std__collections__List_ptr_compiler__ast__AstNode_plus_assign(head, compiler__semantic__lowering__LoopLowerer_loop_var(self, false, fs->var_name, NULL, compiler__semantic__lowering__LoopLowerer_for_id(self, KOBEL_STR("__for_i"), line, col), line, col));
 if (fs->is_open || fs->is_half_open) {
-compiler__ast__AstNode* up_inc = std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 7, .u.BinaryExpr = { std__memory__Arena_for_id(self, KOBEL_STR("__for_i"), line, col), 6, std__memory__Arena_for_num(self, KOBEL_STR("1"), line, col) } }, line, col);
-compiler__ast__AstNode* up_chk = std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 7, .u.BinaryExpr = { up_inc, 12, std__memory__Arena_for_id(self, KOBEL_STR("__for_e"), line, col) } }, line, col);
-compiler__ast__AstNode* dn_dec = std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 7, .u.BinaryExpr = { std__memory__Arena_for_id(self, KOBEL_STR("__for_i"), line, col), 7, std__memory__Arena_for_num(self, KOBEL_STR("1"), line, col) } }, line, col);
-compiler__ast__AstNode* dn_chk = std__memory__Arena_node(self, (compiler__ast__NodeData){ .tag = 7, .u.BinaryExpr = { dn_dec, 11, std__memory__Arena_for_id(self, KOBEL_STR("__for_e"), line, col) } }, line, col);
-std__collections__List_ptr_compiler__ast__AstNode_plus_assign(step, std__memory__Arena_for_by_dir(self, std__memory__Arena_for_set_go(self, up_chk, line, col), std__memory__Arena_for_set_go(self, dn_chk, line, col), line, col));
+compiler__ast__AstNode* up_inc = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 7, .u.BinaryExpr = { compiler__semantic__lowering__LoopLowerer_for_id(self, KOBEL_STR("__for_i"), line, col), 6, compiler__semantic__lowering__LoopLowerer_for_num(self, KOBEL_STR("1"), line, col) } }, line, col);
+compiler__ast__AstNode* up_chk = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 7, .u.BinaryExpr = { up_inc, 12, compiler__semantic__lowering__LoopLowerer_for_id(self, KOBEL_STR("__for_e"), line, col) } }, line, col);
+compiler__ast__AstNode* dn_dec = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 7, .u.BinaryExpr = { compiler__semantic__lowering__LoopLowerer_for_id(self, KOBEL_STR("__for_i"), line, col), 7, compiler__semantic__lowering__LoopLowerer_for_num(self, KOBEL_STR("1"), line, col) } }, line, col);
+compiler__ast__AstNode* dn_chk = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 7, .u.BinaryExpr = { dn_dec, 11, compiler__semantic__lowering__LoopLowerer_for_id(self, KOBEL_STR("__for_e"), line, col) } }, line, col);
+std__collections__List_ptr_compiler__ast__AstNode_plus_assign(step, compiler__semantic__lowering__LoopLowerer_for_by_dir(self, compiler__semantic__lowering__LoopLowerer_for_set_go(self, up_chk, line, col), compiler__semantic__lowering__LoopLowerer_for_set_go(self, dn_chk, line, col), line, col));
 } else {
-std__collections__List_ptr_compiler__ast__AstNode_plus_assign(step, std__memory__Arena_for_by_dir(self, std__memory__Arena_for_set_go(self, std__memory__Arena_for_i_cmp(self, 12, line, col), line, col), std__memory__Arena_for_set_go(self, std__memory__Arena_for_i_cmp(self, 11, line, col), line, col), line, col));
+std__collections__List_ptr_compiler__ast__AstNode_plus_assign(step, compiler__semantic__lowering__LoopLowerer_for_by_dir(self, compiler__semantic__lowering__LoopLowerer_for_set_go(self, compiler__semantic__lowering__LoopLowerer_for_i_cmp(self, 12, line, col), line, col), compiler__semantic__lowering__LoopLowerer_for_set_go(self, compiler__semantic__lowering__LoopLowerer_for_i_cmp(self, 11, line, col), line, col), line, col));
 }
-compiler__ast__AstNode* bump_dir = std__memory__Arena_for_by_dir(self, std__memory__Arena_for_bump(self, 6, line, col), std__memory__Arena_for_bump(self, 7, line, col), line, col);
-std__collections__List_ptr_compiler__ast__AstNode_plus_assign(step, std__memory__Arena_loop_if(self, std__memory__Arena_for_id(self, KOBEL_STR("__for_go"), line, col), bump_dir, NULL, line, col));
-return std__memory__Arena_for_id(self, KOBEL_STR("__for_go"), line, col);
+compiler__ast__AstNode* bump_dir = compiler__semantic__lowering__LoopLowerer_for_by_dir(self, compiler__semantic__lowering__LoopLowerer_for_bump(self, 6, line, col), compiler__semantic__lowering__LoopLowerer_for_bump(self, 7, line, col), line, col);
+std__collections__List_ptr_compiler__ast__AstNode_plus_assign(step, compiler__semantic__lowering__LoopLowerer_loop_if(self, compiler__semantic__lowering__LoopLowerer_for_id(self, KOBEL_STR("__for_go"), line, col), bump_dir, NULL, line, col));
+return compiler__semantic__lowering__LoopLowerer_for_id(self, KOBEL_STR("__for_go"), line, col);
 }
 
-compiler__ast__AstNode* std__memory__Arena_desugar_for(std__memory__Arena* self, compiler__ast__AstNode* node, compiler__ast__NodeData__ForStmt* fs, bool use_iter_trait, std__collections__List_compiler__semantic__lowering__PendingResolve* pending) {
+compiler__ast__AstNode* compiler__semantic__lowering__LoopLowerer_desugar_for(compiler__semantic__lowering__LoopLowerer* self, compiler__ast__AstNode* node, compiler__ast__NodeData__ForStmt* fs, bool use_iter_trait, std__collections__List_compiler__semantic__lowering__PendingResolve* pending) {
 size_t line = node->line;
 size_t col = node->col;
 std__collections__List_ptr_compiler__ast__AstNode pre = std__collections__List_ptr_compiler__ast__AstNode_init(4);
 std__collections__List_ptr_compiler__ast__AstNode head = std__collections__List_ptr_compiler__ast__AstNode_init(4);
 std__collections__List_ptr_compiler__ast__AstNode step = std__collections__List_ptr_compiler__ast__AstNode_init(4);
-compiler__ast__AstNode* cond = (fs->is_range ? std__memory__Arena_desugar_for_range(self, &pre, &head, &step, fs, line, col) : (use_iter_trait ? std__memory__Arena_desugar_for_iter_method(self, &pre, &head, &step, fs, line, col) : std__memory__Arena_desugar_for_iterable(self, &pre, &head, &step, fs, line, col)));
+compiler__ast__AstNode* cond = (fs->is_range ? compiler__semantic__lowering__LoopLowerer_desugar_for_range(self, &pre, &head, &step, fs, line, col) : (use_iter_trait ? compiler__semantic__lowering__LoopLowerer_desugar_for_iter_method(self, &pre, &head, &step, fs, line, col) : compiler__semantic__lowering__LoopLowerer_desugar_for_iterable(self, &pre, &head, &step, fs, line, col)));
 std__collections__List_ptr_compiler__ast__AstNode body_stmts = std__collections__List_ptr_compiler__ast__AstNode_init(4);
 {
 size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&head);
@@ -16609,9 +16614,9 @@ std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&body_stmts, s);
 __for_i = (__for_i + 1);
 }
 }
-std__memory__Arena_for_inject_step(self, fs->body, &step, pending);
-std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&pre, std__memory__Arena_loop_while(self, cond, std__memory__Arena_loop_block(self, body_stmts, line, col), line, col));
-return std__memory__Arena_loop_block(self, pre, line, col);
+compiler__semantic__lowering__LoopLowerer_for_inject_step(self, fs->body, &step, pending);
+std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&pre, compiler__semantic__lowering__LoopLowerer_loop_while(self, cond, compiler__semantic__lowering__LoopLowerer_loop_block(self, body_stmts, line, col), line, col));
+return compiler__semantic__lowering__LoopLowerer_loop_block(self, pre, line, col);
 }
 
 compiler__semantic__lowering__LoweringPass compiler__semantic__lowering__LoweringPass_init_0(void) {
@@ -22430,7 +22435,8 @@ if (!fs->is_range) {
 use_iter_trait = compiler__semantic__checker__BodyChecker_struct_implements_iterable(self, compiler__semantic__checker__BodyChecker_for_iterable_type(self, fs->iterable));
 }
 std__collections__List_compiler__semantic__lowering__PendingResolve pending = std__collections__List_compiler__semantic__lowering__PendingResolve_init(4);
-compiler__ast__AstNode* block = std__memory__Arena_desugar_for(&self->arena, node, fs, use_iter_trait, &pending);
+compiler__semantic__lowering__LoopLowerer lowerer = (compiler__semantic__lowering__LoopLowerer){ self->arena };
+compiler__ast__AstNode* block = compiler__semantic__lowering__LoopLowerer_desugar_for(&lowerer, node, fs, use_iter_trait, &pending);
 {
 size_t __for_n = std__collections__List_compiler__semantic__lowering__PendingResolve_count(&pending);
 size_t __for_i = 0;

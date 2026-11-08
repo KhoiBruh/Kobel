@@ -202,14 +202,12 @@ Any agent working on this codebase MUST keep these language/compiler mechanics i
 
 Tracked here instead of as `TODO` markers in `src/`:
 
-1. **`for` lowering still lives on `impl Arena`.** `src/compiler/semantic/lowering/loop.kb` no
-   longer imports `BodyChecker` (the checker applies the returned `PendingResolve` records),
-   but the helpers are still methods on the stdlib `Arena`. Moving them into a `LoopLowerer`
-   struct is a mechanical follow-up that must keep C output byte-identical.
-2. **Diagnostics are still strings.** Collector/checker accumulate `List<str>`, the driver
+1. **Diagnostics are still strings.** Collector/checker accumulate `List<str>`, the driver
    parses them back with `Diagnostic.parse_legacy`, and the LSP parses the same format again
    by hand. Converting passes to `DiagnosticBag` removes both parsers.
-3. **Formatter fidelity.** No line wrapping at `max_width` (100), and `"""` multiline strings
+2. **Formatter fidelity.** No line wrapping at `max_width` (100), and `"""` multiline strings
    are emitted as escaped single-line literals. Both are valid output but destroy layout.
-4. **Golden files store a digest, not the C text.** `tests/golden/*.txt` is one hash, so the
+3. **Golden files store a digest, not the C text.** `tests/golden/*.txt` is one hash, so the
    "review the C diff" step of the snapshot workflow cannot be done from git alone.
+4. **Test assertion helpers are copy-pasted** into each suite (`assert_true` and friends).
+   They belong in `testsupport/` once the test runner exposes a shared module root.
