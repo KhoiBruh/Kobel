@@ -2456,6 +2456,7 @@ std__collections__List_str compiler__driver__discover_test_files(kobel_str test_
 int32_t compiler__driver__cmd_test(kobel_str manifest_path, kobel_str filter);
 std__collections__List_str compiler__driver__snap_corpus(kobel_str test_dir);
 kobel_str compiler__driver__snap_name(kobel_str path);
+bool compiler__driver__snapshot_as_text(kobel_str src);
 int32_t compiler__driver__cmd_snap(kobel_str manifest_path, bool update);
 int32_t compiler__driver__cmd_fixpoint(kobel_str manifest_path);
 compiler__lexer__TokenType compiler__lexer__lookup_keyword(kobel_str text);
@@ -7584,6 +7585,10 @@ __for_i = (__for_i + 1);
 return out;
 }
 
+bool compiler__driver__snapshot_as_text(kobel_str src) {
+    return str_starts_with(src, KOBEL_STR("tests/features/"));
+}
+
 int32_t compiler__driver__cmd_snap(kobel_str manifest_path, bool update) {
 std__filesystem__Path man_p = std__filesystem__Path_init(manifest_path);
 config__ProjectConfig cfg = (std__filesystem__Path_exists(&man_p) ? config__ProjectConfig_init(manifest_path) : (config__ProjectConfig){ KOBEL_STR("kobel"), KOBEL_STR("1.0.0"), KOBEL_STR("src/main.kb"), KOBEL_STR("build/kobel.exe"), KOBEL_STR("cl"), KOBEL_STR("tests") });
@@ -7626,10 +7631,24 @@ __for_i = (__for_i + 1);
 continue;
 }
 }
-kobel_str digest = str_hash_stamp(std__filesystem__Path_read_text(&c_p));
-std__filesystem__Path golden_p = std__filesystem__Path_join(&golden_dir, kobel_concat(2, flat, KOBEL_STR(".txt")));
+kobel_str c_text = std__filesystem__Path_read_text(&c_p);
+kobel_str digest = str_hash_stamp(c_text);
+bool as_text = compiler__driver__snapshot_as_text(src);
+std__filesystem__Path golden_txt_p = std__filesystem__Path_join(&golden_dir, kobel_concat(2, flat, KOBEL_STR(".txt")));
+std__filesystem__Path golden_c_p = std__filesystem__Path_join(&golden_dir, kobel_concat(2, flat, KOBEL_STR(".c")));
+std__filesystem__Path golden_p = (as_text ? golden_c_p : golden_txt_p);
 if (update) {
-std__filesystem__Path_write_text(&golden_p, kobel_concat(2, digest, KOBEL_STR("\n")));
+if (as_text) {
+std__filesystem__Path_write_text(&golden_c_p, c_text);
+if (std__filesystem__Path_exists(&golden_txt_p)) {
+std__filesystem__Path_remove(&golden_txt_p);
+}
+} else {
+std__filesystem__Path_write_text(&golden_txt_p, kobel_concat(2, digest, KOBEL_STR("\n")));
+if (std__filesystem__Path_exists(&golden_c_p)) {
+std__filesystem__Path_remove(&golden_c_p);
+}
+}
 std__io__println(KOBEL_STR("UPDATED"));
 {
 __for_i = (__for_i + 1);
@@ -7644,13 +7663,18 @@ __for_i = (__for_i + 1);
 continue;
 }
 }
-kobel_str expected = str_trim(std__filesystem__Path_read_text(&golden_p));
-if (kobel_streq(expected, digest)) {
+kobel_str expected = (as_text ? std__filesystem__Path_read_text(&golden_c_p) : str_trim(std__filesystem__Path_read_text(&golden_txt_p)));
+kobel_str actual = (as_text ? c_text : digest);
+if (kobel_streq(expected, actual)) {
 std__io__println(KOBEL_STR("PASS"));
 } else {
 std__io__println(KOBEL_STR("FAIL"));
+if (as_text) {
+std__io__println(kobel_concat(4, KOBEL_STR("    "), src, KOBEL_STR(" C output differs from "), golden_c_p.raw));
+} else {
 std__io__println(kobel_concat(2, KOBEL_STR("    expected "), expected));
-std__io__println(kobel_concat(2, KOBEL_STR("    actual   "), digest));
+std__io__println(kobel_concat(2, KOBEL_STR("    actual   "), actual));
+}
 fail_count++;
 }
 __for_i = (__for_i + 1);

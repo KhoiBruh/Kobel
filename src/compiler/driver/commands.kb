@@ -304,6 +304,14 @@ pub fn snap_name(path: str): str {
 	return out;
 }
 
+/*
+ * Feature tests keep the emitted C text, so a codegen change is reviewable as a
+ * git diff. Entries that pull in the compiler modules (the unit suites and the
+ * compiler itself) emit megabytes of C; those stay as a digest to keep the
+ * repository small while still pinning the output.
+ */
+pub fn snapshot_as_text(src: str): bool => src.starts_with("tests/features/");
+
 pub fn cmd_snap(manifest_path: str, update: bool): i32 {
 	val man_p = Path(manifest_path);
 	val cfg = if (man_p.exists()) ProjectConfig(manifest_path) else ProjectConfig();
@@ -336,10 +344,21 @@ pub fn cmd_snap(manifest_path: str, update: bool): i32 {
 			continue;
 		}
 
-		val digest = c_p.read_text().hash_stamp();
-		val golden_p = golden_dir.join("${flat}.txt");
+		val c_text = c_p.read_text();
+		val digest = c_text.hash_stamp();
+		val as_text = snapshot_as_text(src);
+		val golden_txt_p = golden_dir.join("${flat}.txt");
+		val golden_c_p = golden_dir.join("${flat}.c");
+		val golden_p = if (as_text) golden_c_p else golden_txt_p;
+
 		if (update) {
-			golden_p.write_text("${digest}\n");
+			if (as_text) {
+				golden_c_p.write_text(c_text);
+				if (golden_txt_p.exists()) golden_txt_p.remove();
+			} else {
+				golden_txt_p.write_text("${digest}\n");
+				if (golden_c_p.exists()) golden_c_p.remove();
+			}
 			println("UPDATED");
 			continue;
 		}
@@ -350,12 +369,16 @@ pub fn cmd_snap(manifest_path: str, update: bool): i32 {
 			continue;
 		}
 
-		val expected = golden_p.read_text().trim();
-		if (expected == digest) println("PASS");
+		val expected = if (as_text) golden_c_p.read_text() else golden_txt_p.read_text().trim();
+		val actual = if (as_text) c_text else digest;
+		if (expected == actual) println("PASS");
 		else {
 			println("FAIL");
-			println("    expected ${expected}");
-			println("    actual   ${digest}");
+			if (as_text) println("    ${src} C output differs from ${golden_c_p.raw}");
+			else {
+				println("    expected ${expected}");
+				println("    actual   ${actual}");
+			}
 			fail_count++;
 		}
 	}

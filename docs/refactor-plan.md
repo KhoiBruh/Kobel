@@ -204,9 +204,7 @@ Tracked here instead of as `TODO` markers in `src/`:
 
 1. **Formatter fidelity.** No line wrapping at `max_width` (100), and `"""` multiline strings
    are emitted as escaped single-line literals. Both are valid output but destroy layout.
-2. **Golden files store a digest, not the C text.** `tests/golden/*.txt` is one hash, so the
-   "review the C diff" step of the snapshot workflow cannot be done from git alone.
-3. **Struct layout ordering.** A by-value struct field whose type is declared later in the
+2. **Struct layout ordering.** A by-value struct field whose type is declared later in the
    same module can be laid out while its nested type still has size 0, so the outer struct
    gets a short size. `Diagnostic` stores its location fields flat to avoid this; the general
    fix is a two-phase declaration pass that fills every struct's fields before laying any out.

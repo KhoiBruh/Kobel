@@ -163,7 +163,7 @@ if (decl is ModuleDecl) return decl.full_path;
 
 ### 7. Error handling
 
-- Sema passes report via `report_error(node, msg)` / `ensure(cond, node, msg)`; parsers append to `errors: List<str>`. Never fail silently, never print-and-continue.
+- Sema passes report via `report_error(node, msg)` / `ensure(cond, node, msg)`; parsers append `Diagnostic` records to `errors`. Never fail silently, never print-and-continue.
 - CLI commands return `i32` exit codes (`0` = success); `check.ps1` treats any non-zero exit as a failed gate.
 - No `TODO`/`FIXME`/`HACK` markers in `src/` — file issues or fix immediately.
 
@@ -201,5 +201,6 @@ pub init(symtab: SymbolTable, decl: DeclPass): Self { ... }
 ### 9. Tests
 
 - Every language/behavior change ships with a test: `tests/features/test_<area>.kb`, plus golden files under `tests/golden/` regenerated via `kobel snap --update` only after reviewing the C diff.
+- Feature-test goldens store the emitted C itself (`tests/golden/*.c`) so the diff is reviewable; large outputs (unit suites, compiler self) stay as a digest (`*.txt`).
 - Name tests `test_<area>.kb`; shared fixtures live in `tests/features/testsupport/`.
 - Full gate before commit: `powershell -File scripts/check.ps1` (build → test → snap → fixpoint).
