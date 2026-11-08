@@ -35,7 +35,7 @@ pub struct BodyChecker {
 	pub arena: Arena = Arena(),
 	pub current_fn_return_type: *Type? = null,
 	pub loop_depth: usz = 0,
-	pub errors: List<str> = List(),
+	pub errors: List<Diagnostic> = List(),
 	pub current_self_type: *Type? = null,
 	pub has_symtab: bool = false,
 	pub when_depth: usz = 0,
@@ -52,7 +52,7 @@ pub struct BodyChecker {
 	pub env_saved_names: List<str> = List(),
 	pub env_saved_types: List<*Type> = List(),
 	pub has_env_saved: bool = false,
-	pub warnings: List<str> = List(),
+	pub warnings: List<Diagnostic> = List(),
 	pub current_trait_name: str = ""
 }
 
@@ -62,19 +62,19 @@ impl BodyChecker {
 		var arena = Arena();
 		var decl_p = DeclarationCollector();
 		val none_ty = decl_p.symtab.prims.t_none();
-		return Self(decl_p.symtab, arena, none_ty, 0, List<str>(), null, false);
+		return Self(decl_p.symtab, arena, none_ty, 0, List<Diagnostic>(), null, false);
 	}
 
 	pub init(symtab: SymbolTable) {
 		var arena = Arena();
 		val none_ty = symtab.prims.t_none();
-		return Self(symtab, arena, none_ty, 0, List<str>(), null, true);
+		return Self(symtab, arena, none_ty, 0, List<Diagnostic>(), null, true);
 	}
 
 	pub init(symtab: SymbolTable, decl: DeclarationCollector) {
 		var arena = Arena();
 		val none_ty = symtab.prims.t_none();
-		var bc = Self(symtab, arena, none_ty, 0, List<str>(), null, true);
+		var bc = Self(symtab, arena, none_ty, 0, List<Diagnostic>(), null, true);
 		bc.decl = decl;
 		bc.has_decl = true;
 		bc.symtab.prims = decl.symtab.prims;
@@ -118,21 +118,12 @@ impl BodyChecker {
 	}
 
 	pub fn report_warning(var self, node: *AstNode?, msg: str) {
-		val loc = if (node != null) "Line ${node.line}, Column ${node.col}: ${msg}"
-		else msg;
-
-		if (self.symtab.current_module.len > 0) {
-			self.warnings += "${self.symtab.current_module}: ${loc}";
-		} else self.warnings += loc;
+		val span = if (node != null) node!.span else Span();
+		self.warnings += Diagnostic.warning(span, self.symtab.current_module, msg);
 	}
 
 	pub fn report_error(var self, node: *AstNode, msg: str) {
-		val loc = if (node != null) "Line ${node.line}, Column ${node.col}: ${msg}"
-		else msg;
-
-		if (self.symtab.current_module.len > 0) {
-			self.errors += "${self.symtab.current_module}: ${loc}";
-		} else self.errors += loc;
+		self.errors += Diagnostic.error(node.span, self.symtab.current_module, msg);
 	}
 
 	pub fn lower_program(var self, program_node: *AstNode) {

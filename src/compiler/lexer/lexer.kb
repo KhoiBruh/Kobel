@@ -3,6 +3,7 @@ mod compiler.lexer;
 use std.ascii.*;
 use std.collections.*;
 
+use compiler.core.Diagnostic;
 use compiler.core.Span;
 
 /*
@@ -70,7 +71,7 @@ pub struct Lexer {
 	pub line: usz = 1,
 	pub col: usz = 1,
 	pub file_id: u32 = 0,
-	pub errors: List<str> = List()
+	pub errors: List<Diagnostic> = List()
 }
 
 impl Lexer {
@@ -81,7 +82,7 @@ impl Lexer {
 	 * lex as an unknown token at line 1 column 1.
 	 */
 	pub init(src: str, file_id: u32 = 0)
-		=> Self(strip_utf8_bom(src), 0, 1, 1, file_id, List<str>());
+		=> Self(strip_utf8_bom(src), 0, 1, 1, file_id, List<Diagnostic>());
 
 	pub fn is_end(val self) => self.cursor >= self.src.len;
 
@@ -112,7 +113,9 @@ impl Lexer {
 	}
 
 	pub fn record_error(var self, line: usz, col: usz, msg: str) {
-		self.errors += "Line ${line}, Column ${col}: ${msg}";
+		self.errors += Diagnostic.error(
+			Span(self.file_id, line as u32, col as u32, 1), "", msg
+		);
 	}
 
 	pub fn make_token(

@@ -45,7 +45,7 @@ pub struct DeclarationCollector {
 	pub symtab: SymbolTable = SymbolTable(),
 	pub arena: Arena = Arena(),
 	pub current_module: str = "",
-	pub errors: List<str> = List(),
+	pub errors: List<Diagnostic> = List(),
 	pub is_extern: bool = false,
 	pub current_self_type: *Type? = null,
 	pub subst_names: List<str> = List(),
@@ -56,7 +56,7 @@ pub struct DeclarationCollector {
 
 impl DeclarationCollector {
 
-	pub init() => Self(SymbolTable(), Arena(), "", List<str>());
+	pub init() => Self(SymbolTable(), Arena(), "", List<Diagnostic>());
 
 	pub fn prims(val self) => self.symtab.prims;
 
@@ -80,12 +80,7 @@ impl DeclarationCollector {
 	}
 
 	pub fn report_error(var self, node: *AstNode, msg: str) {
-		val loc = "Line ${node.line}, Column ${node.col}: ";
-		if (self.current_module.len > 0) {
-			self.errors += "${self.current_module}: ${loc}${msg}";
-		} else {
-			self.errors += loc + msg;
-		}
+		self.errors += Diagnostic.error(node.span, self.current_module, msg);
 	}
 
 	// ============================================================================

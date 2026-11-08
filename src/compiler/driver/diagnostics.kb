@@ -4,17 +4,17 @@ use std.io.*;
 use std.filesystem.*;
 use std.collections.*;
 
-use compiler.core.Span;
 use compiler.core.Severity;
-use compiler.core.Diagnostic as CoreDiagnostic;
+use compiler.core.Diagnostic;
 use compiler.loader.ModuleLoader;
 
 /*
  * ============================================================================
- * compiler.driver.diagnostics — Driver diagnostic bridge
+ * compiler.driver.diagnostics — Driver diagnostic rendering
  *
- * Bridges legacy `List<str>` pass error lists and `ModuleLoader` module paths
- * into `compiler.core.Diagnostic` rendering.
+ * Every pass emits `Diagnostic` records directly (span + module/path + message);
+ * this module resolves a module name or an empty path to a real file path,
+ * deduplicates, and renders with a source snippet.
  * ============================================================================
  */
 
@@ -45,15 +45,19 @@ fn resolve_file_path(target: str, default_file: str, loader: *ModuleLoader?): st
 	return target;
 }
 
-pub fn print_diagnostics(errors: List<str>, default_file: str, loader: *ModuleLoader? = null) {
+pub fn print_diagnostics(diags: List<Diagnostic>, default_file: str, loader: *ModuleLoader? = null) {
 	var seen = HashSet<str>();
 	defer seen.free();
 
 	var printed_count = 0;
 	val src_map = if (loader != null) &loader.sources else null;
 
-	for (err in errors) {
-		var diag = CoreDiagnostic.parse_legacy(err, default_file, Severity.ERROR, src_map);
+	for (d in diags) {
+		var diag = d;
+		if (diag.file_id > 0 && loader != null) {
+			val sf = loader.sources.get_file(diag.file_id);
+			if (sf != null) diag.file_path = sf.path;
+		}
 		diag.file_path = resolve_file_path(diag.file_path, default_file, loader);
 		val key = diag.key();
 		if (key in seen) continue;
@@ -69,14 +73,18 @@ pub fn print_diagnostics(errors: List<str>, default_file: str, loader: *ModuleLo
 	println(summary);
 }
 
-pub fn print_warnings(warnings: List<str>, default_file: str, loader: *ModuleLoader? = null) {
+pub fn print_warnings(warnings: List<Diagnostic>, default_file: str, loader: *ModuleLoader? = null) {
 	var seen = HashSet<str>();
 	defer seen.free();
 
 	val src_map = if (loader != null) &loader.sources else null;
 
 	for (w in warnings) {
-		var diag = CoreDiagnostic.parse_legacy(w, default_file, Severity.WARNING, src_map);
+		var diag = w;
+		if (diag.file_id > 0 && loader != null) {
+			val sf = loader.sources.get_file(diag.file_id);
+			if (sf != null) diag.file_path = sf.path;
+		}
 		diag.file_path = resolve_file_path(diag.file_path, default_file, loader);
 		val key = diag.key();
 		if (key in seen) continue;

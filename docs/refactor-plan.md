@@ -202,10 +202,11 @@ Any agent working on this codebase MUST keep these language/compiler mechanics i
 
 Tracked here instead of as `TODO` markers in `src/`:
 
-1. **Diagnostics are still strings.** Collector/checker accumulate `List<str>`, the driver
-   parses them back with `Diagnostic.parse_legacy`, and the LSP parses the same format again
-   by hand. Converting passes to `DiagnosticBag` removes both parsers.
-2. **Formatter fidelity.** No line wrapping at `max_width` (100), and `"""` multiline strings
+1. **Formatter fidelity.** No line wrapping at `max_width` (100), and `"""` multiline strings
    are emitted as escaped single-line literals. Both are valid output but destroy layout.
-3. **Golden files store a digest, not the C text.** `tests/golden/*.txt` is one hash, so the
+2. **Golden files store a digest, not the C text.** `tests/golden/*.txt` is one hash, so the
    "review the C diff" step of the snapshot workflow cannot be done from git alone.
+3. **Struct layout ordering.** A by-value struct field whose type is declared later in the
+   same module can be laid out while its nested type still has size 0, so the outer struct
+   gets a short size. `Diagnostic` stores its location fields flat to avoid this; the general
+   fix is a two-phase declaration pass that fills every struct's fields before laying any out.

@@ -44,7 +44,7 @@ pub struct ModuleLoader {
 	pub roots: List<str>,
 	pub modules: List<LoadedModule>,
 	pub ordered: List<LoadedModule>,
-	pub errors: List<str>,
+	pub errors: List<Diagnostic>,
 	pub arena: Arena,
 	known: HashSet<str>,
 	pub sources: SourceMap
@@ -112,7 +112,7 @@ impl ModuleLoader {
 			roots,
 			List<LoadedModule>(),
 			List<LoadedModule>(),
-			List<str>(),
+			List<Diagnostic>(),
 			Arena(524288),
 			HashSet<str>(),
 			SourceMap()
@@ -140,7 +140,11 @@ impl ModuleLoader {
 		val tokens = lexer.tokenize();
 
 		if (!lexer.errors.empty()) {
-			for (msg in lexer.errors) self.errors += "${path}: ${msg}";
+			for (d in lexer.errors) {
+				var diag = d;
+				diag.file_path = path;
+				self.errors += diag;
+			}
 			return null;
 		}
 
@@ -148,7 +152,11 @@ impl ModuleLoader {
 		val prog = parser.parse_program();
 
 		if (!parser.errors.empty()) {
-			for (msg in parser.errors) self.errors += "${path}: ${msg}";
+			for (d in parser.errors) {
+				var diag = d;
+				diag.file_path = path;
+				self.errors += diag;
+			}
 			return null;
 		}
 
@@ -218,16 +226,11 @@ impl ModuleLoader {
 
 		val files = self.find_module_files(module_name);
 		if (files.empty()) {
-			val prefix = if (!parent_mod.empty()) "${parent_mod}: " else "";
-			val msg = if (line > 0) {
-				"${prefix}Line ${line}, Column ${col}: "
+			self.errors += Diagnostic.error(
+				Span(0, line as u32, col as u32, 1), parent_mod,
 				"Module '${module_name}' not found "
 				"(searched the entry directory, -I roots, lib/, src/)"
-			} else {
-				"${prefix}Module '${module_name}' "
-				"not found (searched the entry directory, -I roots, lib/, src/)"
-			};
-			self.errors += msg;
+			);
 			return;
 		}
 
@@ -237,13 +240,11 @@ impl ModuleLoader {
 			var declared = "";
 			if (prog is Program as p) declared = p.declared_module_name();
 			if (!declared.empty() && declared != module_name) {
-				val prefix = if (!parent_mod.empty()) "${parent_mod}: " else "";
-				val msg = if (line > 0) {
-					"${prefix}Line ${line}, Column ${col}: ${file.path}: module declared as '${declared}' but imported as '${module_name}'"
-				} else {
-					"${prefix}${file.path}: module declared as '${declared}' but imported as '${module_name}'"
-				};
-				self.errors += msg;
+				val context = if (!parent_mod.empty()) " (imported from '${parent_mod}')" else "";
+				self.errors += Diagnostic.error(
+					Span(0, line as u32, col as u32, 1), file.path,
+					"module declared as '${declared}' but imported as '${module_name}'${context}"
+				);
 				continue;
 			}
 

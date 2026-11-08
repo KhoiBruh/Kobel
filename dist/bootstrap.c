@@ -298,7 +298,7 @@ typedef struct config__ProjectConfig config__ProjectConfig;
 typedef struct config__Toml config__Toml;
 typedef struct std__process__Process std__process__Process;
 typedef struct std__system__System std__system__System;
-typedef int32_t compiler__core__Severity;
+typedef int64_t compiler__core__Severity;
 typedef struct compiler__core__Diagnostic compiler__core__Diagnostic;
 typedef struct compiler__core__DiagnosticBag compiler__core__DiagnosticBag;
 typedef struct compiler__core__Span compiler__core__Span;
@@ -586,6 +586,17 @@ struct config__ProjectConfig {
     kobel_str output;
     kobel_str cc;
     kobel_str test_dir;
+};
+
+struct compiler__core__Diagnostic {
+    compiler__core__Severity severity;
+    uint32_t file_id;
+    size_t line;
+    size_t col;
+    size_t length;
+    kobel_str file_path;
+    kobel_str message;
+    kobel_str hint;
 };
 
 struct compiler__core__Span {
@@ -1204,14 +1215,6 @@ struct config__Toml {
     std__collections__HashMap_str_str entries;
 };
 
-struct compiler__core__Diagnostic {
-    compiler__core__Severity severity;
-    compiler__core__Span span;
-    kobel_str file_path;
-    kobel_str message;
-    kobel_str hint;
-};
-
 struct compiler__core__DiagnosticBag {
     std__collections__List_compiler__core__Diagnostic items;
     std__collections__HashSet_str seen;
@@ -1239,7 +1242,7 @@ struct compiler__lexer__Lexer {
     size_t line;
     size_t col;
     uint32_t file_id;
-    std__collections__List_str errors;
+    std__collections__List_compiler__core__Diagnostic errors;
 };
 
 struct compiler__ast__GenericParam {
@@ -1544,7 +1547,7 @@ struct compiler__parser__Parser {
     std__collections__List_compiler__lexer__Token tokens;
     size_t current;
     std__memory__Arena arena;
-    std__collections__List_str errors;
+    std__collections__List_compiler__core__Diagnostic errors;
     std__collections__List_ptr_compiler__ast__AstNode struct_consts;
     uint32_t file_id;
 };
@@ -1553,7 +1556,7 @@ struct compiler__loader__ModuleLoader {
     std__collections__List_str roots;
     std__collections__List_compiler__loader__LoadedModule modules;
     std__collections__List_compiler__loader__LoadedModule ordered;
-    std__collections__List_str errors;
+    std__collections__List_compiler__core__Diagnostic errors;
     std__memory__Arena arena;
     std__collections__HashSet_str known;
     compiler__core__SourceMap sources;
@@ -1712,7 +1715,7 @@ struct compiler__semantic__declaration__DeclarationCollector {
     compiler__semantic__symbols__SymbolTable symtab;
     std__memory__Arena arena;
     kobel_str current_module;
-    std__collections__List_str errors;
+    std__collections__List_compiler__core__Diagnostic errors;
     bool is_extern;
     compiler__semantic__types__Type* current_self_type;
     std__collections__List_str subst_names;
@@ -1732,7 +1735,7 @@ struct compiler__semantic__checker__BodyChecker {
     std__memory__Arena arena;
     compiler__semantic__types__Type* current_fn_return_type;
     size_t loop_depth;
-    std__collections__List_str errors;
+    std__collections__List_compiler__core__Diagnostic errors;
     compiler__semantic__types__Type* current_self_type;
     bool has_symtab;
     size_t when_depth;
@@ -1749,7 +1752,7 @@ struct compiler__semantic__checker__BodyChecker {
     std__collections__List_str env_saved_names;
     std__collections__List_ptr_compiler__semantic__types__Type env_saved_types;
     bool has_env_saved;
-    std__collections__List_str warnings;
+    std__collections__List_compiler__core__Diagnostic warnings;
     kobel_str current_trait_name;
 };
 
@@ -1839,7 +1842,7 @@ struct compiler__semantic__resolution__TypeResolver {
     compiler__semantic__symbols__SymbolTable symtab;
     std__memory__Arena arena;
     kobel_str current_module;
-    std__collections__List_str errors;
+    std__collections__List_compiler__core__Diagnostic errors;
     bool is_extern;
     compiler__semantic__types__Type* current_self_type;
     compiler__semantic__resolution__TypeSubst subst;
@@ -2412,11 +2415,10 @@ bool char_is_hex_digit(char self);
 char char_to_lower(char self);
 char char_to_upper(char self);
 compiler__core__Diagnostic compiler__core__Diagnostic_init(compiler__core__Severity severity, compiler__core__Span span, kobel_str file_path, kobel_str message, kobel_str hint);
-kobel_str compiler__core__Diagnostic_resolve_path(kobel_str target, kobel_str default_file, compiler__core__SourceMap* sources);
 compiler__core__Diagnostic compiler__core__Diagnostic_error(compiler__core__Span span, kobel_str file_path, kobel_str message, kobel_str hint);
 compiler__core__Diagnostic compiler__core__Diagnostic_warning(compiler__core__Span span, kobel_str file_path, kobel_str message, kobel_str hint);
+compiler__core__Span compiler__core__Diagnostic_span(compiler__core__Diagnostic* self);
 kobel_str compiler__core__Diagnostic_key(compiler__core__Diagnostic* self);
-compiler__core__Diagnostic compiler__core__Diagnostic_parse_legacy(kobel_str raw, kobel_str default_file, compiler__core__Severity severity, compiler__core__SourceMap* sources);
 kobel_str compiler__core__Diagnostic_render(compiler__core__Diagnostic* self, compiler__core__SourceMap* sources);
 compiler__core__DiagnosticBag compiler__core__DiagnosticBag_init(void);
 bool compiler__core__DiagnosticBag_has_errors(compiler__core__DiagnosticBag* self);
@@ -2587,8 +2589,8 @@ void compiler__loader__ModuleLoader_process_uses(compiler__loader__ModuleLoader*
 compiler__ast__AstNode* compiler__loader__ModuleLoader_load_program(compiler__loader__ModuleLoader* self, kobel_str entry_path, kobel_str entry_source);
 compiler__ast__AstNode* compiler__loader__ModuleLoader_build_merged_program(compiler__loader__ModuleLoader* self);
 kobel_str compiler__driver__resolve_file_path(kobel_str target, kobel_str default_file, compiler__loader__ModuleLoader* loader);
-void compiler__driver__print_diagnostics(std__collections__List_str errors, kobel_str default_file, compiler__loader__ModuleLoader* loader);
-void compiler__driver__print_warnings(std__collections__List_str warnings, kobel_str default_file, compiler__loader__ModuleLoader* loader);
+void compiler__driver__print_diagnostics(std__collections__List_compiler__core__Diagnostic diags, kobel_str default_file, compiler__loader__ModuleLoader* loader);
+void compiler__driver__print_warnings(std__collections__List_compiler__core__Diagnostic warnings, kobel_str default_file, compiler__loader__ModuleLoader* loader);
 compiler__ast__AstNode* std__memory__Arena_ast_named_type(std__memory__Arena* self, kobel_str name);
 compiler__ast__AstNode* std__memory__Arena_ast_type_from_type(std__memory__Arena* self, compiler__semantic__types__Type* ty);
 compiler__semantic__types__MethodInfo* compiler__semantic__types__StructType_find_method(compiler__semantic__types__StructType* self, kobel_str name);
@@ -3166,10 +3168,10 @@ bool fmt__Formatter_format_file(kobel_str path, bool write_in_place, fmt__Format
 int32_t fmt__Formatter_format_files(std__collections__List_str files, bool write_in_place, fmt__FormatOptions options);
 bool fmt__is_parseable(kobel_str src);
 kobel_str fmt__format_source(kobel_str src, fmt__FormatOptions options);
-lsp__LspDiagnostic lsp__LspDiagnostic_init(kobel_str err_str, kobel_str source);
+lsp__LspDiagnostic lsp__LspDiagnostic_init(compiler__core__Diagnostic diag, kobel_str source);
 lsp__JsonValue* lsp__LspDiagnostic_to_json(lsp__LspDiagnostic* self);
 bool lsp__match_doc_prefix(kobel_str prefix, kobel_str doc_mod, kobel_str doc_path);
-bool lsp__is_error_for_doc(kobel_str err_str, kobel_str doc_mod, kobel_str doc_path);
+bool lsp__is_error_for_doc(compiler__core__Diagnostic diag, kobel_str doc_mod, kobel_str doc_path);
 compiler__lexer__Token lsp__find_token_at(std__collections__List_compiler__lexer__Token tokens, size_t target_line, size_t target_col);
 kobel_str lsp__keyword_hover(kobel_str kw);
 void lsp__add_completion_item(lsp__JsonValue* arr, kobel_str label, int64_t kind, kobel_str detail);
@@ -6707,36 +6709,7 @@ return self;
 }
 
 compiler__core__Diagnostic compiler__core__Diagnostic_init(compiler__core__Severity severity, compiler__core__Span span, kobel_str file_path, kobel_str message, kobel_str hint) {
-    return (compiler__core__Diagnostic){ severity, span, file_path, message, hint };
-}
-
-kobel_str compiler__core__Diagnostic_resolve_path(kobel_str target, kobel_str default_file, compiler__core__SourceMap* sources) {
-if (str_empty(target)) {
-return default_file;
-}
-if ((str_ends_with(target, KOBEL_STR(".kb")) || str_contains(target, KOBEL_STR("/"))) || str_contains(target, KOBEL_STR("\\"))) {
-return str_to_posix_path(target);
-}
-if (sources != NULL) {
-compiler__core__SourceFile* by_mod = compiler__core__SourceMap_find_by_module(sources, target);
-if (by_mod != NULL) {
-return str_to_posix_path(by_mod->path);
-}
-}
-kobel_str rel = kobel_concat(2, str_module_to_rel(target), KOBEL_STR(".kb"));
-std__filesystem__Path src_p = std__filesystem__Path_init(kobel_concat(2, KOBEL_STR("src/"), rel));
-if (std__filesystem__Path_exists(&src_p)) {
-return kobel_concat(2, KOBEL_STR("src/"), rel);
-}
-std__filesystem__Path lib_p = std__filesystem__Path_init(kobel_concat(2, KOBEL_STR("lib/"), rel));
-if (std__filesystem__Path_exists(&lib_p)) {
-return kobel_concat(2, KOBEL_STR("lib/"), rel);
-}
-std__filesystem__Path rel_p = std__filesystem__Path_init(rel);
-if (std__filesystem__Path_exists(&rel_p)) {
-return rel;
-}
-return target;
+    return (compiler__core__Diagnostic){ severity, span.file_id, span.line, span.col, span.length, file_path, message, hint };
 }
 
 compiler__core__Diagnostic compiler__core__Diagnostic_error(compiler__core__Span span, kobel_str file_path, kobel_str message, kobel_str hint) {
@@ -6747,55 +6720,12 @@ compiler__core__Diagnostic compiler__core__Diagnostic_warning(compiler__core__Sp
     return compiler__core__Diagnostic_init(1, span, file_path, message, hint);
 }
 
-kobel_str compiler__core__Diagnostic_key(compiler__core__Diagnostic* self) {
-    return kobel_concat(7, self->file_path, KOBEL_STR(":"), usz_to_str(self->span.line), KOBEL_STR(":"), usz_to_str(self->span.col), KOBEL_STR(":"), self->message);
+compiler__core__Span compiler__core__Diagnostic_span(compiler__core__Diagnostic* self) {
+    return compiler__core__Span_init(self->file_id, self->line, self->col, self->length);
 }
 
-compiler__core__Diagnostic compiler__core__Diagnostic_parse_legacy(kobel_str raw, kobel_str default_file, compiler__core__Severity severity, compiler__core__SourceMap* sources) {
-kobel_str line_kw = KOBEL_STR("Line ");
-intptr_t line_pos = str_index_of(raw, line_kw);
-if (line_pos >= 0) {
-kobel_str prefix = ((line_pos > 0) ? str_trim(kobel_slice(raw, 0, (size_t)line_pos)) : KOBEL_STR(""));
-kobel_str target = (str_ends_with(prefix, KOBEL_STR(":")) ? str_trim(kobel_slice(prefix, 0, (prefix.len - 1))) : prefix);
-if (str_empty(target)) {
-target = default_file;
-}
-size_t l_idx = (((size_t)line_pos) + line_kw.len);
-size_t line_num = 0;
-while ((l_idx < raw.len) && char_is_digit(raw.data[l_idx])) {
-line_num = ((line_num * 10) + (size_t)(((int32_t)(uint8_t)(raw.data[l_idx])) - 48));
-l_idx++;
-}
-while ((l_idx < raw.len) && ((raw.data[l_idx] == ' ') || (raw.data[l_idx] == ','))) {
-l_idx++;
-}
-int32_t col_num = 0;
-kobel_str col_kw = KOBEL_STR("Column ");
-kobel_str rest = kobel_slice(raw, l_idx, raw.len);
-intptr_t c_pos = str_index_of(rest, col_kw);
-if (c_pos >= 0) {
-l_idx = ((l_idx + ((size_t)c_pos)) + col_kw.len);
-while ((l_idx < raw.len) && char_is_digit(raw.data[l_idx])) {
-col_num = ((col_num * 10) + (size_t)(((int32_t)(uint8_t)(raw.data[l_idx])) - 48));
-l_idx++;
-}
-}
-while ((l_idx < raw.len) && ((raw.data[l_idx] == ':') || (raw.data[l_idx] == ' '))) {
-l_idx++;
-}
-kobel_str message = str_trim(kobel_slice(raw, l_idx, raw.len));
-kobel_str file_path = compiler__core__Diagnostic_resolve_path(target, default_file, sources);
-return compiler__core__Diagnostic_init(severity, compiler__core__Span_init(0, line_num, col_num, 1), file_path, message, KOBEL_STR(""));
-}
-intptr_t colon_pos = str_index_of(raw, KOBEL_STR(":"));
-if (colon_pos >= 0) {
-size_t c_idx = (size_t)colon_pos;
-kobel_str target = str_trim(kobel_slice(raw, 0, c_idx));
-kobel_str message = str_trim(kobel_slice(raw, (c_idx + 1), raw.len));
-kobel_str file_path = compiler__core__Diagnostic_resolve_path(target, default_file, sources);
-return compiler__core__Diagnostic_init(severity, compiler__core__Span_init(0, 0, 0, 1), file_path, message, KOBEL_STR(""));
-}
-return compiler__core__Diagnostic_init(severity, compiler__core__Span_init(0, 0, 0, 1), default_file, raw, KOBEL_STR(""));
+kobel_str compiler__core__Diagnostic_key(compiler__core__Diagnostic* self) {
+    return kobel_concat(7, self->file_path, KOBEL_STR(":"), usz_to_str(self->line), KOBEL_STR(":"), usz_to_str(self->col), KOBEL_STR(":"), self->message);
 }
 
 kobel_str compiler__core__Diagnostic_render(compiler__core__Diagnostic* self, compiler__core__SourceMap* sources) {
@@ -6819,21 +6749,21 @@ std__string__StringBuilder_plus_assign_2(&sb, KOBEL_STR("-->"));
 std__string__StringBuilder_plus_assign_2(&sb, c_reset);
 std__string__StringBuilder_plus_assign_2_2(&sb, ' ');
 std__string__StringBuilder_plus_assign_2(&sb, self->file_path);
-if (self->span.line > 0) {
+if (self->line > 0) {
 std__string__StringBuilder_plus_assign_2_2(&sb, ':');
-std__string__StringBuilder_plus_assign_2_7(&sb, self->span.line);
+std__string__StringBuilder_plus_assign_2_7(&sb, self->line);
 std__string__StringBuilder_plus_assign_2_2(&sb, ':');
-std__string__StringBuilder_plus_assign_2_7(&sb, self->span.col);
+std__string__StringBuilder_plus_assign_2_7(&sb, self->col);
 }
 std__string__StringBuilder_plus_assign_2_2(&sb, '\n');
 }
 kobel_str raw_line = KOBEL_STR("");
 bool have_line = false;
-if (self->span.line > 0) {
+if (self->line > 0) {
 if (sources != NULL) {
-compiler__core__SourceFile* sf = ((self->span.file_id > 0) ? compiler__core__SourceMap_get_file(sources, self->span.file_id) : compiler__core__SourceMap_find_by_path(sources, self->file_path));
-if ((sf != NULL) && (self->span.line <= sf->lines.len)) {
-raw_line = compiler__core__SourceFile_line_text(sf, self->span.line);
+compiler__core__SourceFile* sf = ((self->file_id > 0) ? compiler__core__SourceMap_get_file(sources, self->file_id) : compiler__core__SourceMap_find_by_path(sources, self->file_path));
+if ((sf != NULL) && (self->line <= sf->lines.len)) {
+raw_line = compiler__core__SourceFile_line_text(sf, self->line);
 have_line = true;
 }
 }
@@ -6843,8 +6773,8 @@ if (std__filesystem__Path_exists(&fp)) {
 kobel_str content = std__filesystem__Path_read_text(&fp);
 if (!str_empty(content)) {
 std__collections__List_str lines = str_split_lines(content);
-if ((self->span.line >= 1) && (self->span.line <= lines.len)) {
-raw_line = std__collections__List_str_get(&lines, (self->span.line - 1));
+if ((self->line >= 1) && (self->line <= lines.len)) {
+raw_line = std__collections__List_str_get(&lines, (self->line - 1));
 have_line = true;
 }
 std__collections__List_str_free(&lines);
@@ -6853,7 +6783,7 @@ std__collections__List_str_free(&lines);
 }
 }
 if (have_line) {
-kobel_str line_str = usz_to_str(self->span.line);
+kobel_str line_str = usz_to_str(self->line);
 size_t gutter_w = ((line_str.len < 2) ? 2 : line_str.len);
 std__string__StringBuilder_plus_assign_2_2(&sb, ' ');
 if (gutter_w > line_str.len) {
@@ -6883,7 +6813,7 @@ std__string__StringBuilder_plus_assign_2(&sb, c_blue);
 std__string__StringBuilder_plus_assign_2_2(&sb, '|');
 std__string__StringBuilder_plus_assign_2(&sb, c_reset);
 std__string__StringBuilder_plus_assign_2_2(&sb, ' ');
-size_t limit = ((self->span.col > 1) ? (self->span.col - 1) : 0);
+size_t limit = ((self->col > 1) ? (self->col - 1) : 0);
 {
 size_t __for_e = limit;
 size_t __for_i = __for_e;
@@ -6918,7 +6848,7 @@ __for_i = (__for_i - 1);
 }
 kobel_str caret_color = ((self->severity == 1) ? c_yellow : c_red);
 std__string__StringBuilder_plus_assign_2(&sb, caret_color);
-size_t caret_len = ((self->span.length > 1) ? self->span.length : 1);
+size_t caret_len = ((self->length > 1) ? self->length : 1);
 std__string__StringBuilder_append_repeat(&sb, '^', caret_len);
 std__string__StringBuilder_plus_assign_2(&sb, c_reset);
 std__string__StringBuilder_plus_assign_2_2(&sb, '\n');
@@ -7813,7 +7743,7 @@ return src;
 }
 
 compiler__lexer__Lexer compiler__lexer__Lexer_init(kobel_str src, uint32_t file_id) {
-    return (compiler__lexer__Lexer){ compiler__lexer__strip_utf8_bom(src), 0, 1, 1, file_id, std__collections__List_str_init(4) };
+    return (compiler__lexer__Lexer){ compiler__lexer__strip_utf8_bom(src), 0, 1, 1, file_id, std__collections__List_compiler__core__Diagnostic_init(4) };
 }
 
 bool compiler__lexer__Lexer_is_end(compiler__lexer__Lexer* self) {
@@ -7859,7 +7789,7 @@ return true;
 }
 
 void compiler__lexer__Lexer_record_error(compiler__lexer__Lexer* self, size_t line, size_t col, kobel_str msg) {
-std__collections__List_str_plus_assign(&self->errors, kobel_concat(6, KOBEL_STR("Line "), usz_to_str(line), KOBEL_STR(", Column "), usz_to_str(col), KOBEL_STR(": "), msg));
+std__collections__List_compiler__core__Diagnostic_plus_assign(&self->errors, compiler__core__Diagnostic_error(compiler__core__Span_init(self->file_id, (uint32_t)line, (uint32_t)col, 1), KOBEL_STR(""), msg, KOBEL_STR("")));
 }
 
 compiler__lexer__Token compiler__lexer__Lexer_make_token(compiler__lexer__Lexer* self, compiler__lexer__TokenType type, size_t start_cursor, size_t start_col) {
@@ -9599,7 +9529,7 @@ has_lit = false;
 size_t h_start = (i + 2);
 intptr_t h_end = compiler__parser__interp_find_close(text, h_start);
 if (h_end < 0) {
-std__collections__List_str_plus_assign(&self->errors, KOBEL_STR("Unterminated interpolation hole in multiline string literal"));
+std__collections__List_compiler__core__Diagnostic_plus_assign(&self->errors, compiler__core__Diagnostic_error(compiler__core__Span_init(self->file_id, (uint32_t)line, (uint32_t)col, 1), KOBEL_STR(""), KOBEL_STR("Unterminated interpolation hole in multiline string literal"), KOBEL_STR("")));
 {
 compiler__ast__AstNode* __ret_tmp = compiler__parser__Parser_node(self, (compiler__ast__NodeData){ .tag = 5, .u.LiteralExpr = { 4, KOBEL_STR("\"\"") } }, line, col);
 std__string__StringBuilder_free(&lit);
@@ -9613,13 +9543,13 @@ compiler__parser__Parser sub = compiler__parser__Parser_init(sub_tokens);
 sub.arena = self->arena;
 compiler__ast__AstNode* hole = compiler__parser__Parser_parse_expression(&sub, 0);
 self->arena = sub.arena;
-if (!std__collections__List_str_empty(&sub.errors)) {
+if (!std__collections__List_compiler__core__Diagnostic_empty(&sub.errors)) {
 {
-size_t __for_n = std__collections__List_str_count(&sub.errors);
+size_t __for_n = std__collections__List_compiler__core__Diagnostic_count(&sub.errors);
 size_t __for_i = 0;
 while (__for_i < __for_n) {
-kobel_str msg = std__collections__List_str_at(&sub.errors, __for_i);
-std__collections__List_str_plus_assign(&self->errors, kobel_concat(2, KOBEL_STR("in interpolation hole: "), msg));
+compiler__core__Diagnostic d = std__collections__List_compiler__core__Diagnostic_at(&sub.errors, __for_i);
+std__collections__List_compiler__core__Diagnostic_plus_assign(&self->errors, compiler__core__Diagnostic_error(compiler__core__Diagnostic_span(&d), d.file_path, kobel_concat(2, KOBEL_STR("in interpolation hole: "), d.message), KOBEL_STR("")));
 __for_i = (__for_i + 1);
 }
 }
@@ -9678,7 +9608,7 @@ has_lit = false;
 size_t h_start = (i + 2);
 intptr_t h_end = compiler__parser__interp_find_close(text, h_start);
 if (h_end < 0) {
-std__collections__List_str_plus_assign(&self->errors, KOBEL_STR("Unterminated interpolation hole in string literal"));
+std__collections__List_compiler__core__Diagnostic_plus_assign(&self->errors, compiler__core__Diagnostic_error(compiler__core__Span_init(self->file_id, (uint32_t)line, (uint32_t)col, 1), KOBEL_STR(""), KOBEL_STR("Unterminated interpolation hole in string literal"), KOBEL_STR("")));
 {
 compiler__ast__AstNode* __ret_tmp = compiler__parser__Parser_node(self, (compiler__ast__NodeData){ .tag = 5, .u.LiteralExpr = { 4, text } }, line, col);
 std__string__StringBuilder_free(&lit);
@@ -9694,11 +9624,11 @@ compiler__ast__AstNode* hole = compiler__parser__Parser_parse_expression(&sub, 0
 self->arena = sub.arena;
 if (sub.errors.len > 0) {
 {
-size_t __for_n = std__collections__List_str_count(&sub.errors);
+size_t __for_n = std__collections__List_compiler__core__Diagnostic_count(&sub.errors);
 size_t __for_i = 0;
 while (__for_i < __for_n) {
-kobel_str msg = std__collections__List_str_at(&sub.errors, __for_i);
-std__collections__List_str_plus_assign(&self->errors, kobel_concat(2, KOBEL_STR("in interpolation hole: "), msg));
+compiler__core__Diagnostic d = std__collections__List_compiler__core__Diagnostic_at(&sub.errors, __for_i);
+std__collections__List_compiler__core__Diagnostic_plus_assign(&self->errors, compiler__core__Diagnostic_error(compiler__core__Diagnostic_span(&d), d.file_path, kobel_concat(2, KOBEL_STR("in interpolation hole: "), d.message), KOBEL_STR("")));
 __for_i = (__for_i + 1);
 }
 }
@@ -9722,7 +9652,7 @@ return __ret_tmp;
 }
 
 compiler__parser__Parser compiler__parser__Parser_init(std__collections__List_compiler__lexer__Token tokens) {
-compiler__parser__Parser p = (compiler__parser__Parser){ tokens, 0, std__memory__Arena_init(65536), std__collections__List_str_init(4), std__collections__List_ptr_compiler__ast__AstNode_init(4), 0 };
+compiler__parser__Parser p = (compiler__parser__Parser){ tokens, 0, std__memory__Arena_init(65536), std__collections__List_compiler__core__Diagnostic_init(4), std__collections__List_ptr_compiler__ast__AstNode_init(4), 0 };
 if (!std__collections__List_compiler__lexer__Token_empty(&tokens)) {
 compiler__lexer__Token first_tok = std__collections__List_compiler__lexer__Token_get(&tokens, 0);
 p.file_id = first_tok.span.file_id;
@@ -9790,7 +9720,8 @@ return false;
 }
 
 void compiler__parser__Parser_error(compiler__parser__Parser* self, compiler__lexer__Token tok, kobel_str msg) {
-std__collections__List_str_plus_assign(&self->errors, kobel_concat(6, KOBEL_STR("Line "), usz_to_str(tok.line), KOBEL_STR(", Column "), usz_to_str(tok.col), KOBEL_STR(": "), msg));
+compiler__core__Span span = compiler__core__Span_init(self->file_id, (uint32_t)tok.line, (uint32_t)tok.col, ((tok.span.length > 0) ? tok.span.length : 1));
+std__collections__List_compiler__core__Diagnostic_plus_assign(&self->errors, compiler__core__Diagnostic_init(0, span, KOBEL_STR(""), msg, KOBEL_STR("")));
 }
 
 compiler__lexer__Token compiler__parser__Parser_consume(compiler__parser__Parser* self, compiler__lexer__TokenType t, kobel_str msg) {
@@ -10237,7 +10168,7 @@ std__collections__List_str_plus_assign(&roots, proj);
 std__collections__List_str_plus_assign(&roots, std__filesystem__Path_join(&proj_p, KOBEL_STR("lib")).raw);
 std__collections__List_str_plus_assign(&roots, std__filesystem__Path_join(&proj_p, KOBEL_STR("src")).raw);
 }
-return (compiler__loader__ModuleLoader){ roots, std__collections__List_compiler__loader__LoadedModule_init(4), std__collections__List_compiler__loader__LoadedModule_init(4), std__collections__List_str_init(4), std__memory__Arena_init(524288), std__collections__HashSet_str_init(16), compiler__core__SourceMap_init() };
+return (compiler__loader__ModuleLoader){ roots, std__collections__List_compiler__loader__LoadedModule_init(4), std__collections__List_compiler__loader__LoadedModule_init(4), std__collections__List_compiler__core__Diagnostic_init(4), std__memory__Arena_init(524288), std__collections__HashSet_str_init(16), compiler__core__SourceMap_init() };
 }
 
 compiler__ast__AstNode* compiler__loader__ModuleLoader_module_decl(compiler__loader__ModuleLoader* self, std__collections__List_str path, kobel_str full_path, size_t line, size_t col) {
@@ -10260,13 +10191,15 @@ compiler__ast__AstNode* compiler__loader__ModuleLoader_parse_source(compiler__lo
 uint32_t file_id = compiler__core__SourceMap_add_file(&self->sources, path, source, module_name);
 compiler__lexer__Lexer lexer = compiler__lexer__Lexer_init(source, file_id);
 std__collections__List_compiler__lexer__Token tokens = compiler__lexer__Lexer_tokenize(&lexer);
-if (!std__collections__List_str_empty(&lexer.errors)) {
+if (!std__collections__List_compiler__core__Diagnostic_empty(&lexer.errors)) {
 {
-size_t __for_n = std__collections__List_str_count(&lexer.errors);
+size_t __for_n = std__collections__List_compiler__core__Diagnostic_count(&lexer.errors);
 size_t __for_i = 0;
 while (__for_i < __for_n) {
-kobel_str msg = std__collections__List_str_at(&lexer.errors, __for_i);
-std__collections__List_str_plus_assign(&self->errors, kobel_concat(3, path, KOBEL_STR(": "), msg));
+compiler__core__Diagnostic d = std__collections__List_compiler__core__Diagnostic_at(&lexer.errors, __for_i);
+compiler__core__Diagnostic diag = d;
+diag.file_path = path;
+std__collections__List_compiler__core__Diagnostic_plus_assign(&self->errors, diag);
 __for_i = (__for_i + 1);
 }
 }
@@ -10274,13 +10207,15 @@ return NULL;
 }
 compiler__parser__Parser parser = compiler__parser__Parser_init(tokens);
 compiler__ast__AstNode* prog = compiler__parser__Parser_parse_program(&parser);
-if (!std__collections__List_str_empty(&parser.errors)) {
+if (!std__collections__List_compiler__core__Diagnostic_empty(&parser.errors)) {
 {
-size_t __for_n = std__collections__List_str_count(&parser.errors);
+size_t __for_n = std__collections__List_compiler__core__Diagnostic_count(&parser.errors);
 size_t __for_i = 0;
 while (__for_i < __for_n) {
-kobel_str msg = std__collections__List_str_at(&parser.errors, __for_i);
-std__collections__List_str_plus_assign(&self->errors, kobel_concat(3, path, KOBEL_STR(": "), msg));
+compiler__core__Diagnostic d = std__collections__List_compiler__core__Diagnostic_at(&parser.errors, __for_i);
+compiler__core__Diagnostic diag = d;
+diag.file_path = path;
+std__collections__List_compiler__core__Diagnostic_plus_assign(&self->errors, diag);
 __for_i = (__for_i + 1);
 }
 }
@@ -10377,9 +10312,7 @@ std__collections__HashSet_str_plus_assign(&self->known, module_name);
 std__collections__List_compiler__loader__LoadedModule_plus_assign(&self->modules, (compiler__loader__LoadedModule){ module_name, KOBEL_STR(""), NULL, 0 });
 std__collections__List_compiler__loader__ModuleFile files = compiler__loader__ModuleLoader_find_module_files(self, module_name);
 if (std__collections__List_compiler__loader__ModuleFile_empty(&files)) {
-kobel_str prefix = (!str_empty(parent_mod) ? kobel_concat(2, parent_mod, KOBEL_STR(": ")) : KOBEL_STR(""));
-kobel_str msg = ((line > 0) ? kobel_concat(8, prefix, KOBEL_STR("Line "), usz_to_str(line), KOBEL_STR(", Column "), usz_to_str(col), KOBEL_STR(": Module '"), module_name, KOBEL_STR("' not found (searched the entry directory, -I roots, lib/, src/)")) : kobel_concat(4, prefix, KOBEL_STR("Module '"), module_name, KOBEL_STR("' not found (searched the entry directory, -I roots, lib/, src/)")));
-std__collections__List_str_plus_assign(&self->errors, msg);
+std__collections__List_compiler__core__Diagnostic_plus_assign(&self->errors, compiler__core__Diagnostic_error(compiler__core__Span_init(0, (uint32_t)line, (uint32_t)col, 1), parent_mod, kobel_concat(3, KOBEL_STR("Module '"), module_name, KOBEL_STR("' not found (searched the entry directory, -I roots, lib/, src/)")), KOBEL_STR("")));
 return;
 }
 {
@@ -10402,9 +10335,8 @@ declared = compiler__ast__NodeData__Program_declared_module_name(p);
 }
 }
 if (!str_empty(declared) && !kobel_streq(declared, module_name)) {
-kobel_str prefix = (!str_empty(parent_mod) ? kobel_concat(2, parent_mod, KOBEL_STR(": ")) : KOBEL_STR(""));
-kobel_str msg = ((line > 0) ? kobel_concat(12, prefix, KOBEL_STR("Line "), usz_to_str(line), KOBEL_STR(", Column "), usz_to_str(col), KOBEL_STR(": "), file.path, KOBEL_STR(": module declared as '"), declared, KOBEL_STR("' but imported as '"), module_name, KOBEL_STR("'")) : kobel_concat(7, prefix, file.path, KOBEL_STR(": module declared as '"), declared, KOBEL_STR("' but imported as '"), module_name, KOBEL_STR("'")));
-std__collections__List_str_plus_assign(&self->errors, msg);
+kobel_str context = (!str_empty(parent_mod) ? kobel_concat(3, KOBEL_STR(" (imported from '"), parent_mod, KOBEL_STR("')")) : KOBEL_STR(""));
+std__collections__List_compiler__core__Diagnostic_plus_assign(&self->errors, compiler__core__Diagnostic_error(compiler__core__Span_init(0, (uint32_t)line, (uint32_t)col, 1), file.path, kobel_concat(6, KOBEL_STR("module declared as '"), declared, KOBEL_STR("' but imported as '"), module_name, KOBEL_STR("'"), context), KOBEL_STR("")));
 {
 __for_i = (__for_i + 1);
 continue;
@@ -10532,16 +10464,22 @@ return rel;
 return target;
 }
 
-void compiler__driver__print_diagnostics(std__collections__List_str errors, kobel_str default_file, compiler__loader__ModuleLoader* loader) {
+void compiler__driver__print_diagnostics(std__collections__List_compiler__core__Diagnostic diags, kobel_str default_file, compiler__loader__ModuleLoader* loader) {
 std__collections__HashSet_str seen = std__collections__HashSet_str_init(16);
 int32_t printed_count = 0;
 compiler__core__SourceMap* src_map = ((loader != NULL) ? &loader->sources : NULL);
 {
-size_t __for_n = std__collections__List_str_count(&errors);
+size_t __for_n = std__collections__List_compiler__core__Diagnostic_count(&diags);
 size_t __for_i = 0;
 while (__for_i < __for_n) {
-kobel_str err = std__collections__List_str_at(&errors, __for_i);
-compiler__core__Diagnostic diag = compiler__core__Diagnostic_parse_legacy(err, default_file, 0, src_map);
+compiler__core__Diagnostic d = std__collections__List_compiler__core__Diagnostic_at(&diags, __for_i);
+compiler__core__Diagnostic diag = d;
+if ((diag.file_id > 0) && (loader != NULL)) {
+compiler__core__SourceFile* sf = compiler__core__SourceMap_get_file(&loader->sources, diag.file_id);
+if (sf != NULL) {
+diag.file_path = sf->path;
+}
+}
 diag.file_path = compiler__driver__resolve_file_path(diag.file_path, default_file, loader);
 kobel_str key = compiler__core__Diagnostic_key(&diag);
 if (std__collections__HashSet_str_contains(&seen, key)) {
@@ -10560,15 +10498,21 @@ std__io__println(summary);
 std__collections__HashSet_str_free(&seen);
 }
 
-void compiler__driver__print_warnings(std__collections__List_str warnings, kobel_str default_file, compiler__loader__ModuleLoader* loader) {
+void compiler__driver__print_warnings(std__collections__List_compiler__core__Diagnostic warnings, kobel_str default_file, compiler__loader__ModuleLoader* loader) {
 std__collections__HashSet_str seen = std__collections__HashSet_str_init(16);
 compiler__core__SourceMap* src_map = ((loader != NULL) ? &loader->sources : NULL);
 {
-size_t __for_n = std__collections__List_str_count(&warnings);
+size_t __for_n = std__collections__List_compiler__core__Diagnostic_count(&warnings);
 size_t __for_i = 0;
 while (__for_i < __for_n) {
-kobel_str w = std__collections__List_str_at(&warnings, __for_i);
-compiler__core__Diagnostic diag = compiler__core__Diagnostic_parse_legacy(w, default_file, 1, src_map);
+compiler__core__Diagnostic w = std__collections__List_compiler__core__Diagnostic_at(&warnings, __for_i);
+compiler__core__Diagnostic diag = w;
+if ((diag.file_id > 0) && (loader != NULL)) {
+compiler__core__SourceFile* sf = compiler__core__SourceMap_get_file(&loader->sources, diag.file_id);
+if (sf != NULL) {
+diag.file_path = sf->path;
+}
+}
 diag.file_path = compiler__driver__resolve_file_path(diag.file_path, default_file, loader);
 kobel_str key = compiler__core__Diagnostic_key(&diag);
 if (std__collections__HashSet_str_contains(&seen, key)) {
@@ -13953,12 +13897,7 @@ return str_mangle_symbol(self->current_module, name);
 }
 
 void compiler__semantic__resolution__TypeResolver_report_error(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node, kobel_str msg) {
-kobel_str loc = kobel_concat(5, KOBEL_STR("Line "), usz_to_str(node->line), KOBEL_STR(", Column "), usz_to_str(node->col), KOBEL_STR(": "));
-if (self->current_module.len > 0) {
-std__collections__List_str_plus_assign(&self->errors, kobel_concat(4, self->current_module, KOBEL_STR(": "), loc, msg));
-} else {
-std__collections__List_str_plus_assign(&self->errors, kobel_concat(2, loc, msg));
-}
+std__collections__List_compiler__core__Diagnostic_plus_assign(&self->errors, compiler__core__Diagnostic_error(node->span, self->current_module, msg, KOBEL_STR("")));
 }
 
 compiler__semantic__types__Type* compiler__semantic__resolution__TypeResolver_resolve_ast_type(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node) {
@@ -14635,7 +14574,7 @@ return NULL;
 }
 
 compiler__semantic__declaration__DeclarationCollector compiler__semantic__declaration__DeclarationCollector_init(void) {
-    return (compiler__semantic__declaration__DeclarationCollector){ compiler__semantic__symbols__SymbolTable_init(), std__memory__Arena_init(65536), KOBEL_STR(""), std__collections__List_str_init(4), false, NULL, std__collections__List_str_init(4), std__collections__List_ptr_compiler__semantic__types__Type_init(4), NULL, NULL };
+    return (compiler__semantic__declaration__DeclarationCollector){ compiler__semantic__symbols__SymbolTable_init(), std__memory__Arena_init(65536), KOBEL_STR(""), std__collections__List_compiler__core__Diagnostic_init(4), false, NULL, std__collections__List_str_init(4), std__collections__List_ptr_compiler__semantic__types__Type_init(4), NULL, NULL };
 }
 
 compiler__semantic__types__PrimTypes* compiler__semantic__declaration__DeclarationCollector_prims(compiler__semantic__declaration__DeclarationCollector* self) {
@@ -14664,12 +14603,7 @@ return str_mangle_symbol(self->current_module, name);
 }
 
 void compiler__semantic__declaration__DeclarationCollector_report_error(compiler__semantic__declaration__DeclarationCollector* self, compiler__ast__AstNode* node, kobel_str msg) {
-kobel_str loc = kobel_concat(5, KOBEL_STR("Line "), usz_to_str(node->line), KOBEL_STR(", Column "), usz_to_str(node->col), KOBEL_STR(": "));
-if (self->current_module.len > 0) {
-std__collections__List_str_plus_assign(&self->errors, kobel_concat(4, self->current_module, KOBEL_STR(": "), loc, msg));
-} else {
-std__collections__List_str_plus_assign(&self->errors, kobel_concat(2, loc, msg));
-}
+std__collections__List_compiler__core__Diagnostic_plus_assign(&self->errors, compiler__core__Diagnostic_error(node->span, self->current_module, msg, KOBEL_STR("")));
 }
 
 compiler__semantic__resolution__TypeResolver compiler__semantic__declaration__DeclarationCollector_to_resolver(compiler__semantic__declaration__DeclarationCollector* self) {
@@ -19384,19 +19318,19 @@ compiler__semantic__checker__BodyChecker compiler__semantic__checker__BodyChecke
 std__memory__Arena arena = std__memory__Arena_init(65536);
 compiler__semantic__declaration__DeclarationCollector decl_p = compiler__semantic__declaration__DeclarationCollector_init();
 compiler__semantic__types__Type* none_ty = compiler__semantic__types__PrimTypes_t_none(decl_p.symtab.prims);
-return (compiler__semantic__checker__BodyChecker){ decl_p.symtab, arena, none_ty, 0, std__collections__List_str_init(4), NULL, false, 0, std__collections__List_ptr_compiler__ast__AstNode_init(4), false, false, 0, compiler__semantic__declaration__DeclarationCollector_init(), false, false, false, false, NULL, std__collections__List_str_init(4), std__collections__List_ptr_compiler__semantic__types__Type_init(4), false, std__collections__List_str_init(4), KOBEL_STR("") };
+return (compiler__semantic__checker__BodyChecker){ decl_p.symtab, arena, none_ty, 0, std__collections__List_compiler__core__Diagnostic_init(4), NULL, false, 0, std__collections__List_ptr_compiler__ast__AstNode_init(4), false, false, 0, compiler__semantic__declaration__DeclarationCollector_init(), false, false, false, false, NULL, std__collections__List_str_init(4), std__collections__List_ptr_compiler__semantic__types__Type_init(4), false, std__collections__List_compiler__core__Diagnostic_init(4), KOBEL_STR("") };
 }
 
 compiler__semantic__checker__BodyChecker compiler__semantic__checker__BodyChecker_init_1(compiler__semantic__symbols__SymbolTable symtab) {
 std__memory__Arena arena = std__memory__Arena_init(65536);
 compiler__semantic__types__Type* none_ty = compiler__semantic__types__PrimTypes_t_none(symtab.prims);
-return (compiler__semantic__checker__BodyChecker){ symtab, arena, none_ty, 0, std__collections__List_str_init(4), NULL, true, 0, std__collections__List_ptr_compiler__ast__AstNode_init(4), false, false, 0, compiler__semantic__declaration__DeclarationCollector_init(), false, false, false, false, NULL, std__collections__List_str_init(4), std__collections__List_ptr_compiler__semantic__types__Type_init(4), false, std__collections__List_str_init(4), KOBEL_STR("") };
+return (compiler__semantic__checker__BodyChecker){ symtab, arena, none_ty, 0, std__collections__List_compiler__core__Diagnostic_init(4), NULL, true, 0, std__collections__List_ptr_compiler__ast__AstNode_init(4), false, false, 0, compiler__semantic__declaration__DeclarationCollector_init(), false, false, false, false, NULL, std__collections__List_str_init(4), std__collections__List_ptr_compiler__semantic__types__Type_init(4), false, std__collections__List_compiler__core__Diagnostic_init(4), KOBEL_STR("") };
 }
 
 compiler__semantic__checker__BodyChecker compiler__semantic__checker__BodyChecker_init_2(compiler__semantic__symbols__SymbolTable symtab, compiler__semantic__declaration__DeclarationCollector decl) {
 std__memory__Arena arena = std__memory__Arena_init(65536);
 compiler__semantic__types__Type* none_ty = compiler__semantic__types__PrimTypes_t_none(symtab.prims);
-compiler__semantic__checker__BodyChecker bc = (compiler__semantic__checker__BodyChecker){ symtab, arena, none_ty, 0, std__collections__List_str_init(4), NULL, true, 0, std__collections__List_ptr_compiler__ast__AstNode_init(4), false, false, 0, compiler__semantic__declaration__DeclarationCollector_init(), false, false, false, false, NULL, std__collections__List_str_init(4), std__collections__List_ptr_compiler__semantic__types__Type_init(4), false, std__collections__List_str_init(4), KOBEL_STR("") };
+compiler__semantic__checker__BodyChecker bc = (compiler__semantic__checker__BodyChecker){ symtab, arena, none_ty, 0, std__collections__List_compiler__core__Diagnostic_init(4), NULL, true, 0, std__collections__List_ptr_compiler__ast__AstNode_init(4), false, false, 0, compiler__semantic__declaration__DeclarationCollector_init(), false, false, false, false, NULL, std__collections__List_str_init(4), std__collections__List_ptr_compiler__semantic__types__Type_init(4), false, std__collections__List_compiler__core__Diagnostic_init(4), KOBEL_STR("") };
 bc.decl = decl;
 bc.has_decl = true;
 bc.symtab.prims = decl.symtab.prims;
@@ -19458,21 +19392,12 @@ return ty;
 }
 
 void compiler__semantic__checker__BodyChecker_report_warning(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* node, kobel_str msg) {
-kobel_str loc = ((node != NULL) ? kobel_concat(6, KOBEL_STR("Line "), usz_to_str(node->line), KOBEL_STR(", Column "), usz_to_str(node->col), KOBEL_STR(": "), msg) : msg);
-if (self->symtab.current_module.len > 0) {
-std__collections__List_str_plus_assign(&self->warnings, kobel_concat(3, self->symtab.current_module, KOBEL_STR(": "), loc));
-} else {
-std__collections__List_str_plus_assign(&self->warnings, loc);
-}
+compiler__core__Span span = ((node != NULL) ? (*node).span : compiler__core__Span_init(0, 0, 0, 1));
+std__collections__List_compiler__core__Diagnostic_plus_assign(&self->warnings, compiler__core__Diagnostic_warning(span, self->symtab.current_module, msg, KOBEL_STR("")));
 }
 
 void compiler__semantic__checker__BodyChecker_report_error(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* node, kobel_str msg) {
-kobel_str loc = ((node != NULL) ? kobel_concat(6, KOBEL_STR("Line "), usz_to_str(node->line), KOBEL_STR(", Column "), usz_to_str(node->col), KOBEL_STR(": "), msg) : msg);
-if (self->symtab.current_module.len > 0) {
-std__collections__List_str_plus_assign(&self->errors, kobel_concat(3, self->symtab.current_module, KOBEL_STR(": "), loc));
-} else {
-std__collections__List_str_plus_assign(&self->errors, loc);
-}
+std__collections__List_compiler__core__Diagnostic_plus_assign(&self->errors, compiler__core__Diagnostic_error(node->span, self->symtab.current_module, msg, KOBEL_STR("")));
 }
 
 void compiler__semantic__checker__BodyChecker_lower_program(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* program_node) {
@@ -21649,11 +21574,11 @@ self->symtab.sem = decl_p.symtab.sem;
 self->decl = decl_p;
 self->has_decl = true;
 {
-size_t __for_n = std__collections__List_str_count(&decl_p.errors);
+size_t __for_n = std__collections__List_compiler__core__Diagnostic_count(&decl_p.errors);
 size_t __for_i = 0;
 while (__for_i < __for_n) {
-kobel_str msg = std__collections__List_str_at(&decl_p.errors, __for_i);
-std__collections__List_str_plus_assign(&self->errors, msg);
+compiler__core__Diagnostic d = std__collections__List_compiler__core__Diagnostic_at(&decl_p.errors, __for_i);
+std__collections__List_compiler__core__Diagnostic_plus_assign(&self->errors, d);
 __for_i = (__for_i + 1);
 }
 }
@@ -22035,7 +21960,7 @@ compiler__semantic__checker__BodyChecker_leave_module(self, prev_mod);
 if (self->infer_blocked) {
 self->infer_blocked = saved_blocked;
 while (self->errors.len > err_mark) {
-std__collections__List_str_pop(&self->errors);
+std__collections__List_compiler__core__Diagnostic_pop(&self->errors);
 }
 return false;
 }
@@ -25288,7 +25213,7 @@ if (compiler__loader__ModuleLoader_find_module(&loader, KOBEL_STR("std.string"))
 compiler__loader__ModuleLoader_ensure_module(&loader, KOBEL_STR("std.string"), 0, 0, KOBEL_STR(""));
 }
 compiler__ast__AstNode* loaded_prog = compiler__loader__ModuleLoader_load_program(&loader, input_path, src);
-if (!std__collections__List_str_empty(&loader.errors)) {
+if (!std__collections__List_compiler__core__Diagnostic_empty(&loader.errors)) {
 compiler__driver__print_diagnostics(loader.errors, input_path, &loader);
 return 1;
 }
@@ -25305,7 +25230,7 @@ std__io__println(KOBEL_STR("[2/4] Semantic analysis (declarations)..."));
 }
 compiler__semantic__declaration__DeclarationCollector decl_p = compiler__semantic__declaration__DeclarationCollector_init();
 compiler__semantic__declaration__DeclarationCollector_collect_program(&decl_p, prog);
-if (!std__collections__List_str_empty(&decl_p.errors)) {
+if (!std__collections__List_compiler__core__Diagnostic_empty(&decl_p.errors)) {
 compiler__driver__print_diagnostics(decl_p.errors, input_path, &loader);
 return 1;
 }
@@ -25314,10 +25239,10 @@ std__io__println(KOBEL_STR("[3/4] Semantic analysis (bodies)..."));
 }
 compiler__semantic__checker__BodyChecker body_p = compiler__semantic__checker__BodyChecker_init_2(decl_p.symtab, decl_p);
 compiler__semantic__checker__BodyChecker_check_program(&body_p, prog);
-if (!std__collections__List_str_empty(&body_p.warnings) && !self->quiet) {
+if (!std__collections__List_compiler__core__Diagnostic_empty(&body_p.warnings) && !self->quiet) {
 compiler__driver__print_warnings(body_p.warnings, input_path, &loader);
 }
-if (!std__collections__List_str_empty(&body_p.errors)) {
+if (!std__collections__List_compiler__core__Diagnostic_empty(&body_p.errors)) {
 compiler__driver__print_diagnostics(body_p.errors, input_path, &loader);
 return 1;
 }
@@ -26930,7 +26855,7 @@ kobel_str normalized = fmt__strip_cr(src);
 compiler__lexer__Lexer lex = compiler__lexer__Lexer_init(normalized, 0);
 compiler__parser__Parser parser = compiler__parser__Parser_init(compiler__lexer__Lexer_tokenize(&lex));
 compiler__parser__Parser_parse_program(&parser);
-return std__collections__List_str_empty(&parser.errors);
+return std__collections__List_compiler__core__Diagnostic_empty(&parser.errors);
 }
 
 kobel_str fmt__format_source(kobel_str src, fmt__FormatOptions options) {
@@ -26946,98 +26871,17 @@ fmt__Formatter_format_program(&fmt, program);
 return fmt__Formatter_to_str(&fmt);
 }
 
-lsp__LspDiagnostic lsp__LspDiagnostic_init(kobel_str err_str, kobel_str source) {
-size_t line = 1;
-size_t col = 1;
-size_t msg_start = 0;
-kobel_str line_tag = KOBEL_STR("Line ");
-size_t line_idx = 0;
-bool found_line = false;
-intptr_t l_pos = str_index_of(err_str, line_tag);
-if (l_pos >= 0) {
-line_idx = (((size_t)l_pos) + line_tag.len);
-found_line = true;
-}
-if (found_line) {
-size_t n = 0;
-size_t idx = line_idx;
-while ((idx < err_str.len) && char_is_digit(err_str.data[idx])) {
-n = ((n * 10) + (((int32_t)(uint8_t)(err_str.data[idx])) - 48));
-idx++;
-}
-if (n > 0) {
-line = n;
-}
-kobel_str col_tag = KOBEL_STR("Column ");
-size_t col_idx = 0;
-bool found_col = false;
-kobel_str rest = kobel_slice(err_str, idx, err_str.len);
-intptr_t c_pos = str_index_of(rest, col_tag);
-if (c_pos >= 0) {
-col_idx = ((idx + ((size_t)c_pos)) + col_tag.len);
-found_col = true;
-}
-if (found_col) {
-size_t cn = 0;
-size_t c_idx = col_idx;
-while ((c_idx < err_str.len) && char_is_digit(err_str.data[c_idx])) {
-cn = ((cn * 10) + (((int32_t)(uint8_t)(err_str.data[c_idx])) - 48));
-c_idx++;
-}
-if (cn > 0) {
-col = cn;
-}
-while ((c_idx < err_str.len) && ((err_str.data[c_idx] == ':') || (err_str.data[c_idx] == ' '))) {
-c_idx++;
-}
-msg_start = c_idx;
-}
-}
-kobel_str actual_msg = ((msg_start < err_str.len) ? kobel_slice(err_str, msg_start, err_str.len) : err_str);
-size_t l0 = ((line > 0) ? (line - 1) : 0);
+lsp__LspDiagnostic lsp__LspDiagnostic_init(compiler__core__Diagnostic diag, kobel_str source) {
+size_t line = ((diag.line > 0) ? diag.line : 1);
+size_t col = ((diag.col > 0) ? diag.col : 1);
+size_t l0 = (line - 1);
 size_t c0 = ((col > 0) ? (col - 1) : 0);
 size_t end_col = (c0 + 1);
-if (source.len > 0) {
-size_t cur_line = 0;
-size_t line_start = 0;
-size_t pos = 0;
-while ((pos < source.len) && (cur_line < l0)) {
-if (source.data[pos] == '\n') {
-cur_line++;
-line_start = (pos + 1);
+if (diag.length > 1) {
+end_col = (c0 + ((size_t)diag.length));
 }
-pos++;
-}
-if ((cur_line == l0) && (line_start < source.len)) {
-size_t line_end = line_start;
-while (((line_end < source.len) && (source.data[line_end] != '\n')) && (source.data[line_end] != '\r')) {
-line_end++;
-}
-size_t char_idx = (line_start + c0);
-if (char_idx < line_end) {
-if ((((source.data[char_idx] == 'u') && ((char_idx + 3) <= line_end)) && (source.data[(char_idx + 1)] == 's')) && (source.data[(char_idx + 2)] == 'e')) {
-size_t s_idx = char_idx;
-while ((s_idx < line_end) && (source.data[s_idx] != ';')) {
-s_idx++;
-}
-if ((s_idx < line_end) && (source.data[s_idx] == ';')) {
-s_idx++;
-}
-end_col = (s_idx - line_start);
-} else if (char_is_alphanumeric(source.data[char_idx]) || (source.data[char_idx] == '_')) {
-size_t w_idx = char_idx;
-while ((w_idx < line_end) && (char_is_alphanumeric(source.data[w_idx]) || (source.data[w_idx] == '_'))) {
-w_idx++;
-}
-end_col = (w_idx - line_start);
-}
-}
-}
-}
-if (end_col <= c0) {
-end_col = (c0 + 1);
-}
-return (lsp__LspDiagnostic){ l0, c0, l0, end_col, 1, actual_msg };
+int32_t severity = ((diag.severity == 1) ? 2 : 1);
+return (lsp__LspDiagnostic){ l0, c0, l0, end_col, severity, diag.message };
 }
 
 lsp__JsonValue* lsp__LspDiagnostic_to_json(lsp__LspDiagnostic* self) {
@@ -27092,24 +26936,8 @@ return true;
 return false;
 }
 
-bool lsp__is_error_for_doc(kobel_str err_str, kobel_str doc_mod, kobel_str doc_path) {
-intptr_t line_idx = str_index_of(err_str, KOBEL_STR("Line "));
-if (line_idx < 0) {
-intptr_t colon_idx = str_index_of(err_str, KOBEL_STR(":"));
-if (colon_idx < 0) {
-return true;
-}
-kobel_str prefix = kobel_slice(err_str, 0, colon_idx);
-return lsp__match_doc_prefix(prefix, doc_mod, doc_path);
-}
-if (line_idx == 0) {
-return true;
-}
-kobel_str prefix = kobel_slice(err_str, 0, line_idx);
-while (str_ends_with(prefix, KOBEL_STR(" ")) || str_ends_with(prefix, KOBEL_STR(":"))) {
-prefix = str_strip_suffix(prefix, 1);
-}
-return lsp__match_doc_prefix(prefix, doc_mod, doc_path);
+bool lsp__is_error_for_doc(compiler__core__Diagnostic diag, kobel_str doc_mod, kobel_str doc_path) {
+return lsp__match_doc_prefix(diag.file_path, doc_mod, doc_path);
 }
 
 compiler__lexer__Token lsp__find_token_at(std__collections__List_compiler__lexer__Token tokens, size_t target_line, size_t target_col) {
@@ -27165,11 +26993,11 @@ compiler__parser__Parser parser = compiler__parser__Parser_init(tokens);
 compiler__ast__AstNode* prog = compiler__parser__Parser_parse_program(&parser);
 if (parser.errors.len > 0) {
 {
-size_t __for_n = std__collections__List_str_count(&parser.errors);
+size_t __for_n = std__collections__List_compiler__core__Diagnostic_count(&parser.errors);
 size_t __for_i = 0;
 while (__for_i < __for_n) {
-kobel_str err_msg = std__collections__List_str_at(&parser.errors, __for_i);
-std__collections__List_lsp__LspDiagnostic_plus_assign(&diagnostics, lsp__LspDiagnostic_init(err_msg, source));
+compiler__core__Diagnostic d = std__collections__List_compiler__core__Diagnostic_at(&parser.errors, __for_i);
+std__collections__List_lsp__LspDiagnostic_plus_assign(&diagnostics, lsp__LspDiagnostic_init(d, source));
 __for_i = (__for_i + 1);
 }
 }
@@ -27203,12 +27031,12 @@ compiler__loader__ModuleLoader_ensure_module(&loader, KOBEL_STR("std.string"), 0
 compiler__ast__AstNode* full_prog = compiler__loader__ModuleLoader_load_program(&loader, path, source);
 if (loader.errors.len > 0) {
 {
-size_t __for_n = std__collections__List_str_count(&loader.errors);
+size_t __for_n = std__collections__List_compiler__core__Diagnostic_count(&loader.errors);
 size_t __for_i = 0;
 while (__for_i < __for_n) {
-kobel_str err_msg = std__collections__List_str_at(&loader.errors, __for_i);
-if (lsp__is_error_for_doc(err_msg, doc_mod, path)) {
-std__collections__List_lsp__LspDiagnostic_plus_assign(&diagnostics, lsp__LspDiagnostic_init(err_msg, source));
+compiler__core__Diagnostic d = std__collections__List_compiler__core__Diagnostic_at(&loader.errors, __for_i);
+if (lsp__is_error_for_doc(d, doc_mod, path)) {
+std__collections__List_lsp__LspDiagnostic_plus_assign(&diagnostics, lsp__LspDiagnostic_init(d, source));
 }
 __for_i = (__for_i + 1);
 }
@@ -27219,12 +27047,12 @@ compiler__semantic__declaration__DeclarationCollector decl_p = compiler__semanti
 compiler__semantic__declaration__DeclarationCollector_collect_program(&decl_p, full_prog);
 if (decl_p.errors.len > 0) {
 {
-size_t __for_n = std__collections__List_str_count(&decl_p.errors);
+size_t __for_n = std__collections__List_compiler__core__Diagnostic_count(&decl_p.errors);
 size_t __for_i = 0;
 while (__for_i < __for_n) {
-kobel_str err_msg = std__collections__List_str_at(&decl_p.errors, __for_i);
-if (lsp__is_error_for_doc(err_msg, doc_mod, path)) {
-std__collections__List_lsp__LspDiagnostic_plus_assign(&diagnostics, lsp__LspDiagnostic_init(err_msg, source));
+compiler__core__Diagnostic d = std__collections__List_compiler__core__Diagnostic_at(&decl_p.errors, __for_i);
+if (lsp__is_error_for_doc(d, doc_mod, path)) {
+std__collections__List_lsp__LspDiagnostic_plus_assign(&diagnostics, lsp__LspDiagnostic_init(d, source));
 }
 __for_i = (__for_i + 1);
 }
@@ -27234,12 +27062,12 @@ compiler__semantic__checker__BodyChecker body_p = compiler__semantic__checker__B
 compiler__semantic__checker__BodyChecker_check_program(&body_p, full_prog);
 if (body_p.errors.len > 0) {
 {
-size_t __for_n = std__collections__List_str_count(&body_p.errors);
+size_t __for_n = std__collections__List_compiler__core__Diagnostic_count(&body_p.errors);
 size_t __for_i = 0;
 while (__for_i < __for_n) {
-kobel_str err_msg = std__collections__List_str_at(&body_p.errors, __for_i);
-if (lsp__is_error_for_doc(err_msg, doc_mod, path)) {
-std__collections__List_lsp__LspDiagnostic_plus_assign(&diagnostics, lsp__LspDiagnostic_init(err_msg, source));
+compiler__core__Diagnostic d = std__collections__List_compiler__core__Diagnostic_at(&body_p.errors, __for_i);
+if (lsp__is_error_for_doc(d, doc_mod, path)) {
+std__collections__List_lsp__LspDiagnostic_plus_assign(&diagnostics, lsp__LspDiagnostic_init(d, source));
 }
 __for_i = (__for_i + 1);
 }
@@ -32534,7 +32362,7 @@ __for_go = (__for_i > __for_e);
 }
 while (__for_go) {
 size_t i = __for_i;
-if (kobel_memeq(&self->data[i], &value, 56)) {
+if (kobel_memeq(&self->data[i], &value, 88)) {
 return i;
 }
 if (__for_up) {
@@ -32560,7 +32388,7 @@ return -1;
 }
 size_t i = (self->len - 1);
 while (true) {
-if (kobel_memeq(&self->data[i], &value, 56)) {
+if (kobel_memeq(&self->data[i], &value, 88)) {
 return i;
 }
 if (i == 0) {
@@ -32596,7 +32424,7 @@ __for_go = (__for_i > __for_e);
 }
 while (__for_go) {
 size_t i = __for_i;
-if (kobel_memeq(&self->data[i], &value, 56)) {
+if (kobel_memeq(&self->data[i], &value, 88)) {
 removed++;
 } else {
 if (write != i) {
@@ -48561,11 +48389,11 @@ bool* std__memory__Heap_create_array_bool(size_t count) {
 }
 
 compiler__core__Diagnostic* std__memory__Heap_create_array_compiler__core__Diagnostic(size_t count) {
-    return (compiler__core__Diagnostic*)malloc((count * 56));
+    return (compiler__core__Diagnostic*)malloc((count * 88));
 }
 
 compiler__core__Diagnostic* std__memory__Heap_resize_compiler__core__Diagnostic(compiler__core__Diagnostic* ptr, size_t count) {
-    return (compiler__core__Diagnostic*)realloc((uint8_t*)ptr, (count * 56));
+    return (compiler__core__Diagnostic*)realloc((uint8_t*)ptr, (count * 88));
 }
 
 compiler__core__SourceFile* std__memory__Heap_create_array_compiler__core__SourceFile(size_t count) {

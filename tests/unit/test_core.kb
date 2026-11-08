@@ -76,16 +76,11 @@ fn test_diagnostics(): bool {
 		return false;
 	}
 
-	val legacy = Diagnostic.parse_legacy(
-		"sample: Line 2, Column 14: Legacy error message",
-		"src/default.kb",
-		Severity.ERROR,
-		&sm
-	);
-	if (legacy.file_path != "src/sample.kb" || legacy.span.line != 2 || legacy.span.col != 14) {
+	val structured = Diagnostic.error(Span(fid, 3, 1, 1), "src/sample.kb", "Structured error");
+	if (structured.key() != "src/sample.kb:3:1:Structured error") {
 		return false;
 	}
-	if (legacy.message != "Legacy error message") {
+	if (!("Structured error" in structured.render(&sm))) {
 		return false;
 	}
 
