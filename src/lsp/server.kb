@@ -41,12 +41,18 @@ fn publish_doc_diagnostics(uri: str, text: str, workspace_root: str) {
 // Main LSP Server Event Loop
 // ============================================================================
 
-pub fn run_server(): i32 {
-	init_stdio();
+pub struct LanguageServer {
+	pub docs: DocumentStore,
+	pub is_shutdown: bool = false,
+	pub workspace_root: str = ""
+}
 
-	var docs = DocumentStore();
-	var is_shutdown = false;
-	var workspace_root = "";
+impl LanguageServer {
+
+	pub init() => Self(DocumentStore(), false, "");
+
+	pub fn run(var self): i32 {
+		init_stdio();
 
 	while (true) {
 		val raw_msg = read_message();
@@ -63,15 +69,15 @@ pub fn run_server(): i32 {
 			Method.INITIALIZE.value -> {
 				val root_uri = params.get_str("rootUri", "");
 				if (!root_uri.empty()) {
-					workspace_root = uri_to_path(root_uri);
+					self.workspace_root = uri_to_path(root_uri);
 				} else {
 					val root_path = params.get_str("rootPath", "");
 					if (!root_path.empty()) {
-						workspace_root = root_path;
+						self.workspace_root = root_path;
 					} else {
 						val wf = params.get_arr("workspaceFolders");
 						val wf_uri = wf.at(0)?.get_str("uri", "") ?: "";
-						if (!wf_uri.empty()) workspace_root = uri_to_path(wf_uri);
+						if (!wf_uri.empty()) self.workspace_root = uri_to_path(wf_uri);
 					}
 				}
 
@@ -112,12 +118,12 @@ pub fn run_server(): i32 {
 			}
 
 			Method.SHUTDOWN.value -> {
-				is_shutdown = true;
+				self.is_shutdown = true;
 				send_response(id, JsonValue.null_val());
 			}
 
 			Method.EXIT.value -> {
-				if (is_shutdown) Process.exit(0);
+				if (self.is_shutdown) Process.exit(0);
 				else Process.exit(1);
 			}
 
@@ -127,8 +133,8 @@ pub fn run_server(): i32 {
 				val text = text_doc.get_str("text", "");
 				val version = text_doc.get_num("version", 0);
 
-				docs.set(uri, text, version);
-				publish_doc_diagnostics(uri, text, workspace_root);
+				self.docs.set(uri, text, version);
+				publish_doc_diagnostics(uri, text, self.workspace_root);
 			}
 
 			Method.DID_CHANGE.value -> {
@@ -138,15 +144,15 @@ pub fn run_server(): i32 {
 				val changes = params.get_arr("contentChanges");
 				val new_text = changes.at(0)?.get_str("text", "") ?: "";
 				if (!new_text.empty()) {
-					docs.set(uri, new_text, version);
-					publish_doc_diagnostics(uri, new_text, workspace_root);
+					self.docs.set(uri, new_text, version);
+					publish_doc_diagnostics(uri, new_text, self.workspace_root);
 				}
 			}
 
 			Method.DID_CLOSE.value -> {
 				val text_doc = params.get_obj("textDocument");
 				val uri = text_doc.get_str("uri", "");
-				docs.remove(uri);
+				self.docs.remove(uri);
 
 				// Clear diagnostics when file is closed
 				val p = JsonValue.obj();
@@ -162,9 +168,9 @@ pub fn run_server(): i32 {
 				val line = pos.get_num("line", 0) as usz;
 				val char_col = pos.get_num("character", 0) as usz;
 
-				val doc = docs[uri];
+				val doc = self.docs[uri];
 				if (!doc.text.empty()) {
-					val analysis = AnalysisResult(doc.path, doc.text, workspace_root);
+					val analysis = AnalysisResult(doc.path, doc.text, self.workspace_root);
 					val h = analysis.hover_at(line, char_col);
 					send_response(id, h);
 				} else {
@@ -179,9 +185,9 @@ pub fn run_server(): i32 {
 				val line = pos.get_num("line", 0) as usz;
 				val char_col = pos.get_num("character", 0) as usz;
 
-				val doc = docs[uri];
+				val doc = self.docs[uri];
 				if (!doc.text.empty()) {
-					val analysis = AnalysisResult(doc.path, doc.text, workspace_root);
+					val analysis = AnalysisResult(doc.path, doc.text, self.workspace_root);
 					val def_res = analysis.definition_at(uri, line, char_col);
 					send_response(id, def_res);
 				} else {
@@ -192,7 +198,7 @@ pub fn run_server(): i32 {
 			Method.FORMATTING.value -> {
 				val text_doc = params.get_obj("textDocument");
 				val uri = text_doc.get_str("uri", "");
-				val doc = docs[uri];
+				val doc = self.docs[uri];
 				if (!doc.text.empty()) {
 					val edits = AnalysisResult.format_document(doc.text);
 					send_response(id, edits);
@@ -204,7 +210,7 @@ pub fn run_server(): i32 {
 			Method.DOCUMENT_SYMBOL.value -> {
 				val text_doc = params.get_obj("textDocument");
 				val uri = text_doc.get_str("uri", "");
-				val doc = docs[uri];
+				val doc = self.docs[uri];
 				if (!doc.text.empty()) {
 					val syms = AnalysisResult.document_symbols(doc.text);
 					send_response(id, syms);
@@ -216,13 +222,13 @@ pub fn run_server(): i32 {
 			Method.COMPLETION.value -> {
 				val text_doc = params.get_obj("textDocument");
 				val uri = text_doc.get_str("uri", "");
-				val doc = docs[uri];
+				val doc = self.docs[uri];
 				if (!doc.text.empty()) {
-					val analysis = AnalysisResult(doc.path, doc.text, workspace_root);
+					val analysis = AnalysisResult(doc.path, doc.text, self.workspace_root);
 					val items = analysis.complete_at();
 					send_response(id, items);
 				} else {
-					val empty_analysis = AnalysisResult("", "", workspace_root);
+					val empty_analysis = AnalysisResult("", "", self.workspace_root);
 					val items = empty_analysis.complete_at();
 					send_response(id, items);
 				}
@@ -236,5 +242,12 @@ pub fn run_server(): i32 {
 		}
 	}
 
-	return 0;
+		return 0;
+	}
+
+}
+
+pub fn run_server(): i32 {
+	var srv = LanguageServer();
+	return srv.run();
 }

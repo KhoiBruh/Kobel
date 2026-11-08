@@ -1,0 +1,66 @@
+mod compiler.driver;
+
+use std.io.*;
+use std.filesystem.*;
+use std.collections.*;
+use std.memory.Arena;
+
+use config.ProjectConfig;
+
+/*
+ * ============================================================================
+ * compiler.driver.compiler — Central Compiler Orchestrator
+ *
+ * `Compiler` serves as the primary entry point and facade for the Kobel
+ * compilation subsystem. It owns the compilation arena, holds compilation
+ * options, manages memory lifecycle, and orchestrates pipeline execution
+ * as well as project commands (build, run, test, snap, fixpoint).
+ * ============================================================================
+ */
+
+pub struct Compiler {
+	pub options: CompileOptions,
+	pub arena: Arena
+}
+
+impl Compiler {
+
+	pub init(options: CompileOptions = CompileOptions()) => Self(options, Arena(1048576));
+
+	pub fn free(var self) {
+		self.arena.free();
+	}
+
+	// ------------------------------------------------------------------------
+	// Compilation Pipeline
+	// ------------------------------------------------------------------------
+
+	pub fn compile(val self): i32 => self.options.compile();
+
+	// ------------------------------------------------------------------------
+	// Project Commands Dispatch
+	// ------------------------------------------------------------------------
+
+	pub fn build(manifest_path: str = "kobel.toml"): i32
+		=> cmd_build(manifest_path);
+
+	pub fn run_project(manifest_path: str = "kobel.toml", extra_args: List<str> = List<str>()): i32
+		=> cmd_run(manifest_path, extra_args);
+
+	pub fn test(manifest_path: str = "kobel.toml", filter: str = ""): i32
+		=> cmd_test(manifest_path, filter);
+
+	pub fn snap(manifest_path: str = "kobel.toml", update: bool = false): i32
+		=> cmd_snap(manifest_path, update);
+
+	pub fn fixpoint(manifest_path: str = "kobel.toml"): i32
+		=> cmd_fixpoint(manifest_path);
+
+	pub fn emit_c(var self, input_path: str, out_path: str = "dist/bootstrap.c"): i32 {
+		self.options.input_path = input_path;
+		self.options.emit_c_path = out_path;
+		self.options.only_emit_c = true;
+		return self.compile();
+	}
+
+}

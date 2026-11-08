@@ -306,6 +306,7 @@ typedef struct compiler__core__InternPool compiler__core__InternPool;
 typedef struct compiler__core__Span compiler__core__Span;
 typedef struct compiler__core__SourceFile compiler__core__SourceFile;
 typedef struct compiler__core__SourceMap compiler__core__SourceMap;
+typedef struct compiler__driver__Compiler compiler__driver__Compiler;
 typedef struct compiler__lexer__Lexer compiler__lexer__Lexer;
 typedef int32_t compiler__lexer__TokenType;
 typedef struct compiler__lexer__Token compiler__lexer__Token;
@@ -486,6 +487,7 @@ typedef int32_t lsp__JsonKind;
 typedef struct lsp__JsonValue lsp__JsonValue;
 typedef struct lsp__JsonParser lsp__JsonParser;
 typedef kobel_str lsp__Method;
+typedef struct lsp__LanguageServer lsp__LanguageServer;
 typedef struct std__collections__List_ptr_compiler__ast__AstNode std__collections__List_ptr_compiler__ast__AstNode;
 typedef struct std__collections__List_compiler__ast__WhenArm std__collections__List_compiler__ast__WhenArm;
 typedef struct std__collections__List_compiler__ast__InterpPart std__collections__List_compiler__ast__InterpPart;
@@ -1811,6 +1813,17 @@ struct lsp__JsonValue {
     std__collections__List_ptr_lsp__JsonValue obj_vals;
 };
 
+struct lsp__LanguageServer {
+    lsp__DocumentStore docs;
+    bool is_shutdown;
+    kobel_str workspace_root;
+};
+
+struct compiler__driver__Compiler {
+    compiler__driver__CompileOptions options;
+    std__memory__Arena arena;
+};
+
 struct compiler__semantic__resolution__TypeResolver {
     compiler__semantic__symbols__SymbolTable symtab;
     std__memory__Arena arena;
@@ -2431,6 +2444,15 @@ std__collections__List_str compiler__driver__snap_corpus(kobel_str test_dir);
 kobel_str compiler__driver__snap_name(kobel_str path);
 int32_t compiler__driver__cmd_snap(kobel_str manifest_path, bool update);
 int32_t compiler__driver__cmd_fixpoint(kobel_str manifest_path);
+compiler__driver__Compiler compiler__driver__Compiler_init(compiler__driver__CompileOptions options);
+void compiler__driver__Compiler_free(compiler__driver__Compiler* self);
+int32_t compiler__driver__Compiler_compile(compiler__driver__Compiler* self);
+int32_t compiler__driver__Compiler_build(kobel_str manifest_path);
+int32_t compiler__driver__Compiler_run_project(kobel_str manifest_path, std__collections__List_str extra_args);
+int32_t compiler__driver__Compiler_test(kobel_str manifest_path, kobel_str filter);
+int32_t compiler__driver__Compiler_snap(kobel_str manifest_path, bool update);
+int32_t compiler__driver__Compiler_fixpoint(kobel_str manifest_path);
+int32_t compiler__driver__Compiler_emit_c(compiler__driver__Compiler* self, kobel_str input_path, kobel_str out_path);
 compiler__lexer__TokenType compiler__lexer__lookup_keyword(kobel_str text);
 kobel_str compiler__lexer__strip_utf8_bom(kobel_str src);
 compiler__lexer__Lexer compiler__lexer__Lexer_init(kobel_str src, uint32_t file_id);
@@ -3128,6 +3150,8 @@ void fmt__Formatter_format_stmt(fmt__Formatter* self, compiler__ast__AstNode* no
 void fmt__Formatter_format_type_params(fmt__Formatter* self, std__collections__List_compiler__ast__GenericParam type_params);
 void fmt__Formatter_format_decl(fmt__Formatter* self, compiler__ast__AstNode* node);
 void fmt__Formatter_format_program(fmt__Formatter* self, compiler__ast__AstNode* program);
+bool fmt__Formatter_format_file(kobel_str path, bool write_in_place, fmt__FormatOptions options);
+int32_t fmt__Formatter_format_files(std__collections__List_str files, bool write_in_place, fmt__FormatOptions options);
 kobel_str fmt__format_source(kobel_str src, fmt__FormatOptions options);
 lsp__LspDiagnostic lsp__LspDiagnostic_init(kobel_str err_str, kobel_str source);
 lsp__JsonValue* lsp__LspDiagnostic_to_json(lsp__LspDiagnostic* self);
@@ -3198,6 +3222,8 @@ void lsp__send_error(lsp__JsonValue* id, int64_t code, kobel_str message);
 void lsp__send_notification(kobel_str method, lsp__JsonValue* params);
 kobel_str lsp__read_message(void);
 void lsp__publish_doc_diagnostics(kobel_str uri, kobel_str text, kobel_str workspace_root);
+lsp__LanguageServer lsp__LanguageServer_init(void);
+int32_t lsp__LanguageServer_run(lsp__LanguageServer* self);
 int32_t lsp__run_server(void);
 void main__print_usage(void);
 int32_t main__run_build(void);
@@ -3207,6 +3233,7 @@ int32_t main__run_snap(int32_t argc, const char** argv);
 int32_t main__run_fixpoint(void);
 int32_t main__run_emit_c(int32_t argc, const char** argv);
 int32_t main__run_fmt(int32_t argc, const char** argv);
+int32_t main__run_lsp(void);
 int32_t main__run_compiler(int32_t argc, const char** argv);
 int32_t main__print_version(void);
 int32_t main__print_help(void);
@@ -7773,6 +7800,45 @@ if (i < b_lines.len) {
 std__io__println(kobel_concat(2, KOBEL_STR("    stage2: "), std__collections__List_str_get(&b_lines, i)));
 }
 return 1;
+}
+
+compiler__driver__Compiler compiler__driver__Compiler_init(compiler__driver__CompileOptions options) {
+    return (compiler__driver__Compiler){ options, std__memory__Arena_init(1048576) };
+}
+
+void compiler__driver__Compiler_free(compiler__driver__Compiler* self) {
+std__memory__Arena_free(&self->arena);
+}
+
+int32_t compiler__driver__Compiler_compile(compiler__driver__Compiler* self) {
+    return compiler__driver__CompileOptions_compile(&self->options);
+}
+
+int32_t compiler__driver__Compiler_build(kobel_str manifest_path) {
+    return compiler__driver__cmd_build(manifest_path);
+}
+
+int32_t compiler__driver__Compiler_run_project(kobel_str manifest_path, std__collections__List_str extra_args) {
+    return compiler__driver__cmd_run(manifest_path, extra_args);
+}
+
+int32_t compiler__driver__Compiler_test(kobel_str manifest_path, kobel_str filter) {
+    return compiler__driver__cmd_test(manifest_path, filter);
+}
+
+int32_t compiler__driver__Compiler_snap(kobel_str manifest_path, bool update) {
+    return compiler__driver__cmd_snap(manifest_path, update);
+}
+
+int32_t compiler__driver__Compiler_fixpoint(kobel_str manifest_path) {
+    return compiler__driver__cmd_fixpoint(manifest_path);
+}
+
+int32_t compiler__driver__Compiler_emit_c(compiler__driver__Compiler* self, kobel_str input_path, kobel_str out_path) {
+self->options.input_path = input_path;
+self->options.emit_c_path = out_path;
+self->options.only_emit_c = true;
+return compiler__driver__Compiler_compile(self);
 }
 
 compiler__lexer__TokenType compiler__lexer__lookup_keyword(kobel_str text) {
@@ -26755,6 +26821,43 @@ fmt__CommentTable_emit_remaining(&self->comments, &self->buf);
 }
 }
 
+bool fmt__Formatter_format_file(kobel_str path, bool write_in_place, fmt__FormatOptions options) {
+std__filesystem__Path fp = std__filesystem__Path_init(path);
+kobel_str src = std__filesystem__Path_read_text(&fp);
+if (str_empty(src)) {
+return false;
+}
+kobel_str formatted = fmt__format_source(src, options);
+if (write_in_place) {
+bool ok = std__filesystem__Path_write_text(&fp, formatted);
+if (!ok) {
+std__io__println(kobel_concat(2, KOBEL_STR("Error: Failed to write to "), path));
+return false;
+}
+std__io__println(kobel_concat(2, KOBEL_STR("Formatted: "), path));
+} else {
+std__io__print(formatted);
+}
+return true;
+}
+
+int32_t fmt__Formatter_format_files(std__collections__List_str files, bool write_in_place, fmt__FormatOptions options) {
+if (std__collections__List_str_empty(&files)) {
+std__io__println(KOBEL_STR("Error: No files specified to format"));
+return 1;
+}
+{
+size_t __for_n = std__collections__List_str_count(&files);
+size_t __for_i = 0;
+while (__for_i < __for_n) {
+kobel_str fpath = std__collections__List_str_at(&files, __for_i);
+fmt__Formatter_format_file(fpath, write_in_place, options);
+__for_i = (__for_i + 1);
+}
+}
+return 0;
+}
+
 kobel_str fmt__format_source(kobel_str src, fmt__FormatOptions options) {
 std__collections__List_fmt__Comment comments = fmt__Comment_extract(src);
 fmt__CommentTable comment_table = (fmt__CommentTable){ comments, 0 };
@@ -28116,11 +28219,12 @@ lsp__JsonValue_set(notif_params, KOBEL_STR("diagnostics"), diags_arr);
 lsp__send_notification(KOBEL_STR("textDocument/publishDiagnostics"), notif_params);
 }
 
-int32_t lsp__run_server(void) {
+lsp__LanguageServer lsp__LanguageServer_init(void) {
+    return (lsp__LanguageServer){ (lsp__DocumentStore){ std__collections__HashMap_str_lsp__Document_init(16) }, false, KOBEL_STR("") };
+}
+
+int32_t lsp__LanguageServer_run(lsp__LanguageServer* self) {
 lsp__init_stdio();
-lsp__DocumentStore docs = (lsp__DocumentStore){ std__collections__HashMap_str_lsp__Document_init(16) };
-bool is_shutdown = false;
-kobel_str workspace_root = KOBEL_STR("");
 while (true) {
 kobel_str raw_msg = lsp__read_message();
 if (str_empty(raw_msg)) {
@@ -28136,17 +28240,17 @@ lsp__JsonValue* params = lsp__JsonValue_get_obj(msg, KOBEL_STR("params"));
 if (kobel_streq(method, KOBEL_STR("initialize"))) {
 kobel_str root_uri = lsp__JsonValue_get_str(params, KOBEL_STR("rootUri"), KOBEL_STR(""));
 if (!str_empty(root_uri)) {
-workspace_root = lsp__uri_to_path(root_uri);
+self->workspace_root = lsp__uri_to_path(root_uri);
 } else {
 kobel_str root_path = lsp__JsonValue_get_str(params, KOBEL_STR("rootPath"), KOBEL_STR(""));
 if (!str_empty(root_path)) {
-workspace_root = root_path;
+self->workspace_root = root_path;
 } else {
 lsp__JsonValue* wf = lsp__JsonValue_get_arr(params, KOBEL_STR("workspaceFolders"));
 kobel_str wf_uri = ((lsp__JsonValue_at(wf, 0) != NULL) ? lsp__JsonValue_get_str(lsp__JsonValue_at(wf, 0), KOBEL_STR("uri"), KOBEL_STR("")) : kobel_null_str());
 if (wf_uri.data == NULL) wf_uri = KOBEL_STR("");
 if (!str_empty(wf_uri)) {
-workspace_root = lsp__uri_to_path(wf_uri);
+self->workspace_root = lsp__uri_to_path(wf_uri);
 }
 }
 }
@@ -28171,10 +28275,10 @@ lsp__JsonValue_set(res, KOBEL_STR("serverInfo"), server_info);
 lsp__send_response(id, res);
 } else if (kobel_streq(method, KOBEL_STR("initialized"))) {
 } else if (kobel_streq(method, KOBEL_STR("shutdown"))) {
-is_shutdown = true;
+self->is_shutdown = true;
 lsp__send_response(id, lsp__JsonValue_null_val());
 } else if (kobel_streq(method, KOBEL_STR("exit"))) {
-if (is_shutdown) {
+if (self->is_shutdown) {
 std__process__Process_exit(0);
 } else {
 std__process__Process_exit(1);
@@ -28184,8 +28288,8 @@ lsp__JsonValue* text_doc = lsp__JsonValue_get_obj(params, KOBEL_STR("textDocumen
 kobel_str uri = lsp__JsonValue_get_str(text_doc, KOBEL_STR("uri"), KOBEL_STR(""));
 kobel_str text = lsp__JsonValue_get_str(text_doc, KOBEL_STR("text"), KOBEL_STR(""));
 int64_t version = lsp__JsonValue_get_num(text_doc, KOBEL_STR("version"), 0);
-lsp__DocumentStore_set(&docs, uri, text, version);
-lsp__publish_doc_diagnostics(uri, text, workspace_root);
+lsp__DocumentStore_set(&self->docs, uri, text, version);
+lsp__publish_doc_diagnostics(uri, text, self->workspace_root);
 } else if (kobel_streq(method, KOBEL_STR("textDocument/didChange"))) {
 lsp__JsonValue* text_doc = lsp__JsonValue_get_obj(params, KOBEL_STR("textDocument"));
 kobel_str uri = lsp__JsonValue_get_str(text_doc, KOBEL_STR("uri"), KOBEL_STR(""));
@@ -28194,13 +28298,13 @@ lsp__JsonValue* changes = lsp__JsonValue_get_arr(params, KOBEL_STR("contentChang
 kobel_str new_text = ((lsp__JsonValue_at(changes, 0) != NULL) ? lsp__JsonValue_get_str(lsp__JsonValue_at(changes, 0), KOBEL_STR("text"), KOBEL_STR("")) : kobel_null_str());
 if (new_text.data == NULL) new_text = KOBEL_STR("");
 if (!str_empty(new_text)) {
-lsp__DocumentStore_set(&docs, uri, new_text, version);
-lsp__publish_doc_diagnostics(uri, new_text, workspace_root);
+lsp__DocumentStore_set(&self->docs, uri, new_text, version);
+lsp__publish_doc_diagnostics(uri, new_text, self->workspace_root);
 }
 } else if (kobel_streq(method, KOBEL_STR("textDocument/didClose"))) {
 lsp__JsonValue* text_doc = lsp__JsonValue_get_obj(params, KOBEL_STR("textDocument"));
 kobel_str uri = lsp__JsonValue_get_str(text_doc, KOBEL_STR("uri"), KOBEL_STR(""));
-lsp__DocumentStore_remove(&docs, uri);
+lsp__DocumentStore_remove(&self->docs, uri);
 lsp__JsonValue* p = lsp__JsonValue_obj();
 lsp__JsonValue_set(p, KOBEL_STR("uri"), lsp__JsonValue_str(uri));
 lsp__JsonValue_set(p, KOBEL_STR("diagnostics"), lsp__JsonValue_arr());
@@ -28211,9 +28315,9 @@ kobel_str uri = lsp__JsonValue_get_str(text_doc, KOBEL_STR("uri"), KOBEL_STR("")
 lsp__JsonValue* pos = lsp__JsonValue_get_obj(params, KOBEL_STR("position"));
 size_t line = (size_t)lsp__JsonValue_get_num(pos, KOBEL_STR("line"), 0);
 size_t char_col = (size_t)lsp__JsonValue_get_num(pos, KOBEL_STR("character"), 0);
-lsp__Document doc = lsp__DocumentStore_get(&docs, uri);
+lsp__Document doc = lsp__DocumentStore_get(&self->docs, uri);
 if (!str_empty(doc.text)) {
-lsp__AnalysisResult analysis = lsp__AnalysisResult_init(doc.path, doc.text, workspace_root);
+lsp__AnalysisResult analysis = lsp__AnalysisResult_init(doc.path, doc.text, self->workspace_root);
 lsp__JsonValue* h = lsp__AnalysisResult_hover_at(&analysis, line, char_col);
 lsp__send_response(id, h);
 } else {
@@ -28225,9 +28329,9 @@ kobel_str uri = lsp__JsonValue_get_str(text_doc, KOBEL_STR("uri"), KOBEL_STR("")
 lsp__JsonValue* pos = lsp__JsonValue_get_obj(params, KOBEL_STR("position"));
 size_t line = (size_t)lsp__JsonValue_get_num(pos, KOBEL_STR("line"), 0);
 size_t char_col = (size_t)lsp__JsonValue_get_num(pos, KOBEL_STR("character"), 0);
-lsp__Document doc = lsp__DocumentStore_get(&docs, uri);
+lsp__Document doc = lsp__DocumentStore_get(&self->docs, uri);
 if (!str_empty(doc.text)) {
-lsp__AnalysisResult analysis = lsp__AnalysisResult_init(doc.path, doc.text, workspace_root);
+lsp__AnalysisResult analysis = lsp__AnalysisResult_init(doc.path, doc.text, self->workspace_root);
 lsp__JsonValue* def_res = lsp__AnalysisResult_definition_at(&analysis, uri, line, char_col);
 lsp__send_response(id, def_res);
 } else {
@@ -28236,7 +28340,7 @@ lsp__send_response(id, lsp__JsonValue_null_val());
 } else if (kobel_streq(method, KOBEL_STR("textDocument/formatting"))) {
 lsp__JsonValue* text_doc = lsp__JsonValue_get_obj(params, KOBEL_STR("textDocument"));
 kobel_str uri = lsp__JsonValue_get_str(text_doc, KOBEL_STR("uri"), KOBEL_STR(""));
-lsp__Document doc = lsp__DocumentStore_get(&docs, uri);
+lsp__Document doc = lsp__DocumentStore_get(&self->docs, uri);
 if (!str_empty(doc.text)) {
 lsp__JsonValue* edits = lsp__AnalysisResult_format_document(doc.text);
 lsp__send_response(id, edits);
@@ -28246,7 +28350,7 @@ lsp__send_response(id, lsp__JsonValue_arr());
 } else if (kobel_streq(method, KOBEL_STR("textDocument/documentSymbol"))) {
 lsp__JsonValue* text_doc = lsp__JsonValue_get_obj(params, KOBEL_STR("textDocument"));
 kobel_str uri = lsp__JsonValue_get_str(text_doc, KOBEL_STR("uri"), KOBEL_STR(""));
-lsp__Document doc = lsp__DocumentStore_get(&docs, uri);
+lsp__Document doc = lsp__DocumentStore_get(&self->docs, uri);
 if (!str_empty(doc.text)) {
 lsp__JsonValue* syms = lsp__AnalysisResult_document_symbols(doc.text);
 lsp__send_response(id, syms);
@@ -28256,13 +28360,13 @@ lsp__send_response(id, lsp__JsonValue_arr());
 } else if (kobel_streq(method, KOBEL_STR("textDocument/completion"))) {
 lsp__JsonValue* text_doc = lsp__JsonValue_get_obj(params, KOBEL_STR("textDocument"));
 kobel_str uri = lsp__JsonValue_get_str(text_doc, KOBEL_STR("uri"), KOBEL_STR(""));
-lsp__Document doc = lsp__DocumentStore_get(&docs, uri);
+lsp__Document doc = lsp__DocumentStore_get(&self->docs, uri);
 if (!str_empty(doc.text)) {
-lsp__AnalysisResult analysis = lsp__AnalysisResult_init(doc.path, doc.text, workspace_root);
+lsp__AnalysisResult analysis = lsp__AnalysisResult_init(doc.path, doc.text, self->workspace_root);
 lsp__JsonValue* items = lsp__AnalysisResult_complete_at(&analysis);
 lsp__send_response(id, items);
 } else {
-lsp__AnalysisResult empty_analysis = lsp__AnalysisResult_init(KOBEL_STR(""), KOBEL_STR(""), workspace_root);
+lsp__AnalysisResult empty_analysis = lsp__AnalysisResult_init(KOBEL_STR(""), KOBEL_STR(""), self->workspace_root);
 lsp__JsonValue* items = lsp__AnalysisResult_complete_at(&empty_analysis);
 lsp__send_response(id, items);
 }
@@ -28275,12 +28379,17 @@ lsp__send_error(id, -32601, kobel_concat(3, KOBEL_STR("Method '"), method, KOBEL
 return 0;
 }
 
+int32_t lsp__run_server(void) {
+lsp__LanguageServer srv = lsp__LanguageServer_init();
+return lsp__LanguageServer_run(&srv);
+}
+
 void main__print_usage(void) {
 std__io__println(KOBEL_STR("============================================================\n  Kobel Compiler v1.0.0 (Self-Hosted compiler C99 Backend)  \n============================================================\nUsage: kobel <command> [args]\n\nCommands:\n  build             Build project (kobel.toml)\n  run [args...]     Run project (rebuilds if changed)\n  test [filter]     Run test suite\n  snap [--update]   Check emitted C against tests/golden (or update it)\n  fixpoint          Verify the compiler reproduces its own C output\n  emit-c [file]     Emit generated C99 source (default: dist/bootstrap.c)\n  fmt [-w] <files>  Format Kobel source code\n  lsp               Start Language Server Protocol server\n  version           Display compiler version"));
 }
 
 int32_t main__run_build(void) {
-    return compiler__driver__cmd_build(KOBEL_STR("kobel.toml"));
+    return compiler__driver__Compiler_build(KOBEL_STR("kobel.toml"));
 }
 
 int32_t main__run_project(int32_t argc, const char** argv) {
@@ -28290,32 +28399,29 @@ while (i < argc) {
 std__collections__List_str_plus_assign(&extra_args, kobel_from_cstr((const char*)(argv[i])));
 i++;
 }
-return compiler__driver__cmd_run(KOBEL_STR("kobel.toml"), extra_args);
+return compiler__driver__Compiler_run_project(KOBEL_STR("kobel.toml"), extra_args);
 }
 
 int32_t main__run_test_suite(int32_t argc, const char** argv) {
 kobel_str filter = ((argc >= 3) ? kobel_from_cstr((const char*)(argv[2])) : KOBEL_STR(""));
-return compiler__driver__cmd_test(KOBEL_STR("kobel.toml"), filter);
+return compiler__driver__Compiler_test(KOBEL_STR("kobel.toml"), filter);
 }
 
 int32_t main__run_snap(int32_t argc, const char** argv) {
 bool update = ((argc >= 3) && kobel_streq(kobel_from_cstr((const char*)(argv[2])), KOBEL_STR("--update")));
-return compiler__driver__cmd_snap(KOBEL_STR("kobel.toml"), update);
+return compiler__driver__Compiler_snap(KOBEL_STR("kobel.toml"), update);
 }
 
 int32_t main__run_fixpoint(void) {
-    return compiler__driver__cmd_fixpoint(KOBEL_STR("kobel.toml"));
+    return compiler__driver__Compiler_fixpoint(KOBEL_STR("kobel.toml"));
 }
 
 int32_t main__run_emit_c(int32_t argc, const char** argv) {
 std__filesystem__Path manifest_p = std__filesystem__Path_init(KOBEL_STR("kobel.toml"));
 config__ProjectConfig cfg = (std__filesystem__Path_exists(&manifest_p) ? config__ProjectConfig_init(KOBEL_STR("kobel.toml")) : (config__ProjectConfig){ KOBEL_STR("kobel"), KOBEL_STR("1.0.0"), KOBEL_STR("src/main.kb"), KOBEL_STR("build/kobel.exe"), KOBEL_STR("cl"), KOBEL_STR("tests") });
 kobel_str out_path = ((argc >= 3) ? kobel_from_cstr((const char*)(argv[2])) : KOBEL_STR("dist/bootstrap.c"));
-compiler__driver__CompileOptions opts = (compiler__driver__CompileOptions){ KOBEL_STR(""), KOBEL_STR(""), KOBEL_STR(""), KOBEL_STR("cl"), false, std__collections__List_str_init(4), false };
-opts.input_path = cfg.entry;
-opts.emit_c_path = out_path;
-opts.only_emit_c = true;
-return compiler__driver__CompileOptions_compile(&opts);
+compiler__driver__Compiler compiler = compiler__driver__Compiler_init((compiler__driver__CompileOptions){ KOBEL_STR(""), KOBEL_STR(""), KOBEL_STR(""), KOBEL_STR("cl"), false, std__collections__List_str_init(4), false });
+return compiler__driver__Compiler_emit_c(&compiler, cfg.entry, out_path);
 }
 
 int32_t main__run_fmt(int32_t argc, const char** argv) {
@@ -28342,33 +28448,12 @@ if (std__collections__List_str_empty(&files)) {
 std__io__println(KOBEL_STR("Error: No files specified to format"));
 return 1;
 }
-fmt__FormatOptions options = (fmt__FormatOptions){ 4, true, 100, true };
-{
-size_t __for_n = std__collections__List_str_count(&files);
-size_t __for_i = 0;
-while (__for_i < __for_n) {
-kobel_str fpath = std__collections__List_str_at(&files, __for_i);
-std__filesystem__Path fp = std__filesystem__Path_init(fpath);
-kobel_str src = std__filesystem__Path_read_text(&fp);
-if (str_empty(src)) {
-__for_i = (__for_i + 1);
-continue;
+return fmt__Formatter_format_files(files, write_in_place, (fmt__FormatOptions){ 4, true, 100, true });
 }
-kobel_str formatted = fmt__format_source(src, options);
-if (write_in_place) {
-bool ok = std__filesystem__Path_write_text(&fp, formatted);
-if (!ok) {
-std__io__println(kobel_concat(2, KOBEL_STR("Error: Failed to write to "), fpath));
-return 1;
-}
-std__io__println(kobel_concat(2, KOBEL_STR("Formatted: "), fpath));
-} else {
-std__io__print(formatted);
-}
-__for_i = (__for_i + 1);
-}
-}
-return 0;
+
+int32_t main__run_lsp(void) {
+lsp__LanguageServer server = lsp__LanguageServer_init();
+return lsp__LanguageServer_run(&server);
 }
 
 int32_t main__run_compiler(int32_t argc, const char** argv) {
@@ -28403,7 +28488,8 @@ if (str_empty(opts.input_path)) {
 main__print_usage();
 return 1;
 }
-return compiler__driver__CompileOptions_compile(&opts);
+compiler__driver__Compiler compiler = compiler__driver__Compiler_init(opts);
+return compiler__driver__Compiler_compile(&compiler);
 }
 
 int32_t main__print_version(void) {
@@ -28422,7 +28508,7 @@ main__print_usage();
 return 0;
 }
 kobel_str first_arg = kobel_from_cstr((const char*)(argv[1]));
-return (kobel_streq(first_arg, KOBEL_STR("build")) ? main__run_build() : (kobel_streq(first_arg, KOBEL_STR("run")) ? main__run_project(argc, argv) : (kobel_streq(first_arg, KOBEL_STR("test")) ? main__run_test_suite(argc, argv) : (kobel_streq(first_arg, KOBEL_STR("snap")) ? main__run_snap(argc, argv) : (kobel_streq(first_arg, KOBEL_STR("fixpoint")) ? main__run_fixpoint() : (kobel_streq(first_arg, KOBEL_STR("emit-c")) ? main__run_emit_c(argc, argv) : (kobel_streq(first_arg, KOBEL_STR("fmt")) ? main__run_fmt(argc, argv) : (kobel_streq(first_arg, KOBEL_STR("lsp")) ? lsp__run_server() : (kobel_streq(first_arg, KOBEL_STR("version")) || kobel_streq(first_arg, KOBEL_STR("-v")) || kobel_streq(first_arg, KOBEL_STR("--version")) ? main__print_version() : (kobel_streq(first_arg, KOBEL_STR("help")) || kobel_streq(first_arg, KOBEL_STR("-h")) || kobel_streq(first_arg, KOBEL_STR("--help")) ? main__print_help() : main__run_compiler(argc, argv)))))))))));
+return (kobel_streq(first_arg, KOBEL_STR("build")) ? main__run_build() : (kobel_streq(first_arg, KOBEL_STR("run")) ? main__run_project(argc, argv) : (kobel_streq(first_arg, KOBEL_STR("test")) ? main__run_test_suite(argc, argv) : (kobel_streq(first_arg, KOBEL_STR("snap")) ? main__run_snap(argc, argv) : (kobel_streq(first_arg, KOBEL_STR("fixpoint")) ? main__run_fixpoint() : (kobel_streq(first_arg, KOBEL_STR("emit-c")) ? main__run_emit_c(argc, argv) : (kobel_streq(first_arg, KOBEL_STR("fmt")) ? main__run_fmt(argc, argv) : (kobel_streq(first_arg, KOBEL_STR("lsp")) ? main__run_lsp() : (kobel_streq(first_arg, KOBEL_STR("version")) || kobel_streq(first_arg, KOBEL_STR("-v")) || kobel_streq(first_arg, KOBEL_STR("--version")) ? main__print_version() : (kobel_streq(first_arg, KOBEL_STR("help")) || kobel_streq(first_arg, KOBEL_STR("-h")) || kobel_streq(first_arg, KOBEL_STR("--help")) ? main__print_help() : main__run_compiler(argc, argv)))))))))));
 }
 
 size_t std__collections__List_ptr_compiler__ast__AstNode_count(std__collections__List_ptr_compiler__ast__AstNode* self) {

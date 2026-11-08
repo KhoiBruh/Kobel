@@ -30,7 +30,7 @@ fn print_usage() {
 	""");
 }
 
-fn run_build(): i32 => cmd_build("kobel.toml");
+fn run_build(): i32 => Compiler.build("kobel.toml");
 
 fn run_project(argc: i32, argv: &*char): i32 {
 	var extra_args = List<str>();
@@ -39,31 +39,27 @@ fn run_project(argc: i32, argv: &*char): i32 {
 		extra_args += str(argv[i]);
 		i++;
 	}
-	return cmd_run("kobel.toml", extra_args);
+	return Compiler.run_project("kobel.toml", extra_args);
 }
 
 fn run_test_suite(argc: i32, argv: &*char): i32 {
 	val filter = if (argc >= 3) str(argv[2]) else "";
-	return cmd_test("kobel.toml", filter);
+	return Compiler.test("kobel.toml", filter);
 }
 
 fn run_snap(argc: i32, argv: &*char): i32 {
 	val update = argc >= 3 && str(argv[2]) == "--update";
-	return cmd_snap("kobel.toml", update);
+	return Compiler.snap("kobel.toml", update);
 }
 
-fn run_fixpoint(): i32 => cmd_fixpoint("kobel.toml");
+fn run_fixpoint(): i32 => Compiler.fixpoint("kobel.toml");
 
 fn run_emit_c(argc: i32, argv: &*char): i32 {
 	val manifest_p = Path("kobel.toml");
 	val cfg = if (manifest_p.exists()) ProjectConfig("kobel.toml") else ProjectConfig();
 	val out_path = if (argc >= 3) str(argv[2]) else "dist/bootstrap.c";
-
-	var opts = CompileOptions();
-	opts.input_path = cfg.entry;
-	opts.emit_c_path = out_path;
-	opts.only_emit_c = true;
-	return opts.compile();
+	var compiler = Compiler();
+	return compiler.emit_c(cfg.entry, out_path);
 }
 
 fn run_fmt(argc: i32, argv: &*char): i32 {
@@ -94,24 +90,12 @@ fn run_fmt(argc: i32, argv: &*char): i32 {
 		return 1;
 	}
 
-	val options = FormatOptions();
-	for (fpath in files) {
-		val fp = Path(fpath);
-		val src = fp.read_text();
-		if (src.empty()) continue;
+	return Formatter.format_files(files, write_in_place);
+}
 
-		val formatted = format_source(src, options);
-		if (write_in_place) {
-			val ok = fp.write_text(formatted);
-			if (!ok) {
-				println("Error: Failed to write to ${fpath}");
-				return 1;
-			}
-			println("Formatted: ${fpath}");
-		} else print(formatted);
-	}
-
-	return 0;
+fn run_lsp(): i32 {
+	var server = LanguageServer();
+	return server.run();
 }
 
 fn run_compiler(argc: i32, argv: &*char): i32 {
@@ -150,7 +134,8 @@ fn run_compiler(argc: i32, argv: &*char): i32 {
 		return 1;
 	}
 
-	return opts.compile();
+	val compiler = Compiler(opts);
+	return compiler.compile();
 }
 
 fn print_version(): i32 {
@@ -178,7 +163,7 @@ fn main(argc: i32, argv: &*char): i32 {
 		"fixpoint" -> run_fixpoint();
 		"emit-c" -> run_emit_c(argc, argv);
 		"fmt" -> run_fmt(argc, argv);
-		"lsp" -> run_server();
+		"lsp" -> run_lsp();
 		"version", "-v", "--version" -> print_version();
 		"help", "-h", "--help" -> print_help();
 		else -> run_compiler(argc, argv);
