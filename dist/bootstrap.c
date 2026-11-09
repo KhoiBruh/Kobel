@@ -25229,9 +25229,16 @@ kobel_str compiler__driver__c_compile_cmd(kobel_str c_path, kobel_str exe_path, 
 kobel_str cc_bin = (((str_contains(cc, KOBEL_STR(" "))) && !str_starts_with(cc, KOBEL_STR("\""))) ? kobel_concat(3, KOBEL_STR("\""), cc, KOBEL_STR("\"")) : cc);
 kobel_str exe_arg = (str_contains(exe_path, KOBEL_STR(" ")) ? kobel_concat(3, KOBEL_STR("\""), exe_path, KOBEL_STR("\"")) : exe_path);
 kobel_str c_arg = (str_contains(c_path, KOBEL_STR(" ")) ? kobel_concat(3, KOBEL_STR("\""), c_path, KOBEL_STR("\"")) : c_path);
-kobel_str cmd = kobel_concat(5, cc_bin, KOBEL_STR(" -o "), exe_arg, KOBEL_STR(" "), c_arg);
+if (std__system__System_is_windows()) {
+kobel_str cmd = kobel_concat(6, KOBEL_STR("set \"TMP=%CD%\\build\" && set \"TEMP=%CD%\\build\" && "), cc_bin, KOBEL_STR(" -o "), exe_arg, KOBEL_STR(" "), c_arg);
 if (quiet) {
-cmd = (std__system__System_is_windows() ? kobel_concat(2, cmd, KOBEL_STR(" >nul 2>nul")) : kobel_concat(2, cmd, KOBEL_STR(" >/dev/null 2>&1")));
+cmd = kobel_concat(2, cmd, KOBEL_STR(" >nul 2>nul"));
+}
+return cmd;
+}
+kobel_str cmd = kobel_concat(6, KOBEL_STR("TMPDIR=\"build\" "), cc_bin, KOBEL_STR(" -o "), exe_arg, KOBEL_STR(" "), c_arg);
+if (quiet) {
+cmd = kobel_concat(2, cmd, KOBEL_STR(" >/dev/null 2>&1"));
 }
 return cmd;
 }
@@ -25323,6 +25330,10 @@ std__filesystem__Path_create_dir_all(&build_dir);
 kobel_str base_name = std__filesystem__Path_file_name(&out_p);
 std__filesystem__Path c_tmp_p = std__filesystem__Path_join(&build_dir, kobel_concat(2, base_name, KOBEL_STR(".tmp.c")));
 std__filesystem__Path obj_tmp_p = std__filesystem__Path_join(&build_dir, kobel_concat(2, base_name, KOBEL_STR(".tmp.obj")));
+std__filesystem__Path stage_p = std__filesystem__Path_init(kobel_concat(2, out_path, KOBEL_STR(".new")));
+if (std__filesystem__Path_exists(&stage_p)) {
+std__filesystem__Path_remove(&stage_p);
+}
 bool write_ok = std__filesystem__Path_write_text(&c_tmp_p, c_code);
 if (!write_ok) {
 std__io__println(kobel_concat(2, KOBEL_STR("Error: Failed to write temporary C file: "), c_tmp_p.raw));
@@ -25331,26 +25342,30 @@ return 1;
 if (!self->quiet) {
 std__io__println(kobel_concat(3, KOBEL_STR("[BUILDING] Invoking backend compiler ("), self->c_compiler, KOBEL_STR(")...")));
 }
+kobel_str compile_cmd = compiler__driver__c_compile_cmd(c_tmp_p.raw, stage_p.raw, self->c_compiler, self->quiet);
+int32_t exit_code = std__process__Process_exec(compile_cmd);
+if ((exit_code != 0) || !std__filesystem__Path_exists(&stage_p)) {
+std__filesystem__Path_remove(&stage_p);
+if (exit_code != 0) {
+std__io__println(kobel_concat(3, KOBEL_STR("Error: Backend C compiler failed with exit code "), i32_to_str(exit_code), KOBEL_STR(":")));
+} else {
+std__io__println(kobel_concat(2, KOBEL_STR("Error: Backend C compiler produced no executable: "), stage_p.raw));
+}
+std__io__println(kobel_concat(3, KOBEL_STR("  cmd was '"), compile_cmd, KOBEL_STR("'")));
+return ((exit_code != 0) ? exit_code : 1);
+}
 std__filesystem__Path old_p = std__filesystem__Path_init(kobel_concat(2, out_path, KOBEL_STR(".old")));
 if (std__filesystem__Path_exists(&out_p)) {
+if (std__filesystem__Path_exists(&old_p)) {
 std__filesystem__Path_remove(&old_p);
+}
 std__filesystem__Path_rename_to(&out_p, old_p);
 }
-kobel_str compile_cmd = compiler__driver__c_compile_cmd(c_tmp_p.raw, out_path, self->c_compiler, self->quiet);
-int32_t exit_code = std__process__Process_exec(compile_cmd);
-if (exit_code != 0) {
+if (!std__filesystem__Path_rename_to(&stage_p, out_p)) {
 if (std__filesystem__Path_exists(&old_p) && !std__filesystem__Path_exists(&out_p)) {
 std__filesystem__Path_rename_to(&old_p, out_p);
 }
-std__io__println(kobel_concat(3, KOBEL_STR("Error: Backend C compiler failed with exit code "), i32_to_str(exit_code), KOBEL_STR(":")));
-std__io__println(kobel_concat(3, KOBEL_STR("  cmd was '"), compile_cmd, KOBEL_STR("'")));
-return exit_code;
-}
-if (!std__filesystem__Path_exists(&out_p)) {
-if (std__filesystem__Path_exists(&old_p)) {
-std__filesystem__Path_rename_to(&old_p, out_p);
-}
-std__io__println(kobel_concat(2, KOBEL_STR("Error: Backend C compiler returned 0 but produced no executable: "), out_path));
+std__io__println(kobel_concat(2, KOBEL_STR("Error: Could not move the new executable into place: "), out_path));
 return 1;
 }
 std__filesystem__Path_remove(&c_tmp_p);

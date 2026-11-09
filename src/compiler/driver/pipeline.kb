@@ -22,20 +22,29 @@ use compiler.loader.*;
 // ============================================================================
 
 /*
- * The backend compiler is invoked exactly as configured: no environment
- * discovery, no vcvars/TMP setup and no per-compiler flag tables. A working
- * toolchain (on PATH, with whatever environment it needs) is the user's
- * responsibility; Kobel only builds and runs this command line.
+ * The backend compiler is invoked exactly as configured; Kobel does not
+ * discover a toolchain, load vcvars or translate per-compiler flags.
+ *
+ * The one environment value it does set is the child's temp directory. IDEs and
+ * sandboxed shells routinely deny the user's %TEMP% to a process spawned by
+ * another process, which makes every backend fail with "cannot create
+ * temporary file"; pointing TMP/TEMP (TMPDIR on POSIX) at build/ keeps the
+ * scratch space writable and inside the project.
  */
 pub fn c_compile_cmd(c_path: str, exe_path: str, cc: str, quiet: bool): str {
 	val cc_bin = if ((" " in cc) && !cc.starts_with("\"")) "\"${cc}\"" else cc;
 	val exe_arg = if (" " in exe_path) "\"${exe_path}\"" else exe_path;
 	val c_arg = if (" " in c_path) "\"${c_path}\"" else c_path;
 
-	var cmd = "${cc_bin} -o ${exe_arg} ${c_arg}";
-	if (quiet) {
-		cmd = if (System.is_windows()) "${cmd} >nul 2>nul" else "${cmd} >/dev/null 2>&1";
+	if (System.is_windows()) {
+		var cmd = "set \"TMP=%CD%\\build\" && set \"TEMP=%CD%\\build\""
+			" && ${cc_bin} -o ${exe_arg} ${c_arg}";
+		if (quiet) cmd = "${cmd} >nul 2>nul";
+		return cmd;
 	}
+
+	var cmd = "TMPDIR=\"build\" ${cc_bin} -o ${exe_arg} ${c_arg}";
+	if (quiet) cmd = "${cmd} >/dev/null 2>&1";
 	return cmd;
 }
 
@@ -137,6 +146,9 @@ impl CompileOptions {
 		val base_name = out_p.file_name();
 		val c_tmp_p = build_dir.join("${base_name}.tmp.c");
 		val obj_tmp_p = build_dir.join("${base_name}.tmp.obj");
+		val stage_p = Path("${out_path}.new");
+		if (stage_p.exists()) stage_p.remove();
+
 		val write_ok = c_tmp_p.write_text(c_code);
 		if (!write_ok) {
 			println("Error: Failed to write temporary C file: ${c_tmp_p.raw}");
@@ -145,36 +157,35 @@ impl CompileOptions {
 
 		if (!self.quiet) println("[BUILDING] Invoking backend compiler (${self.c_compiler})...");
 
-		// If the output binary already exists, move it aside to avoid Windows LNK1104
-		// file locking issues (especially during self-hosting builds).
-		val old_p = Path("${out_path}.old");
-		if (out_p.exists()) {
-			old_p.remove();
-			out_p.rename_to(old_p);
-		}
-
-		var compile_cmd = c_compile_cmd(c_tmp_p.raw, out_path, self.c_compiler, self.quiet);
+		// Build to a staging path: a failed backend must never remove the working
+		// executable, and the linker must not have to overwrite a running image.
+		var compile_cmd = c_compile_cmd(c_tmp_p.raw, stage_p.raw, self.c_compiler, self.quiet);
 
 		val exit_code = Process.exec(compile_cmd);
-		if (exit_code != 0) {
-			// Restore previous binary if compilation failed
-			if (old_p.exists() && !out_p.exists()) old_p.rename_to(out_p);
-			println("Error: Backend C compiler failed with exit code ${exit_code}:");
+		if (exit_code != 0 || !stage_p.exists()) {
+			stage_p.remove();
+			if (exit_code != 0) {
+				println("Error: Backend C compiler failed with exit code ${exit_code}:");
+			} else {
+				println("Error: Backend C compiler produced no executable: ${stage_p.raw}");
+			}
 			println("  cmd was '${compile_cmd}'");
-			return exit_code;
+			return if (exit_code != 0) exit_code else 1;
 		}
 
-		// Exit code zero is not proof of success: a shell quirk (or a backend that
-		// silently skipped the link step) can return 0 without writing the binary.
-		// Without this check the build would report success while the previous
-		// executable sits moved aside as `<out>.old`.
-		if (!out_p.exists()) {
-			if (old_p.exists()) old_p.rename_to(out_p);
-			println("Error: Backend C compiler returned 0 but produced no executable: ${out_path}");
+		// Swap the new binary in. `<out>.old` is only a parking spot for the
+		// previous image; if the swap fails the old executable is restored.
+		val old_p = Path("${out_path}.old");
+		if (out_p.exists()) {
+			if (old_p.exists()) old_p.remove();
+			out_p.rename_to(old_p);
+		}
+		if (!stage_p.rename_to(out_p)) {
+			if (old_p.exists() && !out_p.exists()) old_p.rename_to(out_p);
+			println("Error: Could not move the new executable into place: ${out_path}");
 			return 1;
 		}
 
-		// Clean up temporary C, object, and old binary files
 		c_tmp_p.remove();
 		obj_tmp_p.remove();
 		old_p.remove();

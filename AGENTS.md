@@ -21,9 +21,11 @@ powershell -File scripts/check.ps1            :: standard gate: build â†’ test â
 powershell -File scripts/check.ps1 -Update    :: accept current C output (snap --update)
 ```
 
-The configured C compiler is invoked as-is: Kobel must not set up toolchain
-environments (no `vcvars` discovery, no `TMP` overrides, no per-compiler flag
-tables). The user guarantees the compiler works in the current shell.
+The configured C compiler is invoked as-is: no `vcvars` discovery and no
+per-compiler flag translation. Kobel only points the backend's scratch
+directory at `build/` (`TMP`/`TEMP`/`TMPDIR`), because shells and IDEs often
+deny the user's temp directory to a process spawned by another process. The
+compiler itself must work in the current shell.
 
 v1 compiler commands (`build/kobel.exe`):
 
