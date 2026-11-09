@@ -10,6 +10,8 @@ For the language grammar and semantics, see [`spec.md`](spec.md). For semantic a
 
 Kobel is a self-hosted systems programming language. The reference compiler is written in Kobel itself (`src/`), compiles source code into clean C99, and calls the host C compiler (`cl` by default on Windows, `clang`/`gcc` on POSIX) to produce native binaries.
 
+The backend is invoked exactly as configured (`[build] cc` in `kobel.toml` or `-cc`). Kobel does not discover or prepare a toolchain: no `vcvars`, no `TMP` rewriting, no per-compiler flag tables. The environment must be usable before Kobel is started.
+
 ```
 .kb source files
        │

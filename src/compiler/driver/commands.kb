@@ -402,7 +402,6 @@ pub fn cmd_fixpoint(manifest_path: str): i32 {
 	val s1_p = dir.join("stage1.c");
 	val s2_p = dir.join("stage2.c");
 	val s2_exe_p = dir.join("kobel_v2.exe");
-	val s2_obj_p = dir.join("kobel_v2.obj");
 
 	println("[1/3] Emitting C from the current compiler...");
 	var opts = CompileOptions();
@@ -417,7 +416,7 @@ pub fn cmd_fixpoint(manifest_path: str): i32 {
 
 	println("[2/3] Building the second-generation compiler...");
 	s2_exe_p.remove();
-	val compile_res = Process.exec(c_compile_cmd(s1_p.raw, s2_exe_p.raw, s2_obj_p.raw, cfg.cc, true));
+	val compile_res = Process.exec(c_compile_cmd(s1_p.raw, s2_exe_p.raw, cfg.cc, true));
 	if (compile_res != 0 || !s2_exe_p.exists()) {
 		println("[ERROR] Backend compiler did not produce '${s2_exe_p.raw}'.");
 		return 1;

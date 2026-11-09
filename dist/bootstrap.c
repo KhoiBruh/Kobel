@@ -3124,9 +3124,7 @@ void compiler__codegen__CCodeGen_gen_when_with_target(compiler__codegen__CCodeGe
 bool compiler__codegen__is_jump_or_block(compiler__ast__AstNode* node);
 kobel_str compiler__codegen__c_type_from_ast(compiler__ast__AstNode* node);
 kobel_str compiler__codegen__c_type_from_type(compiler__semantic__types__Type* ty);
-bool compiler__driver__is_msvc_compiler(kobel_str cc);
-kobel_str compiler__driver__resolve_host_cc(kobel_str cc);
-kobel_str compiler__driver__c_compile_cmd(kobel_str c_path, kobel_str exe_path, kobel_str obj_path, kobel_str cc, bool quiet);
+kobel_str compiler__driver__c_compile_cmd(kobel_str c_path, kobel_str exe_path, kobel_str cc, bool quiet);
 int32_t compiler__driver__CompileOptions_compile(compiler__driver__CompileOptions* self);
 compiler__Compiler compiler__Compiler_init(compiler__driver__CompileOptions options);
 int32_t compiler__Compiler_compile(compiler__Compiler* self);
@@ -7706,7 +7704,6 @@ std__filesystem__Path_create_dir_all(&dir);
 std__filesystem__Path s1_p = std__filesystem__Path_join(&dir, KOBEL_STR("stage1.c"));
 std__filesystem__Path s2_p = std__filesystem__Path_join(&dir, KOBEL_STR("stage2.c"));
 std__filesystem__Path s2_exe_p = std__filesystem__Path_join(&dir, KOBEL_STR("kobel_v2.exe"));
-std__filesystem__Path s2_obj_p = std__filesystem__Path_join(&dir, KOBEL_STR("kobel_v2.obj"));
 std__io__println(KOBEL_STR("[1/3] Emitting C from the current compiler..."));
 compiler__driver__CompileOptions opts = (compiler__driver__CompileOptions){ KOBEL_STR(""), KOBEL_STR(""), KOBEL_STR(""), KOBEL_STR("cl"), false, std__collections__List_str_init(4), false };
 opts.input_path = cfg.entry;
@@ -7719,7 +7716,7 @@ return 1;
 }
 std__io__println(KOBEL_STR("[2/3] Building the second-generation compiler..."));
 std__filesystem__Path_remove(&s2_exe_p);
-int32_t compile_res = std__process__Process_exec(compiler__driver__c_compile_cmd(s1_p.raw, s2_exe_p.raw, s2_obj_p.raw, cfg.cc, true));
+int32_t compile_res = std__process__Process_exec(compiler__driver__c_compile_cmd(s1_p.raw, s2_exe_p.raw, cfg.cc, true));
 if ((compile_res != 0) || !std__filesystem__Path_exists(&s2_exe_p)) {
 std__io__println(kobel_concat(3, KOBEL_STR("[ERROR] Backend compiler did not produce '"), s2_exe_p.raw, KOBEL_STR("'.")));
 return 1;
@@ -25228,52 +25225,13 @@ return KOBEL_STR("void");
 }
 }
 
-bool compiler__driver__is_msvc_compiler(kobel_str cc) {
-kobel_str base = str_base_name(cc);
-return (((kobel_streq(base, KOBEL_STR("cl")) || kobel_streq(base, KOBEL_STR("cl.exe"))) || kobel_streq(base, KOBEL_STR("clang-cl"))) || kobel_streq(base, KOBEL_STR("clang-cl.exe")));
-}
-
-kobel_str compiler__driver__resolve_host_cc(kobel_str cc) {
-if (!std__system__System_is_windows() && compiler__driver__is_msvc_compiler(cc)) {
-return KOBEL_STR("cc");
-}
-return cc;
-}
-
-kobel_str compiler__driver__c_compile_cmd(kobel_str c_path, kobel_str exe_path, kobel_str obj_path, kobel_str cc, bool quiet) {
-kobel_str host_cc = compiler__driver__resolve_host_cc(cc);
-bool has_spaces = ((str_contains(host_cc, KOBEL_STR(" "))) && !str_starts_with(host_cc, KOBEL_STR("\"")));
-bool is_path_with_spaces = ((str_contains(host_cc, KOBEL_STR("/")) || str_contains(host_cc, KOBEL_STR("\\"))) && has_spaces);
-kobel_str cc_bin = (is_path_with_spaces ? kobel_concat(3, KOBEL_STR("\""), host_cc, KOBEL_STR("\"")) : host_cc);
-if (!std__system__System_is_windows()) {
-kobel_str posix_exe = str_to_posix_path(exe_path);
-kobel_str posix_c = str_to_posix_path(c_path);
-kobel_str exe_arg = (str_contains(posix_exe, KOBEL_STR(" ")) ? kobel_concat(3, KOBEL_STR("\""), posix_exe, KOBEL_STR("\"")) : posix_exe);
-kobel_str c_arg = (str_contains(posix_c, KOBEL_STR(" ")) ? kobel_concat(3, KOBEL_STR("\""), posix_c, KOBEL_STR("\"")) : posix_c);
-kobel_str cmd = kobel_concat(6, KOBEL_STR("TMPDIR=\"build\" "), cc_bin, KOBEL_STR(" -O2 -o "), exe_arg, KOBEL_STR(" "), c_arg);
+kobel_str compiler__driver__c_compile_cmd(kobel_str c_path, kobel_str exe_path, kobel_str cc, bool quiet) {
+kobel_str cc_bin = (((str_contains(cc, KOBEL_STR(" "))) && !str_starts_with(cc, KOBEL_STR("\""))) ? kobel_concat(3, KOBEL_STR("\""), cc, KOBEL_STR("\"")) : cc);
+kobel_str exe_arg = (str_contains(exe_path, KOBEL_STR(" ")) ? kobel_concat(3, KOBEL_STR("\""), exe_path, KOBEL_STR("\"")) : exe_path);
+kobel_str c_arg = (str_contains(c_path, KOBEL_STR(" ")) ? kobel_concat(3, KOBEL_STR("\""), c_path, KOBEL_STR("\"")) : c_path);
+kobel_str cmd = kobel_concat(5, cc_bin, KOBEL_STR(" -o "), exe_arg, KOBEL_STR(" "), c_arg);
 if (quiet) {
-cmd = kobel_concat(2, cmd, KOBEL_STR(" >/dev/null 2>&1"));
-}
-return cmd;
-}
-kobel_str win_exe = str_to_win_path(exe_path);
-kobel_str win_obj = str_to_win_path(obj_path);
-kobel_str win_c = str_to_win_path(c_path);
-kobel_str exe_arg = (str_contains(win_exe, KOBEL_STR(" ")) ? kobel_concat(3, KOBEL_STR("\""), win_exe, KOBEL_STR("\"")) : win_exe);
-kobel_str obj_arg = (str_contains(win_obj, KOBEL_STR(" ")) ? kobel_concat(3, KOBEL_STR("\""), win_obj, KOBEL_STR("\"")) : win_obj);
-kobel_str c_arg = (str_contains(win_c, KOBEL_STR(" ")) ? kobel_concat(3, KOBEL_STR("\""), win_c, KOBEL_STR("\"")) : win_c);
-kobel_str tmp_setup = KOBEL_STR("set \"TMP=%CD%\\build\" && set \"TEMP=%CD%\\build\"");
-kobel_str vs_base = KOBEL_STR("\"%ProgramFiles%\\Microsoft Visual Studio");
-kobel_str bat_sub = KOBEL_STR("VC\\Auxiliary\\Build\\vcvars64.bat\"");
-kobel_str vs18 = kobel_concat(3, vs_base, KOBEL_STR("\\18\\Community\\"), bat_sub);
-kobel_str vs22_c = kobel_concat(3, vs_base, KOBEL_STR("\\2022\\Community\\"), bat_sub);
-kobel_str vs22_p = kobel_concat(3, vs_base, KOBEL_STR("\\2022\\Professional\\"), bat_sub);
-kobel_str vs22_e = kobel_concat(3, vs_base, KOBEL_STR("\\2022\\Enterprise\\"), bat_sub);
-kobel_str vcvars_setup = kobel_concat(17, KOBEL_STR("(where cl >nul 2>nul || if exist "), vs18, KOBEL_STR(" (call "), vs18, KOBEL_STR(" >nul) else if exist "), vs22_c, KOBEL_STR(" (call "), vs22_c, KOBEL_STR(" >nul) else if exist "), vs22_p, KOBEL_STR(" (call "), vs22_p, KOBEL_STR(" >nul) else if exist "), vs22_e, KOBEL_STR(" (call "), vs22_e, KOBEL_STR(" >nul))"));
-kobel_str cl_invoke = kobel_concat(7, cc_bin, KOBEL_STR(" /nologo /O2 /std:c11 /Fe:"), exe_arg, KOBEL_STR(" /Fo:"), obj_arg, KOBEL_STR(" "), c_arg);
-kobel_str cmd = (compiler__driver__is_msvc_compiler(host_cc) ? (std__system__System_has_env(KOBEL_STR("VCINSTALLDIR")) ? kobel_concat(3, tmp_setup, KOBEL_STR(" && "), cl_invoke) : kobel_concat(5, tmp_setup, KOBEL_STR(" && "), vcvars_setup, KOBEL_STR(" && "), cl_invoke)) : kobel_concat(7, tmp_setup, KOBEL_STR(" && "), cc_bin, KOBEL_STR(" -O2 -o "), exe_arg, KOBEL_STR(" "), c_arg));
-if (quiet) {
-cmd = kobel_concat(2, cmd, KOBEL_STR(" >nul 2>nul"));
+cmd = (std__system__System_is_windows() ? kobel_concat(2, cmd, KOBEL_STR(" >nul 2>nul")) : kobel_concat(2, cmd, KOBEL_STR(" >/dev/null 2>&1")));
 }
 return cmd;
 }
@@ -25370,16 +25328,15 @@ if (!write_ok) {
 std__io__println(kobel_concat(2, KOBEL_STR("Error: Failed to write temporary C file: "), c_tmp_p.raw));
 return 1;
 }
-kobel_str host_cc = compiler__driver__resolve_host_cc(self->c_compiler);
 if (!self->quiet) {
-std__io__println(kobel_concat(3, KOBEL_STR("[BUILDING] Invoking backend compiler ("), host_cc, KOBEL_STR(")...")));
+std__io__println(kobel_concat(3, KOBEL_STR("[BUILDING] Invoking backend compiler ("), self->c_compiler, KOBEL_STR(")...")));
 }
 std__filesystem__Path old_p = std__filesystem__Path_init(kobel_concat(2, out_path, KOBEL_STR(".old")));
 if (std__filesystem__Path_exists(&out_p)) {
 std__filesystem__Path_remove(&old_p);
 std__filesystem__Path_rename_to(&out_p, old_p);
 }
-kobel_str compile_cmd = compiler__driver__c_compile_cmd(c_tmp_p.raw, out_path, obj_tmp_p.raw, self->c_compiler, self->quiet);
+kobel_str compile_cmd = compiler__driver__c_compile_cmd(c_tmp_p.raw, out_path, self->c_compiler, self->quiet);
 int32_t exit_code = std__process__Process_exec(compile_cmd);
 if (exit_code != 0) {
 if (std__filesystem__Path_exists(&old_p) && !std__filesystem__Path_exists(&out_p)) {

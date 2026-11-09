@@ -21,69 +21,21 @@ use compiler.loader.*;
 // Compiler Driver Pipeline
 // ============================================================================
 
-pub fn is_msvc_compiler(cc: str): bool {
-	val base = cc.base_name();
-	return base == "cl" || base == "cl.exe" || base == "clang-cl" || base == "clang-cl.exe";
-}
+/*
+ * The backend compiler is invoked exactly as configured: no environment
+ * discovery, no vcvars/TMP setup and no per-compiler flag tables. A working
+ * toolchain (on PATH, with whatever environment it needs) is the user's
+ * responsibility; Kobel only builds and runs this command line.
+ */
+pub fn c_compile_cmd(c_path: str, exe_path: str, cc: str, quiet: bool): str {
+	val cc_bin = if ((" " in cc) && !cc.starts_with("\"")) "\"${cc}\"" else cc;
+	val exe_arg = if (" " in exe_path) "\"${exe_path}\"" else exe_path;
+	val c_arg = if (" " in c_path) "\"${c_path}\"" else c_path;
 
-// Resolves the configured compiler for the current host OS: on Linux/POSIX,
-// `cc = "cl"` in `kobel.toml` automatically falls back to `cc`.
-pub fn resolve_host_cc(cc: str): str {
-	if (!System.is_windows() && is_msvc_compiler(cc)) return "cc";
-	return cc;
-}
-
-// Command line that turns `c_path` into `exe_path` with the given backend.
-// `obj_path` is only used by MSVC; `quiet` silences the backend's diagnostics.
-// Shared by `compile()` and the fixpoint gate so both invoke the same toolchain.
-pub fn c_compile_cmd(c_path: str, exe_path: str, obj_path: str, cc: str, quiet: bool): str {
-	val host_cc = resolve_host_cc(cc);
-	val has_spaces = (" " in host_cc) && !host_cc.starts_with("\"");
-	val is_path_with_spaces = ("/" in host_cc || "\\" in host_cc) && has_spaces;
-	val cc_bin = if (is_path_with_spaces) "\"${host_cc}\"" else host_cc;
-
-	if (!System.is_windows()) {
-		val posix_exe = exe_path.to_posix_path();
-		val posix_c = c_path.to_posix_path();
-
-		val exe_arg = if (" " in posix_exe) "\"${posix_exe}\"" else posix_exe;
-		val c_arg = if (" " in posix_c) "\"${posix_c}\"" else posix_c;
-
-		var cmd = "TMPDIR=\"build\" ${cc_bin} -O2 -o ${exe_arg} ${c_arg}";
-		if (quiet) cmd = "${cmd} >/dev/null 2>&1";
-		return cmd;
+	var cmd = "${cc_bin} -o ${exe_arg} ${c_arg}";
+	if (quiet) {
+		cmd = if (System.is_windows()) "${cmd} >nul 2>nul" else "${cmd} >/dev/null 2>&1";
 	}
-
-	val win_exe = exe_path.to_win_path();
-	val win_obj = obj_path.to_win_path();
-	val win_c = c_path.to_win_path();
-
-	val exe_arg = if (" " in win_exe) "\"${win_exe}\"" else win_exe;
-	val obj_arg = if (" " in win_obj) "\"${win_obj}\"" else win_obj;
-	val c_arg = if (" " in win_c) "\"${win_c}\"" else win_c;
-
-	val tmp_setup = "set \"TMP=%CD%\\build\" && set \"TEMP=%CD%\\build\"";
-	val vs_base = "\"%ProgramFiles%\\Microsoft Visual Studio";
-	val bat_sub = "VC\\Auxiliary\\Build\\vcvars64.bat\"";
-	val vs18 = "${vs_base}\\18\\Community\\${bat_sub}";
-	val vs22_c = "${vs_base}\\2022\\Community\\${bat_sub}";
-	val vs22_p = "${vs_base}\\2022\\Professional\\${bat_sub}";
-	val vs22_e = "${vs_base}\\2022\\Enterprise\\${bat_sub}";
-	val vcvars_setup = "(where cl >nul 2>nul || "
-		"if exist ${vs18} (call ${vs18} >nul) "
-		"else if exist ${vs22_c} (call ${vs22_c} >nul) "
-		"else if exist ${vs22_p} (call ${vs22_p} >nul) "
-		"else if exist ${vs22_e} (call ${vs22_e} >nul))";
-	val cl_invoke = "${cc_bin} /nologo /O2 /std:c11 /Fe:${exe_arg} /Fo:${obj_arg} ${c_arg}";
-
-	var cmd = if (is_msvc_compiler(host_cc)) {
-		if (System.has_env("VCINSTALLDIR")) "${tmp_setup} && ${cl_invoke}"
-		else "${tmp_setup} && ${vcvars_setup} && ${cl_invoke}"
-	} else {
-		"${tmp_setup} && ${cc_bin} -O2 -o ${exe_arg} ${c_arg}"
-	};
-
-	if (quiet) cmd = "${cmd} >nul 2>nul";
 	return cmd;
 }
 
@@ -191,8 +143,7 @@ impl CompileOptions {
 			return 1;
 		}
 
-		val host_cc = resolve_host_cc(self.c_compiler);
-		if (!self.quiet) println("[BUILDING] Invoking backend compiler (${host_cc})...");
+		if (!self.quiet) println("[BUILDING] Invoking backend compiler (${self.c_compiler})...");
 
 		// If the output binary already exists, move it aside to avoid Windows LNK1104
 		// file locking issues (especially during self-hosting builds).
@@ -202,7 +153,7 @@ impl CompileOptions {
 			out_p.rename_to(old_p);
 		}
 
-		var compile_cmd = c_compile_cmd(c_tmp_p.raw, out_path, obj_tmp_p.raw, self.c_compiler, self.quiet);
+		var compile_cmd = c_compile_cmd(c_tmp_p.raw, out_path, self.c_compiler, self.quiet);
 
 		val exit_code = Process.exec(compile_cmd);
 		if (exit_code != 0) {
