@@ -204,7 +204,3 @@ Tracked here instead of as `TODO` markers in `src/`:
 
 1. **Formatter wrapping is partial.** Argument and parameter lists wrap at `max_width` (100);
    long conditions, binary expressions and struct-field defaults are still emitted on one line.
-2. **Struct layout ordering.** A by-value struct field whose type is declared later in the
-   same module can be laid out while its nested type still has size 0, so the outer struct
-   gets a short size. `Diagnostic` stores its location fields flat to avoid this; the general
-   fix is a two-phase declaration pass that fills every struct's fields before laying any out.

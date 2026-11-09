@@ -680,6 +680,7 @@ impl DeclarationCollector {
 			self.pass1_enums(prog, true);
 			self.pass1_declarations(prog);
 			self.pass1_impls(prog);
+			self.symtab.relayout_structs();
 			self.pass2_rewrite_generics(prog);
 			self.drain_instances();
 			self.append_monomorphized_instances(prog);

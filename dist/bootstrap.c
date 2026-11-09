@@ -2719,6 +2719,7 @@ compiler__semantic__symbols__Symbol* compiler__semantic__symbols__SymbolTable_lo
 compiler__semantic__symbols__Symbol* compiler__semantic__symbols__SymbolTable_lookup(compiler__semantic__symbols__SymbolTable* self, kobel_str name);
 bool compiler__semantic__symbols__SymbolTable_define(compiler__semantic__symbols__SymbolTable* self, compiler__semantic__symbols__Symbol sym);
 kobel_str compiler__semantic__symbols__SymbolTable_set_current_module(compiler__semantic__symbols__SymbolTable* self, kobel_str name);
+void compiler__semantic__symbols__SymbolTable_relayout_structs(compiler__semantic__symbols__SymbolTable* self);
 compiler__semantic__symbols__ModuleScope* compiler__semantic__symbols__SymbolTable_find_module(compiler__semantic__symbols__SymbolTable* self, kobel_str name);
 bool compiler__semantic__symbols__SymbolTable_module_exists(compiler__semantic__symbols__SymbolTable* self, kobel_str name);
 bool compiler__semantic__symbols__SymbolTable_has_wildcard(compiler__semantic__symbols__SymbolTable* self, kobel_str owner, kobel_str module_name);
@@ -12062,6 +12063,56 @@ kobel_str compiler__semantic__symbols__SymbolTable_set_current_module(compiler__
     return self->current_module = name;
 }
 
+void compiler__semantic__symbols__SymbolTable_relayout_structs(compiler__semantic__symbols__SymbolTable* self) {
+bool changed = true;
+int32_t round = 0;
+while (changed && (round < 32)) {
+changed = false;
+{
+size_t __for_n = std__collections__List_ptr_compiler__semantic__symbols__ModuleScope_count(&self->modules);
+size_t __for_i = 0;
+while (__for_i < __for_n) {
+compiler__semantic__symbols__ModuleScope* ms = std__collections__List_ptr_compiler__semantic__symbols__ModuleScope_at(&self->modules, __for_i);
+{
+size_t __for_n = std__collections__List_ptr_compiler__semantic__symbols__Symbol_count(&ms->symbols);
+size_t __for_i = 0;
+while (__for_i < __for_n) {
+compiler__semantic__symbols__Symbol* sym = std__collections__List_ptr_compiler__semantic__symbols__Symbol_at(&ms->symbols, __for_i);
+if (sym->kind != 4) {
+__for_i = (__for_i + 1);
+continue;
+}
+if (sym->type_ptr == NULL) {
+__for_i = (__for_i + 1);
+continue;
+}
+if (compiler__semantic__types__Type_is_enum(sym->type_ptr)) {
+__for_i = (__for_i + 1);
+continue;
+}
+if (compiler__semantic__symbols__SymbolTable_find_enum_info(self, sym->name) != NULL) {
+__for_i = (__for_i + 1);
+continue;
+}
+if (compiler__semantic__symbols__SymbolTable_find_enum_info(self, sym->c_name) != NULL) {
+__for_i = (__for_i + 1);
+continue;
+}
+size_t before = (*sym->type_ptr).size;
+compiler__semantic__types__Type_layout_struct(sym->type_ptr);
+if ((*sym->type_ptr).size != before) {
+changed = true;
+}
+__for_i = (__for_i + 1);
+}
+}
+__for_i = (__for_i + 1);
+}
+}
+round++;
+}
+}
+
 compiler__semantic__symbols__ModuleScope* compiler__semantic__symbols__SymbolTable_find_module(compiler__semantic__symbols__SymbolTable* self, kobel_str name) {
 compiler__semantic__symbols__ModuleScope** p = std__collections__HashMap_str_ptr_compiler__semantic__symbols__ModuleScope_get(&self->module_map, name);
 if (p == NULL) {
@@ -15320,6 +15371,7 @@ compiler__semantic__declaration__DeclarationCollector_pass1_enums(self, prog, fa
 compiler__semantic__declaration__DeclarationCollector_pass1_enums(self, prog, true);
 compiler__semantic__declaration__DeclarationCollector_pass1_declarations(self, prog);
 compiler__semantic__declaration__DeclarationCollector_pass1_impls(self, prog);
+compiler__semantic__symbols__SymbolTable_relayout_structs(&self->symtab);
 compiler__semantic__declaration__DeclarationCollector_pass2_rewrite_generics(self, prog);
 compiler__semantic__declaration__DeclarationCollector_drain_instances(self);
 compiler__semantic__declaration__DeclarationCollector_append_monomorphized_instances(self, prog);
