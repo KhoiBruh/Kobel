@@ -100,7 +100,7 @@ pub fn read_message(): str {
 				var n: usz = 0;
 				for (j in prefix.len..<line.len) {
 					val c = line[j];
-					if (c.is_digit()) {
+					if (c in '0'..'9') {
 						n = n * 10 + (c.code() - 48);
 					}
 				}

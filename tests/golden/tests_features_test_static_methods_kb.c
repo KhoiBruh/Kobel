@@ -297,6 +297,7 @@ typedef struct std__filesystem__Path std__filesystem__Path;
 typedef struct test__static_methods__Point test__static_methods__Point;
 typedef struct std__collections__List_str std__collections__List_str;
 typedef struct std__collections__List_std__filesystem__Path std__collections__List_std__filesystem__Path;
+typedef struct std__range__Range_char std__range__Range_char;
 
 
 struct std__memory__ArenaBlock {
@@ -347,6 +348,12 @@ struct std__collections__List_std__filesystem__Path {
     size_t cap;
 };
 
+struct std__range__Range_char {
+    char start;
+    char end;
+    bool inclusive;
+};
+
 static inline std__collections__List_str std__collections__List_str_from_array(const void* src, size_t n) {
 	size_t elem_size = sizeof(*(((std__collections__List_str*)0)->data));
 	size_t cap = (n < 4) ? 4 : n;
@@ -369,7 +376,7 @@ static inline std__collections__List_str std__collections__List_str_from_array(c
 	return l;
 }size_t std__traits__hash_int(size_t n);
 size_t std__traits__hash_str(kobel_str s);
-size_t bool_hash(bool self);
+int32_t bool_hash(bool self);
 size_t char_hash(char self);
 size_t str_hash(kobel_str self);
 size_t i8_hash(int8_t self);
@@ -582,6 +589,11 @@ uint8_t* std__memory__Heap_create_array_u8(size_t count);
 std__memory__ArenaBlock* std__memory__Heap_create_std__memory__ArenaBlock(void);
 void std__memory__Heap_free_std__memory__ArenaBlock(std__memory__ArenaBlock* ptr);
 uint8_t* std__memory__Heap_resize_u8(uint8_t* ptr, size_t count);
+bool std__range__Range_char_is_ascending(std__range__Range_char* self);
+bool std__range__Range_char_equals(std__range__Range_char* self, std__range__Range_char other);
+bool std__range__Range_char_contains(std__range__Range_char* self, char item);
+size_t std__range__Range_char_count(std__range__Range_char* self);
+char std__range__Range_char_at(std__range__Range_char* self, size_t i);
 kobel_str* std__memory__Heap_create_array_str(size_t count);
 kobel_str* std__memory__Heap_resize_str(kobel_str* ptr, size_t count);
 std__filesystem__Path* std__memory__Heap_create_array_std__filesystem__Path(size_t count);
@@ -594,7 +606,7 @@ return x;
 }
 
 size_t std__traits__hash_str(kobel_str s) {
-size_t h = 5381;
+int32_t h = 5381;
 {
 size_t __for_e = s.len;
 size_t __for_i = __for_e;
@@ -627,7 +639,7 @@ __for_i = (__for_i - 1);
 return h;
 }
 
-size_t bool_hash(bool self) {
+int32_t bool_hash(bool self) {
     return (self ? 1 : 0);
 }
 
@@ -835,7 +847,8 @@ size_t __for_n = self.len;
 size_t __for_i = 0;
 while (__for_i < __for_n) {
 char c = self.data[__for_i];
-if ((((c != ' ') && (c != '\t')) && (c != '\r')) && (c != '\n')) {
+if (c == ' ' || c == '\t' || c == '\r' || c == '\n') {
+} else {
 return false;
 }
 __for_i = (__for_i + 1);
@@ -1197,7 +1210,7 @@ kobel_str zone = self;
 bool radix = false;
 if ((self.len > 2) && (self.data[0] == '0')) {
 char r = self.data[1];
-if ((((((r == 'x') || (r == 'X')) || (r == 'b')) || (r == 'B')) || (r == 'o')) || (r == 'O')) {
+if (r == 'x' || r == 'X' || r == 'b' || r == 'B' || r == 'o' || r == 'O') {
 radix = true;
 zone = KOBEL_STR("");
 {
@@ -1249,7 +1262,7 @@ return self;
 int32_t start = 0;
 while (start < self.len) {
 char c = self.data[start];
-if ((((c == ' ') || (c == '\t')) || (c == '\r')) || (c == '\n')) {
+if (c == ' ' || c == '\t' || c == '\r' || c == '\n') {
 start++;
 } else {
 break;
@@ -1261,7 +1274,7 @@ return KOBEL_STR("");
 size_t end = self.len;
 while (end > start) {
 char c = self.data[(end - 1)];
-if ((((c == ' ') || (c == '\t')) || (c == '\r')) || (c == '\n')) {
+if (c == ' ' || c == '\t' || c == '\r' || c == '\n') {
 end--;
 } else {
 break;
@@ -1725,23 +1738,23 @@ if (v != v) {
 return KOBEL_STR("nan");
 }
 double diff = (v - v);
-if (diff != 0.0) {
-if (v > 0.0) {
+if (diff != 0) {
+if (v > 0) {
 return KOBEL_STR("inf");
 }
 return KOBEL_STR("-inf");
 }
 kobel_str sign = KOBEL_STR("");
 double x = v;
-if (x < 0.0) {
+if (x < 0) {
 sign = KOBEL_STR("-");
-x = (0.0 - x);
+x = (0 - x);
 }
-size_t prec = 6;
+int32_t prec = 6;
 double scale = 1.0;
 {
-size_t __for_e = prec;
-size_t __for_i = __for_e;
+int32_t __for_e = prec;
+int32_t __for_i = __for_e;
 __for_i = 0;
 bool __for_up = (__for_i <= __for_e);
 bool __for_go = false;
@@ -1751,7 +1764,7 @@ __for_go = (__for_i < __for_e);
 __for_go = (__for_i > __for_e);
 }
 while (__for_go) {
-size_t k = __for_i;
+int32_t k = __for_i;
 scale *= 10.0;
 if (__for_up) {
 __for_go = ((__for_i + 1) < __for_e);
@@ -1945,7 +1958,7 @@ __for_go = (__for_i > __for_e);
 while (__for_go) {
 size_t i = __for_i;
 char c = s.data[i];
-buf[i] = (c == from ? ((int32_t)(uint8_t)(to)) : ((fold_case && (c >= 'A')) && (c <= 'Z') ? (((int32_t)(uint8_t)(c)) + 32) : ((int32_t)(uint8_t)(c))));
+buf[i] = (c == from ? ((int32_t)(uint8_t)(to)) : (fold_case && std__range__Range_char_contains(&(std__range__Range_char){ 'A', 'Z', true }, c) ? (((int32_t)(uint8_t)(c)) + 32) : ((int32_t)(uint8_t)(c))));
 if (__for_up) {
 __for_go = ((__for_i + 1) < __for_e);
 } else {
@@ -3137,6 +3150,43 @@ void std__memory__Heap_free_std__memory__ArenaBlock(std__memory__ArenaBlock* ptr
 
 uint8_t* std__memory__Heap_resize_u8(uint8_t* ptr, size_t count) {
     return (uint8_t*)realloc((uint8_t*)ptr, (count * 1));
+}
+
+bool std__range__Range_char_is_ascending(std__range__Range_char* self) {
+    return (self->start <= self->end);
+}
+
+bool std__range__Range_char_equals(std__range__Range_char* self, std__range__Range_char other) {
+    return (((self->start == other.start) && (self->end == other.end)) && (self->inclusive == other.inclusive));
+}
+
+bool std__range__Range_char_contains(std__range__Range_char* self, char item) {
+if (std__range__Range_char_is_ascending(self)) {
+if (self->inclusive) {
+return ((item >= self->start) && (item <= self->end));
+}
+return ((item >= self->start) && (item < self->end));
+}
+if (self->inclusive) {
+return ((item <= self->start) && (item >= self->end));
+}
+return ((item <= self->start) && (item > self->end));
+}
+
+size_t std__range__Range_char_count(std__range__Range_char* self) {
+if (std__range__Range_char_is_ascending(self)) {
+size_t diff = (size_t)(self->end - self->start);
+return (self->inclusive ? (diff + 1) : diff);
+}
+size_t diff = (size_t)(self->start - self->end);
+return (self->inclusive ? (diff + 1) : diff);
+}
+
+char std__range__Range_char_at(std__range__Range_char* self, size_t i) {
+if (std__range__Range_char_is_ascending(self)) {
+return (char)(self->start + ((intptr_t)i));
+}
+return (char)(self->start - ((intptr_t)i));
 }
 
 kobel_str* std__memory__Heap_create_array_str(size_t count) {

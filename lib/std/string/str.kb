@@ -69,12 +69,10 @@ impl str {
 
 	pub fn blank(val self): bool {
 		for (c in self) {
-			if (
-				c != ' '
-				&& c != '\t'
-				&& c != '\r'
-				&& c != '\n'
-			) return false;
+			when (c) {
+				' ', '\t', '\r', '\n' -> {}
+				else -> return false;
+			}
 		}
 		return true;
 	}
@@ -235,16 +233,14 @@ impl str {
 		var radix = false;
 		if (self.len > 2 && self[0] == '0') {
 			val r = self[1];
-			if (
-				r == 'x' || r == 'X'
-				|| r == 'b' || r == 'B'
-				|| r == 'o' || r == 'O'
-			) {
-				radix = true;
-				zone = "";
-				for (i in 2..<self.len) {
-					if (self[i] == '_') {
-						zone = self.slice(i + 1, self.len);
+			when (r) {
+				'x', 'X', 'b', 'B', 'o', 'O' -> {
+					radix = true;
+					zone = "";
+					for (i in 2..<self.len) {
+						if (self[i] == '_') {
+							zone = self.slice(i + 1, self.len);
+						}
 					}
 				}
 			}
@@ -267,10 +263,9 @@ impl str {
 		var start = 0;
 		while (start < self.len) {
 			val c = self[start];
-			if (c == ' ' || c == '\t' || c == '\r' || c == '\n') {
-				start++;
-			} else {
-				break;
+			when (c) {
+				' ', '\t', '\r', '\n' -> start++;
+				else -> break;
 			}
 		}
 
@@ -279,10 +274,9 @@ impl str {
 		var end = self.len;
 		while (end > start) {
 			val c = self[end - 1];
-			if (c == ' ' || c == '\t' || c == '\r' || c == '\n') {
-				end--;
-			} else {
-				break;
+			when (c) {
+				' ', '\t', '\r', '\n' -> end--;
+				else -> break;
 			}
 		}
 

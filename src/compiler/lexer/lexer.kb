@@ -211,7 +211,7 @@ impl Lexer {
 					self.next(); // consume 'b' or 'B'
 					while (!self.is_end()) {
 						val c = self.peek();
-						if (c == '0' || c == '1' || c == '_') self.next();
+						if (c in '0'..'1' || c == '_') self.next();
 						else break;
 					}
 				}
@@ -219,7 +219,7 @@ impl Lexer {
 					self.next(); // consume 'o' or 'O'
 					while (!self.is_end()) {
 						val c = self.peek();
-						if ((c >= '0' && c <= '7') || c == '_') self.next();
+						if (c in '0'..'7' || c == '_') self.next();
 						else break;
 					}
 				}
@@ -634,9 +634,10 @@ impl Lexer {
 					yield self.make_token(TokenType.QUESTION, start_cursor, start_col);
 				}
 
+				'a'..'z', 'A'..'Z', '_' -> self.scan_identifier(start_cursor, start_col);
+				'0'..'9' -> self.scan_number(start_cursor, start_col);
+
 				else -> {
-					if (c.is_alpha() || c == '_') yield self.scan_identifier(start_cursor, start_col);
-					if (c.is_digit()) yield self.scan_number(start_cursor, start_col);
 					self.record_error(start_line, start_col, "Unexpected character '${c}'");
 					yield self.make_token_at(TokenType.UNKNOWN, start_cursor, start_line, start_col);
 				}

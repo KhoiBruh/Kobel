@@ -365,7 +365,7 @@ static inline std__collections__List_str std__collections__List_str_from_array(c
 	return l;
 }size_t std__traits__hash_int(size_t n);
 size_t std__traits__hash_str(kobel_str s);
-size_t bool_hash(bool self);
+int32_t bool_hash(bool self);
 size_t char_hash(char self);
 size_t str_hash(kobel_str self);
 size_t i8_hash(int8_t self);
@@ -512,25 +512,21 @@ uint8_t* std__memory__Heap_create_array_u8(size_t count);
 std__memory__ArenaBlock* std__memory__Heap_create_std__memory__ArenaBlock(void);
 void std__memory__Heap_free_std__memory__ArenaBlock(std__memory__ArenaBlock* ptr);
 uint8_t* std__memory__Heap_resize_u8(uint8_t* ptr, size_t count);
-std__range__Range_char std__range__Range_char_init(char start, char end, bool inclusive);
 bool std__range__Range_char_is_ascending(std__range__Range_char* self);
 bool std__range__Range_char_equals(std__range__Range_char* self, std__range__Range_char other);
 bool std__range__Range_char_contains(std__range__Range_char* self, char item);
 size_t std__range__Range_char_count(std__range__Range_char* self);
 char std__range__Range_char_at(std__range__Range_char* self, size_t i);
-std__range__Range_i32 std__range__Range_i32_init(int32_t start, int32_t end, bool inclusive);
 bool std__range__Range_i32_is_ascending(std__range__Range_i32* self);
 bool std__range__Range_i32_equals(std__range__Range_i32* self, std__range__Range_i32 other);
 bool std__range__Range_i32_contains(std__range__Range_i32* self, int32_t item);
 size_t std__range__Range_i32_count(std__range__Range_i32* self);
 int32_t std__range__Range_i32_at(std__range__Range_i32* self, size_t i);
-std__range__Range_usz std__range__Range_usz_init(size_t start, size_t end, bool inclusive);
 bool std__range__Range_usz_is_ascending(std__range__Range_usz* self);
 bool std__range__Range_usz_equals(std__range__Range_usz* self, std__range__Range_usz other);
 bool std__range__Range_usz_contains(std__range__Range_usz* self, size_t item);
 size_t std__range__Range_usz_count(std__range__Range_usz* self);
 size_t std__range__Range_usz_at(std__range__Range_usz* self, size_t i);
-std__range__Range_i64 std__range__Range_i64_init(int64_t start, int64_t end, bool inclusive);
 bool std__range__Range_i64_is_ascending(std__range__Range_i64* self);
 bool std__range__Range_i64_equals(std__range__Range_i64* self, std__range__Range_i64 other);
 bool std__range__Range_i64_contains(std__range__Range_i64* self, int64_t item);
@@ -546,7 +542,7 @@ return x;
 }
 
 size_t std__traits__hash_str(kobel_str s) {
-size_t h = 5381;
+int32_t h = 5381;
 {
 size_t __for_e = s.len;
 size_t __for_i = __for_e;
@@ -579,7 +575,7 @@ __for_i = (__for_i - 1);
 return h;
 }
 
-size_t bool_hash(bool self) {
+int32_t bool_hash(bool self) {
     return (self ? 1 : 0);
 }
 
@@ -787,7 +783,8 @@ size_t __for_n = self.len;
 size_t __for_i = 0;
 while (__for_i < __for_n) {
 char c = self.data[__for_i];
-if ((((c != ' ') && (c != '\t')) && (c != '\r')) && (c != '\n')) {
+if (c == ' ' || c == '\t' || c == '\r' || c == '\n') {
+} else {
 return false;
 }
 __for_i = (__for_i + 1);
@@ -1149,7 +1146,7 @@ kobel_str zone = self;
 bool radix = false;
 if ((self.len > 2) && (self.data[0] == '0')) {
 char r = self.data[1];
-if ((((((r == 'x') || (r == 'X')) || (r == 'b')) || (r == 'B')) || (r == 'o')) || (r == 'O')) {
+if (r == 'x' || r == 'X' || r == 'b' || r == 'B' || r == 'o' || r == 'O') {
 radix = true;
 zone = KOBEL_STR("");
 {
@@ -1201,7 +1198,7 @@ return self;
 int32_t start = 0;
 while (start < self.len) {
 char c = self.data[start];
-if ((((c == ' ') || (c == '\t')) || (c == '\r')) || (c == '\n')) {
+if (c == ' ' || c == '\t' || c == '\r' || c == '\n') {
 start++;
 } else {
 break;
@@ -1213,7 +1210,7 @@ return KOBEL_STR("");
 size_t end = self.len;
 while (end > start) {
 char c = self.data[(end - 1)];
-if ((((c == ' ') || (c == '\t')) || (c == '\r')) || (c == '\n')) {
+if (c == ' ' || c == '\t' || c == '\r' || c == '\n') {
 end--;
 } else {
 break;
@@ -1677,23 +1674,23 @@ if (v != v) {
 return KOBEL_STR("nan");
 }
 double diff = (v - v);
-if (diff != 0.0) {
-if (v > 0.0) {
+if (diff != 0) {
+if (v > 0) {
 return KOBEL_STR("inf");
 }
 return KOBEL_STR("-inf");
 }
 kobel_str sign = KOBEL_STR("");
 double x = v;
-if (x < 0.0) {
+if (x < 0) {
 sign = KOBEL_STR("-");
-x = (0.0 - x);
+x = (0 - x);
 }
-size_t prec = 6;
+int32_t prec = 6;
 double scale = 1.0;
 {
-size_t __for_e = prec;
-size_t __for_i = __for_e;
+int32_t __for_e = prec;
+int32_t __for_i = __for_e;
 __for_i = 0;
 bool __for_up = (__for_i <= __for_e);
 bool __for_go = false;
@@ -1703,7 +1700,7 @@ __for_go = (__for_i < __for_e);
 __for_go = (__for_i > __for_e);
 }
 while (__for_go) {
-size_t k = __for_i;
+int32_t k = __for_i;
 scale *= 10.0;
 if (__for_up) {
 __for_go = ((__for_i + 1) < __for_e);
@@ -2923,10 +2920,6 @@ uint8_t* std__memory__Heap_resize_u8(uint8_t* ptr, size_t count) {
     return (uint8_t*)realloc((uint8_t*)ptr, (count * 1));
 }
 
-std__range__Range_char std__range__Range_char_init(char start, char end, bool inclusive) {
-    return (std__range__Range_char){ start, end, inclusive };
-}
-
 bool std__range__Range_char_is_ascending(std__range__Range_char* self) {
     return (self->start <= self->end);
 }
@@ -2962,10 +2955,6 @@ if (std__range__Range_char_is_ascending(self)) {
 return (char)(self->start + ((intptr_t)i));
 }
 return (char)(self->start - ((intptr_t)i));
-}
-
-std__range__Range_i32 std__range__Range_i32_init(int32_t start, int32_t end, bool inclusive) {
-    return (std__range__Range_i32){ start, end, inclusive };
 }
 
 bool std__range__Range_i32_is_ascending(std__range__Range_i32* self) {
@@ -3005,10 +2994,6 @@ return (int32_t)(self->start + ((intptr_t)i));
 return (int32_t)(self->start - ((intptr_t)i));
 }
 
-std__range__Range_usz std__range__Range_usz_init(size_t start, size_t end, bool inclusive) {
-    return (std__range__Range_usz){ start, end, inclusive };
-}
-
 bool std__range__Range_usz_is_ascending(std__range__Range_usz* self) {
     return (self->start <= self->end);
 }
@@ -3044,10 +3029,6 @@ if (std__range__Range_usz_is_ascending(self)) {
 return (size_t)(self->start + ((intptr_t)i));
 }
 return (size_t)(self->start - ((intptr_t)i));
-}
-
-std__range__Range_i64 std__range__Range_i64_init(int64_t start, int64_t end, bool inclusive) {
-    return (std__range__Range_i64){ start, end, inclusive };
 }
 
 bool std__range__Range_i64_is_ascending(std__range__Range_i64* self) {

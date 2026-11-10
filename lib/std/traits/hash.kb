@@ -19,7 +19,7 @@ fn hash_int(n: usz): usz {
 }
 
 fn hash_str(s: str): usz {
-	var h: usz = 5381;
+	var h = 5381;
 	for (i in 0..<s.len) {
 		val c = s[i].code();
 		h = h * 33 + c;
@@ -28,53 +28,53 @@ fn hash_str(s: str): usz {
 }
 
 impl Hash for bool {
-	fn hash(val self): usz => if (self) 1 else 0;
+	fn hash(val self) => if (self) 1 else 0;
 }
 
 impl Hash for char {
-	fn hash(val self): usz => hash_int(self.code());
+	fn hash(val self) => hash_int(self.code());
 }
 
 impl Hash for str {
-	fn hash(val self): usz => hash_str(self);
+	fn hash(val self) => hash_str(self);
 }
 
 impl Hash for i8 {
-	fn hash(val self): usz => hash_int(self);
+	fn hash(val self) => hash_int(self);
 }
 
 impl Hash for i16 {
-	fn hash(val self): usz => hash_int(self);
+	fn hash(val self) => hash_int(self);
 }
 
 impl Hash for i32 {
-	fn hash(val self): usz => hash_int(self);
+	fn hash(val self) => hash_int(self);
 }
 
 impl Hash for i64 {
-	fn hash(val self): usz => hash_int(self);
+	fn hash(val self) => hash_int(self);
 }
 
 impl Hash for isz {
-	fn hash(val self): usz => hash_int(self);
+	fn hash(val self) => hash_int(self);
 }
 
 impl Hash for u8 {
-	fn hash(val self): usz => hash_int(self);
+	fn hash(val self) => hash_int(self);
 }
 
 impl Hash for u16 {
-	fn hash(val self): usz => hash_int(self);
+	fn hash(val self) => hash_int(self);
 }
 
 impl Hash for u32 {
-	fn hash(val self): usz => hash_int(self);
+	fn hash(val self) => hash_int(self);
 }
 
 impl Hash for u64 {
-	fn hash(val self): usz => hash_int(self);
+	fn hash(val self) => hash_int(self);
 }
 
 impl Hash for usz {
-	fn hash(val self): usz => hash_int(self);
+	fn hash(val self) => hash_int(self);
 }

@@ -39,6 +39,7 @@ fn fmt_u64(n0: u64): str {
 		buf[i] = (48 + (n % 10)) as u8;
 		n /= 10;
 	}
+
 	return str_from_bytes(buf, digits);
 }
 
@@ -47,6 +48,7 @@ fn fmt_i64(v: i64): str {
 		val mag = (0 - (v + 1)) as u64 + 1;
 		return "-" + fmt_u64(mag);
 	}
+
 	return fmt_u64(v as u64);
 }
 
@@ -61,14 +63,12 @@ fn fmt_bool(b: bool) => if (b) "true" else "false";
 
 // `n` copies of the character '0'.
 fn fmt_zeros(n: usz): str {
-	if (n == 0) {
-		return "";
-	}
+	if (n == 0) return "";
+
 	val buf = Heap.create_array<u8>(n + 1);
-	for (i in 0..<n) {
-		buf[i] = '0'.code();
-	}
+	for (i in 0..<n) buf[i] = '0'.code();
 	buf[n] = 0;
+
 	return str_from_bytes(buf, n);
 }
 
@@ -78,33 +78,27 @@ fn fmt_zeros(n: usz): str {
  * magnitudes lose precision.
  */
 fn fmt_f64(v: f64): str {
-	if (v != v) {
-		return "nan";
-	}
+	if (v != v) return "nan";
 	// `v - v` is NaN for an infinity and 0 for a finite value.
 	val diff = v - v;
-	if (diff != 0.0) {
-		if (v > 0.0) {
-			return "inf";
-		}
+	if (diff != 0) {
+		if (v > 0) return "inf";
 		return "-inf";
 	}
 
 	var sign = "";
 	var x = v;
-	if (x < 0.0) {
+	if (x < 0) {
 		sign = "-";
-		x = 0.0 - x;
+		x = 0 - x;
 	}
 
-	val prec: usz = 6;
-	var scale: f64 = 1.0;
-	for (k in 0..<prec) {
-		scale *= 10.0;
-	}
+	val prec = 6;
+	var scale = 1.0;
+	for (k in 0..<prec) scale *= 10.0;
 
-	var ip: u64 = x as u64;
-	var frac: u64 = ((x - (ip as f64)) * scale + 0.5) as u64;
+	var ip = x as u64;
+	var frac = ((x - (ip as f64)) * scale + 0.5) as u64;
 	if (frac >= (scale as u64)) {
 		// Rounding carried into the integer part (e.g. 0.9999999 -> 1.0).
 		ip++;
@@ -112,25 +106,18 @@ fn fmt_f64(v: f64): str {
 	}
 
 	val out = sign + fmt_u64(ip);
-	if (frac == 0) {
-		return out;
-	}
+	if (frac == 0) return out;
 
 	var digits = fmt_u64(frac);
-	if (digits.len < prec) {
-		digits = fmt_zeros(prec - digits.len) + digits;
-	}
+	if (digits.len < prec) digits = fmt_zeros(prec - digits.len) + digits;
 
 	var end = digits.len;
 	while (end > 0) {
-		if (digits[end - 1] != '0') {
-			break;
-		}
+		if (digits[end - 1] != '0') break;
 		end--;
 	}
-	if (end == 0) {
-		return out;
-	}
+	if (end == 0) return out;
+
 	return out + "." + digits.slice(0, end);
 }
 

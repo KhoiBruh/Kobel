@@ -2,10 +2,9 @@ mod std.ascii;
 
 impl char {
 
-	pub fn is_digit(val self) => self >= '0' && self <= '9';
+	pub fn is_digit(val self) => self in '0'..'9';
 
-	pub fn is_alpha(val self) => (self >= 'a' && self <= 'z')
-		|| (self >= 'A' && self <= 'Z');
+	pub fn is_alpha(val self) => self in 'a'..'z' || self in 'A'..'Z';
 
 	pub fn is_alphanumeric(val self) => self.is_alpha()
 		|| self.is_digit();
@@ -16,11 +15,11 @@ impl char {
 		|| self == '\r';
 
 	pub fn is_hex_digit(val self) => self.is_digit()
-		|| (self >= 'a' && self <= 'f')
-		|| (self >= 'A' && self <= 'F');
+		|| self in 'a'..'f'
+		|| self in 'A'..'F';
 
 	pub fn to_lower(val self): char {
-		if (self >= 'A' && self <= 'Z') {
+		if (self in 'A'..'Z') {
 			val offset = self.code() + 32;
 			return char(offset);
 		}
@@ -29,7 +28,7 @@ impl char {
 	}
 
 	pub fn to_upper(val self): char {
-		if (self >= 'a' && self <= 'z') {
+		if (self in 'a'..'z') {
 			val offset = self.code() - 32;
 			return char(offset);
 		}

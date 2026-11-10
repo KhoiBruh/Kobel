@@ -179,9 +179,11 @@ pub fn c_format_float_literal(raw: str): str {
 	val text = raw.strip_char('_');
 	var has_dot = false;
 	for (c in text) {
-		if (c == '.' || c == 'e' || c == 'E') {
-			has_dot = true;
-			break;
+		when (c) {
+			'.', 'e', 'E' -> {
+				has_dot = true;
+				break;
+			}
 		}
 	}
 	if (has_dot) return text;

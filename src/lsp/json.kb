@@ -267,7 +267,7 @@ impl JsonParser {
 		}
 
 		var val_num: i64 = 0;
-		while (!self.is_end() && self.peek().is_digit()) {
+		while (!self.is_end() && self.peek() in '0'..'9') {
 			val c = self.advance();
 			val d = c.code() - 48;
 			val_num = val_num * 10 + d;
@@ -275,13 +275,13 @@ impl JsonParser {
 
 		if (!self.is_end() && self.peek() == '.') {
 			self.advance();
-			while (!self.is_end() && self.peek().is_digit()) self.advance();
+			while (!self.is_end() && self.peek() in '0'..'9') self.advance();
 		}
 
 		if (!self.is_end() && (self.peek() == 'e' || self.peek() == 'E')) {
 			self.advance();
 			if (!self.is_end() && (self.peek() == '+' || self.peek() == '-')) self.advance();
-			while (!self.is_end() && self.peek().is_digit()) self.advance();
+			while (!self.is_end() && self.peek() in '0'..'9') self.advance();
 		}
 
 		return val_num * sign;
@@ -347,20 +347,20 @@ impl JsonParser {
 		if (self.is_end()) return JsonValue.null_val();
 
 		val c = self.peek();
-		return when {
-			c == '"' -> JsonValue.str(self.parse_string());
-			c == '{' -> self.parse_object();
-			c == '[' -> self.parse_array();
-			c == '-' || c.is_digit() -> JsonValue.num(self.parse_number());
-			c == 't' -> {
+		return when (c) {
+			'"' -> JsonValue.str(self.parse_string());
+			'{' -> self.parse_object();
+			'[' -> self.parse_array();
+			'-', '0'..'9' -> JsonValue.num(self.parse_number());
+			't' -> {
 				for (i in 0..<4) if (!self.is_end()) self.advance();
 				yield JsonValue.bool(true);
 			}
-			c == 'f' -> {
+			'f' -> {
 				for (i in 0..<5) if (!self.is_end()) self.advance();
 				yield JsonValue.bool(false);
 			}
-			c == 'n' -> {
+			'n' -> {
 				for (i in 0..<4) if (!self.is_end()) self.advance();
 				yield JsonValue.null_val();
 			}

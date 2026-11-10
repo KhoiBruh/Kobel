@@ -370,7 +370,7 @@ static inline std__collections__List_str std__collections__List_str_from_array(c
 	return l;
 }size_t std__traits__hash_int(size_t n);
 size_t std__traits__hash_str(kobel_str s);
-size_t bool_hash(bool self);
+int32_t bool_hash(bool self);
 size_t char_hash(char self);
 size_t str_hash(kobel_str self);
 size_t i8_hash(int8_t self);
@@ -576,7 +576,7 @@ return x;
 }
 
 size_t std__traits__hash_str(kobel_str s) {
-size_t h = 5381;
+int32_t h = 5381;
 {
 size_t __for_e = s.len;
 size_t __for_i = __for_e;
@@ -609,7 +609,7 @@ __for_i = (__for_i - 1);
 return h;
 }
 
-size_t bool_hash(bool self) {
+int32_t bool_hash(bool self) {
     return (self ? 1 : 0);
 }
 
@@ -817,7 +817,8 @@ size_t __for_n = self.len;
 size_t __for_i = 0;
 while (__for_i < __for_n) {
 char c = self.data[__for_i];
-if ((((c != ' ') && (c != '\t')) && (c != '\r')) && (c != '\n')) {
+if (c == ' ' || c == '\t' || c == '\r' || c == '\n') {
+} else {
 return false;
 }
 __for_i = (__for_i + 1);
@@ -1179,7 +1180,7 @@ kobel_str zone = self;
 bool radix = false;
 if ((self.len > 2) && (self.data[0] == '0')) {
 char r = self.data[1];
-if ((((((r == 'x') || (r == 'X')) || (r == 'b')) || (r == 'B')) || (r == 'o')) || (r == 'O')) {
+if (r == 'x' || r == 'X' || r == 'b' || r == 'B' || r == 'o' || r == 'O') {
 radix = true;
 zone = KOBEL_STR("");
 {
@@ -1231,7 +1232,7 @@ return self;
 int32_t start = 0;
 while (start < self.len) {
 char c = self.data[start];
-if ((((c == ' ') || (c == '\t')) || (c == '\r')) || (c == '\n')) {
+if (c == ' ' || c == '\t' || c == '\r' || c == '\n') {
 start++;
 } else {
 break;
@@ -1243,7 +1244,7 @@ return KOBEL_STR("");
 size_t end = self.len;
 while (end > start) {
 char c = self.data[(end - 1)];
-if ((((c == ' ') || (c == '\t')) || (c == '\r')) || (c == '\n')) {
+if (c == ' ' || c == '\t' || c == '\r' || c == '\n') {
 end--;
 } else {
 break;
@@ -1707,23 +1708,23 @@ if (v != v) {
 return KOBEL_STR("nan");
 }
 double diff = (v - v);
-if (diff != 0.0) {
-if (v > 0.0) {
+if (diff != 0) {
+if (v > 0) {
 return KOBEL_STR("inf");
 }
 return KOBEL_STR("-inf");
 }
 kobel_str sign = KOBEL_STR("");
 double x = v;
-if (x < 0.0) {
+if (x < 0) {
 sign = KOBEL_STR("-");
-x = (0.0 - x);
+x = (0 - x);
 }
-size_t prec = 6;
+int32_t prec = 6;
 double scale = 1.0;
 {
-size_t __for_e = prec;
-size_t __for_i = __for_e;
+int32_t __for_e = prec;
+int32_t __for_i = __for_e;
 __for_i = 0;
 bool __for_up = (__for_i <= __for_e);
 bool __for_go = false;
@@ -1733,7 +1734,7 @@ __for_go = (__for_i < __for_e);
 __for_go = (__for_i > __for_e);
 }
 while (__for_go) {
-size_t k = __for_i;
+int32_t k = __for_i;
 scale *= 10.0;
 if (__for_up) {
 __for_go = ((__for_i + 1) < __for_e);

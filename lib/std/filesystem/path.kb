@@ -34,7 +34,7 @@ fn remap_path_bytes(s: str, from: char, to: char, fold_case: bool): str {
 		val c = s[i];
 		buf[i] = when {
 			c == from -> to.code();
-			fold_case && c >= 'A' && c <= 'Z' -> c.code() + 32;
+			fold_case && c in 'A'..'Z' -> c.code() + 32;
 			else -> c.code();
 		};
 	}

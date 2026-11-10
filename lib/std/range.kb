@@ -15,28 +15,26 @@ use std.traits.*;
 pub struct Range<T> {
 	pub start: T,
 	pub end: T,
-	pub inclusive: bool
+	pub inclusive: bool = true
 }
 
 impl Range<T> {
 
-	pub init(start: T, end: T, inclusive: bool = true) => Self(start, end, inclusive);
-
 	pub fn is_ascending(val self): bool => self.start <= self.end;
 
 	pub op equals(val self, other: Range<T>): bool =>
-		self.start == other.start && self.end == other.end && self.inclusive == other.inclusive;
+		self.start == other.start
+		&& self.end == other.end
+		&& self.inclusive == other.inclusive;
 
 	pub op contains(val self, item: T): bool {
 		if (self.is_ascending()) {
-			if (self.inclusive) {
-				return item >= self.start && item <= self.end;
-			}
+			if (self.inclusive) return item >= self.start && item <= self.end;
 			return item >= self.start && item < self.end;
 		}
-		if (self.inclusive) {
-			return item <= self.start && item >= self.end;
-		}
+
+		if (self.inclusive) return item <= self.start && item >= self.end;
+
 		return item <= self.start && item > self.end;
 	}
 
@@ -49,14 +47,13 @@ impl Iterable for Range<T> {
 			val diff = (self.end - self.start) as usz;
 			return if (self.inclusive) diff + 1 else diff;
 		}
+
 		val diff = (self.start - self.end) as usz;
 		return if (self.inclusive) diff + 1 else diff;
 	}
 
 	pub fn at(val self, i: usz): T {
-		if (self.is_ascending()) {
-			return (self.start + (i as isz)) as T;
-		}
+		if (self.is_ascending()) return (self.start + (i as isz)) as T;
 		return (self.start - (i as isz)) as T;
 	}
 
