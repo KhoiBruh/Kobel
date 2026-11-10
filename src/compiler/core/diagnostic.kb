@@ -120,7 +120,7 @@ impl Diagnostic {
 					val lines = content.split_lines();
 					defer lines.free();
 
-					if (self.line >= 1 && self.line <= lines.len) {
+					if (self.line in 1..lines.len) {
 						raw_line = lines[self.line - 1];
 						have_line = true;
 					}

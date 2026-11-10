@@ -68,15 +68,19 @@ pub fn uri_to_path(uri: str): str {
 		if (c == '%' && i + 2 < s.len) {
 			val h1 = s[i + 1];
 			val h2 = s[i + 2];
-			if (h1 == '3' && (h2 == 'a' || h2 == 'A')) {
-				sb += ':';
-				i += 3;
-				continue;
-			}
-			if (h1 == '2' && h2 == '0') {
-				sb += ' ';
-				i += 3;
-				continue;
+			when (h1) {
+				'3' -> when (h2) {
+					'a', 'A' -> {
+						sb += ':';
+						i += 3;
+						continue;
+					}
+				}
+				'2' -> if (h2 == '0') {
+					sb += ' ';
+					i += 3;
+					continue;
+				}
 			}
 		}
 

@@ -14,9 +14,11 @@ use compiler.ast.*;
 fn parse_usize_literal(text: str): usz {
 	var size: usz = 0;
 	for (ch in text) {
-		if (ch in '0'..'9') {
-			val digit = ch.code() - '0'.code();
-			size = size * 10 + (digit as usz);
+		when (ch) {
+			'0'..'9' -> {
+				val digit = ch.code() - '0'.code();
+				size = size * 10 + (digit as usz);
+			}
 		}
 	}
 	return size;

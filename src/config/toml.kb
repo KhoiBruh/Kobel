@@ -37,8 +37,10 @@ impl Toml {
 				// Unquote string literals if surrounded by quotes
 				val val_clean = if (
 					val_raw.len >= 2 &&
-					(val_raw.starts_with("\"") && val_raw.ends_with("\"")) ||
-					(val_raw.starts_with("'") && val_raw.ends_with("'"))
+					when (val_raw[0]) {
+						'"', '\'' -> val_raw[0] == val_raw[val_raw.len - 1];
+						else -> false;
+					}
 				) val_raw.slice(1, val_raw.len - 1)
 				else val_raw;
 

@@ -39,8 +39,10 @@ pub fn num_literal_is_float(text: str): bool {
 	for (c in text) if (c == '.') return true;
 	// A trailing F/D is only a float suffix when the literal really carries one:
 	// `0xEF` ends in F but is the integer 239.
-	val sfx = text.num_suffix();
-	return sfx == "F" || sfx == "D";
+	return when (text.num_suffix()) {
+		"F", "D" -> true;
+		else -> false;
+	};
 }
 
 // True when the raw token text (quotes included) contains an unescaped `${`.
@@ -98,49 +100,55 @@ pub fn multiline_escape_for_c(text: str): str {
 	var i: usz = 0;
 	while (i < text.len) {
 		val c = text[i];
-		if (c == '\\') {
-			if (i + 1 < text.len) {
-				val next_c = text[i + 1];
-				if (next_c == '$') {
-					out += '$';
+		when (c) {
+			'\\' -> {
+				if (i + 1 < text.len) {
+					val next_c = text[i + 1];
+					when (next_c) {
+						'$' -> {
+							out += '$';
+							i += 2;
+							continue;
+						}
+						'\\' -> {
+							out += "\\\\";
+							i += 2;
+							continue;
+						}
+						'"' -> {
+							out += "\\\"";
+							i += 2;
+							continue;
+						}
+					}
+					out += '\\';
+					out += next_c;
 					i += 2;
 					continue;
 				}
-				if (next_c == '\\') {
-					out += "\\\\";
-					i += 2;
-					continue;
-				}
-				if (next_c == '"') {
-					out += "\\\"";
-					i += 2;
-					continue;
-				}
-				out += '\\';
-				out += next_c;
-				i += 2;
+				out += "\\\\";
+				i++;
 				continue;
 			}
-			out += "\\\\";
-			i++;
-			continue;
+			'"' -> {
+				out += "\\\"";
+				i++;
+				continue;
+			}
+			'\n' -> {
+				out += "\\n";
+				i++;
+				continue;
+			}
+			'\r' -> {
+				i++;
+				continue;
+			}
+			else -> {
+				out += c;
+				i++;
+			}
 		}
-		if (c == '"') {
-			out += "\\\"";
-			i++;
-			continue;
-		}
-		if (c == '\n') {
-			out += "\\n";
-			i++;
-			continue;
-		}
-		if (c == '\r') {
-			i++;
-			continue;
-		}
-		out += c;
-		i++;
 	}
 	out += '"';
 	return out.to_str();

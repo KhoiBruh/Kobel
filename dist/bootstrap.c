@@ -581,6 +581,7 @@ typedef struct std__collections__List_compiler__semantic__lowering__PendingResol
 typedef struct std__collections__List_ptr_compiler__semantic__checker__ArrowCandidate std__collections__List_ptr_compiler__semantic__checker__ArrowCandidate;
 typedef struct std__collections__List_compiler__codegen__ConditionAlias std__collections__List_compiler__codegen__ConditionAlias;
 typedef struct std__range__Range_char std__range__Range_char;
+typedef struct std__range__Range_usz std__range__Range_usz;
 
 
 struct std__memory__ArenaBlock {
@@ -1425,6 +1426,12 @@ struct std__collections__List_compiler__codegen__ConditionAlias {
 struct std__range__Range_char {
     char start;
     char end;
+    bool inclusive;
+};
+
+struct std__range__Range_usz {
+    size_t start;
+    size_t end;
     bool inclusive;
 };
 
@@ -5610,6 +5617,11 @@ uint8_t* std__memory__Heap_create_array_u8(size_t count);
 std__memory__ArenaBlock* std__memory__Heap_create_std__memory__ArenaBlock(void);
 void std__memory__Heap_free_std__memory__ArenaBlock(std__memory__ArenaBlock* ptr);
 uint8_t* std__memory__Heap_resize_u8(uint8_t* ptr, size_t count);
+bool std__range__Range_usz_is_ascending(std__range__Range_usz* self);
+bool std__range__Range_usz_equals(std__range__Range_usz* self, std__range__Range_usz other);
+bool std__range__Range_usz_contains(std__range__Range_usz* self, size_t item);
+size_t std__range__Range_usz_count(std__range__Range_usz* self);
+size_t std__range__Range_usz_at(std__range__Range_usz* self, size_t i);
 compiler__semantic__types__StructType* std__memory__Arena_create_val_compiler__semantic__types__StructType(std__memory__Arena* self, compiler__semantic__types__StructType value);
 compiler__semantic__types__PrimMethods* std__memory__Arena_create_val_compiler__semantic__types__PrimMethods(std__memory__Arena* self, compiler__semantic__types__PrimMethods value);
 compiler__semantic__symbols__Scope* std__memory__Arena_create_val_compiler__semantic__symbols__Scope(std__memory__Arena* self, compiler__semantic__symbols__Scope value);
@@ -5960,7 +5972,7 @@ size_t __for_n = line.len;
 size_t __for_i = 0;
 while (__for_i < __for_n) {
 char c = line.data[__for_i];
-if ((c == ' ') || (c == '\t')) {
+if (c == ' ' || c == '\t') {
 ws_end++;
 } else {
 break;
@@ -6351,12 +6363,12 @@ return KOBEL_STR("");
 }
 if (self.len >= 2) {
 kobel_str two = kobel_slice(self, (self.len - 2), self.len);
-if (((kobel_streq(two, KOBEL_STR("UZ")) || kobel_streq(two, KOBEL_STR("UL"))) || kobel_streq(two, KOBEL_STR("UB"))) || kobel_streq(two, KOBEL_STR("US"))) {
+if (kobel_streq(two, KOBEL_STR("UZ")) || kobel_streq(two, KOBEL_STR("UL")) || kobel_streq(two, KOBEL_STR("UB")) || kobel_streq(two, KOBEL_STR("US"))) {
 return two;
 }
 }
 kobel_str last = kobel_slice(self, (self.len - 1), self.len);
-if ((((((kobel_streq(last, KOBEL_STR("U")) || kobel_streq(last, KOBEL_STR("L"))) || kobel_streq(last, KOBEL_STR("S"))) || kobel_streq(last, KOBEL_STR("B"))) || kobel_streq(last, KOBEL_STR("Z"))) || kobel_streq(last, KOBEL_STR("D"))) || kobel_streq(last, KOBEL_STR("F"))) {
+if (self.data[(self.len - 1)] == 'U' || self.data[(self.len - 1)] == 'L' || self.data[(self.len - 1)] == 'S' || self.data[(self.len - 1)] == 'B' || self.data[(self.len - 1)] == 'Z' || self.data[(self.len - 1)] == 'D' || self.data[(self.len - 1)] == 'F') {
 return last;
 }
 return KOBEL_STR("");
@@ -7107,7 +7119,7 @@ return std__string__str_from_bytes(buf, read_bytes);
 }
 
 bool std__filesystem__str_is_sep(char c) {
-    return ((c == '/') || (c == '\\'));
+    return (c == '/' || c == '\\' ? true : false);
 }
 
 kobel_str std__filesystem__remap_path_bytes(kobel_str s, char from, char to, bool fold_case) {
@@ -7616,7 +7628,7 @@ intptr_t eq_pos = str_index_of(trimmed, KOBEL_STR("="));
 if (eq_pos > 0) {
 kobel_str key_raw = str_trim(kobel_slice(trimmed, 0, eq_pos));
 kobel_str val_raw = str_trim(kobel_slice(trimmed, (eq_pos + 1), trimmed.len));
-kobel_str val_clean = ((((val_raw.len >= 2) && (str_starts_with(val_raw, KOBEL_STR("\"")) && str_ends_with(val_raw, KOBEL_STR("\"")))) || (str_starts_with(val_raw, KOBEL_STR("'")) && str_ends_with(val_raw, KOBEL_STR("'")))) ? kobel_slice(val_raw, 1, (val_raw.len - 1)) : val_raw);
+kobel_str val_clean = (((val_raw.len >= 2) && (val_raw.data[0] == '"' || val_raw.data[0] == '\'' ? (val_raw.data[0] == val_raw.data[(val_raw.len - 1)]) : false)) ? kobel_slice(val_raw, 1, (val_raw.len - 1)) : val_raw);
 kobel_str full_key = (!str_empty(current_section) ? kobel_concat(3, current_section, KOBEL_STR("."), key_raw) : key_raw);
 std__collections__HashMap_str_str_set(&self.entries, full_key, val_clean);
 }
@@ -7679,35 +7691,27 @@ bool char_is_digit(char self) {
 }
 
 bool char_is_alpha(char self) {
-    return (std__range__Range_char_contains(&(std__range__Range_char){ 'a', 'z', true }, self) || std__range__Range_char_contains(&(std__range__Range_char){ 'A', 'Z', true }, self));
+    return ((((self) >= ('a') && (self) <= ('z')) || ((self) <= ('a') && (self) >= ('z'))) || (((self) >= ('A') && (self) <= ('Z')) || ((self) <= ('A') && (self) >= ('Z'))) ? true : false);
 }
 
 bool char_is_alphanumeric(char self) {
-    return (char_is_alpha(self) || char_is_digit(self));
+    return ((((self) >= ('a') && (self) <= ('z')) || ((self) <= ('a') && (self) >= ('z'))) || (((self) >= ('A') && (self) <= ('Z')) || ((self) <= ('A') && (self) >= ('Z'))) || (((self) >= ('0') && (self) <= ('9')) || ((self) <= ('0') && (self) >= ('9'))) ? true : false);
 }
 
 bool char_is_whitespace(char self) {
-    return ((((self == ' ') || (self == '\t')) || (self == '\n')) || (self == '\r'));
+    return (self == ' ' || self == '\t' || self == '\n' || self == '\r' ? true : false);
 }
 
 bool char_is_hex_digit(char self) {
-    return ((char_is_digit(self) || std__range__Range_char_contains(&(std__range__Range_char){ 'a', 'f', true }, self)) || std__range__Range_char_contains(&(std__range__Range_char){ 'A', 'F', true }, self));
+    return ((((self) >= ('0') && (self) <= ('9')) || ((self) <= ('0') && (self) >= ('9'))) || (((self) >= ('a') && (self) <= ('f')) || ((self) <= ('a') && (self) >= ('f'))) || (((self) >= ('A') && (self) <= ('F')) || ((self) <= ('A') && (self) >= ('F'))) ? true : false);
 }
 
 char char_to_lower(char self) {
-if (std__range__Range_char_contains(&(std__range__Range_char){ 'A', 'Z', true }, self)) {
-int32_t offset = (((int32_t)(uint8_t)(self)) + 32);
-return ((char)(offset));
-}
-return self;
+    return ((((self) >= ('A') && (self) <= ('Z')) || ((self) <= ('A') && (self) >= ('Z'))) ? ((char)((((int32_t)(uint8_t)(self)) + 32))) : self);
 }
 
 char char_to_upper(char self) {
-if (std__range__Range_char_contains(&(std__range__Range_char){ 'a', 'z', true }, self)) {
-int32_t offset = (((int32_t)(uint8_t)(self)) - 32);
-return ((char)(offset));
-}
-return self;
+    return ((((self) >= ('a') && (self) <= ('z')) || ((self) <= ('a') && (self) >= ('z'))) ? ((char)((((int32_t)(uint8_t)(self)) - 32))) : self);
 }
 
 compiler__core__Diagnostic compiler__core__Diagnostic_init(compiler__core__Severity severity, compiler__core__Span span, kobel_str file_path, kobel_str message, kobel_str hint) {
@@ -7775,7 +7779,7 @@ if (std__filesystem__Path_exists(&fp)) {
 kobel_str content = std__filesystem__Path_read_text(&fp);
 if (!str_empty(content)) {
 std__collections__List_str lines = str_split_lines(content);
-if ((self->line >= 1) && (self->line <= lines.len)) {
+if (std__range__Range_usz_contains(&(std__range__Range_usz){ 1, lines.len, true }, self->line)) {
 raw_line = std__collections__List_str_get(&lines, (self->line - 1));
 have_line = true;
 }
@@ -8587,7 +8591,7 @@ size_t __for_n = path.len;
 size_t __for_i = 0;
 while (__for_i < __for_n) {
 char c = path.data[__for_i];
-if (((c == '/') || (c == '\\')) || (c == '.')) {
+if (c == '/' || c == '\\' || c == '.') {
 out = kobel_concat(2, out, KOBEL_STR("_"));
 } else {
 out = kobel_concat(2, out, char_to_str(c));
@@ -8868,7 +8872,7 @@ break;
 compiler__lexer__Token compiler__lexer__Lexer_scan_identifier(compiler__lexer__Lexer* self, size_t start_cursor, size_t start_col) {
 while (!compiler__lexer__Lexer_is_end(self)) {
 char c = compiler__lexer__Lexer_peek(self);
-if (char_is_alphanumeric(c) || (c == '_')) {
+if ((((c) >= ('a') && (c) <= ('z')) || ((c) <= ('a') && (c) >= ('z'))) || (((c) >= ('A') && (c) <= ('Z')) || ((c) <= ('A') && (c) >= ('Z'))) || (((c) >= ('0') && (c) <= ('9')) || ((c) <= ('0') && (c) >= ('9'))) || c == '_') {
 compiler__lexer__Lexer_next(self);
 } else {
 break;
@@ -8883,17 +8887,17 @@ return compiler__lexer__Token_init_5(kw, text, self->line, start_col, sp);
 void compiler__lexer__Lexer_scan_decimal_digits_and_fraction(compiler__lexer__Lexer* self) {
 while (!compiler__lexer__Lexer_is_end(self)) {
 char c = compiler__lexer__Lexer_peek(self);
-if (char_is_digit(c) || (c == '_')) {
+if ((((c) >= ('0') && (c) <= ('9')) || ((c) <= ('0') && (c) >= ('9'))) || c == '_') {
 compiler__lexer__Lexer_next(self);
 } else {
 break;
 }
 }
-if (((compiler__lexer__Lexer_peek(self) == '.') && ((self->cursor + 1) < self->src.len)) && char_is_digit(self->src.data[(self->cursor + 1)])) {
+if (((compiler__lexer__Lexer_peek(self) == '.') && ((self->cursor + 1) < self->src.len)) && std__range__Range_char_contains(&(std__range__Range_char){ '0', '9', true }, self->src.data[(self->cursor + 1)])) {
 compiler__lexer__Lexer_next(self);
 while (!compiler__lexer__Lexer_is_end(self)) {
 char c = compiler__lexer__Lexer_peek(self);
-if (char_is_digit(c) || (c == '_')) {
+if ((((c) >= ('0') && (c) <= ('9')) || ((c) <= ('0') && (c) >= ('9'))) || c == '_') {
 compiler__lexer__Lexer_next(self);
 } else {
 break;
@@ -8910,7 +8914,7 @@ if (p == 'x' || p == 'X') {
 compiler__lexer__Lexer_next(self);
 while (!compiler__lexer__Lexer_is_end(self)) {
 char c = compiler__lexer__Lexer_peek(self);
-if (char_is_hex_digit(c) || (c == '_')) {
+if ((((c) >= ('0') && (c) <= ('9')) || ((c) <= ('0') && (c) >= ('9'))) || (((c) >= ('a') && (c) <= ('f')) || ((c) <= ('a') && (c) >= ('f'))) || (((c) >= ('A') && (c) <= ('F')) || ((c) <= ('A') && (c) >= ('F'))) || c == '_') {
 compiler__lexer__Lexer_next(self);
 } else {
 break;
@@ -8920,7 +8924,7 @@ break;
 compiler__lexer__Lexer_next(self);
 while (!compiler__lexer__Lexer_is_end(self)) {
 char c = compiler__lexer__Lexer_peek(self);
-if (std__range__Range_char_contains(&(std__range__Range_char){ '0', '1', true }, c) || (c == '_')) {
+if ((((c) >= ('0') && (c) <= ('1')) || ((c) <= ('0') && (c) >= ('1'))) || c == '_') {
 compiler__lexer__Lexer_next(self);
 } else {
 break;
@@ -8930,7 +8934,7 @@ break;
 compiler__lexer__Lexer_next(self);
 while (!compiler__lexer__Lexer_is_end(self)) {
 char c = compiler__lexer__Lexer_peek(self);
-if (std__range__Range_char_contains(&(std__range__Range_char){ '0', '7', true }, c) || (c == '_')) {
+if ((((c) >= ('0') && (c) <= ('7')) || ((c) <= ('0') && (c) >= ('7'))) || c == '_') {
 compiler__lexer__Lexer_next(self);
 } else {
 break;
@@ -8980,7 +8984,7 @@ break;
 compiler__lexer__Lexer_next(self);
 if (!compiler__lexer__Lexer_is_end(self)) {
 char esc = compiler__lexer__Lexer_peek(self);
-if ((esc == '\r') || (esc == '\n')) {
+if (esc == '\r' || esc == '\n') {
 compiler__lexer__Lexer_newline(self);
 } else {
 compiler__lexer__Lexer_next(self);
@@ -9023,7 +9027,7 @@ break;
 compiler__lexer__Lexer_next(self);
 if (!compiler__lexer__Lexer_is_end(self)) {
 char esc = compiler__lexer__Lexer_peek(self);
-if ((esc == '\r') || (esc == '\n')) {
+if (esc == '\r' || esc == '\n') {
 compiler__lexer__Lexer_newline(self);
 } else {
 compiler__lexer__Lexer_next(self);
@@ -9100,7 +9104,7 @@ return;
 compiler__lexer__Lexer_next(self);
 if (!compiler__lexer__Lexer_is_end(self)) {
 char esc = compiler__lexer__Lexer_peek(self);
-if ((esc == '\r') || (esc == '\n')) {
+if (esc == '\r' || esc == '\n') {
 compiler__lexer__Lexer_newline(self);
 } else {
 compiler__lexer__Lexer_next(self);
@@ -9970,8 +9974,7 @@ return true;
 __for_i = (__for_i + 1);
 }
 }
-kobel_str sfx = str_num_suffix(text);
-return (kobel_streq(sfx, KOBEL_STR("F")) || kobel_streq(sfx, KOBEL_STR("D")));
+return (kobel_streq(str_num_suffix(text), KOBEL_STR("F")) || kobel_streq(str_num_suffix(text), KOBEL_STR("D")) ? true : false);
 }
 
 bool compiler__parser__str_has_hole(kobel_str text) {
@@ -10065,13 +10068,11 @@ if (next_c == '$') {
 std__string__StringBuilder_plus_assign_2_2(&out, '$');
 i += 2;
 continue;
-}
-if (next_c == '\\') {
+} else if (next_c == '\\') {
 std__string__StringBuilder_plus_assign_2(&out, KOBEL_STR("\\\\"));
 i += 2;
 continue;
-}
-if (next_c == '"') {
+} else if (next_c == '"') {
 std__string__StringBuilder_plus_assign_2(&out, KOBEL_STR("\\\""));
 i += 2;
 continue;
@@ -10084,23 +10085,21 @@ continue;
 std__string__StringBuilder_plus_assign_2(&out, KOBEL_STR("\\\\"));
 i++;
 continue;
-}
-if (c == '"') {
+} else if (c == '"') {
 std__string__StringBuilder_plus_assign_2(&out, KOBEL_STR("\\\""));
 i++;
 continue;
-}
-if (c == '\n') {
+} else if (c == '\n') {
 std__string__StringBuilder_plus_assign_2(&out, KOBEL_STR("\\n"));
 i++;
 continue;
-}
-if (c == '\r') {
+} else if (c == '\r') {
 i++;
 continue;
-}
+} else {
 std__string__StringBuilder_plus_assign_2_2(&out, c);
 i++;
+}
 }
 std__string__StringBuilder_plus_assign_2_2(&out, '"');
 {
@@ -11146,7 +11145,7 @@ size_t __for_n = text.len;
 size_t __for_i = 0;
 while (__for_i < __for_n) {
 char ch = text.data[__for_i];
-if (std__range__Range_char_contains(&(std__range__Range_char){ '0', '9', true }, ch)) {
+if ((((ch) >= ('0') && (ch) <= ('9')) || ((ch) <= ('0') && (ch) >= ('9')))) {
 int32_t digit = (((int32_t)(uint8_t)(ch)) - ((int32_t)(uint8_t)('0')));
 size = ((size * 10) + ((size_t)digit));
 }
@@ -17608,7 +17607,7 @@ __for_go = (__for_i > __for_e);
 while (__for_go) {
 size_t i = __for_i;
 char ch = text.data[i];
-if (((((ch == '(') || (ch == ')')) || (ch == ' ')) || (ch == '\t')) || (ch == ',')) {
+if (ch == '(' || ch == ')' || ch == ' ' || ch == '\t' || ch == ',') {
 if (start >= 0) {
 std__collections__List_str_plus_assign(&names, kobel_slice(text, (size_t)start, i));
 start = -1;
@@ -21277,7 +21276,7 @@ return compiler__semantic__checker__BodyChecker_is_untyped_literal(self, g->expr
 }
 {
 compiler__ast__NodeData__UnaryExpr* un = NULL;
-if ((node != NULL && node->data.tag == compiler__ast__NodeData__UnaryExpr__TAG && (un = (compiler__ast__NodeData__UnaryExpr*)(&(node)->data.u.UnaryExpr), 1)) && ((un->op == 7) || (un->op == 6))) {
+if ((node != NULL && node->data.tag == compiler__ast__NodeData__UnaryExpr__TAG && (un = (compiler__ast__NodeData__UnaryExpr*)(&(node)->data.u.UnaryExpr), 1)) && (un->op == 7 || un->op == 6 ? true : false)) {
 return compiler__semantic__checker__BodyChecker_is_untyped_literal(self, un->operand);
 }
 }
@@ -21360,7 +21359,7 @@ if (bin->op == 38) {
 return compiler__semantic__checker__BodyChecker_check_elvis_expr(self, node, bin, was_stmt);
 }
 compiler__semantic__types__Type* num_expected = (((expected != NULL) && compiler__semantic__types__Type_is_numeric(expected)) ? expected : NULL);
-bool is_cmp = ((((((((bin->op == 21) || (bin->op == 22)) || (bin->op == 12)) || (bin->op == 23)) || (bin->op == 11)) || (bin->op == 24)) || (bin->op == 25)) || (bin->op == 26));
+bool is_cmp = (bin->op == 21 || bin->op == 22 || bin->op == 12 || bin->op == 23 || bin->op == 11 || bin->op == 24 || bin->op == 25 || bin->op == 26 ? true : false);
 bool prev_sn = self->in_safe_nav_context;
 if (is_cmp) {
 self->in_safe_nav_context = true;
@@ -24364,7 +24363,7 @@ return kobel_concat(7, KOBEL_STR("("), l_wrap, KOBEL_STR(".data != NULL ? "), l,
 }
 return kobel_concat(7, KOBEL_STR("("), l, KOBEL_STR(" != NULL ? "), l, KOBEL_STR(" : "), r, KOBEL_STR(")"));
 }
-bool is_cmp = ((((((bin->op == 21) || (bin->op == 22)) || (bin->op == 12)) || (bin->op == 23)) || (bin->op == 11)) || (bin->op == 24));
+bool is_cmp = (bin->op == 21 || bin->op == 22 || bin->op == 12 || bin->op == 23 || bin->op == 11 || bin->op == 24 ? true : false);
 if (is_cmp) {
 compiler__ast__AstNode* unwrapped_l = compiler__codegen__unwrap_group_expr(bin->left);
 compiler__ast__AstNode* unwrapped_r = compiler__codegen__unwrap_group_expr(bin->right);
@@ -27334,8 +27333,7 @@ line++;
 col = 1;
 i++;
 continue;
-}
-if (c == '\r') {
+} else if (c == '\r') {
 if (((i + 1) < len) && (src.data[(i + 1)] == '\n')) {
 i++;
 }
@@ -27364,8 +27362,7 @@ line++;
 col = 1;
 i++;
 continue;
-}
-if (src.data[i] == '\r') {
+} else if (src.data[i] == '\r') {
 if (((i + 1) < len) && (src.data[(i + 1)] == '\n')) {
 i++;
 }
@@ -27661,7 +27658,7 @@ compiler__ast__NodeData__IdentifierExpr* id = (compiler__ast__NodeData__Identifi
 fmt__FormatBuffer_plus_assign_2(&self->buf, id->name);
 } else if (node != NULL && node->data.tag == compiler__ast__NodeData__BinaryExpr__TAG) {
 compiler__ast__NodeData__BinaryExpr* b = (compiler__ast__NodeData__BinaryExpr*)(&(node)->data.u.BinaryExpr);
-bool is_range = ((b->op == 29) || (b->op == 30));
+bool is_range = (b->op == 29 || b->op == 30 ? true : false);
 fmt__Formatter_format_expr(self, b->left);
 if (!is_range) {
 fmt__FormatBuffer_space(&self->buf);
@@ -29268,15 +29265,18 @@ char c = s.data[i];
 if ((c == '%') && ((i + 2) < s.len)) {
 char h1 = s.data[(i + 1)];
 char h2 = s.data[(i + 2)];
-if ((h1 == '3') && ((h2 == 'a') || (h2 == 'A'))) {
+if (h1 == '3') {
+if (h2 == 'a' || h2 == 'A') {
 std__string__StringBuilder_plus_assign_2_2(&sb, ':');
 i += 3;
 continue;
 }
-if ((h1 == '2') && (h2 == '0')) {
+} else if (h1 == '2') {
+if (h2 == '0') {
 std__string__StringBuilder_plus_assign_2_2(&sb, ' ');
 i += 3;
 continue;
+}
 }
 }
 if (c == '/') {
@@ -29664,13 +29664,19 @@ while (!lsp__JsonParser_is_end(self) && std__range__Range_char_contains(&(std__r
 lsp__JsonParser_advance(self);
 }
 }
-if (!lsp__JsonParser_is_end(self) && ((lsp__JsonParser_peek(self) == 'e') || (lsp__JsonParser_peek(self) == 'E'))) {
+if (!lsp__JsonParser_is_end(self)) {
+char p = lsp__JsonParser_peek(self);
+if (p == 'e' || p == 'E') {
 lsp__JsonParser_advance(self);
-if (!lsp__JsonParser_is_end(self) && ((lsp__JsonParser_peek(self) == '+') || (lsp__JsonParser_peek(self) == '-'))) {
+if (!lsp__JsonParser_is_end(self)) {
+char s = lsp__JsonParser_peek(self);
+if (s == '+' || s == '-') {
 lsp__JsonParser_advance(self);
+}
 }
 while (!lsp__JsonParser_is_end(self) && std__range__Range_char_contains(&(std__range__Range_char){ '0', '9', true }, lsp__JsonParser_peek(self))) {
 lsp__JsonParser_advance(self);
+}
 }
 }
 return (val_num * sign);
@@ -56968,6 +56974,43 @@ void std__memory__Heap_free_std__memory__ArenaBlock(std__memory__ArenaBlock* ptr
 
 uint8_t* std__memory__Heap_resize_u8(uint8_t* ptr, size_t count) {
     return (uint8_t*)realloc((uint8_t*)ptr, (count * 1));
+}
+
+bool std__range__Range_usz_is_ascending(std__range__Range_usz* self) {
+    return (self->start <= self->end);
+}
+
+bool std__range__Range_usz_equals(std__range__Range_usz* self, std__range__Range_usz other) {
+    return (((self->start == other.start) && (self->end == other.end)) && (self->inclusive == other.inclusive));
+}
+
+bool std__range__Range_usz_contains(std__range__Range_usz* self, size_t item) {
+if (std__range__Range_usz_is_ascending(self)) {
+if (self->inclusive) {
+return ((item >= self->start) && (item <= self->end));
+}
+return ((item >= self->start) && (item < self->end));
+}
+if (self->inclusive) {
+return ((item <= self->start) && (item >= self->end));
+}
+return ((item <= self->start) && (item > self->end));
+}
+
+size_t std__range__Range_usz_count(std__range__Range_usz* self) {
+if (std__range__Range_usz_is_ascending(self)) {
+size_t diff = (size_t)(self->end - self->start);
+return (self->inclusive ? (diff + 1) : diff);
+}
+size_t diff = (size_t)(self->start - self->end);
+return (self->inclusive ? (diff + 1) : diff);
+}
+
+size_t std__range__Range_usz_at(std__range__Range_usz* self, size_t i) {
+if (std__range__Range_usz_is_ascending(self)) {
+return (size_t)(self->start + ((intptr_t)i));
+}
+return (size_t)(self->start - ((intptr_t)i));
 }
 
 compiler__semantic__types__StructType* std__memory__Arena_create_val_compiler__semantic__types__StructType(std__memory__Arena* self, compiler__semantic__types__StructType value) {

@@ -188,9 +188,12 @@ impl CCodeGen {
 			return "(${l} != NULL ? ${l} : ${r})";
 		}
 
-		val is_cmp = bin.op == TokenType.EQUAL_EQUAL || bin.op == TokenType.BANG_EQUAL ||
-			bin.op == TokenType.LESS || bin.op == TokenType.LESS_EQUAL ||
-			bin.op == TokenType.GREATER || bin.op == TokenType.GREATER_EQUAL;
+		val is_cmp = when (bin.op) {
+			TokenType.EQUAL_EQUAL, TokenType.BANG_EQUAL,
+			TokenType.LESS, TokenType.LESS_EQUAL,
+			TokenType.GREATER, TokenType.GREATER_EQUAL -> true;
+			else -> false;
+		};
 		if (is_cmp) {
 			val unwrapped_l = unwrap_group_expr(bin.left);
 			val unwrapped_r = unwrap_group_expr(bin.right);

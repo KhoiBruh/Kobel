@@ -24,7 +24,10 @@ extern "C" {
 	fn kobel_create_dir_all(dir_path: str): i32;
 }
 
-pub fn str_is_sep(c: char) => c == '/' || c == '\\';
+pub fn str_is_sep(c: char) => when (c) {
+	'/', '\\' -> true;
+	else -> false;
+};
 
 // Path-byte remap: every `from` byte becomes `to`, and A-Z lowercases when
 // `fold_case` (only `normalize_path` needs that).

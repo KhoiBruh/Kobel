@@ -37,10 +37,9 @@ fn common_whitespace_prefix(lines: List<str>, start_idx: usz, end_idx: usz): str
 
 		var ws_end = 0;
 		for (c in line) {
-			if (c == ' ' || c == '\t') {
-				ws_end++;
-			} else {
-				break;
+			when (c) {
+				' ', '\t' -> ws_end++;
+				else -> break;
 			}
 		}
 		val ws = line.slice(0, ws_end);
@@ -202,18 +201,15 @@ impl str {
 
 		if (self.len >= 2) {
 			val two = self.slice(self.len - 2, self.len);
-			if (
-				two == "UZ" || two == "UL"
-				|| two == "UB" || two == "US"
-			) return two;
+			when (two) {
+				"UZ", "UL", "UB", "US" -> return two;
+			}
 		}
 
 		val last = self.slice(self.len - 1, self.len);
-		if (
-			last == "U" || last == "L" || last == "S"
-			|| last == "B" || last == "Z" || last == "D"
-			|| last == "F"
-		) return last;
+		when (self[self.len - 1]) {
+			'U', 'L', 'S', 'B', 'Z', 'D', 'F' -> return last;
+		}
 
 		return "";
 	}

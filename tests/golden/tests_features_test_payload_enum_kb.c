@@ -705,7 +705,7 @@ size_t __for_n = line.len;
 size_t __for_i = 0;
 while (__for_i < __for_n) {
 char c = line.data[__for_i];
-if ((c == ' ') || (c == '\t')) {
+if (c == ' ' || c == '\t') {
 ws_end++;
 } else {
 break;
@@ -1096,12 +1096,12 @@ return KOBEL_STR("");
 }
 if (self.len >= 2) {
 kobel_str two = kobel_slice(self, (self.len - 2), self.len);
-if (((kobel_streq(two, KOBEL_STR("UZ")) || kobel_streq(two, KOBEL_STR("UL"))) || kobel_streq(two, KOBEL_STR("UB"))) || kobel_streq(two, KOBEL_STR("US"))) {
+if (kobel_streq(two, KOBEL_STR("UZ")) || kobel_streq(two, KOBEL_STR("UL")) || kobel_streq(two, KOBEL_STR("UB")) || kobel_streq(two, KOBEL_STR("US"))) {
 return two;
 }
 }
 kobel_str last = kobel_slice(self, (self.len - 1), self.len);
-if ((((((kobel_streq(last, KOBEL_STR("U")) || kobel_streq(last, KOBEL_STR("L"))) || kobel_streq(last, KOBEL_STR("S"))) || kobel_streq(last, KOBEL_STR("B"))) || kobel_streq(last, KOBEL_STR("Z"))) || kobel_streq(last, KOBEL_STR("D"))) || kobel_streq(last, KOBEL_STR("F"))) {
+if (self.data[(self.len - 1)] == 'U' || self.data[(self.len - 1)] == 'L' || self.data[(self.len - 1)] == 'S' || self.data[(self.len - 1)] == 'B' || self.data[(self.len - 1)] == 'Z' || self.data[(self.len - 1)] == 'D' || self.data[(self.len - 1)] == 'F') {
 return last;
 }
 return KOBEL_STR("");

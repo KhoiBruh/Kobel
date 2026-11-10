@@ -57,14 +57,17 @@ pub fn parse_destruct_names(text: str): List<str> {
 	var start: isz = -1;
 	for (i in 0..<text.len) {
 		val ch = text[i];
-		if (ch == '(' || ch == ')' || ch == ' ' || ch == '\t' || ch == ',') {
-			if (start >= 0) {
-				names += text.slice(start as usz, i);
-				start = -1;
+		when (ch) {
+			'(', ')', ' ', '\t', ',' -> {
+				if (start >= 0) {
+					names += text.slice(start as usz, i);
+					start = -1;
+				}
 			}
-		} else {
-			if (start < 0) {
-				start = i as isz;
+			else -> {
+				if (start < 0) {
+					start = i as isz;
+				}
 			}
 		}
 	}

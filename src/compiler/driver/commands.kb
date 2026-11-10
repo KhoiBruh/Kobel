@@ -298,8 +298,10 @@ pub fn snap_corpus(test_dir: str): List<str> {
 pub fn snap_name(path: str): str {
 	var out = "";
 	for (c in path) {
-		if (c == '/' || c == '\\' || c == '.') out += "_";
-		else out += "${c}";
+		when (c) {
+			'/', '\\', '.' -> out += "_";
+			else -> out += "${c}";
+		}
 	}
 	return out;
 }

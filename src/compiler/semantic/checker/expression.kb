@@ -89,7 +89,10 @@ impl BodyChecker {
 
 		if (node is GroupExpr as g) return self.is_untyped_literal(g.expr);
 
-		if (node is UnaryExpr as un && (un.op == TokenType.MINUS || un.op == TokenType.PLUS)) {
+		if (node is UnaryExpr as un && when (un.op) {
+			TokenType.MINUS, TokenType.PLUS -> true;
+			else -> false;
+		}) {
 			return self.is_untyped_literal(un.operand);
 		}
 
@@ -164,10 +167,13 @@ impl BodyChecker {
 
 			val num_expected = if (expected?.is_numeric()) expected else null;
 
-			val is_cmp = bin.op == TokenType.EQUAL_EQUAL || bin.op == TokenType.BANG_EQUAL ||
-				bin.op == TokenType.LESS || bin.op == TokenType.LESS_EQUAL ||
-				bin.op == TokenType.GREATER || bin.op == TokenType.GREATER_EQUAL ||
-				bin.op == TokenType.AND_AND || bin.op == TokenType.OR_OR;
+			val is_cmp = when (bin.op) {
+				TokenType.EQUAL_EQUAL, TokenType.BANG_EQUAL,
+				TokenType.LESS, TokenType.LESS_EQUAL,
+				TokenType.GREATER, TokenType.GREATER_EQUAL,
+				TokenType.AND_AND, TokenType.OR_OR -> true;
+				else -> false;
+			};
 
 			val prev_sn = self.in_safe_nav_context;
 			if (is_cmp) self.in_safe_nav_context = true;

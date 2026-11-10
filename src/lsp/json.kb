@@ -278,10 +278,20 @@ impl JsonParser {
 			while (!self.is_end() && self.peek() in '0'..'9') self.advance();
 		}
 
-		if (!self.is_end() && (self.peek() == 'e' || self.peek() == 'E')) {
-			self.advance();
-			if (!self.is_end() && (self.peek() == '+' || self.peek() == '-')) self.advance();
-			while (!self.is_end() && self.peek() in '0'..'9') self.advance();
+		if (!self.is_end()) {
+			val p = self.peek();
+			when (p) {
+				'e', 'E' -> {
+					self.advance();
+					if (!self.is_end()) {
+						val s = self.peek();
+						when (s) {
+							'+', '-' -> self.advance();
+						}
+					}
+					while (!self.is_end() && self.peek() in '0'..'9') self.advance();
+				}
+			}
 		}
 
 		return val_num * sign;

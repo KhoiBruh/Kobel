@@ -4,36 +4,34 @@ impl char {
 
 	pub fn is_digit(val self) => self in '0'..'9';
 
-	pub fn is_alpha(val self) => self in 'a'..'z' || self in 'A'..'Z';
+	pub fn is_alpha(val self) => when (self) {
+		'a'..'z', 'A'..'Z' -> true;
+		else -> false;
+	};
 
-	pub fn is_alphanumeric(val self) => self.is_alpha()
-		|| self.is_digit();
+	pub fn is_alphanumeric(val self) => when (self) {
+		'a'..'z', 'A'..'Z', '0'..'9' -> true;
+		else -> false;
+	};
 
-	pub fn is_whitespace(val self) => self == ' '
-		|| self == '\t'
-		|| self == '\n'
-		|| self == '\r';
+	pub fn is_whitespace(val self) => when (self) {
+		' ', '\t', '\n', '\r' -> true;
+		else -> false;
+	};
 
-	pub fn is_hex_digit(val self) => self.is_digit()
-		|| self in 'a'..'f'
-		|| self in 'A'..'F';
+	pub fn is_hex_digit(val self) => when (self) {
+		'0'..'9', 'a'..'f', 'A'..'F' -> true;
+		else -> false;
+	};
 
-	pub fn to_lower(val self): char {
-		if (self in 'A'..'Z') {
-			val offset = self.code() + 32;
-			return char(offset);
-		}
+	pub fn to_lower(val self): char => when (self) {
+		'A'..'Z' -> char(self.code() + 32);
+		else -> self;
+	};
 
-		return self;
-	}
-
-	pub fn to_upper(val self): char {
-		if (self in 'a'..'z') {
-			val offset = self.code() - 32;
-			return char(offset);
-		}
-
-		return self;
-	}
+	pub fn to_upper(val self): char => when (self) {
+		'a'..'z' -> char(self.code() - 32);
+		else -> self;
+	};
 
 }

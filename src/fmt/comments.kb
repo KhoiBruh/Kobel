@@ -75,18 +75,20 @@ impl Comment {
 			val c = src[i];
 
 			// Newline tracking
-			if (c == '\n') {
-				line++;
-				col = 1;
-				i++;
-				continue;
-			}
-			if (c == '\r') {
-				if (i + 1 < len && src[i + 1] == '\n') i++;
-				line++;
-				col = 1;
-				i++;
-				continue;
+			when (c) {
+				'\n' -> {
+					line++;
+					col = 1;
+					i++;
+					continue;
+				}
+				'\r' -> {
+					if (i + 1 < len && src[i + 1] == '\n') i++;
+					line++;
+					col = 1;
+					i++;
+					continue;
+				}
 			}
 
 			// Skip string literals
@@ -105,18 +107,20 @@ impl Comment {
 							col += 2;
 							continue;
 						}
-						if (src[i] == '\n') {
-							line++;
-							col = 1;
-							i++;
-							continue;
-						}
-						if (src[i] == '\r') {
-							if (i + 1 < len && src[i + 1] == '\n') i++;
-							line++;
-							col = 1;
-							i++;
-							continue;
+						when (src[i]) {
+							'\n' -> {
+								line++;
+								col = 1;
+								i++;
+								continue;
+							}
+							'\r' -> {
+								if (i + 1 < len && src[i + 1] == '\n') i++;
+								line++;
+								col = 1;
+								i++;
+								continue;
+							}
 						}
 						i++;
 						col++;
