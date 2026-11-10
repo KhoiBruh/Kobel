@@ -1,0 +1,63 @@
+mod std.range;
+
+use std.traits.*;
+
+/*
+ * ============================================================================
+ * std.range - First-class Range types and iteration
+ *
+ * Represents a sequence of values bounded by start and end. Supports closed (..)
+ * and half-open (..<) ranges, auto-direction checking, containment test via
+ * `in`, and indexing iteration through the `Iterable` trait.
+ * ============================================================================
+ */
+
+pub struct Range<T> {
+	pub start: T,
+	pub end: T,
+	pub inclusive: bool
+}
+
+impl Range<T> {
+
+	pub init(start: T, end: T, inclusive: bool = true) => Self(start, end, inclusive);
+
+	pub fn is_ascending(val self): bool => self.start <= self.end;
+
+	pub op equals(val self, other: Range<T>): bool =>
+		self.start == other.start && self.end == other.end && self.inclusive == other.inclusive;
+
+	pub op contains(val self, item: T): bool {
+		if (self.is_ascending()) {
+			if (self.inclusive) {
+				return item >= self.start && item <= self.end;
+			}
+			return item >= self.start && item < self.end;
+		}
+		if (self.inclusive) {
+			return item <= self.start && item >= self.end;
+		}
+		return item <= self.start && item > self.end;
+	}
+
+}
+
+impl Iterable for Range<T> {
+
+	pub fn count(val self): usz {
+		if (self.is_ascending()) {
+			val diff = (self.end - self.start) as usz;
+			return if (self.inclusive) diff + 1 else diff;
+		}
+		val diff = (self.start - self.end) as usz;
+		return if (self.inclusive) diff + 1 else diff;
+	}
+
+	pub fn at(val self, i: usz): T {
+		if (self.is_ascending()) {
+			return (self.start + (i as isz)) as T;
+		}
+		return (self.start - (i as isz)) as T;
+	}
+
+}

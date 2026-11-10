@@ -56,7 +56,7 @@ impl CCodeGen {
 				yield "(${inner})";
 			}
 
-			is BinaryExpr -> self.gen_binary_expr(node);
+			is BinaryExpr -> self.gen_binary_expr(ast_node, node);
 
 			is UnaryExpr -> self.gen_unary_expr(node);
 
@@ -154,7 +154,15 @@ impl CCodeGen {
 	}
 
 	// Binary expressions lower to a parenthesised C operator (?: for the elvis form).
-	fn gen_binary_expr(var self, bin: *BinaryExpr): str {
+	fn gen_binary_expr(var self, ast_node: *AstNode, bin: *BinaryExpr): str {
+		if (bin.op == TokenType.DOT_DOT || bin.op == TokenType.DOT_DOT_LESS) {
+			val c_ty = self.c_type_of(ast_node);
+			val l = self.gen_expr(bin.left);
+			val r = self.gen_expr(bin.right);
+			val inc = if (bin.op == TokenType.DOT_DOT) "true" else "false";
+			return "(${c_ty}){ ${l}, ${r}, ${inc} }";
+		}
+
 		if (bin.op == TokenType.QUESTION_COLON) {
 			val unwrapped_l = unwrap_group_expr(bin.left);
 			if (unwrapped_l != null && unwrapped_l is MemberExpr as mem && mem.is_safe) {
@@ -523,6 +531,7 @@ impl CCodeGen {
 		for (i in 0..<patterns.len) {
 			val p = patterns[i];
 			var test = "";
+			val unwrapped_p = unwrap_group_expr(p);
 			if (cond.empty()) {
 				val raw = self.gen_expr(p);
 				test = if (patterns.len == 1 && raw.starts_with("(") && raw.ends_with(")"))
@@ -535,6 +544,12 @@ impl CCodeGen {
 				if (tag_field.empty()) tag_field = "tag";
 				val tag_const = if (pat_info.tag_const.empty()) "${target_name}__TAG" else pat_info.tag_const;
 				test = self.gen_tag_test(cond, pat_info.is_ptr, tag_field, tag_const);
+			} else if (unwrapped_p is BinaryExpr as bin && (bin.op == TokenType.DOT_DOT || bin.op == TokenType.DOT_DOT_LESS)) {
+				val s = self.gen_expr(bin.left);
+				val e = self.gen_expr(bin.right);
+				val op1 = if (bin.op == TokenType.DOT_DOT) "<=" else "<";
+				val op2 = if (bin.op == TokenType.DOT_DOT) ">=" else ">";
+				test = "(((${cond}) >= (${s}) && (${cond}) ${op1} (${e})) || ((${cond}) <= (${s}) && (${cond}) ${op2} (${e})))";
 			} else if (p is LiteralExpr as lit) {
 				if (lit.literal_kind == Literal.STRING) {
 					test = "kobel_streq(${cond}, ${self.gen_expr(p)})";

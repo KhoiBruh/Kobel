@@ -137,7 +137,7 @@ impl Parser {
 
 		self.consume(TokenType.KW_IN, "Expected 'in' after loop variable");
 
-		val first = self.parse_expression(Precedence.COMPARISON);
+		val first = self.parse_expression(Precedence.RANGE);
 
 		var is_range = false;
 		var is_open = false;
@@ -147,6 +147,13 @@ impl Parser {
 		var range_end: *AstNode? = null;
 
 		when {
+			self.match_token(TokenType.DOT_DOT_LESS) -> {
+				is_range = true;
+				is_half_open = true;
+				range_start = first;
+				range_end = self.parse_expression(Precedence.COMPARISON);
+			}
+
 			self.match_token(TokenType.DOT_DOT) -> {
 				is_range = true;
 				range_start = first;
@@ -157,17 +164,38 @@ impl Parser {
 			}
 
 			self.check(TokenType.GREATER)
-			&& self.peek_at(1).type == TokenType.DOT_DOT -> {
+			&& (self.peek_at(1).type == TokenType.DOT_DOT || self.peek_at(1).type == TokenType.DOT_DOT_LESS) -> {
 				is_range = true;
 				is_open = true;
 				range_start = first;
 				self.advance(); // '>'
-				self.consume(TokenType.DOT_DOT, "Expected '..' in open range");
-				self.consume(TokenType.LESS, "Expected '<' to close an open range");
+				if (self.match_token(TokenType.DOT_DOT_LESS)) {
+				} else {
+					self.consume(TokenType.DOT_DOT, "Expected '..' in open range");
+					self.consume(TokenType.LESS, "Expected '<' to close an open range");
+				}
 				range_end = self.parse_expression(Precedence.COMPARISON);
 			}
 
-			else -> iterable = first;
+			else -> {
+				var iter = first;
+				while (!self.is_end()) {
+					val next_tok = self.peek();
+					val prec = self.get_infix_precedence(next_tok.type);
+					if (prec <= Precedence.NONE) break;
+					iter = self.parse_infix(iter, prec);
+				}
+				var unwrapped = iter;
+				if (unwrapped is GroupExpr as g) unwrapped = g.expr;
+				if (unwrapped is BinaryExpr as bin && (bin.op == TokenType.DOT_DOT || bin.op == TokenType.DOT_DOT_LESS)) {
+					is_range = true;
+					is_half_open = (bin.op == TokenType.DOT_DOT_LESS);
+					range_start = bin.left;
+					range_end = bin.right;
+				} else {
+					iterable = iter;
+				}
+			}
 		}
 
 		self.consume(TokenType.CLOSE_PAREN, "Expected ')' after for header");

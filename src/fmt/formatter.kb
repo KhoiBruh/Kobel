@@ -61,6 +61,7 @@ pub fn op_to_str(op: TokenType) => when (op) {
 	TokenType.QUESTION_COLON -> "?:";
 	TokenType.QUESTION_DOT -> "?.";
 	TokenType.DOT_DOT -> "..";
+	TokenType.DOT_DOT_LESS -> "..<";
 	TokenType.BANG -> "!";
 	TokenType.PLUS_PLUS -> "++";
 	TokenType.MINUS_MINUS -> "--";
@@ -197,10 +198,11 @@ impl Formatter {
 			}
 			is IdentifierExpr as id -> self.buf += id.name;
 			is BinaryExpr as b -> {
+				val is_range = b.op == TokenType.DOT_DOT || b.op == TokenType.DOT_DOT_LESS;
 				self.format_expr(b.left);
-				self.buf.space();
+				if (!is_range) self.buf.space();
 				self.buf += op_to_str(b.op);
-				self.buf.space();
+				if (!is_range) self.buf.space();
 				self.format_expr(b.right);
 			}
 			is UnaryExpr as u -> {

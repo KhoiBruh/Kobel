@@ -335,6 +335,9 @@ impl AnalysisResult {
 		if (loader.find_module("std.string").found) {
 			loader.ensure_module("std.string");
 		}
+		if (loader.find_module("std.range").found) {
+			loader.ensure_module("std.range");
+		}
 
 		val full_prog = loader.load_program(path, source);
 		if (loader.errors.len > 0) {

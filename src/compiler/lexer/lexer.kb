@@ -515,7 +515,10 @@ impl Lexer {
 			return when (c) {
 				',' -> self.make_token(TokenType.COMMA, start_cursor, start_col);
 				'.' -> {
-					if (self.match('.')) yield self.make_token(TokenType.DOT_DOT, start_cursor, start_col);
+					if (self.match('.')) {
+						if (self.match('<')) yield self.make_token(TokenType.DOT_DOT_LESS, start_cursor, start_col);
+						yield self.make_token(TokenType.DOT_DOT, start_cursor, start_col);
+					}
 					yield self.make_token(TokenType.DOT, start_cursor, start_col);
 				}
 				':' -> self.make_token(TokenType.COLON, start_cursor, start_col);

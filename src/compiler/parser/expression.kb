@@ -24,6 +24,7 @@ pub enum Precedence {
 	AND,         // &&
 	EQUALITY,    // ==, !=
 	COMPARISON,  // <, <=, >, >=, in, is
+	RANGE,       // .., ..<
 	TERM,        // +, -
 	FACTOR,      // *, /, %
 	UNARY,       // -, !, *, &, as
@@ -254,6 +255,7 @@ impl Parser {
 			if (self.is_generic_args_ahead()) yield Precedence.CALL;
 			yield Precedence.COMPARISON;
 		}
+		TokenType.DOT_DOT, TokenType.DOT_DOT_LESS -> Precedence.RANGE;
 		TokenType.PLUS, TokenType.MINUS -> Precedence.TERM;
 		TokenType.STAR, TokenType.SLASH, TokenType.PERCENT -> Precedence.FACTOR;
 		TokenType.KW_AS -> Precedence.UNARY;

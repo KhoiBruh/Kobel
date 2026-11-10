@@ -339,21 +339,52 @@ for (i in 0..10) { ... }       // Closed: 0 through 10
 for (i in 0..<10) { ... }      // Half-open: 0 through 9
 for (i in 0>..<10) { ... }     // Open: 1 through 9
 for (i in 10..0) { ... }       // Reverse counting: 10 down to 0
+for (c in 'a'..'z') { ... }    // Character ranges
 
-// Iteration over collections (types implementing Iterable)
+// Iteration over collections and range variables (types implementing Iterable)
+val r = 0..10;
+for (item in r) { ... }
 for (item in list) { ... }
 ```
+
+### Ranges and Containment
+
+Ranges are first-class values represented by `Range<T>` (defined in `std.range`):
+- `..` (closed range, inclusive end bound)
+- `..<` (half-open range, exclusive end bound)
+
+Ranges support integers (`i32`, `i64`, `usz`, etc.) and `char`:
+```kobel
+val r1 = 0..10;          // Range<i32>
+val r2 = 0..<len;        // Range<usz>
+val rc = 'a'..'z';       // Range<char>
+
+// Containment test with in / !in
+if (x in 0..10) { ... }
+if (c in 'a'..'z') { ... }
+if (x in r1) { ... }
+if (x !in r1) { ... }
+```
+
+When written directly in `for` loop headers (`for (i in 0..10)`, `for (i in 0..<len)`), the compiler lowers them directly to zero-cost C counter loops with automatic bidirectional direction. When assigned to a variable, `Range<T>` implements the `Iterable` trait (`count()`, `at(i)`).
 
 ### Pattern Matching (`when`)
 
 `when` works as both an expression and a statement:
 
 ```kobel
-// Value matching
-val text = when (status_code) {
-    200 -> "OK";
-    404 -> "Not Found";
-    else -> "Unknown";
+// Value matching and range patterns
+val kind = when (c) {
+    'a'..'z', 'A'..'Z' -> "letter";
+    '0'..'9'           -> "digit";
+    else               -> "other";
+};
+
+// Numeric range patterns (including half-open and reverse)
+val category = when (score) {
+    90..100  -> "A";
+    80..<90  -> "B";
+    else     -> "C";
 };
 
 // Smart cast pattern matching on tagged structs

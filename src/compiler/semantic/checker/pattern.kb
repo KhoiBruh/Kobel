@@ -211,6 +211,22 @@ impl BodyChecker {
 			self.check_is_pattern(cond, cond_ty, pat);
 			return self.prims().t_bool();
 		}
+		val unwrapped = self.unwrap_group(pat);
+		if (unwrapped is BinaryExpr as bin && (bin.op == TokenType.DOT_DOT || bin.op == TokenType.DOT_DOT_LESS)) {
+			val r_ty = self.check_expr(pat);
+			if (cond_ty != null && r_ty.kind == DataType.STRUCT) {
+				val s = r_ty.as_struct();
+				if (s.fields.len > 0) {
+					val elem_ty = s.fields[0].type_ptr;
+					self.ensure(
+						cond_ty.can_assign(elem_ty) || elem_ty.can_assign(cond_ty),
+						pat,
+						"Range pattern element type does not match 'when' condition type"
+					);
+				}
+			}
+			return r_ty;
+		}
 		return self.check_expr(pat);
 	}
 

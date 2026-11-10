@@ -183,6 +183,9 @@ impl BodyChecker {
 			if (self.is_untyped_literal(bin.left) && rt.is_numeric() && !lt.equals(rt)) {
 				lt = self.check_expr(bin.left, rt);
 			}
+			if (self.is_untyped_literal(bin.right) && lt.is_numeric() && !rt.equals(lt)) {
+				rt = self.check_expr(bin.right, lt);
+			}
 
 			return when (bin.op) {
 				TokenType.PLUS, TokenType.MINUS, TokenType.STAR,
@@ -192,6 +195,7 @@ impl BodyChecker {
 				TokenType.GREATER, TokenType.GREATER_EQUAL -> self.check_ordering_op(node, lt, rt);
 				TokenType.AND_AND, TokenType.OR_OR -> self.check_logic_op(node, lt, rt);
 				TokenType.KW_IN -> self.check_in_op(node, bin, lt, rt);
+				TokenType.DOT_DOT, TokenType.DOT_DOT_LESS -> self.check_range_op(node, bin, lt, rt);
 				else -> lt;
 			};
 		}
@@ -276,6 +280,15 @@ impl BodyChecker {
 			return lt;
 		}
 
+		if (lt.kind == DataType.CHAR) {
+			if (bin.op == TokenType.PLUS && rt.is_integer()) return lt;
+			if (bin.op == TokenType.MINUS && rt.is_integer()) return lt;
+			if (bin.op == TokenType.MINUS && rt.kind == DataType.CHAR) return self.prims().t_i32();
+		}
+		if (rt.kind == DataType.CHAR && bin.op == TokenType.PLUS && lt.is_integer()) {
+			return rt;
+		}
+
 		if (lt.kind == DataType.STRUCT) {
 			val op_name = when (bin.op) {
 				TokenType.PLUS -> "plus";
@@ -337,13 +350,20 @@ impl BodyChecker {
 	}
 
 	fn check_in_op(var self, node: *AstNode, bin: *BinaryExpr, lt: *Type, rt: *Type): *Type {
+		var l_ty = lt;
 		val r_is_ptr = rt.kind == DataType.POINTER;
 		val r_struct_ty = if (r_is_ptr) rt.as_pointer().pointee else rt;
 		if (r_struct_ty?.kind == DataType.STRUCT) {
 			val s_info = r_struct_ty.as_struct();
+			if (self.is_untyped_literal(bin.left) && s_info.fields.len > 0) {
+				val elem_ty = s_info.fields[0].type_ptr;
+				if (elem_ty != null && (elem_ty.is_numeric() || elem_ty.kind == DataType.CHAR)) {
+					l_ty = self.check_expr(bin.left, elem_ty);
+				}
+			}
 			var arg_types = List<*Type>();
 			arg_types += r_struct_ty;
-			arg_types += lt;
+			arg_types += l_ty;
 			val mi = s_info.find_operator("contains", arg_types);
 			if (mi != null) {
 				self.set_method(node, mi);
@@ -385,6 +405,42 @@ impl BodyChecker {
 		);
 		self.set_resolved(node, call_node);
 		return self.check_expr(call_node);
+	}
+
+	fn check_range_op(var self, node: *AstNode, bin: *BinaryExpr, lt: *Type, rt: *Type): *Type {
+		var l_ty = lt;
+		var r_ty = rt;
+		if (self.is_untyped_literal(bin.left) && r_ty.is_numeric() && !l_ty.equals(r_ty)) {
+			l_ty = self.check_expr(bin.left, r_ty);
+		}
+		if (self.is_untyped_literal(bin.right) && l_ty.is_numeric() && !r_ty.equals(l_ty)) {
+			r_ty = self.check_expr(bin.right, l_ty);
+		}
+
+		val is_num_range = l_ty.is_integer() && r_ty.is_integer();
+		val is_char_range = l_ty.kind == DataType.CHAR && r_ty.kind == DataType.CHAR;
+		self.ensure(
+			is_num_range || is_char_range,
+			node,
+			"Range operands must both be integers or both be chars"
+		);
+
+		var elem_ty = l_ty;
+		if (is_num_range) {
+			if (r_ty.size > l_ty.size) elem_ty = r_ty;
+			else if (l_ty.is_signed_integer() && r_ty.is_unsigned_integer()) elem_ty = r_ty;
+		}
+
+		var targs = List<*AstNode>();
+		targs += self.arena.ast_type_from_type(elem_ty);
+		val tmpl = self.find_struct_template_for("Range");
+		if (tmpl != null) {
+			val range_ty = self.instantiate_template_struct(tmpl, targs);
+			return range_ty;
+		}
+
+		self.report_error(node, "Type 'Range' not found");
+		return self.prims().t_none();
 	}
 
 	pub fn check_unary_expr(var self, node: *AstNode, expected: *Type? = null): *Type {

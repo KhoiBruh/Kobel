@@ -79,6 +79,7 @@ impl CompileOptions {
 		 */
 		if (loader.find_module("std.traits").found) loader.ensure_module("std.traits");
 		if (loader.find_module("std.string").found) loader.ensure_module("std.string");
+		if (loader.find_module("std.range").found) loader.ensure_module("std.range");
 
 		val loaded_prog = loader.load_program(input_path, src);
 		if (!loader.errors.empty()) {

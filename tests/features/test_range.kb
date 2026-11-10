@@ -1,0 +1,344 @@
+mod test.test_range;
+
+use std.io.println;
+use std.range.Range;
+use testsupport.assert.*;
+
+fn classify_char(c: char): i32 => when (c) {
+	'a'..'z', 'A'..'Z' -> 1;
+	'0'..'9'           -> 2;
+	else               -> 0;
+};
+
+fn classify_num(n: i32): i32 => when (n) {
+	0..<10  -> 1;
+	10..20  -> 2;
+	50..30  -> 3;
+	else    -> 0;
+};
+
+fn classify_desc_half(n: i32): i32 => when (n) {
+	10..<0  -> 1;
+	else    -> 0;
+};
+
+fn test_when_stmt(c: char): i32 {
+	var category = 0;
+	when (c) {
+		'a'..'z' -> { category = 1; }
+		'A'..'Z' -> { category = 2; }
+		'0'..'9' -> { category = 3; }
+		else     -> { category = -1; }
+	}
+	return category;
+}
+
+fn test_range_values() {
+	val r1 = 0..10;
+	assert_eq_i32(r1.start, 0, "r1.start");
+	assert_eq_i32(r1.end, 10, "r1.end");
+	assert_true(r1.inclusive, "r1.inclusive");
+	assert_true(r1.is_ascending(), "r1.is_ascending");
+	assert_eq_usz(r1.count(), 11, "r1.count()");
+	assert_eq_i32(r1.at(0), 0, "r1.at(0)");
+	assert_eq_i32(r1.at(10), 10, "r1.at(10)");
+
+	val r2 = 0..<10;
+	assert_eq_i32(r2.start, 0, "r2.start");
+	assert_eq_i32(r2.end, 10, "r2.end");
+	assert_true(!r2.inclusive, "!r2.inclusive");
+	assert_true(r2.is_ascending(), "r2.is_ascending");
+	assert_eq_usz(r2.count(), 10, "r2.count()");
+
+	val r3 = 10..0;
+	assert_eq_i32(r3.start, 10, "r3.start");
+	assert_eq_i32(r3.end, 0, "r3.end");
+	assert_true(!r3.is_ascending(), "!r3.is_ascending");
+	assert_eq_usz(r3.count(), 11, "r3.count()");
+	assert_eq_i32(r3.at(0), 10, "r3.at(0)");
+	assert_eq_i32(r3.at(10), 0, "r3.at(10)");
+
+	val rc = 'a'..'z';
+	assert_true(rc.start == 'a', "rc.start == 'a'");
+	assert_true(rc.end == 'z', "rc.end == 'z'");
+	assert_eq_usz(rc.count(), 26, "rc.count() == 26");
+	assert_true(rc.at(0) == 'a', "rc.at(0) == 'a'");
+	assert_true(rc.at(25) == 'z', "rc.at(25) == 'z'");
+
+	assert_true(r1 == (0..10), "r1 == 0..10");
+	assert_true(r1 != r2, "r1 != r2");
+
+	val r_usz = 0UZ..<5UZ;
+	assert_eq_usz(r_usz.count(), 5, "r_usz.count()");
+	assert_eq_usz(r_usz.start, 0, "r_usz.start");
+	assert_eq_usz(r_usz.end, 5, "r_usz.end");
+
+	val r_i64 = 0L..10L;
+	assert_eq_usz(r_i64.count(), 11, "r_i64.count()");
+
+	val r_empty = 5..<5;
+	assert_eq_usz(r_empty.count(), 0, "r_empty.count()");
+}
+
+fn test_direct_for_loops() {
+	var sum = 0;
+	var count = 0;
+	for (i in 0..5) {
+		sum += i;
+		count += 1;
+	}
+	assert_eq_i32(sum, 15, "sum of 0..5");
+	assert_eq_i32(count, 6, "count of 0..5");
+
+	sum = 0;
+	count = 0;
+	for (i in 0..<5) {
+		sum += i;
+		count += 1;
+	}
+	assert_eq_i32(sum, 10, "sum of 0..<5");
+	assert_eq_i32(count, 5, "count of 0..<5");
+
+	sum = 0;
+	count = 0;
+	for (i in 5..0) {
+		sum += i;
+		count += 1;
+	}
+	assert_eq_i32(sum, 15, "sum of 5..0");
+	assert_eq_i32(count, 6, "count of 5..0");
+
+	sum = 0;
+	count = 0;
+	for (i in 5..<0) {
+		sum += i;
+		count += 1;
+	}
+	assert_eq_i32(sum, 15, "sum of 5..<0");
+	assert_eq_i32(count, 5, "count of 5..<0");
+
+	var first_c = ' ';
+	var last_c = ' ';
+	var char_count = 0;
+	for (c in 'a'..'e') {
+		if (char_count == 0) first_c = c;
+		last_c = c;
+		char_count += 1;
+	}
+	assert_eq_i32(char_count, 5, "char_count 'a'..'e'");
+	assert_true(first_c == 'a', "first char 'a'");
+	assert_true(last_c == 'e', "last char 'e'");
+
+	char_count = 0;
+	for (c in 'e'..'a') {
+		if (char_count == 0) first_c = c;
+		last_c = c;
+		char_count += 1;
+	}
+	assert_eq_i32(char_count, 5, "char_count 'e'..'a'");
+	assert_true(first_c == 'e', "first char 'e'");
+	assert_true(last_c == 'a', "last char 'a'");
+
+	char_count = 0;
+	for (c in 'a'..<'e') {
+		last_c = c;
+		char_count += 1;
+	}
+	assert_eq_i32(char_count, 4, "char_count 'a'..<'e'");
+	assert_true(last_c == 'd', "last char 'd'");
+
+	sum = 0;
+	for (i in (0..3)) {
+		sum += i;
+	}
+	assert_eq_i32(sum, 6, "grouped range (0..3)");
+
+	var u_sum: usz = 0;
+	for (u in 0UZ..<5UZ) {
+		u_sum += u;
+	}
+	assert_eq_usz(u_sum, 10, "u_sum 0UZ..<5UZ");
+
+	u_sum = 0;
+	for (u in 5UZ..0UZ) {
+		u_sum += u;
+	}
+	assert_eq_usz(u_sum, 15, "u_sum 5UZ..0UZ");
+
+	u_sum = 0;
+	for (u in 5UZ..<0UZ) {
+		u_sum += u;
+	}
+	assert_eq_usz(u_sum, 15, "u_sum 5UZ..<0UZ");
+
+	var l_sum: i64 = 0;
+	for (l in 0L..3L) {
+		l_sum += l;
+	}
+	assert_true(l_sum == 6L, "l_sum 0L..3L");
+
+	l_sum = 0;
+	for (l in 3L..0L) {
+		l_sum += l;
+	}
+	assert_true(l_sum == 6L, "l_sum 3L..0L");
+
+	var ran = false;
+	for (i in 5..<5) {
+		ran = true;
+	}
+	assert_true(!ran, "!ran for direct 5..<5");
+}
+
+fn test_range_variable_iteration() {
+	val r_asc = 0..4;
+	var sum = 0;
+	var count = 0;
+	for (x in r_asc) {
+		sum += x;
+		count += 1;
+	}
+	assert_eq_i32(sum, 10, "sum via Range variable");
+	assert_eq_i32(count, 5, "count via Range variable");
+
+	val r_desc = 4..0;
+	sum = 0;
+	count = 0;
+	for (x in r_desc) {
+		sum += x;
+		count += 1;
+	}
+	assert_eq_i32(sum, 10, "sum via descending Range variable");
+	assert_eq_i32(count, 5, "count via descending Range variable");
+
+	val r_half = 0..<4;
+	sum = 0;
+	count = 0;
+	for (x in r_half) {
+		sum += x;
+		count += 1;
+	}
+	assert_eq_i32(sum, 6, "sum via half-open Range variable");
+	assert_eq_i32(count, 4, "count via half-open Range variable");
+
+	val r_char = 'x'..'z';
+	var c_count = 0;
+	for (c in r_char) {
+		c_count += 1;
+	}
+	assert_eq_i32(c_count, 3, "count via char Range variable");
+
+	val r_u = 0UZ..<4UZ;
+	var usum: usz = 0;
+	for (u in r_u) {
+		usum += u;
+	}
+	assert_eq_usz(usum, 6, "usum via Range<usz>");
+
+	val r_ud = 4UZ..0UZ;
+	usum = 0;
+	for (u in r_ud) {
+		usum += u;
+	}
+	assert_eq_usz(usum, 10, "usum via descending Range<usz>");
+
+	val r_cd = 'c'..'a';
+	var cd_first = ' ';
+	var cd_last = ' ';
+	var cd_cnt = 0;
+	for (c in r_cd) {
+		if (cd_cnt == 0) cd_first = c;
+		cd_last = c;
+		cd_cnt += 1;
+	}
+	assert_eq_i32(cd_cnt, 3, "cd_cnt");
+	assert_true(cd_first == 'c', "cd_first == 'c'");
+	assert_true(cd_last == 'a', "cd_last == 'a'");
+
+	val r_emp = 5..<5;
+	var emp_ran = false;
+	for (x in r_emp) {
+		emp_ran = true;
+	}
+	assert_true(!emp_ran, "!emp_ran via Range variable");
+}
+
+fn test_containment() {
+	assert_true(5 in 0..10, "5 in 0..10");
+	assert_true(0 in 0..10, "0 in 0..10");
+	assert_true(10 in 0..10, "10 in 0..10");
+	assert_true(!(11 in 0..10), "!(11 in 0..10)");
+	assert_true(11 !in 0..10, "11 !in 0..10");
+
+	assert_true(9 in 0..<10, "9 in 0..<10");
+	assert_true(!(10 in 0..<10), "!(10 in 0..<10)");
+	assert_true(10 !in 0..<10, "10 !in 0..<10");
+
+	assert_true(5 in 10..0, "5 in 10..0");
+	assert_true(10 in 10..0, "10 in 10..0");
+	assert_true(0 in 10..0, "0 in 10..0");
+	assert_true(11 !in 10..0, "11 !in 10..0");
+
+	assert_true(10 in 10..<0, "10 in 10..<0");
+	assert_true(1 in 10..<0, "1 in 10..<0");
+	assert_true(0 !in 10..<0, "0 !in 10..<0");
+
+	assert_true('m' in 'a'..'z', "'m' in 'a'..'z'");
+	assert_true('a' in 'a'..'z', "'a' in 'a'..'z'");
+	assert_true('z' in 'a'..'z', "'z' in 'a'..'z'");
+	assert_true('A' !in 'a'..'z', "'A' !in 'a'..'z'");
+
+	val r = 10..20;
+	assert_true(15 in r, "15 in r");
+	assert_true(25 !in r, "25 !in r");
+
+	val r_usz = 0UZ..<5UZ;
+	assert_true(0UZ in r_usz, "0UZ in r_usz");
+	assert_true(4UZ in r_usz, "4UZ in r_usz");
+	assert_true(5UZ !in r_usz, "5UZ !in r_usz");
+
+	val r_empty = 5..<5;
+	assert_true(5 !in r_empty, "5 !in r_empty");
+
+	assert_true(r == (10..20), "r == 10..20");
+	assert_true(r != (10..<20), "r != 10..<20");
+}
+
+fn test_when_patterns() {
+	assert_eq_i32(classify_char('a'), 1, "classify 'a'");
+	assert_eq_i32(classify_char('z'), 1, "classify 'z'");
+	assert_eq_i32(classify_char('M'), 1, "classify 'M'");
+	assert_eq_i32(classify_char('0'), 2, "classify '0'");
+	assert_eq_i32(classify_char('9'), 2, "classify '9'");
+	assert_eq_i32(classify_char('!'), 0, "classify '!'");
+
+	assert_eq_i32(classify_num(0), 1, "classify 0");
+	assert_eq_i32(classify_num(9), 1, "classify 9");
+	assert_eq_i32(classify_num(10), 2, "classify 10");
+	assert_eq_i32(classify_num(20), 2, "classify 20");
+	assert_eq_i32(classify_num(40), 3, "classify 40");
+	assert_eq_i32(classify_num(50), 3, "classify 50");
+	assert_eq_i32(classify_num(30), 3, "classify 30");
+	assert_eq_i32(classify_num(99), 0, "classify 99");
+
+	assert_eq_i32(classify_desc_half(10), 1, "classify_desc_half 10");
+	assert_eq_i32(classify_desc_half(1), 1, "classify_desc_half 1");
+	assert_eq_i32(classify_desc_half(0), 0, "classify_desc_half 0");
+	assert_eq_i32(classify_desc_half(11), 0, "classify_desc_half 11");
+
+	assert_eq_i32(test_when_stmt('c'), 1, "when stmt 'c'");
+	assert_eq_i32(test_when_stmt('X'), 2, "when stmt 'X'");
+	assert_eq_i32(test_when_stmt('5'), 3, "when stmt '5'");
+	assert_eq_i32(test_when_stmt('?'), -1, "when stmt '?'");
+}
+
+pub fn main(): i32 {
+	println("=== Running Range Feature Tests ===");
+	test_range_values();
+	test_direct_for_loops();
+	test_range_variable_iteration();
+	test_containment();
+	test_when_patterns();
+	println("All range feature tests passed!");
+	return 0;
+}
