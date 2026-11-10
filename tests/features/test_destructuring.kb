@@ -195,6 +195,22 @@ fn test_loop_and_nested() {
 	assert_eq_i32(mod_sum, 100, "mod_sum == 100");
 }
 
+fn test_hashmap_entries_destructuring() {
+	var map = HashMap<str, i32>();
+	defer map.free();
+	map["one"] = 1;
+	map["two"] = 2;
+
+	val entries = map.entries();
+	defer entries.free();
+	var sum = 0;
+	for ((k, v) in entries) {
+		sum += v;
+		assert_true(k == "one" || k == "two", "valid key from entries");
+	}
+	assert_eq_i32(sum, 3, "entries destructuring sum == 3");
+}
+
 pub fn main(): i32 {
 	println("=== Running Destructuring Tests ===");
 	test_val_destructuring();
@@ -203,6 +219,7 @@ pub fn main(): i32 {
 	test_generic_destructuring();
 	test_indexed_destructuring();
 	test_hashmap_for_destructuring();
+	test_hashmap_entries_destructuring();
 	test_loop_and_nested();
 	println("All destructuring tests passed!");
 	return 0;

@@ -46,6 +46,21 @@ fn test_default_config(): bool {
 	return true;
 }
 
+fn test_toml_iteration(): bool {
+	val toml_content = """
+		[package]
+		name = "foo"
+		version = "1.2.3"
+	""";
+	val doc = Toml(toml_content);
+	var count = 0;
+	for ((k, v) in doc) {
+		if (k == "package.name" && v == "foo") count++;
+		if (k == "package.version" && v == "1.2.3") count++;
+	}
+	return count == 2;
+}
+
 fn main(): i32 {
 	println("[RUNNING] Test Mini-TOML & Project Configuration...");
 
@@ -54,6 +69,12 @@ fn main(): i32 {
 		return 1;
 	}
 	println("  [PASS] test_toml_parser");
+
+	if (!test_toml_iteration()) {
+		println("  [FAIL] test_toml_iteration");
+		return 1;
+	}
+	println("  [PASS] test_toml_iteration");
 
 	if (!test_default_config()) {
 		println("  [FAIL] test_default_config");
