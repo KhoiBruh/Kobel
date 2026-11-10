@@ -448,23 +448,29 @@ impl DeclarationCollector {
 		var raw_text = "";
 		var lit_kind = Literal.INTEGER;
 
-		if (under_type.is_integer()) {
-			v = current_int_val;
-			if (m.value != null) v = self.enum_const_i64(m.value!);
-			raw_text = "${v}";
-			lit_kind = Literal.INTEGER;
-		} else if (under_type.kind == DataType.STR) {
-			lit_kind = Literal.STRING;
-			raw_text = self.eval_str_enum_member(node, m);
-		} else if (under_type.kind == DataType.CHAR) {
-			lit_kind = Literal.CHARACTER;
-			raw_text = self.eval_char_enum_member(node, m);
-		} else if (under_type.is_float()) {
-			lit_kind = Literal.FLOAT;
-			raw_text = self.eval_float_enum_member(node, m);
-		} else if (under_type.kind == DataType.BOOL) {
-			lit_kind = Literal.BOOLEAN;
-			raw_text = self.eval_bool_enum_member(node, m);
+		when (under_type) {
+			.is_integer() -> {
+				v = current_int_val;
+				if (m.value != null) v = self.enum_const_i64(m.value!);
+				raw_text = "${v}";
+				lit_kind = Literal.INTEGER;
+			}
+			.kind == DataType.STR -> {
+				lit_kind = Literal.STRING;
+				raw_text = self.eval_str_enum_member(node, m);
+			}
+			.kind == DataType.CHAR -> {
+				lit_kind = Literal.CHARACTER;
+				raw_text = self.eval_char_enum_member(node, m);
+			}
+			.is_float() -> {
+				lit_kind = Literal.FLOAT;
+				raw_text = self.eval_float_enum_member(node, m);
+			}
+			.kind == DataType.BOOL -> {
+				lit_kind = Literal.BOOLEAN;
+				raw_text = self.eval_bool_enum_member(node, m);
+			}
 		}
 
 		return self.arena.create_val(EnumMemberInfo(m.name, v, null, "", raw_text, lit_kind));

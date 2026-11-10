@@ -469,9 +469,10 @@ impl TypeResolver {
 					var param_types = List<*Type>();
 					for (p in f.params) {
 						var pt: *Type = self.prims().t_none();
-						pt = when {
-							p.name == "self" && p.type_node == null -> self.arena.pointer_type(st_type, p.mutable);
-							p.type_node != null -> self.resolve_ast_type(p.type_node!);
+						pt = when (p) {
+							.name == "self" &&
+							.type_node == null -> self.arena.pointer_type(st_type, p.mutable);
+							.type_node != null -> self.resolve_ast_type(p.type_node!);
 							else -> self.prims().t_none();
 						};
 

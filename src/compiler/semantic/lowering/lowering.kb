@@ -576,8 +576,8 @@ impl LoweringPass {
 				return self.lowered(node, maybe);
 			}
 
-			val fallback = if (call_ty?.kind == DataType.STR)
-				self.arena.node(
+			val fallback = when (call_ty) {
+				?.kind == DataType.STR -> self.arena.node(
 					NodeData.CallExpr(
 						self.arena.node(
 							NodeData.IdentifierExpr("kobel_null_str"),
@@ -586,16 +586,26 @@ impl LoweringPass {
 						List<*AstNode>(), List<*AstNode>()
 					),
 					node.line, node.col
-				)
-			else if (call_ty?.is_integer() || call_ty?.is_enum() || call_ty?.kind == DataType.CHAR)
-				self.arena.node(NodeData.LiteralExpr(Literal.INTEGER, "0"), node.line, node.col)
-			else if (call_ty?.kind == DataType.F32 || call_ty?.kind == DataType.F64)
-				self.arena.node(NodeData.LiteralExpr(Literal.FLOAT, "0.0"), node.line, node.col)
-			else null_lit;
+				);
+
+				?.is_integer() ||
+				?.is_enum() ||
+				?.kind == DataType.CHAR -> self.arena.node(
+					NodeData.LiteralExpr(Literal.INTEGER, "0"), node.line, node.col
+				);
+
+				?.kind == DataType.F32 ||
+				?.kind == DataType.F64 -> self.arena.node(
+					NodeData.LiteralExpr(Literal.FLOAT, "0.0"), node.line, node.col
+				);
+
+				else -> null_lit;
+			};
 
 			val maybe = self.arena.node(NodeData.IfExpr(cond, direct, fallback), node.line, node.col);
 			return self.lowered(node, maybe);
 		}
+
 		return node;
 	}
 

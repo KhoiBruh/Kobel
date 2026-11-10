@@ -279,17 +279,19 @@ impl Parser {
 		var alias = "";
 		var mutable = false;
 		if (self.match_token(TokenType.KW_AS)) {
-			if (self.match_token(TokenType.KW_VAR)) {
-				mutable = true;
-				self.match_token(TokenType.AMPERSAND);
-			} else if (self.match_token(TokenType.AMPERSAND)) {
-				mutable = true;
-			} else {
-				self.match_token(TokenType.KW_VAL);
+			when (self) {
+				.match_token(TokenType.KW_VAR) -> {
+					mutable = true;
+					self.match_token(TokenType.AMPERSAND);
+				}
+				.match_token(TokenType.AMPERSAND) -> mutable = true;
+				else -> self.match_token(TokenType.KW_VAL);
 			}
+
 			val alias_tok = self.consume(TokenType.IDENTIFIER, "Expected identifier after 'as'");
 			alias = alias_tok.text;
 		}
+
 		return self.node(NodeData.IsExpr(left, target_type, alias, mutable), line, col);
 	}
 
@@ -386,7 +388,10 @@ impl Parser {
 				val msg = if (is_safe) "Expected identifier after '?.'" else "Expected identifier after '.'";
 				val member_tok = self.consume(TokenType.IDENTIFIER, msg);
 				val implicit_recv = self.node(NodeData.IdentifierExpr(""), line, col);
-				yield self.node(NodeData.MemberExpr(implicit_recv, member_tok.text, is_safe), line, col);
+				yield self.node(
+					NodeData.MemberExpr(implicit_recv, member_tok.text, is_safe),
+					line, col
+				);
 			}
 
 			// If Expression: if (cond) then_expr else else_expr
@@ -482,11 +487,11 @@ impl Parser {
 			}
 		}
 
-		return when {
+		return when (self) {
 			// 2. Elvis operator: left ?: right (right can be expression or jump statement)
-			self.match_token(TokenType.QUESTION_COLON) -> {
-				val right = when {
-					self.match_token(TokenType.KW_RETURN) -> {
+			.match_token(TokenType.QUESTION_COLON) -> {
+				val right = when (self) {
+					.match_token(TokenType.KW_RETURN) -> {
 						val (kw_line, kw_col) = self.previous();
 						val value = if (
 							!self.check(TokenType.SEMI_COLON)
@@ -496,15 +501,15 @@ impl Parser {
 
 						yield self.node(NodeData.ReturnStmt(value), kw_line, kw_col);
 					}
-					self.match_token(TokenType.KW_BREAK) -> {
+					.match_token(TokenType.KW_BREAK) -> {
 						val (kw_line, kw_col) = self.previous();
 						yield self.node(NodeData.BreakStmt, kw_line, kw_col);
 					}
-					self.match_token(TokenType.KW_CONTINUE) -> {
+					.match_token(TokenType.KW_CONTINUE) -> {
 						val (kw_line, kw_col) = self.previous();
 						yield self.node(NodeData.ContinueStmt, kw_line, kw_col);
 					}
-					self.match_token(TokenType.KW_YIELD) -> {
+					.match_token(TokenType.KW_YIELD) -> {
 						val (kw_line, kw_col) = self.previous();
 						val value = if (
 							!self.check(TokenType.SEMI_COLON)
@@ -518,28 +523,31 @@ impl Parser {
 					else -> self.parse_expression(Precedence.ASSIGN);
 				};
 
-				yield self.node(NodeData.BinaryExpr(left, TokenType.QUESTION_COLON, right), line, col);
+				yield self.node(
+					NodeData.BinaryExpr(left, TokenType.QUESTION_COLON, right),
+					line, col
+				);
 			}
 
 			// 3. Member Access: left.member or left?.member
-			self.match_token(TokenType.DOT) -> {
+			.match_token(TokenType.DOT) -> {
 				val member_tok = self.consume(TokenType.IDENTIFIER, "Expected identifier after '.'");
 				yield self.node(NodeData.MemberExpr(left, member_tok.text, false), line, col);
 			}
-			self.match_token(TokenType.QUESTION_DOT) -> {
+			.match_token(TokenType.QUESTION_DOT) -> {
 				val member_tok = self.consume(TokenType.IDENTIFIER, "Expected identifier after '?.'");
 				yield self.node(NodeData.MemberExpr(left, member_tok.text, true), line, col);
 			}
 
 			// 3. Index Access: left[index]
-			self.match_token(TokenType.OPEN_BRACKET) -> {
+			.match_token(TokenType.OPEN_BRACKET) -> {
 				val index = self.parse_expression(Precedence.NONE);
 				self.consume(TokenType.CLOSE_BRACKET, "Expected ']' after array index");
 				yield self.node(NodeData.IndexExpr(left, index), line, col);
 			}
 
 			// 4. Type Cast: left as Type
-			self.match_token(TokenType.KW_AS) -> {
+			.match_token(TokenType.KW_AS) -> {
 				if (self.match_token(TokenType.QUESTION)) {
 					self.error(self.peek(), "Safe cast 'as?' has been removed; use 'is' with smart casting instead");
 				}
@@ -548,16 +556,17 @@ impl Parser {
 			}
 
 			// Type Test: left is Type [as [var|val|&] alias]
-			self.match_token(TokenType.KW_IS) -> self.parse_is_pattern(left, line, col);
+			.match_token(TokenType.KW_IS) -> self.parse_is_pattern(left, line, col);
 
 			// In test: left in right
-			self.match_token(TokenType.KW_IN) -> {
+			.match_token(TokenType.KW_IN) -> {
 				val right = self.parse_expression(prec);
 				yield self.node(NodeData.BinaryExpr(left, TokenType.KW_IN, right), line, col);
 			}
 
 			// Not-in test: left !in right
-			self.check(TokenType.BANG) && self.peek_at(1).type == TokenType.KW_IN -> {
+			.check(TokenType.BANG) &&
+			.peek_at(1).type == TokenType.KW_IN -> {
 				self.advance(); // consume '!'
 				self.advance(); // consume 'in'
 				val right = self.parse_expression(prec);
@@ -566,7 +575,8 @@ impl Parser {
 			}
 
 			// 5. Generic Call: left<T1, T2>(arg1, arg2)
-			self.check(TokenType.LESS) && self.is_generic_args_ahead() -> {
+			.check(TokenType.LESS) &&
+			.is_generic_args_ahead() -> {
 				self.advance(); // consume '<'
 				var type_args = List<*AstNode>();
 				type_args += self.parse_type();
@@ -579,7 +589,7 @@ impl Parser {
 			}
 
 			// 6. Normal Call: left(arg1, arg2)
-			self.match_token(TokenType.OPEN_PAREN) -> {
+			.match_token(TokenType.OPEN_PAREN) -> {
 				val args = self.parse_call_args();
 				yield self.node(NodeData.CallExpr(left, args, List<*AstNode>()), line, col);
 			}
@@ -616,29 +626,32 @@ impl Parser {
 		return self.parse_expression(Precedence.NONE);
 	}
 
-	pub fn parse_string_literal(var self, tok: Token, line: usz, col: usz): *AstNode {
-		if (tok.text.starts_with("\"\"\"")) {
-			return self.parse_multiline_string(tok.text, line, col);
-		}
+	pub fn parse_string_literal(var self, token: Token, line: usz, col: usz): *AstNode {
+		val text = token.text;
+		if (text.starts_with("\"\"\"")) return self.parse_multiline_string(text, line, col);
 
 		if (!self.check(TokenType.STRING)) {
-			if (str_has_hole(tok.text)) return self.parse_interp_string(tok.text, line, col);
-			return self.node(NodeData.LiteralExpr(Literal.STRING, normalize_esc_dollar(tok.text)), line, col);
+			if (str_has_hole(text)) return self.parse_interp_string(text, line, col);
+			return self.node(NodeData.LiteralExpr(Literal.STRING, normalize_esc_dollar(text)), line, col);
 		}
 
 		var combined_inner = "";
-		if (tok.text.len >= 2) {
-			combined_inner = tok.text.slice(1, tok.text.len - 1);
-		}
+		if (text.len >= 2) combined_inner = text.slice(1, text.len - 1);
+
 		while (self.check(TokenType.STRING)) {
 			val next_tok = self.advance();
 			if (next_tok.text.len >= 2) {
 				combined_inner = "${combined_inner}${next_tok.text.slice(1, next_tok.text.len - 1)}";
 			}
 		}
+
 		val combined = "\"${combined_inner}\"";
 		if (str_has_hole(combined)) return self.parse_interp_string(combined, line, col);
-		return self.node(NodeData.LiteralExpr(Literal.STRING, normalize_esc_dollar(combined)), line, col);
+
+		return self.node(
+			NodeData.LiteralExpr(Literal.STRING, normalize_esc_dollar(combined)),
+			line, col
+		);
 	}
 
 	pub fn parse_multiline_string(var self, text: str, line: usz, col: usz): *AstNode {
@@ -646,9 +659,7 @@ impl Parser {
 		val inner = text.slice(3, text.len - 3);
 		val trimmed = inner.multiline_trim_indent();
 
-		if (str_has_hole(trimmed)) {
-			return self.parse_interp_multiline(trimmed, line, col);
-		}
+		if (str_has_hole(trimmed)) return self.parse_interp_multiline(trimmed, line, col);
 
 		val c_literal = multiline_escape_for_c(trimmed);
 		return self.node(NodeData.LiteralExpr(Literal.STRING, c_literal), line, col);
@@ -721,7 +732,7 @@ impl Parser {
 				val h_start = i + 2;
 				val h_end = interp_find_close(text, h_start);
 				if (h_end < 0) {
-					self.errors += Diagnostic.error(Span(self.file_id, line as u32, col as u32, 1), "", "Unterminated interpolation hole in multiline string literal");
+					self.errors += Diagnostic.error(Span(self.file_id, line, col), "", "Unterminated interpolation hole in multiline string literal");
 					return self.node(NodeData.LiteralExpr(Literal.STRING, "\"\""), line, col);
 				}
 				val src = text.slice(h_start, h_end as usz);
@@ -784,12 +795,18 @@ impl Parser {
 					lit.clear();
 					has_lit = false;
 				}
+
 				val h_start = i + 2;
 				val h_end = interp_find_close(text, h_start);
 				if (h_end < 0) {
-					self.errors += Diagnostic.error(Span(self.file_id, line as u32, col as u32, 1), "", "Unterminated interpolation hole in string literal");
+					self.errors += Diagnostic.error(
+						Span(self.file_id, line, col), "",
+						"Unterminated interpolation hole in string literal"
+					);
+
 					return self.node(NodeData.LiteralExpr(Literal.STRING, text), line, col);
 				}
+
 				val src = text.slice(h_start, h_end);
 				var sub_lexer = Lexer(src);
 				val sub_tokens = sub_lexer.tokenize();

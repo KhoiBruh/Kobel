@@ -275,9 +275,9 @@ impl ModuleLoader {
 		if (program_node is Program as prog) {
 			for (decl in prog) {
 				if (decl is UseDecl as u) {
-					val mod_name = when {
-						u.wildcard -> str_join_dots(u.path, u.path.len);
-						u.path.len >= 2 -> str_join_dots(u.path, u.path.len - 1);
+					val mod_name = when (u) {
+						.wildcard -> str_join_dots(u.path, u.path.len);
+						.path.len >= 2 -> str_join_dots(u.path, u.path.len - 1);
 						else -> "";
 					};
 					if (!mod_name.empty()) self.ensure_module(mod_name, decl.line, decl.col, parent_mod);

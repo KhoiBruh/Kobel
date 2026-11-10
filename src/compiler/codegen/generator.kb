@@ -197,9 +197,9 @@ pub fn c_format_float_literal(raw: str): str {
 	if (has_dot) return text;
 
 	val len = text.len;
-	return when {
-		text.ends_with("F") -> "${text.slice(0, len - 1)}.0f";
-		text.ends_with("D") -> "${text.slice(0, len - 1)}.0";
+	return when (text) {
+		.ends_with("F") -> "${text.slice(0, len - 1)}.0f";
+		.ends_with("D") -> "${text.slice(0, len - 1)}.0";
 		else -> "${text}.0";
 	};
 }

@@ -91,49 +91,50 @@ impl Parser {
 		val kw = self.advance(); // 'for'
 		self.consume(TokenType.OPEN_PAREN, "Expected '(' after 'for'");
 
-		var var_name = "";
-		if (self.match_token(TokenType.KW_VAL)) {
-			self.consume(TokenType.OPEN_PAREN, "Expected '(' after 'val' in destructuring loop");
-			val n1 = self.consume(TokenType.IDENTIFIER, "Expected variable name in destructuring pattern");
-			var raw_names = "(${n1.text}";
-			while (self.match_token(TokenType.COMMA)) {
-				if (self.check(TokenType.CLOSE_PAREN)) break;
-				val n = self.consume(TokenType.IDENTIFIER, "Expected variable name in destructuring pattern");
-				raw_names += ", ";
-				raw_names += n.text;
+		val var_name = when (self) {
+			.match_token(TokenType.KW_VAL) -> {
+				self.consume(TokenType.OPEN_PAREN, "Expected '(' after 'val' in destructuring loop");
+				val n1 = self.consume(TokenType.IDENTIFIER, "Expected variable name in destructuring pattern");
+				var raw_names = "(${n1.text}";
+				while (self.match_token(TokenType.COMMA)) {
+					if (self.check(TokenType.CLOSE_PAREN)) break;
+					val n = self.consume(TokenType.IDENTIFIER, "Expected variable name in destructuring pattern");
+					raw_names += ", ";
+					raw_names += n.text;
+				}
+				self.consume(TokenType.CLOSE_PAREN, "Expected ')' after destructuring pattern");
+				raw_names += ")";
+				yield raw_names;
 			}
-			self.consume(TokenType.CLOSE_PAREN, "Expected ')' after destructuring pattern");
-			raw_names += ")";
-			var_name = raw_names;
-		} else if (self.match_token(TokenType.KW_VAR)) {
-			self.consume(TokenType.OPEN_PAREN, "Expected '(' after 'var' in destructuring loop");
-			val n1 = self.consume(TokenType.IDENTIFIER, "Expected variable name in destructuring pattern");
-			var raw_names = "var (${n1.text}";
-			while (self.match_token(TokenType.COMMA)) {
-				if (self.check(TokenType.CLOSE_PAREN)) break;
-				val n = self.consume(TokenType.IDENTIFIER, "Expected variable name in destructuring pattern");
-				raw_names += ", ";
-				raw_names += n.text;
+			.match_token(TokenType.KW_VAR) -> {
+				self.consume(TokenType.OPEN_PAREN, "Expected '(' after 'var' in destructuring loop");
+				val n1 = self.consume(TokenType.IDENTIFIER, "Expected variable name in destructuring pattern");
+				var raw_names = "var (${n1.text}";
+				while (self.match_token(TokenType.COMMA)) {
+					if (self.check(TokenType.CLOSE_PAREN)) break;
+					val n = self.consume(TokenType.IDENTIFIER, "Expected variable name in destructuring pattern");
+					raw_names += ", ";
+					raw_names += n.text;
+				}
+				self.consume(TokenType.CLOSE_PAREN, "Expected ')' after destructuring pattern");
+				raw_names += ")";
+				yield raw_names;
 			}
-			self.consume(TokenType.CLOSE_PAREN, "Expected ')' after destructuring pattern");
-			raw_names += ")";
-			var_name = raw_names;
-		} else if (self.match_token(TokenType.OPEN_PAREN)) {
-			val n1 = self.consume(TokenType.IDENTIFIER, "Expected variable name in destructuring pattern");
-			var raw_names = "(${n1.text}";
-			while (self.match_token(TokenType.COMMA)) {
-				if (self.check(TokenType.CLOSE_PAREN)) break;
-				val n = self.consume(TokenType.IDENTIFIER, "Expected variable name in destructuring pattern");
-				raw_names += ", ";
-				raw_names += n.text;
+			.match_token(TokenType.OPEN_PAREN) -> {
+				val n1 = self.consume(TokenType.IDENTIFIER, "Expected variable name in destructuring pattern");
+				var raw_names = "(${n1.text}";
+				while (self.match_token(TokenType.COMMA)) {
+					if (self.check(TokenType.CLOSE_PAREN)) break;
+					val n = self.consume(TokenType.IDENTIFIER, "Expected variable name in destructuring pattern");
+					raw_names += ", ";
+					raw_names += n.text;
+				}
+				self.consume(TokenType.CLOSE_PAREN, "Expected ')' after destructuring pattern");
+				raw_names += ")";
+				yield raw_names;
 			}
-			self.consume(TokenType.CLOSE_PAREN, "Expected ')' after destructuring pattern");
-			raw_names += ")";
-			var_name = raw_names;
-		} else {
-			val name_tok = self.consume(TokenType.IDENTIFIER, "Expected loop variable name");
-			var_name = name_tok.text;
-		}
+			else -> self.consume(TokenType.IDENTIFIER, "Expected loop variable name").text;
+		};
 
 		self.consume(TokenType.KW_IN, "Expected 'in' after loop variable");
 
@@ -146,15 +147,15 @@ impl Parser {
 		var range_start: *AstNode? = null;
 		var range_end: *AstNode? = null;
 
-		when {
-			self.match_token(TokenType.DOT_DOT_LESS) -> {
+		when (self) {
+			.match_token(TokenType.DOT_DOT_LESS) -> {
 				is_range = true;
 				is_half_open = true;
 				range_start = first;
 				range_end = self.parse_expression(Precedence.COMPARISON);
 			}
 
-			self.match_token(TokenType.DOT_DOT) -> {
+			.match_token(TokenType.DOT_DOT) -> {
 				is_range = true;
 				range_start = first;
 				// `a..<b` excludes the end bound, so `for (i in 0..<seq.len)` is the
@@ -163,8 +164,10 @@ impl Parser {
 				range_end = self.parse_expression(Precedence.COMPARISON);
 			}
 
-			self.check(TokenType.GREATER)
-			&& (self.peek_at(1).type == TokenType.DOT_DOT || self.peek_at(1).type == TokenType.DOT_DOT_LESS) -> {
+			.check(TokenType.GREATER) && (
+				.peek_at(1).type == TokenType.DOT_DOT ||
+				.peek_at(1).type == TokenType.DOT_DOT_LESS
+			) -> {
 				is_range = true;
 				is_open = true;
 				range_start = first;
@@ -187,7 +190,12 @@ impl Parser {
 				}
 				var unwrapped = iter;
 				if (unwrapped is GroupExpr as g) unwrapped = g.expr;
-				if (unwrapped is BinaryExpr as bin && (bin.op == TokenType.DOT_DOT || bin.op == TokenType.DOT_DOT_LESS)) {
+				if (
+					unwrapped is BinaryExpr as bin && (
+						bin.op == TokenType.DOT_DOT ||
+						bin.op == TokenType.DOT_DOT_LESS
+					)
+				) {
 					is_range = true;
 					is_half_open = (bin.op == TokenType.DOT_DOT_LESS);
 					range_start = bin.left;
@@ -255,9 +263,9 @@ impl Parser {
 	}
 
 	pub fn parse_statement(var self): *AstNode {
-		val (tok_type, line, col) = self.peek();
+		val (type, line, col) = self.peek();
 
-		return when (tok_type) {
+		return when (type) {
 			TokenType.OPEN_BRACE -> self.parse_block_stmt();
 			TokenType.KW_VAL, TokenType.KW_VAR -> self.parse_var_decl_stmt();
 			TokenType.KW_IF -> self.parse_if_stmt();
@@ -280,6 +288,7 @@ impl Parser {
 				self.advance();
 				val value = if (!self.check(TokenType.SEMI_COLON)) self.parse_expression(Precedence.NONE)
 				else null;
+
 				self.consume(TokenType.SEMI_COLON, "Expected ';' after yield");
 				yield self.node(NodeData.YieldStmt(value), line, col);
 			}
