@@ -461,6 +461,12 @@ impl BodyChecker {
 
 	pub fn check_when_stmt(var self, node: *AstNode) {
 		if (node is WhenStmt as ws) {
+			if (ws.condition != null && self.expr_has_call(ws.condition)) {
+				self.report_error(
+					ws.condition!,
+					"Function or method call is not allowed in 'when' subject; bind the result to a variable first"
+				);
+			}
 			val cond_ty = if (ws.condition != null) self.check_expr(ws.condition!) else null;
 
 			for (arm in ws.arms) {

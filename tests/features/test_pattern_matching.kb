@@ -197,6 +197,45 @@ fn bool_score(b: bool): i32 {
 	};
 }
 
+struct Probe {
+	pub x: i32,
+	pub tag_str: str
+}
+
+impl Probe {
+
+	pub fn is_positive(val self): bool => self.x > 0;
+
+	pub fn has_prefix(val self, pfx: str): bool => self.tag_str.starts_with(pfx);
+
+	pub fn classify(val self): i32 => when (self) {
+		.is_positive() && .has_prefix("ok") -> 1;
+		.is_positive() -> 2;
+		.x == 0 -> 3;
+		else -> 4;
+	};
+
+}
+
+fn classify_str_subject(s: str): i32 => when (s) {
+	.ends_with("a") -> 10;
+	.starts_with("b") -> 20;
+	.index_of("C") == 3 -> 30;
+	"D" -> 40;
+	!.empty() && .len == 2 -> 50;
+	else -> 0;
+};
+
+fn classify_str_stmt(s: str): i32 {
+	var out = 0;
+	when (s) {
+		.ends_with("x"), "EXACT" -> out = 100;
+		.starts_with("y") -> out = 200;
+		else -> out = 300;
+	}
+	return out;
+}
+
 fn main(): i32 {
 	println("=== Feature Suite: Pattern Matching & Smart Cast ===");
 
@@ -378,6 +417,39 @@ fn main(): i32 {
 		return 1;
 	}
 	println("smart cast via when: OK");
+
+	// Test Case 10: Implicit subject leading-dot patterns in 'when (subject)'
+	if (
+		classify_str_subject("cba") != 10 ||
+		classify_str_subject("bet") != 20 ||
+		classify_str_subject("xyzC1") != 30 ||
+		classify_str_subject("D") != 40 ||
+		classify_str_subject("hi") != 50 ||
+		classify_str_subject("") != 0
+	) {
+		println("FAIL: classify_str_subject");
+		return 1;
+	}
+
+	if (
+		classify_str_stmt("box") != 100 ||
+		classify_str_stmt("EXACT") != 100 ||
+		classify_str_stmt("yes") != 200 ||
+		classify_str_stmt("no") != 300
+	) {
+		println("FAIL: classify_str_stmt");
+		return 1;
+	}
+
+	val p1 = Probe(5, "ok_item");
+	val p2 = Probe(5, "other");
+	val p3 = Probe(0, "zero");
+	val p4 = Probe(-3, "neg");
+	if (p1.classify() != 1 || p2.classify() != 2 || p3.classify() != 3 || p4.classify() != 4) {
+		println("FAIL: Probe.classify via when (self)");
+		return 1;
+	}
+	println("implicit subject when (.method / .field): OK");
 
 	println("=== ALL PATTERN MATCHING TESTS PASSED! ===");
 	return 0;

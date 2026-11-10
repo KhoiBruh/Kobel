@@ -39,7 +39,8 @@ pub fn num_literal_is_float(text: str): bool {
 	for (c in text) if (c == '.') return true;
 	// A trailing F/D is only a float suffix when the literal really carries one:
 	// `0xEF` ends in F but is the integer 239.
-	return when (text.num_suffix()) {
+	val suffix = text.num_suffix();
+	return when (suffix) {
 		"F", "D" -> true;
 		else -> false;
 	};
@@ -362,6 +363,15 @@ impl Parser {
 
 			// Type pattern: is Type [as [var|val|&] alias]
 			TokenType.KW_IS -> self.parse_is_pattern(null, line, col);
+
+			// Leading-dot member access on an implicit `when` subject: `.member` or `?.member`
+			TokenType.DOT, TokenType.QUESTION_DOT -> {
+				val is_safe = (tok.type == TokenType.QUESTION_DOT);
+				val msg = if (is_safe) "Expected identifier after '?.'" else "Expected identifier after '.'";
+				val member_tok = self.consume(TokenType.IDENTIFIER, msg);
+				val implicit_recv = self.node(NodeData.IdentifierExpr(""), line, col);
+				yield self.node(NodeData.MemberExpr(implicit_recv, member_tok.text, is_safe), line, col);
+			}
 
 			// If Expression: if (cond) then_expr else else_expr
 			TokenType.KW_IF -> {

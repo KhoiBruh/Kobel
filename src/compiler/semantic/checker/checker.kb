@@ -53,7 +53,8 @@ pub struct BodyChecker {
 	pub env_saved_types: List<*Type> = List(),
 	pub has_env_saved: bool = false,
 	pub warnings: List<Diagnostic> = List(),
-	pub current_trait_name: str = ""
+	pub current_trait_name: str = "",
+	pub when_subject: *AstNode? = null
 }
 
 impl BodyChecker {
@@ -236,6 +237,14 @@ impl BodyChecker {
 			e.has_is_info = true;
 		}
 		self.symtab.set_is_pattern(node, info);
+	}
+
+	pub fn set_predicate_pattern(var self, node: *AstNode) {
+		if (self.current_rec != null) {
+			var e = self.ann_entry(node);
+			e.is_predicate = true;
+		}
+		self.symtab.set_predicate_pattern(node);
 	}
 
 	pub fn set_ann_ty(var self, node: *AstNode, ty: *Type) {

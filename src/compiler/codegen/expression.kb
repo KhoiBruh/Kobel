@@ -535,7 +535,7 @@ impl CCodeGen {
 			val p = patterns[i];
 			var test = "";
 			val unwrapped_p = unwrap_group_expr(p);
-			if (cond.empty()) {
+			if (cond.empty() || self.is_predicate_pattern(p)) {
 				val raw = self.gen_expr(p);
 				test = if (patterns.len == 1 && raw.starts_with("(") && raw.ends_with(")"))
 					raw.slice(1, raw.len - 1)

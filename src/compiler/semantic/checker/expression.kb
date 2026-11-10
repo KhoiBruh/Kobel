@@ -136,6 +136,16 @@ impl BodyChecker {
 
 	pub fn check_ident_expr(var self, node: *AstNode): *Type {
 		if (node is IdentifierExpr as id) {
+			if (id.name.empty()) {
+				if (self.when_subject == null) {
+					self.report_error(node, "Leading '.' member access is only allowed inside a 'when (subject)' pattern");
+					return self.prims().t_none();
+				}
+				val subj_copy = self.copy_expr(self.when_subject!);
+				self.set_resolved(node, subj_copy);
+				return self.check_expr(subj_copy);
+			}
+
 			if (id.name == "Self" && self.current_self_type != null) {
 				val cur_self = self.current_self_type!;
 				if (self.current_rec == null) id.name = cur_self.as_struct().c_name;

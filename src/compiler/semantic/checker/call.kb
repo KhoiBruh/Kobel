@@ -33,7 +33,12 @@ impl BodyChecker {
 
 			// Check member call queries: T.size(), s.slice(...) or instance/primitive methods
 			val callee = call.callee;
-			if (callee is MemberExpr as mem) {
+			if (callee is MemberExpr as var mem) {
+				if (mem.object is IdentifierExpr as id && id.name.empty() && self.when_subject != null) {
+					val subj_copy = self.copy_expr(self.when_subject!);
+					if (self.current_rec != null) self.set_ann_obj(callee, subj_copy);
+					else mem.object = subj_copy;
+				}
 				if (mem.member == "size") return self.lower_size_query(node, mem);
 				if (mem.member == "slice") return self.check_slice_call(node, mem, call);
 

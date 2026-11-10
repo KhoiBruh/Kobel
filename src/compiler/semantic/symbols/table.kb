@@ -113,6 +113,17 @@ impl SymbolTable {
 		return p.read();
 	}
 
+	pub fn set_predicate_pattern(val self, node: *AstNode?) {
+		if (node == null || self.sem == null) return;
+		var s = self.sem;
+		s.predicate_patterns[node.addr()] = true;
+	}
+
+	pub fn is_predicate_pattern(val self, node: *AstNode?): bool {
+		if (node == null || self.sem == null) return false;
+		return self.sem.predicate_patterns.get(node.addr()) != null;
+	}
+
 	pub fn register_prim_method(val self, prim: *Type, mi: *MethodInfo) {
 		var target = prim;
 		target.add_method(mi);

@@ -23,6 +23,12 @@ impl BodyChecker {
 
 	pub fn check_when_expr(var self, node: *AstNode, expected: *Type? = null): *Type {
 		if (node is WhenExpr as we) {
+			if (we.condition != null && self.expr_has_call(we.condition)) {
+				self.report_error(
+					we.condition!,
+					"Function or method call is not allowed in 'when' subject; bind the result to a variable first"
+				);
+			}
 			val cond_ty = if (we.condition != null) self.check_expr(we.condition!) else null;
 
 			self.when_depth++;
@@ -204,6 +210,47 @@ impl BodyChecker {
 		return null;
 	}
 
+	pub fn expr_has_call(val self, node: *AstNode?): bool {
+		if (node == null) return false;
+		val cur = node!;
+		return when (cur) {
+			is CallExpr -> true;
+			is GroupExpr as g -> self.expr_has_call(g.expr);
+			is UnaryExpr as u -> self.expr_has_call(u.operand);
+			is BinaryExpr as b -> self.expr_has_call(b.left) || self.expr_has_call(b.right);
+			is MemberExpr as m -> self.expr_has_call(m.object);
+			is IndexExpr as ix -> self.expr_has_call(ix.target) || self.expr_has_call(ix.index);
+			is CastExpr as c -> self.expr_has_call(c.expr);
+			is IfExpr as ie -> self.expr_has_call(ie.condition) || self.expr_has_call(ie.then_branch) || self.expr_has_call(ie.else_branch);
+			is InterpExpr -> true;
+			else -> false;
+		};
+	}
+
+	pub fn expr_has_implicit_subject(val self, node: *AstNode?): bool {
+		if (node == null) return false;
+		val cur = node!;
+		return when (cur) {
+			is IdentifierExpr as id -> id.name.empty();
+			is GroupExpr as g -> self.expr_has_implicit_subject(g.expr);
+			is UnaryExpr as u -> self.expr_has_implicit_subject(u.operand);
+			is BinaryExpr as b -> self.expr_has_implicit_subject(b.left) || self.expr_has_implicit_subject(b.right);
+			is MemberExpr as m -> self.expr_has_implicit_subject(m.object);
+			is CallExpr as c -> {
+				if (self.expr_has_implicit_subject(c.callee)) yield true;
+				var found = false;
+				for (arg in c.args) {
+					if (self.expr_has_implicit_subject(arg)) found = true;
+				}
+				yield found;
+			}
+			is IndexExpr as ix -> self.expr_has_implicit_subject(ix.target) || self.expr_has_implicit_subject(ix.index);
+			is CastExpr as c -> self.expr_has_implicit_subject(c.expr);
+			is IsExpr as ise -> self.expr_has_implicit_subject(ise.expr);
+			else -> false;
+		};
+	}
+
 	fn check_arm_pattern(var self, pat: *AstNode, cond: *AstNode?, cond_ty: *Type?): *Type {
 		if (cond == null) return self.check_expr(pat);
 		if (pat is IsExpr as var is_e) {
@@ -226,6 +273,22 @@ impl BodyChecker {
 				}
 			}
 			return r_ty;
+		}
+		if (self.expr_has_implicit_subject(pat)) {
+			val saved_subj = self.when_subject;
+			val saved_sn = self.in_safe_nav_context;
+			self.when_subject = cond;
+			self.in_safe_nav_context = true;
+			val p_ty = self.check_expr(pat);
+			self.when_subject = saved_subj;
+			self.in_safe_nav_context = saved_sn;
+			self.ensure(
+				p_ty.kind == DataType.BOOL,
+				pat,
+				"Implicit subject pattern in 'when' must evaluate to bool"
+			);
+			self.set_predicate_pattern(pat);
+			return p_ty;
 		}
 		return self.check_expr(pat);
 	}

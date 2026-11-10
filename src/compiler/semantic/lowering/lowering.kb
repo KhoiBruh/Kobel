@@ -255,6 +255,9 @@ impl LoweringPass {
 	fn lowered(val self, original: *AstNode, replacement: *AstNode): *AstNode {
 		val orig_ty = self.symtab.get_node_type(original);
 		if (orig_ty != null) self.symtab.set_node_type(replacement, orig_ty);
+		if (self.symtab.is_predicate_pattern(original)) {
+			self.symtab.set_predicate_pattern(replacement);
+		}
 		return replacement;
 	}
 

@@ -300,6 +300,7 @@ typedef struct tests__features__test_pattern_matching__BaseExpr tests__features_
 typedef struct tests__features__test_pattern_matching__NumExpr tests__features__test_pattern_matching__NumExpr;
 typedef struct tests__features__test_pattern_matching__NegExpr tests__features__test_pattern_matching__NegExpr;
 typedef int32_t tests__features__test_pattern_matching__ExhaustiveColor;
+typedef struct tests__features__test_pattern_matching__Probe tests__features__test_pattern_matching__Probe;
 #define tests__features__test_pattern_matching__Literal__TAG 1
 #define tests__features__test_pattern_matching__Binary__TAG 2
 #define tests__features__test_pattern_matching__NumExpr__TAG 0
@@ -357,6 +358,11 @@ struct tests__features__test_pattern_matching__NumExpr {
 struct tests__features__test_pattern_matching__NegExpr {
     tests__features__test_pattern_matching__ExprKind kind;
     tests__features__test_pattern_matching__BaseExpr* inner;
+};
+
+struct tests__features__test_pattern_matching__Probe {
+    int32_t x;
+    kobel_str tag_str;
 };
 
 struct std__collections__List_str {
@@ -491,6 +497,11 @@ void tests__features__test_pattern_matching__mutate_if_var(tests__features__test
 void tests__features__test_pattern_matching__mutate_if_ref(tests__features__test_pattern_matching__Node* node);
 int32_t tests__features__test_pattern_matching__color_score(tests__features__test_pattern_matching__ExhaustiveColor c);
 int32_t tests__features__test_pattern_matching__bool_score(bool b);
+bool tests__features__test_pattern_matching__Probe_is_positive(tests__features__test_pattern_matching__Probe* self);
+bool tests__features__test_pattern_matching__Probe_has_prefix(tests__features__test_pattern_matching__Probe* self, kobel_str pfx);
+int32_t tests__features__test_pattern_matching__Probe_classify(tests__features__test_pattern_matching__Probe* self);
+int32_t tests__features__test_pattern_matching__classify_str_subject(kobel_str s);
+int32_t tests__features__test_pattern_matching__classify_str_stmt(kobel_str s);
 int32_t main(void);
 size_t std__collections__List_str_count(std__collections__List_str* self);
 kobel_str std__collections__List_str_at(std__collections__List_str* self, size_t i);
@@ -1993,6 +2004,34 @@ int32_t tests__features__test_pattern_matching__bool_score(bool b) {
 return (b == true ? 100 : 200);
 }
 
+bool tests__features__test_pattern_matching__Probe_is_positive(tests__features__test_pattern_matching__Probe* self) {
+    return (self->x > 0);
+}
+
+bool tests__features__test_pattern_matching__Probe_has_prefix(tests__features__test_pattern_matching__Probe* self, kobel_str pfx) {
+    return str_starts_with(self->tag_str, pfx);
+}
+
+int32_t tests__features__test_pattern_matching__Probe_classify(tests__features__test_pattern_matching__Probe* self) {
+    return (tests__features__test_pattern_matching__Probe_is_positive(self) && tests__features__test_pattern_matching__Probe_has_prefix(self, KOBEL_STR("ok")) ? 1 : (tests__features__test_pattern_matching__Probe_is_positive(self) ? 2 : (self->x == 0 ? 3 : 4)));
+}
+
+int32_t tests__features__test_pattern_matching__classify_str_subject(kobel_str s) {
+    return (str_ends_with(s, KOBEL_STR("a")) ? 10 : (str_starts_with(s, KOBEL_STR("b")) ? 20 : (str_index_of(s, KOBEL_STR("C")) == 3 ? 30 : (kobel_streq(s, KOBEL_STR("D")) ? 40 : (!str_empty(s) && (s.len == 2) ? 50 : 0)))));
+}
+
+int32_t tests__features__test_pattern_matching__classify_str_stmt(kobel_str s) {
+int32_t out = 0;
+if (str_ends_with(s, KOBEL_STR("x")) || kobel_streq(s, KOBEL_STR("EXACT"))) {
+out = 100;
+} else if (str_starts_with(s, KOBEL_STR("y"))) {
+out = 200;
+} else {
+out = 300;
+}
+return out;
+}
+
 int32_t main(void) {
 std__io__println(KOBEL_STR("=== Feature Suite: Pattern Matching & Smart Cast ==="));
 tests__features__test_pattern_matching__Literal lit1 = (tests__features__test_pattern_matching__Literal){ tests__features__test_pattern_matching__Literal__TAG, 10 };
@@ -2140,6 +2179,23 @@ std__io__println(KOBEL_STR("FAIL: safe cast null should be null"));
 return 1;
 }
 std__io__println(KOBEL_STR("smart cast via when: OK"));
+if ((((((tests__features__test_pattern_matching__classify_str_subject(KOBEL_STR("cba")) != 10) || (tests__features__test_pattern_matching__classify_str_subject(KOBEL_STR("bet")) != 20)) || (tests__features__test_pattern_matching__classify_str_subject(KOBEL_STR("xyzC1")) != 30)) || (tests__features__test_pattern_matching__classify_str_subject(KOBEL_STR("D")) != 40)) || (tests__features__test_pattern_matching__classify_str_subject(KOBEL_STR("hi")) != 50)) || (tests__features__test_pattern_matching__classify_str_subject(KOBEL_STR("")) != 0)) {
+std__io__println(KOBEL_STR("FAIL: classify_str_subject"));
+return 1;
+}
+if ((((tests__features__test_pattern_matching__classify_str_stmt(KOBEL_STR("box")) != 100) || (tests__features__test_pattern_matching__classify_str_stmt(KOBEL_STR("EXACT")) != 100)) || (tests__features__test_pattern_matching__classify_str_stmt(KOBEL_STR("yes")) != 200)) || (tests__features__test_pattern_matching__classify_str_stmt(KOBEL_STR("no")) != 300)) {
+std__io__println(KOBEL_STR("FAIL: classify_str_stmt"));
+return 1;
+}
+tests__features__test_pattern_matching__Probe p1 = (tests__features__test_pattern_matching__Probe){ 5, KOBEL_STR("ok_item") };
+tests__features__test_pattern_matching__Probe p2 = (tests__features__test_pattern_matching__Probe){ 5, KOBEL_STR("other") };
+tests__features__test_pattern_matching__Probe p3 = (tests__features__test_pattern_matching__Probe){ 0, KOBEL_STR("zero") };
+tests__features__test_pattern_matching__Probe p4 = (tests__features__test_pattern_matching__Probe){ -3, KOBEL_STR("neg") };
+if ((((tests__features__test_pattern_matching__Probe_classify(&p1) != 1) || (tests__features__test_pattern_matching__Probe_classify(&p2) != 2)) || (tests__features__test_pattern_matching__Probe_classify(&p3) != 3)) || (tests__features__test_pattern_matching__Probe_classify(&p4) != 4)) {
+std__io__println(KOBEL_STR("FAIL: Probe.classify via when (self)"));
+return 1;
+}
+std__io__println(KOBEL_STR("implicit subject when (.method / .field): OK"));
 std__io__println(KOBEL_STR("=== ALL PATTERN MATCHING TESTS PASSED! ==="));
 return 0;
 }

@@ -75,6 +75,11 @@ impl CCodeGen {
 		return self.symtab!.get_is_pattern(node);
 	}
 
+	pub fn is_predicate_pattern(val self, node: *AstNode?): bool {
+		if (node == null || self.symtab == null) return false;
+		return self.symtab!.is_predicate_pattern(node);
+	}
+
 	pub fn enter_defer_scope(var self) {
 		self.scope_starts += self.defer_nodes.len;
 		self.scope_jumped += false;
@@ -156,21 +161,24 @@ pub fn c_format_int_literal(raw: str): str {
 	};
 }
 
-pub fn c_int_literal_c_type(raw: str) => when (raw.num_suffix()) {
-	// signed integer
-	"Z" -> "intptr_t";
-	"L" -> "int64_t";
-	"S" -> "int16_t";
-	"B" -> "int8_t";
+pub fn c_int_literal_c_type(raw: str): str {
+	val suffix = raw.num_suffix();
+	return when (suffix) {
+		// signed integer
+		"Z" -> "intptr_t";
+		"L" -> "int64_t";
+		"S" -> "int16_t";
+		"B" -> "int8_t";
 
-	// unsigned integer
-	"U" -> "uint32_t";
-	"UZ" -> "size_t";
-	"UL" -> "uint64_t";
-	"US" -> "uint16_t";
-	"UB" -> "uint8_t";
-	else -> "int32_t";
-};
+		// unsigned integer
+		"U" -> "uint32_t";
+		"UZ" -> "size_t";
+		"UL" -> "uint64_t";
+		"US" -> "uint16_t";
+		"UB" -> "uint8_t";
+		else -> "int32_t";
+	};
+}
 
 pub fn c_float_literal_c_type(raw: str) => if (raw.ends_with("F")) "float" else "double";
 

@@ -539,8 +539,50 @@ fn test_destructure_nullable_pointer_error() {
 	println("  [PASS] test_destructure_nullable_pointer_error");
 }
 
+fn test_when_subject_and_implicit_dot_restrictions() {
+	// 1. Disallow function/method call in when subject
+	val src1 = """
+		fn get_str(): str => "hello";
+		fn test(): i32 => when (get_str()) {
+		    "hello" -> 1;
+		    else -> 0;
+		};
+	""";
+	var l1 = Lexer(src1);
+	var p1 = Parser(l1.tokenize());
+	var bp1 = BodyChecker();
+	bp1.check_program(p1.parse_program());
+	assert_true(bp1.errors.len >= 1, "Function call in when subject must be rejected");
+
+	// 2. Disallow leading '.' outside when (subject)
+	val src2 = """
+		fn test(s: str): bool => .empty();
+	""";
+	var l2 = Lexer(src2);
+	var p2 = Parser(l2.tokenize());
+	var bp2 = BodyChecker();
+	bp2.check_program(p2.parse_program());
+	assert_true(bp2.errors.len >= 1, "Leading '.' outside when subject must be rejected");
+
+	// 3. Disallow non-bool implicit subject pattern in when (subject)
+	val src3 = """
+		fn test(s: str): i32 => when (s) {
+		    .len -> 1;
+		    else -> 0;
+		};
+	""";
+	var l3 = Lexer(src3);
+	var p3 = Parser(l3.tokenize());
+	var bp3 = BodyChecker();
+	bp3.check_program(p3.parse_program());
+	assert_true(bp3.errors.len >= 1, "Non-bool implicit subject pattern in when must be rejected");
+
+	println("  [PASS] test_when_subject_and_implicit_dot_restrictions");
+}
+
 fn main(): i32 {
 	println("[RUNNING] Bootstrap Semantic BodyChecker tests...");
+	test_when_subject_and_implicit_dot_restrictions();
 	test_destructure_nullable_pointer_error();
 	test_cast_null_to_non_null_pointer_rejected();
 	test_unused_mutability_warning();

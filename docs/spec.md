@@ -402,7 +402,19 @@ val result = when (action) {
     };
     else -> 0;
 };
+
+// Implicit receiver (leading-dot) predicate patterns mixed with value patterns
+val tag = when (text) {
+    .ends_with("a")      -> 1;
+    .starts_with("b")    -> 2;
+    .index_of("C") == 3  -> 3;
+    "D"                  -> 4;
+    else                 -> 0;
+};
 ```
+
+- **Pure subject requirement:** The subject expression inside `when (subject)` cannot contain function or method calls (bind call results to a `val` variable first so the subject is not re-evaluated across arms).
+- **Leading-dot patterns (`.member` / `.method()`):** Inside `when (subject)`, a leading `.` or `?.` accesses a field or method on `subject`. Any arm pattern using a leading-dot receiver must evaluate to `bool` and acts as a predicate test.
 
 ### Statements and Increment
 

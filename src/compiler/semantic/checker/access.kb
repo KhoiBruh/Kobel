@@ -22,11 +22,17 @@ use compiler.semantic.lowering.*;
 impl BodyChecker {
 
 	pub fn check_member_expr(var self, node: *AstNode): *Type {
-		if (node is MemberExpr as mem) {
+		if (node is MemberExpr as var mem) {
 			val const_ty = self.check_const_member(node, mem);
 			if (const_ty != null) return const_ty;
 
 			var obj_expr = mem.object;
+			if (obj_expr is IdentifierExpr as id && id.name.empty() && self.when_subject != null) {
+				val subj_copy = self.copy_expr(self.when_subject!);
+				if (self.current_rec != null) self.set_ann_obj(node, subj_copy);
+				else mem.object = subj_copy;
+				obj_expr = subj_copy;
+			}
 			var obj_ty = self.check_expr(obj_expr);
 
 			if (!mem.is_safe && obj_ty.kind == DataType.POINTER && !(obj_expr is IdentifierExpr)) {

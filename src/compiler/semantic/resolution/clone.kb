@@ -90,7 +90,12 @@ impl TypeResolver {
 		) return self.clone_stmt(node, subst);
 
 		val e = self.mat_ann(node);
-		if (e?.resolved != null) return self.clone_expr(e.resolved!, subst);
+		if (e?.resolved != null) {
+			val r = self.clone_expr(e.resolved!, subst);
+			if (e.ty != null) self.symtab.set_node_type(r, e.ty);
+			if (e.is_predicate) self.symtab.set_predicate_pattern(r);
+			return r;
+		}
 
 		val target = node;
 		var out = when (target) {
@@ -235,8 +240,14 @@ impl TypeResolver {
 			if (e.ty != null) self.symtab.set_node_type(out, e.ty);
 			if (e.method != null) self.symtab.set_resolved_method(out, e.method);
 			if (e.has_is_info) self.symtab.set_is_pattern(out, e.is_info);
-		} else if (self.symtab.has_is_pattern(node)) {
-			self.symtab.set_is_pattern(out, self.symtab.get_is_pattern(node));
+			if (e.is_predicate) self.symtab.set_predicate_pattern(out);
+		} else {
+			if (self.symtab.has_is_pattern(node)) {
+				self.symtab.set_is_pattern(out, self.symtab.get_is_pattern(node));
+			}
+			if (self.symtab.is_predicate_pattern(node)) {
+				self.symtab.set_predicate_pattern(out);
+			}
 		}
 		return out;
 	}
@@ -284,7 +295,9 @@ impl TypeResolver {
 				var is_static = false;
 				if (ft.node is FnDecl as f) is_static = f.params.empty() || f.params[0].name != "self";
 
-				val mem_obj = self.clone_expr(mem.object, subst);
+				val callee_ann = self.mat_ann(callee);
+				val obj_src = callee_ann?.obj_replace ?: mem.object;
+				val mem_obj = self.clone_expr(obj_src, subst);
 				val targs = self.clone_type_args(c.type_args, subst);
 				var new_args = List<*AstNode>();
 				if (!is_static) new_args += mem_obj;

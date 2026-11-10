@@ -48,7 +48,8 @@ pub struct AnnotationEntry {
 	pub var_ty: *Type? = null,
 	pub init_override: *AstNode? = null,
 	pub ident_name: str = "",
-	pub has_ident_name: bool = false
+	pub has_ident_name: bool = false,
+	pub is_predicate: bool = false
 }
 
 pub struct SemanticTable {
@@ -56,5 +57,6 @@ pub struct SemanticTable {
 	pub resolved_methods: HashMap<usz, *MethodInfo> = HashMap(),
 	pub resolved_nodes: HashMap<usz, *AstNode> = HashMap(),
 	pub node_instances: HashMap<usz, *InstanceRecord> = HashMap(),
-	pub is_patterns: HashMap<usz, IsPatternInfo> = HashMap()
+	pub is_patterns: HashMap<usz, IsPatternInfo> = HashMap(),
+	pub predicate_patterns: HashMap<usz, bool> = HashMap()
 }
