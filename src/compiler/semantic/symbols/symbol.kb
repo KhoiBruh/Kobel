@@ -48,6 +48,21 @@ pub struct Symbol {
 	pub mutated: bool = false
 }
 
+impl Symbol {
+
+	pub op unpack(val self, name: &str, type_ptr: &*Type) {
+		name.write(self.name);
+		type_ptr.write(self.type_ptr);
+	}
+
+	pub op unpack(val self, name: &str, kind: &SymbolKind, type_ptr: &*Type) {
+		name.write(self.name);
+		kind.write(self.kind);
+		type_ptr.write(self.type_ptr);
+	}
+
+}
+
 // ============================================================================
 // Lexical Scope
 // ============================================================================

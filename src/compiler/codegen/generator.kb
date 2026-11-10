@@ -20,6 +20,23 @@ pub struct ConditionAlias {
 	pub decl: str
 }
 
+impl ConditionAlias {
+
+	pub init(name: str, c_type: str, decl: str) => Self(name, c_type, decl);
+
+	pub op unpack(val self, name: &str, c_type: &str) {
+		name.write(self.name);
+		c_type.write(self.c_type);
+	}
+
+	pub op unpack(val self, name: &str, c_type: &str, decl: &str) {
+		name.write(self.name);
+		c_type.write(self.c_type);
+		decl.write(self.decl);
+	}
+
+}
+
 pub struct CCodeGen {
 	pub out: StringBuilder,
 
