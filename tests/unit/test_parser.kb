@@ -9,38 +9,8 @@ use compiler.lexer.Token;
 
 use compiler.ast.*;
 
-
-
-
-
 use compiler.parser.*;
-
-fn assert_true(cond: bool, msg: str) {
-	if (!cond) {
-		print("ASSERTION FAILED: ");
-		println(msg);
-	}
-}
-
-fn assert_eq_str(actual: str, expected: str, msg: str) {
-	if (actual != expected) {
-		print("ASSERTION FAILED: ");
-		print(msg);
-		print(" | Expected: '");
-		print(expected);
-		print("', got: '");
-		print(actual);
-		println("'");
-	}
-}
-
-fn assert_eq_usz(actual: usz, expected: usz, msg: str) {
-	if (actual != expected) {
-		print("ASSERTION FAILED: ");
-		print(msg);
-		println(" (usz mismatch)");
-	}
-}
+use testsupport.assert.*;
 
 // ============================================================================
 // Test 1: Expression Precedence & Associativity (Pratt Parsing)

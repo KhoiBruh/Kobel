@@ -2,6 +2,8 @@
 
 A small, self-hosted systems language. The compiler is written in Kobel itself, emits C99, and links with any C compiler (`cl` by default).
 
+Kobel only runs the configured compiler command (no `vcvars`, no flag translation); the one thing it adjusts is the backend's scratch directory, pointed at `build/`. Run it from a shell where your C compiler already works, and point `[build] cc` in `kobel.toml` (or `-cc`) at that compiler.
+
 ```
 .kb source → Kobel v1 → C99 → native binary
 ```

@@ -21,6 +21,12 @@ powershell -File scripts/check.ps1            :: standard gate: build → test �
 powershell -File scripts/check.ps1 -Update    :: accept current C output (snap --update)
 ```
 
+The configured C compiler is invoked as-is: no `vcvars` discovery and no
+per-compiler flag translation. Kobel only points the backend's scratch
+directory at `build/` (`TMP`/`TEMP`/`TMPDIR`), because shells and IDEs often
+deny the user's temp directory to a process spawned by another process. The
+compiler itself must work in the current shell.
+
 v1 compiler commands (`build/kobel.exe`):
 
 ```
@@ -43,10 +49,12 @@ build/kobel.exe src/main.kb -emit-c dist/bootstrap.c
 
 ```
 src/main.kb                  :: entry
+src/compiler/compiler.kb     :: Compiler facade (options + project commands)
+src/compiler/core/           :: Span, SourceMap, diagnostics, identifier naming
 src/compiler/loader|lexer|parser|ast|semantic|codegen|driver
 src/compiler/semantic/{types,symbols,resolution,declaration,checker,lowering}
 src/compiler/codegen/{generator,program,statement,expression,types,runtime}
-src/{config,fmt,lsp,util}    :: toml/project, formatter, LSP, strutil
+src/{config,fmt,lsp}         :: toml/project, formatter, LSP
 lib/std/                     :: stdlib (io, sys, ascii, str, fmt, collections/*, mem/*, traits/*)
 tests/{features,golden,stdlib,unit}
 docs/{architecture,sema,parameterised-ir}.md :: architecture + sema map
@@ -161,7 +169,7 @@ if (decl is ModuleDecl) return decl.full_path;
 
 ### 7. Error handling
 
-- Sema passes report via `report_error(node, msg)` / `ensure(cond, node, msg)`; parsers append to `errors: List<str>`. Never fail silently, never print-and-continue.
+- Sema passes report via `report_error(node, msg)` / `ensure(cond, node, msg)`; parsers append `Diagnostic` records to `errors`. Never fail silently, never print-and-continue.
 - CLI commands return `i32` exit codes (`0` = success); `check.ps1` treats any non-zero exit as a failed gate.
 - No `TODO`/`FIXME`/`HACK` markers in `src/` — file issues or fix immediately.
 
@@ -199,5 +207,6 @@ pub init(symtab: SymbolTable, decl: DeclPass): Self { ... }
 ### 9. Tests
 
 - Every language/behavior change ships with a test: `tests/features/test_<area>.kb`, plus golden files under `tests/golden/` regenerated via `kobel snap --update` only after reviewing the C diff.
+- Feature-test goldens store the emitted C itself (`tests/golden/*.c`) so the diff is reviewable; large outputs (unit suites, compiler self) stay as a digest (`*.txt`).
 - Name tests `test_<area>.kb`; shared fixtures live in `tests/features/testsupport/`.
 - Full gate before commit: `powershell -File scripts/check.ps1` (build → test → snap → fixpoint).

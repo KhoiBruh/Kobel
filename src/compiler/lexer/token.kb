@@ -113,7 +113,7 @@ pub struct Token {
 impl Token {
 
 	pub init(type: TokenType, text: str, line: usz, col: usz)
-		=> Self(type, text, line, col, Span(0, line as u32, col as u32, text.len as u32));
+		=> Self(type, text, line, col, Span(0, line, col, text.len));
 
 	pub init(type: TokenType, text: str, line: usz, col: usz, span: Span)
 		=> Self(type, text, line, col, span);
@@ -122,7 +122,7 @@ impl Token {
 
 	pub fn is_unknown(val self) => self.type == TokenType.UNKNOWN;
 
-	pub fn is_keyword(val self): bool => when (self.type) {
+	pub fn is_keyword(val self) => when (self.type) {
 		TokenType.KW_EXTERN, TokenType.KW_STRUCT, TokenType.KW_ENUM,
 		TokenType.KW_FN, TokenType.KW_RETURN, TokenType.KW_CONST,
 		TokenType.KW_NULL, TokenType.KW_TRUE, TokenType.KW_FALSE,
@@ -136,13 +136,13 @@ impl Token {
 		else -> false;
 	};
 
-	pub fn is_literal(val self): bool => when (self.type) {
+	pub fn is_literal(val self) => when (self.type) {
 		TokenType.CHAR, TokenType.NUMBER, TokenType.STRING,
 		TokenType.KW_TRUE, TokenType.KW_FALSE, TokenType.KW_NULL -> true;
 		else -> false;
 	};
 
-	pub fn is_assignment_op(val self): bool => when (self.type) {
+	pub fn is_assignment_op(val self) => when (self.type) {
 		TokenType.EQUAL, TokenType.PLUS_EQUAL, TokenType.MINUS_EQUAL,
 		TokenType.STAR_EQUAL, TokenType.SLASH_EQUAL, TokenType.PERCENT_EQUAL -> true;
 		else -> false;

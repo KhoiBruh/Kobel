@@ -217,6 +217,9 @@ pub fn cmd_test(manifest_path: str, filter: str): i32 {
 		opts.output_bin = test_bin_p.raw;
 		opts.c_compiler = cfg.cc;
 		opts.quiet = true;
+		// Shared fixtures live under `tests/testsupport`, importable as
+		// `testsupport.*` from every suite.
+		opts.extra_roots += cfg.test_dir;
 
 		val compile_res = opts.compile();
 		if (compile_res != 0) {
@@ -301,6 +304,14 @@ pub fn snap_name(path: str): str {
 	return out;
 }
 
+/*
+ * Feature tests keep the emitted C text, so a codegen change is reviewable as a
+ * git diff. Entries that pull in the compiler modules (the unit suites and the
+ * compiler itself) emit megabytes of C; those stay as a digest to keep the
+ * repository small while still pinning the output.
+ */
+pub fn snapshot_as_text(src: str): bool => src.starts_with("tests/features/");
+
 pub fn cmd_snap(manifest_path: str, update: bool): i32 {
 	val man_p = Path(manifest_path);
 	val cfg = if (man_p.exists()) ProjectConfig(manifest_path) else ProjectConfig();
@@ -326,16 +337,28 @@ pub fn cmd_snap(manifest_path: str, update: bool): i32 {
 		opts.emit_c_path = c_p.raw;
 		opts.only_emit_c = true;
 		opts.quiet = true;
+		opts.extra_roots += cfg.test_dir;
 		if (opts.compile() != 0) {
 			println("FAIL (emit-c error)");
 			fail_count++;
 			continue;
 		}
 
-		val digest = c_p.read_text().hash_stamp();
-		val golden_p = golden_dir.join("${flat}.txt");
+		val c_text = c_p.read_text();
+		val digest = c_text.hash_stamp();
+		val as_text = snapshot_as_text(src);
+		val golden_txt_p = golden_dir.join("${flat}.txt");
+		val golden_c_p = golden_dir.join("${flat}.c");
+		val golden_p = if (as_text) golden_c_p else golden_txt_p;
+
 		if (update) {
-			golden_p.write_text("${digest}\n");
+			if (as_text) {
+				golden_c_p.write_text(c_text);
+				if (golden_txt_p.exists()) golden_txt_p.remove();
+			} else {
+				golden_txt_p.write_text("${digest}\n");
+				if (golden_c_p.exists()) golden_c_p.remove();
+			}
 			println("UPDATED");
 			continue;
 		}
@@ -346,12 +369,16 @@ pub fn cmd_snap(manifest_path: str, update: bool): i32 {
 			continue;
 		}
 
-		val expected = golden_p.read_text().trim();
-		if (expected == digest) println("PASS");
+		val expected = if (as_text) golden_c_p.read_text() else golden_txt_p.read_text().trim();
+		val actual = if (as_text) c_text else digest;
+		if (expected == actual) println("PASS");
 		else {
 			println("FAIL");
-			println("    expected ${expected}");
-			println("    actual   ${digest}");
+			if (as_text) println("    ${src} C output differs from ${golden_c_p.raw}");
+			else {
+				println("    expected ${expected}");
+				println("    actual   ${actual}");
+			}
 			fail_count++;
 		}
 	}
@@ -375,7 +402,6 @@ pub fn cmd_fixpoint(manifest_path: str): i32 {
 	val s1_p = dir.join("stage1.c");
 	val s2_p = dir.join("stage2.c");
 	val s2_exe_p = dir.join("kobel_v2.exe");
-	val s2_obj_p = dir.join("kobel_v2.obj");
 
 	println("[1/3] Emitting C from the current compiler...");
 	var opts = CompileOptions();
@@ -390,7 +416,7 @@ pub fn cmd_fixpoint(manifest_path: str): i32 {
 
 	println("[2/3] Building the second-generation compiler...");
 	s2_exe_p.remove();
-	val compile_res = Process.exec(c_compile_cmd(s1_p.raw, s2_exe_p.raw, s2_obj_p.raw, cfg.cc, true));
+	val compile_res = Process.exec(c_compile_cmd(s1_p.raw, s2_exe_p.raw, cfg.cc, true));
 	if (compile_res != 0 || !s2_exe_p.exists()) {
 		println("[ERROR] Backend compiler did not produce '${s2_exe_p.raw}'.");
 		return 1;

@@ -21,76 +21,30 @@ use compiler.loader.*;
 // Compiler Driver Pipeline
 // ============================================================================
 
-pub fn is_msvc_compiler(cc: str): bool {
-	val base = cc.base_name();
-	return base == "cl" || base == "cl.exe" || base == "clang-cl" || base == "clang-cl.exe";
-}
+/*
+ * The backend compiler is invoked exactly as configured; Kobel does not
+ * discover a toolchain, load vcvars or translate per-compiler flags.
+ *
+ * The one environment value it does set is the child's temp directory. IDEs and
+ * sandboxed shells routinely deny the user's %TEMP% to a process spawned by
+ * another process, which makes every backend fail with "cannot create
+ * temporary file"; pointing TMP/TEMP (TMPDIR on POSIX) at build/ keeps the
+ * scratch space writable and inside the project.
+ */
+pub fn c_compile_cmd(c_path: str, exe_path: str, cc: str, quiet: bool): str {
+	val cc_bin = if ((" " in cc) && !cc.starts_with("\"")) "\"${cc}\"" else cc;
+	val exe_arg = if (" " in exe_path) "\"${exe_path}\"" else exe_path;
+	val c_arg = if (" " in c_path) "\"${c_path}\"" else c_path;
 
-// Resolves the configured compiler for the current host OS: on Linux/POSIX,
-// `cc = "cl"` in `kobel.toml` automatically falls back to `cc`.
-pub fn resolve_host_cc(cc: str): str {
-	if (!System.is_windows() && is_msvc_compiler(cc)) return "cc";
-	return cc;
-}
-
-pub fn ensure_dir(path: str) {
-	if (path.empty()) return;
-	val p = Path(path);
-	if (p.exists()) return;
-	p.create_dir_all();
-}
-
-// Command line that turns `c_path` into `exe_path` with the given backend.
-// `obj_path` is only used by MSVC; `quiet` silences the backend's diagnostics.
-// Shared by `compile()` and the fixpoint gate so both invoke the same toolchain.
-pub fn c_compile_cmd(c_path: str, exe_path: str, obj_path: str, cc: str, quiet: bool): str {
-	val host_cc = resolve_host_cc(cc);
-	val has_spaces = (" " in host_cc) && !host_cc.starts_with("\"");
-	val is_path_with_spaces = ("/" in host_cc || "\\" in host_cc) && has_spaces;
-	val cc_bin = if (is_path_with_spaces) "\"${host_cc}\"" else host_cc;
-
-	if (!System.is_windows()) {
-		val posix_exe = exe_path.to_posix_path();
-		val posix_c = c_path.to_posix_path();
-
-		val exe_arg = if (" " in posix_exe) "\"${posix_exe}\"" else posix_exe;
-		val c_arg = if (" " in posix_c) "\"${posix_c}\"" else posix_c;
-
-		var cmd = "TMPDIR=\"build\" ${cc_bin} -O2 -o ${exe_arg} ${c_arg}";
-		if (quiet) cmd = "${cmd} >/dev/null 2>&1";
+	if (System.is_windows()) {
+		var cmd = "set \"TMP=%CD%\\build\" && set \"TEMP=%CD%\\build\""
+			" && ${cc_bin} -o ${exe_arg} ${c_arg}";
+		if (quiet) cmd = "${cmd} >nul 2>nul";
 		return cmd;
 	}
 
-	val win_exe = exe_path.to_win_path();
-	val win_obj = obj_path.to_win_path();
-	val win_c = c_path.to_win_path();
-
-	val exe_arg = if (" " in win_exe) "\"${win_exe}\"" else win_exe;
-	val obj_arg = if (" " in win_obj) "\"${win_obj}\"" else win_obj;
-	val c_arg = if (" " in win_c) "\"${win_c}\"" else win_c;
-
-	val tmp_setup = "set \"TMP=%CD%\\build\" && set \"TEMP=%CD%\\build\"";
-	val vs_base = "\"%ProgramFiles%\\Microsoft Visual Studio";
-	val bat_sub = "VC\\Auxiliary\\Build\\vcvars64.bat\"";
-	val vs18 = "${vs_base}\\18\\Community\\${bat_sub}";
-	val vs22_c = "${vs_base}\\2022\\Community\\${bat_sub}";
-	val vs22_p = "${vs_base}\\2022\\Professional\\${bat_sub}";
-	val vs22_e = "${vs_base}\\2022\\Enterprise\\${bat_sub}";
-	val vcvars_setup = "(where cl >nul 2>nul || "
-		"if exist ${vs18} (call ${vs18} >nul) "
-		"else if exist ${vs22_c} (call ${vs22_c} >nul) "
-		"else if exist ${vs22_p} (call ${vs22_p} >nul) "
-		"else if exist ${vs22_e} (call ${vs22_e} >nul))";
-	val cl_invoke = "${cc_bin} /nologo /O2 /std:c11 /Fe:${exe_arg} /Fo:${obj_arg} ${c_arg}";
-
-	var cmd = if (is_msvc_compiler(host_cc)) {
-		if (System.has_env("VCINSTALLDIR")) "${tmp_setup} && ${cl_invoke}"
-		else "${tmp_setup} && ${vcvars_setup} && ${cl_invoke}"
-	} else {
-		"${tmp_setup} && ${cc_bin} -O2 -o ${exe_arg} ${c_arg}"
-	};
-
-	if (quiet) cmd = "${cmd} >nul 2>nul";
+	var cmd = "TMPDIR=\"build\" ${cc_bin} -o ${exe_arg} ${c_arg}";
+	if (quiet) cmd = "${cmd} >/dev/null 2>&1";
 	return cmd;
 }
 
@@ -192,45 +146,46 @@ impl CompileOptions {
 		val base_name = out_p.file_name();
 		val c_tmp_p = build_dir.join("${base_name}.tmp.c");
 		val obj_tmp_p = build_dir.join("${base_name}.tmp.obj");
+		val stage_p = Path("${out_path}.new");
+		if (stage_p.exists()) stage_p.remove();
+
 		val write_ok = c_tmp_p.write_text(c_code);
 		if (!write_ok) {
 			println("Error: Failed to write temporary C file: ${c_tmp_p.raw}");
 			return 1;
 		}
 
-		val host_cc = resolve_host_cc(self.c_compiler);
-		if (!self.quiet) println("[BUILDING] Invoking backend compiler (${host_cc})...");
+		if (!self.quiet) println("[BUILDING] Invoking backend compiler (${self.c_compiler})...");
 
-		// If the output binary already exists, move it aside to avoid Windows LNK1104
-		// file locking issues (especially during self-hosting builds).
-		val old_p = Path("${out_path}.old");
-		if (out_p.exists()) {
-			old_p.remove();
-			out_p.rename_to(old_p);
-		}
-
-		var compile_cmd = c_compile_cmd(c_tmp_p.raw, out_path, obj_tmp_p.raw, self.c_compiler, self.quiet);
+		// Build to a staging path: a failed backend must never remove the working
+		// executable, and the linker must not have to overwrite a running image.
+		var compile_cmd = c_compile_cmd(c_tmp_p.raw, stage_p.raw, self.c_compiler, self.quiet);
 
 		val exit_code = Process.exec(compile_cmd);
-		if (exit_code != 0) {
-			// Restore previous binary if compilation failed
-			if (old_p.exists() && !out_p.exists()) old_p.rename_to(out_p);
-			println("Error: Backend C compiler failed with exit code ${exit_code}:");
+		if (exit_code != 0 || !stage_p.exists()) {
+			stage_p.remove();
+			if (exit_code != 0) {
+				println("Error: Backend C compiler failed with exit code ${exit_code}:");
+			} else {
+				println("Error: Backend C compiler produced no executable: ${stage_p.raw}");
+			}
 			println("  cmd was '${compile_cmd}'");
-			return exit_code;
+			return if (exit_code != 0) exit_code else 1;
 		}
 
-		// Exit code zero is not proof of success: a shell quirk (or a backend that
-		// silently skipped the link step) can return 0 without writing the binary.
-		// Without this check the build would report success while the previous
-		// executable sits moved aside as `<out>.old`.
-		if (!out_p.exists()) {
-			if (old_p.exists()) old_p.rename_to(out_p);
-			println("Error: Backend C compiler returned 0 but produced no executable: ${out_path}");
+		// Swap the new binary in. `<out>.old` is only a parking spot for the
+		// previous image; if the swap fails the old executable is restored.
+		val old_p = Path("${out_path}.old");
+		if (out_p.exists()) {
+			if (old_p.exists()) old_p.remove();
+			out_p.rename_to(old_p);
+		}
+		if (!stage_p.rename_to(out_p)) {
+			if (old_p.exists() && !out_p.exists()) old_p.rename_to(out_p);
+			println("Error: Could not move the new executable into place: ${out_path}");
 			return 1;
 		}
 
-		// Clean up temporary C, object, and old binary files
 		c_tmp_p.remove();
 		obj_tmp_p.remove();
 		old_p.remove();

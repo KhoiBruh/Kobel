@@ -215,7 +215,7 @@ impl BodyChecker {
 			self.symtab.sem = decl_p.symtab.sem;
 			self.decl = decl_p;
 			self.has_decl = true;
-			for (msg in decl_p.errors) self.errors += msg;
+			for (d in decl_p.errors) self.errors += d;
 		}
 
 		val inst_mark = self.symtab.gen.instances.len;

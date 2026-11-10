@@ -44,7 +44,7 @@ pub struct ModuleLoader {
 	pub roots: List<str>,
 	pub modules: List<LoadedModule>,
 	pub ordered: List<LoadedModule>,
-	pub errors: List<str>,
+	pub errors: List<Diagnostic>,
 	pub arena: Arena,
 	known: HashSet<str>,
 	pub sources: SourceMap
@@ -52,14 +52,17 @@ pub struct ModuleLoader {
 
 pub fn detect_project_root(start_dir: str): str {
 	var curr = Path(start_dir);
-	var count: usz = 0;
+	var count = 0;
 	while (!curr.empty() && count < 10) {
 		val man_p = curr.join("kobel.toml");
 		if (man_p.exists()) return curr.raw;
+
 		val test_p = curr.join("lib/std/io.kb");
 		if (test_p.exists()) return curr.raw;
+
 		val parent = curr.parent();
 		if (parent.raw == curr.raw || parent.empty()) break;
+
 		curr = parent;
 		count++;
 	}
@@ -112,17 +115,17 @@ impl ModuleLoader {
 			roots,
 			List<LoadedModule>(),
 			List<LoadedModule>(),
-			List<str>(),
+			List<Diagnostic>(),
 			Arena(524288),
 			HashSet<str>(),
 			SourceMap()
 		);
 	}
 
-	pub fn module_decl(var self, path: List<str>, full_path: str, line: usz, col: usz): *AstNode
+	pub fn module_decl(var self, path: List<str>, full_path: str, line: usz, col: usz)
 		=> self.arena.node(NodeData.ModuleDecl(path, full_path), line, col);
 
-	pub fn program(var self, declarations: List<*AstNode>, line: usz, col: usz): *AstNode
+	pub fn program(var self, declarations: List<*AstNode>, line: usz, col: usz)
 		=> self.arena.node(NodeData.Program(declarations), line, col);
 
 	pub fn count(val self) => self.ordered.len;
@@ -140,7 +143,11 @@ impl ModuleLoader {
 		val tokens = lexer.tokenize();
 
 		if (!lexer.errors.empty()) {
-			for (msg in lexer.errors) self.errors += "${path}: ${msg}";
+			for (d in lexer.errors) {
+				var diag = d;
+				diag.file_path = path;
+				self.errors += diag;
+			}
 			return null;
 		}
 
@@ -148,7 +155,11 @@ impl ModuleLoader {
 		val prog = parser.parse_program();
 
 		if (!parser.errors.empty()) {
-			for (msg in parser.errors) self.errors += "${path}: ${msg}";
+			for (d in parser.errors) {
+				var diag = d;
+				diag.file_path = path;
+				self.errors += diag;
+			}
 			return null;
 		}
 
@@ -169,9 +180,7 @@ impl ModuleLoader {
 			// 1. Single-file module: <root>/<rel>.kb
 			val cand_p = root_p.join(rel_file);
 			val src = cand_p.read_text();
-			if (!src.empty()) {
-				list += ModuleFile(true, cand_p.raw, src);
-			}
+			if (!src.empty()) list += ModuleFile(true, cand_p.raw, src);
 
 			// 2. Folder-as-package: <root>/<rel>/
 			val dir_p = root_p.join(rel_dir);
@@ -218,16 +227,11 @@ impl ModuleLoader {
 
 		val files = self.find_module_files(module_name);
 		if (files.empty()) {
-			val prefix = if (!parent_mod.empty()) "${parent_mod}: " else "";
-			val msg = if (line > 0) {
-				"${prefix}Line ${line}, Column ${col}: "
+			self.errors += Diagnostic.error(
+				Span(0, line as u32, col as u32, 1), parent_mod,
 				"Module '${module_name}' not found "
 				"(searched the entry directory, -I roots, lib/, src/)"
-			} else {
-				"${prefix}Module '${module_name}' "
-				"not found (searched the entry directory, -I roots, lib/, src/)"
-			};
-			self.errors += msg;
+			);
 			return;
 		}
 
@@ -237,13 +241,11 @@ impl ModuleLoader {
 			var declared = "";
 			if (prog is Program as p) declared = p.declared_module_name();
 			if (!declared.empty() && declared != module_name) {
-				val prefix = if (!parent_mod.empty()) "${parent_mod}: " else "";
-				val msg = if (line > 0) {
-					"${prefix}Line ${line}, Column ${col}: ${file.path}: module declared as '${declared}' but imported as '${module_name}'"
-				} else {
-					"${prefix}${file.path}: module declared as '${declared}' but imported as '${module_name}'"
-				};
-				self.errors += msg;
+				val context = if (!parent_mod.empty()) " (imported from '${parent_mod}')" else "";
+				self.errors += Diagnostic.error(
+					Span(0, line as u32, col as u32, 1), file.path,
+					"module declared as '${declared}' but imported as '${module_name}'${context}"
+				);
 				continue;
 			}
 

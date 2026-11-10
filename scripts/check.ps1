@@ -14,25 +14,6 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-if ([System.Environment]::OSVersion.Platform -eq "Win32NT" -and -not $env:VCINSTALLDIR) {
-    $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
-    if (Test-Path $vswhere) {
-        $installPath = & $vswhere -latest -property installationPath
-        $vcvars = Join-Path $installPath "VC\Auxiliary\Build\vcvars64.bat"
-        if (Test-Path $vcvars) {
-            $envLines = cmd.exe /c "`"$vcvars`" >nul & set"
-            foreach ($line in $envLines) {
-                $idx = $line.IndexOf('=')
-                if ($idx -gt 0) {
-                    $k = $line.Substring(0, $idx)
-                    $v = $line.Substring($idx + 1)
-                    [System.Environment]::SetEnvironmentVariable($k, $v, "Process")
-                }
-            }
-        }
-    }
-}
-
 if (-not (Test-Path $Kobel)) {
     Write-Host "[ERROR] compiler not found: $Kobel" -ForegroundColor Red
     Write-Host "        build it first (e.g. scripts\build_seed.bat, then .\build\seed\kobel_seed.exe build)"

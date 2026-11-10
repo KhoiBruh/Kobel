@@ -56,117 +56,17 @@ pub struct LspDiagnostic {
 
 impl LspDiagnostic {
 
-	pub init(err_str: str, source: str) {
-		var line: usz = 1;
-		var col: usz = 1;
-		var msg_start: usz = 0;
-
-		// Look for "Line "
-		val line_tag = "Line ";
-		var line_idx: usz = 0;
-		var found_line = false;
-		val l_pos = err_str.index_of(line_tag);
-		if (l_pos >= 0) {
-			line_idx = (l_pos as usz) + line_tag.len;
-			found_line = true;
-		}
-
-		if (found_line) {
-			var n: usz = 0;
-			var idx = line_idx;
-			while (idx < err_str.len && err_str[idx].is_digit()) {
-				n = n * 10 + (err_str[idx].code() - 48);
-				idx++;
-			}
-			if (n > 0) line = n;
-
-			// Look for "Column "
-			val col_tag = "Column ";
-			var col_idx: usz = 0;
-			var found_col = false;
-			val rest = err_str.slice(idx, err_str.len);
-			val c_pos = rest.index_of(col_tag);
-			if (c_pos >= 0) {
-				col_idx = idx + (c_pos as usz) + col_tag.len;
-				found_col = true;
-			}
-
-			if (found_col) {
-				var cn: usz = 0;
-				var c_idx = col_idx;
-				while (c_idx < err_str.len && err_str[c_idx].is_digit()) {
-					cn = cn * 10 + (err_str[c_idx].code() - 48);
-					c_idx++;
-				}
-				if (cn > 0) col = cn;
-
-				// Skip ": "
-				while (
-					c_idx < err_str.len && (
-						err_str[c_idx] == ':' ||
-						err_str[c_idx] == ' '
-					)
-				) c_idx++;
-				msg_start = c_idx;
-			}
-		}
-
-		val actual_msg = if (msg_start < err_str.len) err_str.slice(msg_start, err_str.len)
-		else err_str;
-
-		val l0 = if (line > 0) line - 1 else 0;
+	pub init(diag: Diagnostic, source: str) {
+		val line = if (diag.line > 0) diag.line else 1;
+		val col = if (diag.col > 0) diag.col else 1;
+		val l0 = line - 1;
 		val c0 = if (col > 0) col - 1 else 0;
 
 		var end_col = c0 + 1;
-		if (source.len > 0) {
-			var cur_line: usz = 0;
-			var line_start: usz = 0;
-			var pos: usz = 0;
-			while (pos < source.len && cur_line < l0) {
-				if (source[pos] == '\n') {
-					cur_line++;
-					line_start = pos + 1;
-				}
-				pos++;
-			}
+		if (diag.length > 1) end_col = c0 + (diag.length as usz);
 
-			if (cur_line == l0 && line_start < source.len) {
-				var line_end = line_start;
-				while (
-					line_end < source.len &&
-					source[line_end] != '\n' &&
-					source[line_end] != '\r'
-				) line_end++;
-
-				val char_idx = line_start + c0;
-				if (char_idx < line_end) {
-					if (
-						source[char_idx] == 'u' &&
-						(char_idx + 3 <= line_end) &&
-						source[char_idx + 1] == 's' &&
-						source[char_idx + 2] == 'e'
-					) {
-						var s_idx = char_idx;
-						while (s_idx < line_end && source[s_idx] != ';') s_idx++;
-						if (s_idx < line_end && source[s_idx] == ';') s_idx++;
-						end_col = s_idx - line_start;
-					} else if (source[char_idx].is_alphanumeric() || source[char_idx] == '_') {
-						var w_idx = char_idx;
-						while (
-							w_idx < line_end && (
-								source[w_idx].is_alphanumeric() ||
-								source[w_idx] == '_'
-							)
-						) w_idx++;
-						end_col = w_idx - line_start;
-					}
-				}
-			}
-		}
-
-		if (end_col <= c0) end_col = c0 + 1;
-
-		return Self(l0, c0, l0, end_col, 1, actual_msg);
+		val severity = if (diag.severity == Severity.WARNING) 2 else 1;
+		return Self(l0, c0, l0, end_col, severity, diag.message);
 	}
 
 	pub fn to_json(val self): *JsonValue {
@@ -232,23 +132,8 @@ pub fn match_doc_prefix(prefix: str, doc_mod: str, doc_path: str): bool {
 	return false;
 }
 
-pub fn is_error_for_doc(err_str: str, doc_mod: str, doc_path: str): bool {
-	val line_idx = err_str.index_of("Line ");
-	if (line_idx < 0) {
-		val colon_idx = err_str.index_of(":");
-		if (colon_idx < 0) return true;
-		val prefix = err_str.slice(0, colon_idx);
-		return match_doc_prefix(prefix, doc_mod, doc_path);
-	}
-
-	if (line_idx == 0) return true;
-
-	var prefix = err_str.slice(0, line_idx);
-	while (prefix.ends_with(" ") || prefix.ends_with(":")) {
-		prefix = prefix.strip_suffix(1);
-	}
-
-	return match_doc_prefix(prefix, doc_mod, doc_path);
+pub fn is_error_for_doc(diag: Diagnostic, doc_mod: str, doc_path: str): bool {
+	return match_doc_prefix(diag.file_path, doc_mod, doc_path);
 }
 
 // ============================================================================
@@ -423,8 +308,8 @@ impl AnalysisResult {
 		val prog = parser.parse_program();
 
 		if (parser.errors.len > 0) {
-			for (err_msg in parser.errors) {
-				diagnostics += LspDiagnostic(err_msg, source);
+			for (d in parser.errors) {
+				diagnostics += LspDiagnostic(d, source);
 			}
 			var empty_symtab = SymbolTable();
 			return AnalysisResult(diagnostics, empty_symtab, false, tokens);
@@ -453,9 +338,9 @@ impl AnalysisResult {
 
 		val full_prog = loader.load_program(path, source);
 		if (loader.errors.len > 0) {
-			for (err_msg in loader.errors) {
-				if (is_error_for_doc(err_msg, doc_mod, path)) {
-					diagnostics += LspDiagnostic(err_msg, source);
+			for (d in loader.errors) {
+				if (is_error_for_doc(d, doc_mod, path)) {
+					diagnostics += LspDiagnostic(d, source);
 				}
 			}
 		}
@@ -464,9 +349,9 @@ impl AnalysisResult {
 			var decl_p = DeclarationCollector();
 			decl_p.collect_program(full_prog);
 			if (decl_p.errors.len > 0) {
-				for (err_msg in decl_p.errors) {
-					if (is_error_for_doc(err_msg, doc_mod, path)) {
-						diagnostics += LspDiagnostic(err_msg, source);
+				for (d in decl_p.errors) {
+					if (is_error_for_doc(d, doc_mod, path)) {
+						diagnostics += LspDiagnostic(d, source);
 					}
 				}
 			}
@@ -475,9 +360,9 @@ impl AnalysisResult {
 			var body_p = BodyChecker(decl_p.symtab, decl_p);
 			body_p.check_program(full_prog);
 			if (body_p.errors.len > 0) {
-				for (err_msg in body_p.errors) {
-					if (is_error_for_doc(err_msg, doc_mod, path)) {
-						diagnostics += LspDiagnostic(err_msg, source);
+				for (d in body_p.errors) {
+					if (is_error_for_doc(d, doc_mod, path)) {
+						diagnostics += LspDiagnostic(d, source);
 					}
 				}
 			}

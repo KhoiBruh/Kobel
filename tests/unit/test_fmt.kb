@@ -1,23 +1,7 @@
 use std.io.*;
+
 use fmt.*;
-
-fn assert_true(cond: bool, msg: str) {
-	if (!cond) {
-		print("ASSERTION FAILED: ");
-		println(msg);
-	}
-}
-
-fn assert_eq_str(actual: str, expected: str, msg: str) {
-	if (actual != expected) {
-		print("ASSERTION FAILED: ");
-		println(msg);
-		print("  Expected:\n");
-		println(expected);
-		print("  Actual:\n");
-		println(actual);
-	}
-}
+use testsupport.assert.*;
 
 // ============================================================================
 // Test 1: Basic Declarations (struct, fn, mod, use)
@@ -25,13 +9,11 @@ fn assert_eq_str(actual: str, expected: str, msg: str) {
 
 fn test_basic_formatting() {
 	val unformatted = "mod my.cool.module;\nuse std.io.*;\nuse std.collections.List;\nstruct Point{\nx:i32,\ny:i32\n}\nfn add(a:i32,b:i32):i32=>a+b;\n";
-	val options = FormatOptions();
-	val formatted = format_source(unformatted, options);
+	val formatted = format_source(unformatted, FormatOptions());
 
-	println("--- Formatted Output 1 ---");
-	println(formatted);
-
-	assert_true(formatted.len > 0, "Formatted output must not be empty");
+	assert_true(("struct Point {" in formatted), "struct declaration must survive");
+	assert_true(("pub " in formatted) || !("pub" in unformatted), "visibility must be preserved");
+	assert_true(("fn add(a: i32, b: i32): i32 => a + b;" in formatted), "fn signature must be normalized");
 	println("  [PASS] test_basic_formatting");
 }
 
@@ -41,30 +23,95 @@ fn test_basic_formatting() {
 
 fn test_knr_and_smart_tabs() {
 	val code = "fn test_branch(x: i32): str {\nif (x > 0) {\nreturn \"positive\";\n} else {\nreturn \"zero or negative\";\n}\n}\n";
-	val options = FormatOptions();
-	val formatted = format_source(code, options);
+	val formatted = format_source(code, FormatOptions());
 
-	println("--- Formatted Output 2 ---");
-	println(formatted);
-
-	assert_true(formatted.len > 0, "Formatted output must not be empty");
+	assert_true(("} else {" in formatted), "K&R else must stay on the closing brace line");
+	assert_true(("if (x > 0) {" in formatted), "block body must stay on the condition line");
+	assert_true(!("\nreturn" in formatted), "statements must be indented inside the function body");
 	println("  [PASS] test_knr_and_smart_tabs");
 }
 
 // ============================================================================
-// Test 3: Comment Preservation
+// Test 3: Comment preservation
 // ============================================================================
 
 fn test_comments() {
-	val code = "// Module header comment\nmod app.main;\n\n// Point structure doc\nstruct Point {\n\tpub x: i32,\n\tpub y: i32\n}\n";
-	val options = FormatOptions();
-	val formatted = format_source(code, options);
+	val code = "// Module header comment\nmod app.main;\n\n/*\n * Block line one.\n * Block line two.\n */\nstruct Point {\n\tpub x: i32\n}\n";
+	val formatted = format_source(code, FormatOptions());
 
-	println("--- Formatted Output 3 ---");
-	println(formatted);
-
-	assert_true(formatted.len > 0, "Formatted output must not be empty");
+	assert_true(("// Module header comment" in formatted), "line comment must survive");
+	assert_true((" * Block line one." in formatted), "block comment line 1 must survive");
+	assert_true((" * Block line two." in formatted), "block comment line 2 must survive");
+	assert_true(!("\n\n * Block line two." in formatted), "no blank line may be injected into a block comment");
 	println("  [PASS] test_comments");
+}
+
+// ============================================================================
+// Test 4: `pub` on impl members survives (parser regression guard)
+// ============================================================================
+
+fn test_impl_visibility() {
+	val code = "pub struct A {\n\tpub v: i32\n}\n\nimpl A {\n\n\tpub init(v: i32) {\n\t\treturn Self(v);\n\t}\n\n\tpub fn get(val self): i32 => self.v;\n\n\tfn hidden(val self) {\n\t\tval x = 1;\n\t}\n}\n";
+	val formatted = format_source(code, FormatOptions());
+
+	assert_true(("pub init(" in formatted), "pub init inside impl must survive");
+	assert_true(("pub fn get(" in formatted), "pub fn inside impl must survive");
+	assert_true(("fn hidden(" in formatted), "non-pub method must stay non-pub");
+	println("  [PASS] test_impl_visibility");
+}
+
+// ============================================================================
+// Test 5: Single-line bodies, trailing whitespace and EOL normalization
+// ============================================================================
+
+fn test_whitespace_and_eol() {
+	val code = "fn f(x: i32): i32 {\nif (x > 0) return 1;\nreturn 0;\n}\n";
+	val formatted = format_source(code, FormatOptions());
+
+	assert_true(("if (x > 0) return 1;" in formatted), "single-line if body must stay on one line");
+	assert_true(!(" \n" in formatted), "no trailing whitespace");
+
+	val crlf = "mod m;\r\n\r\nfn g() {\r\n}\r\n";
+	val normalized = format_source(crlf, FormatOptions());
+	assert_true(!("\r" in normalized), "CRLF input must be normalized to LF output");
+	println("  [PASS] test_whitespace_and_eol");
+}
+
+// ============================================================================
+// Test 6: Formatting is idempotent
+// ============================================================================
+
+fn test_idempotent() {
+	val code = "mod m;\n\npub struct S {\n\tpub a: i32,\n\tpub b: i32\n}\n\nimpl S {\n\n\tpub init(a: i32, b: i32) {\n\t\treturn Self(a, b);\n\t}\n}\n\nfn f(s: S): i32 {\n\tif (s.a > s.b) return s.a;\n\treturn s.b;\n}\n";
+	val once = format_source(code, FormatOptions());
+	val twice = format_source(once, FormatOptions());
+
+	assert_eq_str(twice, once, "formatting twice must equal formatting once");
+	println("  [PASS] test_idempotent");
+}
+
+fn test_multiline_literal_preserved() {
+	val code = "fn msg(): str {\n\treturn \"\"\"\n\tline one\n\tline two\n\t\"\"\";\n}\n";
+	val formatted = format_source(code, FormatOptions());
+
+	assert_true(("\"\"\"" in formatted), "multiline literal must keep its triple quotes");
+	assert_true(("line one" in formatted), "multiline literal content must survive");
+	assert_true(("\n\tline two" in formatted), "multiline literal must keep its own line breaks");
+	println("  [PASS] test_multiline_literal_preserved");
+}
+
+fn test_wraps_long_lines() {
+	val code = "fn process(first_parameter: i32, second_parameter: i32, third_parameter: i32, fourth_parameter: i32, fifth_parameter: i32): i32 {\n\treturn 0;\n}\n";
+	val formatted = format_source(code, FormatOptions());
+
+	var longest: usz = 0;
+	val lines = formatted.split_lines();
+	for (line in lines) {
+		if (line.len > longest) longest = line.len;
+	}
+	assert_true(longest <= 100, "formatter must wrap lines wider than max_width");
+	assert_true((",\n" in formatted), "wrapped list must break after a comma");
+	println("  [PASS] test_wraps_long_lines");
 }
 
 fn main(): i32 {
@@ -72,6 +119,11 @@ fn main(): i32 {
 	test_basic_formatting();
 	test_knr_and_smart_tabs();
 	test_comments();
+	test_impl_visibility();
+	test_whitespace_and_eol();
+	test_multiline_literal_preserved();
+	test_wraps_long_lines();
+	test_idempotent();
 	println("[ALL PASSED] Kobel Formatter tests passed successfully!");
 	return 0;
 }

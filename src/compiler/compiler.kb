@@ -3,7 +3,6 @@ mod compiler;
 use std.io.*;
 use std.filesystem.*;
 use std.collections.*;
-use std.memory.Arena;
 
 use config.ProjectConfig;
 use compiler.driver.*;
@@ -20,15 +19,12 @@ use compiler.driver.*;
  */
 
 pub struct Compiler {
-	pub options: CompileOptions,
-	pub arena: Arena
+	pub options: CompileOptions
 }
 
 impl Compiler {
 
-	pub init(options: CompileOptions = CompileOptions()) => Self(options, Arena(1048576));
-
-	pub fn free(var self) => self.arena.free();
+	pub init(options: CompileOptions = CompileOptions()) => Self(options);
 
 	// ------------------------------------------------------------------------
 	// Compilation Pipeline

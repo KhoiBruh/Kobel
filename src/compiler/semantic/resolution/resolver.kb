@@ -26,7 +26,7 @@ pub struct TypeResolver {
 	pub symtab: SymbolTable,
 	pub arena: Arena,
 	pub current_module: str = "",
-	pub errors: List<str> = List(),
+	pub errors: List<Diagnostic> = List(),
 	pub is_extern: bool = false,
 	pub current_self_type: *Type? = null,
 	pub subst: TypeSubst = TypeSubst(),
@@ -58,12 +58,7 @@ impl TypeResolver {
 	}
 
 	pub fn report_error(var self, node: *AstNode, msg: str) {
-		val loc = "Line ${node.line}, Column ${node.col}: ";
-		if (self.current_module.len > 0) {
-			self.errors += "${self.current_module}: ${loc}${msg}";
-		} else {
-			self.errors += loc + msg;
-		}
+		self.errors += Diagnostic.error(node.span, self.current_module, msg);
 	}
 
 	pub fn resolve_ast_type(var self, node: *AstNode): *Type {

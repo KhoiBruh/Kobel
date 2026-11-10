@@ -10,14 +10,12 @@ use std.string.*;
  * ============================================================================
  * compiler.core.diagnostic — Structured compiler diagnostics and reporting
  *
- * Replaces ad-hoc `List<str>` error strings with structured `Diagnostic`
- * records and a deduplicating `DiagnosticBag`. Supports both direct structured
- * emission (`error`, `warning`) and legacy string parsing (`parse_legacy`)
- * while upper compiler layers are migrated.
+ * Every compiler pass reports `Diagnostic` records (severity + span + file);
+ * `DiagnosticBag` adds deduplication for passes that want it.
  * ============================================================================
  */
 
-pub enum Severity {
+pub enum Severity: i64 {
 	ERROR,
 	WARNING,
 	NOTE
@@ -25,7 +23,13 @@ pub enum Severity {
 
 pub struct Diagnostic {
 	pub severity: Severity,
-	pub span: Span,
+	// Location fields are stored flat (not as a nested `Span`): the compiler
+	// lays out a struct as soon as its declaration is collected, and a nested
+	// struct declared in a later file would still have size 0 at that point.
+	pub file_id: u32,
+	pub line: usz,
+	pub col: usz,
+	pub length: usz,
 	pub file_path: str,
 	pub message: str,
 	pub hint: str = ""
@@ -39,31 +43,10 @@ impl Diagnostic {
 		file_path: str,
 		message: str,
 		hint: str = ""
-	) => Self(severity, span, file_path, message, hint);
-
-	fn resolve_path(target: str, default_file: str, sources: *SourceMap?): str {
-		if (target.empty()) return default_file;
-
-		if (
-			target.ends_with(".kb")
-			|| "/" in target
-			|| "\\" in target
-		) return target.to_posix_path();
-
-		if (sources != null) {
-			val by_mod = sources.find_by_module(target);
-			if (by_mod != null) return by_mod.path.to_posix_path();
-		}
-
-		val rel = "${target.module_to_rel()}.kb";
-		val src_p = Path("src/${rel}");
-		if (src_p.exists()) return "src/${rel}";
-		val lib_p = Path("lib/${rel}");
-		if (lib_p.exists()) return "lib/${rel}";
-		val rel_p = Path(rel);
-		if (rel_p.exists()) return rel;
-		return target;
-	}
+	) => Self(
+		severity, span.file_id, span.line, span.col, span.length,
+		file_path, message, hint
+	);
 
 	pub fn error(span: Span, file_path: str, message: str, hint: str = "")
 		=> Diagnostic(Severity.ERROR, span, file_path, message, hint);
@@ -71,69 +54,9 @@ impl Diagnostic {
 	pub fn warning(span: Span, file_path: str, message: str, hint: str = "")
 		=> Diagnostic(Severity.WARNING, span, file_path, message, hint);
 
-	pub fn key(val self) => "${self.file_path}:${self.span.line}:${self.span.col}:${self.message}";
+	pub fn span(val self): Span => Span(self.file_id, self.line, self.col, self.length);
 
-	/*
-	 * Parses a legacy `"<module-or-file>: Line X, Column Y: <message>"` string into
-	 * a structured `Diagnostic` so existing passes interoperate cleanly during
-	 * the bottom-up migration.
-	 */
-	pub fn parse_legacy(
-		raw: str,
-		default_file: str,
-		severity: Severity = Severity.ERROR,
-		sources: *SourceMap? = null
-	): Diagnostic {
-		val line_kw = "Line ";
-		val line_pos = raw.index_of(line_kw);
-
-		if (line_pos >= 0) {
-			val prefix = if (line_pos > 0) raw.slice(0, line_pos as usz).trim() else "";
-			var target = if (prefix.ends_with(":")) prefix.slice(0, prefix.len - 1).trim()
-						else prefix;
-
-			if (target.empty()) target = default_file;
-
-			var l_idx = (line_pos as usz) + line_kw.len;
-			var line_num: usz = 0;
-			while (l_idx < raw.len && raw[l_idx].is_digit()) {
-				line_num = line_num * 10 + (raw[l_idx].code() - 48) as usz;
-				l_idx++;
-			}
-
-			while (l_idx < raw.len && (raw[l_idx] == ' ' || raw[l_idx] == ',')) {
-				l_idx++;
-			}
-
-			var col_num = 0;
-			val col_kw = "Column ";
-			val rest = raw.slice(l_idx, raw.len);
-			val c_pos = rest.index_of(col_kw);
-			if (c_pos >= 0) {
-				l_idx = l_idx + (c_pos as usz) + col_kw.len;
-				while (l_idx < raw.len && raw[l_idx].is_digit()) {
-					col_num = col_num * 10 + (raw[l_idx].code() - 48) as usz;
-					l_idx++;
-				}
-			}
-
-			while (l_idx < raw.len && (raw[l_idx] == ':' || raw[l_idx] == ' ')) l_idx++;
-			val message = raw.slice(l_idx, raw.len).trim();
-			val file_path = Diagnostic.resolve_path(target, default_file, sources);
-			return Diagnostic(severity, Span(0, line_num, col_num, 1), file_path, message);
-		}
-
-		val colon_pos = raw.index_of(":");
-		if (colon_pos >= 0) {
-			val c_idx = colon_pos as usz;
-			val target = raw.slice(0, c_idx).trim();
-			val message = raw.slice(c_idx + 1, raw.len).trim();
-			val file_path = Diagnostic.resolve_path(target, default_file, sources);
-			return Diagnostic(severity, Span(0, 0, 0, 1), file_path, message);
-		}
-
-		return Diagnostic(severity, Span(0, 0, 0, 1), default_file, raw);
-	}
+	pub fn key(val self) => "${self.file_path}:${self.line}:${self.col}:${self.message}";
 
 	pub fn render(val self, sources: *SourceMap? = null): str {
 		val c_red = "\x1b[1;31m";
@@ -166,11 +89,11 @@ impl Diagnostic {
 			sb += ' ';
 			sb += self.file_path;
 
-			if (self.span.line > 0) {
+			if (self.line > 0) {
 				sb += ':';
-				sb += self.span.line;
+				sb += self.line;
 				sb += ':';
-				sb += self.span.col;
+				sb += self.col;
 			}
 			sb += '\n';
 		}
@@ -178,13 +101,13 @@ impl Diagnostic {
 		var raw_line = "";
 		var have_line = false;
 
-		if (self.span.line > 0) {
+		if (self.line > 0) {
 			if (sources != null) {
-				val sf = if (self.span.file_id > 0) sources.get_file(self.span.file_id)
+				val sf = if (self.file_id > 0) sources.get_file(self.file_id)
 						else sources.find_by_path(self.file_path);
 
-				if (sf != null && self.span.line <= sf.lines.len) {
-					raw_line = sf.line_text(self.span.line);
+				if (sf != null && self.line <= sf.lines.len) {
+					raw_line = sf.line_text(self.line);
 					have_line = true;
 				}
 			}
@@ -197,8 +120,8 @@ impl Diagnostic {
 					val lines = content.split_lines();
 					defer lines.free();
 
-					if (self.span.line >= 1 && self.span.line <= lines.len) {
-						raw_line = lines[self.span.line - 1];
+					if (self.line >= 1 && self.line <= lines.len) {
+						raw_line = lines[self.line - 1];
 						have_line = true;
 					}
 				}
@@ -207,7 +130,7 @@ impl Diagnostic {
 		}
 
 		if (have_line) {
-			val line_str = "${self.span.line}";
+			val line_str = "${self.line}";
 			val gutter_w = if (line_str.len < 2) 2 else line_str.len;
 
 			sb += ' ';
@@ -237,7 +160,7 @@ impl Diagnostic {
 			sb += c_reset;
 			sb += ' ';
 
-			val limit = if (self.span.col > 1) self.span.col - 1 else 0;
+			val limit = if (self.col > 1) self.col - 1 else 0;
 			for (i in 0..<limit) {
 				if (i < raw_line.len && raw_line[i] == '\t') {
 					sb += '\t';
@@ -248,7 +171,7 @@ impl Diagnostic {
 
 			val caret_color = if (self.severity == Severity.WARNING) c_yellow else c_red;
 			sb += caret_color;
-			val caret_len = if (self.span.length > 1) self.span.length else 1;
+			val caret_len = if (self.length > 1) self.length else 1;
 			sb.append_repeat('^', caret_len);
 			sb += c_reset;
 			sb += '\n';

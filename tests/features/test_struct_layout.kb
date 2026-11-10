@@ -1,0 +1,73 @@
+mod tests.features.test_struct_layout;
+
+use std.io.println;
+use std.collections.List;
+
+use testsupport.assert.*;
+
+/*
+ * Struct layout must not depend on declaration order. `Outer` embeds `Inner`,
+ * which is declared after it, and is also stored in a growing `List<Outer>`:
+ * a stale zero size for `Inner` would shrink `Outer` (and under-allocate the
+ * list) even though the C compiler lays the fields out correctly.
+ */
+
+struct Outer {
+	pub inner: Inner,
+	pub tag: i32,
+	pub data: List<i32>
+}
+
+struct Inner {
+	pub a: i32,
+	pub b: i32,
+	pub c: i32
+}
+
+struct Node {
+	pub next: *Node?,
+	pub value: i32
+}
+
+fn test_layout_sizes() {
+	assert_eq_usz(Inner.size(), 12, "Inner must be 12 bytes");
+	assert_eq_usz(Outer.size(), 40, "Outer must embed Inner (12) + tag (4) + list header (24)");
+}
+
+fn test_embedded_later_struct() {
+	var nums = List<i32>();
+	nums += 7;
+	nums += 8;
+
+	var list = List<Outer>();
+	var i: i32 = 0;
+	while (i < 12) {
+		list += Outer(Inner(i, i + 1, i + 2), i, nums);
+		i++;
+	}
+
+	assert_eq_usz(list.len, 12, "list length");
+	val last = list[11];
+	assert_eq_i32(last.tag, 11, "tag survives the round trip");
+	assert_eq_i32(last.inner.c, 13, "nested struct field survives");
+	assert_eq_usz(last.data.len, 2, "list field survives");
+	assert_eq_i32(last.data[0], 7, "list element survives");
+}
+
+fn test_pointer_cycle() {
+	var a = Node(null, 1);
+	var b = Node(null, 2);
+	a.next = &b;
+	b.next = &a;
+	assert_eq_i32(a.next!.value, 2, "pointer cycle forward");
+	assert_eq_i32(b.next!.value, 1, "pointer cycle backward");
+}
+
+fn main(): i32 {
+	println("=== Running struct layout tests ===");
+	test_layout_sizes();
+	test_embedded_later_struct();
+	test_pointer_cycle();
+	println("All struct layout tests passed!");
+	return 0;
+}

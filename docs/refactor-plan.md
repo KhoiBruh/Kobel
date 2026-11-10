@@ -131,8 +131,8 @@ compiler.semantic.declaration   compiler.semantic.checker
   - `interpolation.kb` *(from `sema/body/interp.kb`)*: String interpolation part checking and `Stringer` protocol verification.
 
 #### Subsystem 6: `compiler.semantic.lowering` (`src/compiler/semantic/lowering/`)
-*Responsibility*: Stage 3b post-check AST desugaring and lowering into C99-ready AST nodes (`lower_program`). No longer attaches methods to `std.memory.Arena` or `BodyPass`.
-- **Dependencies**: `std.*`, `compiler.core`, `compiler.lexer`, `compiler.ast`, `compiler.semantic.types`, `compiler.semantic.symbols`, `compiler.semantic.resolution`, `compiler.semantic.checker`
+*Responsibility*: Stage 3b post-check AST desugaring and lowering into C99-ready AST nodes (`lower_program`). It must never import `compiler.semantic.checker`: `checker` calls `desugar_for` while checking a `for` body, so a checker dependency here would recreate the only cycle the module graph ever had.
+- **Dependencies**: `std.*`, `compiler.core`, `compiler.lexer`, `compiler.ast`, `compiler.semantic.types`, `compiler.semantic.symbols`, `compiler.semantic.resolution`, `compiler.semantic.declaration`
 - **Files**:
   - `loop.kb` *(from `sema/desugar/loop.kb`)*: `lower_for_range` and `lower_for_iterable` (`for` loop desugaring into `while` blocks).
   - `string.kb` *(from `sema/desugar/interp.kb`)*: String interpolation and string concatenation/comparison AST builders.
@@ -195,3 +195,12 @@ Any agent working on this codebase MUST keep these language/compiler mechanics i
      .\build\kobel.exe src/main.kb -emit-c dist/bootstrap.c
      cmd /c scripts\build_seed.bat
      ```
+
+---
+
+## 6. Known Remaining Debt
+
+Tracked here instead of as `TODO` markers in `src/`:
+
+1. **Formatter wrapping is partial.** Argument and parameter lists wrap at `max_width` (100);
+   long conditions, binary expressions and struct-field defaults are still emitted on one line.

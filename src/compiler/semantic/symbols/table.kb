@@ -228,6 +228,45 @@ impl SymbolTable {
 
 	pub fn set_current_module(var self, name: str) => self.current_module = name;
 
+	/*
+	 * Struct layouts are computed when a declaration is collected, but a by-value
+	 * field may reference a struct whose own layout is still pending (a forward
+	 * shell, or a type declared later in the same module). Once collection is
+	 * complete, re-layout every struct until the sizes stop changing; this makes
+	 * the layout independent of declaration and file order.
+	 */
+	/*
+	 * Struct layouts are computed when a declaration is collected, but a by-value
+	 * field may reference a struct whose own layout is still pending (a forward
+	 * shell, or a type declared later in the same module). Once collection is
+	 * complete, re-layout every struct until the sizes stop changing; this makes
+	 * the layout independent of declaration and file order.
+	 *
+	 * Payload enums are also registered as STRUCT symbols, but their size is a
+	 * tag + payload union computed by `collect_payload_enum`, not a plain field
+	 * layout, so they must be skipped here.
+	 */
+	pub fn relayout_structs(val self) {
+		var changed = true;
+		var round = 0;
+		while (changed && round < 32) {
+			changed = false;
+			for (ms in self.modules) {
+				for (sym in ms.symbols) {
+					if (sym.kind != SymbolKind.STRUCT) continue;
+					if (sym.type_ptr == null) continue;
+					if (sym.type_ptr.is_enum()) continue;
+					if (self.find_enum_info(sym.name) != null) continue;
+					if (self.find_enum_info(sym.c_name) != null) continue;
+					val before = sym.type_ptr.size;
+					sym.type_ptr.layout_struct();
+					if (sym.type_ptr.size != before) changed = true;
+				}
+			}
+			round++;
+		}
+	}
+
 	pub fn find_module(val self, name: str): *ModuleScope? {
 		val p = self.module_map.get(name) ?: return null;
 		return p.read();

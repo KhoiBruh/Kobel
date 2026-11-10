@@ -294,9 +294,9 @@ impl Parser {
 
 		while (!self.check(TokenType.CLOSE_BRACE) && !self.is_end()) {
 			var m_pub = false;
+			if (self.match_token(TokenType.KW_PUB)) m_pub = true;
 
 			when {
-				self.match_token(TokenType.KW_PUB) -> m_pub = true;
 				self.check(TokenType.IDENTIFIER) && self.peek().text == "type" -> {
 					self.advance(); // 'type'
 					val a_name = self.consume(TokenType.IDENTIFIER, "Expected associated type name");

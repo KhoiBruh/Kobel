@@ -3,6 +3,7 @@ mod compiler.parser;
 use std.collections.*;
 use std.string.StringBuilder;
 
+use compiler.core.*;
 use compiler.lexer.*;
 use compiler.ast.*;
 
@@ -310,7 +311,12 @@ impl Parser {
 				if (num_literal_is_float(tok.text)) yield self.node(NodeData.LiteralExpr(Literal.FLOAT, tok.text), line, col);
 				yield self.node(NodeData.LiteralExpr(Literal.INTEGER, tok.text), line, col);
 			}
-			TokenType.STRING -> self.parse_string_literal(tok, line, col);
+			TokenType.STRING -> {
+				// Keep the token span so the formatter can re-emit a `"""` literal verbatim.
+				val lit_node = self.parse_string_literal(tok, line, col);
+				lit_node.span = tok.span;
+				yield lit_node;
+			}
 			TokenType.CHAR -> self.node(NodeData.LiteralExpr(Literal.CHARACTER, tok.text), line, col);
 			TokenType.KW_TRUE -> self.node(NodeData.LiteralExpr(Literal.BOOLEAN, "true"), line, col);
 			TokenType.KW_FALSE -> self.node(NodeData.LiteralExpr(Literal.BOOLEAN, "false"), line, col);
@@ -692,7 +698,7 @@ impl Parser {
 				val h_start = i + 2;
 				val h_end = interp_find_close(text, h_start);
 				if (h_end < 0) {
-					self.errors += "Unterminated interpolation hole in multiline string literal";
+					self.errors += Diagnostic.error(Span(self.file_id, line as u32, col as u32, 1), "", "Unterminated interpolation hole in multiline string literal");
 					return self.node(NodeData.LiteralExpr(Literal.STRING, "\"\""), line, col);
 				}
 				val src = text.slice(h_start, h_end as usz);
@@ -704,7 +710,7 @@ impl Parser {
 				val hole = sub.parse_expression(Precedence.NONE);
 				self.arena = sub.arena;
 				if (!sub.errors.empty()) {
-					for (msg in sub.errors) self.errors += "in interpolation hole: ${msg}";
+					for (d in sub.errors) self.errors += Diagnostic.error(d.span(), d.file_path, "in interpolation hole: ${d.message}");
 				}
 				parts += InterpPart.Hole(hole);
 				i = (h_end as usz) + 1;
@@ -758,7 +764,7 @@ impl Parser {
 				val h_start = i + 2;
 				val h_end = interp_find_close(text, h_start);
 				if (h_end < 0) {
-					self.errors += "Unterminated interpolation hole in string literal";
+					self.errors += Diagnostic.error(Span(self.file_id, line as u32, col as u32, 1), "", "Unterminated interpolation hole in string literal");
 					return self.node(NodeData.LiteralExpr(Literal.STRING, text), line, col);
 				}
 				val src = text.slice(h_start, h_end);
@@ -770,7 +776,7 @@ impl Parser {
 				val hole = sub.parse_expression(Precedence.NONE);
 				self.arena = sub.arena;
 				if (sub.errors.len > 0) {
-					for (msg in sub.errors) self.errors += "in interpolation hole: ${msg}";
+					for (d in sub.errors) self.errors += Diagnostic.error(d.span(), d.file_path, "in interpolation hole: ${d.message}");
 				}
 				parts += InterpPart.Hole(hole);
 				i = h_end + 1;
