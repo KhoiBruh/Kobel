@@ -7537,6 +7537,8 @@ if (str_empty(content)) {
 return self;
 }
 config__Toml doc = config__Toml_init(content);
+kobel_str package_entry = KOBEL_STR("");
+kobel_str build_entry = KOBEL_STR("");
 {
 size_t __for_n = config__Toml_count(&doc);
 size_t __for_i = 0;
@@ -7553,12 +7555,10 @@ if (kobel_streq(key, KOBEL_STR("package.name"))) {
 self.name = val_str;
 } else if (kobel_streq(key, KOBEL_STR("package.version"))) {
 self.version = val_str;
-} else if (kobel_streq(key, KOBEL_STR("build.entry"))) {
-if (kobel_streq(self.entry, KOBEL_STR("src/main.kb"))) {
-self.entry = val_str;
-}
 } else if (kobel_streq(key, KOBEL_STR("package.entry"))) {
-self.entry = val_str;
+package_entry = val_str;
+} else if (kobel_streq(key, KOBEL_STR("build.entry"))) {
+build_entry = val_str;
 } else if (kobel_streq(key, KOBEL_STR("build.output"))) {
 self.output = val_str;
 } else if (kobel_streq(key, KOBEL_STR("build.cc"))) {
@@ -7568,6 +7568,11 @@ self.test_dir = val_str;
 }
 __for_i = (__for_i + 1);
 }
+}
+if (!str_empty(package_entry)) {
+self.entry = package_entry;
+} else if (!str_empty(build_entry)) {
+self.entry = build_entry;
 }
 return self;
 }
@@ -10314,8 +10319,10 @@ compiler__parser__Parser_consume(self, 16, KOBEL_STR("Expected ')' after when co
 compiler__parser__Parser_consume(self, 17, KOBEL_STR("Expected '{' before when arms"));
 std__collections__List_compiler__ast__WhenArm arms = std__collections__List_compiler__ast__WhenArm_init(4);
 while (!compiler__parser__Parser_check(self, 18) && !compiler__parser__Parser_is_end(self)) {
-size_t arm_line = compiler__parser__Parser_peek(self).line;
-size_t arm_col = compiler__parser__Parser_peek(self).col;
+compiler__lexer__Token __destruct_tmp_3 = compiler__parser__Parser_peek(self);
+size_t arm_line;
+size_t arm_col;
+compiler__lexer__Token_unpack_3(&__destruct_tmp_3, &arm_line, &arm_col);
 bool is_else = false;
 std__collections__List_ptr_compiler__ast__AstNode patterns = std__collections__List_ptr_compiler__ast__AstNode_init(4);
 if (compiler__parser__Parser_match_token(self, 59)) {
@@ -10348,11 +10355,11 @@ return compiler__parser__Parser_node(self, (compiler__ast__NodeData){ .tag = 6, 
 }
 
 compiler__ast__AstNode* compiler__parser__Parser_parse_infix(compiler__parser__Parser* self, compiler__ast__AstNode* left, compiler__parser__Precedence prec) {
-compiler__lexer__Token __destruct_tmp_3 = compiler__parser__Parser_peek(self);
+compiler__lexer__Token __destruct_tmp_4 = compiler__parser__Parser_peek(self);
 compiler__lexer__TokenType tok_type;
 size_t line;
 size_t col;
-compiler__lexer__Token_unpack_4(&__destruct_tmp_3, &tok_type, &line, &col);
+compiler__lexer__Token_unpack_4(&__destruct_tmp_4, &tok_type, &line, &col);
 if (tok_type == 30) {
 compiler__parser__Parser_advance(self);
 return compiler__parser__Parser_node(self, (compiler__ast__NodeData){ .tag = 13, .u.UpdateExpr = { 30, left } }, line, col);
@@ -10372,32 +10379,32 @@ return compiler__parser__Parser_node(self, (compiler__ast__NodeData){ .tag = 12,
 if (compiler__parser__Parser_match_token(self, 37)) {
 compiler__ast__AstNode* right;
 if (compiler__parser__Parser_match_token(self, 47)) {
-compiler__lexer__Token __destruct_tmp_4 = compiler__parser__Parser_previous(self);
-size_t kw_line;
-size_t kw_col;
-compiler__lexer__Token_unpack_3(&__destruct_tmp_4, &kw_line, &kw_col);
-compiler__ast__AstNode* value = (((!compiler__parser__Parser_check(self, 0) && !compiler__parser__Parser_check(self, 18)) && !compiler__parser__Parser_check(self, 16)) ? compiler__parser__Parser_parse_expression(self, 0) : NULL);
-right = compiler__parser__Parser_node(self, (compiler__ast__NodeData){ .tag = 31, .u.ReturnStmt = { value } }, kw_line, kw_col);
-goto __when_end_14;
-} else if (compiler__parser__Parser_match_token(self, 56)) {
 compiler__lexer__Token __destruct_tmp_5 = compiler__parser__Parser_previous(self);
 size_t kw_line;
 size_t kw_col;
 compiler__lexer__Token_unpack_3(&__destruct_tmp_5, &kw_line, &kw_col);
-right = compiler__parser__Parser_node(self, (compiler__ast__NodeData){ .tag = 32 }, kw_line, kw_col);
+compiler__ast__AstNode* value = (((!compiler__parser__Parser_check(self, 0) && !compiler__parser__Parser_check(self, 18)) && !compiler__parser__Parser_check(self, 16)) ? compiler__parser__Parser_parse_expression(self, 0) : NULL);
+right = compiler__parser__Parser_node(self, (compiler__ast__NodeData){ .tag = 31, .u.ReturnStmt = { value } }, kw_line, kw_col);
 goto __when_end_14;
-} else if (compiler__parser__Parser_match_token(self, 57)) {
+} else if (compiler__parser__Parser_match_token(self, 56)) {
 compiler__lexer__Token __destruct_tmp_6 = compiler__parser__Parser_previous(self);
 size_t kw_line;
 size_t kw_col;
 compiler__lexer__Token_unpack_3(&__destruct_tmp_6, &kw_line, &kw_col);
-right = compiler__parser__Parser_node(self, (compiler__ast__NodeData){ .tag = 33 }, kw_line, kw_col);
+right = compiler__parser__Parser_node(self, (compiler__ast__NodeData){ .tag = 32 }, kw_line, kw_col);
 goto __when_end_14;
-} else if (compiler__parser__Parser_match_token(self, 68)) {
+} else if (compiler__parser__Parser_match_token(self, 57)) {
 compiler__lexer__Token __destruct_tmp_7 = compiler__parser__Parser_previous(self);
 size_t kw_line;
 size_t kw_col;
 compiler__lexer__Token_unpack_3(&__destruct_tmp_7, &kw_line, &kw_col);
+right = compiler__parser__Parser_node(self, (compiler__ast__NodeData){ .tag = 33 }, kw_line, kw_col);
+goto __when_end_14;
+} else if (compiler__parser__Parser_match_token(self, 68)) {
+compiler__lexer__Token __destruct_tmp_8 = compiler__parser__Parser_previous(self);
+size_t kw_line;
+size_t kw_col;
+compiler__lexer__Token_unpack_3(&__destruct_tmp_8, &kw_line, &kw_col);
 compiler__ast__AstNode* value = (((!compiler__parser__Parser_check(self, 0) && !compiler__parser__Parser_check(self, 18)) && !compiler__parser__Parser_check(self, 16)) ? compiler__parser__Parser_parse_expression(self, 0) : NULL);
 right = compiler__parser__Parser_node(self, (compiler__ast__NodeData){ .tag = 35, .u.YieldStmt = { value } }, kw_line, kw_col);
 goto __when_end_14;
@@ -11006,8 +11013,10 @@ compiler__parser__Parser_consume(self, 16, KOBEL_STR("Expected ')' after when co
 compiler__parser__Parser_consume(self, 17, KOBEL_STR("Expected '{' before when statement arms"));
 std__collections__List_compiler__ast__WhenArm arms = std__collections__List_compiler__ast__WhenArm_init(4);
 while (!compiler__parser__Parser_check(self, 18) && !compiler__parser__Parser_is_end(self)) {
-size_t arm_line = compiler__parser__Parser_peek(self).line;
-size_t arm_col = compiler__parser__Parser_peek(self).col;
+compiler__lexer__Token __destruct_tmp_9 = compiler__parser__Parser_peek(self);
+size_t arm_line;
+size_t arm_col;
+compiler__lexer__Token_unpack_3(&__destruct_tmp_9, &arm_line, &arm_col);
 bool is_else = false;
 std__collections__List_ptr_compiler__ast__AstNode patterns = std__collections__List_ptr_compiler__ast__AstNode_init(4);
 if (compiler__parser__Parser_match_token(self, 59)) {
@@ -11038,11 +11047,11 @@ return compiler__parser__Parser_node(self, (compiler__ast__NodeData){ .tag = 36,
 }
 
 compiler__ast__AstNode* compiler__parser__Parser_parse_statement(compiler__parser__Parser* self) {
-compiler__lexer__Token __destruct_tmp_8 = compiler__parser__Parser_peek(self);
+compiler__lexer__Token __destruct_tmp_10 = compiler__parser__Parser_peek(self);
 compiler__lexer__TokenType tok_type;
 size_t line;
 size_t col;
-compiler__lexer__Token_unpack_4(&__destruct_tmp_8, &tok_type, &line, &col);
+compiler__lexer__Token_unpack_4(&__destruct_tmp_10, &tok_type, &line, &col);
 if (tok_type == 17) {
 return compiler__parser__Parser_parse_block_stmt(self);
 } else if (tok_type == 52 || tok_type == 53) {
@@ -11097,10 +11106,10 @@ return size;
 }
 
 compiler__ast__AstNode* compiler__parser__Parser_parse_single_type(compiler__parser__Parser* self) {
-compiler__lexer__Token __destruct_tmp_9 = compiler__parser__Parser_peek(self);
+compiler__lexer__Token __destruct_tmp_11 = compiler__parser__Parser_peek(self);
 size_t line;
 size_t col;
-compiler__lexer__Token_unpack_3(&__destruct_tmp_9, &line, &col);
+compiler__lexer__Token_unpack_3(&__destruct_tmp_11, &line, &col);
 if (compiler__parser__Parser_match_token(self, 8)) {
 compiler__ast__AstNode* pointee = compiler__parser__Parser_parse_single_type(self);
 return compiler__parser__Parser_node(self, (compiler__ast__NodeData){ .tag = 2, .u.PointerType = { false, pointee } }, line, col);
@@ -11401,8 +11410,11 @@ bool already = false;
 size_t __for_n = std__collections__List_compiler__loader__ModuleFile_count(&list);
 size_t __for_i = 0;
 while (__for_i < __for_n) {
-compiler__loader__ModuleFile m = std__collections__List_compiler__loader__ModuleFile_at(&list, __for_i);
-if (kobel_streq(m.path, f_p.raw)) {
+compiler__loader__ModuleFile __destruct_tmp_12 = std__collections__List_compiler__loader__ModuleFile_at(&list, __for_i);
+kobel_str m_path;
+kobel_str __destruct_unused_12_1;
+compiler__loader__ModuleFile_unpack_3(&__destruct_tmp_12, &m_path, &__destruct_unused_12_1);
+if (kobel_streq(m_path, f_p.raw)) {
 already = true;
 }
 __for_i = (__for_i + 1);
@@ -11454,10 +11466,10 @@ return;
 size_t __for_n = std__collections__List_compiler__loader__ModuleFile_count(&files);
 size_t __for_i = 0;
 while (__for_i < __for_n) {
-compiler__loader__ModuleFile __destruct_tmp_10 = std__collections__List_compiler__loader__ModuleFile_at(&files, __for_i);
+compiler__loader__ModuleFile __destruct_tmp_13 = std__collections__List_compiler__loader__ModuleFile_at(&files, __for_i);
 kobel_str f_path;
 kobel_str f_src;
-compiler__loader__ModuleFile_unpack_3(&__destruct_tmp_10, &f_path, &f_src);
+compiler__loader__ModuleFile_unpack_3(&__destruct_tmp_13, &f_path, &f_src);
 compiler__ast__AstNode* prog = compiler__loader__ModuleLoader_parse_source(self, f_path, f_src, module_name);
 if (prog == NULL) {
 {
@@ -18492,6 +18504,9 @@ return node;
 }
 
 compiler__ast__AstNode* compiler__semantic__lowering__LoweringPass_lower_interp(compiler__semantic__lowering__LoweringPass* self, compiler__ast__AstNode* node, compiler__ast__NodeData__InterpExpr* ie) {
+size_t line;
+size_t col;
+compiler__ast__AstNode_unpack(node, &line, &col);
 std__collections__List_ptr_compiler__ast__AstNode pieces = std__collections__List_ptr_compiler__ast__AstNode_init(4);
 {
 size_t __for_e = ie->parts.len;
@@ -18513,7 +18528,7 @@ std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&pieces, lit->node
 } else if (part.tag == compiler__ast__InterpPart__Hole__TAG) {
 compiler__ast__InterpPart__Hole* hole = (compiler__ast__InterpPart__Hole*)(&(part).u.Hole);
 compiler__ast__AstNode* piece = hole->node;
-compiler__ast__AstNode* conv = compiler__semantic__lowering__LoweringPass_to_str_expr(self, piece, node->line, node->col);
+compiler__ast__AstNode* conv = compiler__semantic__lowering__LoweringPass_to_str_expr(self, piece, line, col);
 if (conv != NULL) {
 piece = conv;
 }
@@ -18533,9 +18548,9 @@ __for_i = (__for_i - 1);
 }
 }
 }
-compiler__ast__AstNode* acc = std__memory__Arena_interp_concat_many(&self->arena, pieces, node->line, node->col);
+compiler__ast__AstNode* acc = std__memory__Arena_interp_concat_many(&self->arena, pieces, line, col);
 if (acc == NULL) {
-acc = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 5, .u.LiteralExpr = { 4, KOBEL_STR("\"\"") } }, node->line, node->col);
+acc = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 5, .u.LiteralExpr = { 4, KOBEL_STR("\"\"") } }, line, col);
 }
 {
 compiler__ast__AstNode* __ret_tmp = compiler__semantic__lowering__LoweringPass_lowered(self, node, acc);
@@ -23344,7 +23359,12 @@ compiler__semantic__types__Type* init_ty = compiler__semantic__checker__BodyChec
 compiler__semantic__checker__BodyChecker_ensure(self, (init_ty->kind != 0), node, KOBEL_STR("Cannot destructure void expression"));
 compiler__semantic__types__Type* struct_ty = init_ty;
 if (struct_ty->kind == 16) {
-struct_ty = (*compiler__semantic__types__Type_as_pointer(struct_ty)).pointee;
+compiler__semantic__types__TypePayload__Pointer* ptr_ty = compiler__semantic__types__Type_as_pointer(struct_ty);
+if (ptr_ty->nullable) {
+compiler__semantic__checker__BodyChecker_report_error(self, node, kobel_concat(3, KOBEL_STR("Cannot destructure nullable pointer '"), compiler__semantic__checker__BodyChecker_type_display(self, init_ty), KOBEL_STR("'. Use '!' or null-check first")));
+return;
+}
+struct_ty = ptr_ty->pointee;
 }
 compiler__semantic__checker__BodyChecker_ensure(self, (struct_ty->kind == 18), node, KOBEL_STR("Cannot destructure non-struct type"));
 if (struct_ty->kind != 18) {
@@ -23828,10 +23848,10 @@ compiler__ast__AstNode* block = compiler__semantic__lowering__LoopLowerer_desuga
 size_t __for_n = std__collections__List_compiler__semantic__lowering__PendingResolve_count(&pending);
 size_t __for_i = 0;
 while (__for_i < __for_n) {
-compiler__semantic__lowering__PendingResolve __destruct_tmp_12 = std__collections__List_compiler__semantic__lowering__PendingResolve_at(&pending, __for_i);
+compiler__semantic__lowering__PendingResolve __destruct_tmp_16 = std__collections__List_compiler__semantic__lowering__PendingResolve_at(&pending, __for_i);
 compiler__ast__AstNode* p_node;
 compiler__ast__AstNode* target;
-compiler__semantic__lowering__PendingResolve_unpack(&__destruct_tmp_12, &p_node, &target);
+compiler__semantic__lowering__PendingResolve_unpack(&__destruct_tmp_16, &p_node, &target);
 compiler__semantic__checker__BodyChecker_set_resolved(self, p_node, target);
 __for_i = (__for_i + 1);
 }
@@ -25959,18 +25979,18 @@ std__collections__List_compiler__codegen__ConditionAlias cond_aliases = compiler
 size_t __for_n = std__collections__List_compiler__codegen__ConditionAlias_count(&cond_aliases);
 size_t __for_i = 0;
 while (__for_i < __for_n) {
-compiler__codegen__ConditionAlias __destruct_tmp_13 = std__collections__List_compiler__codegen__ConditionAlias_at(&cond_aliases, __for_i);
+compiler__codegen__ConditionAlias __destruct_tmp_17 = std__collections__List_compiler__codegen__ConditionAlias_at(&cond_aliases, __for_i);
 kobel_str ca_name;
 kobel_str ca_type;
-compiler__codegen__ConditionAlias_unpack_3(&__destruct_tmp_13, &ca_name, &ca_type);
+compiler__codegen__ConditionAlias_unpack_3(&__destruct_tmp_17, &ca_name, &ca_type);
 {
 size_t __for_n = std__collections__List_compiler__codegen__ConditionAlias_count(&aliases);
 size_t __for_i = 0;
 while (__for_i < __for_n) {
-compiler__codegen__ConditionAlias __destruct_tmp_14 = std__collections__List_compiler__codegen__ConditionAlias_at(&aliases, __for_i);
+compiler__codegen__ConditionAlias __destruct_tmp_18 = std__collections__List_compiler__codegen__ConditionAlias_at(&aliases, __for_i);
 kobel_str a_name;
 kobel_str a_type;
-compiler__codegen__ConditionAlias_unpack_3(&__destruct_tmp_14, &a_name, &a_type);
+compiler__codegen__ConditionAlias_unpack_3(&__destruct_tmp_18, &a_name, &a_type);
 if (kobel_streq(ca_name, a_name) && !kobel_streq(ca_type, a_type)) {
 return true;
 }
@@ -26001,16 +26021,16 @@ while (__for_i < __for_n) {
 compiler__codegen__ConditionAlias ea = std__collections__List_compiler__codegen__ConditionAlias_at(&elif_aliases, __for_i);
 bool found = false;
 kobel_str ea_name;
-kobel_str __destruct_unused_15_1;
-compiler__codegen__ConditionAlias_unpack_3(&ea, &ea_name, &__destruct_unused_15_1);
+kobel_str __destruct_unused_19_1;
+compiler__codegen__ConditionAlias_unpack_3(&ea, &ea_name, &__destruct_unused_19_1);
 {
 size_t __for_n = std__collections__List_compiler__codegen__ConditionAlias_count(&aliases);
 size_t __for_i = 0;
 while (__for_i < __for_n) {
-compiler__codegen__ConditionAlias __destruct_tmp_16 = std__collections__List_compiler__codegen__ConditionAlias_at(&aliases, __for_i);
+compiler__codegen__ConditionAlias __destruct_tmp_20 = std__collections__List_compiler__codegen__ConditionAlias_at(&aliases, __for_i);
 kobel_str a_name;
-kobel_str __destruct_unused_16_1;
-compiler__codegen__ConditionAlias_unpack_3(&__destruct_tmp_16, &a_name, &__destruct_unused_16_1);
+kobel_str __destruct_unused_20_1;
+compiler__codegen__ConditionAlias_unpack_3(&__destruct_tmp_20, &a_name, &__destruct_unused_20_1);
 if (kobel_streq(a_name, ea_name)) {
 found = true;
 break;
@@ -28948,11 +28968,11 @@ compiler__semantic__symbols__ModuleScope* mod_scope = std__collections__List_ptr
 size_t __for_n = compiler__semantic__symbols__ModuleScope_count(mod_scope);
 size_t __for_i = 0;
 while (__for_i < __for_n) {
-compiler__semantic__symbols__Symbol* __destruct_tmp_17 = compiler__semantic__symbols__ModuleScope_at(mod_scope, __for_i);
+compiler__semantic__symbols__Symbol* __destruct_tmp_21 = compiler__semantic__symbols__ModuleScope_at(mod_scope, __for_i);
 kobel_str name;
 compiler__semantic__symbols__SymbolKind kind;
 compiler__semantic__types__Type* type_ptr;
-compiler__semantic__symbols__Symbol_unpack_4(__destruct_tmp_17, &name, &kind, &type_ptr);
+compiler__semantic__symbols__Symbol_unpack_4(__destruct_tmp_21, &name, &kind, &type_ptr);
 int64_t k = (kind == 3 ? 3 : (kind == 4 ? 22 : (kind == 5 ? 13 : (kind == 0 ? 6 : (kind == 1 ? 21 : 6)))));
 lsp__add_completion_item(items, name, k, compiler__semantic__types__Type_to_str(type_ptr));
 __for_i = (__for_i + 1);
@@ -29981,10 +30001,10 @@ kobel_str uri = lsp__JsonValue_get_str(text_doc, KOBEL_STR("uri"), KOBEL_STR("")
 lsp__JsonValue* pos = lsp__JsonValue_get_obj(params, KOBEL_STR("position"));
 size_t line = (size_t)lsp__JsonValue_get_num(pos, KOBEL_STR("line"), 0);
 size_t char_col = (size_t)lsp__JsonValue_get_num(pos, KOBEL_STR("character"), 0);
-lsp__Document __destruct_tmp_18 = lsp__DocumentStore_get(&self->docs, uri);
+lsp__Document __destruct_tmp_22 = lsp__DocumentStore_get(&self->docs, uri);
 kobel_str doc_path;
 kobel_str doc_text;
-lsp__Document_unpack_3(&__destruct_tmp_18, &doc_path, &doc_text);
+lsp__Document_unpack_3(&__destruct_tmp_22, &doc_path, &doc_text);
 if (!str_empty(doc_text)) {
 lsp__AnalysisResult analysis = lsp__AnalysisResult_init(doc_path, doc_text, self->workspace_root);
 lsp__JsonValue* h = lsp__AnalysisResult_hover_at(&analysis, line, char_col);
@@ -29998,10 +30018,10 @@ kobel_str uri = lsp__JsonValue_get_str(text_doc, KOBEL_STR("uri"), KOBEL_STR("")
 lsp__JsonValue* pos = lsp__JsonValue_get_obj(params, KOBEL_STR("position"));
 size_t line = (size_t)lsp__JsonValue_get_num(pos, KOBEL_STR("line"), 0);
 size_t char_col = (size_t)lsp__JsonValue_get_num(pos, KOBEL_STR("character"), 0);
-lsp__Document __destruct_tmp_19 = lsp__DocumentStore_get(&self->docs, uri);
+lsp__Document __destruct_tmp_23 = lsp__DocumentStore_get(&self->docs, uri);
 kobel_str doc_path;
 kobel_str doc_text;
-lsp__Document_unpack_3(&__destruct_tmp_19, &doc_path, &doc_text);
+lsp__Document_unpack_3(&__destruct_tmp_23, &doc_path, &doc_text);
 if (!str_empty(doc_text)) {
 lsp__AnalysisResult analysis = lsp__AnalysisResult_init(doc_path, doc_text, self->workspace_root);
 lsp__JsonValue* def_res = lsp__AnalysisResult_definition_at(&analysis, uri, line, char_col);
@@ -30012,9 +30032,12 @@ lsp__send_response(id, lsp__JsonValue_null_val());
 } else if (kobel_streq(method, KOBEL_STR("textDocument/formatting"))) {
 lsp__JsonValue* text_doc = lsp__JsonValue_get_obj(params, KOBEL_STR("textDocument"));
 kobel_str uri = lsp__JsonValue_get_str(text_doc, KOBEL_STR("uri"), KOBEL_STR(""));
-lsp__Document doc = lsp__DocumentStore_get(&self->docs, uri);
-if (!str_empty(doc.text)) {
-lsp__JsonValue* edits = lsp__AnalysisResult_format_document(doc.text);
+lsp__Document __destruct_tmp_24 = lsp__DocumentStore_get(&self->docs, uri);
+kobel_str __destruct_unused_24_0;
+kobel_str doc_text;
+lsp__Document_unpack_3(&__destruct_tmp_24, &__destruct_unused_24_0, &doc_text);
+if (!str_empty(doc_text)) {
+lsp__JsonValue* edits = lsp__AnalysisResult_format_document(doc_text);
 lsp__send_response(id, edits);
 } else {
 lsp__send_response(id, lsp__JsonValue_arr());
@@ -30022,9 +30045,12 @@ lsp__send_response(id, lsp__JsonValue_arr());
 } else if (kobel_streq(method, KOBEL_STR("textDocument/documentSymbol"))) {
 lsp__JsonValue* text_doc = lsp__JsonValue_get_obj(params, KOBEL_STR("textDocument"));
 kobel_str uri = lsp__JsonValue_get_str(text_doc, KOBEL_STR("uri"), KOBEL_STR(""));
-lsp__Document doc = lsp__DocumentStore_get(&self->docs, uri);
-if (!str_empty(doc.text)) {
-lsp__JsonValue* syms = lsp__AnalysisResult_document_symbols(doc.text);
+lsp__Document __destruct_tmp_25 = lsp__DocumentStore_get(&self->docs, uri);
+kobel_str __destruct_unused_25_0;
+kobel_str doc_text;
+lsp__Document_unpack_3(&__destruct_tmp_25, &__destruct_unused_25_0, &doc_text);
+if (!str_empty(doc_text)) {
+lsp__JsonValue* syms = lsp__AnalysisResult_document_symbols(doc_text);
 lsp__send_response(id, syms);
 } else {
 lsp__send_response(id, lsp__JsonValue_arr());
@@ -30032,9 +30058,12 @@ lsp__send_response(id, lsp__JsonValue_arr());
 } else if (kobel_streq(method, KOBEL_STR("textDocument/completion"))) {
 lsp__JsonValue* text_doc = lsp__JsonValue_get_obj(params, KOBEL_STR("textDocument"));
 kobel_str uri = lsp__JsonValue_get_str(text_doc, KOBEL_STR("uri"), KOBEL_STR(""));
-lsp__Document doc = lsp__DocumentStore_get(&self->docs, uri);
-if (!str_empty(doc.text)) {
-lsp__AnalysisResult analysis = lsp__AnalysisResult_init(doc.path, doc.text, self->workspace_root);
+lsp__Document __destruct_tmp_26 = lsp__DocumentStore_get(&self->docs, uri);
+kobel_str doc_path;
+kobel_str doc_text;
+lsp__Document_unpack_3(&__destruct_tmp_26, &doc_path, &doc_text);
+if (!str_empty(doc_text)) {
+lsp__AnalysisResult analysis = lsp__AnalysisResult_init(doc_path, doc_text, self->workspace_root);
 lsp__JsonValue* items = lsp__AnalysisResult_complete_at(&analysis);
 lsp__send_response(id, items);
 } else {

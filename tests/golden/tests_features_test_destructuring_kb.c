@@ -546,6 +546,7 @@ void test__test_destructuring__test_indexed_destructuring(void);
 void test__test_destructuring__test_hashmap_for_destructuring(void);
 void test__test_destructuring__test_loop_and_nested(void);
 void test__test_destructuring__test_hashmap_entries_destructuring(void);
+void test__test_destructuring__test_nullable_destructuring(void);
 int32_t main(void);
 size_t std__collections__List_str_count(std__collections__List_str* self);
 kobel_str std__collections__List_str_at(std__collections__List_str* self, size_t i);
@@ -2263,6 +2264,17 @@ std__collections__List_std__collections__MapEntry_str_i32_free(&entries);
 std__collections__HashMap_str_i32_free(&map);
 }
 
+void test__test_destructuring__test_nullable_destructuring(void) {
+test__test_destructuring__Point2D pt = test__test_destructuring__Point2D_init(50, 60);
+test__test_destructuring__Point2D* pt_ptr = &pt;
+test__test_destructuring__Point2D* __destruct_tmp_20 = pt_ptr;
+int32_t nx;
+int32_t ny;
+test__test_destructuring__Point2D_unpack(__destruct_tmp_20, &nx, &ny);
+testsupport__assert__assert_eq_i32(nx, 50, KOBEL_STR("nx == 50"));
+testsupport__assert__assert_eq_i32(ny, 60, KOBEL_STR("ny == 60"));
+}
+
 int32_t main(void) {
 std__io__println(KOBEL_STR("=== Running Destructuring Tests ==="));
 test__test_destructuring__test_val_destructuring();
@@ -2272,6 +2284,7 @@ test__test_destructuring__test_generic_destructuring();
 test__test_destructuring__test_indexed_destructuring();
 test__test_destructuring__test_hashmap_for_destructuring();
 test__test_destructuring__test_hashmap_entries_destructuring();
+test__test_destructuring__test_nullable_destructuring();
 test__test_destructuring__test_loop_and_nested();
 std__io__println(KOBEL_STR("All destructuring tests passed!"));
 return 0;
