@@ -300,8 +300,7 @@ impl Parser {
 
 	pub fn parse_prefix(var self): *AstNode {
 		val tok = self.advance();
-		val line = tok.line;
-		val col = tok.col;
+		val (line, col) = tok;
 
 		// Literals
 		return when (tok.type) {
@@ -422,11 +421,9 @@ impl Parser {
 	}
 
 	pub fn parse_infix(var self, left: *AstNode, prec: Precedence): *AstNode {
-		val tok = self.peek();
-		val line = tok.line;
-		val col = tok.col;
+		val (tok_type, line, col) = self.peek();
 
-		when (tok.type) {
+		when (tok_type) {
 			// 1. Postfix update: left++, left--
 			TokenType.PLUS_PLUS -> {
 				self.advance();
@@ -460,8 +457,7 @@ impl Parser {
 			self.match_token(TokenType.QUESTION_COLON) -> {
 				val right = when {
 					self.match_token(TokenType.KW_RETURN) -> {
-						val kw_line = self.previous().line;
-						val kw_col = self.previous().col;
+						val (kw_line, kw_col) = self.previous();
 						val value = if (
 							!self.check(TokenType.SEMI_COLON)
 							&& !self.check(TokenType.CLOSE_BRACE)
@@ -471,18 +467,15 @@ impl Parser {
 						yield self.node(NodeData.ReturnStmt(value), kw_line, kw_col);
 					}
 					self.match_token(TokenType.KW_BREAK) -> {
-						val kw_line = self.previous().line;
-						val kw_col = self.previous().col;
+						val (kw_line, kw_col) = self.previous();
 						yield self.node(NodeData.BreakStmt, kw_line, kw_col);
 					}
 					self.match_token(TokenType.KW_CONTINUE) -> {
-						val kw_line = self.previous().line;
-						val kw_col = self.previous().col;
+						val (kw_line, kw_col) = self.previous();
 						yield self.node(NodeData.ContinueStmt, kw_line, kw_col);
 					}
 					self.match_token(TokenType.KW_YIELD) -> {
-						val kw_line = self.previous().line;
-						val kw_col = self.previous().col;
+						val (kw_line, kw_col) = self.previous();
 						val value = if (
 							!self.check(TokenType.SEMI_COLON)
 							&& !self.check(TokenType.CLOSE_BRACE)

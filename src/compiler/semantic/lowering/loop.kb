@@ -27,6 +27,17 @@ pub struct PendingResolve {
 	pub target: *AstNode
 }
 
+impl PendingResolve {
+
+	pub init(node: *AstNode, target: *AstNode) => Self(node, target);
+
+	pub op unpack(val self, node: &*AstNode, target: &*AstNode) {
+		node.write(self.node);
+		target.write(self.target);
+	}
+
+}
+
 // The iterated expression is re-evaluated on every iteration, so only lvalues
 // are accepted: a temporary would dangle and a call would run once per element.
 pub fn for_is_lvalue(node: *AstNode?): bool {
@@ -422,8 +433,7 @@ impl LoopLowerer {
 		use_iter_trait: bool,
 		pending: &List<PendingResolve>
 	): *AstNode {
-		val line = node.line;
-		val col = node.col;
+		val (line, col) = node;
 
 		var pre = List<*AstNode>();
 		var head = List<*AstNode>();

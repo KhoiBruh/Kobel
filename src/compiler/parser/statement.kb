@@ -233,11 +233,9 @@ impl Parser {
 	}
 
 	pub fn parse_statement(var self): *AstNode {
-		val tok = self.peek();
-		val line = tok.line;
-		val col = tok.col;
+		val (tok_type, line, col) = self.peek();
 
-		return when (tok.type) {
+		return when (tok_type) {
 			TokenType.OPEN_BRACE -> self.parse_block_stmt();
 			TokenType.KW_VAL, TokenType.KW_VAR -> self.parse_var_decl_stmt();
 			TokenType.KW_IF -> self.parse_if_stmt();

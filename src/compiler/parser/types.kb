@@ -25,9 +25,7 @@ fn parse_usize_literal(text: str): usz {
 impl Parser {
 
 	pub fn parse_single_type(var self): *AstNode {
-		val tok = self.peek();
-		val line = tok.line;
-		val col = tok.col;
+		val (line, col) = self.peek();
 
 		// 1. Pointer type: *T (read-only) or &T (read-write)
 		if (self.match_token(TokenType.STAR)) {

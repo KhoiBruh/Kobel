@@ -40,6 +40,23 @@ pub struct ModuleFile {
 	pub source: str
 }
 
+impl ModuleFile {
+
+	pub init(found: bool, path: str, source: str) => Self(found, path, source);
+
+	pub op unpack(val self, path: &str, source: &str) {
+		path.write(self.path);
+		source.write(self.source);
+	}
+
+	pub op unpack(val self, found: &bool, path: &str, source: &str) {
+		found.write(self.found);
+		path.write(self.path);
+		source.write(self.source);
+	}
+
+}
+
 pub struct ModuleLoader {
 	pub roots: List<str>,
 	pub modules: List<LoadedModule>,
@@ -235,22 +252,22 @@ impl ModuleLoader {
 			return;
 		}
 
-		for (file in files) {
-			val prog = self.parse_source(file.path, file.source, module_name) ?: continue;
+		for ((f_path, f_src) in files) {
+			val prog = self.parse_source(f_path, f_src, module_name) ?: continue;
 
 			var declared = "";
 			if (prog is Program as p) declared = p.declared_module_name();
 			if (!declared.empty() && declared != module_name) {
 				val context = if (!parent_mod.empty()) " (imported from '${parent_mod}')" else "";
 				self.errors += Diagnostic.error(
-					Span(0, line as u32, col as u32, 1), file.path,
+					Span(0, line as u32, col as u32, 1), f_path,
 					"module declared as '${declared}' but imported as '${module_name}'${context}"
 				);
 				continue;
 			}
 
 			self.process_uses(prog, module_name);
-			self.ordered += LoadedModule(module_name, file.path, prog, prog.span.file_id);
+			self.ordered += LoadedModule(module_name, f_path, prog, prog.span.file_id);
 		}
 	}
 
