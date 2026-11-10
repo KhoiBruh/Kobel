@@ -52,14 +52,17 @@ pub struct ModuleLoader {
 
 pub fn detect_project_root(start_dir: str): str {
 	var curr = Path(start_dir);
-	var count: usz = 0;
+	var count = 0;
 	while (!curr.empty() && count < 10) {
 		val man_p = curr.join("kobel.toml");
 		if (man_p.exists()) return curr.raw;
+
 		val test_p = curr.join("lib/std/io.kb");
 		if (test_p.exists()) return curr.raw;
+
 		val parent = curr.parent();
 		if (parent.raw == curr.raw || parent.empty()) break;
+
 		curr = parent;
 		count++;
 	}
@@ -119,10 +122,10 @@ impl ModuleLoader {
 		);
 	}
 
-	pub fn module_decl(var self, path: List<str>, full_path: str, line: usz, col: usz): *AstNode
+	pub fn module_decl(var self, path: List<str>, full_path: str, line: usz, col: usz)
 		=> self.arena.node(NodeData.ModuleDecl(path, full_path), line, col);
 
-	pub fn program(var self, declarations: List<*AstNode>, line: usz, col: usz): *AstNode
+	pub fn program(var self, declarations: List<*AstNode>, line: usz, col: usz)
 		=> self.arena.node(NodeData.Program(declarations), line, col);
 
 	pub fn count(val self) => self.ordered.len;
@@ -177,9 +180,7 @@ impl ModuleLoader {
 			// 1. Single-file module: <root>/<rel>.kb
 			val cand_p = root_p.join(rel_file);
 			val src = cand_p.read_text();
-			if (!src.empty()) {
-				list += ModuleFile(true, cand_p.raw, src);
-			}
+			if (!src.empty()) list += ModuleFile(true, cand_p.raw, src);
 
 			// 2. Folder-as-package: <root>/<rel>/
 			val dir_p = root_p.join(rel_dir);

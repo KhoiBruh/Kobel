@@ -91,6 +91,7 @@ impl Lexer {
 	pub fn peek_at(val self, offset: usz): char {
 		val idx = self.cursor + offset;
 		if (idx >= self.src.len) return '\0';
+
 		return self.src[idx];
 	}
 
@@ -98,6 +99,7 @@ impl Lexer {
 
 	pub fn next(var self): char {
 		if (self.is_end()) return '\0';
+
 		val c = self.src[self.cursor];
 		self.cursor++;
 		self.col++;
@@ -107,6 +109,7 @@ impl Lexer {
 	pub fn match(var self, expected: char): bool {
 		if (self.is_end()) return false;
 		if (self.src[self.cursor] != expected) return false;
+
 		self.cursor++;
 		self.col++;
 		return true;
@@ -114,7 +117,7 @@ impl Lexer {
 
 	pub fn record_error(var self, line: usz, col: usz, msg: str) {
 		self.errors += Diagnostic.error(
-			Span(self.file_id, line as u32, col as u32, 1), "", msg
+			Span(self.file_id, line, col), "", msg
 		);
 	}
 
@@ -128,16 +131,20 @@ impl Lexer {
 		start_cursor: usz, start_line: usz, start_col: usz
 	): Token {
 		val text = self.sub(start_cursor);
-		val sp = Span(self.file_id, start_line as u32, start_col as u32, text.len as u32);
-		return Token(type, text, start_line, start_col, sp);
+		val span = Span(self.file_id, start_line, start_col, text.len);
+		return Token(type, text, start_line, start_col, span);
 	}
 
 	pub fn newline(var self) {
 		val c = self.peek();
-		if (c == '\r') {
-			self.next();
-			if (!self.is_end() && self.peek() == '\n') self.cursor++;
-		} else if (c == '\n') self.cursor++;
+		when (c) {
+			'\r' -> {
+				self.next();
+				if (!self.is_end() && self.peek() == '\n') self.cursor++;
+			}
+			'\n' -> self.cursor++;
+		}
+
 		self.line++;
 		self.col = 1;
 	}
@@ -145,27 +152,32 @@ impl Lexer {
 	pub fn skip_space(var self) {
 		while (!self.is_end()) {
 			val c = self.peek();
-			if (c == ' ' || c == '\t') self.next();
-			else if (c == '\r' || c == '\n') self.newline();
-			else break;
+			when (c) {
+				' ', '\t' -> self.next();
+				'\r', '\n' -> self.newline();
+				else -> break;
+			}
 		}
 	}
 
 	pub fn scan_identifier(var self, start_cursor: usz, start_col: usz): Token {
 		while (!self.is_end()) {
 			val c = self.peek();
-			if (c.is_alphanumeric() || c == '_') self.next(); else break;
+			if (c.is_alphanumeric() || c == '_') self.next();
+			else break;
 		}
+
 		val text = self.sub(start_cursor);
 		val kw = lookup_keyword(text);
-		val sp = Span(self.file_id, self.line as u32, start_col as u32, text.len as u32);
+		val sp = Span(self.file_id, self.line, start_col, text.len);
 		return Token(kw, text, self.line, start_col, sp);
 	}
 
 	pub fn scan_decimal_digits_and_fraction(var self) {
 		while (!self.is_end()) {
 			val c = self.peek();
-			if (c.is_digit() || c == '_') self.next(); else break;
+			if (c.is_digit() || c == '_') self.next();
+			else break;
 		}
 
 		if (
@@ -176,7 +188,8 @@ impl Lexer {
 			self.next(); // consume '.'
 			while (!self.is_end()) {
 				val c = self.peek();
-				if (c.is_digit() || c == '_') self.next(); else break;
+				if (c.is_digit() || c == '_') self.next();
+				else break;
 			}
 		}
 	}
@@ -190,21 +203,24 @@ impl Lexer {
 					self.next(); // consume 'x' or 'X'
 					while (!self.is_end()) {
 						val c = self.peek();
-						if (c.is_hex_digit() || c == '_') self.next(); else break;
+						if (c.is_hex_digit() || c == '_') self.next();
+						else break;
 					}
 				}
 				'b', 'B' -> {
 					self.next(); // consume 'b' or 'B'
 					while (!self.is_end()) {
 						val c = self.peek();
-						if (c == '0' || c == '1' || c == '_') self.next(); else break;
+						if (c == '0' || c == '1' || c == '_') self.next();
+						else break;
 					}
 				}
 				'o', 'O' -> {
 					self.next(); // consume 'o' or 'O'
 					while (!self.is_end()) {
 						val c = self.peek();
-						if ((c >= '0' && c <= '7') || c == '_') self.next(); else break;
+						if ((c >= '0' && c <= '7') || c == '_') self.next();
+						else break;
 					}
 				}
 				else -> self.scan_decimal_digits_and_fraction();
@@ -244,40 +260,45 @@ impl Lexer {
 		var closed = false;
 		while (!self.is_end()) {
 			val c = self.peek();
-			if (c == '"') {
-				self.next();
-				closed = true;
-				break;
-			}
-			if (c == '\\') {
-				self.next(); // consume '\'
-				if (!self.is_end()) {
-					val esc = self.peek();
-					if (esc == '\r' || esc == '\n') self.newline();
-					else self.next();
+			when (c) {
+				'"' -> {
+					self.next();
+					closed = true;
+					break;
 				}
-				continue;
+				'\\' -> {
+					self.next(); // consume '\'
+					if (!self.is_end()) {
+						val esc = self.peek();
+						if (esc == '\r' || esc == '\n') self.newline();
+						else self.next();
+					}
+					continue;
+				}
+				'\r', '\n' -> {
+					self.newline();
+					continue;
+				}
+				/*
+				* `${...}` is an interpolation hole: skip it (nesting-aware) so the
+				* closing quote of the string is found correctly. Where the braces
+				* are, and what the hole contains, is the parser's business.
+				*/
+				'$' -> if (self.peek_at(1) == '{') {
+					self.next(); // '$'
+					self.skip_hole();
+					continue;
+				}
 			}
-			if (c == '\r' || c == '\n') {
-				self.newline();
-				continue;
-			}
-			/*
-			 * `${...}` is an interpolation hole: skip it (nesting-aware) so the
-			 * closing quote of the string is found correctly. Where the braces
-			 * are, and what the hole contains, is the parser's business.
-			 */
-			if (c == '$' && self.peek_at(1) == '{') {
-				self.next(); // '$'
-				self.skip_hole();
-				continue;
-			}
+
 			self.next();
 		}
+
 		if (!closed) {
 			self.record_error(start_line, start_col, "Unterminated string literal");
 			return self.make_token_at(TokenType.UNKNOWN, start_cursor, start_line, start_col);
 		}
+
 		return self.make_token_at(TokenType.STRING, start_cursor, start_line, start_col);
 	}
 
@@ -286,37 +307,42 @@ impl Lexer {
 		var closed = false;
 		while (!self.is_end()) {
 			val c = self.peek();
-			if (c == '"' && self.peek_at(1) == '"' && self.peek_at(2) == '"') {
-				self.next();
-				self.next();
-				self.next();
-				closed = true;
-				break;
-			}
-			if (c == '\\') {
-				self.next(); // consume '\'
-				if (!self.is_end()) {
-					val esc = self.peek();
-					if (esc == '\r' || esc == '\n') self.newline();
-					else self.next();
+			when (c) {
+				'"' -> if (self.peek_at(1) == '"' && self.peek_at(2) == '"') {
+					self.next();
+					self.next();
+					self.next();
+					closed = true;
+					break;
 				}
-				continue;
+				'\\' -> {
+					self.next(); // consume '\'
+					if (!self.is_end()) {
+						val esc = self.peek();
+						if (esc == '\r' || esc == '\n') self.newline();
+						else self.next();
+					}
+					continue;
+				}
+				'\r', '\n' -> {
+					self.newline();
+					continue;
+				}
+				'$' -> if (self.peek_at(1) == '{') {
+					self.next(); // '$'
+					self.skip_hole();
+					continue;
+				}
 			}
-			if (c == '\r' || c == '\n') {
-				self.newline();
-				continue;
-			}
-			if (c == '$' && self.peek_at(1) == '{') {
-				self.next(); // '$'
-				self.skip_hole();
-				continue;
-			}
+
 			self.next();
 		}
+
 		if (!closed) {
 			self.record_error(start_line, start_col, "Unterminated multiline string literal");
 			return self.make_token_at(TokenType.UNKNOWN, start_cursor, start_line, start_col);
 		}
+
 		return self.make_token_at(TokenType.STRING, start_cursor, start_line, start_col);
 	}
 
@@ -368,30 +394,33 @@ impl Lexer {
 		self.next(); // 3rd quote
 		while (!self.is_end()) {
 			val c = self.peek();
-			if (c == '"' && self.peek_at(1) == '"' && self.peek_at(2) == '"') {
-				self.next();
-				self.next();
-				self.next();
-				return;
-			}
-			if (c == '\\') {
-				self.next();
-				if (!self.is_end()) {
-					val esc = self.peek();
-					if (esc == '\r' || esc == '\n') self.newline();
-					else self.next();
+			when (c) {
+				'"' -> if (self.peek_at(1) == '"' && self.peek_at(2) == '"') {
+					self.next();
+					self.next();
+					self.next();
+					return;
 				}
-				continue;
+				'\\' -> {
+					self.next();
+					if (!self.is_end()) {
+						val esc = self.peek();
+						if (esc == '\r' || esc == '\n') self.newline();
+						else self.next();
+					}
+					continue;
+				}
+				'$' -> if (self.peek_at(1) == '{') {
+					self.next(); // '$'
+					self.skip_hole();
+					continue;
+				}
+				'\r', '\n' -> {
+					self.newline();
+					continue;
+				}
 			}
-			if (c == '$' && self.peek_at(1) == '{') {
-				self.next(); // '$'
-				self.skip_hole();
-				continue;
-			}
-			if (c == '\r' || c == '\n') {
-				self.newline();
-				continue;
-			}
+
 			self.next();
 		}
 	}
@@ -404,24 +433,27 @@ impl Lexer {
 		self.next(); // opening quote
 		while (!self.is_end()) {
 			val c = self.peek();
-			if (c == '"') {
-				self.next();
-				return;
+			when (c) {
+				'"' -> {
+					self.next();
+					return;
+				}
+				'\\' -> {
+					self.next();
+					if (!self.is_end()) self.next();
+					continue;
+				}
+				'$' -> if (self.peek_at(1) == '{') {
+					self.next(); // '$'
+					self.skip_hole();
+					continue;
+				}
+				'\r', '\n' -> {
+					self.newline();
+					continue;
+				}
 			}
-			if (c == '\\') {
-				self.next();
-				if (!self.is_end()) self.next();
-				continue;
-			}
-			if (c == '$' && self.peek_at(1) == '{') {
-				self.next(); // '$'
-				self.skip_hole();
-				continue;
-			}
-			if (c == '\r' || c == '\n') {
-				self.newline();
-				continue;
-			}
+
 			self.next();
 		}
 	}
@@ -431,15 +463,18 @@ impl Lexer {
 		self.next(); // opening quote
 		while (!self.is_end()) {
 			val c = self.peek();
-			if (c == '\\') {
-				self.next();
-				if (!self.is_end()) self.next();
-				continue;
+			when (c) {
+				'\\' -> {
+					self.next();
+					if (!self.is_end()) self.next();
+					continue;
+				}
+				'\'' -> {
+					self.next();
+					return;
+				}
 			}
-			if (c == '\'') {
-				self.next();
-				return;
-			}
+
 			self.next();
 		}
 	}
@@ -451,12 +486,15 @@ impl Lexer {
 			self.record_error(start_line, start_col, "Empty or unterminated character literal");
 			return self.make_token_at(TokenType.UNKNOWN, start_cursor, start_line, start_col);
 		}
+
 		if (self.peek() == '\\') self.next();
 		if (!self.is_end()) self.next();
+
 		if (self.peek() == '\'') {
 			self.next();
 			return self.make_token_at(TokenType.CHAR, start_cursor, start_line, start_col);
 		}
+
 		self.record_error(start_line, start_col, "Unterminated character literal");
 		return self.make_token_at(TokenType.UNKNOWN, start_cursor, start_line, start_col);
 	}
@@ -465,7 +503,7 @@ impl Lexer {
 		while (true) {
 			self.skip_space();
 			if (self.is_end()) {
-				val eof_sp = Span(self.file_id, self.line as u32, self.col as u32, 0);
+				val eof_sp = Span(self.file_id, self.line, self.col);
 				return Token(TokenType.END_OF_FILE, "", self.line, self.col, eof_sp);
 			}
 
@@ -602,7 +640,7 @@ impl Lexer {
 			};
 		}
 
-		val unk_sp = Span(self.file_id, self.line as u32, self.col as u32, 0);
+		val unk_sp = Span(self.file_id, self.line, self.col);
 		return Token(TokenType.UNKNOWN, "", self.line, self.col, unk_sp);
 	}
 
