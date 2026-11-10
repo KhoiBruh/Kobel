@@ -196,9 +196,9 @@ impl LanguageServer {
 				Method.FORMATTING.value -> {
 					val text_doc = params.get_obj("textDocument");
 					val uri = text_doc.get_str("uri", "");
-					val doc = self.docs[uri];
-					if (!doc.text.empty()) {
-						val edits = AnalysisResult.format_document(doc.text);
+					val (_, doc_text) = self.docs[uri];
+					if (!doc_text.empty()) {
+						val edits = AnalysisResult.format_document(doc_text);
 						send_response(id, edits);
 					} else {
 						send_response(id, JsonValue.arr());
@@ -208,9 +208,9 @@ impl LanguageServer {
 				Method.DOCUMENT_SYMBOL.value -> {
 					val text_doc = params.get_obj("textDocument");
 					val uri = text_doc.get_str("uri", "");
-					val doc = self.docs[uri];
-					if (!doc.text.empty()) {
-						val syms = AnalysisResult.document_symbols(doc.text);
+					val (_, doc_text) = self.docs[uri];
+					if (!doc_text.empty()) {
+						val syms = AnalysisResult.document_symbols(doc_text);
 						send_response(id, syms);
 					} else {
 						send_response(id, JsonValue.arr());
@@ -220,9 +220,9 @@ impl LanguageServer {
 				Method.COMPLETION.value -> {
 					val text_doc = params.get_obj("textDocument");
 					val uri = text_doc.get_str("uri", "");
-					val doc = self.docs[uri];
-					if (!doc.text.empty()) {
-						val analysis = AnalysisResult(doc.path, doc.text, self.workspace_root);
+					val (doc_path, doc_text) = self.docs[uri];
+					if (!doc_text.empty()) {
+						val analysis = AnalysisResult(doc_path, doc_text, self.workspace_root);
 						val items = analysis.complete_at();
 						send_response(id, items);
 					} else {

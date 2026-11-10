@@ -212,8 +212,8 @@ impl ModuleLoader {
 				for (f in kb_files) {
 					val f_p = dir_p.join(f);
 					var already = false;
-					for (m in list) {
-						if (m.path == f_p.raw) already = true;
+					for ((m_path, _) in list) {
+						if (m_path == f_p.raw) already = true;
 					}
 					if (!already) {
 						val f_src = f_p.read_text();

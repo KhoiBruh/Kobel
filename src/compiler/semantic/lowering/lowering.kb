@@ -372,6 +372,7 @@ impl LoweringPass {
 	}
 
 	fn lower_interp(var self, node: *AstNode, ie: &InterpExpr): *AstNode {
+		val (line, col) = node;
 		var pieces = List<*AstNode>();
 		defer pieces.free();
 		for (i in 0..<ie.parts.len) {
@@ -380,15 +381,15 @@ impl LoweringPass {
 				is InterpPart.Literal as lit -> pieces += lit.node;
 				is InterpPart.Hole as hole -> {
 					var piece = hole.node;
-					val conv = self.to_str_expr(piece, node.line, node.col);
+					val conv = self.to_str_expr(piece, line, col);
 					if (conv != null) piece = conv;
 					pieces += piece;
 				}
 			}
 		}
-		var acc = self.arena.interp_concat_many(pieces, node.line, node.col);
+		var acc = self.arena.interp_concat_many(pieces, line, col);
 		if (acc == null) {
-			acc = self.arena.node(NodeData.LiteralExpr(Literal.STRING, "\"\""), node.line, node.col);
+			acc = self.arena.node(NodeData.LiteralExpr(Literal.STRING, "\"\""), line, col);
 		}
 		return self.lowered(node, acc!);
 	}

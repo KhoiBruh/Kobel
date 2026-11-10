@@ -198,8 +198,7 @@ impl Parser {
 
 		var arms = List<WhenArm>();
 		while (!self.check(TokenType.CLOSE_BRACE) && !self.is_end()) {
-			val arm_line = self.peek().line;
-			val arm_col = self.peek().col;
+			val (arm_line, arm_col) = self.peek();
 			var is_else = false;
 			var patterns = List<*AstNode>();
 
