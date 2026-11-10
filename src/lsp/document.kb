@@ -15,6 +15,21 @@ pub struct Document {
 	pub version: i64 = 0
 }
 
+impl Document {
+
+	pub op unpack(val self, path: &str, text: &str) {
+		path.write(self.path);
+		text.write(self.text);
+	}
+
+	pub op unpack(val self, uri: &str, path: &str, text: &str) {
+		uri.write(self.uri);
+		path.write(self.path);
+		text.write(self.text);
+	}
+
+}
+
 // ============================================================================
 // In-Memory Document Store
 // ============================================================================

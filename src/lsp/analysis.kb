@@ -504,8 +504,8 @@ impl AnalysisResult {
 		// 3. User & imported symbols from SymbolTable
 		if (self.has_symtab) {
 			for (mod_scope in self.symtab.modules) {
-				for (sym in mod_scope.symbols) {
-					val k: i64 = when (sym.kind) {
+				for ((name, kind, type_ptr) in mod_scope) {
+					val k: i64 = when (kind) {
 						SymbolKind.FN -> Completion.FUNCTION.value;
 						SymbolKind.STRUCT -> Completion.STRUCT.value;
 						SymbolKind.ENUM -> Completion.ENUM.value;
@@ -513,7 +513,7 @@ impl AnalysisResult {
 						SymbolKind.CONST -> Completion.CONSTANT.value;
 						else -> Completion.VARIABLE.value;
 					};
-					add_completion_item(items, sym.name, k, sym.type_ptr.to_str());
+					add_completion_item(items, name, k, type_ptr.to_str());
 				}
 			}
 		}

@@ -34,23 +34,18 @@ impl ProjectConfig {
 
 		val doc = Toml(content);
 
-		val name = doc["package.name"];
-		if (!name.empty()) self.name = name;
-
-		val ver = doc["package.version"];
-		if (!ver.empty()) self.version = ver;
-
-		val entry = doc.get("package.entry", doc["build.entry"]);
-		if (!entry.empty()) self.entry = entry;
-
-		val output = doc["build.output"];
-		if (!output.empty()) self.output = output;
-
-		val cc = doc["build.cc"];
-		if (!cc.empty()) self.cc = cc;
-
-		val test_dir = doc["test.dir"];
-		if (!test_dir.empty()) self.test_dir = test_dir;
+		for ((key, val_str) in doc) {
+			if (val_str.empty()) continue;
+			when (key) {
+				"package.name" -> self.name = val_str;
+				"package.version" -> self.version = val_str;
+				"build.entry" -> if (self.entry == "src/main.kb") self.entry = val_str;
+				"package.entry" -> self.entry = val_str;
+				"build.output" -> self.output = val_str;
+				"build.cc" -> self.cc = val_str;
+				"test.dir" -> self.test_dir = val_str;
+			}
+		}
 
 		return self;
 	}

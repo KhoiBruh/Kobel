@@ -1,7 +1,9 @@
 mod config;
 
+use std.traits.Iterable;
 use std.collections.List;
 use std.collections.HashMap;
+use std.collections.MapEntry;
 
 pub struct Toml {
 	pub entries: HashMap<str, str> = HashMap()
@@ -59,5 +61,13 @@ impl Toml {
 	}
 
 	pub op contains(val self, key: str) => key in self.entries;
+
+}
+
+impl Iterable for Toml {
+
+	pub fn count(val self) => self.entries.count();
+
+	pub fn at(val self, i: usz): MapEntry<str, str> => self.entries.at(i);
 
 }

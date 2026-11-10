@@ -166,9 +166,9 @@ impl LanguageServer {
 					val line = pos.get_num("line", 0) as usz;
 					val char_col = pos.get_num("character", 0) as usz;
 
-					val doc = self.docs[uri];
-					if (!doc.text.empty()) {
-						val analysis = AnalysisResult(doc.path, doc.text, self.workspace_root);
+					val (doc_path, doc_text) = self.docs[uri];
+					if (!doc_text.empty()) {
+						val analysis = AnalysisResult(doc_path, doc_text, self.workspace_root);
 						val h = analysis.hover_at(line, char_col);
 						send_response(id, h);
 					} else {
@@ -183,9 +183,9 @@ impl LanguageServer {
 					val line = pos.get_num("line", 0) as usz;
 					val char_col = pos.get_num("character", 0) as usz;
 
-					val doc = self.docs[uri];
-					if (!doc.text.empty()) {
-						val analysis = AnalysisResult(doc.path, doc.text, self.workspace_root);
+					val (doc_path, doc_text) = self.docs[uri];
+					if (!doc_text.empty()) {
+						val analysis = AnalysisResult(doc_path, doc_text, self.workspace_root);
 						val def_res = analysis.definition_at(uri, line, char_col);
 						send_response(id, def_res);
 					} else {
