@@ -514,8 +514,34 @@ fn test_unused_mutability_warning() {
 	println("  [PASS] test_unused_mutability_warning");
 }
 
+fn test_destructure_nullable_pointer_error() {
+	val src = """
+		struct Point {
+		    pub x: i32,
+		    pub y: i32
+		}
+		impl Point {
+		    pub op unpack(val self, x: &i32, y: &i32) {
+		        x.write(self.x);
+		        y.write(self.y);
+		    }
+		}
+		fn test(p: *Point?) {
+		    val (x, y) = p;
+		}
+	""";
+	var l = Lexer(src);
+	var p = Parser(l.tokenize());
+	var bp = BodyChecker();
+	bp.check_program(p.parse_program());
+
+	assert_true(bp.errors.len > 0, "Destructuring nullable pointer must produce an error");
+	println("  [PASS] test_destructure_nullable_pointer_error");
+}
+
 fn main(): i32 {
 	println("[RUNNING] Bootstrap Semantic BodyChecker tests...");
+	test_destructure_nullable_pointer_error();
 	test_cast_null_to_non_null_pointer_rejected();
 	test_unused_mutability_warning();
 	test_interpolation_requires_to_str();

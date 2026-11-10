@@ -211,6 +211,14 @@ fn test_hashmap_entries_destructuring() {
 	assert_eq_i32(sum, 3, "entries destructuring sum == 3");
 }
 
+fn test_nullable_destructuring() {
+	val pt = Point2D(50, 60);
+	val pt_ptr: *Point2D? = &pt;
+	val (nx, ny) = pt_ptr!;
+	assert_eq_i32(nx, 50, "nx == 50");
+	assert_eq_i32(ny, 60, "ny == 60");
+}
+
 pub fn main(): i32 {
 	println("=== Running Destructuring Tests ===");
 	test_val_destructuring();
@@ -220,6 +228,7 @@ pub fn main(): i32 {
 	test_indexed_destructuring();
 	test_hashmap_for_destructuring();
 	test_hashmap_entries_destructuring();
+	test_nullable_destructuring();
 	test_loop_and_nested();
 	println("All destructuring tests passed!");
 	return 0;

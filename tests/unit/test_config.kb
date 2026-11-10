@@ -1,6 +1,7 @@
 mod tests.unit.test_config;
 
 use std.io.*;
+use std.filesystem.Path;
 use config.*;
 
 fn test_toml_parser(): bool {
@@ -61,6 +62,22 @@ fn test_toml_iteration(): bool {
 	return count == 2;
 }
 
+fn test_entry_precedence(): bool {
+	val tmp_path = "build/test_prec.toml";
+	val p = Path(tmp_path);
+	p.write_text("""
+		[package]
+		entry = "src/main.kb"
+
+		[build]
+		entry = "src/other.kb"
+	""");
+	defer p.remove();
+
+	val cfg = ProjectConfig(tmp_path);
+	return cfg.entry == "src/main.kb";
+}
+
 fn main(): i32 {
 	println("[RUNNING] Test Mini-TOML & Project Configuration...");
 
@@ -81,6 +98,12 @@ fn main(): i32 {
 		return 1;
 	}
 	println("  [PASS] test_default_config");
+
+	if (!test_entry_precedence()) {
+		println("  [FAIL] test_entry_precedence");
+		return 1;
+	}
+	println("  [PASS] test_entry_precedence");
 
 	println("[ALL PASSED] Mini-TOML and Project Config tests passed successfully!");
 	return 0;
