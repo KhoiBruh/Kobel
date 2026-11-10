@@ -304,6 +304,7 @@ typedef struct tests__features__test_syntax__SafeNode tests__features__test_synt
 typedef struct std__collections__List_str std__collections__List_str;
 typedef struct std__collections__List_i32 std__collections__List_i32;
 typedef struct std__collections__MapEntry_str_i32 std__collections__MapEntry_str_i32;
+typedef struct std__collections__List_std__collections__MapEntry_str_i32 std__collections__List_std__collections__MapEntry_str_i32;
 typedef struct std__collections__HashMap_str_i32 std__collections__HashMap_str_i32;
 typedef struct std__collections__HashSet_str std__collections__HashSet_str;
 
@@ -372,6 +373,12 @@ struct std__collections__MapEntry_str_i32 {
     int32_t value;
 };
 
+struct std__collections__List_std__collections__MapEntry_str_i32 {
+    std__collections__MapEntry_str_i32* data;
+    size_t len;
+    size_t cap;
+};
+
 struct std__collections__HashMap_str_i32 {
     kobel_str* keys;
     int32_t* values;
@@ -412,6 +419,16 @@ static inline std__collections__List_str std__collections__List_str_from_array(c
 	void* data = malloc(cap * elem_size);
 	if (n > 0 && src != NULL) memcpy(data, src, n * elem_size);
 	std__collections__List_i32 l;
+	l.data = data;
+	l.len = n;
+	l.cap = cap;
+	return l;
+}static inline std__collections__List_std__collections__MapEntry_str_i32 std__collections__List_std__collections__MapEntry_str_i32_from_array(const void* src, size_t n) {
+	size_t elem_size = sizeof(*(((std__collections__List_std__collections__MapEntry_str_i32*)0)->data));
+	size_t cap = (n < 4) ? 4 : n;
+	void* data = malloc(cap * elem_size);
+	if (n > 0 && src != NULL) memcpy(data, src, n * elem_size);
+	std__collections__List_std__collections__MapEntry_str_i32 l;
 	l.data = data;
 	l.len = n;
 	l.cap = cap;
@@ -596,6 +613,36 @@ int32_t std__collections__List_i32_get(std__collections__List_i32* self, size_t 
 bool std__collections__List_i32_contains(std__collections__List_i32* self, int32_t value);
 int32_t std__collections__List_i32_set(std__collections__List_i32* self, size_t index, int32_t value);
 void std__collections__List_i32_plus_assign(std__collections__List_i32* self, int32_t value);
+std__collections__MapEntry_str_i32 std__collections__MapEntry_str_i32_init(kobel_str key, int32_t value);
+void std__collections__MapEntry_str_i32_unpack(std__collections__MapEntry_str_i32* self, kobel_str* k, int32_t* v);
+size_t std__collections__List_std__collections__MapEntry_str_i32_count(std__collections__List_std__collections__MapEntry_str_i32* self);
+std__collections__MapEntry_str_i32 std__collections__List_std__collections__MapEntry_str_i32_at(std__collections__List_std__collections__MapEntry_str_i32* self, size_t i);
+std__collections__List_std__collections__MapEntry_str_i32 std__collections__List_std__collections__MapEntry_str_i32_init(size_t cap);
+std__collections__MapEntry_str_i32 std__collections__List_std__collections__MapEntry_str_i32_first(std__collections__List_std__collections__MapEntry_str_i32* self);
+std__collections__MapEntry_str_i32 std__collections__List_std__collections__MapEntry_str_i32_last(std__collections__List_std__collections__MapEntry_str_i32* self);
+bool std__collections__List_std__collections__MapEntry_str_i32_empty(std__collections__List_std__collections__MapEntry_str_i32* self);
+void std__collections__List_std__collections__MapEntry_str_i32_add(std__collections__List_std__collections__MapEntry_str_i32* self, std__collections__MapEntry_str_i32 value);
+std__collections__MapEntry_str_i32 std__collections__List_std__collections__MapEntry_str_i32_pop(std__collections__List_std__collections__MapEntry_str_i32* self);
+void std__collections__List_std__collections__MapEntry_str_i32_extend(std__collections__List_std__collections__MapEntry_str_i32* self, std__collections__List_std__collections__MapEntry_str_i32 other);
+size_t std__collections__List_std__collections__MapEntry_str_i32_clear(std__collections__List_std__collections__MapEntry_str_i32* self);
+void std__collections__List_std__collections__MapEntry_str_i32_grow(std__collections__List_std__collections__MapEntry_str_i32* self);
+void std__collections__List_std__collections__MapEntry_str_i32_reserve(std__collections__List_std__collections__MapEntry_str_i32* self, size_t min_cap);
+std__collections__MapEntry_str_i32 std__collections__List_std__collections__MapEntry_str_i32_remove_at(std__collections__List_std__collections__MapEntry_str_i32* self, size_t index);
+void std__collections__List_std__collections__MapEntry_str_i32_insert(std__collections__List_std__collections__MapEntry_str_i32* self, size_t index, std__collections__MapEntry_str_i32 value);
+std__collections__List_std__collections__MapEntry_str_i32 std__collections__List_std__collections__MapEntry_str_i32_clone(std__collections__List_std__collections__MapEntry_str_i32* self);
+std__collections__MapEntry_str_i32 std__collections__List_std__collections__MapEntry_str_i32_pop_or(std__collections__List_std__collections__MapEntry_str_i32* self, std__collections__MapEntry_str_i32 value);
+void std__collections__List_std__collections__MapEntry_str_i32_swap(std__collections__List_std__collections__MapEntry_str_i32* self, size_t a, size_t b);
+void std__collections__List_std__collections__MapEntry_str_i32_reverse(std__collections__List_std__collections__MapEntry_str_i32* self);
+std__collections__List_std__collections__MapEntry_str_i32 std__collections__List_std__collections__MapEntry_str_i32_sub(std__collections__List_std__collections__MapEntry_str_i32* self, size_t start, size_t count);
+intptr_t std__collections__List_std__collections__MapEntry_str_i32_index_of(std__collections__List_std__collections__MapEntry_str_i32* self, std__collections__MapEntry_str_i32 value);
+intptr_t std__collections__List_std__collections__MapEntry_str_i32_last_index_of(std__collections__List_std__collections__MapEntry_str_i32* self, std__collections__MapEntry_str_i32 value);
+bool std__collections__List_std__collections__MapEntry_str_i32_remove(std__collections__List_std__collections__MapEntry_str_i32* self, std__collections__MapEntry_str_i32 value);
+size_t std__collections__List_std__collections__MapEntry_str_i32_remove_all(std__collections__List_std__collections__MapEntry_str_i32* self, std__collections__MapEntry_str_i32 value);
+void std__collections__List_std__collections__MapEntry_str_i32_free(std__collections__List_std__collections__MapEntry_str_i32* self);
+std__collections__MapEntry_str_i32 std__collections__List_std__collections__MapEntry_str_i32_get(std__collections__List_std__collections__MapEntry_str_i32* self, size_t index);
+bool std__collections__List_std__collections__MapEntry_str_i32_contains(std__collections__List_std__collections__MapEntry_str_i32* self, std__collections__MapEntry_str_i32 value);
+std__collections__MapEntry_str_i32 std__collections__List_std__collections__MapEntry_str_i32_set(std__collections__List_std__collections__MapEntry_str_i32* self, size_t index, std__collections__MapEntry_str_i32 value);
+void std__collections__List_std__collections__MapEntry_str_i32_plus_assign(std__collections__List_std__collections__MapEntry_str_i32* self, std__collections__MapEntry_str_i32 value);
 std__collections__HashMap_str_i32 std__collections__HashMap_str_i32_init(size_t init_cap);
 size_t std__collections__HashMap_str_i32_dist(std__collections__HashMap_str_i32* self, size_t from, size_t to);
 int32_t std__collections__HashMap_str_i32_get_or(std__collections__HashMap_str_i32* self, kobel_str key, int32_t value);
@@ -604,13 +651,12 @@ void std__collections__HashMap_str_i32_clear(std__collections__HashMap_str_i32* 
 bool std__collections__HashMap_str_i32_empty(std__collections__HashMap_str_i32* self);
 std__collections__List_str std__collections__HashMap_str_i32_keys(std__collections__HashMap_str_i32* self);
 std__collections__List_i32 std__collections__HashMap_str_i32_values(std__collections__HashMap_str_i32* self);
+std__collections__List_std__collections__MapEntry_str_i32 std__collections__HashMap_str_i32_entries(std__collections__HashMap_str_i32* self);
 void std__collections__HashMap_str_i32_grow(std__collections__HashMap_str_i32* self);
 void std__collections__HashMap_str_i32_free(std__collections__HashMap_str_i32* self);
 void std__collections__HashMap_str_i32_set(std__collections__HashMap_str_i32* self, kobel_str key, int32_t value);
 int32_t* std__collections__HashMap_str_i32_get(std__collections__HashMap_str_i32* self, kobel_str key);
 bool std__collections__HashMap_str_i32_contains(std__collections__HashMap_str_i32* self, kobel_str key);
-std__collections__MapEntry_str_i32 std__collections__MapEntry_str_i32_init(kobel_str key, int32_t value);
-void std__collections__MapEntry_str_i32_unpack(std__collections__MapEntry_str_i32* self, kobel_str* k, int32_t* v);
 size_t std__collections__HashMap_str_i32_count(std__collections__HashMap_str_i32* self);
 std__collections__MapEntry_str_i32 std__collections__HashMap_str_i32_at(std__collections__HashMap_str_i32* self, size_t i);
 std__collections__HashSet_str std__collections__HashSet_str_init(size_t init_cap);
@@ -632,6 +678,7 @@ kobel_str std__collections__HashSet_str_at(std__collections__HashSet_str* self, 
 void std__memory__Heap_free_u8(uint8_t* ptr);
 void std__memory__Heap_free_str(kobel_str* ptr);
 void std__memory__Heap_free_i32(int32_t* ptr);
+void std__memory__Heap_free_std__collections__MapEntry_str_i32(std__collections__MapEntry_str_i32* ptr);
 uint8_t* std__memory__Heap_create_array_u8(size_t count);
 std__memory__ArenaBlock* std__memory__Heap_create_std__memory__ArenaBlock(void);
 void std__memory__Heap_free_std__memory__ArenaBlock(std__memory__ArenaBlock* ptr);
@@ -640,6 +687,8 @@ kobel_str* std__memory__Heap_create_array_str(size_t count);
 kobel_str* std__memory__Heap_resize_str(kobel_str* ptr, size_t count);
 int32_t* std__memory__Heap_create_array_i32(size_t count);
 int32_t* std__memory__Heap_resize_i32(int32_t* ptr, size_t count);
+std__collections__MapEntry_str_i32* std__memory__Heap_create_array_std__collections__MapEntry_str_i32(size_t count);
+std__collections__MapEntry_str_i32* std__memory__Heap_resize_std__collections__MapEntry_str_i32(std__collections__MapEntry_str_i32* ptr, size_t count);
 size_t* std__memory__Heap_create_array_usz(size_t count);
 bool* std__memory__Heap_create_array_bool(size_t count);
 void std__memory__Heap_free_usz(size_t* ptr);
@@ -3514,6 +3563,350 @@ void std__collections__List_i32_plus_assign(std__collections__List_i32* self, in
     std__collections__List_i32_add(self, value);
 }
 
+std__collections__MapEntry_str_i32 std__collections__MapEntry_str_i32_init(kobel_str key, int32_t value) {
+    return (std__collections__MapEntry_str_i32){ key, value };
+}
+
+void std__collections__MapEntry_str_i32_unpack(std__collections__MapEntry_str_i32* self, kobel_str* k, int32_t* v) {
+(*(k) = self->key);
+(*(v) = self->value);
+}
+
+size_t std__collections__List_std__collections__MapEntry_str_i32_count(std__collections__List_std__collections__MapEntry_str_i32* self) {
+    return self->len;
+}
+
+std__collections__MapEntry_str_i32 std__collections__List_std__collections__MapEntry_str_i32_at(std__collections__List_std__collections__MapEntry_str_i32* self, size_t i) {
+    return self->data[i];
+}
+
+std__collections__List_std__collections__MapEntry_str_i32 std__collections__List_std__collections__MapEntry_str_i32_init(size_t cap) {
+    return (std__collections__List_std__collections__MapEntry_str_i32){ std__memory__Heap_create_array_std__collections__MapEntry_str_i32(cap), 0, cap };
+}
+
+std__collections__MapEntry_str_i32 std__collections__List_std__collections__MapEntry_str_i32_first(std__collections__List_std__collections__MapEntry_str_i32* self) {
+    return self->data[0];
+}
+
+std__collections__MapEntry_str_i32 std__collections__List_std__collections__MapEntry_str_i32_last(std__collections__List_std__collections__MapEntry_str_i32* self) {
+    return self->data[(self->len - 1)];
+}
+
+bool std__collections__List_std__collections__MapEntry_str_i32_empty(std__collections__List_std__collections__MapEntry_str_i32* self) {
+    return (self->len == 0);
+}
+
+void std__collections__List_std__collections__MapEntry_str_i32_add(std__collections__List_std__collections__MapEntry_str_i32* self, std__collections__MapEntry_str_i32 value) {
+if (self->len == self->cap) {
+std__collections__List_std__collections__MapEntry_str_i32_grow(self);
+}
+self->data[self->len] = value;
+self->len++;
+}
+
+std__collections__MapEntry_str_i32 std__collections__List_std__collections__MapEntry_str_i32_pop(std__collections__List_std__collections__MapEntry_str_i32* self) {
+self->len--;
+return self->data[self->len];
+}
+
+void std__collections__List_std__collections__MapEntry_str_i32_extend(std__collections__List_std__collections__MapEntry_str_i32* self, std__collections__List_std__collections__MapEntry_str_i32 other) {
+{
+size_t __for_n = std__collections__List_std__collections__MapEntry_str_i32_count(&other);
+size_t __for_i = 0;
+while (__for_i < __for_n) {
+std__collections__MapEntry_str_i32 data = std__collections__List_std__collections__MapEntry_str_i32_at(&other, __for_i);
+std__collections__List_std__collections__MapEntry_str_i32_plus_assign(self, data);
+__for_i = (__for_i + 1);
+}
+}
+}
+
+size_t std__collections__List_std__collections__MapEntry_str_i32_clear(std__collections__List_std__collections__MapEntry_str_i32* self) {
+    return self->len = 0;
+}
+
+void std__collections__List_std__collections__MapEntry_str_i32_grow(std__collections__List_std__collections__MapEntry_str_i32* self) {
+size_t new_cap = (self->cap * 2);
+self->data = std__memory__Heap_resize_std__collections__MapEntry_str_i32(self->data, new_cap);
+self->cap = new_cap;
+}
+
+void std__collections__List_std__collections__MapEntry_str_i32_reserve(std__collections__List_std__collections__MapEntry_str_i32* self, size_t min_cap) {
+if (min_cap > self->cap) {
+size_t new_cap = self->cap;
+while (new_cap < min_cap) {
+new_cap *= 2;
+}
+self->data = std__memory__Heap_resize_std__collections__MapEntry_str_i32(self->data, new_cap);
+self->cap = new_cap;
+}
+}
+
+std__collections__MapEntry_str_i32 std__collections__List_std__collections__MapEntry_str_i32_remove_at(std__collections__List_std__collections__MapEntry_str_i32* self, size_t index) {
+std__collections__MapEntry_str_i32 item = self->data[index];
+{
+size_t __for_e = (self->len - 1);
+size_t __for_i = __for_e;
+__for_i = index;
+bool __for_up = (__for_i <= __for_e);
+bool __for_go = false;
+if (__for_up) {
+__for_go = (__for_i < __for_e);
+} else {
+__for_go = (__for_i > __for_e);
+}
+while (__for_go) {
+size_t i = __for_i;
+self->data[i] = self->data[(i + 1)];
+if (__for_up) {
+__for_go = ((__for_i + 1) < __for_e);
+} else {
+__for_go = ((__for_i - 1) > __for_e);
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = (__for_i + 1);
+} else {
+__for_i = (__for_i - 1);
+}
+}
+}
+}
+self->len--;
+return item;
+}
+
+void std__collections__List_std__collections__MapEntry_str_i32_insert(std__collections__List_std__collections__MapEntry_str_i32* self, size_t index, std__collections__MapEntry_str_i32 value) {
+if (self->len == self->cap) {
+std__collections__List_std__collections__MapEntry_str_i32_grow(self);
+}
+size_t i = self->len;
+while (i > index) {
+self->data[i] = self->data[(i - 1)];
+i--;
+}
+self->data[index] = value;
+self->len++;
+}
+
+std__collections__List_std__collections__MapEntry_str_i32 std__collections__List_std__collections__MapEntry_str_i32_clone(std__collections__List_std__collections__MapEntry_str_i32* self) {
+size_t cap = ((self->cap > 0) ? self->cap : 4);
+std__collections__List_std__collections__MapEntry_str_i32 res = (std__collections__List_std__collections__MapEntry_str_i32){ std__memory__Heap_create_array_std__collections__MapEntry_str_i32(cap), 0, cap };
+{
+size_t __for_e = self->len;
+size_t __for_i = __for_e;
+__for_i = 0;
+bool __for_up = (__for_i <= __for_e);
+bool __for_go = false;
+if (__for_up) {
+__for_go = (__for_i < __for_e);
+} else {
+__for_go = (__for_i > __for_e);
+}
+while (__for_go) {
+size_t i = __for_i;
+std__collections__List_std__collections__MapEntry_str_i32_plus_assign(&res, self->data[i]);
+if (__for_up) {
+__for_go = ((__for_i + 1) < __for_e);
+} else {
+__for_go = ((__for_i - 1) > __for_e);
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = (__for_i + 1);
+} else {
+__for_i = (__for_i - 1);
+}
+}
+}
+}
+return res;
+}
+
+std__collections__MapEntry_str_i32 std__collections__List_std__collections__MapEntry_str_i32_pop_or(std__collections__List_std__collections__MapEntry_str_i32* self, std__collections__MapEntry_str_i32 value) {
+    return ((self->len == 0) ? value : std__collections__List_std__collections__MapEntry_str_i32_pop(self));
+}
+
+void std__collections__List_std__collections__MapEntry_str_i32_swap(std__collections__List_std__collections__MapEntry_str_i32* self, size_t a, size_t b) {
+std__collections__MapEntry_str_i32 tmp = self->data[a];
+self->data[a] = self->data[b];
+self->data[b] = tmp;
+}
+
+void std__collections__List_std__collections__MapEntry_str_i32_reverse(std__collections__List_std__collections__MapEntry_str_i32* self) {
+if (self->len <= 1) {
+return;
+}
+int32_t left = 0;
+size_t right = (self->len - 1);
+while (left < right) {
+std__collections__MapEntry_str_i32 tmp = self->data[left];
+self->data[left] = self->data[right];
+self->data[right] = tmp;
+left++;
+right--;
+}
+}
+
+std__collections__List_std__collections__MapEntry_str_i32 std__collections__List_std__collections__MapEntry_str_i32_sub(std__collections__List_std__collections__MapEntry_str_i32* self, size_t start, size_t count) {
+std__collections__List_std__collections__MapEntry_str_i32 res = (std__collections__List_std__collections__MapEntry_str_i32){ std__memory__Heap_create_array_std__collections__MapEntry_str_i32(count), 0, count };
+if (start >= self->len) {
+return res;
+}
+size_t end = (((start + count) > self->len) ? self->len : (start + count));
+{
+size_t __for_e = end;
+size_t __for_i = __for_e;
+__for_i = start;
+bool __for_up = (__for_i <= __for_e);
+bool __for_go = false;
+if (__for_up) {
+__for_go = (__for_i < __for_e);
+} else {
+__for_go = (__for_i > __for_e);
+}
+while (__for_go) {
+size_t i = __for_i;
+std__collections__List_std__collections__MapEntry_str_i32_plus_assign(&res, self->data[i]);
+if (__for_up) {
+__for_go = ((__for_i + 1) < __for_e);
+} else {
+__for_go = ((__for_i - 1) > __for_e);
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = (__for_i + 1);
+} else {
+__for_i = (__for_i - 1);
+}
+}
+}
+}
+return res;
+}
+
+intptr_t std__collections__List_std__collections__MapEntry_str_i32_index_of(std__collections__List_std__collections__MapEntry_str_i32* self, std__collections__MapEntry_str_i32 value) {
+{
+size_t __for_e = self->len;
+size_t __for_i = __for_e;
+__for_i = 0;
+bool __for_up = (__for_i <= __for_e);
+bool __for_go = false;
+if (__for_up) {
+__for_go = (__for_i < __for_e);
+} else {
+__for_go = (__for_i > __for_e);
+}
+while (__for_go) {
+size_t i = __for_i;
+if (kobel_memeq(&self->data[i], &value, 24)) {
+return i;
+}
+if (__for_up) {
+__for_go = ((__for_i + 1) < __for_e);
+} else {
+__for_go = ((__for_i - 1) > __for_e);
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = (__for_i + 1);
+} else {
+__for_i = (__for_i - 1);
+}
+}
+}
+}
+return -1;
+}
+
+intptr_t std__collections__List_std__collections__MapEntry_str_i32_last_index_of(std__collections__List_std__collections__MapEntry_str_i32* self, std__collections__MapEntry_str_i32 value) {
+if (self->len == 0) {
+return -1;
+}
+size_t i = (self->len - 1);
+while (true) {
+if (kobel_memeq(&self->data[i], &value, 24)) {
+return i;
+}
+if (i == 0) {
+break;
+}
+i--;
+}
+return -1;
+}
+
+bool std__collections__List_std__collections__MapEntry_str_i32_remove(std__collections__List_std__collections__MapEntry_str_i32* self, std__collections__MapEntry_str_i32 value) {
+intptr_t idx = std__collections__List_std__collections__MapEntry_str_i32_index_of(self, value);
+if (idx < 0) {
+return false;
+}
+std__collections__List_std__collections__MapEntry_str_i32_remove_at(self, (size_t)idx);
+return true;
+}
+
+size_t std__collections__List_std__collections__MapEntry_str_i32_remove_all(std__collections__List_std__collections__MapEntry_str_i32* self, std__collections__MapEntry_str_i32 value) {
+int32_t write = 0;
+int32_t removed = 0;
+{
+size_t __for_e = self->len;
+size_t __for_i = __for_e;
+__for_i = 0;
+bool __for_up = (__for_i <= __for_e);
+bool __for_go = false;
+if (__for_up) {
+__for_go = (__for_i < __for_e);
+} else {
+__for_go = (__for_i > __for_e);
+}
+while (__for_go) {
+size_t i = __for_i;
+if (kobel_memeq(&self->data[i], &value, 24)) {
+removed++;
+} else {
+if (write != i) {
+self->data[write] = self->data[i];
+}
+write++;
+}
+if (__for_up) {
+__for_go = ((__for_i + 1) < __for_e);
+} else {
+__for_go = ((__for_i - 1) > __for_e);
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = (__for_i + 1);
+} else {
+__for_i = (__for_i - 1);
+}
+}
+}
+}
+self->len = write;
+return removed;
+}
+
+void std__collections__List_std__collections__MapEntry_str_i32_free(std__collections__List_std__collections__MapEntry_str_i32* self) {
+    std__memory__Heap_free_std__collections__MapEntry_str_i32(self->data);
+}
+
+std__collections__MapEntry_str_i32 std__collections__List_std__collections__MapEntry_str_i32_get(std__collections__List_std__collections__MapEntry_str_i32* self, size_t index) {
+    return self->data[index];
+}
+
+bool std__collections__List_std__collections__MapEntry_str_i32_contains(std__collections__List_std__collections__MapEntry_str_i32* self, std__collections__MapEntry_str_i32 value) {
+    return (std__collections__List_std__collections__MapEntry_str_i32_index_of(self, value) != -1);
+}
+
+std__collections__MapEntry_str_i32 std__collections__List_std__collections__MapEntry_str_i32_set(std__collections__List_std__collections__MapEntry_str_i32* self, size_t index, std__collections__MapEntry_str_i32 value) {
+    return self->data[index] = value;
+}
+
+void std__collections__List_std__collections__MapEntry_str_i32_plus_assign(std__collections__List_std__collections__MapEntry_str_i32* self, std__collections__MapEntry_str_i32 value) {
+    std__collections__List_std__collections__MapEntry_str_i32_add(self, value);
+}
+
 std__collections__HashMap_str_i32 std__collections__HashMap_str_i32_init(size_t init_cap) {
 size_t cap = init_cap;
 if (cap < 8) {
@@ -3720,6 +4113,44 @@ __for_i = (__for_i - 1);
 return res;
 }
 
+std__collections__List_std__collections__MapEntry_str_i32 std__collections__HashMap_str_i32_entries(std__collections__HashMap_str_i32* self) {
+std__collections__List_std__collections__MapEntry_str_i32 res = std__collections__List_std__collections__MapEntry_str_i32_init(4);
+if (self->cap == 0) {
+return res;
+}
+{
+size_t __for_e = self->cap;
+size_t __for_i = __for_e;
+__for_i = 0;
+bool __for_up = (__for_i <= __for_e);
+bool __for_go = false;
+if (__for_up) {
+__for_go = (__for_i < __for_e);
+} else {
+__for_go = (__for_i > __for_e);
+}
+while (__for_go) {
+size_t i = __for_i;
+if (self->occupied[i]) {
+std__collections__List_std__collections__MapEntry_str_i32_plus_assign(&res, std__collections__MapEntry_str_i32_init(self->keys[i], self->values[i]));
+}
+if (__for_up) {
+__for_go = ((__for_i + 1) < __for_e);
+} else {
+__for_go = ((__for_i - 1) > __for_e);
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = (__for_i + 1);
+} else {
+__for_i = (__for_i - 1);
+}
+}
+}
+}
+return res;
+}
+
 void std__collections__HashMap_str_i32_grow(std__collections__HashMap_str_i32* self) {
 size_t old_cap = self->cap;
 kobel_str* old_keys = self->keys;
@@ -3867,15 +4298,6 @@ return true;
 idx = ((idx + 1) % self->cap);
 }
 return false;
-}
-
-std__collections__MapEntry_str_i32 std__collections__MapEntry_str_i32_init(kobel_str key, int32_t value) {
-    return (std__collections__MapEntry_str_i32){ key, value };
-}
-
-void std__collections__MapEntry_str_i32_unpack(std__collections__MapEntry_str_i32* self, kobel_str* k, int32_t* v) {
-(*(k) = self->key);
-(*(v) = self->value);
 }
 
 size_t std__collections__HashMap_str_i32_count(std__collections__HashMap_str_i32* self) {
@@ -4364,6 +4786,10 @@ void std__memory__Heap_free_i32(int32_t* ptr) {
     free((uint8_t*)ptr);
 }
 
+void std__memory__Heap_free_std__collections__MapEntry_str_i32(std__collections__MapEntry_str_i32* ptr) {
+    free((uint8_t*)ptr);
+}
+
 uint8_t* std__memory__Heap_create_array_u8(size_t count) {
     return (uint8_t*)malloc((count * 1));
 }
@@ -4394,6 +4820,14 @@ int32_t* std__memory__Heap_create_array_i32(size_t count) {
 
 int32_t* std__memory__Heap_resize_i32(int32_t* ptr, size_t count) {
     return (int32_t*)realloc((uint8_t*)ptr, (count * 4));
+}
+
+std__collections__MapEntry_str_i32* std__memory__Heap_create_array_std__collections__MapEntry_str_i32(size_t count) {
+    return (std__collections__MapEntry_str_i32*)malloc((count * 24));
+}
+
+std__collections__MapEntry_str_i32* std__memory__Heap_resize_std__collections__MapEntry_str_i32(std__collections__MapEntry_str_i32* ptr, size_t count) {
+    return (std__collections__MapEntry_str_i32*)realloc((uint8_t*)ptr, (count * 24));
 }
 
 size_t* std__memory__Heap_create_array_usz(size_t count) {
