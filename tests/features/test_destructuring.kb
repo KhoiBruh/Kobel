@@ -1,0 +1,209 @@
+mod test.test_destructuring;
+
+use std.io.println;
+use std.collections.List;
+use std.collections.HashMap;
+use testsupport.assert.*;
+
+pub struct Wrapper {
+	pub value: i32
+}
+
+impl Wrapper {
+	pub init(value: i32) => Self(value);
+
+	pub op unpack(val self, out: &i32) {
+		out.write(self.value);
+	}
+}
+
+pub struct Point2D {
+	pub x: i32,
+	pub y: i32
+}
+
+impl Point2D {
+	pub init(x: i32, y: i32) => Self(x, y);
+
+	pub op unpack(val self, x: &i32, y: &i32) {
+		x.write(self.x);
+		y.write(self.y);
+	}
+}
+
+pub struct Tuple3<A, B, C> {
+	pub a: A,
+	pub b: B,
+	pub c: C
+}
+
+impl Tuple3<A, B, C> {
+	pub init(a: A, b: B, c: C) => Self(a, b, c);
+
+	pub op unpack(val self, a: &A, b: &B, c: &C) {
+		a.write(self.a);
+		b.write(self.b);
+		c.write(self.c);
+	}
+}
+
+pub struct Triple {
+	pub v0: i32,
+	pub v1: i32,
+	pub v2: i32
+}
+
+impl Triple {
+	pub init(v0: i32, v1: i32, v2: i32) => Self(v0, v1, v2);
+
+	pub op unpack(val self, idx: usz): i32 {
+		if (idx == 0) return self.v0;
+		if (idx == 1) return self.v1;
+		return self.v2;
+	}
+}
+
+fn test_val_destructuring() {
+	val pt = Point2D(10, 20);
+	val (px, py) = pt;
+	assert_eq_i32(px, 10, "px == 10");
+	assert_eq_i32(py, 20, "py == 20");
+
+	// Destructure single out-param (Form A with 1 element)
+	val w = Wrapper(99);
+	val (wv) = w;
+	assert_eq_i32(wv, 99, "wv == 99");
+
+	// Destructure an expression temporary
+	val (ex, ey) = Point2D(55, 66);
+	assert_eq_i32(ex, 55, "ex == 55");
+	assert_eq_i32(ey, 66, "ey == 66");
+
+	// Trailing comma in pattern
+	val (tx, ty,) = Point2D(77, 88);
+	assert_eq_i32(tx, 77, "tx == 77");
+	assert_eq_i32(ty, 88, "ty == 88");
+}
+
+fn test_var_destructuring() {
+	val pt = Point2D(10, 20);
+	var (mx, my) = pt;
+	assert_eq_i32(mx, 10, "mx initial == 10");
+	assert_eq_i32(my, 20, "my initial == 20");
+
+	mx = mx + 5;
+	my = my + 7;
+	assert_eq_i32(mx, 15, "mx modified == 15");
+	assert_eq_i32(my, 27, "my modified == 27");
+}
+
+fn test_wildcard_destructuring() {
+	val t3 = Tuple3<i32, str, bool>(1, "hello", true);
+	val (a, _, c) = t3;
+	assert_eq_i32(a, 1, "a == 1");
+	assert_true(c, "c == true");
+
+	// Multiple wildcards in Form A
+	val pt = Point2D(10, 20);
+	val (_, _) = pt;
+
+	// Wildcards in Form B (indexed)
+	val tr = Triple(100, 200, 300);
+	val (_, second, _) = tr;
+	assert_eq_i32(second, 200, "second == 200");
+
+	val (_, _) = tr;
+}
+
+fn test_generic_destructuring() {
+	val t3 = Tuple3<i32, str, bool>(1, "hello", true);
+	val (a, b, c) = t3;
+	assert_eq_i32(a, 1, "a == 1");
+	assert_true(b == "hello", "b == hello");
+	assert_true(c, "c == true");
+}
+
+fn test_indexed_destructuring() {
+	val tr = Triple(100, 200, 300);
+	val (i0, i1, i2) = tr;
+	assert_eq_i32(i0, 100, "i0 == 100");
+	assert_eq_i32(i1, 200, "i1 == 200");
+	assert_eq_i32(i2, 300, "i2 == 300");
+
+	// Single element from indexed type
+	val (first) = tr;
+	assert_eq_i32(first, 100, "first == 100");
+}
+
+fn test_hashmap_for_destructuring() {
+	var map = HashMap<str, i32>();
+	defer map.free();
+	map["apple"] = 10;
+	map["banana"] = 20;
+
+	var sum = 0;
+	for ((k, v) in map) {
+		sum += v;
+		assert_true(k == "apple" || k == "banana", "valid key");
+	}
+	assert_eq_i32(sum, 30, "hashmap for ((k, v) in map) sum == 30");
+
+	var sum2 = 0;
+	for (val (k, v) in &map) {
+		sum2 += v;
+	}
+	assert_eq_i32(sum2, 30, "hashmap for (val (k, v) in &map) sum2 == 30");
+
+	// Mutability in for loop with var
+	var var_sum = 0;
+	for (var (k, v) in map) {
+		v = v + 1;
+		var_sum += v;
+	}
+	assert_eq_i32(var_sum, 32, "hashmap for (var (k, v) in map) sum == 32");
+
+	// Wildcard in for loop
+	var count = 0;
+	for ((k, _) in map) {
+		count++;
+		assert_true(k == "apple" || k == "banana", "key present");
+	}
+	assert_eq_i32(count, 2, "count == 2");
+}
+
+fn test_loop_and_nested() {
+	var pairs = List<Point2D>();
+	defer pairs.free();
+	pairs += Point2D(1, 2);
+	pairs += Point2D(3, 4);
+
+	var total_x = 0;
+	var total_y = 0;
+	for ((px, py) in pairs) {
+		total_x += px;
+		total_y += py;
+	}
+	assert_eq_i32(total_x, 4, "total_x == 4");
+	assert_eq_i32(total_y, 6, "total_y == 6");
+
+	var mod_sum = 0;
+	for (var (px, py) in pairs) {
+		px = px * 10;
+		py = py * 10;
+		mod_sum += px + py;
+	}
+	assert_eq_i32(mod_sum, 100, "mod_sum == 100");
+}
+
+pub fn main(): i32 {
+	println("=== Running Destructuring Tests ===");
+	test_val_destructuring();
+	test_var_destructuring();
+	test_wildcard_destructuring();
+	test_generic_destructuring();
+	test_indexed_destructuring();
+	test_hashmap_for_destructuring();
+	test_loop_and_nested();
+	println("All destructuring tests passed!");
+	return 0;
+}

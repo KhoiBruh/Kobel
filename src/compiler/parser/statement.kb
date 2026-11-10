@@ -30,6 +30,26 @@ impl Parser {
 		val kw = self.advance(); // val or var
 		val mutable = (kw.type == TokenType.KW_VAR);
 
+		if (self.match_token(TokenType.OPEN_PAREN)) {
+			var names = List<str>();
+
+			val n1 = self.consume(TokenType.IDENTIFIER, "Expected variable name in destructuring pattern");
+			names += n1.text;
+
+			while (self.match_token(TokenType.COMMA)) {
+				if (self.check(TokenType.CLOSE_PAREN)) break;
+				val n = self.consume(TokenType.IDENTIFIER, "Expected variable name in destructuring pattern");
+				names += n.text;
+			}
+
+			self.consume(TokenType.CLOSE_PAREN, "Expected ')' after destructuring pattern");
+			self.consume(TokenType.EQUAL, "Expected '=' in destructuring declaration");
+			val init_expr = self.parse_expression(Precedence.NONE);
+			self.consume(TokenType.SEMI_COLON, "Expected ';' after variable declaration");
+
+			return self.node(NodeData.DestructDeclStmt(mutable, names, init_expr), kw.line, kw.col);
+		}
+
 		val name_tok = self.consume(TokenType.IDENTIFIER, "Expected variable name");
 		val type_ann = if (self.match_token(TokenType.COLON)) self.parse_type()
 		else null;
@@ -70,7 +90,51 @@ impl Parser {
 	pub fn parse_for_stmt(var self): *AstNode {
 		val kw = self.advance(); // 'for'
 		self.consume(TokenType.OPEN_PAREN, "Expected '(' after 'for'");
-		val name_tok = self.consume(TokenType.IDENTIFIER, "Expected loop variable name");
+
+		var var_name = "";
+		if (self.match_token(TokenType.KW_VAL)) {
+			self.consume(TokenType.OPEN_PAREN, "Expected '(' after 'val' in destructuring loop");
+			val n1 = self.consume(TokenType.IDENTIFIER, "Expected variable name in destructuring pattern");
+			var raw_names = "(${n1.text}";
+			while (self.match_token(TokenType.COMMA)) {
+				if (self.check(TokenType.CLOSE_PAREN)) break;
+				val n = self.consume(TokenType.IDENTIFIER, "Expected variable name in destructuring pattern");
+				raw_names += ", ";
+				raw_names += n.text;
+			}
+			self.consume(TokenType.CLOSE_PAREN, "Expected ')' after destructuring pattern");
+			raw_names += ")";
+			var_name = raw_names;
+		} else if (self.match_token(TokenType.KW_VAR)) {
+			self.consume(TokenType.OPEN_PAREN, "Expected '(' after 'var' in destructuring loop");
+			val n1 = self.consume(TokenType.IDENTIFIER, "Expected variable name in destructuring pattern");
+			var raw_names = "var (${n1.text}";
+			while (self.match_token(TokenType.COMMA)) {
+				if (self.check(TokenType.CLOSE_PAREN)) break;
+				val n = self.consume(TokenType.IDENTIFIER, "Expected variable name in destructuring pattern");
+				raw_names += ", ";
+				raw_names += n.text;
+			}
+			self.consume(TokenType.CLOSE_PAREN, "Expected ')' after destructuring pattern");
+			raw_names += ")";
+			var_name = raw_names;
+		} else if (self.match_token(TokenType.OPEN_PAREN)) {
+			val n1 = self.consume(TokenType.IDENTIFIER, "Expected variable name in destructuring pattern");
+			var raw_names = "(${n1.text}";
+			while (self.match_token(TokenType.COMMA)) {
+				if (self.check(TokenType.CLOSE_PAREN)) break;
+				val n = self.consume(TokenType.IDENTIFIER, "Expected variable name in destructuring pattern");
+				raw_names += ", ";
+				raw_names += n.text;
+			}
+			self.consume(TokenType.CLOSE_PAREN, "Expected ')' after destructuring pattern");
+			raw_names += ")";
+			var_name = raw_names;
+		} else {
+			val name_tok = self.consume(TokenType.IDENTIFIER, "Expected loop variable name");
+			var_name = name_tok.text;
+		}
+
 		self.consume(TokenType.KW_IN, "Expected 'in' after loop variable");
 
 		val first = self.parse_expression(Precedence.COMPARISON);
@@ -109,7 +173,7 @@ impl Parser {
 		self.consume(TokenType.CLOSE_PAREN, "Expected ')' after for header");
 		val body = self.parse_statement();
 		return self.node(NodeData.ForStmt(
-			name_tok.text, is_range, is_open, is_half_open,
+			var_name, is_range, is_open, is_half_open,
 			iterable, range_start, range_end, body), kw.line, kw.col
 		);
 	}

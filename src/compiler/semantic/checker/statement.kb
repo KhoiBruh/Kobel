@@ -86,6 +86,108 @@ impl BodyChecker {
 		}
 	}
 
+	pub fn check_destruct_decl_stmt(var self, node: *AstNode) {
+		if (node is DestructDeclStmt as ds) {
+			val init_ty = self.check_expr_stmt(ds.initializer);
+			self.ensure(init_ty.kind != DataType.NONE, node, "Cannot destructure void expression");
+
+			var struct_ty = init_ty;
+			if (struct_ty.kind == DataType.POINTER) {
+				struct_ty = struct_ty.as_pointer().pointee;
+			}
+
+			self.ensure(
+				struct_ty.kind == DataType.STRUCT,
+				node,
+				"Cannot destructure non-struct type"
+			);
+			if (struct_ty.kind != DataType.STRUCT) return;
+
+			val s_info = struct_ty.as_struct()!;
+			var found_mi: *MethodInfo? = null;
+			var is_indexed = false;
+
+			// Check Form A: unpack(self, p1, p2, ... pn) where n == ds.names.len
+			// Every unpacked parameter in Form A must be a pointer type (&T or *T).
+			for (m in s_info.methods) {
+				if (m.operator && m.name == "unpack") {
+					val fn_t = m.fn_type.as_fn();
+					if (fn_t.param_types.len == ds.names.len + 1) {
+						var all_ptrs = true;
+						for (i in 1..<fn_t.param_types.len) {
+							if (fn_t.param_types[i].kind != DataType.POINTER) {
+								all_ptrs = false;
+								break;
+							}
+						}
+						if (all_ptrs) {
+							found_mi = m;
+							is_indexed = false;
+							break;
+						}
+					}
+				}
+			}
+
+			// If Form A not found, check Form B: unpack(self, idx: integer): T
+			if (found_mi == null) {
+				for (m in s_info.methods) {
+					if (m.operator && m.name == "unpack") {
+						val fn_t = m.fn_type.as_fn();
+						if (
+							fn_t.param_types.len == 2 &&
+							fn_t.param_types[1].is_integer() &&
+							fn_t.return_type.kind != DataType.NONE
+						) {
+							found_mi = m;
+							is_indexed = true;
+							break;
+						}
+					}
+				}
+			}
+
+			if (found_mi == null) {
+				self.report_error(
+					node,
+					"Type '${s_info.name}' does not implement operator 'unpack' for ${ds.names.len} elements"
+				);
+				return;
+			}
+
+			val mi = found_mi!;
+			self.set_method(node, mi);
+
+			if (is_indexed) {
+				val elem_t = mi.fn_type.as_fn().return_type;
+				for (i in 0..<ds.names.len) {
+					if (ds.names[i] != "_") {
+						val sym = Symbol(
+							ds.names[i], ds.names[i], SymbolKind.VAR,
+							elem_t, ds.mutable, false, node.line, node.col, null
+						);
+						val ok = self.symtab.define(sym);
+						self.ensure(ok, node, "Variable '${ds.names[i]}' is already defined in this scope");
+					}
+				}
+			} else {
+				val fn_t = mi.fn_type.as_fn();
+				for (i in 0..<ds.names.len) {
+					if (ds.names[i] != "_") {
+						val param_t = fn_t.param_types[i + 1];
+						val var_t = if (param_t.kind == DataType.POINTER) param_t.as_pointer().pointee else param_t;
+						val sym = Symbol(
+							ds.names[i], ds.names[i], SymbolKind.VAR,
+							var_t, ds.mutable, false, node.line, node.col, null
+						);
+						val ok = self.symtab.define(sym);
+						self.ensure(ok, node, "Variable '${ds.names[i]}' is already defined in this scope");
+					}
+				}
+			}
+		}
+	}
+
 	fn collect_and_conditions(var self, expr: *AstNode): List<*AstNode> {
 		var res = List<*AstNode>();
 		if (expr == null) return res;
@@ -378,6 +480,12 @@ impl BodyChecker {
 		if (node == null) return null;
 		val target = node!;
 		if (target is GroupExpr as g) return self.for_iterable_type(g.expr);
+		if (target is UnaryExpr as un) {
+			if (un.op == TokenType.AMPERSAND) {
+				val inner = self.for_iterable_type(un.operand) ?: return null;
+				return self.arena.pointer_type(inner, false);
+			}
+		}
 		if (target is IdentifierExpr as id) {
 			val sym = self.symtab.lookup(id.name) ?: return null;
 			return sym.type_ptr;

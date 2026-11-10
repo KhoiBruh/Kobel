@@ -284,10 +284,40 @@ impl Vec2 {
 | `a *= b` | `mul_assign` | In-place multiplication |
 | `a /= b` | `div_assign` | In-place division |
 | `a %= b` | `rem_assign` | In-place remainder |
+| `val/var (a, b) = x` | `unpack` | Destructuring declaration |
 
 ---
 
 ## 8. Control Flow
+
+### Destructuring Declarations
+
+Kobel supports destructuring via the `op unpack` operator:
+
+```kobel
+val (k, v) = entry;
+var (x, y) = point;
+
+// In for-loops:
+for ((k, v) in hashmap) { ... }
+for (val (k, v) in &hashmap) { ... }
+```
+
+A struct implements destructuring by defining `pub op unpack`:
+- **Out-pointer form** (supports heterogeneous element types):
+  ```kobel
+  pub op unpack(val self, k: &K, v: &V) {
+      k.write(self.key);
+      v.write(self.value);
+  }
+  ```
+- **Indexed form** (homogeneous element type):
+  ```kobel
+  pub op unpack(val self, idx: usz): i32 {
+      if (idx == 0) return self.x;
+      return self.y;
+  }
+  ```
 
 ### If Expressions and Statements
 

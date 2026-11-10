@@ -298,6 +298,7 @@ typedef struct test__test_operators__IntBuffer test__test_operators__IntBuffer;
 typedef struct std__collections__List_str std__collections__List_str;
 typedef struct std__collections__List_i32 std__collections__List_i32;
 typedef struct std__collections__HashSet_str std__collections__HashSet_str;
+typedef struct std__collections__MapEntry_str_i32 std__collections__MapEntry_str_i32;
 typedef struct std__collections__HashMap_str_i32 std__collections__HashMap_str_i32;
 
 
@@ -353,6 +354,11 @@ struct std__collections__HashSet_str {
     bool* occupied;
     size_t len;
     size_t cap;
+};
+
+struct std__collections__MapEntry_str_i32 {
+    kobel_str key;
+    int32_t value;
 };
 
 struct std__collections__HashMap_str_i32 {
@@ -588,7 +594,6 @@ int32_t std__collections__HashMap_str_i32_get_or(std__collections__HashMap_str_i
 bool std__collections__HashMap_str_i32_remove(std__collections__HashMap_str_i32* self, kobel_str key);
 void std__collections__HashMap_str_i32_clear(std__collections__HashMap_str_i32* self);
 bool std__collections__HashMap_str_i32_empty(std__collections__HashMap_str_i32* self);
-size_t std__collections__HashMap_str_i32_count(std__collections__HashMap_str_i32* self);
 std__collections__List_str std__collections__HashMap_str_i32_keys(std__collections__HashMap_str_i32* self);
 std__collections__List_i32 std__collections__HashMap_str_i32_values(std__collections__HashMap_str_i32* self);
 void std__collections__HashMap_str_i32_grow(std__collections__HashMap_str_i32* self);
@@ -596,6 +601,10 @@ void std__collections__HashMap_str_i32_free(std__collections__HashMap_str_i32* s
 void std__collections__HashMap_str_i32_set(std__collections__HashMap_str_i32* self, kobel_str key, int32_t value);
 int32_t* std__collections__HashMap_str_i32_get(std__collections__HashMap_str_i32* self, kobel_str key);
 bool std__collections__HashMap_str_i32_contains(std__collections__HashMap_str_i32* self, kobel_str key);
+std__collections__MapEntry_str_i32 std__collections__MapEntry_str_i32_init(kobel_str key, int32_t value);
+void std__collections__MapEntry_str_i32_unpack(std__collections__MapEntry_str_i32* self, kobel_str* k, int32_t* v);
+size_t std__collections__HashMap_str_i32_count(std__collections__HashMap_str_i32* self);
+std__collections__MapEntry_str_i32 std__collections__HashMap_str_i32_at(std__collections__HashMap_str_i32* self, size_t i);
 void std__memory__Heap_free_u8(uint8_t* ptr);
 void std__memory__Heap_free_str(kobel_str* ptr);
 void std__memory__Heap_free_i32(int32_t* ptr);
@@ -3376,10 +3385,6 @@ bool std__collections__HashMap_str_i32_empty(std__collections__HashMap_str_i32* 
     return (self->len == 0);
 }
 
-size_t std__collections__HashMap_str_i32_count(std__collections__HashMap_str_i32* self) {
-    return self->len;
-}
-
 std__collections__List_str std__collections__HashMap_str_i32_keys(std__collections__HashMap_str_i32* self) {
 std__collections__List_str res = std__collections__List_str_init(4);
 if (self->cap == 0) {
@@ -3603,6 +3608,57 @@ return true;
 idx = ((idx + 1) % self->cap);
 }
 return false;
+}
+
+std__collections__MapEntry_str_i32 std__collections__MapEntry_str_i32_init(kobel_str key, int32_t value) {
+    return (std__collections__MapEntry_str_i32){ key, value };
+}
+
+void std__collections__MapEntry_str_i32_unpack(std__collections__MapEntry_str_i32* self, kobel_str* k, int32_t* v) {
+(*(k) = self->key);
+(*(v) = self->value);
+}
+
+size_t std__collections__HashMap_str_i32_count(std__collections__HashMap_str_i32* self) {
+    return self->len;
+}
+
+std__collections__MapEntry_str_i32 std__collections__HashMap_str_i32_at(std__collections__HashMap_str_i32* self, size_t i) {
+size_t seen = 0;
+{
+size_t __for_e = self->cap;
+size_t __for_i = __for_e;
+__for_i = 0;
+bool __for_up = (__for_i <= __for_e);
+bool __for_go = false;
+if (__for_up) {
+__for_go = (__for_i < __for_e);
+} else {
+__for_go = (__for_i > __for_e);
+}
+while (__for_go) {
+size_t idx = __for_i;
+if (self->occupied[idx]) {
+if (seen == i) {
+return std__collections__MapEntry_str_i32_init(self->keys[idx], self->values[idx]);
+}
+seen++;
+}
+if (__for_up) {
+__for_go = ((__for_i + 1) < __for_e);
+} else {
+__for_go = ((__for_i - 1) > __for_e);
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = (__for_i + 1);
+} else {
+__for_i = (__for_i - 1);
+}
+}
+}
+}
+return std__collections__MapEntry_str_i32_init(self->keys[0], self->values[0]);
 }
 
 void std__memory__Heap_free_u8(uint8_t* ptr) {

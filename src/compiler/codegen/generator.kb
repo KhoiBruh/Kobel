@@ -32,6 +32,7 @@ pub struct CCodeGen {
 	pub current_fn_ret_type: str = "",
 	pub yield_exit_label: str = "",
 	pub when_label_counter: usz = 0,
+	pub destruct_counter: usz = 0,
 	pub defer_nodes: List<*AstNode> = List(),
 	pub scope_starts: List<usz> = List(),
 	pub scope_jumped: List<bool> = List(),

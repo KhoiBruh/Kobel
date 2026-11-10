@@ -36,8 +36,31 @@ pub fn for_is_lvalue(node: *AstNode?): bool {
 		is MemberExpr -> if (target.is_safe) false else for_is_lvalue(target.object);
 		is GroupExpr -> for_is_lvalue(target.expr);
 		is IdentifierExpr -> true;
+		is UnaryExpr -> if (target.op == TokenType.AMPERSAND) for_is_lvalue(target.operand) else false;
 		else -> false;
 	};
+}
+
+pub fn parse_destruct_names(text: str): List<str> {
+	var names = List<str>();
+	var start: isz = -1;
+	for (i in 0..<text.len) {
+		val ch = text[i];
+		if (ch == '(' || ch == ')' || ch == ' ' || ch == '\t' || ch == ',') {
+			if (start >= 0) {
+				names += text.slice(start as usz, i);
+				start = -1;
+			}
+		} else {
+			if (start < 0) {
+				start = i as isz;
+			}
+		}
+	}
+	if (start >= 0) {
+		names += text.slice(start as usz);
+	}
+	return names;
 }
 
 /*
@@ -65,6 +88,26 @@ impl LoopLowerer {
 		line: usz,
 		col: usz
 	): *AstNode => self.arena.node(NodeData.VarDeclStmt(mutable, name, ty, initializer), line, col);
+
+	fn loop_var_or_destruct(
+		var self,
+		var_name: str,
+		elem_expr: *AstNode,
+		line: usz,
+		col: usz
+	): *AstNode {
+		val is_var_destruct = var_name.starts_with("var (") && var_name.ends_with(")");
+		val is_val_destruct = var_name.starts_with("(") && var_name.ends_with(")");
+		if (is_var_destruct || is_val_destruct) {
+			val raw = if (is_var_destruct) var_name.slice(4) else var_name;
+			val names = parse_destruct_names(raw);
+			return self.arena.node(
+				NodeData.DestructDeclStmt(is_var_destruct, names, elem_expr),
+				line, col
+			);
+		}
+		return self.loop_var(false, var_name, null, elem_expr, line, col);
+	}
 
 	fn loop_if(
 		var self,
@@ -150,6 +193,7 @@ impl LoopLowerer {
 			}
 			is WhenStmt -> for (arm in target.arms) self.for_inject_step(arm.body, step, pending);
 			is VarDeclStmt -> self.for_inject_step_expr(target.initializer, step, pending);
+			is DestructDeclStmt -> self.for_inject_step_expr(target.initializer, step, pending);
 			is ExprStmt -> self.for_inject_step_expr(target.expr, step, pending);
 			is ContinueStmt -> {
 				var stmts = List<*AstNode>();
@@ -210,7 +254,7 @@ impl LoopLowerer {
 		at_args += self.for_id("__for_i", line, col);
 		val at_mem = self.arena.node(NodeData.MemberExpr(fs.iterable!, "at", false), line, col);
 		val at_call = self.arena.node(NodeData.CallExpr(at_mem, at_args, List<*AstNode>()), line, col);
-		head += self.loop_var(false, fs.var_name, null, at_call, line, col);
+		head += self.loop_var_or_destruct(fs.var_name, at_call, line, col);
 
 		step += self.for_bump(TokenType.PLUS, line, col);
 
@@ -251,7 +295,7 @@ impl LoopLowerer {
 			NodeData.IndexExpr(data_mem, self.for_id("__for_i", line, col)),
 			line, col
 		);
-		head += self.loop_var(false, fs.var_name, null, idx_expr, line, col);
+		head += self.loop_var_or_destruct(fs.var_name, idx_expr, line, col);
 
 		step += self.for_bump(TokenType.PLUS, line, col);
 
@@ -318,7 +362,7 @@ impl LoopLowerer {
 		}
 
 		// val <v> = __for_i;
-		head += self.loop_var(false, fs.var_name, null, self.for_id("__for_i", line, col), line, col);
+		head += self.loop_var_or_destruct(fs.var_name, self.for_id("__for_i", line, col), line, col);
 
 		// Next element check
 		if (fs.is_open || fs.is_half_open) {

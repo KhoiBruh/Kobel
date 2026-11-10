@@ -9,7 +9,7 @@ mod compiler.ast;
 impl AstNode {
 
 	pub fn is_statement(val self) => when (self) {
-		is BlockStmt, is ExprStmt, is VarDeclStmt,
+		is BlockStmt, is ExprStmt, is VarDeclStmt, is DestructDeclStmt,
 		is IfStmt, is WhileStmt, is ForStmt,
 		is ReturnStmt, is BreakStmt, is ContinueStmt,
 		is WhenStmt, is YieldStmt, is DeferStmt -> true;

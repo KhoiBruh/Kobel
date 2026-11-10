@@ -252,6 +252,11 @@ impl DeclarationCollector {
 					self.report_error(m_node, "Unary operator '${f.name}' cannot take parameters besides 'self'");
 				}
 			}
+			"unpack" -> {
+				if (f.params.len < 2) {
+					self.report_error(m_node, "Operator 'unpack' must take at least 1 parameter besides 'self'");
+				}
+			}
 		}
 	}
 

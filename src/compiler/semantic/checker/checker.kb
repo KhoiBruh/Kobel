@@ -399,6 +399,7 @@ impl BodyChecker {
 			}
 			is BlockStmt -> self.check_block_stmt(node);
 			is VarDeclStmt -> self.check_var_decl_stmt(node);
+			is DestructDeclStmt -> self.check_destruct_decl_stmt(node);
 			is IfStmt -> self.check_if_stmt(node);
 			is WhileStmt -> self.check_while_stmt(node);
 			is ForStmt -> self.check_for_stmt(node);

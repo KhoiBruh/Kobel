@@ -21,7 +21,7 @@ impl Parser {
 		"get", "set",
 		"equals", "compare",
 		"negate", "not",
-		"contains" -> true;
+		"contains", "unpack" -> true;
 		else -> false;
 	};
 
@@ -138,7 +138,7 @@ impl Parser {
 		val name_tok = self.peek();
 		val op_name = name_tok.text;
 		if (!self.is_valid_op_name(op_name)) {
-			self.error(name_tok, "Invalid operator name '${op_name}'. Expected one of: plus, minus, mul, div, rem, plus_assign, minus_assign, mul_assign, div_assign, rem_assign, get, set, equals, compare, negate, not, contains");
+			self.error(name_tok, "Invalid operator name '${op_name}'. Expected one of: plus, minus, mul, div, rem, plus_assign, minus_assign, mul_assign, div_assign, rem_assign, get, set, equals, compare, negate, not, contains, unpack");
 		}
 		self.advance();
 

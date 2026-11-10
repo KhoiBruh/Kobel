@@ -240,6 +240,10 @@ impl TypeResolver {
 				self.rewrite_generics(v.initializer);
 				yield true;
 			}
+			is DestructDeclStmt as d -> {
+				self.rewrite_generics(d.initializer);
+				yield true;
+			}
 			is IfStmt as s -> {
 				self.rewrite_generics(s.condition);
 				self.rewrite_generics(s.then_branch);

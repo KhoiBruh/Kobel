@@ -438,6 +438,14 @@ impl TypeResolver {
 				);
 			}
 
+			is DestructDeclStmt as d -> self.arena.node(
+				NodeData.DestructDeclStmt(
+					d.mutable, d.names.clone(),
+					self.clone_expr(d.initializer, subst)
+				),
+				node.line, node.col
+			);
+
 			is IfStmt as s -> self.arena.node(
 				NodeData.IfStmt(
 					self.clone_expr(s.condition, subst),

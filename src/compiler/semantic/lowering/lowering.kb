@@ -101,6 +101,9 @@ impl LoweringPass {
 			is VarDeclStmt as var vd -> {
 				if (vd.initializer != null) vd.initializer = self.lower_expr(vd.initializer!);
 			}
+			is DestructDeclStmt as var ds -> {
+				ds.initializer = self.lower_expr(ds.initializer);
+			}
 			is IfStmt as var ifs -> {
 				ifs.condition = self.lower_expr(ifs.condition);
 				ifs.then_branch = self.lower_stmt(ifs.then_branch);

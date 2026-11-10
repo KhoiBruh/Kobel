@@ -70,6 +70,7 @@ pub enum NodeData {
 	BlockStmt(statements: List<*AstNode>),
 	ExprStmt(expr: *AstNode),
 	VarDeclStmt(mutable: bool, name: str, type_annotation: *AstNode?, initializer: *AstNode?),
+	DestructDeclStmt(mutable: bool, names: List<str>, initializer: *AstNode),
 	IfStmt(condition: *AstNode, then_branch: *AstNode, else_branch: *AstNode?),
 	WhileStmt(condition: *AstNode, body: *AstNode),
 	ForStmt(var_name: str, is_range: bool, is_open: bool, is_half_open: bool, iterable: *AstNode?, range_start: *AstNode?, range_end: *AstNode?, body: *AstNode),

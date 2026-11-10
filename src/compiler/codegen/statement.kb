@@ -64,6 +64,7 @@ impl CCodeGen {
 		when (node) {
 			is BlockStmt -> self.gen_block_stmt(node);
 			is VarDeclStmt -> self.gen_var_decl_stmt(node);
+			is DestructDeclStmt as ds -> self.gen_destruct_decl_stmt(node, ds);
 			is IfStmt -> self.gen_if_stmt(node);
 			is WhileStmt -> self.gen_while_stmt(node);
 			is ReturnStmt -> self.gen_return_stmt(node);
@@ -288,6 +289,68 @@ impl CCodeGen {
 				}
 				break;
 			}
+		}
+	}
+
+	fn gen_destruct_decl_stmt(var self, node: *AstNode, ds: *DestructDeclStmt) {
+		val mi = self.symtab?.get_resolved_method(node);
+		if (mi == null) return;
+
+		self.destruct_counter++;
+		val destruct_id = self.destruct_counter;
+
+		val fn_t = mi.fn_type.as_fn();
+		val is_indexed = (
+			fn_t.param_types.len == 2 &&
+			fn_t.param_types[1].is_integer() &&
+			fn_t.return_type.kind != DataType.NONE
+		);
+
+		var is_simple_id = false;
+		var recv_name = "";
+		if (ds.initializer is IdentifierExpr as id_expr) {
+			is_simple_id = true;
+			recv_name = id_expr.name;
+		}
+
+		val init_ty = self.node_type(ds.initializer);
+		val init_is_ptr = (init_ty?.kind == DataType.POINTER);
+
+		if (!is_simple_id) {
+			val st_param = fn_t.param_types[0];
+			val st_pointee = if (st_param.kind == DataType.POINTER) st_param.as_pointer().pointee else st_param;
+			val st_c_name = c_type_from_type(st_pointee);
+			val init_ty_str = if (init_is_ptr) "${st_c_name}*" else st_c_name;
+			recv_name = "__destruct_tmp_${destruct_id}";
+			val init_val = self.gen_expr(ds.initializer);
+			self.out += "${init_ty_str} ${recv_name} = ${init_val};\n";
+		}
+
+		val pass_recv = if (init_is_ptr) recv_name else "&${recv_name}";
+
+		if (is_indexed) {
+			for (i in 0..<ds.names.len) {
+				val vname = ds.names[i];
+				if (vname == "_") continue;
+				val vtype_str = c_type_from_type(fn_t.return_type);
+				self.out += "${vtype_str} ${vname} = ${mi.c_name}(${pass_recv}, ${i});\n";
+			}
+		} else {
+			for (i in 0..<ds.names.len) {
+				val raw_name = ds.names[i];
+				val vname = if (raw_name == "_") "__destruct_unused_${destruct_id}_${i}" else raw_name;
+				val param_t = fn_t.param_types[i + 1];
+				val var_t = if (param_t.kind == DataType.POINTER) param_t.as_pointer().pointee else param_t;
+				val vtype_str = c_type_from_type(var_t);
+				self.out += "${vtype_str} ${vname};\n";
+			}
+			self.out += "${mi.c_name}(${pass_recv}";
+			for (i in 0..<ds.names.len) {
+				val raw_name = ds.names[i];
+				val vname = if (raw_name == "_") "__destruct_unused_${destruct_id}_${i}" else raw_name;
+				self.out += ", &${vname}";
+			}
+			self.out += ");\n";
 		}
 	}
 
