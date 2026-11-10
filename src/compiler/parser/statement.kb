@@ -231,12 +231,7 @@ impl Parser {
 			var patterns = List<*AstNode>();
 
 			if (self.match_token(TokenType.KW_ELSE)) is_else = true;
-			else {
-				patterns += self.parse_expression(Precedence.NONE);
-				while (self.match_token(TokenType.COMMA)) {
-					patterns += self.parse_expression(Precedence.NONE);
-				}
-			}
+			else patterns = self.parse_when_patterns();
 
 			self.consume(TokenType.ARROW, "Expected '->' after when arm pattern");
 			val body = self.parse_statement();

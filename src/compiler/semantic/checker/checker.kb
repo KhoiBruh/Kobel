@@ -413,7 +413,7 @@ impl BodyChecker {
 			is WhileStmt -> self.check_while_stmt(node);
 			is ForStmt -> self.check_for_stmt(node);
 			is ReturnStmt -> self.check_return_stmt(node);
-			is BreakStmt, is ContinueStmt -> {
+			is BreakStmt, ContinueStmt -> {
 				if (self.defer_depth > 0) {
 					self.report_error(node, "Break or continue statement is not allowed inside defer");
 				}

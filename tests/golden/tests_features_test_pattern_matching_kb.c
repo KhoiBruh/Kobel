@@ -502,6 +502,7 @@ bool tests__features__test_pattern_matching__Probe_has_prefix(tests__features__t
 int32_t tests__features__test_pattern_matching__Probe_classify(tests__features__test_pattern_matching__Probe* self);
 int32_t tests__features__test_pattern_matching__classify_str_subject(kobel_str s);
 int32_t tests__features__test_pattern_matching__classify_str_stmt(kobel_str s);
+bool tests__features__test_pattern_matching__is_known_node(tests__features__test_pattern_matching__Node* node);
 int32_t main(void);
 size_t std__collections__List_str_count(std__collections__List_str* self);
 kobel_str std__collections__List_str_at(std__collections__List_str* self, size_t i);
@@ -2032,6 +2033,14 @@ out = 300;
 return out;
 }
 
+bool tests__features__test_pattern_matching__is_known_node(tests__features__test_pattern_matching__Node* node) {
+if (node != NULL && node->tag == tests__features__test_pattern_matching__Literal__TAG || node != NULL && node->tag == tests__features__test_pattern_matching__Binary__TAG) {
+return true;
+} else {
+return false;
+}
+}
+
 int32_t main(void) {
 std__io__println(KOBEL_STR("=== Feature Suite: Pattern Matching & Smart Cast ==="));
 tests__features__test_pattern_matching__Literal lit1 = (tests__features__test_pattern_matching__Literal){ tests__features__test_pattern_matching__Literal__TAG, 10 };
@@ -2193,6 +2202,10 @@ tests__features__test_pattern_matching__Probe p3 = (tests__features__test_patter
 tests__features__test_pattern_matching__Probe p4 = (tests__features__test_pattern_matching__Probe){ -3, KOBEL_STR("neg") };
 if ((((tests__features__test_pattern_matching__Probe_classify(&p1) != 1) || (tests__features__test_pattern_matching__Probe_classify(&p2) != 2)) || (tests__features__test_pattern_matching__Probe_classify(&p3) != 3)) || (tests__features__test_pattern_matching__Probe_classify(&p4) != 4)) {
 std__io__println(KOBEL_STR("FAIL: Probe.classify via when (self)"));
+return 1;
+}
+if ((!tests__features__test_pattern_matching__is_known_node((tests__features__test_pattern_matching__Node*)&lit1) || !tests__features__test_pattern_matching__is_known_node((tests__features__test_pattern_matching__Node*)&bin)) || tests__features__test_pattern_matching__is_known_node(null_node)) {
+std__io__println(KOBEL_STR("FAIL: grouped 'is Literal, Binary' pattern"));
 return 1;
 }
 std__io__println(KOBEL_STR("implicit subject when (.method / .field): OK"));

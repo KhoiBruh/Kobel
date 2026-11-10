@@ -31,9 +31,7 @@ fn is_inline_stmt(node: *AstNode?): bool {
 	if (node == null) return false;
 	val n = node!;
 	return when (n) {
-		is BlockStmt -> false;
-		is IfStmt -> false;
-		is WhenStmt -> false;
+		is BlockStmt, IfStmt, WhenStmt -> false;
 		else -> true;
 	};
 }
@@ -312,10 +310,7 @@ impl Formatter {
 					if (arm.is_else) {
 						self.buf += "else -> ";
 					} else {
-						for (p in 0..<arm.patterns.len) {
-							if (p > 0) self.buf += ", ";
-							self.format_expr(arm.patterns[p]);
-						}
+						self.format_when_patterns(arm.patterns);
 						self.buf += " -> ";
 					}
 					if (arm.body is BlockStmt) {
@@ -328,6 +323,19 @@ impl Formatter {
 				self.buf.dedent();
 				self.buf.newline();
 				self.buf += "}";
+			}
+			is IsExpr as is_e -> {
+				if (is_e.expr != null) {
+					self.format_expr(is_e.expr!);
+					self.buf += " ";
+				}
+				self.buf += "is ";
+				self.format_type(is_e.target_type);
+				if (!is_e.alias.empty()) {
+					self.buf += " as ";
+					if (is_e.mutable) self.buf += "var ";
+					self.buf += is_e.alias;
+				}
 			}
 			is InterpExpr as interp -> {
 				self.buf += "\"";
@@ -523,10 +531,7 @@ impl Formatter {
 					self.buf.newline();
 					if (arm.is_else) self.buf += "else -> ";
 					else {
-						for (p in 0..<arm.patterns.len) {
-							if (p > 0) self.buf += ", ";
-							self.format_expr(arm.patterns[p]);
-						}
+						self.format_when_patterns(arm.patterns);
 						self.buf += " -> ";
 					}
 					self.format_stmt(arm.body);
@@ -534,6 +539,30 @@ impl Formatter {
 				self.buf.dedent();
 				self.buf.newline();
 				self.buf += "}";
+			}
+		}
+	}
+
+	fn format_when_patterns(var self, patterns: List<*AstNode>) {
+		var prev_was_prefix_is = false;
+		for (p in 0..<patterns.len) {
+			if (p > 0) self.buf += ", ";
+			val pat = patterns[p];
+			if (pat is IsExpr as is_e && is_e.expr == null) {
+				if (prev_was_prefix_is) {
+					self.format_type(is_e.target_type);
+					if (!is_e.alias.empty()) {
+						self.buf += " as ";
+						if (is_e.mutable) self.buf += "var ";
+						self.buf += is_e.alias;
+					}
+				} else {
+					self.format_expr(pat);
+				}
+				prev_was_prefix_is = true;
+			} else {
+				self.format_expr(pat);
+				prev_was_prefix_is = false;
 			}
 		}
 	}

@@ -31,10 +31,10 @@ pub fn unwrap_group_expr(node: *AstNode?): *AstNode? {
 
 pub fn expr_needs_parens_for_member(node: *AstNode) => when (node) {
 	is IdentifierExpr,
-	is MemberExpr,
-	is CallExpr,
-	is IndexExpr,
-	is GroupExpr -> false;
+	MemberExpr,
+	CallExpr,
+	IndexExpr,
+	GroupExpr -> false;
 	else -> true;
 };
 

@@ -387,12 +387,17 @@ val category = when (score) {
     else     -> "C";
 };
 
-// Smart cast pattern matching on tagged structs
+// Smart cast pattern matching on tagged structs (and grouped type checks)
 when (node) {
     is Literal -> return node.value;       // smart cast: node typed as *Literal
     is Binary -> return eval(node.left);
     else -> return 0;
 }
+
+val is_valid_node = when (node) {
+    is Literal, Binary -> true;            // grouped type pattern: `is A, B`
+    else -> false;
+};
 
 // Multi-statement block arm with yield
 val result = when (action) {

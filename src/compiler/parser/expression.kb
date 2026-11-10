@@ -293,6 +293,22 @@ impl Parser {
 		return self.node(NodeData.IsExpr(left, target_type, alias, mutable), line, col);
 	}
 
+	pub fn parse_when_patterns(var self): List<*AstNode> {
+		var patterns = List<*AstNode>();
+		val first = self.parse_expression(Precedence.NONE);
+		patterns += first;
+		val is_type_group = (first is IsExpr);
+		while (self.match_token(TokenType.COMMA)) {
+			if (is_type_group && !self.check(TokenType.KW_IS)) {
+				val (p_line, p_col) = self.peek();
+				patterns += self.parse_is_pattern(null, p_line, p_col);
+			} else {
+				patterns += self.parse_expression(Precedence.NONE);
+			}
+		}
+		return patterns;
+	}
+
 	fn parse_call_args(var self): List<*AstNode> {
 		var args = List<*AstNode>();
 		if (!self.check(TokenType.CLOSE_PAREN)) {
@@ -404,12 +420,7 @@ impl Parser {
 					var patterns = List<*AstNode>();
 
 					if (self.match_token(TokenType.KW_ELSE)) is_else = true;
-					else {
-						patterns += self.parse_expression(Precedence.NONE);
-						while (self.match_token(TokenType.COMMA)) {
-							patterns += self.parse_expression(Precedence.NONE);
-						}
-					}
+					else patterns = self.parse_when_patterns();
 
 					self.consume(TokenType.ARROW, "Expected '->' after when arm pattern");
 					val is_block = self.check(TokenType.OPEN_BRACE);

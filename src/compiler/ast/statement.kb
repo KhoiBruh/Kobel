@@ -9,29 +9,29 @@ mod compiler.ast;
 impl AstNode {
 
 	pub fn is_statement(val self) => when (self) {
-		is BlockStmt, is ExprStmt, is VarDeclStmt, is DestructDeclStmt,
-		is IfStmt, is WhileStmt, is ForStmt,
-		is ReturnStmt, is BreakStmt, is ContinueStmt,
-		is WhenStmt, is YieldStmt, is DeferStmt -> true;
+		is BlockStmt, ExprStmt, VarDeclStmt, DestructDeclStmt,
+		IfStmt, WhileStmt, ForStmt,
+		ReturnStmt, BreakStmt, ContinueStmt,
+		WhenStmt, YieldStmt, DeferStmt -> true;
 		else -> false;
 	};
 
 	pub fn is_control_flow(val self) => when (self) {
-		is ReturnStmt, is BreakStmt, is ContinueStmt,
-		is YieldStmt, is BlockStmt -> true;
+		is ReturnStmt, BreakStmt, ContinueStmt,
+		YieldStmt, BlockStmt -> true;
 		else -> false;
 	};
 
 	pub fn is_declaration(val self) => when (self) {
-		is ModuleDecl, is UseDecl, is FnDecl,
-		is StructDecl, is TraitDecl, is ImplDecl,
-		is EnumDecl, is ConstDecl, is ExternBlock,
-		is Program -> true;
+		is ModuleDecl, UseDecl, FnDecl,
+		StructDecl, TraitDecl, ImplDecl,
+		EnumDecl, ConstDecl, ExternBlock,
+		Program -> true;
 		else -> false;
 	};
 
 	pub fn is_type_node(val self) => when (self) {
-		is NamedType, is PointerType, is ArrayType, is NullableType -> true;
+		is NamedType, PointerType, ArrayType, NullableType -> true;
 		else -> false;
 	};
 
