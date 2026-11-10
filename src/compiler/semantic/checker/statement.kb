@@ -93,7 +93,12 @@ impl BodyChecker {
 
 			var struct_ty = init_ty;
 			if (struct_ty.kind == DataType.POINTER) {
-				struct_ty = struct_ty.as_pointer().pointee;
+				val ptr_ty = struct_ty.as_pointer();
+				if (ptr_ty.nullable) {
+					self.report_error(node, "Cannot destructure nullable pointer '${self.type_display(init_ty)}'. Use '!' or null-check first");
+					return;
+				}
+				struct_ty = ptr_ty.pointee;
 			}
 
 			self.ensure(

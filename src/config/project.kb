@@ -34,18 +34,22 @@ impl ProjectConfig {
 
 		val doc = Toml(content);
 
+		var package_entry = "";
+		var build_entry = "";
 		for ((key, val_str) in doc) {
 			if (val_str.empty()) continue;
 			when (key) {
 				"package.name" -> self.name = val_str;
 				"package.version" -> self.version = val_str;
-				"build.entry" -> if (self.entry == "src/main.kb") self.entry = val_str;
-				"package.entry" -> self.entry = val_str;
+				"package.entry" -> package_entry = val_str;
+				"build.entry" -> build_entry = val_str;
 				"build.output" -> self.output = val_str;
 				"build.cc" -> self.cc = val_str;
 				"test.dir" -> self.test_dir = val_str;
 			}
 		}
+		if (!package_entry.empty()) self.entry = package_entry;
+		else if (!build_entry.empty()) self.entry = build_entry;
 
 		return self;
 	}
