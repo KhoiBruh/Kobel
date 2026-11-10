@@ -102,6 +102,15 @@ pub struct AstNode {
 	pub span: Span = Span.empty()
 }
 
+impl AstNode {
+
+	pub op unpack(val self, line: &usz, col: &usz) {
+		line.write(self.line);
+		col.write(self.col);
+	}
+
+}
+
 impl Arena {
 
 	pub fn node(

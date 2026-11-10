@@ -120,6 +120,24 @@ impl Token {
 
 	pub fn is_eof(val self) => self.type == TokenType.END_OF_FILE;
 
+	pub op unpack(val self, line: &usz, col: &usz) {
+		line.write(self.line);
+		col.write(self.col);
+	}
+
+	pub op unpack(val self, tok_type: &TokenType, line: &usz, col: &usz) {
+		tok_type.write(self.type);
+		line.write(self.line);
+		col.write(self.col);
+	}
+
+	pub op unpack(val self, tok_type: &TokenType, text: &str, line: &usz, col: &usz) {
+		tok_type.write(self.type);
+		text.write(self.text);
+		line.write(self.line);
+		col.write(self.col);
+	}
+
 	pub fn is_unknown(val self) => self.type == TokenType.UNKNOWN;
 
 	pub fn is_keyword(val self) => when (self.type) {

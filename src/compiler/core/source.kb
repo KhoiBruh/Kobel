@@ -26,6 +26,18 @@ impl Span {
 
 	pub fn is_valid(val self) => self.line > 0;
 
+	pub op unpack(val self, line: &usz, col: &usz) {
+		line.write(self.line);
+		col.write(self.col);
+	}
+
+	pub op unpack(val self, file_id: &u32, line: &usz, col: &usz, length: &usz) {
+		file_id.write(self.file_id);
+		line.write(self.line);
+		col.write(self.col);
+		length.write(self.length);
+	}
+
 }
 
 pub struct SourceFile {

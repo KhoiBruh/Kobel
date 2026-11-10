@@ -102,6 +102,15 @@ impl HashMap<K: Hash, V> {
 		return res;
 	}
 
+	pub fn entries(val self): List<MapEntry<K, V>> {
+		var res = List<MapEntry<K, V>>();
+		if (self.cap == 0) return res;
+		for (i in 0..<self.cap) {
+			if (self.occupied[i]) res += MapEntry<K, V>(self.keys[i], self.values[i]);
+		}
+		return res;
+	}
+
 	fn grow(var self) {
 		val old_cap = self.cap;
 		val old_keys = self.keys;
