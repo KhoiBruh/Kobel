@@ -92,7 +92,9 @@ impl CompileOptions {
 		}
 
 		val prog = loaded_prog!;
-		if (!self.quiet) println("  ${loader.count()} module(s) loaded");
+		val mod_count = loader.count();
+		if (!self.quiet) println("  ${mod_count} module(s) loaded");
+		loader.cleanup();
 
 		if (!self.quiet) println("[2/4] Semantic analysis (declarations)...");
 		var decl_p = DeclarationCollector();

@@ -82,14 +82,15 @@ pub struct InstanceRecord {
 	pub args: List<*Type>,
 	pub c_name: str,
 	pub decl: *AstNode,
-	pub ann_map: HashMap<usz, *AnnotationEntry> = HashMap(),
+	pub ann_map: *HashMap<usz, *AnnotationEntry>? = null,
 	pub sig: *Type? = null
 }
 
 impl InstanceRecord {
 
 	pub fn find_ann(*self, node: *AstNode): *AnnotationEntry? {
-		val p = self.ann_map.get(node.addr()) ?: return null;
+		if (self.ann_map == null) return null;
+		val p = self.ann_map!.get(node.addr()) ?: return null;
 		return p.read();
 	}
 

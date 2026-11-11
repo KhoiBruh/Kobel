@@ -865,6 +865,7 @@ impl Parser {
 				val src = text.slice(h_start, h_end as usz);
 				var sub_lexer = Lexer(src);
 				val sub_tokens = sub_lexer.tokenize();
+				defer sub_tokens.free();
 				var sub = Parser(sub_tokens);
 				// Share the parent arena: a fresh one per hole costs a mostly empty 64KB block.
 				sub.arena = self.arena;
@@ -937,6 +938,7 @@ impl Parser {
 				val src = text.slice(h_start, h_end);
 				var sub_lexer = Lexer(src);
 				val sub_tokens = sub_lexer.tokenize();
+				defer sub_tokens.free();
 				var sub = Parser(sub_tokens);
 				// Share the parent arena: a fresh one per hole costs a mostly empty 64KB block.
 				sub.arena = self.arena;

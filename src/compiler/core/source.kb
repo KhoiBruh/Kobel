@@ -44,23 +44,50 @@ pub struct SourceFile {
 	pub id: u32,
 	pub path: str,
 	pub module_name: str,
-	pub content: str,
-	pub lines: List<str>
+	pub content: str
 }
 
 impl SourceFile {
 
-	pub init(id: u32, path: str, module_name: str, content: str) {
-		val lines = content.split_lines();
-		return Self(id, path, module_name, content, lines);
+	pub init(id: u32, path: str, module_name: str, content: str)
+		=> Self(id, path, module_name, content);
+
+	pub fn line_count(*self): usz {
+		if (self.content.empty()) return 0;
+		var count: usz = 1;
+		for (i in 0..<self.content.len) {
+			if (self.content[i] == '\n') count++;
+		}
+		return count;
 	}
 
 	pub fn line_text(*self, line_num: usz): str {
-		if (line_num == 0 || line_num > self.lines.len) return "";
-		return self.lines[line_num - 1];
+		if (line_num == 0 || self.content.empty()) return "";
+		var curr_line: usz = 1;
+		var line_start: usz = 0;
+		for (i in 0..<self.content.len) {
+			val c = self.content[i];
+			if (c == '\n') {
+				if (curr_line == line_num) {
+					var line_end = i;
+					if (line_end > line_start && self.content[line_end - 1] == '\r') {
+						line_end--;
+					}
+					return self.content.slice(line_start, line_end);
+				}
+				curr_line++;
+				line_start = i + 1;
+			}
+		}
+		if (curr_line == line_num && line_start <= self.content.len) {
+			var line_end = self.content.len;
+			if (line_end > line_start && self.content[line_end - 1] == '\r') {
+				line_end--;
+			}
+			return self.content.slice(line_start, line_end);
+		}
+		return "";
 	}
-
-	pub fn free(self) => self.lines.free();
 
 }
 
@@ -108,7 +135,6 @@ impl SourceMap {
 	pub fn count(*self) => self.files.len;
 
 	pub fn free(self) {
-		for (file in self.files) file.free();
 		self.files.free();
 		self.path_index.free();
 		self.module_index.free();

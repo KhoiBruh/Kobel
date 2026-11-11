@@ -389,6 +389,7 @@ uint8_t* std__memory__Arena_alloc_bytes(std__memory__Arena* self, size_t size, s
 std__memory__Arena std__memory__Arena_init(size_t block_size);
 void std__memory__Arena_new_block(std__memory__Arena* self, size_t min_size);
 void std__memory__Arena_reset(std__memory__Arena* self);
+size_t std__memory__Arena_total_allocated(std__memory__Arena* self);
 void std__memory__Arena_free(std__memory__Arena* self);
 uint8_t* std__memory__Heap_alloc_bytes(std__memory__Heap* self, size_t size, size_t align);
 void std__memory__Heap_free_1(void* ptr);
@@ -665,6 +666,16 @@ while (curr != NULL) {
 curr->used = 0;
 curr = curr->next;
 }
+}
+
+size_t std__memory__Arena_total_allocated(std__memory__Arena* self) {
+size_t total = 0;
+std__memory__ArenaBlock* curr = self->current;
+while (curr != NULL) {
+total += curr->size;
+curr = curr->next;
+}
+return total;
 }
 
 void std__memory__Arena_free(std__memory__Arena* self) {

@@ -309,7 +309,10 @@ impl BodyChecker {
 		val ex = rec.find_ann(node);
 		if (ex != null) return ex;
 		val e = self.arena.create_val(AnnotationEntry(node));
-		rec.ann_map[node.addr()] = e;
+		if (rec.ann_map == null) {
+			rec.ann_map = self.arena.create_val(HashMap<usz, *AnnotationEntry>());
+		}
+		(*rec.ann_map!)[node.addr()] = e;
 		return e;
 	}
 

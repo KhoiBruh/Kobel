@@ -362,7 +362,9 @@ impl CCodeGen {
 		if (cur is BinaryExpr as bin) {
 			if (bin.op == TokenType.AND_AND) {
 				val left = self.collect_condition_aliases(bin.left);
+				defer left.free();
 				val right = self.collect_condition_aliases(bin.right);
+				defer right.free();
 				for (l in left) {
 					var found = false;
 					for (item in res) {
@@ -401,6 +403,7 @@ impl CCodeGen {
 		aliases: List<ConditionAlias>
 	): bool {
 		val cond_aliases = self.collect_condition_aliases(expr);
+		defer cond_aliases.free();
 		for ((ca_name, ca_type) in cond_aliases) {
 			for ((a_name, a_type) in aliases) {
 				if (ca_name == a_name && ca_type != a_type) return true;
@@ -411,12 +414,14 @@ impl CCodeGen {
 
 	fn gen_if_stmt(&self, ifs: *IfStmt) {
 		var aliases = self.collect_condition_aliases(ifs.condition);
+		defer aliases.free();
 
 		var cur_elif = ifs.else_branch;
 		while (cur_elif != null) {
 			if (cur_elif is IfStmt as elif) {
 				if (self.has_alias_type_conflict(elif.condition, aliases)) break;
 				val elif_aliases = self.collect_condition_aliases(elif.condition);
+				defer elif_aliases.free();
 				for (ea in elif_aliases) {
 					var found = false;
 					val (ea_name, _) = ea;

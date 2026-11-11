@@ -114,6 +114,7 @@ impl CCodeGen {
 				}
 			}
 			var order = List<*AstNode>();
+			defer order.free();
 			var emitted = HashSet<str>();
 			defer emitted.free();
 			while (!items.empty()) {
@@ -128,6 +129,7 @@ impl CCodeGen {
 						if (dep in emitted) continue;
 						if (dep in pending) ready = false;
 					}
+					deps.free();
 					if (ready) {
 						order += item;
 						emitted += item_name;
@@ -137,6 +139,7 @@ impl CCodeGen {
 						next += item;
 					}
 				}
+				items.free();
 				if (!progressed) {
 					// A by-value cycle cannot exist in C; keep the program order.
 					for (item in next) order += item;
@@ -303,6 +306,7 @@ impl CCodeGen {
 
 		if (!is_proto && f_body != null) {
 			var lambdas = List<*AstNode>();
+			defer lambdas.free();
 			self.collect_lambdas_in_node(f_body, &lambdas);
 			for (lam_node in lambdas) {
 				self.gen_lambda_helper(lam_node);

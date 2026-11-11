@@ -106,7 +106,7 @@ impl Diagnostic {
 				val sf = if (self.file_id > 0) sources.get_file(self.file_id)
 						else sources.find_by_path(self.file_path);
 
-				if (sf != null && self.line <= sf.lines.len) {
+				if (sf != null && self.line <= sf.line_count()) {
 					raw_line = sf.line_text(self.line);
 					have_line = true;
 				}

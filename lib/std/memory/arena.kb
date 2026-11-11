@@ -66,6 +66,16 @@ impl Arena {
 		}
 	}
 
+	pub fn total_allocated(*self): usz {
+		var total: usz = 0;
+		var curr = self.current;
+		while (curr != null) {
+			total += curr.size;
+			curr = curr.next;
+		}
+		return total;
+	}
+
 	pub fn free(&self) {
 		var curr = self.current;
 		while (curr != null) {

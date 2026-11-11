@@ -263,10 +263,9 @@ impl BodyChecker {
 			}
 			if (added.empty()) return;
 
-			var combined = List<*AstNode>();
-			for (d in prog.declarations) combined += d;
-			for (d in added) combined += d;
-			prog.declarations = combined;
+			prog.declarations.reserve(prog.declarations.len + added.len);
+			prog.declarations.extend(added);
+			added.free();
 		}
 	}
 

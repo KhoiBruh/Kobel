@@ -158,6 +158,7 @@ impl ModuleLoader {
 		val file_id = self.sources.add_file(path, source, module_name);
 		var lexer = Lexer(source, file_id);
 		val tokens = lexer.tokenize();
+		defer tokens.free();
 
 		if (!lexer.errors.empty()) {
 			for (d in lexer.errors) {
@@ -319,6 +320,12 @@ impl ModuleLoader {
 		}
 
 		return self.program(decls, 0, 0);
+	}
+
+	pub fn cleanup(&self) {
+		self.ordered.clear();
+		self.modules.clear();
+		self.known.clear();
 	}
 
 }
