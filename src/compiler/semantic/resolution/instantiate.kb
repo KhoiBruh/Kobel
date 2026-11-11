@@ -131,6 +131,16 @@ impl TypeResolver {
 			for (impl_tmpl in self.symtab.gen.impl_templates) {
 				if (impl_tmpl.name != tmpl.name) continue;
 				val prev_mod2 = self.enter_module(impl_tmpl.module);
+				val target_tmpl = self.find_struct_template(impl_tmpl.name);
+				if (
+					target_tmpl?.module != tmpl.module ||
+					target_tmpl.node != tmpl.node ||
+					impl_tmpl.param_names().len != args.len
+				) {
+					self.leave_module(prev_mod2);
+					continue;
+				}
+
 				if (impl_tmpl.node is ImplDecl as im) {
 					self.current_self_type = s_type;
 					val mark2 = self.subst.push(impl_tmpl.param_names(), args, self.prims().t_none());

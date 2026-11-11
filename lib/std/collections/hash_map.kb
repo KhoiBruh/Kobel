@@ -102,11 +102,11 @@ impl HashMap<K: Hash, V> {
 		return res;
 	}
 
-	pub fn entries(val self): List<MapEntry<K, V>> {
-		var res = List<MapEntry<K, V>>();
+	pub fn entries(val self): List<Pair<K, V>> {
+		var res = List<Pair<K, V>>();
 		if (self.cap == 0) return res;
 		for (i in 0..<self.cap) {
-			if (self.occupied[i]) res += MapEntry<K, V>(self.keys[i], self.values[i]);
+			if (self.occupied[i]) res += Pair(self.keys[i], self.values[i]);
 		}
 		return res;
 	}
@@ -135,7 +135,7 @@ impl HashMap<K: Hash, V> {
 	}
 
 	pub fn count_where(val self, predicate: (K, V) -> bool): usz {
-		var n: usz = 0;
+		var n = 0;
 		if (self.cap == 0) return n;
 		for (i in 0..<self.cap) {
 			if (self.occupied[i] && predicate(self.keys[i], self.values[i])) n++;
@@ -163,9 +163,8 @@ impl HashMap<K: Hash, V> {
 				if (old_occ[i]) {
 					val h = old_hashes[i];
 					var idx = h % new_cap;
-					while (new_occ[idx]) {
-						idx = (idx + 1) % new_cap;
-					}
+					while (new_occ[idx]) idx = (idx + 1) % new_cap;
+
 					keys[idx] = old_keys[i];
 					values[idx] = old_vals[i];
 					hashes[idx] = h;
@@ -245,35 +244,20 @@ impl HashMap<K: Hash, V> {
 
 }
 
-pub struct MapEntry<K, V> {
-	pub key: K,
-	pub value: V
-}
-
-impl MapEntry<K, V> {
-
-	pub init(key: K, value: V) => Self(key, value);
-
-	pub op unpack(val self, k: &K, v: &V) {
-		k.write(self.key);
-		v.write(self.value);
-	}
-
-}
-
 impl Iterable for HashMap<K: Hash, V> {
 
 	pub fn count(val self) => self.len;
 
-	pub fn at(val self, i: usz): MapEntry<K, V> {
-		var seen: usz = 0;
+	pub fn at(val self, i: usz): Pair<K, V> {
+		var seen = 0;
 		for (idx in 0..<self.cap) {
 			if (self.occupied[idx]) {
-				if (seen == i) return MapEntry<K, V>(self.keys[idx], self.values[idx]);
+				if (seen == i) return Pair(self.keys[idx], self.values[idx]);
 				seen++;
 			}
 		}
-		return MapEntry<K, V>(self.keys[0], self.values[0]);
+
+		return Pair(self.keys[0], self.values[0]);
 	}
 
 }

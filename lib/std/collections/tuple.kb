@@ -1,0 +1,31 @@
+mod std.collections;
+
+pub struct Pair<F, S> {
+	pub first: F,
+	pub second: S
+}
+
+impl Pair<F, S> {
+
+	pub op unpack(val self, first: &F, second: &S) {
+		first.write(self.first);
+		second.write(self.second);
+	}
+
+}
+
+pub struct Triple<F, S, T> {
+	pub first: F,
+	pub second: S,
+	pub third: T
+}
+
+impl Triple<F, S, T> {
+
+	pub op unpack(val self, first: &F, second: &S, third: &T) {
+		first.write(self.first);
+		second.write(self.second);
+		third.write(self.third);
+	}
+
+}
