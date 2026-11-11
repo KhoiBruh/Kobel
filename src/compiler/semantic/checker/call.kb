@@ -409,6 +409,25 @@ impl BodyChecker {
 			if (recv_ty?.kind == DataType.POINTER && recv_ty.as_pointer().mutable) {
 				self.check_receiver_mutability(node, mem.object, mem.member, obj_raw_ty);
 				self.mark_node_mutated(mem.object);
+			} else if (mi.is_move) {
+				if (obj_raw_ty.kind == DataType.POINTER) {
+					self.report_error(
+						node,
+						"Cannot call move method '${mem.member}' on a pointer receiver; moving requires value ownership"
+					);
+				} else if (self.defer_depth == 0) {
+					val obj_expr = self.unwrap_group(mem.object);
+					if (obj_expr is IdentifierExpr as id) {
+						val sym = self.symtab.lookup(id.name);
+						if (sym != null) {
+							if (sym.is_moved) {
+								self.report_error(node, "Use of moved value '${id.name}'");
+							} else {
+								sym.is_moved = true;
+							}
+						}
+					}
+				}
 			}
 		}
 

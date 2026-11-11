@@ -432,7 +432,7 @@ char std__string__StringBuilder_last_char(std__string__StringBuilder* self);
 size_t std__string__StringBuilder_clear(std__string__StringBuilder* self);
 kobel_str std__string__StringBuilder_as_view(std__string__StringBuilder* self);
 void std__string__StringBuilder_grow(std__string__StringBuilder* self, size_t min_cap);
-void std__string__StringBuilder_free(std__string__StringBuilder* self);
+void std__string__StringBuilder_free(std__string__StringBuilder self);
 void std__string__StringBuilder_plus_assign_2(std__string__StringBuilder* self, kobel_str s);
 void std__string__StringBuilder_plus_assign_2_2(std__string__StringBuilder* self, char c);
 void std__string__StringBuilder_plus_assign_2_3(std__string__StringBuilder* self, int64_t n);
@@ -506,7 +506,7 @@ std__collections__List_str std__collections__List_str_filter(std__collections__L
 bool std__collections__List_str_any(std__collections__List_str* self, kobel_closure predicate);
 bool std__collections__List_str_all(std__collections__List_str* self, kobel_closure predicate);
 size_t std__collections__List_str_count_where(std__collections__List_str* self, kobel_closure predicate);
-void std__collections__List_str_free(std__collections__List_str* self);
+void std__collections__List_str_free(std__collections__List_str self);
 kobel_str std__collections__List_str_get(std__collections__List_str* self, size_t index);
 bool std__collections__List_str_contains(std__collections__List_str* self, kobel_str value);
 kobel_str std__collections__List_str_set(std__collections__List_str* self, size_t index, kobel_str value);
@@ -545,7 +545,7 @@ std__collections__List_i32 std__collections__List_i32_filter(std__collections__L
 bool std__collections__List_i32_any(std__collections__List_i32* self, kobel_closure predicate);
 bool std__collections__List_i32_all(std__collections__List_i32* self, kobel_closure predicate);
 size_t std__collections__List_i32_count_where(std__collections__List_i32* self, kobel_closure predicate);
-void std__collections__List_i32_free(std__collections__List_i32* self);
+void std__collections__List_i32_free(std__collections__List_i32 self);
 int32_t std__collections__List_i32_get(std__collections__List_i32* self, size_t index);
 bool std__collections__List_i32_contains(std__collections__List_i32* self, int32_t value);
 int32_t std__collections__List_i32_set(std__collections__List_i32* self, size_t index, int32_t value);
@@ -1479,7 +1479,7 @@ __for_i = (__for_i - 1);
 }
 {
 kobel_str __ret_tmp = std__string__StringBuilder_to_str(&sb);
-std__string__StringBuilder_free(&sb);
+std__string__StringBuilder_free(sb);
 return __ret_tmp;
 }
 }
@@ -1669,8 +1669,8 @@ self->buf = new_raw;
 self->cap = new_cap;
 }
 
-void std__string__StringBuilder_free(std__string__StringBuilder* self) {
-    std__memory__Heap_free_u8(self->buf);
+void std__string__StringBuilder_free(std__string__StringBuilder self) {
+    std__memory__Heap_free_u8(self.buf);
 }
 
 void std__string__StringBuilder_plus_assign_2(std__string__StringBuilder* self, kobel_str s) {
@@ -2131,7 +2131,7 @@ std__collections__List_i32_each(&list, (kobel_closure){ (void*)__lambda_fn_11, (
 if (acc != 150) {
 {
 int32_t __ret_tmp = 6;
-std__collections__List_i32_free(&list);
+std__collections__List_i32_free(list);
 return __ret_tmp;
 }
 }
@@ -2139,56 +2139,56 @@ std__collections__List_i32 evens = std__collections__List_i32_filter(&list, (kob
 if (evens.len != 2) {
 {
 int32_t __ret_tmp = 7;
-std__collections__List_i32_free(&evens);
-std__collections__List_i32_free(&list);
+std__collections__List_i32_free(evens);
+std__collections__List_i32_free(list);
 return __ret_tmp;
 }
 }
 if ((std__collections__List_i32_get(&evens, 0) != 2) || (std__collections__List_i32_get(&evens, 1) != 4)) {
 {
 int32_t __ret_tmp = 8;
-std__collections__List_i32_free(&evens);
-std__collections__List_i32_free(&list);
+std__collections__List_i32_free(evens);
+std__collections__List_i32_free(list);
 return __ret_tmp;
 }
 }
 if (!std__collections__List_i32_any(&list, (kobel_closure){ (void*)__lambda_fn_13, NULL })) {
 {
 int32_t __ret_tmp = 9;
-std__collections__List_i32_free(&evens);
-std__collections__List_i32_free(&list);
+std__collections__List_i32_free(evens);
+std__collections__List_i32_free(list);
 return __ret_tmp;
 }
 }
 if (std__collections__List_i32_any(&list, (kobel_closure){ (void*)__lambda_fn_14, NULL })) {
 {
 int32_t __ret_tmp = 10;
-std__collections__List_i32_free(&evens);
-std__collections__List_i32_free(&list);
+std__collections__List_i32_free(evens);
+std__collections__List_i32_free(list);
 return __ret_tmp;
 }
 }
 if (!std__collections__List_i32_all(&list, (kobel_closure){ (void*)__lambda_fn_15, NULL })) {
 {
 int32_t __ret_tmp = 11;
-std__collections__List_i32_free(&evens);
-std__collections__List_i32_free(&list);
+std__collections__List_i32_free(evens);
+std__collections__List_i32_free(list);
 return __ret_tmp;
 }
 }
 if (std__collections__List_i32_all(&list, (kobel_closure){ (void*)__lambda_fn_16, NULL })) {
 {
 int32_t __ret_tmp = 12;
-std__collections__List_i32_free(&evens);
-std__collections__List_i32_free(&list);
+std__collections__List_i32_free(evens);
+std__collections__List_i32_free(list);
 return __ret_tmp;
 }
 }
 if (std__collections__List_i32_count_where(&list, (kobel_closure){ (void*)__lambda_fn_17, NULL }) != 3) {
 {
 int32_t __ret_tmp = 13;
-std__collections__List_i32_free(&evens);
-std__collections__List_i32_free(&list);
+std__collections__List_i32_free(evens);
+std__collections__List_i32_free(list);
 return __ret_tmp;
 }
 }
@@ -2196,18 +2196,18 @@ std__collections__List_i32 squares = std__collections__std__collections__List_i3
 if (squares.len != 5) {
 {
 int32_t __ret_tmp = 14;
-std__collections__List_i32_free(&squares);
-std__collections__List_i32_free(&evens);
-std__collections__List_i32_free(&list);
+std__collections__List_i32_free(squares);
+std__collections__List_i32_free(evens);
+std__collections__List_i32_free(list);
 return __ret_tmp;
 }
 }
 if (((std__collections__List_i32_get(&squares, 0) != 1) || (std__collections__List_i32_get(&squares, 2) != 9)) || (std__collections__List_i32_get(&squares, 4) != 25)) {
 {
 int32_t __ret_tmp = 15;
-std__collections__List_i32_free(&squares);
-std__collections__List_i32_free(&evens);
-std__collections__List_i32_free(&list);
+std__collections__List_i32_free(squares);
+std__collections__List_i32_free(evens);
+std__collections__List_i32_free(list);
 return __ret_tmp;
 }
 }
@@ -2215,20 +2215,20 @@ std__collections__List_str labels = std__collections__std__collections__List_i32
 if (labels.len != 2) {
 {
 int32_t __ret_tmp = 16;
-std__collections__List_str_free(&labels);
-std__collections__List_i32_free(&squares);
-std__collections__List_i32_free(&evens);
-std__collections__List_i32_free(&list);
+std__collections__List_str_free(labels);
+std__collections__List_i32_free(squares);
+std__collections__List_i32_free(evens);
+std__collections__List_i32_free(list);
 return __ret_tmp;
 }
 }
 if (!kobel_streq(std__collections__List_str_get(&labels, 0), KOBEL_STR("v=2")) || !kobel_streq(std__collections__List_str_get(&labels, 1), KOBEL_STR("v=4"))) {
 {
 int32_t __ret_tmp = 17;
-std__collections__List_str_free(&labels);
-std__collections__List_i32_free(&squares);
-std__collections__List_i32_free(&evens);
-std__collections__List_i32_free(&list);
+std__collections__List_str_free(labels);
+std__collections__List_i32_free(squares);
+std__collections__List_i32_free(evens);
+std__collections__List_i32_free(list);
 return __ret_tmp;
 }
 }
@@ -2236,10 +2236,10 @@ int32_t sum = std__collections__std__collections__List_i32_fold_i32(&list, 100, 
 if (sum != 115) {
 {
 int32_t __ret_tmp = 18;
-std__collections__List_str_free(&labels);
-std__collections__List_i32_free(&squares);
-std__collections__List_i32_free(&evens);
-std__collections__List_i32_free(&list);
+std__collections__List_str_free(labels);
+std__collections__List_i32_free(squares);
+std__collections__List_i32_free(evens);
+std__collections__List_i32_free(list);
 return __ret_tmp;
 }
 }
@@ -2248,22 +2248,22 @@ std__collections__List_i32 clamped = std__collections__std__collections__List_i3
 if (defer_runs != 5) {
 {
 int32_t __ret_tmp = 19;
-std__collections__List_i32_free(&clamped);
-std__collections__List_str_free(&labels);
-std__collections__List_i32_free(&squares);
-std__collections__List_i32_free(&evens);
-std__collections__List_i32_free(&list);
+std__collections__List_i32_free(clamped);
+std__collections__List_str_free(labels);
+std__collections__List_i32_free(squares);
+std__collections__List_i32_free(evens);
+std__collections__List_i32_free(list);
 return __ret_tmp;
 }
 }
 if ((((std__collections__List_i32_get(&clamped, 0) != 0) || (std__collections__List_i32_get(&clamped, 1) != 0)) || (std__collections__List_i32_get(&clamped, 2) != 7)) || (std__collections__List_i32_get(&clamped, 4) != 11)) {
 {
 int32_t __ret_tmp = 20;
-std__collections__List_i32_free(&clamped);
-std__collections__List_str_free(&labels);
-std__collections__List_i32_free(&squares);
-std__collections__List_i32_free(&evens);
-std__collections__List_i32_free(&list);
+std__collections__List_i32_free(clamped);
+std__collections__List_str_free(labels);
+std__collections__List_i32_free(squares);
+std__collections__List_i32_free(evens);
+std__collections__List_i32_free(list);
 return __ret_tmp;
 }
 }
@@ -2271,12 +2271,12 @@ std__collections__List_i32 grades = std__collections__std__collections__List_i32
 if (((std__collections__List_i32_get(&grades, 0) != 20) || (std__collections__List_i32_get(&grades, 2) != 46)) || (std__collections__List_i32_get(&grades, 4) != 100)) {
 {
 int32_t __ret_tmp = 21;
-std__collections__List_i32_free(&grades);
-std__collections__List_i32_free(&clamped);
-std__collections__List_str_free(&labels);
-std__collections__List_i32_free(&squares);
-std__collections__List_i32_free(&evens);
-std__collections__List_i32_free(&list);
+std__collections__List_i32_free(grades);
+std__collections__List_i32_free(clamped);
+std__collections__List_str_free(labels);
+std__collections__List_i32_free(squares);
+std__collections__List_i32_free(evens);
+std__collections__List_i32_free(list);
 return __ret_tmp;
 }
 }
@@ -2288,26 +2288,26 @@ std__collections__List_i32_each(&row1, (kobel_closure){ (void*)__lambda_fn_24, (
 if (counter.steps != 4) {
 {
 int32_t __ret_tmp = 22;
-std__collections__List_i32_free(&row1);
-std__collections__List_i32_free(&grades);
-std__collections__List_i32_free(&clamped);
-std__collections__List_str_free(&labels);
-std__collections__List_i32_free(&squares);
-std__collections__List_i32_free(&evens);
-std__collections__List_i32_free(&list);
+std__collections__List_i32_free(row1);
+std__collections__List_i32_free(grades);
+std__collections__List_i32_free(clamped);
+std__collections__List_str_free(labels);
+std__collections__List_i32_free(squares);
+std__collections__List_i32_free(evens);
+std__collections__List_i32_free(list);
 return __ret_tmp;
 }
 }
 if (counter.total != 72) {
 {
 int32_t __ret_tmp = 23;
-std__collections__List_i32_free(&row1);
-std__collections__List_i32_free(&grades);
-std__collections__List_i32_free(&clamped);
-std__collections__List_str_free(&labels);
-std__collections__List_i32_free(&squares);
-std__collections__List_i32_free(&evens);
-std__collections__List_i32_free(&list);
+std__collections__List_i32_free(row1);
+std__collections__List_i32_free(grades);
+std__collections__List_i32_free(clamped);
+std__collections__List_str_free(labels);
+std__collections__List_i32_free(squares);
+std__collections__List_i32_free(evens);
+std__collections__List_i32_free(list);
 return __ret_tmp;
 }
 }
@@ -2315,25 +2315,25 @@ kobel_str str_res = test__lambda__transform_val_i32_str(99, (kobel_closure){ (vo
 if (!kobel_streq(str_res, KOBEL_STR("num:99"))) {
 {
 int32_t __ret_tmp = 24;
-std__collections__List_i32_free(&row1);
-std__collections__List_i32_free(&grades);
-std__collections__List_i32_free(&clamped);
-std__collections__List_str_free(&labels);
-std__collections__List_i32_free(&squares);
-std__collections__List_i32_free(&evens);
-std__collections__List_i32_free(&list);
+std__collections__List_i32_free(row1);
+std__collections__List_i32_free(grades);
+std__collections__List_i32_free(clamped);
+std__collections__List_str_free(labels);
+std__collections__List_i32_free(squares);
+std__collections__List_i32_free(evens);
+std__collections__List_i32_free(list);
 return __ret_tmp;
 }
 }
 {
 int32_t __ret_tmp = 0;
-std__collections__List_i32_free(&row1);
-std__collections__List_i32_free(&grades);
-std__collections__List_i32_free(&clamped);
-std__collections__List_str_free(&labels);
-std__collections__List_i32_free(&squares);
-std__collections__List_i32_free(&evens);
-std__collections__List_i32_free(&list);
+std__collections__List_i32_free(row1);
+std__collections__List_i32_free(grades);
+std__collections__List_i32_free(clamped);
+std__collections__List_str_free(labels);
+std__collections__List_i32_free(squares);
+std__collections__List_i32_free(evens);
+std__collections__List_i32_free(list);
 return __ret_tmp;
 }
 }
@@ -2863,8 +2863,8 @@ __for_i = (__for_i + 1);
 return n;
 }
 
-void std__collections__List_str_free(std__collections__List_str* self) {
-    std__memory__Heap_free_str(self->data);
+void std__collections__List_str_free(std__collections__List_str self) {
+    std__memory__Heap_free_str(self.data);
 }
 
 kobel_str std__collections__List_str_get(std__collections__List_str* self, size_t index) {
@@ -3408,8 +3408,8 @@ __for_i = (__for_i + 1);
 return n;
 }
 
-void std__collections__List_i32_free(std__collections__List_i32* self) {
-    std__memory__Heap_free_i32(self->data);
+void std__collections__List_i32_free(std__collections__List_i32 self) {
+    std__memory__Heap_free_i32(self.data);
 }
 
 int32_t std__collections__List_i32_get(std__collections__List_i32* self, size_t index) {

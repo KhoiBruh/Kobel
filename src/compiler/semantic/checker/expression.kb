@@ -164,6 +164,11 @@ impl BodyChecker {
 				return self.prims().t_none();
 			}
 
+			if (sym.is_moved && !self.is_assign_target) {
+				self.report_error(node, "Use of moved value '${id.name}'");
+				return self.prims().t_none();
+			}
+
 			if (
 				sym.type_ptr.kind == DataType.FN
 				&& (sym.kind == SymbolKind.PARAM || sym.kind == SymbolKind.VAR)

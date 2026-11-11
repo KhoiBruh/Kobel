@@ -163,8 +163,13 @@ impl DeclarationCollector {
 		for (p in f.params) {
 			var pt: *Type = self.prims().t_none();
 			if (p.name == "self" && p.type_node == null) {
-				// Receiver: `*Struct` for `val self`, `*mut Struct` for `var self`.
-				pt = self.arena.pointer_type(st_type, p.mutable);
+				if (p.mutable) {
+					pt = self.arena.pointer_type(st_type, true);
+				} else if (p.has_val) {
+					pt = self.arena.pointer_type(st_type, false);
+				} else {
+					pt = st_type;
+				}
 			} else if (p.type_node != null) {
 				pt = self.resolve_ast_type(p.type_node!);
 			}
@@ -186,10 +191,11 @@ impl DeclarationCollector {
 		used_names += m_c_name;
 
 		val is_static = f.params.empty() || f.params[0].name != "self";
+		val is_move = !is_static && !f.params[0].mutable && !f.params[0].has_val;
 		val mi = self.arena.create_val(
 			MethodInfo(
 				f.name, m_c_name, fn_type, m_node,
-				self.current_module, f.operator, is_static, f.initializer
+				self.current_module, f.operator, is_static, f.initializer, is_move
 			)
 		);
 		st_info.methods += mi;

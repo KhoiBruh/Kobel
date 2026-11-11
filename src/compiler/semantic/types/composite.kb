@@ -29,7 +29,8 @@ pub struct MethodInfo {
 	pub module: str,
 	pub operator: bool = false,
 	pub is_static: bool = false,
-	pub initializer: bool = false
+	pub initializer: bool = false,
+	pub is_move: bool = false
 }
 
 pub struct PrimMethods {

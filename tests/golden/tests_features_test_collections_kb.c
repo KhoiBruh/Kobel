@@ -571,7 +571,7 @@ char std__string__StringBuilder_last_char(std__string__StringBuilder* self);
 size_t std__string__StringBuilder_clear(std__string__StringBuilder* self);
 kobel_str std__string__StringBuilder_as_view(std__string__StringBuilder* self);
 void std__string__StringBuilder_grow(std__string__StringBuilder* self, size_t min_cap);
-void std__string__StringBuilder_free(std__string__StringBuilder* self);
+void std__string__StringBuilder_free(std__string__StringBuilder self);
 void std__string__StringBuilder_plus_assign_2(std__string__StringBuilder* self, kobel_str s);
 void std__string__StringBuilder_plus_assign_2_2(std__string__StringBuilder* self, char c);
 void std__string__StringBuilder_plus_assign_2_3(std__string__StringBuilder* self, int64_t n);
@@ -655,7 +655,7 @@ std__collections__List_str std__collections__List_str_filter(std__collections__L
 bool std__collections__List_str_any(std__collections__List_str* self, kobel_closure predicate);
 bool std__collections__List_str_all(std__collections__List_str* self, kobel_closure predicate);
 size_t std__collections__List_str_count_where(std__collections__List_str* self, kobel_closure predicate);
-void std__collections__List_str_free(std__collections__List_str* self);
+void std__collections__List_str_free(std__collections__List_str self);
 kobel_str std__collections__List_str_get(std__collections__List_str* self, size_t index);
 bool std__collections__List_str_contains(std__collections__List_str* self, kobel_str value);
 kobel_str std__collections__List_str_set(std__collections__List_str* self, size_t index, kobel_str value);
@@ -694,7 +694,7 @@ std__collections__List_i32 std__collections__List_i32_filter(std__collections__L
 bool std__collections__List_i32_any(std__collections__List_i32* self, kobel_closure predicate);
 bool std__collections__List_i32_all(std__collections__List_i32* self, kobel_closure predicate);
 size_t std__collections__List_i32_count_where(std__collections__List_i32* self, kobel_closure predicate);
-void std__collections__List_i32_free(std__collections__List_i32* self);
+void std__collections__List_i32_free(std__collections__List_i32 self);
 int32_t std__collections__List_i32_get(std__collections__List_i32* self, size_t index);
 bool std__collections__List_i32_contains(std__collections__List_i32* self, int32_t value);
 int32_t std__collections__List_i32_set(std__collections__List_i32* self, size_t index, int32_t value);
@@ -733,12 +733,11 @@ std__collections__List_std__collections__List_i32 std__collections__List_std__co
 bool std__collections__List_std__collections__List_i32_any(std__collections__List_std__collections__List_i32* self, kobel_closure predicate);
 bool std__collections__List_std__collections__List_i32_all(std__collections__List_std__collections__List_i32* self, kobel_closure predicate);
 size_t std__collections__List_std__collections__List_i32_count_where(std__collections__List_std__collections__List_i32* self, kobel_closure predicate);
-void std__collections__List_std__collections__List_i32_free(std__collections__List_std__collections__List_i32* self);
+void std__collections__List_std__collections__List_i32_free(std__collections__List_std__collections__List_i32 self);
 std__collections__List_i32 std__collections__List_std__collections__List_i32_get(std__collections__List_std__collections__List_i32* self, size_t index);
 bool std__collections__List_std__collections__List_i32_contains(std__collections__List_std__collections__List_i32* self, std__collections__List_i32 value);
 std__collections__List_i32 std__collections__List_std__collections__List_i32_set(std__collections__List_std__collections__List_i32* self, size_t index, std__collections__List_i32 value);
 void std__collections__List_std__collections__List_i32_plus_assign(std__collections__List_std__collections__List_i32* self, std__collections__List_i32 value);
-std__collections__Pair_str_i32 std__collections__Pair_str_i32_init(kobel_str first, int32_t second);
 void std__collections__Pair_str_i32_unpack(std__collections__Pair_str_i32* self, kobel_str* first, int32_t* second);
 size_t std__collections__List_std__collections__Pair_str_i32_count(std__collections__List_std__collections__Pair_str_i32* self);
 std__collections__Pair_str_i32 std__collections__List_std__collections__Pair_str_i32_at(std__collections__List_std__collections__Pair_str_i32* self, size_t i);
@@ -774,7 +773,7 @@ std__collections__List_std__collections__Pair_str_i32 std__collections__List_std
 bool std__collections__List_std__collections__Pair_str_i32_any(std__collections__List_std__collections__Pair_str_i32* self, kobel_closure predicate);
 bool std__collections__List_std__collections__Pair_str_i32_all(std__collections__List_std__collections__Pair_str_i32* self, kobel_closure predicate);
 size_t std__collections__List_std__collections__Pair_str_i32_count_where(std__collections__List_std__collections__Pair_str_i32* self, kobel_closure predicate);
-void std__collections__List_std__collections__Pair_str_i32_free(std__collections__List_std__collections__Pair_str_i32* self);
+void std__collections__List_std__collections__Pair_str_i32_free(std__collections__List_std__collections__Pair_str_i32 self);
 std__collections__Pair_str_i32 std__collections__List_std__collections__Pair_str_i32_get(std__collections__List_std__collections__Pair_str_i32* self, size_t index);
 bool std__collections__List_std__collections__Pair_str_i32_contains(std__collections__List_std__collections__Pair_str_i32* self, std__collections__Pair_str_i32 value);
 std__collections__Pair_str_i32 std__collections__List_std__collections__Pair_str_i32_set(std__collections__List_std__collections__Pair_str_i32* self, size_t index, std__collections__Pair_str_i32 value);
@@ -793,13 +792,12 @@ bool std__collections__HashMap_str_i32_any(std__collections__HashMap_str_i32* se
 bool std__collections__HashMap_str_i32_all(std__collections__HashMap_str_i32* self, kobel_closure predicate);
 size_t std__collections__HashMap_str_i32_count_where(std__collections__HashMap_str_i32* self, kobel_closure predicate);
 void std__collections__HashMap_str_i32_grow(std__collections__HashMap_str_i32* self);
-void std__collections__HashMap_str_i32_free(std__collections__HashMap_str_i32* self);
+void std__collections__HashMap_str_i32_free(std__collections__HashMap_str_i32 self);
 void std__collections__HashMap_str_i32_set(std__collections__HashMap_str_i32* self, kobel_str key, int32_t value);
 int32_t* std__collections__HashMap_str_i32_get(std__collections__HashMap_str_i32* self, kobel_str key);
 bool std__collections__HashMap_str_i32_contains(std__collections__HashMap_str_i32* self, kobel_str key);
 size_t std__collections__HashMap_str_i32_count(std__collections__HashMap_str_i32* self);
 std__collections__Pair_str_i32 std__collections__HashMap_str_i32_at(std__collections__HashMap_str_i32* self, size_t i);
-std__collections__Pair_i32_str std__collections__Pair_i32_str_init(int32_t first, kobel_str second);
 void std__collections__Pair_i32_str_unpack(std__collections__Pair_i32_str* self, int32_t* first, kobel_str* second);
 size_t std__collections__List_std__collections__Pair_i32_str_count(std__collections__List_std__collections__Pair_i32_str* self);
 std__collections__Pair_i32_str std__collections__List_std__collections__Pair_i32_str_at(std__collections__List_std__collections__Pair_i32_str* self, size_t i);
@@ -835,7 +833,7 @@ std__collections__List_std__collections__Pair_i32_str std__collections__List_std
 bool std__collections__List_std__collections__Pair_i32_str_any(std__collections__List_std__collections__Pair_i32_str* self, kobel_closure predicate);
 bool std__collections__List_std__collections__Pair_i32_str_all(std__collections__List_std__collections__Pair_i32_str* self, kobel_closure predicate);
 size_t std__collections__List_std__collections__Pair_i32_str_count_where(std__collections__List_std__collections__Pair_i32_str* self, kobel_closure predicate);
-void std__collections__List_std__collections__Pair_i32_str_free(std__collections__List_std__collections__Pair_i32_str* self);
+void std__collections__List_std__collections__Pair_i32_str_free(std__collections__List_std__collections__Pair_i32_str self);
 std__collections__Pair_i32_str std__collections__List_std__collections__Pair_i32_str_get(std__collections__List_std__collections__Pair_i32_str* self, size_t index);
 bool std__collections__List_std__collections__Pair_i32_str_contains(std__collections__List_std__collections__Pair_i32_str* self, std__collections__Pair_i32_str value);
 std__collections__Pair_i32_str std__collections__List_std__collections__Pair_i32_str_set(std__collections__List_std__collections__Pair_i32_str* self, size_t index, std__collections__Pair_i32_str value);
@@ -854,7 +852,7 @@ bool std__collections__HashMap_i32_str_any(std__collections__HashMap_i32_str* se
 bool std__collections__HashMap_i32_str_all(std__collections__HashMap_i32_str* self, kobel_closure predicate);
 size_t std__collections__HashMap_i32_str_count_where(std__collections__HashMap_i32_str* self, kobel_closure predicate);
 void std__collections__HashMap_i32_str_grow(std__collections__HashMap_i32_str* self);
-void std__collections__HashMap_i32_str_free(std__collections__HashMap_i32_str* self);
+void std__collections__HashMap_i32_str_free(std__collections__HashMap_i32_str self);
 void std__collections__HashMap_i32_str_set(std__collections__HashMap_i32_str* self, int32_t key, kobel_str value);
 kobel_str* std__collections__HashMap_i32_str_get(std__collections__HashMap_i32_str* self, int32_t key);
 bool std__collections__HashMap_i32_str_contains(std__collections__HashMap_i32_str* self, int32_t key);
@@ -894,12 +892,11 @@ std__collections__List_tests__features__test_collections__Point2D std__collectio
 bool std__collections__List_tests__features__test_collections__Point2D_any(std__collections__List_tests__features__test_collections__Point2D* self, kobel_closure predicate);
 bool std__collections__List_tests__features__test_collections__Point2D_all(std__collections__List_tests__features__test_collections__Point2D* self, kobel_closure predicate);
 size_t std__collections__List_tests__features__test_collections__Point2D_count_where(std__collections__List_tests__features__test_collections__Point2D* self, kobel_closure predicate);
-void std__collections__List_tests__features__test_collections__Point2D_free(std__collections__List_tests__features__test_collections__Point2D* self);
+void std__collections__List_tests__features__test_collections__Point2D_free(std__collections__List_tests__features__test_collections__Point2D self);
 tests__features__test_collections__Point2D std__collections__List_tests__features__test_collections__Point2D_get(std__collections__List_tests__features__test_collections__Point2D* self, size_t index);
 bool std__collections__List_tests__features__test_collections__Point2D_contains(std__collections__List_tests__features__test_collections__Point2D* self, tests__features__test_collections__Point2D value);
 tests__features__test_collections__Point2D std__collections__List_tests__features__test_collections__Point2D_set(std__collections__List_tests__features__test_collections__Point2D* self, size_t index, tests__features__test_collections__Point2D value);
 void std__collections__List_tests__features__test_collections__Point2D_plus_assign(std__collections__List_tests__features__test_collections__Point2D* self, tests__features__test_collections__Point2D value);
-std__collections__Pair_tests__features__test_collections__Point2D_i32 std__collections__Pair_tests__features__test_collections__Point2D_i32_init(tests__features__test_collections__Point2D first, int32_t second);
 void std__collections__Pair_tests__features__test_collections__Point2D_i32_unpack(std__collections__Pair_tests__features__test_collections__Point2D_i32* self, tests__features__test_collections__Point2D* first, int32_t* second);
 size_t std__collections__List_std__collections__Pair_tests__features__test_collections__Point2D_i32_count(std__collections__List_std__collections__Pair_tests__features__test_collections__Point2D_i32* self);
 std__collections__Pair_tests__features__test_collections__Point2D_i32 std__collections__List_std__collections__Pair_tests__features__test_collections__Point2D_i32_at(std__collections__List_std__collections__Pair_tests__features__test_collections__Point2D_i32* self, size_t i);
@@ -935,7 +932,7 @@ std__collections__List_std__collections__Pair_tests__features__test_collections_
 bool std__collections__List_std__collections__Pair_tests__features__test_collections__Point2D_i32_any(std__collections__List_std__collections__Pair_tests__features__test_collections__Point2D_i32* self, kobel_closure predicate);
 bool std__collections__List_std__collections__Pair_tests__features__test_collections__Point2D_i32_all(std__collections__List_std__collections__Pair_tests__features__test_collections__Point2D_i32* self, kobel_closure predicate);
 size_t std__collections__List_std__collections__Pair_tests__features__test_collections__Point2D_i32_count_where(std__collections__List_std__collections__Pair_tests__features__test_collections__Point2D_i32* self, kobel_closure predicate);
-void std__collections__List_std__collections__Pair_tests__features__test_collections__Point2D_i32_free(std__collections__List_std__collections__Pair_tests__features__test_collections__Point2D_i32* self);
+void std__collections__List_std__collections__Pair_tests__features__test_collections__Point2D_i32_free(std__collections__List_std__collections__Pair_tests__features__test_collections__Point2D_i32 self);
 std__collections__Pair_tests__features__test_collections__Point2D_i32 std__collections__List_std__collections__Pair_tests__features__test_collections__Point2D_i32_get(std__collections__List_std__collections__Pair_tests__features__test_collections__Point2D_i32* self, size_t index);
 bool std__collections__List_std__collections__Pair_tests__features__test_collections__Point2D_i32_contains(std__collections__List_std__collections__Pair_tests__features__test_collections__Point2D_i32* self, std__collections__Pair_tests__features__test_collections__Point2D_i32 value);
 std__collections__Pair_tests__features__test_collections__Point2D_i32 std__collections__List_std__collections__Pair_tests__features__test_collections__Point2D_i32_set(std__collections__List_std__collections__Pair_tests__features__test_collections__Point2D_i32* self, size_t index, std__collections__Pair_tests__features__test_collections__Point2D_i32 value);
@@ -954,7 +951,7 @@ bool std__collections__HashMap_tests__features__test_collections__Point2D_i32_an
 bool std__collections__HashMap_tests__features__test_collections__Point2D_i32_all(std__collections__HashMap_tests__features__test_collections__Point2D_i32* self, kobel_closure predicate);
 size_t std__collections__HashMap_tests__features__test_collections__Point2D_i32_count_where(std__collections__HashMap_tests__features__test_collections__Point2D_i32* self, kobel_closure predicate);
 void std__collections__HashMap_tests__features__test_collections__Point2D_i32_grow(std__collections__HashMap_tests__features__test_collections__Point2D_i32* self);
-void std__collections__HashMap_tests__features__test_collections__Point2D_i32_free(std__collections__HashMap_tests__features__test_collections__Point2D_i32* self);
+void std__collections__HashMap_tests__features__test_collections__Point2D_i32_free(std__collections__HashMap_tests__features__test_collections__Point2D_i32 self);
 void std__collections__HashMap_tests__features__test_collections__Point2D_i32_set(std__collections__HashMap_tests__features__test_collections__Point2D_i32* self, tests__features__test_collections__Point2D key, int32_t value);
 int32_t* std__collections__HashMap_tests__features__test_collections__Point2D_i32_get(std__collections__HashMap_tests__features__test_collections__Point2D_i32* self, tests__features__test_collections__Point2D key);
 bool std__collections__HashMap_tests__features__test_collections__Point2D_i32_contains(std__collections__HashMap_tests__features__test_collections__Point2D_i32* self, tests__features__test_collections__Point2D key);
@@ -1904,7 +1901,7 @@ __for_i = (__for_i - 1);
 }
 {
 kobel_str __ret_tmp = std__string__StringBuilder_to_str(&sb);
-std__string__StringBuilder_free(&sb);
+std__string__StringBuilder_free(sb);
 return __ret_tmp;
 }
 }
@@ -2094,8 +2091,8 @@ self->buf = new_raw;
 self->cap = new_cap;
 }
 
-void std__string__StringBuilder_free(std__string__StringBuilder* self) {
-    std__memory__Heap_free_u8(self->buf);
+void std__string__StringBuilder_free(std__string__StringBuilder self) {
+    std__memory__Heap_free_u8(self.buf);
 }
 
 void std__string__StringBuilder_plus_assign_2(std__string__StringBuilder* self, kobel_str s) {
@@ -2515,7 +2512,7 @@ std__collections__HashMap_str_i32 map = std__collections__HashMap_str_i32_init(1
 if (!std__collections__HashMap_str_i32_empty(&map)) {
 {
 bool __ret_tmp = false;
-std__collections__HashMap_str_i32_free(&map);
+std__collections__HashMap_str_i32_free(map);
 return __ret_tmp;
 }
 }
@@ -2551,7 +2548,7 @@ __for_i = (__for_i - 1);
 if ((map.len != 60) || (std__collections__HashMap_str_i32_count(&map) != 60)) {
 {
 bool __ret_tmp = false;
-std__collections__HashMap_str_i32_free(&map);
+std__collections__HashMap_str_i32_free(map);
 return __ret_tmp;
 }
 }
@@ -2572,7 +2569,7 @@ kobel_str key = kobel_concat(2, KOBEL_STR("key_"), i32_to_str(i));
 if (!(std__collections__HashMap_str_i32_contains(&map, key))) {
 {
 bool __ret_tmp = false;
-std__collections__HashMap_str_i32_free(&map);
+std__collections__HashMap_str_i32_free(map);
 return __ret_tmp;
 }
 }
@@ -2580,7 +2577,7 @@ int32_t* p = std__collections__HashMap_str_i32_get(&map, key);
 if ((p == NULL) || (*p != ((int32_t)i * 10))) {
 {
 bool __ret_tmp = false;
-std__collections__HashMap_str_i32_free(&map);
+std__collections__HashMap_str_i32_free(map);
 return __ret_tmp;
 }
 }
@@ -2616,7 +2613,7 @@ kobel_str key = kobel_concat(2, KOBEL_STR("key_"), i32_to_str(i));
 if (!std__collections__HashMap_str_i32_remove(&map, key)) {
 {
 bool __ret_tmp = false;
-std__collections__HashMap_str_i32_free(&map);
+std__collections__HashMap_str_i32_free(map);
 return __ret_tmp;
 }
 }
@@ -2638,7 +2635,7 @@ __for_i = (__for_i - 1);
 if (map.len != 30) {
 {
 bool __ret_tmp = false;
-std__collections__HashMap_str_i32_free(&map);
+std__collections__HashMap_str_i32_free(map);
 return __ret_tmp;
 }
 }
@@ -2660,14 +2657,14 @@ if ((i % 2) == 0) {
 if (std__collections__HashMap_str_i32_contains(&map, key)) {
 {
 bool __ret_tmp = false;
-std__collections__HashMap_str_i32_free(&map);
+std__collections__HashMap_str_i32_free(map);
 return __ret_tmp;
 }
 }
 if (std__collections__HashMap_str_i32_get(&map, key) != NULL) {
 {
 bool __ret_tmp = false;
-std__collections__HashMap_str_i32_free(&map);
+std__collections__HashMap_str_i32_free(map);
 return __ret_tmp;
 }
 }
@@ -2675,7 +2672,7 @@ return __ret_tmp;
 if (!(std__collections__HashMap_str_i32_contains(&map, key))) {
 {
 bool __ret_tmp = false;
-std__collections__HashMap_str_i32_free(&map);
+std__collections__HashMap_str_i32_free(map);
 return __ret_tmp;
 }
 }
@@ -2683,7 +2680,7 @@ int32_t* p = std__collections__HashMap_str_i32_get(&map, key);
 if ((p == NULL) || (*p != ((int32_t)i * 10))) {
 {
 bool __ret_tmp = false;
-std__collections__HashMap_str_i32_free(&map);
+std__collections__HashMap_str_i32_free(map);
 return __ret_tmp;
 }
 }
@@ -2707,28 +2704,28 @@ std__collections__List_str ks = std__collections__HashMap_str_i32_keys(&map);
 if (ks.len != 30) {
 {
 bool __ret_tmp = false;
-std__collections__List_str_free(&ks);
-std__collections__HashMap_str_i32_free(&map);
+std__collections__List_str_free(ks);
+std__collections__HashMap_str_i32_free(map);
 return __ret_tmp;
 }
 }
-std__collections__List_str_free(&ks);
+std__collections__List_str_free(ks);
 }
 {
 std__collections__List_i32 vs = std__collections__HashMap_str_i32_values(&map);
 if (vs.len != 30) {
 {
 bool __ret_tmp = false;
-std__collections__List_i32_free(&vs);
-std__collections__HashMap_str_i32_free(&map);
+std__collections__List_i32_free(vs);
+std__collections__HashMap_str_i32_free(map);
 return __ret_tmp;
 }
 }
-std__collections__List_i32_free(&vs);
+std__collections__List_i32_free(vs);
 }
 {
 bool __ret_tmp = true;
-std__collections__HashMap_str_i32_free(&map);
+std__collections__HashMap_str_i32_free(map);
 return __ret_tmp;
 }
 }
@@ -2741,14 +2738,14 @@ std__collections__HashMap_i32_str_set(&int_map, 42, KOBEL_STR("answer"));
 if (int_map.len != 3) {
 {
 bool __ret_tmp = false;
-std__collections__HashMap_i32_str_free(&int_map);
+std__collections__HashMap_i32_str_free(int_map);
 return __ret_tmp;
 }
 }
 if ((!(std__collections__HashMap_i32_str_contains(&int_map, 1)) || !(std__collections__HashMap_i32_str_contains(&int_map, 42))) || (std__collections__HashMap_i32_str_contains(&int_map, 99))) {
 {
 bool __ret_tmp = false;
-std__collections__HashMap_i32_str_free(&int_map);
+std__collections__HashMap_i32_str_free(int_map);
 return __ret_tmp;
 }
 }
@@ -2756,35 +2753,35 @@ kobel_str* ans = std__collections__HashMap_i32_str_get(&int_map, 42);
 if ((ans == NULL) || !kobel_streq(*ans, KOBEL_STR("answer"))) {
 {
 bool __ret_tmp = false;
-std__collections__HashMap_i32_str_free(&int_map);
+std__collections__HashMap_i32_str_free(int_map);
 return __ret_tmp;
 }
 }
 if (!kobel_streq(std__collections__HashMap_i32_str_get_or(&int_map, 1, KOBEL_STR("")), KOBEL_STR("one"))) {
 {
 bool __ret_tmp = false;
-std__collections__HashMap_i32_str_free(&int_map);
+std__collections__HashMap_i32_str_free(int_map);
 return __ret_tmp;
 }
 }
 if (!kobel_streq(std__collections__HashMap_i32_str_get_or(&int_map, 99, KOBEL_STR("none")), KOBEL_STR("none"))) {
 {
 bool __ret_tmp = false;
-std__collections__HashMap_i32_str_free(&int_map);
+std__collections__HashMap_i32_str_free(int_map);
 return __ret_tmp;
 }
 }
 if (!std__collections__HashMap_i32_str_remove(&int_map, 2)) {
 {
 bool __ret_tmp = false;
-std__collections__HashMap_i32_str_free(&int_map);
+std__collections__HashMap_i32_str_free(int_map);
 return __ret_tmp;
 }
 }
 if ((int_map.len != 2) || (std__collections__HashMap_i32_str_contains(&int_map, 2))) {
 {
 bool __ret_tmp = false;
-std__collections__HashMap_i32_str_free(&int_map);
+std__collections__HashMap_i32_str_free(int_map);
 return __ret_tmp;
 }
 }
@@ -2797,16 +2794,16 @@ std__collections__HashMap_tests__features__test_collections__Point2D_i32_set(&pt
 if (pt_map.len != 2) {
 {
 bool __ret_tmp = false;
-std__collections__HashMap_tests__features__test_collections__Point2D_i32_free(&pt_map);
-std__collections__HashMap_i32_str_free(&int_map);
+std__collections__HashMap_tests__features__test_collections__Point2D_i32_free(pt_map);
+std__collections__HashMap_i32_str_free(int_map);
 return __ret_tmp;
 }
 }
 if (!(std__collections__HashMap_tests__features__test_collections__Point2D_i32_contains(&pt_map, p3))) {
 {
 bool __ret_tmp = false;
-std__collections__HashMap_tests__features__test_collections__Point2D_i32_free(&pt_map);
-std__collections__HashMap_i32_str_free(&int_map);
+std__collections__HashMap_tests__features__test_collections__Point2D_i32_free(pt_map);
+std__collections__HashMap_i32_str_free(int_map);
 return __ret_tmp;
 }
 }
@@ -2814,8 +2811,8 @@ int32_t* v = std__collections__HashMap_tests__features__test_collections__Point2
 if ((v == NULL) || (*v != 100)) {
 {
 bool __ret_tmp = false;
-std__collections__HashMap_tests__features__test_collections__Point2D_i32_free(&pt_map);
-std__collections__HashMap_i32_str_free(&int_map);
+std__collections__HashMap_tests__features__test_collections__Point2D_i32_free(pt_map);
+std__collections__HashMap_i32_str_free(int_map);
 return __ret_tmp;
 }
 }
@@ -2823,8 +2820,8 @@ std__collections__HashMap_tests__features__test_collections__Point2D_i32_set(&pt
 if (pt_map.len != 2) {
 {
 bool __ret_tmp = false;
-std__collections__HashMap_tests__features__test_collections__Point2D_i32_free(&pt_map);
-std__collections__HashMap_i32_str_free(&int_map);
+std__collections__HashMap_tests__features__test_collections__Point2D_i32_free(pt_map);
+std__collections__HashMap_i32_str_free(int_map);
 return __ret_tmp;
 }
 }
@@ -2832,39 +2829,39 @@ int32_t* v2 = std__collections__HashMap_tests__features__test_collections__Point
 if ((v2 == NULL) || (*v2 != 999)) {
 {
 bool __ret_tmp = false;
-std__collections__HashMap_tests__features__test_collections__Point2D_i32_free(&pt_map);
-std__collections__HashMap_i32_str_free(&int_map);
+std__collections__HashMap_tests__features__test_collections__Point2D_i32_free(pt_map);
+std__collections__HashMap_i32_str_free(int_map);
 return __ret_tmp;
 }
 }
 if (!std__collections__HashMap_tests__features__test_collections__Point2D_i32_remove(&pt_map, p1)) {
 {
 bool __ret_tmp = false;
-std__collections__HashMap_tests__features__test_collections__Point2D_i32_free(&pt_map);
-std__collections__HashMap_i32_str_free(&int_map);
+std__collections__HashMap_tests__features__test_collections__Point2D_i32_free(pt_map);
+std__collections__HashMap_i32_str_free(int_map);
 return __ret_tmp;
 }
 }
 if (pt_map.len != 1) {
 {
 bool __ret_tmp = false;
-std__collections__HashMap_tests__features__test_collections__Point2D_i32_free(&pt_map);
-std__collections__HashMap_i32_str_free(&int_map);
+std__collections__HashMap_tests__features__test_collections__Point2D_i32_free(pt_map);
+std__collections__HashMap_i32_str_free(int_map);
 return __ret_tmp;
 }
 }
 if (std__collections__HashMap_tests__features__test_collections__Point2D_i32_contains(&pt_map, p1)) {
 {
 bool __ret_tmp = false;
-std__collections__HashMap_tests__features__test_collections__Point2D_i32_free(&pt_map);
-std__collections__HashMap_i32_str_free(&int_map);
+std__collections__HashMap_tests__features__test_collections__Point2D_i32_free(pt_map);
+std__collections__HashMap_i32_str_free(int_map);
 return __ret_tmp;
 }
 }
 {
 bool __ret_tmp = true;
-std__collections__HashMap_tests__features__test_collections__Point2D_i32_free(&pt_map);
-std__collections__HashMap_i32_str_free(&int_map);
+std__collections__HashMap_tests__features__test_collections__Point2D_i32_free(pt_map);
+std__collections__HashMap_i32_str_free(int_map);
 return __ret_tmp;
 }
 }
@@ -3525,8 +3522,8 @@ __for_i = (__for_i + 1);
 return n;
 }
 
-void std__collections__List_str_free(std__collections__List_str* self) {
-    std__memory__Heap_free_str(self->data);
+void std__collections__List_str_free(std__collections__List_str self) {
+    std__memory__Heap_free_str(self.data);
 }
 
 kobel_str std__collections__List_str_get(std__collections__List_str* self, size_t index) {
@@ -4070,8 +4067,8 @@ __for_i = (__for_i + 1);
 return n;
 }
 
-void std__collections__List_i32_free(std__collections__List_i32* self) {
-    std__memory__Heap_free_i32(self->data);
+void std__collections__List_i32_free(std__collections__List_i32 self) {
+    std__memory__Heap_free_i32(self.data);
 }
 
 int32_t std__collections__List_i32_get(std__collections__List_i32* self, size_t index) {
@@ -4615,8 +4612,8 @@ __for_i = (__for_i + 1);
 return n;
 }
 
-void std__collections__List_std__collections__List_i32_free(std__collections__List_std__collections__List_i32* self) {
-    std__memory__Heap_free_std__collections__List_i32(self->data);
+void std__collections__List_std__collections__List_i32_free(std__collections__List_std__collections__List_i32 self) {
+    std__memory__Heap_free_std__collections__List_i32(self.data);
 }
 
 std__collections__List_i32 std__collections__List_std__collections__List_i32_get(std__collections__List_std__collections__List_i32* self, size_t index) {
@@ -4633,10 +4630,6 @@ std__collections__List_i32 std__collections__List_std__collections__List_i32_set
 
 void std__collections__List_std__collections__List_i32_plus_assign(std__collections__List_std__collections__List_i32* self, std__collections__List_i32 value) {
     std__collections__List_std__collections__List_i32_add(self, value);
-}
-
-std__collections__Pair_str_i32 std__collections__Pair_str_i32_init(kobel_str first, int32_t second) {
-    return (std__collections__Pair_str_i32){ first, second };
 }
 
 void std__collections__Pair_str_i32_unpack(std__collections__Pair_str_i32* self, kobel_str* first, int32_t* second) {
@@ -5169,8 +5162,8 @@ __for_i = (__for_i + 1);
 return n;
 }
 
-void std__collections__List_std__collections__Pair_str_i32_free(std__collections__List_std__collections__Pair_str_i32* self) {
-    std__memory__Heap_free_std__collections__Pair_str_i32(self->data);
+void std__collections__List_std__collections__Pair_str_i32_free(std__collections__List_std__collections__Pair_str_i32 self) {
+    std__memory__Heap_free_std__collections__Pair_str_i32(self.data);
 }
 
 std__collections__Pair_str_i32 std__collections__List_std__collections__Pair_str_i32_get(std__collections__List_std__collections__Pair_str_i32* self, size_t index) {
@@ -5414,7 +5407,7 @@ __for_go = (__for_i > __for_e);
 while (__for_go) {
 size_t i = __for_i;
 if (self->occupied[i]) {
-std__collections__List_std__collections__Pair_str_i32_plus_assign(&res, std__collections__Pair_str_i32_init(self->keys[i], self->values[i]));
+std__collections__List_std__collections__Pair_str_i32_plus_assign(&res, (std__collections__Pair_str_i32){ self->keys[i], self->values[i] });
 }
 if (__for_up) {
 __for_go = ((__for_i + 1) < __for_e);
@@ -5671,12 +5664,12 @@ self->occupied = new_occ;
 self->cap = new_cap;
 }
 
-void std__collections__HashMap_str_i32_free(std__collections__HashMap_str_i32* self) {
-if (self->cap > 0) {
-std__memory__Heap_free_str(self->keys);
-std__memory__Heap_free_i32(self->values);
-std__memory__Heap_free_usz(self->hashes);
-std__memory__Heap_free_bool(self->occupied);
+void std__collections__HashMap_str_i32_free(std__collections__HashMap_str_i32 self) {
+if (self.cap > 0) {
+std__memory__Heap_free_str(self.keys);
+std__memory__Heap_free_i32(self.values);
+std__memory__Heap_free_usz(self.hashes);
+std__memory__Heap_free_bool(self.occupied);
 }
 }
 
@@ -5751,7 +5744,7 @@ while (__for_go) {
 size_t idx = __for_i;
 if (self->occupied[idx]) {
 if (seen == i) {
-return std__collections__Pair_str_i32_init(self->keys[idx], self->values[idx]);
+return (std__collections__Pair_str_i32){ self->keys[idx], self->values[idx] };
 }
 seen++;
 }
@@ -5769,11 +5762,7 @@ __for_i = (__for_i - 1);
 }
 }
 }
-return std__collections__Pair_str_i32_init(self->keys[0], self->values[0]);
-}
-
-std__collections__Pair_i32_str std__collections__Pair_i32_str_init(int32_t first, kobel_str second) {
-    return (std__collections__Pair_i32_str){ first, second };
+return (std__collections__Pair_str_i32){ self->keys[0], self->values[0] };
 }
 
 void std__collections__Pair_i32_str_unpack(std__collections__Pair_i32_str* self, int32_t* first, kobel_str* second) {
@@ -6306,8 +6295,8 @@ __for_i = (__for_i + 1);
 return n;
 }
 
-void std__collections__List_std__collections__Pair_i32_str_free(std__collections__List_std__collections__Pair_i32_str* self) {
-    std__memory__Heap_free_std__collections__Pair_i32_str(self->data);
+void std__collections__List_std__collections__Pair_i32_str_free(std__collections__List_std__collections__Pair_i32_str self) {
+    std__memory__Heap_free_std__collections__Pair_i32_str(self.data);
 }
 
 std__collections__Pair_i32_str std__collections__List_std__collections__Pair_i32_str_get(std__collections__List_std__collections__Pair_i32_str* self, size_t index) {
@@ -6551,7 +6540,7 @@ __for_go = (__for_i > __for_e);
 while (__for_go) {
 size_t i = __for_i;
 if (self->occupied[i]) {
-std__collections__List_std__collections__Pair_i32_str_plus_assign(&res, std__collections__Pair_i32_str_init(self->keys[i], self->values[i]));
+std__collections__List_std__collections__Pair_i32_str_plus_assign(&res, (std__collections__Pair_i32_str){ self->keys[i], self->values[i] });
 }
 if (__for_up) {
 __for_go = ((__for_i + 1) < __for_e);
@@ -6808,12 +6797,12 @@ self->occupied = new_occ;
 self->cap = new_cap;
 }
 
-void std__collections__HashMap_i32_str_free(std__collections__HashMap_i32_str* self) {
-if (self->cap > 0) {
-std__memory__Heap_free_i32(self->keys);
-std__memory__Heap_free_str(self->values);
-std__memory__Heap_free_usz(self->hashes);
-std__memory__Heap_free_bool(self->occupied);
+void std__collections__HashMap_i32_str_free(std__collections__HashMap_i32_str self) {
+if (self.cap > 0) {
+std__memory__Heap_free_i32(self.keys);
+std__memory__Heap_free_str(self.values);
+std__memory__Heap_free_usz(self.hashes);
+std__memory__Heap_free_bool(self.occupied);
 }
 }
 
@@ -6888,7 +6877,7 @@ while (__for_go) {
 size_t idx = __for_i;
 if (self->occupied[idx]) {
 if (seen == i) {
-return std__collections__Pair_i32_str_init(self->keys[idx], self->values[idx]);
+return (std__collections__Pair_i32_str){ self->keys[idx], self->values[idx] };
 }
 seen++;
 }
@@ -6906,7 +6895,7 @@ __for_i = (__for_i - 1);
 }
 }
 }
-return std__collections__Pair_i32_str_init(self->keys[0], self->values[0]);
+return (std__collections__Pair_i32_str){ self->keys[0], self->values[0] };
 }
 
 size_t std__collections__List_tests__features__test_collections__Point2D_count(std__collections__List_tests__features__test_collections__Point2D* self) {
@@ -7434,8 +7423,8 @@ __for_i = (__for_i + 1);
 return n;
 }
 
-void std__collections__List_tests__features__test_collections__Point2D_free(std__collections__List_tests__features__test_collections__Point2D* self) {
-    std__memory__Heap_free_tests__features__test_collections__Point2D(self->data);
+void std__collections__List_tests__features__test_collections__Point2D_free(std__collections__List_tests__features__test_collections__Point2D self) {
+    std__memory__Heap_free_tests__features__test_collections__Point2D(self.data);
 }
 
 tests__features__test_collections__Point2D std__collections__List_tests__features__test_collections__Point2D_get(std__collections__List_tests__features__test_collections__Point2D* self, size_t index) {
@@ -7452,10 +7441,6 @@ tests__features__test_collections__Point2D std__collections__List_tests__feature
 
 void std__collections__List_tests__features__test_collections__Point2D_plus_assign(std__collections__List_tests__features__test_collections__Point2D* self, tests__features__test_collections__Point2D value) {
     std__collections__List_tests__features__test_collections__Point2D_add(self, value);
-}
-
-std__collections__Pair_tests__features__test_collections__Point2D_i32 std__collections__Pair_tests__features__test_collections__Point2D_i32_init(tests__features__test_collections__Point2D first, int32_t second) {
-    return (std__collections__Pair_tests__features__test_collections__Point2D_i32){ first, second };
 }
 
 void std__collections__Pair_tests__features__test_collections__Point2D_i32_unpack(std__collections__Pair_tests__features__test_collections__Point2D_i32* self, tests__features__test_collections__Point2D* first, int32_t* second) {
@@ -7988,8 +7973,8 @@ __for_i = (__for_i + 1);
 return n;
 }
 
-void std__collections__List_std__collections__Pair_tests__features__test_collections__Point2D_i32_free(std__collections__List_std__collections__Pair_tests__features__test_collections__Point2D_i32* self) {
-    std__memory__Heap_free_std__collections__Pair_tests__features__test_collections__Point2D_i32(self->data);
+void std__collections__List_std__collections__Pair_tests__features__test_collections__Point2D_i32_free(std__collections__List_std__collections__Pair_tests__features__test_collections__Point2D_i32 self) {
+    std__memory__Heap_free_std__collections__Pair_tests__features__test_collections__Point2D_i32(self.data);
 }
 
 std__collections__Pair_tests__features__test_collections__Point2D_i32 std__collections__List_std__collections__Pair_tests__features__test_collections__Point2D_i32_get(std__collections__List_std__collections__Pair_tests__features__test_collections__Point2D_i32* self, size_t index) {
@@ -8233,7 +8218,7 @@ __for_go = (__for_i > __for_e);
 while (__for_go) {
 size_t i = __for_i;
 if (self->occupied[i]) {
-std__collections__List_std__collections__Pair_tests__features__test_collections__Point2D_i32_plus_assign(&res, std__collections__Pair_tests__features__test_collections__Point2D_i32_init(self->keys[i], self->values[i]));
+std__collections__List_std__collections__Pair_tests__features__test_collections__Point2D_i32_plus_assign(&res, (std__collections__Pair_tests__features__test_collections__Point2D_i32){ self->keys[i], self->values[i] });
 }
 if (__for_up) {
 __for_go = ((__for_i + 1) < __for_e);
@@ -8490,12 +8475,12 @@ self->occupied = new_occ;
 self->cap = new_cap;
 }
 
-void std__collections__HashMap_tests__features__test_collections__Point2D_i32_free(std__collections__HashMap_tests__features__test_collections__Point2D_i32* self) {
-if (self->cap > 0) {
-std__memory__Heap_free_tests__features__test_collections__Point2D(self->keys);
-std__memory__Heap_free_i32(self->values);
-std__memory__Heap_free_usz(self->hashes);
-std__memory__Heap_free_bool(self->occupied);
+void std__collections__HashMap_tests__features__test_collections__Point2D_i32_free(std__collections__HashMap_tests__features__test_collections__Point2D_i32 self) {
+if (self.cap > 0) {
+std__memory__Heap_free_tests__features__test_collections__Point2D(self.keys);
+std__memory__Heap_free_i32(self.values);
+std__memory__Heap_free_usz(self.hashes);
+std__memory__Heap_free_bool(self.occupied);
 }
 }
 
@@ -8570,7 +8555,7 @@ while (__for_go) {
 size_t idx = __for_i;
 if (self->occupied[idx]) {
 if (seen == i) {
-return std__collections__Pair_tests__features__test_collections__Point2D_i32_init(self->keys[idx], self->values[idx]);
+return (std__collections__Pair_tests__features__test_collections__Point2D_i32){ self->keys[idx], self->values[idx] };
 }
 seen++;
 }
@@ -8588,7 +8573,7 @@ __for_i = (__for_i - 1);
 }
 }
 }
-return std__collections__Pair_tests__features__test_collections__Point2D_i32_init(self->keys[0], self->values[0]);
+return (std__collections__Pair_tests__features__test_collections__Point2D_i32){ self->keys[0], self->values[0] };
 }
 
 void std__memory__Heap_free_u8(uint8_t* ptr) {

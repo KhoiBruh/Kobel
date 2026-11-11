@@ -65,12 +65,24 @@ impl Parser {
 		if (!self.check(TokenType.CLOSE_PAREN)) {
 			var mutable = false;
 			var has_val = false;
+			var is_prefix_ptr = false;
 			when (self) {
 				.match_token(TokenType.KW_VAR) -> mutable = true;
 				.match_token(TokenType.KW_VAL) -> has_val = true;
+				.match_token(TokenType.AMPERSAND) -> {
+					mutable = true;
+					is_prefix_ptr = true;
+				}
+				.match_token(TokenType.STAR) -> {
+					has_val = true;
+					is_prefix_ptr = true;
+				}
 			}
 
 			val pname = self.consume(TokenType.IDENTIFIER, "Expected parameter name");
+			if (is_prefix_ptr && (!allow_self || pname.text != "self")) {
+				self.error(pname, "Prefix '*' and '&' are only supported for the 'self' receiver parameter");
+			}
 			val ptype = when {
 				self.match_token(TokenType.COLON) -> self.parse_type();
 				!allow_self || pname.text != "self" -> {

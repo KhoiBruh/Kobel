@@ -295,6 +295,41 @@ fn test_val_immutability() {
 	bp9.check_program(p9.parse_program());
 	assert_true(bp9.errors.len >= 1, "Must catch write call on read-only pointer");
 
+	// 6j: Calling method on moved value
+	val src10 = """
+		struct Resource { pub id: i32 }
+		impl Resource {
+		    pub fn consume(self): i32 => self.id;
+		    pub fn peek(*self): i32 => self.id;
+		}
+		fn test(): none {
+		    val r = Resource(1);
+		    r.consume();
+		    r.peek();
+		}
+	""";
+	var l10 = Lexer(src10);
+	var p10 = Parser(l10.tokenize());
+	var bp10 = BodyChecker();
+	bp10.check_program(p10.parse_program());
+	assert_true(bp10.errors.len >= 1, "Must catch use of moved value");
+
+	// 6k: Calling move method on pointer receiver
+	val src11 = """
+		struct Resource { pub id: i32 }
+		impl Resource {
+		    pub fn consume(self): i32 => self.id;
+		}
+		fn test(p: *Resource): none {
+		    p.consume();
+		}
+	""";
+	var l11 = Lexer(src11);
+	var p11 = Parser(l11.tokenize());
+	var bp11 = BodyChecker();
+	bp11.check_program(p11.parse_program());
+	assert_true(bp11.errors.len >= 1, "Must catch move method call on pointer receiver");
+
 	println("  [PASS] test_val_immutability");
 }
 

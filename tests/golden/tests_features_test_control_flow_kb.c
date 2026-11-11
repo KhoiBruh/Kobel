@@ -470,7 +470,7 @@ char std__string__StringBuilder_last_char(std__string__StringBuilder* self);
 size_t std__string__StringBuilder_clear(std__string__StringBuilder* self);
 kobel_str std__string__StringBuilder_as_view(std__string__StringBuilder* self);
 void std__string__StringBuilder_grow(std__string__StringBuilder* self, size_t min_cap);
-void std__string__StringBuilder_free(std__string__StringBuilder* self);
+void std__string__StringBuilder_free(std__string__StringBuilder self);
 void std__string__StringBuilder_plus_assign_2(std__string__StringBuilder* self, kobel_str s);
 void std__string__StringBuilder_plus_assign_2_2(std__string__StringBuilder* self, char c);
 void std__string__StringBuilder_plus_assign_2_3(std__string__StringBuilder* self, int64_t n);
@@ -570,7 +570,7 @@ std__collections__List_str std__collections__List_str_filter(std__collections__L
 bool std__collections__List_str_any(std__collections__List_str* self, kobel_closure predicate);
 bool std__collections__List_str_all(std__collections__List_str* self, kobel_closure predicate);
 size_t std__collections__List_str_count_where(std__collections__List_str* self, kobel_closure predicate);
-void std__collections__List_str_free(std__collections__List_str* self);
+void std__collections__List_str_free(std__collections__List_str self);
 kobel_str std__collections__List_str_get(std__collections__List_str* self, size_t index);
 bool std__collections__List_str_contains(std__collections__List_str* self, kobel_str value);
 kobel_str std__collections__List_str_set(std__collections__List_str* self, size_t index, kobel_str value);
@@ -609,7 +609,7 @@ std__collections__List_i32 std__collections__List_i32_filter(std__collections__L
 bool std__collections__List_i32_any(std__collections__List_i32* self, kobel_closure predicate);
 bool std__collections__List_i32_all(std__collections__List_i32* self, kobel_closure predicate);
 size_t std__collections__List_i32_count_where(std__collections__List_i32* self, kobel_closure predicate);
-void std__collections__List_i32_free(std__collections__List_i32* self);
+void std__collections__List_i32_free(std__collections__List_i32 self);
 int32_t std__collections__List_i32_get(std__collections__List_i32* self, size_t index);
 bool std__collections__List_i32_contains(std__collections__List_i32* self, int32_t value);
 int32_t std__collections__List_i32_set(std__collections__List_i32* self, size_t index, int32_t value);
@@ -649,7 +649,7 @@ std__collections__List_tests__features__test_control_flow__Bundle std__collectio
 bool std__collections__List_tests__features__test_control_flow__Bundle_any(std__collections__List_tests__features__test_control_flow__Bundle* self, kobel_closure predicate);
 bool std__collections__List_tests__features__test_control_flow__Bundle_all(std__collections__List_tests__features__test_control_flow__Bundle* self, kobel_closure predicate);
 size_t std__collections__List_tests__features__test_control_flow__Bundle_count_where(std__collections__List_tests__features__test_control_flow__Bundle* self, kobel_closure predicate);
-void std__collections__List_tests__features__test_control_flow__Bundle_free(std__collections__List_tests__features__test_control_flow__Bundle* self);
+void std__collections__List_tests__features__test_control_flow__Bundle_free(std__collections__List_tests__features__test_control_flow__Bundle self);
 tests__features__test_control_flow__Bundle std__collections__List_tests__features__test_control_flow__Bundle_get(std__collections__List_tests__features__test_control_flow__Bundle* self, size_t index);
 bool std__collections__List_tests__features__test_control_flow__Bundle_contains(std__collections__List_tests__features__test_control_flow__Bundle* self, tests__features__test_control_flow__Bundle value);
 tests__features__test_control_flow__Bundle std__collections__List_tests__features__test_control_flow__Bundle_set(std__collections__List_tests__features__test_control_flow__Bundle* self, size_t index, tests__features__test_control_flow__Bundle value);
@@ -1582,7 +1582,7 @@ __for_i = (__for_i - 1);
 }
 {
 kobel_str __ret_tmp = std__string__StringBuilder_to_str(&sb);
-std__string__StringBuilder_free(&sb);
+std__string__StringBuilder_free(sb);
 return __ret_tmp;
 }
 }
@@ -1772,8 +1772,8 @@ self->buf = new_raw;
 self->cap = new_cap;
 }
 
-void std__string__StringBuilder_free(std__string__StringBuilder* self) {
-    std__memory__Heap_free_u8(self->buf);
+void std__string__StringBuilder_free(std__string__StringBuilder self) {
+    std__memory__Heap_free_u8(self.buf);
 }
 
 void std__string__StringBuilder_plus_assign_2(std__string__StringBuilder* self, kobel_str s) {
@@ -2365,7 +2365,7 @@ tests__features__test_control_flow__check((sum == 60), KOBEL_STR("list iteration
 tests__features__test_control_flow__check((nums.len == 3), KOBEL_STR("list must keep its length after the loop"), t);
 std__collections__List_i32_plus_assign(&nums, 40);
 tests__features__test_control_flow__check((nums.len == 4), KOBEL_STR("list must still be appendable after the loop"), t);
-std__collections__List_i32_free(&nums);
+std__collections__List_i32_free(nums);
 }
 
 void tests__features__test_control_flow__test_iter_str(tests__features__test_control_flow__Tally* t) {
@@ -2601,7 +2601,7 @@ __for_i = (__for_i - 1);
 int32_t a = std__collections__List_i32_get(&sum, 0);
 int32_t b = std__collections__List_i32_get(&sum, 2);
 tests__features__test_control_flow__check(((a == 0) && (b == 2)), KOBEL_STR("loop variable must be fresh per iteration"), t);
-std__collections__List_i32_free(&sum);
+std__collections__List_i32_free(sum);
 }
 
 void tests__features__test_control_flow__test_generic_for(tests__features__test_control_flow__Tally* t) {
@@ -2610,7 +2610,7 @@ std__collections__List_i32_plus_assign(&nums, 5);
 std__collections__List_i32_plus_assign(&nums, 6);
 int32_t n = tests__features__test_control_flow__count_items_i32(nums);
 tests__features__test_control_flow__check((n == 2), KOBEL_STR("generic function with for must count 2"), t);
-std__collections__List_i32_free(&nums);
+std__collections__List_i32_free(nums);
 }
 
 void tests__features__test_control_flow__test_range_half_open(tests__features__test_control_flow__Tally* t) {
@@ -2834,8 +2834,8 @@ __for_i = (__for_i - 1);
 }
 tests__features__test_control_flow__check((sum == 66), KOBEL_STR("indexed half-open loop must sum both lists"), t);
 tests__features__test_control_flow__check((seps == 2), KOBEL_STR("indexed half-open loop must see i > 0 twice"), t);
-std__collections__List_i32_free(&rev);
-std__collections__List_i32_free(&nums);
+std__collections__List_i32_free(rev);
+std__collections__List_i32_free(nums);
 }
 
 void tests__features__test_control_flow__test_range_half_open_empty(tests__features__test_control_flow__Tally* t, size_t n) {
@@ -2978,7 +2978,7 @@ __for_i = (__for_i + 1);
 tests__features__test_control_flow__check((count == 4), KOBEL_STR("StringBuilder iteration must run len times"), t);
 tests__features__test_control_flow__check((first == 'a'), KOBEL_STR("StringBuilder iteration must start at the first char"), t);
 tests__features__test_control_flow__check((last == '7'), KOBEL_STR("StringBuilder iteration must see appended digits"), t);
-std__string__StringBuilder_free(&sb);
+std__string__StringBuilder_free(sb);
 }
 
 void tests__features__test_control_flow__test_iter_struct_elements(tests__features__test_control_flow__Tally* t) {
@@ -2999,7 +2999,7 @@ __for_i = (__for_i + 1);
 }
 tests__features__test_control_flow__check((count == 2), KOBEL_STR("List<struct> iteration must run twice"), t);
 tests__features__test_control_flow__check((ids == 3), KOBEL_STR("List<struct> iteration must yield whole elements"), t);
-std__collections__List_tests__features__test_control_flow__Bundle_free(&items);
+std__collections__List_tests__features__test_control_flow__Bundle_free(items);
 }
 
 void tests__features__test_control_flow__test_iter_list_field(tests__features__test_control_flow__Tally* t) {
@@ -3017,7 +3017,7 @@ __for_i = (__for_i + 1);
 }
 }
 tests__features__test_control_flow__check((sum == 9), KOBEL_STR("iteration over a List field"), t);
-std__collections__List_i32_free(&bag.items);
+std__collections__List_i32_free(bag.items);
 }
 
 void tests__features__test_control_flow__test_defer_basic(tests__features__test_control_flow__Tally* t) {
@@ -3669,8 +3669,8 @@ __for_i = (__for_i + 1);
 return n;
 }
 
-void std__collections__List_str_free(std__collections__List_str* self) {
-    std__memory__Heap_free_str(self->data);
+void std__collections__List_str_free(std__collections__List_str self) {
+    std__memory__Heap_free_str(self.data);
 }
 
 kobel_str std__collections__List_str_get(std__collections__List_str* self, size_t index) {
@@ -4214,8 +4214,8 @@ __for_i = (__for_i + 1);
 return n;
 }
 
-void std__collections__List_i32_free(std__collections__List_i32* self) {
-    std__memory__Heap_free_i32(self->data);
+void std__collections__List_i32_free(std__collections__List_i32 self) {
+    std__memory__Heap_free_i32(self.data);
 }
 
 int32_t std__collections__List_i32_get(std__collections__List_i32* self, size_t index) {
@@ -4773,8 +4773,8 @@ __for_i = (__for_i + 1);
 return n;
 }
 
-void std__collections__List_tests__features__test_control_flow__Bundle_free(std__collections__List_tests__features__test_control_flow__Bundle* self) {
-    std__memory__Heap_free_tests__features__test_control_flow__Bundle(self->data);
+void std__collections__List_tests__features__test_control_flow__Bundle_free(std__collections__List_tests__features__test_control_flow__Bundle self) {
+    std__memory__Heap_free_tests__features__test_control_flow__Bundle(self.data);
 }
 
 tests__features__test_control_flow__Bundle std__collections__List_tests__features__test_control_flow__Bundle_get(std__collections__List_tests__features__test_control_flow__Bundle* self, size_t index) {

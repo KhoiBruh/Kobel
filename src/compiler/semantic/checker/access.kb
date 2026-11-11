@@ -377,13 +377,19 @@ impl BodyChecker {
 				if (lowered != null) return lowered;
 			}
 
+			val prev_asgn_target = self.is_assign_target;
+			if (asgn.op == TokenType.EQUAL) self.is_assign_target = true;
 			var target_ty = self.check_expr(asgn.target);
+			self.is_assign_target = prev_asgn_target;
 			var sym_to_update: *Symbol? = null;
 			if (target_expr is IdentifierExpr as id) {
 				val sym = self.symtab.lookup(id.name);
-				if (sym?.orig_type != null) {
-					target_ty = sym.orig_type!;
-					sym_to_update = sym;
+				if (sym != null) {
+					if (asgn.op == TokenType.EQUAL) sym.is_moved = false;
+					if (sym.orig_type != null) {
+						target_ty = sym.orig_type!;
+						sym_to_update = sym;
+					}
 				}
 			}
 			if (target_ty?.is_list()) self.coerce_to_list(asgn.value, target_ty);
@@ -438,6 +444,7 @@ impl BodyChecker {
 			self.ensure(target_ty.can_assign(val_ty), node, "Type mismatch in assignment");
 			if (sym_to_update != null) {
 				sym_to_update.type_ptr = val_ty;
+				sym_to_update.is_moved = false;
 			}
 			return target_ty;
 		}

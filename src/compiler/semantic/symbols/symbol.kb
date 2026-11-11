@@ -45,7 +45,8 @@ pub struct Symbol {
 	pub col: usz,
 	pub ast_node: *AstNode? = null,
 	pub orig_type: *Type? = null,
-	pub mutated: bool = false
+	pub mutated: bool = false,
+	pub is_moved: bool = false
 }
 
 impl Symbol {

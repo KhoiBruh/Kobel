@@ -43,6 +43,7 @@ pub struct BodyChecker {
 	pub is_stmt_level: bool = false,
 	pub in_safe_nav_context: bool = false,
 	pub defer_depth: usz = 0,
+	pub is_assign_target: bool = false,
 	pub decl: DeclarationCollector = DeclarationCollector(),
 	pub has_decl: bool = false,
 	pub infer_blocked: bool = false,

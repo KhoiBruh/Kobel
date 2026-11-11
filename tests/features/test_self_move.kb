@@ -1,0 +1,44 @@
+mod test.self_move;
+
+struct Point {
+	pub x: i32,
+	pub y: i32
+}
+
+impl Point {
+
+	// Read-only pointer receiver: *self
+	pub fn sum(*self): i32 => self.x + self.y;
+
+	// Mutable pointer receiver: &self
+	pub fn translate(&self, dx: i32, dy: i32) {
+		self.x += dx;
+		self.y += dy;
+	}
+
+	// Move receiver: self
+	pub fn into_sum(self): i32 => self.x + self.y;
+
+}
+
+fn main(): i32 {
+	var p = Point(10, 20);
+
+	// Test *self
+	if (p.sum() != 30) return 1;
+
+	// Test &self
+	p.translate(5, 5);
+	if (p.x != 15 || p.y != 25) return 2;
+	if (p.sum() != 40) return 3;
+
+	// Test self move
+	val total = p.into_sum();
+	if (total != 40) return 4;
+
+	// Reassigning allows using p again
+	p = Point(100, 200);
+	if (p.sum() != 300) return 5;
+
+	return 0;
+}

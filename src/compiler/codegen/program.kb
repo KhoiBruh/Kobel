@@ -324,7 +324,10 @@ impl CCodeGen {
 					!self_c_type.empty() &&
 					p.name == "self" &&
 					p.type_node == null
-				) p_ty = "${self_c_type}*";
+				) {
+					if (p.mutable || p.has_val) p_ty = "${self_c_type}*";
+					else p_ty = self_c_type;
+				}
 				self.out += p_ty;
 				self.out += ' ';
 				self.out += p.name;

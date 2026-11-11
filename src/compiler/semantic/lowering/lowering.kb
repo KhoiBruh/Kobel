@@ -547,17 +547,23 @@ impl LoweringPass {
 			val obj_is_ptr = recv_ty?.kind == DataType.POINTER;
 			var inner_ty = recv_ty;
 			if (obj_is_ptr) inner_ty = recv_ty.as_pointer().pointee;
-			val by_ref = inner_ty?.kind == DataType.STRUCT;
+			val is_by_value = mi.is_move;
 
 			var new_args = List<*AstNode>();
-			if (by_ref == obj_is_ptr) new_args += recv;
-			else {
-				val op = if (by_ref) TokenType.AMPERSAND else TokenType.STAR;
-				val ref_arg = self.arena.node(
-					NodeData.UnaryExpr(op, recv, false),
-					node.line, node.col
-				);
-				new_args += ref_arg;
+			if (is_by_value) {
+				val val_arg = if (obj_is_ptr) self.arena.node(NodeData.UnaryExpr(TokenType.STAR, recv, false), node.line, node.col) else recv;
+				new_args += val_arg;
+			} else {
+				val by_ref = inner_ty?.kind == DataType.STRUCT;
+				if (by_ref == obj_is_ptr) new_args += recv;
+				else {
+					val op = if (by_ref) TokenType.AMPERSAND else TokenType.STAR;
+					val ref_arg = self.arena.node(
+						NodeData.UnaryExpr(op, recv, false),
+						node.line, node.col
+					);
+					new_args += ref_arg;
+				}
 			}
 			for (arg in call.args) new_args += arg;
 

@@ -449,7 +449,7 @@ char std__string__StringBuilder_last_char(std__string__StringBuilder* self);
 size_t std__string__StringBuilder_clear(std__string__StringBuilder* self);
 kobel_str std__string__StringBuilder_as_view(std__string__StringBuilder* self);
 void std__string__StringBuilder_grow(std__string__StringBuilder* self, size_t min_cap);
-void std__string__StringBuilder_free(std__string__StringBuilder* self);
+void std__string__StringBuilder_free(std__string__StringBuilder self);
 void std__string__StringBuilder_plus_assign_2(std__string__StringBuilder* self, kobel_str s);
 void std__string__StringBuilder_plus_assign_2_2(std__string__StringBuilder* self, char c);
 void std__string__StringBuilder_plus_assign_2_3(std__string__StringBuilder* self, int64_t n);
@@ -573,7 +573,7 @@ std__collections__List_str std__collections__List_str_filter(std__collections__L
 bool std__collections__List_str_any(std__collections__List_str* self, kobel_closure predicate);
 bool std__collections__List_str_all(std__collections__List_str* self, kobel_closure predicate);
 size_t std__collections__List_str_count_where(std__collections__List_str* self, kobel_closure predicate);
-void std__collections__List_str_free(std__collections__List_str* self);
+void std__collections__List_str_free(std__collections__List_str self);
 kobel_str std__collections__List_str_get(std__collections__List_str* self, size_t index);
 bool std__collections__List_str_contains(std__collections__List_str* self, kobel_str value);
 kobel_str std__collections__List_str_set(std__collections__List_str* self, size_t index, kobel_str value);
@@ -612,7 +612,7 @@ std__collections__List_std__filesystem__Path std__collections__List_std__filesys
 bool std__collections__List_std__filesystem__Path_any(std__collections__List_std__filesystem__Path* self, kobel_closure predicate);
 bool std__collections__List_std__filesystem__Path_all(std__collections__List_std__filesystem__Path* self, kobel_closure predicate);
 size_t std__collections__List_std__filesystem__Path_count_where(std__collections__List_std__filesystem__Path* self, kobel_closure predicate);
-void std__collections__List_std__filesystem__Path_free(std__collections__List_std__filesystem__Path* self);
+void std__collections__List_std__filesystem__Path_free(std__collections__List_std__filesystem__Path self);
 std__filesystem__Path std__collections__List_std__filesystem__Path_get(std__collections__List_std__filesystem__Path* self, size_t index);
 bool std__collections__List_std__filesystem__Path_contains(std__collections__List_std__filesystem__Path* self, std__filesystem__Path value);
 std__filesystem__Path std__collections__List_std__filesystem__Path_set(std__collections__List_std__filesystem__Path* self, size_t index, std__filesystem__Path value);
@@ -1548,7 +1548,7 @@ __for_i = (__for_i - 1);
 }
 {
 kobel_str __ret_tmp = std__string__StringBuilder_to_str(&sb);
-std__string__StringBuilder_free(&sb);
+std__string__StringBuilder_free(sb);
 return __ret_tmp;
 }
 }
@@ -1738,8 +1738,8 @@ self->buf = new_raw;
 self->cap = new_cap;
 }
 
-void std__string__StringBuilder_free(std__string__StringBuilder* self) {
-    std__memory__Heap_free_u8(self->buf);
+void std__string__StringBuilder_free(std__string__StringBuilder self) {
+    std__memory__Heap_free_u8(self.buf);
 }
 
 void std__string__StringBuilder_plus_assign_2(std__string__StringBuilder* self, kobel_str s) {
@@ -2344,7 +2344,7 @@ std__collections__List_std__filesystem__Path std__filesystem__Path_entries(std__
 std__collections__List_str names = std__filesystem__Path_list_dir(self);
 {
 std__collections__List_std__filesystem__Path __ret_tmp = std__collections__std__collections__List_str_map_std__filesystem__Path(&names, (kobel_closure){ (void*)__lambda_fn_10, (void*)&(struct __lambda_env_10){ self } });
-std__collections__List_str_free(&names);
+std__collections__List_str_free(names);
 return __ret_tmp;
 }
 }
@@ -3016,8 +3016,8 @@ __for_i = (__for_i + 1);
 return n;
 }
 
-void std__collections__List_str_free(std__collections__List_str* self) {
-    std__memory__Heap_free_str(self->data);
+void std__collections__List_str_free(std__collections__List_str self) {
+    std__memory__Heap_free_str(self.data);
 }
 
 kobel_str std__collections__List_str_get(std__collections__List_str* self, size_t index) {
@@ -3561,8 +3561,8 @@ __for_i = (__for_i + 1);
 return n;
 }
 
-void std__collections__List_std__filesystem__Path_free(std__collections__List_std__filesystem__Path* self) {
-    std__memory__Heap_free_std__filesystem__Path(self->data);
+void std__collections__List_std__filesystem__Path_free(std__collections__List_std__filesystem__Path self) {
+    std__memory__Heap_free_std__filesystem__Path(self.data);
 }
 
 std__filesystem__Path std__collections__List_std__filesystem__Path_get(std__collections__List_std__filesystem__Path* self, size_t index) {
