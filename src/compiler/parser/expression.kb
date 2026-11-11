@@ -245,7 +245,7 @@ pub fn interp_find_close(text: str, start: usz): isz {
 
 impl Parser {
 
-	pub fn get_infix_precedence(val self, t: TokenType): Precedence => when (t) {
+	pub fn get_infix_precedence(*self, t: TokenType): Precedence => when (t) {
 		TokenType.EQUAL, TokenType.PLUS_EQUAL,
 		TokenType.MINUS_EQUAL, TokenType.STAR_EQUAL,
 		TokenType.SLASH_EQUAL, TokenType.PERCENT_EQUAL -> Precedence.ASSIGN;
@@ -278,7 +278,7 @@ impl Parser {
 		else -> Precedence.NONE;
 	};
 
-	fn parse_is_pattern(var self, left: *AstNode?, line: usz, col: usz): *AstNode {
+	fn parse_is_pattern(&self, left: *AstNode?, line: usz, col: usz): *AstNode {
 		val target_type = self.parse_type();
 		var alias = "";
 		var mutable = false;
@@ -299,7 +299,7 @@ impl Parser {
 		return self.node(NodeData.IsExpr(left, target_type, alias, mutable), line, col);
 	}
 
-	pub fn parse_when_patterns(var self): List<*AstNode> {
+	pub fn parse_when_patterns(&self): List<*AstNode> {
 		var patterns = List<*AstNode>();
 		val first = self.parse_expression(Precedence.NONE);
 		patterns += first;
@@ -315,7 +315,7 @@ impl Parser {
 		return patterns;
 	}
 
-	fn parse_call_args(var self): List<*AstNode> {
+	fn parse_call_args(&self): List<*AstNode> {
 		var args = List<*AstNode>();
 		if (!self.check(TokenType.CLOSE_PAREN)) {
 			args += self.parse_expression(Precedence.NONE);
@@ -329,7 +329,7 @@ impl Parser {
 
 	// Checks whether the current lambda body (starting right after `->`) is a
 	// multi-statement block rather than a single expression.
-	fn is_lambda_body_block(val self): bool {
+	fn is_lambda_body_block(*self): bool {
 		if (self.is_end()) return false;
 		val first = self.peek();
 		when (first.type) {
@@ -377,7 +377,7 @@ impl Parser {
 		return false;
 	}
 
-	pub fn parse_lambda_expr(var self, is_trailing: bool, had_empty_parens: bool): *AstNode {
+	pub fn parse_lambda_expr(&self, is_trailing: bool, had_empty_parens: bool): *AstNode {
 		val open_tok = self.consume(TokenType.OPEN_BRACE, "Expected '{' to start lambda");
 		val (line, col) = open_tok;
 
@@ -424,7 +424,7 @@ impl Parser {
 	// Pratt Expression Parser
 	// ============================================================================
 
-	pub fn parse_prefix(var self): *AstNode {
+	pub fn parse_prefix(&self): *AstNode {
 		val tok = self.advance();
 		val (line, col) = tok;
 
@@ -563,7 +563,7 @@ impl Parser {
 		};
 	}
 
-	pub fn parse_infix(var self, left: *AstNode, prec: Precedence): *AstNode {
+	pub fn parse_infix(&self, left: *AstNode, prec: Precedence): *AstNode {
 		val (tok_type, line, col) = self.peek();
 
 		when (tok_type) {
@@ -730,7 +730,7 @@ impl Parser {
 		};
 	}
 
-	pub fn parse_expression(var self, min_prec: Precedence): *AstNode {
+	pub fn parse_expression(&self, min_prec: Precedence): *AstNode {
 		var left = self.parse_prefix();
 
 		while (!self.is_end()) {
@@ -744,7 +744,7 @@ impl Parser {
 	}
 
 	// Branch of an if expression: either a plain expression or a `{ expr }` block.
-	pub fn parse_if_expr_branch(var self): *AstNode {
+	pub fn parse_if_expr_branch(&self): *AstNode {
 		if (self.match_token(TokenType.OPEN_BRACE)) {
 			val e = self.parse_expression(Precedence.NONE);
 			self.consume(TokenType.CLOSE_BRACE, "Expected '}' after if expression branch");
@@ -753,7 +753,7 @@ impl Parser {
 		return self.parse_expression(Precedence.NONE);
 	}
 
-	pub fn parse_string_literal(var self, token: Token, line: usz, col: usz): *AstNode {
+	pub fn parse_string_literal(&self, token: Token, line: usz, col: usz): *AstNode {
 		val text = token.text;
 		if (text.starts_with("\"\"\"")) return self.parse_multiline_string(text, line, col);
 
@@ -781,7 +781,7 @@ impl Parser {
 		);
 	}
 
-	pub fn parse_multiline_string(var self, text: str, line: usz, col: usz): *AstNode {
+	pub fn parse_multiline_string(&self, text: str, line: usz, col: usz): *AstNode {
 		if (text.len < 6) return self.node(NodeData.LiteralExpr(Literal.STRING, "\"\""), line, col);
 		val inner = text.slice(3, text.len - 3);
 		val trimmed = inner.multiline_trim_indent();
@@ -792,7 +792,7 @@ impl Parser {
 		return self.node(NodeData.LiteralExpr(Literal.STRING, c_literal), line, col);
 	}
 
-	pub fn parse_interp_multiline(var self, text: str, line: usz, col: usz): *AstNode {
+	pub fn parse_interp_multiline(&self, text: str, line: usz, col: usz): *AstNode {
 		var parts = List<InterpPart>();
 		val end = text.len;
 		var i: usz = 0;
@@ -886,7 +886,7 @@ impl Parser {
 		return self.node(NodeData.InterpExpr(parts), line, col);
 	}
 
-	pub fn parse_interp_string(var self, text: str, line: usz, col: usz): *AstNode {
+	pub fn parse_interp_string(&self, text: str, line: usz, col: usz): *AstNode {
 		var parts = List<InterpPart>();
 		val end = text.len - 1;   // index of the closing quote
 		var i: usz = 1;           // skip the opening quote

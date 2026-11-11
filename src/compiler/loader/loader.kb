@@ -44,12 +44,12 @@ impl ModuleFile {
 
 	pub init(found: bool, path: str, source: str) => Self(found, path, source);
 
-	pub op unpack(val self, path: &str, source: &str) {
+	pub op unpack(*self, path: &str, source: &str) {
 		path.write(self.path);
 		source.write(self.source);
 	}
 
-	pub op unpack(val self, found: &bool, path: &str, source: &str) {
+	pub op unpack(*self, found: &bool, path: &str, source: &str) {
 		found.write(self.found);
 		path.write(self.path);
 		source.write(self.source);
@@ -139,22 +139,22 @@ impl ModuleLoader {
 		);
 	}
 
-	pub fn module_decl(var self, path: List<str>, full_path: str, line: usz, col: usz)
+	pub fn module_decl(&self, path: List<str>, full_path: str, line: usz, col: usz)
 		=> self.arena.node(NodeData.ModuleDecl(path, full_path), line, col);
 
-	pub fn program(var self, declarations: List<*AstNode>, line: usz, col: usz)
+	pub fn program(&self, declarations: List<*AstNode>, line: usz, col: usz)
 		=> self.arena.node(NodeData.Program(declarations), line, col);
 
-	pub fn count(val self) => self.ordered.len;
+	pub fn count(*self) => self.ordered.len;
 
-	pub fn find_source_file(val self, file_id: u32): *SourceFile?
+	pub fn find_source_file(*self, file_id: u32): *SourceFile?
 		=> self.sources.get_file(file_id);
 
 	// ============================================================================
 	// Parsing
 	// ============================================================================
 
-	pub fn parse_source(var self, path: str, source: str, module_name: str = ""): *AstNode? {
+	pub fn parse_source(&self, path: str, source: str, module_name: str = ""): *AstNode? {
 		val file_id = self.sources.add_file(path, source, module_name);
 		var lexer = Lexer(source, file_id);
 		val tokens = lexer.tokenize();
@@ -187,7 +187,7 @@ impl ModuleLoader {
 	// File Resolution
 	// ============================================================================
 
-	pub fn find_module_files(val self, module_name: str): List<ModuleFile> {
+	pub fn find_module_files(*self, module_name: str): List<ModuleFile> {
 		var list = List<ModuleFile>();
 		val rel_file = "${module_name.module_to_rel()}.kb";
 		val rel_dir = module_name.module_to_rel();
@@ -222,15 +222,15 @@ impl ModuleLoader {
 		return list;
 	}
 
-	pub fn find_module(val self, module_name: str): ModuleFile {
+	pub fn find_module(*self, module_name: str): ModuleFile {
 		val files = self.find_module_files(module_name);
 		if (files.empty()) return ModuleFile(false, "", "");
 		return files[0];
 	}
 
-	pub fn is_known(val self, module_name: str): bool => module_name in self.known;
+	pub fn is_known(*self, module_name: str): bool => module_name in self.known;
 
-	pub fn ensure_module(var self, module_name: str, line: usz = 0, col: usz = 0, parent_mod: str = "") {
+	pub fn ensure_module(&self, module_name: str, line: usz = 0, col: usz = 0, parent_mod: str = "") {
 		if (self.is_known(module_name)) return;
 
 		self.known += module_name;
@@ -265,7 +265,7 @@ impl ModuleLoader {
 		}
 	}
 
-	pub fn process_uses(var self, program_node: *AstNode, parent_mod: str) {
+	pub fn process_uses(&self, program_node: *AstNode, parent_mod: str) {
 		if (program_node is Program as prog) {
 			for (decl in prog) {
 				if (decl is UseDecl as u) {
@@ -284,7 +284,7 @@ impl ModuleLoader {
 	// Entry Point
 	// ============================================================================
 
-	pub fn load_program(var self, entry_path: str, entry_source: str): *AstNode? {
+	pub fn load_program(&self, entry_path: str, entry_source: str): *AstNode? {
 		val prog = self.parse_source(entry_path, entry_source) ?: return null;
 
 		var entry_name = "";
@@ -305,7 +305,7 @@ impl ModuleLoader {
 	}
 
 	// Merges every module (dependencies first, entry last) into a single Program.
-	pub fn build_merged_program(var self): *AstNode {
+	pub fn build_merged_program(&self): *AstNode {
 		var decls = List<*AstNode>();
 
 		for (lm in self.ordered) {

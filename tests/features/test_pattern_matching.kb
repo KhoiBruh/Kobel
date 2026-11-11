@@ -204,11 +204,11 @@ struct Probe {
 
 impl Probe {
 
-	pub fn is_positive(val self): bool => self.x > 0;
+	pub fn is_positive(*self): bool => self.x > 0;
 
-	pub fn has_prefix(val self, pfx: str): bool => self.tag_str.starts_with(pfx);
+	pub fn has_prefix(*self, pfx: str): bool => self.tag_str.starts_with(pfx);
 
-	pub fn classify(val self): i32 => when (self) {
+	pub fn classify(*self): i32 => when (self) {
 		.is_positive() && .has_prefix("ok") -> 1;
 		.is_positive() -> 2;
 		.x == 0 -> 3;

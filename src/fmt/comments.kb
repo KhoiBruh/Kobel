@@ -20,13 +20,13 @@ pub struct CommentTable {
 
 impl CommentTable {
 
-	pub fn has_more(val self) => self.cursor < self.comments.len;
+	pub fn has_more(*self) => self.cursor < self.comments.len;
 
-	pub fn peek(val self) =>
+	pub fn peek(*self) =>
 		if (self.cursor < self.comments.len) self.comments[self.cursor]
 		else Comment();
 
-	pub fn emit_before(var self, var buf: &FormatBuffer, target_line: usz) {
+	pub fn emit_before(&self, var buf: &FormatBuffer, target_line: usz) {
 		while (self.cursor < self.comments.len) {
 			val c = self.comments[self.cursor];
 			if (c.line >= target_line) break;
@@ -36,7 +36,7 @@ impl CommentTable {
 		}
 	}
 
-	pub fn emit_trailing_on_line(var self, var buf: &FormatBuffer, current_line: usz) {
+	pub fn emit_trailing_on_line(&self, var buf: &FormatBuffer, current_line: usz) {
 		while (self.cursor < self.comments.len) {
 			val c = self.comments[self.cursor];
 			if (c.line == current_line) {
@@ -47,7 +47,7 @@ impl CommentTable {
 		}
 	}
 
-	pub fn emit_remaining(var self, var buf: &FormatBuffer) {
+	pub fn emit_remaining(&self, var buf: &FormatBuffer) {
 		while (self.cursor < self.comments.len) {
 			val c = self.comments[self.cursor];
 			buf += c.text;

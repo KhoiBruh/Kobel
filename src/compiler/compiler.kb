@@ -30,7 +30,7 @@ impl Compiler {
 	// Compilation Pipeline
 	// ------------------------------------------------------------------------
 
-	pub fn compile(val self) => self.options.compile();
+	pub fn compile(*self) => self.options.compile();
 
 	// ------------------------------------------------------------------------
 	// Project Commands Dispatch
@@ -56,7 +56,7 @@ impl Compiler {
 	pub fn fixpoint(manifest_path: str = "kobel.toml") => cmd_fixpoint(manifest_path);
 
 	pub fn emit_c(
-		var self,
+		&self,
 		input_path: str,
 		out_path: str = "dist/bootstrap.c"
 	): i32 {

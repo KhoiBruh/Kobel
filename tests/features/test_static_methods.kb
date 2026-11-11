@@ -20,7 +20,7 @@ impl Point {
 
 	pub fn make_zero(): Self => Self.origin();
 
-	pub fn length_squared(val self): i32 => self.x * self.x + self.y * self.y;
+	pub fn length_squared(*self): i32 => self.x * self.x + self.y * self.y;
 }
 
 fn main(): i32 {

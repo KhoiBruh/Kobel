@@ -108,22 +108,22 @@ impl Type {
 impl Arena {
 
 	pub fn type_payload(
-		var self, kind: DataType, size: usz,
+		&self, kind: DataType, size: usz,
 		align: usz, data: TypePayload
 	) => self.create_val(Type(kind, size, align, data));
 
-	pub fn primitive_type(var self, base: Type) => self.create_val(base);
+	pub fn primitive_type(&self, base: Type) => self.create_val(base);
 
-	pub fn pointer_type(var self, pointee: *Type, mutable: bool): *Type
+	pub fn pointer_type(&self, pointee: *Type, mutable: bool): *Type
 		=> self.type_payload(DataType.POINTER, 8, 8, TypePayload.Pointer(pointee, mutable, false));
 
-	pub fn nullable_pointer_type(var self, pointee: *Type, mutable: bool): *Type
+	pub fn nullable_pointer_type(&self, pointee: *Type, mutable: bool): *Type
 		=> self.type_payload(DataType.POINTER, 8, 8, TypePayload.Pointer(pointee, mutable, true));
 
-	pub fn array_type(var self, elem: *Type, length: usz): *Type
+	pub fn array_type(&self, elem: *Type, length: usz): *Type
 		=> self.type_payload(DataType.ARRAY, elem.size * length, elem.align, TypePayload.Array(elem, length));
 
-	pub fn fn_type(var self, param_types: List<*Type>, return_type: *Type): *Type
+	pub fn fn_type(&self, param_types: List<*Type>, return_type: *Type): *Type
 		=> self.type_payload(DataType.FN, 16, 8, TypePayload.Fn(param_types, return_type));
 
 }
@@ -134,21 +134,21 @@ impl Arena {
 
 impl Type {
 
-	pub fn as_pointer(val self): *TypePayload.Pointer? {
+	pub fn as_pointer(*self): *TypePayload.Pointer? {
 		return when (self.data) {
 			is TypePayload.Pointer as p -> p;
 			else -> null;
 		};
 	}
 
-	pub fn as_array(val self): *TypePayload.Array? {
+	pub fn as_array(*self): *TypePayload.Array? {
 		return when (self.data) {
 			is TypePayload.Array as p -> p;
 			else -> null;
 		};
 	}
 
-	pub fn as_struct(val self): *StructType? {
+	pub fn as_struct(*self): *StructType? {
 		val data = self.data;
 		return when (data) {
 			is TypePayload.Struct as p -> p.inner;
@@ -156,14 +156,14 @@ impl Type {
 		};
 	}
 
-	pub fn as_fn(val self): *TypePayload.Fn? {
+	pub fn as_fn(*self): *TypePayload.Fn? {
 		return when (self.data) {
 			is TypePayload.Fn as p -> p;
 			else -> null;
 		};
 	}
 
-	pub fn as_enum(val self): *EnumInfo? {
+	pub fn as_enum(*self): *EnumInfo? {
 		val data = self.data;
 		return when (data) {
 			is TypePayload.Enum as p -> p.inner;
@@ -172,23 +172,23 @@ impl Type {
 	}
 
 	// Appends a method to a canonical built-in primitive type from `PrimTypes`.
-	pub fn add_method(val self, mi: *MethodInfo) {
+	pub fn add_method(*self, mi: *MethodInfo) {
 		if (self.methods == null) return;
 		self.methods.list += mi;
 	}
 
-	pub fn method_list(val self): List<*MethodInfo> {
+	pub fn method_list(*self): List<*MethodInfo> {
 		if (self.methods == null) return List();
 		return self.methods.list;
 	}
 
-	pub fn method_named(val self, name: str): *MethodInfo? {
+	pub fn method_named(*self, name: str): *MethodInfo? {
 		val list = self.method_list();
 		for (m in list) if (m.name == name) return m;
 		return null;
 	}
 
-	pub fn method_arity(val self, name: str, argc: usz): *MethodInfo? {
+	pub fn method_arity(*self, name: str, argc: usz): *MethodInfo? {
 		val list = self.method_list();
 		for (m in list) {
 			if (
@@ -199,39 +199,39 @@ impl Type {
 		return null;
 	}
 
-	pub fn method_by_c_name(val self, c_name: str): *MethodInfo? {
+	pub fn method_by_c_name(*self, c_name: str): *MethodInfo? {
 		val list = self.method_list();
 		for (m in list) if (m.c_name == c_name) return m;
 		return null;
 	}
 
-	pub fn is_signed_integer(val self) => when (self.kind) {
+	pub fn is_signed_integer(*self) => when (self.kind) {
 		DataType.I8, DataType.I16, DataType.I32,
 		DataType.I64, DataType.ISZ -> true;
 		else -> false;
 	};
 
-	pub fn is_unsigned_integer(val self) => when (self.kind) {
+	pub fn is_unsigned_integer(*self) => when (self.kind) {
 		DataType.U8, DataType.U16, DataType.U32,
 		DataType.U64, DataType.USZ -> true;
 		else -> false;
 	};
 
-	pub fn is_integer(val self) => self.is_signed_integer() || self.is_unsigned_integer();
+	pub fn is_integer(*self) => self.is_signed_integer() || self.is_unsigned_integer();
 
-	pub fn is_float(val self) => when (self.kind) {
+	pub fn is_float(*self) => when (self.kind) {
 		DataType.F32, DataType.F64 -> true;
 		else -> false;
 	};
 
-	pub fn is_enum(val self): bool => when (self.data) {
+	pub fn is_enum(*self): bool => when (self.data) {
 		is TypePayload.Enum -> true;
 		else -> false;
 	};
 
-	pub fn is_numeric(val self) => self.is_integer() || self.is_float();
+	pub fn is_numeric(*self) => self.is_integer() || self.is_float();
 
-	pub fn is_list(val self): bool {
+	pub fn is_list(*self): bool {
 		if (self.kind != DataType.STRUCT) return false;
 		val s = self.as_struct();
 		if (
@@ -245,7 +245,7 @@ impl Type {
 			|| s.c_name.starts_with("std__collections__List");
 	}
 
-	pub fn layout_struct(var self) {
+	pub fn layout_struct(&self) {
 		val st = self.as_struct();
 		var max_align = 1;
 		var offset = 0;
@@ -270,7 +270,7 @@ impl Type {
 		self.align = max_align;
 	}
 
-	pub op equals(val self, b: *Type): bool {
+	pub op equals(*self, b: *Type): bool {
 		if (self == b) return true;
 		if (self.kind != b.kind) return false;
 
@@ -319,7 +319,7 @@ impl Type {
 		};
 	}
 
-	pub fn can_assign(val self, source: *Type): bool {
+	pub fn can_assign(*self, source: *Type): bool {
 		if (self.equals(source)) return true;
 
 		// Enum raw-value coercion to/from its underlying primitive type.
@@ -384,7 +384,7 @@ impl Type {
 
 impl Stringer for Type {
 
-	pub fn to_str(val self): str => when (self.kind) {
+	pub fn to_str(*self): str => when (self.kind) {
 		DataType.NONE -> "none";
 		DataType.BOOL -> "bool";
 		DataType.CHAR -> "char";

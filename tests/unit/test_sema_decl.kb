@@ -113,13 +113,13 @@ fn test_duplicate_declarations() {
 fn test_generic_bounds_checking() {
 	val src = """
 		trait MyBound {
-		    fn op(val self): i32;
+		    fn op(*self): i32;
 		}
 		struct Valid {
 		    pub v: i32
 		}
 		impl MyBound for Valid {
-		    fn op(val self): i32 => self.v;
+		    fn op(*self): i32 => self.v;
 		}
 		struct Invalid {
 		    pub v: i32

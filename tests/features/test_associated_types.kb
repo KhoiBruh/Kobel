@@ -5,11 +5,11 @@ mod test.associated_types;
 
 trait Container {
 	type Item;
-	fn first(val self): Self.Item;
-	fn get(val self, i: usz): Self.Item;
-	fn put(val self, v: Self.Item): none;
+	fn first(*self): Self.Item;
+	fn get(*self, i: usz): Self.Item;
+	fn put(*self, v: Self.Item): none;
 	// A default method may use the associated type too.
-	fn echo(val self): Self.Item {
+	fn echo(*self): Self.Item {
 		return self.first();
 	}
 }
@@ -21,16 +21,16 @@ struct IntBox {
 impl Container for IntBox {
 	type Item = i32;
 
-	fn first(val self): Self.Item {
+	fn first(*self): Self.Item {
 		return self.v;
 	}
 
-	fn get(val self, i: usz): Self.Item {
+	fn get(*self, i: usz): Self.Item {
 		val base: Self.Item = self.v;
 		return base + (i as i32);
 	}
 
-	fn put(val self, v: Self.Item): none {
+	fn put(*self, v: Self.Item): none {
 	}
 }
 
@@ -41,15 +41,15 @@ struct NamedBox {
 impl Container for NamedBox {
 	type Item = str;
 
-	fn first(val self): Self.Item {
+	fn first(*self): Self.Item {
 		return self.name;
 	}
 
-	fn get(val self, i: usz): Self.Item {
+	fn get(*self, i: usz): Self.Item {
 		return self.name;
 	}
 
-	fn put(val self, v: Self.Item): none {
+	fn put(*self, v: Self.Item): none {
 	}
 }
 

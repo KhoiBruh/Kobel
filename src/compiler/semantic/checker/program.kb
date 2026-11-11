@@ -32,7 +32,7 @@ struct ArrowCandidate {
 
 impl BodyChecker {
 
-	pub fn check_fn(var self, fn_node: *AstNode) {
+	pub fn check_fn(&self, fn_node: *AstNode) {
 		if (fn_node is FnDecl as f) {
 			val sym = self.symtab.lookup(f.name) ?: return;
 			if (sym.type_ptr.kind != DataType.FN) return;
@@ -70,7 +70,7 @@ impl BodyChecker {
 		}
 	}
 
-	pub fn check_fn_body(var self, fn_node: *AstNode, fn_type: *Type) {
+	pub fn check_fn_body(&self, fn_node: *AstNode, fn_type: *Type) {
 		if (fn_node in self.checked_fns) return;
 		if (fn_node is FnDecl as f) {
 			self.checked_fns += fn_node;
@@ -147,7 +147,7 @@ impl BodyChecker {
 								self.report_warning(
 									fn_node,
 									"In function '${f.name}': Receiver 'self' is declared mutable " +
-									"with 'var', but is never mutated; consider using 'val self'"
+									"with '&self', but is never mutated; consider using '*self'"
 								);
 							}
 						} else if (!p.name.starts_with("_")) {
@@ -171,7 +171,7 @@ impl BodyChecker {
 		}
 	}
 
-	pub fn check_impl(var self, node: *AstNode) {
+	pub fn check_impl(&self, node: *AstNode) {
 		if (node is ImplDecl as im) {
 			if (im.struct_name.empty()) {
 				for (m_node in im.methods) {
@@ -208,7 +208,7 @@ impl BodyChecker {
 		}
 	}
 
-	pub fn check_program(var self, program_node: *AstNode) {
+	pub fn check_program(&self, program_node: *AstNode) {
 		if (!self.has_symtab) {
 			var decl_p = DeclarationCollector();
 			decl_p.collect_program(program_node);
@@ -242,7 +242,7 @@ impl BodyChecker {
 		self.flush_instances(program_node, inst_mark);
 	}
 
-	pub fn flush_instances(var self, program_node: *AstNode, from: usz) {
+	pub fn flush_instances(&self, program_node: *AstNode, from: usz) {
 		if (program_node is Program as prog) {
 			var added = List<*AstNode>();
 			var i = from;
@@ -270,7 +270,7 @@ impl BodyChecker {
 		}
 	}
 
-	pub fn infer_arrow_returns(var self, program_node: *AstNode) {
+	pub fn infer_arrow_returns(&self, program_node: *AstNode) {
 		if (program_node is Program as prog) {
 			val saved_mod = self.symtab.current_module;
 			self.inferring = true;
@@ -316,7 +316,7 @@ impl BodyChecker {
 	}
 
 	fn collect_instance_arrow_candidates(
-		var self,
+		&self,
 		pending: &List<*ArrowCandidate>,
 		seen: &List<*AstNode>,
 		from: usz
@@ -339,7 +339,7 @@ impl BodyChecker {
 	}
 
 	fn arrow_candidate(
-		var self,
+		&self,
 		node: *AstNode,
 		fn_type: *Type,
 		self_ty: *Type? = null,
@@ -347,7 +347,7 @@ impl BodyChecker {
 	): *ArrowCandidate => self.arena.create_val(ArrowCandidate(node, fn_type, self_ty, module));
 
 	fn add_fn_arrow_candidate(
-		var self,
+		&self,
 		decl: *AstNode,
 		module: str,
 		pending: &List<*ArrowCandidate>,
@@ -365,7 +365,7 @@ impl BodyChecker {
 	}
 
 	fn add_impl_arrow_candidates(
-		var self,
+		&self,
 		im: *ImplDecl,
 		module: str,
 		pending: &List<*ArrowCandidate>,
@@ -399,7 +399,7 @@ impl BodyChecker {
 		}
 	}
 
-	fn try_infer_arrow(var self, c: *ArrowCandidate): bool {
+	fn try_infer_arrow(&self, c: *ArrowCandidate): bool {
 		if (c.node is FnDecl as f) {
 			if (f.return_type != null) return true;
 			if (c.fn_type == null) return true;

@@ -36,12 +36,12 @@ pub struct GenericTemplate {
 
 impl GenericTemplate {
 
-	pub fn param_names(val self): List<str> {
+	pub fn param_names(*self): List<str> {
 		val ps = self.params();
 		return ps.map { p -> p.name };
 	}
 
-	pub fn params(val self) => when (self.node) {
+	pub fn params(*self) => when (self.node) {
 		is StructDecl as s -> s.type_params;
 		is FnDecl as f -> f.type_params;
 		is ImplDecl as i -> i.type_params;
@@ -57,7 +57,7 @@ pub struct GenericSubst {
 
 impl GenericSubst {
 
-	pub fn lookup(val self, name: str): *AstNode? {
+	pub fn lookup(*self, name: str): *AstNode? {
 		val idx = self.names.index_of(name);
 		if (idx >= 0) return self.args[idx as usz];
 		return null;
@@ -88,7 +88,7 @@ pub struct InstanceRecord {
 
 impl InstanceRecord {
 
-	pub fn find_ann(val self, node: *AstNode): *AnnotationEntry? {
+	pub fn find_ann(*self, node: *AstNode): *AnnotationEntry? {
 		val p = self.ann_map.get(node.addr()) ?: return null;
 		return p.read();
 	}
@@ -111,22 +111,22 @@ pub struct GenericRegistry {
 
 impl GenericRegistry {
 
-	pub fn add_inst(var self, sym: *Symbol) {
+	pub fn add_inst(&self, sym: *Symbol) {
 		self.inst_map[sym.name] = sym;
 	}
 
-	pub fn find_instance_symbol(val self, name: str): *Symbol? {
+	pub fn find_instance_symbol(*self, name: str): *Symbol? {
 		val p = self.inst_map.get(name) ?: return null;
 		return p.read();
 	}
 
-	pub fn add_record(var self, rec: *InstanceRecord) {
+	pub fn add_record(&self, rec: *InstanceRecord) {
 		self.records += rec;
 		if (!rec.c_name.empty()) self.record_map[rec.c_name] = rec;
 	}
 
 	pub fn find_instance_record(
-		val self, template: *GenericTemplate,
+		*self, template: *GenericTemplate,
 		args: List<*Type>, kind: InstanceKind
 	): *InstanceRecord? {
 		for (record in self.records) {
@@ -142,7 +142,7 @@ impl GenericRegistry {
 		return null;
 	}
 
-	pub fn find_record_by_cname(val self, cname: str): *InstanceRecord? {
+	pub fn find_record_by_cname(*self, cname: str): *InstanceRecord? {
 		val p = self.record_map.get(cname) ?: return null;
 		return p.read();
 	}

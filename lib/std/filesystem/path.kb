@@ -49,33 +49,33 @@ fn remap_path_bytes(s: str, from: char, to: char, fold_case: bool): str {
 impl str {
 
 	// Directory part of a path ("" when the path has no separator).
-	pub fn dir_of(val self): str {
+	pub fn dir_of(*self): str {
 		val last = self.last_index_where { c -> str_is_sep(c) };
 		if (last < 0) return "";
 		return self.slice(0, last as usz);
 	}
 
 	// File name part of a path (input with separators included).
-	pub fn base_name(val self): str {
+	pub fn base_name(*self): str {
 		val last = self.last_index_where { c -> str_is_sep(c) };
 		if (last < 0) return self;
 		return self.slice((last + 1) as usz);
 	}
 
 	// Joins a directory and a relative path with a single '/' separator.
-	pub fn join_path(val self, rel: str): str {
+	pub fn join_path(*self, rel: str): str {
 		if (self.empty()) return rel;
 		if (str_is_sep(self[self.len - 1])) return "${self}${rel}";
 		return "${self}/${rel}";
 	}
 
-	pub fn normalize_path(val self) => remap_path_bytes(self, '\\', '/', true);
+	pub fn normalize_path(*self) => remap_path_bytes(self, '\\', '/', true);
 
 	// Converts '/' to '\\' for Windows tools (cmd, del, etc.)
-	pub fn to_win_path(val self) => remap_path_bytes(self, '/', '\\', false);
+	pub fn to_win_path(*self) => remap_path_bytes(self, '/', '\\', false);
 
 	// Converts '\\' to '/' for cross-platform and POSIX path representations
-	pub fn to_posix_path(val self) => remap_path_bytes(self, '\\', '/', false);
+	pub fn to_posix_path(*self) => remap_path_bytes(self, '\\', '/', false);
 
 }
 
@@ -89,20 +89,20 @@ impl Path {
 
 	pub fn is_sep(c: char) => str_is_sep(c);
 
-	pub fn c_str(val self) => self.raw.c_str();
+	pub fn c_str(*self) => self.raw.c_str();
 
-	pub fn empty(val self) => self.raw.empty();
+	pub fn empty(*self) => self.raw.empty();
 
-	pub fn len(val self) => self.raw.len;
+	pub fn len(*self) => self.raw.len;
 
 	// Directory part of the path ("" when no separator is found).
-	pub fn parent(val self) => Path(self.raw.dir_of());
+	pub fn parent(*self) => Path(self.raw.dir_of());
 
 	// File name part of the path including extension ("main.kb" from "src/main.kb").
-	pub fn file_name(val self) => self.raw.base_name();
+	pub fn file_name(*self) => self.raw.base_name();
 
 	// Extension without the leading dot ("kb" from "src/main.kb", "" if none).
-	pub fn extension(val self): str {
+	pub fn extension(*self): str {
 		val fname = self.file_name();
 		val last_dot = fname.last_index_where { c -> c == '.' };
 		if (last_dot <= 0 || (last_dot as usz) == fname.len - 1) return "";
@@ -110,7 +110,7 @@ impl Path {
 	}
 
 	// File name without the trailing extension ("main" from "src/main.kb").
-	pub fn stem(val self): str {
+	pub fn stem(*self): str {
 		val fname = self.file_name();
 		val last_dot = fname.last_index_where { c -> c == '.' };
 		if (last_dot <= 0) return fname;
@@ -118,7 +118,7 @@ impl Path {
 	}
 
 	// Joins two path segments with a normalized '/' separator.
-	pub fn join(val self, part: str): Path {
+	pub fn join(*self, part: str): Path {
 		if (self.raw.empty()) return Path(part);
 
 		if (part.empty()) return Path(self.raw);
@@ -135,41 +135,41 @@ impl Path {
 		return Path("${self.raw}/${part}");
 	}
 
-	pub fn join_path(val self, other: Path) => self.join(other.raw);
+	pub fn join_path(*self, other: Path) => self.join(other.raw);
 
-	pub fn to_win_path(val self) => Path(self.raw.to_win_path());
+	pub fn to_win_path(*self) => Path(self.raw.to_win_path());
 
-	pub fn to_posix_path(val self) => Path(self.raw.to_posix_path());
+	pub fn to_posix_path(*self) => Path(self.raw.to_posix_path());
 
-	pub fn normalize(val self) => Path(self.raw.normalize_path());
+	pub fn normalize(*self) => Path(self.raw.normalize_path());
 
 	// ------------------------------------------------------------------------
 	// Filesystem state queries
 	// ------------------------------------------------------------------------
 
-	pub fn exists(val self) => kobel_path_exists(self.raw) != 0;
+	pub fn exists(*self) => kobel_path_exists(self.raw) != 0;
 
-	pub fn is_dir(val self) => kobel_path_is_dir(self.raw) != 0;
+	pub fn is_dir(*self) => kobel_path_is_dir(self.raw) != 0;
 
-	pub fn is_file(val self) => kobel_path_is_file(self.raw) != 0;
+	pub fn is_file(*self) => kobel_path_is_file(self.raw) != 0;
 
 	// ------------------------------------------------------------------------
 	// Filesystem directory manipulation
 	// ------------------------------------------------------------------------
 
-	pub fn create_dir(val self) => kobel_create_dir(self.raw) != 0;
+	pub fn create_dir(*self) => kobel_create_dir(self.raw) != 0;
 
-	pub fn create_dir_all(val self) => kobel_create_dir_all(self.raw) != 0;
+	pub fn create_dir_all(*self) => kobel_create_dir_all(self.raw) != 0;
 
-	pub fn remove(val self) => remove(self.raw.c_str()) == 0;
+	pub fn remove(*self) => remove(self.raw.c_str()) == 0;
 
-	pub fn rename_to(val self, target: Path): bool {
+	pub fn rename_to(*self, target: Path): bool {
 		if (target.exists()) target.remove();
 		return rename(self.raw.c_str(), target.raw.c_str()) == 0;
 	}
 
 	// Directory listing returning list of filename strings
-	pub fn list_dir(val self): List<str> {
+	pub fn list_dir(*self): List<str> {
 		val raw = kobel_list_dir(self.raw);
 		if (raw.empty()) return List<str>();
 
@@ -187,7 +187,7 @@ impl Path {
 	}
 
 	// Directory entries listing returning List<Path>
-	pub fn entries(val self): List<Path> {
+	pub fn entries(*self): List<Path> {
 		val names = self.list_dir();
 		defer names.free();
 
@@ -198,7 +198,7 @@ impl Path {
 	// High-level text I/O operations
 	// ------------------------------------------------------------------------
 
-	pub fn read_text(val self): str {
+	pub fn read_text(*self): str {
 		val f = fopen(self.raw.c_str(), "rb");
 		if (f == null) return "";
 
@@ -224,7 +224,7 @@ impl Path {
 		return str_from_bytes(buf, read_bytes);
 	}
 
-	pub fn write_text(val self, content: str): bool {
+	pub fn write_text(*self, content: str): bool {
 		val f = fopen(self.raw.c_str(), "wb");
 		if (f == null) return false;
 		val written = fwrite(content.data, 1, content.len, f);
@@ -232,7 +232,7 @@ impl Path {
 		return written == content.len;
 	}
 
-	pub fn append_text(val self, content: str): bool {
+	pub fn append_text(*self, content: str): bool {
 		val f = fopen(self.raw.c_str(), "ab") ?: return false;
 		val written = fwrite(content.data, 1, content.len, f);
 		fclose(f);
@@ -243,14 +243,14 @@ impl Path {
 	// Stream factory
 	// ------------------------------------------------------------------------
 
-	pub fn open_read(val self) => File.open(self.raw, "rb");
+	pub fn open_read(*self) => File.open(self.raw, "rb");
 
-	pub fn open_write(val self) => File.open(self.raw, "wb");
+	pub fn open_write(*self) => File.open(self.raw, "wb");
 
-	pub fn open_append(val self) => File.open(self.raw, "ab");
+	pub fn open_append(*self) => File.open(self.raw, "ab");
 
 }
 
 impl Stringer for Path {
-	fn to_str(val self) => self.raw;
+	fn to_str(*self) => self.raw;
 }

@@ -21,25 +21,25 @@ impl Vector2 {
 	pub init(x: i32, y: i32) => Self(x, y);
 
 	// Overloaded op plus: Vector2 + Vector2
-	pub op plus(val self, other: Vector2): Vector2 => Vector2(self.x + other.x, self.y + other.y);
+	pub op plus(*self, other: Vector2): Vector2 => Vector2(self.x + other.x, self.y + other.y);
 
 	// Overloaded op plus: Vector2 + i32 (scalar)
-	pub op plus(val self, scalar: i32): Vector2 => Vector2(self.x + scalar, self.y + scalar);
+	pub op plus(*self, scalar: i32): Vector2 => Vector2(self.x + scalar, self.y + scalar);
 
 	// op minus: Vector2 - Vector2
-	pub op minus(val self, other: Vector2): Vector2 => Vector2(self.x - other.x, self.y - other.y);
+	pub op minus(*self, other: Vector2): Vector2 => Vector2(self.x - other.x, self.y - other.y);
 
 	// op mul: Vector2 * i32
-	pub op mul(val self, factor: i32): Vector2 => Vector2(self.x * factor, self.y * factor);
+	pub op mul(*self, factor: i32): Vector2 => Vector2(self.x * factor, self.y * factor);
 
 	// op negate: -Vector2
-	pub op negate(val self): Vector2 => Vector2(0 - self.x, 0 - self.y);
+	pub op negate(*self): Vector2 => Vector2(0 - self.x, 0 - self.y);
 
 	// op equals: Vector2 == Vector2
-	pub op equals(val self, other: Vector2): bool => self.x == other.x && self.y == other.y;
+	pub op equals(*self, other: Vector2): bool => self.x == other.x && self.y == other.y;
 
 	// op plus_assign: Vector2 += Vector2
-	pub op plus_assign(var self, other: Vector2) {
+	pub op plus_assign(&self, other: Vector2) {
 		self.x = self.x + other.x;
 		self.y = self.y + other.y;
 	}
@@ -58,14 +58,14 @@ pub struct IntBuffer {
 impl IntBuffer {
 	pub init(a: i32, b: i32, c: i32) => Self(a, b, c);
 
-	pub op get(val self, idx: usz): i32 => when (idx) {
+	pub op get(*self, idx: usz): i32 => when (idx) {
 		0 -> self.a;
 		1 -> self.b;
 		2 -> self.c;
 		else -> 0;
 	};
 
-	pub op set(var self, idx: usz, val_in: i32) {
+	pub op set(&self, idx: usz, val_in: i32) {
 		when (idx) {
 			0 -> self.a = val_in;
 			1 -> self.b = val_in;
@@ -73,7 +73,7 @@ impl IntBuffer {
 		}
 	}
 
-	pub op plus_assign(var self, delta: i32) {
+	pub op plus_assign(&self, delta: i32) {
 		self.a = self.a + delta;
 		self.b = self.b + delta;
 		self.c = self.c + delta;

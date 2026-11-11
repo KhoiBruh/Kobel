@@ -69,7 +69,7 @@ impl LspDiagnostic {
 		return Self(l0, c0, l0, end_col, severity, diag.message);
 	}
 
-	pub fn to_json(val self): *JsonValue {
+	pub fn to_json(*self): *JsonValue {
 		val obj = JsonValue.obj();
 
 		val range = JsonValue.obj();
@@ -377,7 +377,7 @@ impl AnalysisResult {
 		return Self(diagnostics, empty_symtab, false, tokens);
 	}
 
-	pub fn hover_at(val self, line0: usz, col0: usz): *JsonValue {
+	pub fn hover_at(*self, line0: usz, col0: usz): *JsonValue {
 		val target_line = line0 + 1;
 		val target_col = col0 + 1;
 
@@ -425,7 +425,7 @@ impl AnalysisResult {
 // Go-to-Definition Provider
 // ============================================================================
 
-	pub fn definition_at(val self, doc_uri: str, line0: usz, col0: usz): *JsonValue {
+	pub fn definition_at(*self, doc_uri: str, line0: usz, col0: usz): *JsonValue {
 		val target_line = line0 + 1;
 		val target_col = col0 + 1;
 
@@ -456,7 +456,7 @@ impl AnalysisResult {
 		return JsonValue.null_val();
 	}
 
-	pub fn complete_at(val self): *JsonValue {
+	pub fn complete_at(*self): *JsonValue {
 		val items = JsonValue.arr();
 
 		// 1. Language Keywords (Kind: 14 = Keyword)

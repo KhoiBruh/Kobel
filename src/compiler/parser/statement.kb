@@ -13,7 +13,7 @@ use compiler.ast.*;
 
 impl Parser {
 
-	pub fn parse_block_stmt(var self): *AstNode {
+	pub fn parse_block_stmt(&self): *AstNode {
 		val lbrace = self.consume(TokenType.OPEN_BRACE, "Expected '{'");
 		var statements = List<*AstNode>();
 
@@ -26,7 +26,7 @@ impl Parser {
 		return self.node(NodeData.BlockStmt(statements), lbrace.line, lbrace.col);
 	}
 
-	pub fn parse_var_decl_stmt(var self): *AstNode {
+	pub fn parse_var_decl_stmt(&self): *AstNode {
 		val kw = self.advance(); // val or var
 		val mutable = (kw.type == TokenType.KW_VAR);
 
@@ -61,7 +61,7 @@ impl Parser {
 		return self.node(NodeData.VarDeclStmt(mutable, name_tok.text, type_ann, init_expr), kw.line, kw.col);
 	}
 
-	pub fn parse_if_stmt(var self): *AstNode {
+	pub fn parse_if_stmt(&self): *AstNode {
 		val kw = self.advance(); // 'if'
 		self.consume(TokenType.OPEN_PAREN, "Expected '(' after 'if'");
 		val condition = self.parse_expression(Precedence.NONE);
@@ -74,7 +74,7 @@ impl Parser {
 		return self.node(NodeData.IfStmt(condition, then_branch, else_branch), kw.line, kw.col);
 	}
 
-	pub fn parse_while_stmt(var self): *AstNode {
+	pub fn parse_while_stmt(&self): *AstNode {
 		val kw = self.advance(); // 'while'
 		self.consume(TokenType.OPEN_PAREN, "Expected '(' after 'while'");
 		val condition = self.parse_expression(Precedence.NONE);
@@ -87,7 +87,7 @@ impl Parser {
 	// `for (x in <expr>) <stmt>` where `<expr>` is either an iterable value or one
 	// of the range forms `a..b` (closed) / `a>..<b` (open). Bounds are parsed with a
 	// precedence that stops before comparison operators so `a>..<b` keeps its `>`.
-	pub fn parse_for_stmt(var self): *AstNode {
+	pub fn parse_for_stmt(&self): *AstNode {
 		val kw = self.advance(); // 'for'
 		self.consume(TokenType.OPEN_PAREN, "Expected '(' after 'for'");
 
@@ -214,7 +214,7 @@ impl Parser {
 		);
 	}
 
-	pub fn parse_return_stmt(var self): *AstNode {
+	pub fn parse_return_stmt(&self): *AstNode {
 		val kw = self.advance(); // 'return'
 		val value = if (!self.check(TokenType.SEMI_COLON)) self.parse_expression(Precedence.NONE) else null;
 
@@ -222,7 +222,7 @@ impl Parser {
 		return self.node(NodeData.ReturnStmt(value), kw.line, kw.col);
 	}
 
-	pub fn parse_when_stmt(var self): *AstNode {
+	pub fn parse_when_stmt(&self): *AstNode {
 		val kw = self.advance(); // 'when'
 		// `when (cond) { ... }` or the boolean form `when { cond -> ... }`.
 		var condition: *AstNode? = null;
@@ -256,13 +256,13 @@ impl Parser {
 		return self.node(NodeData.WhenStmt(condition, arms), kw.line, kw.col);
 	}
 
-	pub fn parse_defer_stmt(var self): *AstNode {
+	pub fn parse_defer_stmt(&self): *AstNode {
 		val kw = self.advance(); // 'defer'
 		val body = self.parse_statement();
 		return self.node(NodeData.DeferStmt(body), kw.line, kw.col);
 	}
 
-	pub fn parse_statement(var self): *AstNode {
+	pub fn parse_statement(&self): *AstNode {
 		val (type, line, col) = self.peek();
 
 		return when (type) {

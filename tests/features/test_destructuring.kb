@@ -12,7 +12,7 @@ pub struct Wrapper {
 impl Wrapper {
 	pub init(value: i32) => Self(value);
 
-	pub op unpack(val self, out: &i32) {
+	pub op unpack(*self, out: &i32) {
 		out.write(self.value);
 	}
 }
@@ -25,7 +25,7 @@ pub struct Point2D {
 impl Point2D {
 	pub init(x: i32, y: i32) => Self(x, y);
 
-	pub op unpack(val self, x: &i32, y: &i32) {
+	pub op unpack(*self, x: &i32, y: &i32) {
 		x.write(self.x);
 		y.write(self.y);
 	}
@@ -40,7 +40,7 @@ pub struct Tuple3<A, B, C> {
 impl Tuple3<A, B, C> {
 	pub init(a: A, b: B, c: C) => Self(a, b, c);
 
-	pub op unpack(val self, a: &A, b: &B, c: &C) {
+	pub op unpack(*self, a: &A, b: &B, c: &C) {
 		a.write(self.a);
 		b.write(self.b);
 		c.write(self.c);
@@ -56,7 +56,7 @@ pub struct Triple {
 impl Triple {
 	pub init(v0: i32, v1: i32, v2: i32) => Self(v0, v1, v2);
 
-	pub op unpack(val self, idx: usz): i32 {
+	pub op unpack(*self, idx: usz): i32 {
 		if (idx == 0) return self.v0;
 		if (idx == 1) return self.v1;
 		return self.v2;

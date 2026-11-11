@@ -64,34 +64,34 @@ fn common_whitespace_prefix(lines: List<str>, start_idx: usz, end_idx: usz): str
 
 impl str {
 
-	pub fn empty(val self) => self.len == 0;
+	pub fn empty(*self) => self.len == 0;
 
-	pub fn each(val self, action: (char) -> none) {
+	pub fn each(*self, action: (char) -> none) {
 		for (data in self) action(data);
 	}
 
-	pub fn any(val self, predicate: (char) -> bool): bool {
+	pub fn any(*self, predicate: (char) -> bool): bool {
 		for (data in self) if (predicate(data)) return true;
 		return false;
 	}
 
-	pub fn all(val self, predicate: (char) -> bool): bool {
+	pub fn all(*self, predicate: (char) -> bool): bool {
 		for (data in self) if (!predicate(data)) return false;
 		return true;
 	}
 
-	pub fn count_where(val self, predicate: (char) -> bool): usz {
+	pub fn count_where(*self, predicate: (char) -> bool): usz {
 		var n = 0;
 		for (data in self) if (predicate(data)) n++;
 		return n;
 	}
 
-	pub fn index_where(val self, predicate: (char) -> bool): isz {
+	pub fn index_where(*self, predicate: (char) -> bool): isz {
 		for (i in 0..<self.len) if (predicate(self[i])) return i;
 		return -1;
 	}
 
-	pub fn last_index_where(val self, predicate: (char) -> bool): isz {
+	pub fn last_index_where(*self, predicate: (char) -> bool): isz {
 		if (self.len == 0) return -1;
 
 		var i = self.len - 1;
@@ -104,7 +104,7 @@ impl str {
 		return -1;
 	}
 
-	pub fn filter(val self, predicate: (char) -> bool): str {
+	pub fn filter(*self, predicate: (char) -> bool): str {
 		val buf = Heap.create_array<u8>(self.len + 1);
 		var w = 0;
 		for (ch in self) {
@@ -118,7 +118,7 @@ impl str {
 		return str_from_bytes(buf, w);
 	}
 
-	pub fn map_chars(val self, transform: (char) -> char): str {
+	pub fn map_chars(*self, transform: (char) -> char): str {
 		if (self.empty()) return self;
 
 		val buf = Heap.create_array<u8>(self.len + 1);
@@ -128,14 +128,14 @@ impl str {
 		return str_from_bytes(buf, self.len);
 	}
 
-	pub fn blank(val self) => self.all { c ->
+	pub fn blank(*self) => self.all { c ->
 		yield when (c) {
 			' ', '\t', '\r', '\n' -> true;
 			else -> false;
 		};
 	};
 
-	pub fn starts_with(val self, prefix: str): bool {
+	pub fn starts_with(*self, prefix: str): bool {
 		if (self.len < prefix.len) return false;
 
 		for (i in 0..<prefix.len) {
@@ -145,7 +145,7 @@ impl str {
 		return true;
 	}
 
-	pub fn ends_with(val self, suffix: str): bool {
+	pub fn ends_with(*self, suffix: str): bool {
 		if (self.len < suffix.len) return false;
 
 		val off = self.len - suffix.len;
@@ -156,7 +156,7 @@ impl str {
 		return true;
 	}
 
-	pub fn index_of(val self, sub: str): isz {
+	pub fn index_of(*self, sub: str): isz {
 		if (sub.empty()) return 0;
 		if (self.len < sub.len) return -1;
 
@@ -176,17 +176,17 @@ impl str {
 		return -1;
 	}
 
-	pub fn strip_suffix(val self, n: usz) => if (self.len <= n) ""
+	pub fn strip_suffix(*self, n: usz) => if (self.len <= n) ""
 		else self.slice(0, self.len - n);
 
 	// Copy of `self` with every occurrence of `c` removed (`"1_000".strip_char('_')` -> `"1000"`).
-	pub fn strip_char(val self, c: char) => self.filter { ch -> ch != c };
+	pub fn strip_char(*self, c: char) => self.filter { ch -> ch != c };
 
-	pub fn replace_char(val self, from: char, to: char) =>
+	pub fn replace_char(*self, from: char, to: char) =>
 		self.map_chars { c -> if (c == from) to else c };
 
 	// `n` copies of `self` in a single allocation (`""` when `n == 0`).
-	pub fn repeat(val self, n: usz): str {
+	pub fn repeat(*self, n: usz): str {
 		if (n == 0 || self.empty()) return "";
 
 		val buf = Heap.create_array<u8>(self.len * n + 1);
@@ -201,7 +201,7 @@ impl str {
 		return str_from_bytes(buf, w);
 	}
 
-	pub fn join(val self, list: List<str>): str {
+	pub fn join(*self, list: List<str>): str {
 		if (list.empty()) return "";
 		if (list.len == 1) return list.data[0];
 
@@ -231,7 +231,7 @@ impl str {
 	 * Trailing type suffix of a text, ignoring what comes before it: `100L` -> "L",
 	 * `1.5F` -> "F", `0xFF` -> "F". Only used through `num_suffix`.
 	 */
-	fn suffix_tail(val self): str {
+	fn suffix_tail(*self): str {
 		if (self.empty()) return "";
 
 		if (self.len >= 2) {
@@ -257,7 +257,7 @@ impl str {
 	 * the `_` separator, because B, D and F are digits there: `0xBF` is the number
 	 * 191, not `0xF` with an f32 suffix, and `0xFF_UL` is still a u64 255.
 	 */
-	pub fn num_suffix(val self): str {
+	pub fn num_suffix(*self): str {
 		if (self.empty()) return "";
 
 		var zone = self;
@@ -288,7 +288,7 @@ impl str {
 		return tail;
 	}
 
-	pub fn trim(val self): str {
+	pub fn trim(*self): str {
 		if (self.empty()) return self;
 
 		var start = 0;
@@ -314,7 +314,7 @@ impl str {
 		return self.slice(start, end);
 	}
 
-	pub fn split(val self, delim: char): List<str> {
+	pub fn split(*self, delim: char): List<str> {
 		var parts = List<str>();
 		var start = 0;
 		for (i in 0..<self.len) {
@@ -328,7 +328,7 @@ impl str {
 		return parts;
 	}
 
-	pub fn split_lines(val self): List<str> {
+	pub fn split_lines(*self): List<str> {
 		var res = List<str>();
 		var start = 0;
 		var i = 0;
@@ -352,7 +352,7 @@ impl str {
 		return res;
 	}
 
-	pub fn multiline_trim_indent(val self): str {
+	pub fn multiline_trim_indent(*self): str {
 		if (self.empty()) return "";
 
 		val lines = self.split_lines();
@@ -392,20 +392,20 @@ impl str {
 		return sb.to_str();
 	}
 
-	pub fn trim_indent(val self) => self.multiline_trim_indent();
+	pub fn trim_indent(*self) => self.multiline_trim_indent();
 
 	// ============================================================================
 	// Overloaded Operators
 	// ============================================================================
 
-	pub op contains(val self, sub: str) => self.index_of(sub) >= 0;
+	pub op contains(*self, sub: str) => self.index_of(sub) >= 0;
 
 }
 
 impl Iterable for str {
 
-	pub fn count(val self) => self.len;
+	pub fn count(*self) => self.len;
 
-	pub fn at(val self, i: usz) => self.data[i];
+	pub fn at(*self, i: usz) => self.data[i];
 
 }

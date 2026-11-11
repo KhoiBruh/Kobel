@@ -34,7 +34,7 @@ impl Kobel {
 		return Self(args);
 	}
 
-	pub fn run(val self): i32 {
+	pub fn run(*self): i32 {
 		if (self.args.len < 2) {
 			self.print_usage();
 			return 0;
@@ -56,7 +56,7 @@ impl Kobel {
 		};
 	}
 
-	fn print_usage(val self) {
+	fn print_usage(*self) {
 		println("""
 		============================================================
 		  Kobel Compiler v1.0.0 (Self-Hosted compiler C99 Backend)  
@@ -76,19 +76,19 @@ impl Kobel {
 	""");
 	}
 
-	fn print_version(val self): i32 {
+	fn print_version(*self): i32 {
 		println("Kobel Compiler v1.0.0 (Self-Hosted compiler C99 Backend)");
 		return 0;
 	}
 
-	fn print_help(val self): i32 {
+	fn print_help(*self): i32 {
 		self.print_usage();
 		return 0;
 	}
 
-	fn run_build(val self): i32 => Compiler.build("kobel.toml");
+	fn run_build(*self): i32 => Compiler.build("kobel.toml");
 
-	fn run_project(val self): i32 {
+	fn run_project(*self): i32 {
 		var extra_args = List<str>();
 		var i: usz = 2;
 		while (i < self.args.len) {
@@ -98,19 +98,19 @@ impl Kobel {
 		return Compiler.run_project("kobel.toml", extra_args);
 	}
 
-	fn run_test(val self): i32 {
+	fn run_test(*self): i32 {
 		val filter = if (self.args.len >= 3) self.args[2] else "";
 		return Compiler.test("kobel.toml", filter);
 	}
 
-	fn run_snap(val self): i32 {
+	fn run_snap(*self): i32 {
 		val update = self.args.len >= 3 && self.args[2] == "--update";
 		return Compiler.snap("kobel.toml", update);
 	}
 
-	fn run_fixpoint(val self): i32 => Compiler.fixpoint("kobel.toml");
+	fn run_fixpoint(*self): i32 => Compiler.fixpoint("kobel.toml");
 
-	fn run_emit_c(val self): i32 {
+	fn run_emit_c(*self): i32 {
 		val manifest_p = Path("kobel.toml");
 		val cfg = if (manifest_p.exists()) ProjectConfig("kobel.toml") else ProjectConfig();
 		val out_path = if (self.args.len >= 3) self.args[2] else "dist/bootstrap.c";
@@ -118,7 +118,7 @@ impl Kobel {
 		return compiler.emit_c(cfg.entry, out_path);
 	}
 
-	fn run_fmt(val self): i32 {
+	fn run_fmt(*self): i32 {
 		if (self.args.len < 3) {
 			println("Usage: kobel fmt [-w] <files...>");
 			return 1;
@@ -149,12 +149,12 @@ impl Kobel {
 		return Formatter.format_files(files, write_in_place);
 	}
 
-	fn run_lsp(val self): i32 {
+	fn run_lsp(*self): i32 {
 		var server = LanguageServer();
 		return server.run();
 	}
 
-	fn run_compile(val self): i32 {
+	fn run_compile(*self): i32 {
 		var opts = CompileOptions();
 
 		var i: usz = 1;

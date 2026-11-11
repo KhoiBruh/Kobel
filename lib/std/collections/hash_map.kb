@@ -30,12 +30,12 @@ impl HashMap<K: Hash, V> {
 		return Self(keys, values, hashes, occ, 0, cap);
 	}
 
-	fn dist(val self, from: usz, to: usz): usz {
+	fn dist(*self, from: usz, to: usz): usz {
 		if (to >= from) return to - from;
 		return self.cap + to - from;
 	}
 
-	pub fn get_or(val self, key: K, value: V): V {
+	pub fn get_or(*self, key: K, value: V): V {
 		if (self.len == 0 || self.cap == 0) return value;
 		val h = key.hash();
 		var idx = h % self.cap;
@@ -47,7 +47,7 @@ impl HashMap<K: Hash, V> {
 		return value;
 	}
 
-	pub fn remove(var self, key: K): bool {
+	pub fn remove(&self, key: K): bool {
 		if (self.len == 0 || self.cap == 0) return false;
 
 		val h = key.hash();
@@ -76,15 +76,15 @@ impl HashMap<K: Hash, V> {
 		return false;
 	}
 
-	pub fn clear(var self) {
+	pub fn clear(&self) {
 		if (self.cap <= 0) return;
 		for (i in 0..<self.cap) self.occupied[i] = false;
 		self.len = 0;
 	}
 
-	pub fn empty(val self) => self.len == 0;
+	pub fn empty(*self) => self.len == 0;
 
-	pub fn keys(val self): List<K> {
+	pub fn keys(*self): List<K> {
 		var res = List<K>();
 		if (self.cap == 0) return res;
 		for (i in 0..<self.cap) {
@@ -93,7 +93,7 @@ impl HashMap<K: Hash, V> {
 		return res;
 	}
 
-	pub fn values(val self): List<V> {
+	pub fn values(*self): List<V> {
 		var res = List<V>();
 		if (self.cap == 0) return res;
 		for (i in 0..<self.cap) {
@@ -102,7 +102,7 @@ impl HashMap<K: Hash, V> {
 		return res;
 	}
 
-	pub fn entries(val self): List<Pair<K, V>> {
+	pub fn entries(*self): List<Pair<K, V>> {
 		var res = List<Pair<K, V>>();
 		if (self.cap == 0) return res;
 		for (i in 0..<self.cap) {
@@ -111,14 +111,14 @@ impl HashMap<K: Hash, V> {
 		return res;
 	}
 
-	pub fn each(val self, action: (K, V) -> none) {
+	pub fn each(*self, action: (K, V) -> none) {
 		if (self.cap == 0) return;
 		for (i in 0..<self.cap) {
 			if (self.occupied[i]) action(self.keys[i], self.values[i]);
 		}
 	}
 
-	pub fn any(val self, predicate: (K, V) -> bool): bool {
+	pub fn any(*self, predicate: (K, V) -> bool): bool {
 		if (self.cap == 0) return false;
 		for (i in 0..<self.cap) {
 			if (self.occupied[i] && predicate(self.keys[i], self.values[i])) return true;
@@ -126,7 +126,7 @@ impl HashMap<K: Hash, V> {
 		return false;
 	}
 
-	pub fn all(val self, predicate: (K, V) -> bool): bool {
+	pub fn all(*self, predicate: (K, V) -> bool): bool {
 		if (self.cap == 0) return true;
 		for (i in 0..<self.cap) {
 			if (self.occupied[i] && !predicate(self.keys[i], self.values[i])) return false;
@@ -134,7 +134,7 @@ impl HashMap<K: Hash, V> {
 		return true;
 	}
 
-	pub fn count_where(val self, predicate: (K, V) -> bool): usz {
+	pub fn count_where(*self, predicate: (K, V) -> bool): usz {
 		var n = 0;
 		if (self.cap == 0) return n;
 		for (i in 0..<self.cap) {
@@ -143,7 +143,7 @@ impl HashMap<K: Hash, V> {
 		return n;
 	}
 
-	fn grow(var self) {
+	fn grow(&self) {
 		val old_cap = self.cap;
 		val old_keys = self.keys;
 		val old_vals = self.values;
@@ -197,7 +197,7 @@ impl HashMap<K: Hash, V> {
 	// Overloaded Operators (placed at the end, after regular functions)
 	// ========================================================================
 
-	pub op set(var self, key: K, value: V) {
+	pub op set(&self, key: K, value: V) {
 		if (self.cap == 0 || self.len * 10 >= self.cap * 7) self.grow();
 
 		val h = key.hash();
@@ -218,7 +218,7 @@ impl HashMap<K: Hash, V> {
 		self.len++;
 	}
 
-	pub op get(val self, key: K): *V? {
+	pub op get(*self, key: K): *V? {
 		if (self.len == 0 || self.cap == 0) return null;
 		val h = key.hash();
 		var idx = h % self.cap;
@@ -230,7 +230,7 @@ impl HashMap<K: Hash, V> {
 		return null;
 	}
 
-	pub op contains(val self, key: K): bool {
+	pub op contains(*self, key: K): bool {
 		if (self.len == 0 || self.cap == 0) return false;
 		val h = key.hash();
 		var idx = h % self.cap;
@@ -246,9 +246,9 @@ impl HashMap<K: Hash, V> {
 
 impl Iterable for HashMap<K: Hash, V> {
 
-	pub fn count(val self) => self.len;
+	pub fn count(*self) => self.len;
 
-	pub fn at(val self, i: usz): Pair<K, V> {
+	pub fn at(*self, i: usz): Pair<K, V> {
 		var seen = 0;
 		for (idx in 0..<self.cap) {
 			if (self.occupied[idx]) {

@@ -31,7 +31,7 @@ impl PendingResolve {
 
 	pub init(node: *AstNode, target: *AstNode) => Self(node, target);
 
-	pub op unpack(val self, node: &*AstNode, target: &*AstNode) {
+	pub op unpack(*self, node: &*AstNode, target: &*AstNode) {
 		node.write(self.node);
 		target.write(self.target);
 	}
@@ -87,14 +87,14 @@ pub struct LoopLowerer {
 
 impl LoopLowerer {
 
-	fn loop_block(var self, stmts: List<*AstNode>, line: usz, col: usz): *AstNode =>
+	fn loop_block(&self, stmts: List<*AstNode>, line: usz, col: usz): *AstNode =>
 		self.arena.node(NodeData.BlockStmt(stmts), line, col);
 
-	fn loop_expr(var self, expr: *AstNode, line: usz, col: usz): *AstNode =>
+	fn loop_expr(&self, expr: *AstNode, line: usz, col: usz): *AstNode =>
 		self.arena.node(NodeData.ExprStmt(expr), line, col);
 
 	fn loop_var(
-		var self,
+		&self,
 		mutable: bool,
 		name: str,
 		ty: *AstNode?,
@@ -104,7 +104,7 @@ impl LoopLowerer {
 	): *AstNode => self.arena.node(NodeData.VarDeclStmt(mutable, name, ty, initializer), line, col);
 
 	fn loop_var_or_destruct(
-		var self,
+		&self,
 		var_name: str,
 		elem_expr: *AstNode,
 		line: usz,
@@ -124,7 +124,7 @@ impl LoopLowerer {
 	}
 
 	fn loop_if(
-		var self,
+		&self,
 		cond: *AstNode,
 		then_b: *AstNode,
 		else_b: *AstNode?,
@@ -132,34 +132,34 @@ impl LoopLowerer {
 		col: usz
 	): *AstNode => self.arena.node(NodeData.IfStmt(cond, then_b, else_b), line, col);
 
-	fn loop_while(var self, cond: *AstNode, body: *AstNode, line: usz, col: usz): *AstNode =>
+	fn loop_while(&self, cond: *AstNode, body: *AstNode, line: usz, col: usz): *AstNode =>
 		self.arena.node(NodeData.WhileStmt(cond, body), line, col);
 
-	pub fn for_usz_type(var self, line: usz, col: usz): *AstNode =>
+	pub fn for_usz_type(&self, line: usz, col: usz): *AstNode =>
 		self.arena.node(NodeData.NamedType("usz", List<*AstNode>()), line, col);
 
-	pub fn for_id(var self, name: str, line: usz, col: usz): *AstNode =>
+	pub fn for_id(&self, name: str, line: usz, col: usz): *AstNode =>
 		self.arena.node(NodeData.IdentifierExpr(name), line, col);
 
-	pub fn for_num(var self, text: str, line: usz, col: usz): *AstNode =>
+	pub fn for_num(&self, text: str, line: usz, col: usz): *AstNode =>
 		self.arena.node(NodeData.LiteralExpr(Literal.INTEGER, text), line, col);
 
 	// `__for_i <cmp> __for_e`
-	pub fn for_i_cmp(var self, op: TokenType, line: usz, col: usz): *AstNode {
+	pub fn for_i_cmp(&self, op: TokenType, line: usz, col: usz): *AstNode {
 		val lhs = self.for_id("__for_i", line, col);
 		val rhs = self.for_id("__for_e", line, col);
 		return self.arena.node(NodeData.BinaryExpr(lhs, op, rhs), line, col);
 	}
 
 	// `__for_go = <value>;`
-	pub fn for_set_go(var self, value: *AstNode, line: usz, col: usz): *AstNode {
+	pub fn for_set_go(&self, value: *AstNode, line: usz, col: usz): *AstNode {
 		val lhs = self.for_id("__for_go", line, col);
 		val asgn = self.arena.node(NodeData.AssignExpr(lhs, TokenType.EQUAL, value), line, col);
 		return self.loop_expr(asgn, line, col);
 	}
 
 	// `__for_i = __for_i <+|-> 1;`
-	pub fn for_bump(var self, op: TokenType, line: usz, col: usz): *AstNode {
+	pub fn for_bump(&self, op: TokenType, line: usz, col: usz): *AstNode {
 		val target = self.for_id("__for_i", line, col);
 		val lhs = self.for_id("__for_i", line, col);
 		val one = self.for_num("1", line, col);
@@ -170,7 +170,7 @@ impl LoopLowerer {
 
 	// `if (__for_up) { <up_stmt> } else { <down_stmt> }`
 	pub fn for_by_dir(
-		var self,
+		&self,
 		up_stmt: *AstNode,
 		down_stmt: *AstNode,
 		line: usz,
@@ -191,7 +191,7 @@ impl LoopLowerer {
 	// Replaces every `continue` belonging to this loop with `{ <step>; continue; }`
 	// so `continue` cannot skip the counter update.
 	pub fn for_inject_step(
-		var self,
+		&self,
 		node: *AstNode?,
 		step: &List<*AstNode>,
 		pending: &List<PendingResolve>
@@ -220,7 +220,7 @@ impl LoopLowerer {
 	}
 
 	fn for_inject_step_expr(
-		var self,
+		&self,
 		expr: *AstNode?,
 		step: &List<*AstNode>,
 		pending: &List<PendingResolve>
@@ -241,7 +241,7 @@ impl LoopLowerer {
 
 	// `for (v in seq)` where `seq` implements `Iterable`: index through the trait.
 	pub fn desugar_for_iter_method(
-		var self,
+		&self,
 		pre: &List<*AstNode>,
 		head: &List<*AstNode>,
 		step: &List<*AstNode>,
@@ -285,7 +285,7 @@ impl LoopLowerer {
 
 	// `for (v in <iterable>)`: index over the container's `.data` storage.
 	pub fn desugar_for_iterable(
-		var self,
+		&self,
 		pre: &List<*AstNode>,
 		head: &List<*AstNode>,
 		step: &List<*AstNode>,
@@ -327,7 +327,7 @@ impl LoopLowerer {
 	// `for (v in a..b)` (closed) / `for (v in a..<b)` (half-open) /
 	// `for (v in a>..<b)` (open, exclusive ends).
 	pub fn desugar_for_range(
-		var self,
+		&self,
 		pre: &List<*AstNode>,
 		head: &List<*AstNode>,
 		step: &List<*AstNode>,
@@ -430,7 +430,7 @@ impl LoopLowerer {
 	// Builds the block that replaces a STMT_FOR: hidden locals plus a while-loop.
 	// `pending` receives the `continue` rewrites the caller must record.
 	pub fn desugar_for(
-		var self,
+		&self,
 		node: *AstNode,
 		fs: *ForStmt,
 		use_iter_trait: bool,

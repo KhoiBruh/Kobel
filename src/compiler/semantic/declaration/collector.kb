@@ -58,9 +58,9 @@ impl DeclarationCollector {
 
 	pub init() => Self(SymbolTable(), Arena(), "", List<Diagnostic>());
 
-	pub fn prims(val self) => self.symtab.prims;
+	pub fn prims(*self) => self.symtab.prims;
 
-	pub fn enter_module(var self, module: str): str {
+	pub fn enter_module(&self, module: str): str {
 		val prev = self.current_module;
 		if (module.len > 0) {
 			self.current_module = module;
@@ -69,17 +69,17 @@ impl DeclarationCollector {
 		return prev;
 	}
 
-	pub fn leave_module(var self, prev: str) {
+	pub fn leave_module(&self, prev: str) {
 		self.current_module = prev;
 		self.symtab.set_current_module(prev);
 	}
 
-	pub fn c_name_for(val self, name: str): str {
+	pub fn c_name_for(*self, name: str): str {
 		if (self.is_extern || name == "main") return name;
 		return self.current_module.mangle_symbol(name);
 	}
 
-	pub fn report_error(var self, node: *AstNode, msg: str) {
+	pub fn report_error(&self, node: *AstNode, msg: str) {
 		self.errors += Diagnostic.error(node.span, self.current_module, msg);
 	}
 
@@ -87,7 +87,7 @@ impl DeclarationCollector {
 	// Resolution Bridge — delegates to TypeResolver
 	// ============================================================================
 
-	pub fn to_resolver(val self): TypeResolver {
+	pub fn to_resolver(*self): TypeResolver {
 		var r = TypeResolver(
 			self.symtab, self.arena, self.current_module,
 			self.errors, self.is_extern, self.current_self_type
@@ -99,7 +99,7 @@ impl DeclarationCollector {
 		return r;
 	}
 
-	pub fn apply_resolver(var self, val r: TypeResolver) {
+	pub fn apply_resolver(&self, val r: TypeResolver) {
 		self.symtab = r.symtab;
 		self.arena = r.arena;
 		self.current_module = r.current_module;
@@ -112,119 +112,119 @@ impl DeclarationCollector {
 		self.subst_types = r.subst.types;
 	}
 
-	pub fn resolve_ast_type(var self, node: *AstNode): *Type {
+	pub fn resolve_ast_type(&self, node: *AstNode): *Type {
 		var r = self.to_resolver();
 		val res = r.resolve_ast_type(node);
 		self.apply_resolver(r);
 		return res;
 	}
 
-	pub fn instantiate_struct(var self, tmpl: *GenericTemplate, arg_asts: List<*AstNode>): *Type {
+	pub fn instantiate_struct(&self, tmpl: *GenericTemplate, arg_asts: List<*AstNode>): *Type {
 		var r = self.to_resolver();
 		val res = r.instantiate_struct(tmpl, arg_asts);
 		self.apply_resolver(r);
 		return res;
 	}
 
-	pub fn instantiate_fn(var self, tmpl: *GenericTemplate, arg_asts: List<*AstNode>): str {
+	pub fn instantiate_fn(&self, tmpl: *GenericTemplate, arg_asts: List<*AstNode>): str {
 		var r = self.to_resolver();
 		val res = r.instantiate_fn(tmpl, arg_asts);
 		self.apply_resolver(r);
 		return res;
 	}
 
-	pub fn find_fn_template(var self, name: str): *GenericTemplate? {
+	pub fn find_fn_template(&self, name: str): *GenericTemplate? {
 		var r = self.to_resolver();
 		val res = r.find_fn_template(name);
 		self.apply_resolver(r);
 		return res;
 	}
 
-	pub fn find_struct_template(var self, name: str): *GenericTemplate? {
+	pub fn find_struct_template(&self, name: str): *GenericTemplate? {
 		var r = self.to_resolver();
 		val res = r.find_struct_template(name);
 		self.apply_resolver(r);
 		return res;
 	}
 
-	pub fn find_method_template(var self, name: str, self_type: str = ""): *GenericTemplate? {
+	pub fn find_method_template(&self, name: str, self_type: str = ""): *GenericTemplate? {
 		var r = self.to_resolver();
 		val res = r.find_method_template(name, self_type);
 		self.apply_resolver(r);
 		return res;
 	}
 
-	pub fn validate_fn_lambda_rules(var self, node: *AstNode, f: *FnDecl) {
+	pub fn validate_fn_lambda_rules(&self, node: *AstNode, f: *FnDecl) {
 		var r = self.to_resolver();
 		r.validate_fn_lambda_rules(node, f);
 		self.apply_resolver(r);
 	}
 
-	pub fn register_template(var self, node: *AstNode) {
+	pub fn register_template(&self, node: *AstNode) {
 		var r = self.to_resolver();
 		r.register_template(node);
 		self.apply_resolver(r);
 	}
 
-	pub fn template_in_module(var self, module: str, name: str): bool {
+	pub fn template_in_module(&self, module: str, name: str): bool {
 		var r = self.to_resolver();
 		val res = r.template_in_module(module, name);
 		self.apply_resolver(r);
 		return res;
 	}
 
-	pub fn find_instance_symbol(val self, name: str): *Symbol? {
+	pub fn find_instance_symbol(*self, name: str): *Symbol? {
 		val r = self.to_resolver();
 		return r.find_instance_symbol(name);
 	}
 
-	pub fn drain_instances(var self) {
+	pub fn drain_instances(&self) {
 		var r = self.to_resolver();
 		r.drain_instances();
 		self.apply_resolver(r);
 	}
 
-	pub fn rewrite_generics(var self, node: *AstNode?) {
+	pub fn rewrite_generics(&self, node: *AstNode?) {
 		var r = self.to_resolver();
 		r.rewrite_generics(node);
 		self.apply_resolver(r);
 	}
 
-	pub fn propagate_target_type(var self, target_type_node: *AstNode?, init_node: *AstNode?) {
+	pub fn propagate_target_type(&self, target_type_node: *AstNode?, init_node: *AstNode?) {
 		var r = self.to_resolver();
 		r.propagate_target_type(target_type_node, init_node);
 		self.apply_resolver(r);
 	}
 
-	pub fn materialize_body(var self, rec: *InstanceRecord): *AstNode {
+	pub fn materialize_body(&self, rec: *InstanceRecord): *AstNode {
 		var r = self.to_resolver();
 		val res = r.materialize_body(rec);
 		self.apply_resolver(r);
 		return res;
 	}
 
-	pub fn clone_expr(var self, node: *AstNode, subst: *GenericSubst? = null): *AstNode {
+	pub fn clone_expr(&self, node: *AstNode, subst: *GenericSubst? = null): *AstNode {
 		var r = self.to_resolver();
 		val res = r.clone_expr(node, subst);
 		self.apply_resolver(r);
 		return res;
 	}
 
-	pub fn clone_fn(var self, node: *AstNode, subst: *GenericSubst? = null, new_name: str = ""): *AstNode {
+	pub fn clone_fn(&self, node: *AstNode, subst: *GenericSubst? = null, new_name: str = ""): *AstNode {
 		var r = self.to_resolver();
 		val res = r.clone_fn(node, subst, new_name);
 		self.apply_resolver(r);
 		return res;
 	}
 
-	pub fn clone_stmt(var self, node: *AstNode, subst: *GenericSubst? = null): *AstNode {
+	pub fn clone_stmt(&self, node: *AstNode, subst: *GenericSubst? = null): *AstNode {
 		var r = self.to_resolver();
 		val res = r.clone_stmt(node, subst);
 		self.apply_resolver(r);
 		return res;
 	}
 
-	pub fn clone_type(var self, node: *AstNode, subst: *GenericSubst? = null): *AstNode {
+	pub fn clone_type(&self, node: *AstNode, subst: *GenericSubst? = null): *AstNode {
 		var r = self.to_resolver();
 		val res = r.clone_type(node, subst);
 		self.apply_resolver(r);
@@ -235,7 +235,7 @@ impl DeclarationCollector {
 	// Top-level Item Collection Passes
 	// ============================================================================
 
-	pub fn collect_module(var self, node: *AstNode) {
+	pub fn collect_module(&self, node: *AstNode) {
 		if (node is ModuleDecl as m) {
 			self.current_module = m.full_path;
 			self.symtab.set_current_module(m.full_path);
@@ -245,7 +245,7 @@ impl DeclarationCollector {
 	// `use a.b.c.Sym as Alias;` -> writes an ImportBinding:
 	// the name `Alias` (or `Sym` when there is no alias) resolves to `Sym` of the module.
 	// `use a.b.c.*;` -> wildcard import of the whole module a.b.c
-	pub fn collect_use(var self, node: *AstNode) {
+	pub fn collect_use(&self, node: *AstNode) {
 		if (node is UseDecl as u) {
 			if (u.wildcard) {
 				val w_mod = str_join_dots(u.path, u.path.len);
@@ -281,7 +281,7 @@ impl DeclarationCollector {
 	// Registers a struct's name with an opaque type, without resolving its fields.
 	// Every struct gets one before the definition pass, so a field may mention a
 	// type from a module that imports us back (import cycles). Idempotent.
-	fn declare_struct_shell(var self, node: *AstNode, s: *StructDecl) {
+	fn declare_struct_shell(&self, node: *AstNode, s: *StructDecl) {
 		val c_name = self.c_name_for(s.name);
 		val s_type = self.arena.struct_type(s.name, List<StructField>());
 		val st = s_type.as_struct()!;
@@ -294,7 +294,7 @@ impl DeclarationCollector {
 		if (!ok) self.report_error(node, "Duplicate struct declaration '${s.name}'");
 	}
 
-	pub fn collect_struct(var self, node: *AstNode) {
+	pub fn collect_struct(&self, node: *AstNode) {
 		if (node is StructDecl as s) {
 			// Generic structs are registered as templates and instantiated on use.
 			if (s.type_params.len > 0) return;
@@ -375,7 +375,7 @@ impl DeclarationCollector {
 		}
 	}
 
-	pub fn collect_fn(var self, node: *AstNode) {
+	pub fn collect_fn(&self, node: *AstNode) {
 		if (node is FnDecl as f) {
 			// Generic functions are registered as templates and instantiated on use.
 			if (f.type_params.len > 0) return;
@@ -405,7 +405,7 @@ impl DeclarationCollector {
 		}
 	}
 
-	pub fn collect_enum(var self, node: *AstNode) {
+	pub fn collect_enum(&self, node: *AstNode) {
 		if (node is EnumDecl as e) {
 			val under_type = if (e.underlying_type != null) self.resolve_ast_type(e.underlying_type!)
 			else self.prims().t_prim(Type.i32());
@@ -452,7 +452,7 @@ impl DeclarationCollector {
 	}
 
 	fn collect_enum_member(
-		var self, node: *AstNode, m: EnumMember, under_type: *Type, current_int_val: i64
+		&self, node: *AstNode, m: EnumMember, under_type: *Type, current_int_val: i64
 	): *EnumMemberInfo {
 		var v: i64 = 0;
 		var raw_text = "";
@@ -486,14 +486,14 @@ impl DeclarationCollector {
 		return self.arena.create_val(EnumMemberInfo(m.name, v, null, "", raw_text, lit_kind));
 	}
 
-	fn eval_str_enum_member(var self, node: *AstNode, m: EnumMember): str {
+	fn eval_str_enum_member(&self, node: *AstNode, m: EnumMember): str {
 		if (m.value == null) return "\"${m.name}\"";
 		if (m.value is LiteralExpr as lit && lit.literal_kind == Literal.STRING) return lit.raw_text;
 		self.report_error(m.value!, "Enum member value for 'str' enum must be a string literal");
 		return "\"${m.name}\"";
 	}
 
-	fn eval_char_enum_member(var self, node: *AstNode, m: EnumMember): str {
+	fn eval_char_enum_member(&self, node: *AstNode, m: EnumMember): str {
 		if (m.value != null) {
 			if (m.value is LiteralExpr as lit && lit.literal_kind == Literal.CHARACTER) return lit.raw_text;
 			self.report_error(m.value!, "Enum member value for 'char' enum must be a character literal");
@@ -503,7 +503,7 @@ impl DeclarationCollector {
 		return "'?'";
 	}
 
-	fn eval_float_enum_member(var self, node: *AstNode, m: EnumMember): str {
+	fn eval_float_enum_member(&self, node: *AstNode, m: EnumMember): str {
 		if (m.value != null) {
 			if (m.value is LiteralExpr as lit && (lit.literal_kind == Literal.FLOAT || lit.literal_kind == Literal.INTEGER)) {
 				return lit.raw_text;
@@ -515,7 +515,7 @@ impl DeclarationCollector {
 		return "0.0";
 	}
 
-	fn eval_bool_enum_member(var self, node: *AstNode, m: EnumMember): str {
+	fn eval_bool_enum_member(&self, node: *AstNode, m: EnumMember): str {
 		if (m.value != null) {
 			if (m.value is LiteralExpr as lit && lit.literal_kind == Literal.BOOLEAN) return lit.raw_text;
 			self.report_error(m.value!, "Enum member value for 'bool' enum must be a bool literal");
@@ -528,7 +528,7 @@ impl DeclarationCollector {
 	// A payload enum becomes a struct: a `tag` field plus a union of per-variant
 	// payload structs. Each variant gets its own struct type named `Enum.Variant`
 	// (so an `is` pattern can name it) and an `Enum.Variant__TAG` constant symbol.
-	fn collect_payload_enum(var self, node: *AstNode, e: *EnumDecl, under_type: *Type) {
+	fn collect_payload_enum(&self, node: *AstNode, e: *EnumDecl, under_type: *Type) {
 		if (e.underlying_type != null) {
 			self.report_error(node, "A payload enum cannot declare an underlying type");
 		}
@@ -606,7 +606,7 @@ impl DeclarationCollector {
 		e.name = c_name;
 	}
 
-	pub fn collect_const(var self, node: *AstNode) {
+	pub fn collect_const(&self, node: *AstNode) {
 		if (node is ConstDecl as c) {
 			val c_type = if (c.type_node != null) self.resolve_ast_type(c.type_node!)
 			else self.infer_const_type(c.value) ?: self.prims().t_prim(Type.i32());
@@ -625,7 +625,7 @@ impl DeclarationCollector {
 		}
 	}
 
-	pub fn collect_extern_block(var self, node: *AstNode) {
+	pub fn collect_extern_block(&self, node: *AstNode) {
 		if (node is ExternBlock as ext) {
 			val prev_is_extern = self.is_extern;
 			self.is_extern = true;
@@ -638,7 +638,7 @@ impl DeclarationCollector {
 	// checked against it and pick up its default methods. Method signatures are
 	// resolved lazily; only the method names and whether each one has a body are
 	// kept here.
-	pub fn collect_trait(var self, node: *AstNode) {
+	pub fn collect_trait(&self, node: *AstNode) {
 		if (node is TraitDecl as t) {
 			if (self.symtab.find_trait(t.name) != null) {
 				self.report_error(node, "Duplicate trait declaration '${t.name}'");
@@ -678,7 +678,7 @@ impl DeclarationCollector {
 		}
 	}
 
-	pub fn collect_declaration(var self, node: *AstNode) {
+	pub fn collect_declaration(&self, node: *AstNode) {
 		val target = node;
 		when (target) {
 			is ModuleDecl -> self.collect_module(node);
@@ -693,7 +693,7 @@ impl DeclarationCollector {
 		}
 	}
 
-	pub fn collect_program(var self, program_node: *AstNode) {
+	pub fn collect_program(&self, program_node: *AstNode) {
 		if (program_node is Program as prog) {
 			self.pass0_register_templates(prog);
 			self.pass0_wildcard_imports(prog);
@@ -710,7 +710,7 @@ impl DeclarationCollector {
 		}
 	}
 
-	fn pass0_register_templates(var self, prog: *Program) {
+	fn pass0_register_templates(&self, prog: *Program) {
 		for (d in prog) {
 			val t = d;
 			when (t) {
@@ -721,7 +721,7 @@ impl DeclarationCollector {
 		}
 	}
 
-	fn pass0_wildcard_imports(var self, prog: *Program) {
+	fn pass0_wildcard_imports(&self, prog: *Program) {
 		for (d in prog) {
 			val t = d;
 			when (t) {
@@ -731,7 +731,7 @@ impl DeclarationCollector {
 		}
 	}
 
-	fn pass0_struct_shells(var self, prog: *Program) {
+	fn pass0_struct_shells(&self, prog: *Program) {
 		for (d in prog) {
 			val t = d;
 			when (t) {
@@ -746,7 +746,7 @@ impl DeclarationCollector {
 		}
 	}
 
-	fn pass0_trait_records(var self, prog: *Program) {
+	fn pass0_trait_records(&self, prog: *Program) {
 		for (d in prog) {
 			val t = d;
 			when (t) {
@@ -761,7 +761,7 @@ impl DeclarationCollector {
 		}
 	}
 
-	fn pass1_enums(var self, prog: *Program, want_payload: bool) {
+	fn pass1_enums(&self, prog: *Program, want_payload: bool) {
 		for (d in prog) {
 			val t = d;
 			when (t) {
@@ -774,13 +774,13 @@ impl DeclarationCollector {
 		}
 	}
 
-	fn pass1_declarations(var self, prog: *Program) {
+	fn pass1_declarations(&self, prog: *Program) {
 		for (d in prog) {
 			if (!(d is ImplDecl) && !(d is EnumDecl)) self.collect_declaration(d);
 		}
 	}
 
-	fn pass1_impls(var self, prog: *Program) {
+	fn pass1_impls(&self, prog: *Program) {
 		for (d in prog) {
 			val t = d;
 			when (t) {
@@ -790,7 +790,7 @@ impl DeclarationCollector {
 		}
 	}
 
-	fn pass2_rewrite_generics(var self, prog: *Program) {
+	fn pass2_rewrite_generics(&self, prog: *Program) {
 		for (d in prog) {
 			if (d is ModuleDecl as m) {
 				self.current_module = m.full_path;
@@ -801,7 +801,7 @@ impl DeclarationCollector {
 		}
 	}
 
-	fn append_monomorphized_instances(val self, prog: *Program) {
+	fn append_monomorphized_instances(*self, prog: *Program) {
 		if (self.symtab.gen.instances.empty()) return;
 		var combined = List<*AstNode>();
 		for (d in prog.declarations) combined += d;

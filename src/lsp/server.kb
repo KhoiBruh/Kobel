@@ -49,7 +49,7 @@ pub struct LanguageServer {
 
 impl LanguageServer {
 
-	pub fn run(var self): i32 {
+	pub fn run(&self): i32 {
 		init_stdio();
 
 		while (true) {

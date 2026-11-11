@@ -20,7 +20,7 @@ pub struct Arena {
 }
 
 impl Allocator for Arena {
-	pub fn alloc_bytes(var self, size: usz, align: usz): &u8 {
+	pub fn alloc_bytes(&self, size: usz, align: usz): &u8 {
 		if (self.current == null) self.new_block(size);
 
 		val blk = self.current!;
@@ -44,7 +44,7 @@ impl Arena {
 
 	pub init(block_size: usz = 65536) => Self(null, block_size);
 
-	fn new_block(var self, min_size: usz) {
+	fn new_block(&self, min_size: usz) {
 		var sz = self.block_size;
 		if (sz < min_size) sz = min_size;
 
@@ -58,7 +58,7 @@ impl Arena {
 		self.current = blk;
 	}
 
-	pub fn reset(val self) {
+	pub fn reset(*self) {
 		var curr = self.current;
 		while (curr != null) {
 			curr.used = 0;
@@ -66,7 +66,7 @@ impl Arena {
 		}
 	}
 
-	pub fn free(var self) {
+	pub fn free(&self) {
 		var curr = self.current;
 		while (curr != null) {
 			val next_blk = curr.next;
@@ -77,9 +77,9 @@ impl Arena {
 		self.current = null;
 	}
 
-	pub fn create<T>(var self): &T => self.alloc_bytes(T.size(), 8) as &T;
+	pub fn create<T>(&self): &T => self.alloc_bytes(T.size(), 8) as &T;
 
-	pub fn create_val<T>(var self, value: T): &T {
+	pub fn create_val<T>(&self, value: T): &T {
 		val ptr = self.create<T>();
 		ptr.write(value);
 		return ptr;

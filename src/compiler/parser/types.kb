@@ -26,7 +26,7 @@ fn parse_usize_literal(text: str): usz {
 
 impl Parser {
 
-	pub fn parse_single_type(var self): *AstNode {
+	pub fn parse_single_type(&self): *AstNode {
 		val (line, col) = self.peek();
 
 		// 1. Pointer type: *T (read-only) or &T (read-write)
@@ -99,7 +99,7 @@ impl Parser {
 		return self.node(NodeData.NamedType(full_name, type_args), line, col);
 	}
 
-	pub fn parse_type(var self): *AstNode {
+	pub fn parse_type(&self): *AstNode {
 		var type = self.parse_single_type();
 		while (self.match_token(TokenType.QUESTION)) {
 			type = self.node(NodeData.NullableType(type), type.line, type.col);

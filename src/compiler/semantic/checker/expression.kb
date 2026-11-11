@@ -21,7 +21,7 @@ use compiler.semantic.lowering.*;
 
 impl BodyChecker {
 
-	pub fn coerce_to_list(var self, node: *AstNode, list_ty: *Type) {
+	pub fn coerce_to_list(&self, node: *AstNode, list_ty: *Type) {
 		if (node == null || list_ty == null) return;
 
 		when (node) {
@@ -76,7 +76,7 @@ impl BodyChecker {
 		}
 	}
 
-	pub fn is_untyped_literal(val self, node: *AstNode): bool {
+	pub fn is_untyped_literal(*self, node: *AstNode): bool {
 		if (node == null) return false;
 
 		if (node is LiteralExpr as lit) {
@@ -99,7 +99,7 @@ impl BodyChecker {
 		return false;
 	}
 
-	pub fn check_literal_expr(var self, node: *AstNode, expected: *Type? = null): *Type {
+	pub fn check_literal_expr(&self, node: *AstNode, expected: *Type? = null): *Type {
 		if (node is LiteralExpr as lit) {
 			return when (lit.literal_kind) {
 				Literal.INTEGER -> {
@@ -134,13 +134,13 @@ impl BodyChecker {
 		return self.prims().t_none();
 	}
 
-	pub fn record_lambda_capture(var self, sym: *Symbol) {
+	pub fn record_lambda_capture(&self, sym: *Symbol) {
 		val cap_ty = sym.orig_type ?: sym.type_ptr;
 		if (self.lambda_captures.any { c -> c.name == sym.name }) return;
 		self.lambda_captures += LambdaCapture(sym.name, cap_ty, sym.mutable);
 	}
 
-	pub fn check_ident_expr(var self, node: *AstNode): *Type {
+	pub fn check_ident_expr(&self, node: *AstNode): *Type {
 		if (node is IdentifierExpr as id) {
 			if (id.name.empty()) {
 				if (self.when_subject == null) {
@@ -195,7 +195,7 @@ impl BodyChecker {
 		return self.prims().t_none();
 	}
 
-	pub fn check_binary_expr(var self, node: *AstNode, expected: *Type? = null): *Type {
+	pub fn check_binary_expr(&self, node: *AstNode, expected: *Type? = null): *Type {
 		if (node is BinaryExpr as bin) {
 			val was_stmt = self.is_stmt_level;
 			self.is_stmt_level = false;
@@ -247,7 +247,7 @@ impl BodyChecker {
 		return self.prims().t_none();
 	}
 
-	fn is_safe_nav_expr(val self, expr: *AstNode?): bool {
+	fn is_safe_nav_expr(*self, expr: *AstNode?): bool {
 		if (expr == null) return false;
 		val cur = self.unwrap_group(expr!);
 		if (cur is MemberExpr as mem) return mem.is_safe;
@@ -255,7 +255,7 @@ impl BodyChecker {
 		return false;
 	}
 
-	fn check_elvis_expr(var self, node: *AstNode, bin: *BinaryExpr, was_stmt: bool): *Type {
+	fn check_elvis_expr(&self, node: *AstNode, bin: *BinaryExpr, was_stmt: bool): *Type {
 		val num_expected: *Type? = null;
 		val prev_sn = self.in_safe_nav_context;
 		self.in_safe_nav_context = true;
@@ -313,7 +313,7 @@ impl BodyChecker {
 		return lt;
 	}
 
-	fn check_arith_op(var self, node: *AstNode, bin: *BinaryExpr, lt: *Type, rt: *Type): *Type {
+	fn check_arith_op(&self, node: *AstNode, bin: *BinaryExpr, lt: *Type, rt: *Type): *Type {
 		if (bin.op == TokenType.PLUS && lt.kind == DataType.STR) return self.prims().t_str();
 		if (lt.is_numeric() && rt.is_numeric()) {
 			if (lt.is_float() && !rt.is_float()) return lt;
@@ -360,7 +360,7 @@ impl BodyChecker {
 		return lt;
 	}
 
-	fn check_equality_op(var self, node: *AstNode, bin: *BinaryExpr, lt: *Type, rt: *Type): *Type {
+	fn check_equality_op(&self, node: *AstNode, bin: *BinaryExpr, lt: *Type, rt: *Type): *Type {
 		if (lt.kind == DataType.STR && rt.kind == DataType.STR) return self.prims().t_bool();
 
 		if (lt.kind == DataType.STRUCT) {
@@ -378,14 +378,14 @@ impl BodyChecker {
 		return self.prims().t_bool();
 	}
 
-	fn check_ordering_op(var self, node: *AstNode, lt: *Type, rt: *Type): *Type {
+	fn check_ordering_op(&self, node: *AstNode, lt: *Type, rt: *Type): *Type {
 		val is_num_comp = lt.is_numeric() && rt.is_numeric();
 		val is_char_comp = lt.kind == DataType.CHAR && rt.kind == DataType.CHAR;
 		self.ensure(is_num_comp || is_char_comp, node, "Comparison requires numeric or char operands");
 		return self.prims().t_bool();
 	}
 
-	fn check_logic_op(var self, node: *AstNode, lt: *Type, rt: *Type): *Type {
+	fn check_logic_op(&self, node: *AstNode, lt: *Type, rt: *Type): *Type {
 		self.ensure(
 			lt.kind == DataType.BOOL && rt.kind == DataType.BOOL,
 			node,
@@ -394,7 +394,7 @@ impl BodyChecker {
 		return self.prims().t_bool();
 	}
 
-	fn check_in_op(var self, node: *AstNode, bin: *BinaryExpr, lt: *Type, rt: *Type): *Type {
+	fn check_in_op(&self, node: *AstNode, bin: *BinaryExpr, lt: *Type, rt: *Type): *Type {
 		var l_ty = lt;
 		val r_is_ptr = rt.kind == DataType.POINTER;
 		val r_struct_ty = if (r_is_ptr) rt.as_pointer().pointee else rt;
@@ -452,7 +452,7 @@ impl BodyChecker {
 		return self.check_expr(call_node);
 	}
 
-	fn check_range_op(var self, node: *AstNode, bin: *BinaryExpr, lt: *Type, rt: *Type): *Type {
+	fn check_range_op(&self, node: *AstNode, bin: *BinaryExpr, lt: *Type, rt: *Type): *Type {
 		var l_ty = lt;
 		var r_ty = rt;
 		if (self.is_untyped_literal(bin.left) && r_ty.is_numeric() && !l_ty.equals(r_ty)) {
@@ -488,7 +488,7 @@ impl BodyChecker {
 		return self.prims().t_none();
 	}
 
-	pub fn check_unary_expr(var self, node: *AstNode, expected: *Type? = null): *Type {
+	pub fn check_unary_expr(&self, node: *AstNode, expected: *Type? = null): *Type {
 		if (node is UnaryExpr as un) {
 			val op_ty = self.check_expr(un.operand, expected);
 
@@ -544,7 +544,7 @@ impl BodyChecker {
 		return self.prims().t_none();
 	}
 
-	pub fn check_if_expr(var self, node: *AstNode, expected: *Type? = null): *Type {
+	pub fn check_if_expr(&self, node: *AstNode, expected: *Type? = null): *Type {
 		if (node is IfExpr as if_e) {
 			val prev_sn = self.in_safe_nav_context;
 			self.in_safe_nav_context = true;
@@ -579,7 +579,7 @@ impl BodyChecker {
 		return self.prims().t_none();
 	}
 
-	pub fn check_array_literal_expr(var self, node: *AstNode): *Type {
+	pub fn check_array_literal_expr(&self, node: *AstNode): *Type {
 		if (node is ArrayLiteralExpr as al) {
 			if (!al.list_struct_name.empty()) {
 				val sym = self.symtab.lookup(al.list_struct_name);

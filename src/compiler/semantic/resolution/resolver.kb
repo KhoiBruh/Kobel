@@ -36,9 +36,9 @@ pub struct TypeResolver {
 
 impl TypeResolver {
 
-	pub fn prims(val self) => self.symtab.prims;
+	pub fn prims(*self) => self.symtab.prims;
 
-	pub fn enter_module(var self, module: str): str {
+	pub fn enter_module(&self, module: str): str {
 		val prev = self.current_module;
 		if (module.len > 0) {
 			self.current_module = module;
@@ -47,21 +47,21 @@ impl TypeResolver {
 		return prev;
 	}
 
-	pub fn leave_module(var self, prev: str) {
+	pub fn leave_module(&self, prev: str) {
 		self.current_module = prev;
 		self.symtab.set_current_module(prev);
 	}
 
-	pub fn c_name_for(val self, name: str): str {
+	pub fn c_name_for(*self, name: str): str {
 		if (self.is_extern || name == "main") return name;
 		return self.current_module.mangle_symbol(name);
 	}
 
-	pub fn report_error(var self, node: *AstNode, msg: str) {
+	pub fn report_error(&self, node: *AstNode, msg: str) {
 		self.errors += Diagnostic.error(node.span, self.current_module, msg);
 	}
 
-	pub fn resolve_ast_type(var self, node: *AstNode): *Type {
+	pub fn resolve_ast_type(&self, node: *AstNode): *Type {
 		if (node == null) return self.prims().t_none();
 
 		return when (node) {
@@ -173,7 +173,7 @@ impl TypeResolver {
 		};
 	}
 
-	fn ast_type_name_of(val self, ty: *Type): str {
+	fn ast_type_name_of(*self, ty: *Type): str {
 		if (ty.kind == DataType.STRUCT) {
 			val s_info = ty.as_struct();
 			if (!s_info.c_name.empty()) return s_info.c_name;

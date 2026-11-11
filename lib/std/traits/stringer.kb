@@ -17,7 +17,7 @@ use std.string.str_from_bytes;
  */
 
 pub trait Stringer {
-	fn to_str(val self): str;
+	fn to_str(*self): str;
 }
 
 // Decimal string of an unsigned 64-bit value. The digit count is computed
@@ -122,61 +122,61 @@ fn fmt_f64(v: f64): str {
 }
 
 impl Stringer for bool {
-	fn to_str(val self) => fmt_bool(self);
+	fn to_str(*self) => fmt_bool(self);
 }
 
 impl Stringer for char {
-	fn to_str(val self) => fmt_char(self);
+	fn to_str(*self) => fmt_char(self);
 }
 
 impl Stringer for str {
-	fn to_str(val self) => self;
+	fn to_str(*self) => self;
 }
 
 impl Stringer for i8 {
-	fn to_str(val self) => fmt_i64(self);
+	fn to_str(*self) => fmt_i64(self);
 }
 
 impl Stringer for i16 {
-	fn to_str(val self) => fmt_i64(self);
+	fn to_str(*self) => fmt_i64(self);
 }
 
 impl Stringer for i32 {
-	fn to_str(val self) => fmt_i64(self);
+	fn to_str(*self) => fmt_i64(self);
 }
 
 impl Stringer for i64 {
-	fn to_str(val self) => fmt_i64(self);
+	fn to_str(*self) => fmt_i64(self);
 }
 
 impl Stringer for isz {
-	fn to_str(val self) => fmt_i64(self);
+	fn to_str(*self) => fmt_i64(self);
 }
 
 impl Stringer for u8 {
-	fn to_str(val self) => fmt_u64(self);
+	fn to_str(*self) => fmt_u64(self);
 }
 
 impl Stringer for u16 {
-	fn to_str(val self) => fmt_u64(self);
+	fn to_str(*self) => fmt_u64(self);
 }
 
 impl Stringer for u32 {
-	fn to_str(val self) => fmt_u64(self);
+	fn to_str(*self) => fmt_u64(self);
 }
 
 impl Stringer for u64 {
-	fn to_str(val self) => fmt_u64(self);
+	fn to_str(*self) => fmt_u64(self);
 }
 
 impl Stringer for usz {
-	fn to_str(val self) => fmt_u64(self);
+	fn to_str(*self) => fmt_u64(self);
 }
 
 impl Stringer for f32 {
-	fn to_str(val self) => fmt_f64(self);
+	fn to_str(*self) => fmt_f64(self);
 }
 
 impl Stringer for f64 {
-	fn to_str(val self) => fmt_f64(self);
+	fn to_str(*self) => fmt_f64(self);
 }

@@ -23,12 +23,12 @@ use compiler.semantic.symbols.*;
 
 impl TypeResolver {
 
-	fn mat_ann(val self, node: *AstNode?): *AnnotationEntry? {
+	fn mat_ann(*self, node: *AstNode?): *AnnotationEntry? {
 		if (node == null || self.mat_rec == null) return null;
 		return self.mat_rec.find_ann(node!);
 	}
 
-	pub fn clone_type(var self, node: *AstNode, subst: *GenericSubst? = null): *AstNode {
+	pub fn clone_type(&self, node: *AstNode, subst: *GenericSubst? = null): *AstNode {
 		val e = self.mat_ann(node);
 		if (e?.ty != null) return self.arena.ast_type_from_type(e.ty!);
 
@@ -93,7 +93,7 @@ impl TypeResolver {
 		};
 	}
 
-	pub fn clone_expr(var self, node: *AstNode, subst: *GenericSubst? = null): *AstNode {
+	pub fn clone_expr(&self, node: *AstNode, subst: *GenericSubst? = null): *AstNode {
 		val raw_node = node;
 		if (
 			raw_node is ReturnStmt
@@ -295,7 +295,7 @@ impl TypeResolver {
 		return out;
 	}
 
-	fn clone_call_expr(var self, node: *AstNode, subst: *GenericSubst? = null): *AstNode {
+	fn clone_call_expr(&self, node: *AstNode, subst: *GenericSubst? = null): *AstNode {
 		val special = self.clone_size_query(node, subst) ?: self.clone_template_call(node, subst);
 		if (special != null) return special;
 
@@ -309,7 +309,7 @@ impl TypeResolver {
 		return node;
 	}
 
-	fn clone_size_query(var self, node: *AstNode, subst: *GenericSubst? = null): *AstNode? {
+	fn clone_size_query(&self, node: *AstNode, subst: *GenericSubst? = null): *AstNode? {
 		if (node is CallExpr as c) {
 			if (c.callee is MemberExpr as m) {
 				if (m.member == "size" && m.object is IdentifierExpr as obj_id) {
@@ -324,7 +324,7 @@ impl TypeResolver {
 		return null;
 	}
 
-	fn clone_template_call(var self, node: *AstNode, subst: *GenericSubst? = null): *AstNode? {
+	fn clone_template_call(&self, node: *AstNode, subst: *GenericSubst? = null): *AstNode? {
 		if (node is CallExpr as c) {
 			if (c.type_args.empty()) return null;
 
@@ -433,13 +433,13 @@ impl TypeResolver {
 		return null;
 	}
 
-	fn clone_expr_list(var self, nodes: List<*AstNode>, subst: *GenericSubst? = null): List<*AstNode> =>
+	fn clone_expr_list(&self, nodes: List<*AstNode>, subst: *GenericSubst? = null): List<*AstNode> =>
 		nodes.map { n -> self.clone_expr(n, subst) };
 
-	fn clone_type_args(var self, nodes: List<*AstNode>, subst: *GenericSubst? = null): List<*AstNode> =>
+	fn clone_type_args(&self, nodes: List<*AstNode>, subst: *GenericSubst? = null): List<*AstNode> =>
 		nodes.map { n -> self.clone_type(n, subst) };
 
-	fn clone_when_arms(var self, node: *AstNode, subst: *GenericSubst? = null): List<WhenArm> {
+	fn clone_when_arms(&self, node: *AstNode, subst: *GenericSubst? = null): List<WhenArm> {
 		var arms = List<WhenArm>();
 		if (node is WhenExpr as we) {
 			for (arm in we.arms) {
@@ -456,7 +456,7 @@ impl TypeResolver {
 		return arms;
 	}
 
-	fn clone_interp_parts(var self, node: *AstNode, subst: *GenericSubst? = null): List<InterpPart> {
+	fn clone_interp_parts(&self, node: *AstNode, subst: *GenericSubst? = null): List<InterpPart> {
 		var parts = List<InterpPart>();
 		if (node is InterpExpr as ie) {
 			for (part in ie.parts) {
@@ -470,7 +470,7 @@ impl TypeResolver {
 		return parts;
 	}
 
-	pub fn clone_stmt(var self, node: *AstNode, subst: *GenericSubst? = null): *AstNode {
+	pub fn clone_stmt(&self, node: *AstNode, subst: *GenericSubst? = null): *AstNode {
 		val se = self.mat_ann(node);
 		if (se?.resolved != null) return self.clone_stmt(se.resolved!, subst);
 
@@ -577,7 +577,7 @@ impl TypeResolver {
 		};
 	}
 
-	pub fn clone_fn(var self, node: *AstNode, subst: *GenericSubst? = null, new_name: str = ""): *AstNode {
+	pub fn clone_fn(&self, node: *AstNode, subst: *GenericSubst? = null, new_name: str = ""): *AstNode {
 		if (node is FnDecl as f) {
 			val params = f.params.map { p ->
 				val pt = if (p.type_node != null) self.clone_type(p.type_node!, subst) else null;
@@ -599,7 +599,7 @@ impl TypeResolver {
 		return node;
 	}
 
-	pub fn materialize_body(var self, rec: *InstanceRecord): *AstNode {
+	pub fn materialize_body(&self, rec: *InstanceRecord): *AstNode {
 		val saved = self.mat_rec;
 		self.mat_rec = rec;
 		var body: *AstNode? = null;

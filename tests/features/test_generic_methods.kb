@@ -10,18 +10,18 @@ struct A { pub v: i32 }
 struct B { pub v: i32 }
 
 impl A {
-	pub fn pick<T>(val self): i32 => self.v + 1;
+	pub fn pick<T>(*self): i32 => self.v + 1;
 }
 
 impl B {
-	pub fn pick<T>(val self): i32 => self.v + 2;
+	pub fn pick<T>(*self): i32 => self.v + 2;
 }
 
 struct Box<T> { pub v: T }
 
 impl Box<T> {
-	pub fn get(val self) => self.v;
-	pub fn get_twice(val self) => self.get() + self.get();
+	pub fn get(*self) => self.v;
+	pub fn get_twice(*self) => self.get() + self.get();
 }
 
 fn main(): i32 {

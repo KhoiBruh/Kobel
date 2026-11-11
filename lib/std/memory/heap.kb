@@ -15,7 +15,7 @@ extern "libc" {
 pub struct Heap;
 
 impl Allocator for Heap {
-	pub fn alloc_bytes(var self, size: usz, align: usz): &u8 => malloc(size);
+	pub fn alloc_bytes(&self, size: usz, align: usz): &u8 => malloc(size);
 }
 
 impl Heap {

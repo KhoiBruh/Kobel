@@ -214,11 +214,11 @@ fn test_val_immutability() {
 	bp4.check_program(p4.parse_program());
 	assert_true(bp4.errors.len >= 1, "Must catch assignment to immutable parameter");
 
-	// 6e: Mutating field on val self receiver
+	// 6e: Mutating field on *self receiver
 	val src5 = """
 		struct Point { pub x: i32 }
 		impl Point {
-		    pub fn test(val self): none {
+		    pub fn test(*self): none {
 		        self.x = 20;
 		    }
 		}
@@ -227,13 +227,13 @@ fn test_val_immutability() {
 	var p5 = Parser(l5.tokenize());
 	var bp5 = BodyChecker();
 	bp5.check_program(p5.parse_program());
-	assert_true(bp5.errors.len >= 1, "Must catch field mutation on val self");
+	assert_true(bp5.errors.len >= 1, "Must catch field mutation on *self");
 
 	// 6f: Mutations on var are allowed without errors
 	val src6 = """
 		struct Point { pub x: i32 }
 		impl Point {
-		    pub fn test(var self, var p: i32): none {
+		    pub fn test(&self, var p: i32): none {
 		        var x = 10;
 		        x = 20;
 		        x += 5;
@@ -256,7 +256,7 @@ fn test_val_immutability() {
 		    pub count: i32
 		}
 		impl Counter {
-		    pub fn increment(var self) { self.count++; }
+		    pub fn increment(&self) { self.count++; }
 		}
 		fn test(): none {
 		    val c = Counter();
@@ -493,7 +493,7 @@ fn test_interpolation_requires_to_str() {
 		    pub x: i32
 		}
 		impl AdHoc {
-		    fn to_str(val self): str => "adhoc";
+		    fn to_str(*self): str => "adhoc";
 		}
 		fn test(): str {
 		    val a = AdHoc(1);
@@ -535,7 +535,7 @@ fn test_unused_mutability_warning() {
 		    pub val: i32
 		}
 		impl Item {
-		    pub fn query(var self): i32 => self.val;
+		    pub fn query(&self): i32 => self.val;
 		}
 		fn compute(var x: i32): i32 => x + 1;
 	""";
@@ -545,7 +545,7 @@ fn test_unused_mutability_warning() {
 	bp.check_program(p.parse_program());
 
 	assert_eq_usz(bp.errors.len, 0, "No errors expected");
-	assert_eq_usz(bp.warnings.len, 2, "Must emit 2 warnings for unused var self and unused var param");
+	assert_eq_usz(bp.warnings.len, 2, "Must emit 2 warnings for unused &self and unused var param");
 	println("  [PASS] test_unused_mutability_warning");
 }
 
@@ -556,7 +556,7 @@ fn test_destructure_nullable_pointer_error() {
 		    pub y: i32
 		}
 		impl Point {
-		    pub op unpack(val self, x: &i32, y: &i32) {
+		    pub op unpack(*self, x: &i32, y: &i32) {
 		        x.write(self.x);
 		        y.write(self.y);
 		    }

@@ -48,7 +48,7 @@ struct PointWithDefaults {
 impl PointWithDefaults {
 	pub init(x: i32 = 0, y: i32 = 0) => Self(x, y);
 
-	pub fn add_offset(val self, dx: i32, dy: i32 = 5): PointWithDefaults {
+	pub fn add_offset(*self, dx: i32, dy: i32 = 5): PointWithDefaults {
 		return PointWithDefaults(self.x + dx, self.y + dy);
 	}
 }
@@ -60,8 +60,8 @@ struct SafeNode {
 }
 
 impl SafeNode {
-	pub fn get_name(val self): str => self.name;
-	pub fn get_child(val self): *SafeNode? => self.child;
+	pub fn get_name(*self): str => self.name;
+	pub fn get_child(*self): *SafeNode? => self.child;
 }
 
 fn greet_default(name: str, greeting: str = "Hello", punctuation: str = "!"): str {

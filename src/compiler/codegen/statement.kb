@@ -22,14 +22,14 @@ use compiler.semantic.symbols.*;
 // ============================================================================
 
 impl WhenExpr {
-	pub fn has_blocks(val self): bool => self.arms.any { arm ->
+	pub fn has_blocks(*self): bool => self.arms.any { arm ->
 		arm.body is BlockStmt || arm.patterns.any { p -> p is IsExpr }
 	};
 }
 
 impl CCodeGen {
 
-	pub fn gen_cond(var self, cond: *AstNode): str {
+	pub fn gen_cond(&self, cond: *AstNode): str {
 		val s = self.gen_expr(cond);
 		if (
 			cond != null && (
@@ -40,7 +40,7 @@ impl CCodeGen {
 		return "(${s})";
 	}
 
-	pub fn gen_block_body(var self, node: *AstNode) {
+	pub fn gen_block_body(&self, node: *AstNode) {
 		if (node == null) return;
 		if (node is BlockStmt as blk) {
 			self.enter_defer_scope();
@@ -55,7 +55,7 @@ impl CCodeGen {
 		self.exit_defer_scope();
 	}
 
-	pub fn gen_statement(var self, node: *AstNode) {
+	pub fn gen_statement(&self, node: *AstNode) {
 		when (node) {
 			is BlockStmt -> self.gen_block_stmt(node);
 			is VarDeclStmt -> self.gen_var_decl_stmt(node);
@@ -72,7 +72,7 @@ impl CCodeGen {
 		}
 	}
 
-	fn gen_block_stmt(var self, blk: *BlockStmt) {
+	fn gen_block_stmt(&self, blk: *BlockStmt) {
 		self.out += "{\n";
 		self.enter_defer_scope();
 		for (stmt in blk.statements) {
@@ -82,7 +82,7 @@ impl CCodeGen {
 		self.out += "}\n";
 	}
 
-	fn gen_break_stmt(var self) {
+	fn gen_break_stmt(&self) {
 		self.mark_current_scope_jumped();
 		if (!self.loop_defer_depths.empty()) {
 			val target_depth = self.loop_defer_depths.last();
@@ -91,7 +91,7 @@ impl CCodeGen {
 		self.out += "break;\n";
 	}
 
-	fn gen_continue_stmt(var self) {
+	fn gen_continue_stmt(&self) {
 		self.mark_current_scope_jumped();
 		if (!self.loop_defer_depths.empty()) {
 			val target_depth = self.loop_defer_depths.last();
@@ -100,7 +100,7 @@ impl CCodeGen {
 		self.out += "continue;\n";
 	}
 
-	fn gen_var_decl_stmt(var self, vd: *VarDeclStmt) {
+	fn gen_var_decl_stmt(&self, vd: *VarDeclStmt) {
 		var ty_str = "int32_t";
 
 		var elem_hint = "";
@@ -161,7 +161,7 @@ impl CCodeGen {
 
 	// Emit a `a ?: b ?: c` initializer chain as a run of NULL checks.
 	fn gen_var_elvis_init(
-		var self, vd: *VarDeclStmt, init_e: *AstNode,
+		&self, vd: *VarDeclStmt, init_e: *AstNode,
 		ty_str: str
 	) {
 		val unwrapped_init = unwrap_group_expr(init_e);
@@ -287,7 +287,7 @@ impl CCodeGen {
 		}
 	}
 
-	fn gen_destruct_decl_stmt(var self, node: *AstNode, ds: *DestructDeclStmt) {
+	fn gen_destruct_decl_stmt(&self, node: *AstNode, ds: *DestructDeclStmt) {
 		val mi = self.symtab?.get_resolved_method(node);
 		if (mi == null) return;
 
@@ -349,7 +349,7 @@ impl CCodeGen {
 		}
 	}
 
-	pub fn collect_condition_aliases(var self, expr: *AstNode): List<ConditionAlias> {
+	pub fn collect_condition_aliases(&self, expr: *AstNode): List<ConditionAlias> {
 		var res = List<ConditionAlias>();
 		if (expr == null) return res;
 		var cur = expr;
@@ -397,7 +397,7 @@ impl CCodeGen {
 	}
 
 	fn has_alias_type_conflict(
-		var self, expr: *AstNode,
+		&self, expr: *AstNode,
 		aliases: List<ConditionAlias>
 	): bool {
 		val cond_aliases = self.collect_condition_aliases(expr);
@@ -409,7 +409,7 @@ impl CCodeGen {
 		return false;
 	}
 
-	fn gen_if_stmt(var self, ifs: *IfStmt) {
+	fn gen_if_stmt(&self, ifs: *IfStmt) {
 		var aliases = self.collect_condition_aliases(ifs.condition);
 
 		var cur_elif = ifs.else_branch;
@@ -507,7 +507,7 @@ impl CCodeGen {
 		}
 	}
 
-	fn gen_while_stmt(var self, wh: *WhileStmt) {
+	fn gen_while_stmt(&self, wh: *WhileStmt) {
 		self.out += "while ";
 		self.out += self.gen_cond(wh.condition);
 		self.out += " {\n";
@@ -517,7 +517,7 @@ impl CCodeGen {
 		self.out += "}\n";
 	}
 
-	fn gen_return_stmt(var self, ret: *ReturnStmt) {
+	fn gen_return_stmt(&self, ret: *ReturnStmt) {
 
 		val ret_val = ret.value;
 		if (
@@ -604,7 +604,7 @@ impl CCodeGen {
 		self.out += "return;\n";
 	}
 
-	fn gen_expr_stmt(var self, es: *ExprStmt) {
+	fn gen_expr_stmt(&self, es: *ExprStmt) {
 		val e = es.expr;
 		if (e != null) {
 			var asg_candidate = e;
@@ -651,7 +651,7 @@ impl CCodeGen {
 	}
 
 	// `x = a ?: b ?: c` assigns the first non-NULL value through a chain of NULL checks.
-	fn gen_assign_elvis_stmt(var self, asg: *AssignExpr, asg_val: *AstNode) {
+	fn gen_assign_elvis_stmt(&self, asg: *AssignExpr, asg_val: *AstNode) {
 		val tgt = self.gen_expr(asg.target);
 		val unwrapped_val = unwrap_group_expr(asg_val);
 		if (
@@ -771,7 +771,7 @@ impl CCodeGen {
 	}
 
 	// A `cond ?: jump` statement emits a NULL guard that runs the jump statement.
-	fn gen_elvis_jump_stmt(var self, bin: *BinaryExpr) {
+	fn gen_elvis_jump_stmt(&self, bin: *BinaryExpr) {
 		val unwrapped_l = unwrap_group_expr(bin.left);
 		if (
 			unwrapped_l != null &&
@@ -803,7 +803,7 @@ impl CCodeGen {
 		self.out += "}\n";
 	}
 
-	fn gen_yield_stmt(var self, ys: *YieldStmt) {
+	fn gen_yield_stmt(&self, ys: *YieldStmt) {
 		if (self.is_yield_return) {
 			if (self.has_active_defers()) {
 				self.mark_current_scope_jumped();
@@ -856,7 +856,7 @@ impl CCodeGen {
 
 	// Name an arm binds: its alias, or the subject's own name for a plain
 	// identifier subject. Empty when the arm binds nothing.
-	fn when_arm_binding(val self, patterns: List<*AstNode>, cond: *AstNode?): str {
+	fn when_arm_binding(*self, patterns: List<*AstNode>, cond: *AstNode?): str {
 		if (cond == null || patterns.len != 1) return "";
 		val pat = patterns.first();
 		if (pat is IsExpr as is_e) {
@@ -866,7 +866,7 @@ impl CCodeGen {
 		return "";
 	}
 
-	fn gen_when_stmt(var self, ws: *WhenStmt) {
+	fn gen_when_stmt(&self, ws: *WhenStmt) {
 		val cond = if (ws.condition != null) self.gen_expr(ws.condition!) else "";
 		var first = true;
 		for (arm in ws.arms) {
@@ -902,7 +902,7 @@ impl CCodeGen {
 	}
 
 	pub fn gen_smart_cast_decl(
-		val self, is_node: *AstNode, is_e: *IsExpr,
+		*self, is_node: *AstNode, is_e: *IsExpr,
 		subject: *AstNode, var_name: str
 	): str {
 		val pat_info = self.is_pattern_info(is_node);
@@ -951,7 +951,7 @@ impl CCodeGen {
 		}
 	}
 
-	pub fn gen_when_with_target(var self, we: *WhenExpr, target_name: str, is_ret: bool) {
+	pub fn gen_when_with_target(&self, we: *WhenExpr, target_name: str, is_ret: bool) {
 		val cond = if (we.condition != null) self.gen_expr(we.condition!) else "";
 		var first = true;
 

@@ -46,7 +46,7 @@ impl LoweringPass {
 		return lp;
 	}
 
-	pub fn lower_program(var self, program_node: *AstNode) {
+	pub fn lower_program(&self, program_node: *AstNode) {
 		if (program_node is Program as prog) {
 			for (decl in prog) {
 				when (decl) {
@@ -85,7 +85,7 @@ impl LoweringPass {
 	// Statements
 	// ============================================================================
 
-	pub fn lower_stmt(var self, node: *AstNode): *AstNode {
+	pub fn lower_stmt(&self, node: *AstNode): *AstNode {
 		val res_stmt = self.symtab.get_resolved_node(node);
 		if (res_stmt != null) return self.lower_stmt(res_stmt);
 
@@ -149,7 +149,7 @@ impl LoweringPass {
 	// Expressions
 	// ============================================================================
 
-	pub fn lower_expr(var self, node: *AstNode): *AstNode {
+	pub fn lower_expr(&self, node: *AstNode): *AstNode {
 		val res_expr = self.symtab.get_resolved_node(node);
 		if (res_expr != null) return self.lowered(node, self.lower_expr(res_expr));
 
@@ -250,13 +250,13 @@ impl LoweringPass {
 	// Rewrite rules
 	// ============================================================================
 
-	fn lower_arm_body(var self, body: *AstNode): *AstNode {
+	fn lower_arm_body(&self, body: *AstNode): *AstNode {
 		val t = body;
 		if (t is BlockStmt) return self.lower_stmt(body);
 		return self.lower_expr(body);
 	}
 
-	fn lowered(val self, original: *AstNode, replacement: *AstNode): *AstNode {
+	fn lowered(*self, original: *AstNode, replacement: *AstNode): *AstNode {
 		val orig_ty = self.symtab.get_node_type(original);
 		if (orig_ty != null) self.symtab.set_node_type(replacement, orig_ty);
 		if (self.symtab.is_predicate_pattern(original)) {
@@ -271,7 +271,7 @@ impl LoweringPass {
 		return replacement;
 	}
 
-	fn lower_binary(var self, node: *AstNode, bin: &BinaryExpr): *AstNode {
+	fn lower_binary(&self, node: *AstNode, bin: &BinaryExpr): *AstNode {
 		if (bin.op == TokenType.QUESTION_COLON) {
 			if (self.is_stmt_node(bin.right)) bin.right = self.lower_stmt(bin.right);
 			return node;
@@ -351,7 +351,7 @@ impl LoweringPass {
 		return node;
 	}
 
-	fn lower_assign(var self, node: *AstNode, asgn: &AssignExpr): *AstNode {
+	fn lower_assign(&self, node: *AstNode, asgn: &AssignExpr): *AstNode {
 		if (self.symtab.get_resolved_method(node) != null) {
 			val mi = self.symtab.get_resolved_method(node)!;
 			val target_ty = self.type_of(asgn.target);
@@ -384,7 +384,7 @@ impl LoweringPass {
 		return node;
 	}
 
-	fn lower_interp(var self, node: *AstNode, ie: &InterpExpr): *AstNode {
+	fn lower_interp(&self, node: *AstNode, ie: &InterpExpr): *AstNode {
 		val (line, col) = node;
 		var pieces = List<*AstNode>();
 		defer pieces.free();
@@ -407,7 +407,7 @@ impl LoweringPass {
 		return self.lowered(node, acc!);
 	}
 
-	fn to_str_expr(var self, expr: *AstNode, line: usz, col: usz): *AstNode? {
+	fn to_str_expr(&self, expr: *AstNode, line: usz, col: usz): *AstNode? {
 		val ty = self.type_of(expr);
 		if (ty == null) return null;
 		if (ty.kind == DataType.STR) return expr;
@@ -437,7 +437,7 @@ impl LoweringPass {
 		return null;
 	}
 
-	fn lower_member(var self, node: *AstNode, mem: &MemberExpr): *AstNode {
+	fn lower_member(&self, node: *AstNode, mem: &MemberExpr): *AstNode {
 		val obj = mem.object ?: return node;
 
 		val obj_ty = self.type_of(obj);
@@ -469,7 +469,7 @@ impl LoweringPass {
 		return node;
 	}
 
-	fn lower_unary(var self, node: *AstNode, un: &UnaryExpr): *AstNode {
+	fn lower_unary(&self, node: *AstNode, un: &UnaryExpr): *AstNode {
 		if (self.symtab.get_resolved_method(node) == null) return node;
 		val mi = self.symtab.get_resolved_method(node)!;
 		var args = List<*AstNode>();
@@ -486,7 +486,7 @@ impl LoweringPass {
 		return self.lowered(node, call);
 	}
 
-	fn lower_index(var self, node: *AstNode, idx: &IndexExpr): *AstNode {
+	fn lower_index(&self, node: *AstNode, idx: &IndexExpr): *AstNode {
 		if (self.symtab.get_resolved_method(node) == null) return node;
 		val mi = self.symtab.get_resolved_method(node)!;
 		val target_ty = self.type_of(idx.target);
@@ -509,7 +509,7 @@ impl LoweringPass {
 		return self.lowered(node, call);
 	}
 
-	fn lower_bound_call(var self, node: *AstNode, call: &CallExpr): *AstNode {
+	fn lower_bound_call(&self, node: *AstNode, call: &CallExpr): *AstNode {
 		val callee = call.callee;
 		if (callee == null) return node;
 
@@ -625,7 +625,7 @@ impl LoweringPass {
 		return node;
 	}
 
-	fn lower_call(var self, node: *AstNode, call: &CallExpr): *AstNode {
+	fn lower_call(&self, node: *AstNode, call: &CallExpr): *AstNode {
 		val callee = call.callee ?: return node;
 		if (callee is MemberExpr as mem) {
 			if (mem.member != "slice") return node;
@@ -672,7 +672,7 @@ impl LoweringPass {
 	// Type predicates over the checked annotations
 	// ============================================================================
 
-	fn type_of(val self, node: *AstNode): *Type? {
+	fn type_of(*self, node: *AstNode): *Type? {
 		var cur = node;
 		while (cur != null) {
 			if (cur is GroupExpr as g) cur = g.expr;
@@ -682,12 +682,12 @@ impl LoweringPass {
 		return self.symtab.get_node_type(cur);
 	}
 
-	fn is_str_expr(val self, node: *AstNode): bool {
+	fn is_str_expr(*self, node: *AstNode): bool {
 		val t = self.type_of(node);
 		return t?.kind == DataType.STR;
 	}
 
-	fn is_stmt_node(val self, node: *AstNode): bool {
+	fn is_stmt_node(*self, node: *AstNode): bool {
 		if (node == null) return false;
 		return node is ReturnStmt ||
 			node is BreakStmt ||
@@ -696,7 +696,7 @@ impl LoweringPass {
 			node is BlockStmt;
 	}
 
-	fn is_array_expr(val self, node: *AstNode): bool {
+	fn is_array_expr(*self, node: *AstNode): bool {
 		val t = self.type_of(node);
 		return t?.kind == DataType.ARRAY;
 	}

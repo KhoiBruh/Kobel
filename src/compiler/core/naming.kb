@@ -17,10 +17,10 @@ use std.collections.List;
 impl str {
 
 	// "std.io" -> "std/io" (module path -> relative file path, without extension)
-	pub fn module_to_rel(val self) => self.replace_char('.', '/');
+	pub fn module_to_rel(*self) => self.replace_char('.', '/');
 
 	// "sub/x.kb" -> "sub.x" (relative file path -> module name)
-	pub fn path_to_module(val self): str {
+	pub fn path_to_module(*self): str {
 		val stem = self.strip_kb();
 		val buf = Heap.create_array<u8>(stem.len + 1);
 		for (i in 0..<stem.len) {
@@ -35,16 +35,16 @@ impl str {
 		return str_from_bytes(buf, stem.len);
 	}
 
-	pub fn has_kb_suffix(val self) => self.ends_with(".kb");
+	pub fn has_kb_suffix(*self) => self.ends_with(".kb");
 
 	// Strips a trailing ".kb" extension when present.
-	pub fn strip_kb(val self) => if (self.ends_with(".kb")) self.strip_suffix(3) else self;
+	pub fn strip_kb(*self) => if (self.ends_with(".kb")) self.strip_suffix(3) else self;
 
 	/*
 	 * Builds the C identifier used for a top-level symbol of a module.
 	 * "std.io" + "println" -> "std__io__println"
 	 */
-	pub fn mangle_symbol(val self, name: str): str {
+	pub fn mangle_symbol(*self, name: str): str {
 		if (self.empty()) return name;
 
 		// Each '.' is written as 2 '_' characters, so allocate extra (2x the module part) to be safe.
@@ -83,7 +83,7 @@ impl str {
 		return str_from_bytes(buf, w);
 	}
 
-	pub fn hash_stamp(val self): str {
+	pub fn hash_stamp(*self): str {
 		var h = 5381;
 		for (c in self) h = ((h * 33) + c.code()) % 1000000007;
 		return "${h}_${self.len}";

@@ -21,7 +21,7 @@ use compiler.semantic.lowering.*;
 
 impl BodyChecker {
 
-	pub fn check_member_expr(var self, node: *AstNode): *Type {
+	pub fn check_member_expr(&self, node: *AstNode): *Type {
 		if (node is MemberExpr as var mem) {
 			val const_ty = self.check_const_member(node, mem);
 			if (const_ty != null) return const_ty;
@@ -95,7 +95,7 @@ impl BodyChecker {
 		return self.prims().t_none();
 	}
 
-	fn check_const_member(var self, node: *AstNode, mem: *MemberExpr): *Type? {
+	fn check_const_member(&self, node: *AstNode, mem: *MemberExpr): *Type? {
 		val obj = mem.object;
 		if (obj is IdentifierExpr as enum_id) {
 			val ei = self.symtab.find_enum_info(enum_id.name);
@@ -149,7 +149,7 @@ impl BodyChecker {
 		return null;
 	}
 
-	fn member_on_str(var self, node: *AstNode, mem: *MemberExpr): *Type => when (mem.member) {
+	fn member_on_str(&self, node: *AstNode, mem: *MemberExpr): *Type => when (mem.member) {
 		"len", "size" -> self.prims().t_usz();
 		"cap" -> self.prims().t_usz();
 		"c_str" -> {
@@ -167,7 +167,7 @@ impl BodyChecker {
 		}
 	};
 
-	fn member_on_array(var self, node: *AstNode, mem: *MemberExpr, obj_ty: *Type): *Type {
+	fn member_on_array(&self, node: *AstNode, mem: *MemberExpr, obj_ty: *Type): *Type {
 		val arr = obj_ty.as_array();
 		if (mem.member == "len" || mem.member == "size") return self.prims().t_usz();
 		if (mem.member == "data") return self.arena.pointer_type(arr.elem, true);
@@ -175,7 +175,7 @@ impl BodyChecker {
 		return self.prims().t_none();
 	}
 
-	fn member_on_struct(var self, node: *AstNode, mem: *MemberExpr, obj_ty: *Type): *Type {
+	fn member_on_struct(&self, node: *AstNode, mem: *MemberExpr, obj_ty: *Type): *Type {
 		val s_info = obj_ty.as_struct();
 		for (f in s_info.fields) {
 			if (f.name != mem.member) continue;
@@ -191,7 +191,7 @@ impl BodyChecker {
 		return self.prims().t_none();
 	}
 
-	pub fn check_index_expr(var self, node: *AstNode): *Type {
+	pub fn check_index_expr(&self, node: *AstNode): *Type {
 		if (node is IndexExpr as idx) {
 			val target_ty = self.check_expr(idx.target);
 			val index_ty = self.check_expr(idx.index);
@@ -245,12 +245,12 @@ impl BodyChecker {
 		return self.prims().t_none();
 	}
 
-	pub fn mark_symbol_mutated(val self, name: str) {
+	pub fn mark_symbol_mutated(*self, name: str) {
 		val sym = self.symtab.lookup(name);
 		if (sym != null) sym.mutated = true;
 	}
 
-	pub fn mark_node_mutated(var self, node: *AstNode?) {
+	pub fn mark_node_mutated(&self, node: *AstNode?) {
 		if (node == null) return;
 		val cur = self.unwrap_group(node!);
 		when (cur) {
@@ -262,7 +262,7 @@ impl BodyChecker {
 	}
 
 	pub fn check_lvalue_mutability(
-		var self,
+		&self,
 		target_node: *AstNode,
 		op_node: *AstNode,
 		is_update: bool
@@ -281,7 +281,7 @@ impl BodyChecker {
 				if (self.is_immutable_self(cur.object)) {
 					self.report_error(
 						op_node,
-						"Cannot mutate field '${cur.member}' on immutable receiver 'self' in 'val self' method"
+						"Cannot mutate field '${cur.member}' on immutable receiver 'self' in '*self' method"
 					);
 				} else {
 					val obj_expr = self.unwrap_group(cur.object);
@@ -303,7 +303,7 @@ impl BodyChecker {
 					val act = if (is_update) "update" else "mutate";
 					self.report_error(
 						op_node,
-						"Cannot ${act} through index on immutable receiver 'self' in 'val self' method"
+						"Cannot ${act} through index on immutable receiver 'self' in '*self' method"
 					);
 				} else {
 					val target_expr = self.unwrap_group(cur.target);
@@ -325,10 +325,10 @@ impl BodyChecker {
 		}
 	}
 
-	fn target_word(val self, update: bool) =>
+	fn target_word(*self, update: bool) =>
 		if (update) "increment/decrement operator" else "assignment";
 
-	pub fn unwrap_group(val self, node: *AstNode): *AstNode {
+	pub fn unwrap_group(*self, node: *AstNode): *AstNode {
 		var cur = node;
 		while (cur != null) {
 			if (cur is GroupExpr as g) cur = g.expr;
@@ -337,7 +337,7 @@ impl BodyChecker {
 		return cur;
 	}
 
-	fn is_immutable_self(val self, obj_node: *AstNode): bool {
+	fn is_immutable_self(*self, obj_node: *AstNode): bool {
 		val obj = self.unwrap_group(obj_node);
 		if (obj is IdentifierExpr as obj_id && obj_id.name == "self") {
 			val self_sym = self.symtab.lookup("self");
@@ -346,7 +346,7 @@ impl BodyChecker {
 		return false;
 	}
 
-	fn check_ident_assignable(var self, op_node: *AstNode, name: str, sym: *Symbol?, is_update: bool) {
+	fn check_ident_assignable(&self, op_node: *AstNode, name: str, sym: *Symbol?, is_update: bool) {
 		if (sym == null) return;
 		val act = if (is_update) "update" else "assign to";
 		when (sym.kind) {
@@ -365,7 +365,7 @@ impl BodyChecker {
 		}
 	}
 
-	pub fn check_assign_expr(var self, node: *AstNode): *Type {
+	pub fn check_assign_expr(&self, node: *AstNode): *Type {
 		if (node is AssignExpr as asgn) {
 			val was_stmt = self.is_stmt_level;
 			self.is_stmt_level = false;
@@ -419,7 +419,7 @@ impl BodyChecker {
 						if (mi != null) {
 							if (!t_is_ptr) self.check_lvalue_mutability(target_expr, node, false);
 							else if (self.is_immutable_self(target_expr)) {
-								self.report_error(node, "Cannot mutate immutable receiver 'self' in 'val self' method");
+								self.report_error(node, "Cannot mutate immutable receiver 'self' in '*self' method");
 							}
 							self.mark_node_mutated(target_expr);
 							self.set_method(node, mi);
@@ -451,7 +451,7 @@ impl BodyChecker {
 		return self.prims().t_none();
 	}
 
-	fn lower_index_assign(var self, node: *AstNode, asgn: *AssignExpr, idx: *IndexExpr): *Type? {
+	fn lower_index_assign(&self, node: *AstNode, asgn: *AssignExpr, idx: *IndexExpr): *Type? {
 		val bin_op = when (asgn.op) {
 			TokenType.PLUS_EQUAL -> TokenType.PLUS;
 			TokenType.MINUS_EQUAL -> TokenType.MINUS;
@@ -464,7 +464,7 @@ impl BodyChecker {
 	}
 
 	fn lower_index_write(
-		var self,
+		&self,
 		node: *AstNode,
 		idx: *IndexExpr,
 		op: TokenType,
@@ -543,7 +543,7 @@ impl BodyChecker {
 		return val_param_ty;
 	}
 
-	pub fn check_update_expr(var self, node: *AstNode): *Type {
+	pub fn check_update_expr(&self, node: *AstNode): *Type {
 		if (node is UpdateExpr as u) {
 			val target_expr = self.unwrap_group(u.target);
 			self.check_lvalue_mutability(target_expr, node, true);
@@ -565,7 +565,7 @@ impl BodyChecker {
 		return self.prims().t_none();
 	}
 
-	pub fn check_cast_expr(var self, node: *AstNode): *Type {
+	pub fn check_cast_expr(&self, node: *AstNode): *Type {
 		if (node is CastExpr as cst) {
 			val src_ty = if (cst.expr != null) self.check_expr(cst.expr!) else self.prims().t_none();
 			val ty = self.resolve_type(cst.target_type);

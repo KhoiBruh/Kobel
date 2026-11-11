@@ -34,14 +34,14 @@ impl StringBuilder {
 		return Self(raw, 0, cap);
 	}
 
-	pub fn reserve(var self, additional: usz) {
+	pub fn reserve(&self, additional: usz) {
 		val needed = self.len + additional + 1;
 		if (needed >= self.cap) {
 			self.grow(needed);
 		}
 	}
 
-	pub fn append_char(var self, c: char) {
+	pub fn append_char(&self, c: char) {
 		if (self.len + 2 >= self.cap) {
 			self.grow(self.len + 2);
 		}
@@ -49,7 +49,7 @@ impl StringBuilder {
 		self.len++;
 	}
 
-	pub fn append_str(var self, s: str) {
+	pub fn append_str(&self, s: str) {
 		val s_len = s.len;
 		if (s_len == 0) {
 			return;
@@ -61,7 +61,7 @@ impl StringBuilder {
 		self.len += s_len;
 	}
 
-	pub fn append_u64(var self, n: u64) {
+	pub fn append_u64(&self, n: u64) {
 		if (n == 0) {
 			self += '0';
 			return;
@@ -87,11 +87,11 @@ impl StringBuilder {
 		}
 	}
 
-	pub fn append_u32(var self, n: u32) => self.append_u64(n as u64);
+	pub fn append_u32(&self, n: u32) => self.append_u64(n as u64);
 
-	pub fn append_usz(var self, n: usz) => self.append_u64(n as u64);
+	pub fn append_usz(&self, n: usz) => self.append_u64(n as u64);
 
-	pub fn append_i64(var self, n: i64) {
+	pub fn append_i64(&self, n: i64) {
 		if (n < 0) {
 			self += '-';
 			val mag = (0 - (n + 1)) as u64 + 1;
@@ -101,17 +101,17 @@ impl StringBuilder {
 		self.append_u64(n as u64);
 	}
 
-	pub fn append_i32(var self, n: i32) => self.append_i64(n);
+	pub fn append_i32(&self, n: i32) => self.append_i64(n);
 
-	pub fn append_bool(var self, b: bool) => if (b) self += "true" else self += "false";
+	pub fn append_bool(&self, b: bool) => if (b) self += "true" else self += "false";
 
-	pub fn append_line(var self, s: str) {
+	pub fn append_line(&self, s: str) {
 		self += s;
 		self += '\n';
 	}
 
 	// `n` copies of `c` (indentation, padding) in one pass.
-	pub fn append_repeat(var self, c: char, n: usz) {
+	pub fn append_repeat(&self, c: char, n: usz) {
 		if (n == 0) {
 			return;
 		}
@@ -127,7 +127,7 @@ impl StringBuilder {
 	 * quote, `\n`, `\r`, `\t`); every other byte is copied verbatim. Callers that
 	 * need strict JSON must escape control bytes < 0x20 themselves.
 	 */
-	pub fn append_escaped(var self, s: str) {
+	pub fn append_escaped(&self, s: str) {
 		for (i in 0..<s.len) {
 			val c = s[i];
 			when (c) {
@@ -141,23 +141,23 @@ impl StringBuilder {
 		}
 	}
 
-	pub fn empty(val self) => self.len == 0;
+	pub fn empty(*self) => self.len == 0;
 
-	pub fn last_char(val self) => if (self.len == 0) '\0' else char(self.buf[self.len - 1]);
+	pub fn last_char(*self) => if (self.len == 0) '\0' else char(self.buf[self.len - 1]);
 
-	pub fn clear(var self) => self.len = 0;
+	pub fn clear(&self) => self.len = 0;
 
 	/*
 	 * Returns a zero-copy `str` view over the builder's current buffer after
 	 * writing a trailing NUL byte. Valid until the next mutating operation or
 	 * `free()`.
 	 */
-	pub fn as_view(val self): str {
+	pub fn as_view(*self): str {
 		self.buf[self.len] = 0;
 		return str_from_bytes(self.buf, self.len);
 	}
 
-	fn grow(var self, min_cap: usz) {
+	fn grow(&self, min_cap: usz) {
 		var new_cap = if (self.cap < 16) 16 else self.cap * 2;
 		while (new_cap < min_cap) {
 			new_cap *= 2;
@@ -169,37 +169,37 @@ impl StringBuilder {
 
 	pub fn free(self) => Heap.free(self.buf);
 
-	pub op plus_assign(var self, s: str) => self.append_str(s);
+	pub op plus_assign(&self, s: str) => self.append_str(s);
 
-	pub op plus_assign(var self, c: char) => self.append_char(c);
+	pub op plus_assign(&self, c: char) => self.append_char(c);
 
-	pub op plus_assign(var self, n: i64) => self.append_i64(n);
+	pub op plus_assign(&self, n: i64) => self.append_i64(n);
 
-	pub op plus_assign(var self, n: i32) => self.append_i32(n);
+	pub op plus_assign(&self, n: i32) => self.append_i32(n);
 
-	pub op plus_assign(var self, n: u64) => self.append_u64(n);
+	pub op plus_assign(&self, n: u64) => self.append_u64(n);
 
-	pub op plus_assign(var self, n: u32) => self.append_u32(n);
+	pub op plus_assign(&self, n: u32) => self.append_u32(n);
 
-	pub op plus_assign(var self, n: usz) => self.append_usz(n);
+	pub op plus_assign(&self, n: usz) => self.append_usz(n);
 
-	pub op plus_assign(var self, b: bool) => self.append_bool(b);
+	pub op plus_assign(&self, b: bool) => self.append_bool(b);
 
-	pub op get(val self, i: usz) => char(self.buf[i]);
+	pub op get(*self, i: usz) => char(self.buf[i]);
 
-	pub op set(var self, i: usz, c: char) => self.buf[i] = c.code();
+	pub op set(&self, i: usz, c: char) => self.buf[i] = c.code();
 
 }
 
 // `for (c in sb)` walks the built characters.
 impl Iterable for StringBuilder {
-	pub fn count(val self) => self.len;
+	pub fn count(*self) => self.len;
 
-	pub fn at(val self, i: usz) => char(self.buf[i]);
+	pub fn at(*self, i: usz) => char(self.buf[i]);
 }
 
 impl Stringer for StringBuilder {
-	pub fn to_str(val self): str {
+	pub fn to_str(*self): str {
 		val str_data = Heap.create_array<u8>(self.len + 1);
 		if (self.len > 0) {
 			memcpy(str_data, self.buf, self.len);

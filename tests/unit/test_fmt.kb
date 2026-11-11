@@ -51,7 +51,7 @@ fn test_comments() {
 // ============================================================================
 
 fn test_impl_visibility() {
-	val code = "pub struct A {\n\tpub v: i32\n}\n\nimpl A {\n\n\tpub init(v: i32) {\n\t\treturn Self(v);\n\t}\n\n\tpub fn get(val self): i32 => self.v;\n\n\tfn hidden(val self) {\n\t\tval x = 1;\n\t}\n}\n";
+	val code = "pub struct A {\n\tpub v: i32\n}\n\nimpl A {\n\n\tpub init(v: i32) {\n\t\treturn Self(v);\n\t}\n\n\tpub fn get(*self): i32 => self.v;\n\n\tfn hidden(*self) {\n\t\tval x = 1;\n\t}\n}\n";
 	val formatted = format_source(code, FormatOptions());
 
 	assert_true(("pub init(" in formatted), "pub init inside impl must survive");

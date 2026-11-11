@@ -21,7 +21,7 @@ impl FormatBuffer {
 
 	pub init(options: FormatOptions) => Self(StringBuilder(), options);
 
-	pub fn ensure_indent(var self) {
+	pub fn ensure_indent(&self) {
 		if (!self.at_line_start) return;
 
 		// 1. Emit block indentation tabs
@@ -36,7 +36,7 @@ impl FormatBuffer {
 		self.at_line_start = false;
 	}
 
-	pub fn write(var self, s: str) {
+	pub fn write(&self, s: str) {
 		if (s.empty()) return;
 		self.ensure_indent();
 		self.sb += s;
@@ -44,20 +44,20 @@ impl FormatBuffer {
 		self.blank_lines = 0;
 	}
 
-	pub fn write_char(var self, c: char) {
+	pub fn write_char(&self, c: char) {
 		self.ensure_indent();
 		self.sb += c;
 		self.current_col++;
 		self.blank_lines = 0;
 	}
 
-	pub op plus_assign(var self, s: str) => self.write(s);
+	pub op plus_assign(&self, s: str) => self.write(s);
 
-	pub op plus_assign(var self, c: char) => self.write_char(c);
+	pub op plus_assign(&self, c: char) => self.write_char(c);
 
-	pub fn space(var self) => self.write(" ");
+	pub fn space(&self) => self.write(" ");
 
-	pub fn newline(var self) {
+	pub fn newline(&self) {
 		if (self.at_line_start) {
 			if (self.blank_lines >= 1) return;
 			self.blank_lines++;
@@ -67,21 +67,21 @@ impl FormatBuffer {
 		self.current_col = 0;
 	}
 
-	pub fn double_newline(var self) {
+	pub fn double_newline(&self) {
 		self.newline();
 		self.newline();
 	}
 
-	pub fn indent(var self) => self.indent_level++;
+	pub fn indent(&self) => self.indent_level++;
 
-	pub fn dedent(var self) {
+	pub fn dedent(&self) {
 		if (self.indent_level > 0) self.indent_level--;
 	}
 
-	pub fn set_align(var self, spaces: usz) => self.align_spaces = spaces;
+	pub fn set_align(&self, spaces: usz) => self.align_spaces = spaces;
 
-	pub fn clear_align(var self) => self.align_spaces = 0;
+	pub fn clear_align(&self) => self.align_spaces = 0;
 
-	pub fn to_str(val self) => self.sb.to_str();
+	pub fn to_str(*self) => self.sb.to_str();
 
 }

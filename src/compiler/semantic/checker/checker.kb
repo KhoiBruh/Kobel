@@ -91,7 +91,7 @@ impl BodyChecker {
 		return bc;
 	}
 
-	pub fn type_display(val self, ty: *Type): str {
+	pub fn type_display(*self, ty: *Type): str {
 		if (ty == null) return "null";
 		if (ty.kind == DataType.STRUCT) return ty.as_struct().c_name;
 		if (ty.kind == DataType.POINTER) return "*${self.type_display(ty.as_pointer().pointee)}";
@@ -100,25 +100,25 @@ impl BodyChecker {
 		return primitive_type_name(ty);
 	}
 
-	pub fn copy_expr(var self, node: *AstNode) => self.decl.clone_expr(node, null);
+	pub fn copy_expr(&self, node: *AstNode) => self.decl.clone_expr(node, null);
 
-	pub fn prims(val self) => self.symtab.prims;
+	pub fn prims(*self) => self.symtab.prims;
 
-	pub fn ensure(var self, cond: bool, node: *AstNode, msg: str) {
+	pub fn ensure(&self, cond: bool, node: *AstNode, msg: str) {
 		if (!cond) self.report_error(node, msg);
 	}
 
-	pub fn enter_module(var self, module: str): str {
+	pub fn enter_module(&self, module: str): str {
 		val prev = self.symtab.current_module;
 		if (module.len > 0) self.symtab.set_current_module(module);
 		return prev;
 	}
 
-	pub fn leave_module(var self, prev: str) {
+	pub fn leave_module(&self, prev: str) {
 		self.symtab.set_current_module(prev);
 	}
 
-	pub fn check_expr_stmt(var self, expr: *AstNode, expected: *Type? = null): *Type {
+	pub fn check_expr_stmt(&self, expr: *AstNode, expected: *Type? = null): *Type {
 		val prev = self.is_stmt_level;
 		self.is_stmt_level = true;
 		val ty = self.check_expr(expr, expected);
@@ -126,16 +126,16 @@ impl BodyChecker {
 		return ty;
 	}
 
-	pub fn report_warning(var self, node: *AstNode?, msg: str) {
+	pub fn report_warning(&self, node: *AstNode?, msg: str) {
 		val span = if (node != null) node!.span else Span();
 		self.warnings += Diagnostic.warning(span, self.symtab.current_module, msg);
 	}
 
-	pub fn report_error(var self, node: *AstNode, msg: str) {
+	pub fn report_error(&self, node: *AstNode, msg: str) {
 		self.errors += Diagnostic.error(node.span, self.symtab.current_module, msg);
 	}
 
-	pub fn lower_program(var self, program_node: *AstNode) {
+	pub fn lower_program(&self, program_node: *AstNode) {
 		var lp = LoweringPass(self.symtab, self.arena, self.decl);
 		lp.lower_program(program_node);
 		self.symtab = lp.symtab;
@@ -143,7 +143,7 @@ impl BodyChecker {
 		self.decl = lp.decl;
 	}
 
-	pub fn resolve_type(var self, node: *AstNode): *Type {
+	pub fn resolve_type(&self, node: *AstNode): *Type {
 		if (self.has_decl) {
 			self.decl.symtab = self.symtab;
 			self.decl.current_module = self.symtab.current_module;
@@ -165,7 +165,7 @@ impl BodyChecker {
 		return ty;
 	}
 
-	pub fn find_method_template_for(var self, name: str, self_type: str): *GenericTemplate? {
+	pub fn find_method_template_for(&self, name: str, self_type: str): *GenericTemplate? {
 		if (self.has_decl) return self.decl.find_method_template(name, self_type);
 
 		var decl_p = DeclarationCollector(
@@ -179,7 +179,7 @@ impl BodyChecker {
 	}
 
 	pub fn instantiate_method(
-		var self,
+		&self,
 		tmpl: *GenericTemplate,
 		arg_asts: List<*AstNode>,
 		obj_ty: *Type
@@ -206,7 +206,7 @@ impl BodyChecker {
 		return cname;
 	}
 
-	pub fn check_expr(var self, node: *AstNode, expected: *Type? = null): *Type {
+	pub fn check_expr(&self, node: *AstNode, expected: *Type? = null): *Type {
 		if (node == null) return self.prims().t_none();
 		if (node is GroupExpr as g) return self.check_expr(g.expr, expected);
 
@@ -219,7 +219,7 @@ impl BodyChecker {
 		return ty;
 	}
 
-	fn annotate_type(var self, node: *AstNode, ty: *Type) {
+	fn annotate_type(&self, node: *AstNode, ty: *Type) {
 		if (node == null || ty == null) return;
 		if (self.current_rec != null) {
 			self.ann_entry(node).ty = ty;
@@ -228,17 +228,17 @@ impl BodyChecker {
 		self.symtab.set_node_type(node, ty);
 	}
 
-	pub fn set_resolved(var self, node: *AstNode, r: *AstNode) {
+	pub fn set_resolved(&self, node: *AstNode, r: *AstNode) {
 		if (self.current_rec != null) self.ann_entry(node).resolved = r;
 		else self.symtab.set_resolved_node(node, r);
 	}
 
-	pub fn set_method(var self, node: *AstNode, mi: *MethodInfo) {
+	pub fn set_method(&self, node: *AstNode, mi: *MethodInfo) {
 		if (self.current_rec != null) self.ann_entry(node).method = mi;
 		else self.symtab.set_resolved_method(node, mi);
 	}
 
-	pub fn set_is_pattern(var self, node: *AstNode, info: IsPatternInfo) {
+	pub fn set_is_pattern(&self, node: *AstNode, info: IsPatternInfo) {
 		if (self.current_rec != null) {
 			var e = self.ann_entry(node);
 			e.is_info = info;
@@ -247,7 +247,7 @@ impl BodyChecker {
 		self.symtab.set_is_pattern(node, info);
 	}
 
-	pub fn set_predicate_pattern(var self, node: *AstNode) {
+	pub fn set_predicate_pattern(&self, node: *AstNode) {
 		if (self.current_rec != null) {
 			var e = self.ann_entry(node);
 			e.is_predicate = true;
@@ -255,7 +255,7 @@ impl BodyChecker {
 		self.symtab.set_predicate_pattern(node);
 	}
 
-	pub fn set_lambda_info(var self, node: *AstNode, info: LambdaInfo) {
+	pub fn set_lambda_info(&self, node: *AstNode, info: LambdaInfo) {
 		if (self.current_rec != null) {
 			var e = self.ann_entry(node);
 			e.lambda_info = info;
@@ -264,7 +264,7 @@ impl BodyChecker {
 		self.symtab.set_lambda_info(node, info);
 	}
 
-	pub fn set_closure_call(var self, node: *AstNode) {
+	pub fn set_closure_call(&self, node: *AstNode) {
 		if (self.current_rec != null) {
 			var e = self.ann_entry(node);
 			e.is_closure_call = true;
@@ -272,27 +272,27 @@ impl BodyChecker {
 		self.symtab.set_closure_call(node);
 	}
 
-	pub fn set_ann_ty(var self, node: *AstNode, ty: *Type) {
+	pub fn set_ann_ty(&self, node: *AstNode, ty: *Type) {
 		if (self.current_rec == null) return;
 		self.ann_entry(node).ty = ty;
 	}
 
-	pub fn set_ann_var_ty(var self, node: *AstNode, ty: *Type) {
+	pub fn set_ann_var_ty(&self, node: *AstNode, ty: *Type) {
 		if (self.current_rec == null) return;
 		self.ann_entry(node).var_ty = ty;
 	}
 
-	pub fn set_ann_obj(var self, node: *AstNode, obj: *AstNode) {
+	pub fn set_ann_obj(&self, node: *AstNode, obj: *AstNode) {
 		if (self.current_rec == null) return;
 		self.ann_entry(node).obj_replace = obj;
 	}
 
-	pub fn set_ann_init_override(var self, node: *AstNode, r: *AstNode) {
+	pub fn set_ann_init_override(&self, node: *AstNode, r: *AstNode) {
 		if (self.current_rec == null) return;
 		self.ann_entry(node).init_override = r;
 	}
 
-	pub fn set_ident_name(var self, node: *AstNode, name: str) {
+	pub fn set_ident_name(&self, node: *AstNode, name: str) {
 		if (self.current_rec != null) {
 			val e = self.ann_entry(node);
 			e.ident_name = name;
@@ -304,7 +304,7 @@ impl BodyChecker {
 		}
 	}
 
-	pub fn ann_entry(var self, node: *AstNode): *AnnotationEntry {
+	pub fn ann_entry(&self, node: *AstNode): *AnnotationEntry {
 		val rec = self.current_rec;
 		val ex = rec.find_ann(node);
 		if (ex != null) return ex;
@@ -313,7 +313,7 @@ impl BodyChecker {
 		return e;
 	}
 
-	pub fn push_instance_env(var self, rec: *InstanceRecord) {
+	pub fn push_instance_env(&self, rec: *InstanceRecord) {
 		if (!self.has_decl) return;
 		self.env_saved_names = self.decl.subst_names;
 		self.env_saved_types = self.decl.subst_types;
@@ -322,7 +322,7 @@ impl BodyChecker {
 		self.decl.subst_types = rec.args;
 	}
 
-	pub fn pop_instance_env(var self) {
+	pub fn pop_instance_env(&self) {
 		if (!self.has_decl) return;
 		if (!self.has_env_saved) return;
 		self.decl.subst_names = self.env_saved_names;
@@ -330,7 +330,7 @@ impl BodyChecker {
 		self.has_env_saved = false;
 	}
 
-	pub fn push_instance(var self, rec: *InstanceRecord?): *InstanceRecord? {
+	pub fn push_instance(&self, rec: *InstanceRecord?): *InstanceRecord? {
 		val saved = self.current_rec;
 		if (rec == null) return saved;
 		self.current_rec = rec;
@@ -338,13 +338,13 @@ impl BodyChecker {
 		return saved;
 	}
 
-	pub fn pop_instance(var self, saved: *InstanceRecord?, rec: *InstanceRecord?) {
+	pub fn pop_instance(&self, saved: *InstanceRecord?, rec: *InstanceRecord?) {
 		if (rec == null) return;
 		self.pop_instance_env();
 		self.current_rec = saved;
 	}
 
-	fn type_param_index(val self, name: str): i64 {
+	fn type_param_index(*self, name: str): i64 {
 		if (!self.has_decl) return -1;
 		for (i in 0..<self.decl.subst_names.len) {
 			if (self.decl.subst_names[i] == name) return i as i64;
@@ -352,7 +352,7 @@ impl BodyChecker {
 		return -1;
 	}
 
-	fn type_c_size_num(var self, ty: *Type): usz {
+	fn type_c_size_num(&self, ty: *Type): usz {
 		if (ty == null) return 8;
 		return when (ty.kind) {
 			DataType.NONE -> 0;
@@ -368,13 +368,13 @@ impl BodyChecker {
 		};
 	}
 
-	fn type_c_size_text(var self, ty: *Type?): str {
+	fn type_c_size_text(&self, ty: *Type?): str {
 		if (ty == null) return "0";
 		val n = self.type_c_size_num(ty!);
 		return "${n}";
 	}
 
-	fn arrow_pending(val self, ast: *AstNode): bool {
+	fn arrow_pending(*self, ast: *AstNode): bool {
 		if (ast is FnDecl as f) {
 			if (f.return_type != null) return false;
 			return f.body is ExprStmt;
@@ -382,7 +382,7 @@ impl BodyChecker {
 		return false;
 	}
 
-	fn check_expr_node(var self, node: *AstNode, expected: *Type? = null): *Type {
+	fn check_expr_node(&self, node: *AstNode, expected: *Type? = null): *Type {
 		val target = node;
 		return when (target) {
 			is LiteralExpr -> self.check_literal_expr(node, expected);
@@ -405,7 +405,7 @@ impl BodyChecker {
 		};
 	}
 
-	pub fn check_statement(var self, node: *AstNode) {
+	pub fn check_statement(&self, node: *AstNode) {
 		if (node == null) return;
 		val target = node;
 		when (target) {

@@ -60,7 +60,7 @@ pub struct CompileOptions {
 
 impl CompileOptions {
 
-	pub fn compile(val self): i32 {
+	pub fn compile(*self): i32 {
 		val input_path = self.input_path;
 		val in_p = Path(input_path);
 		val src = in_p.read_text();

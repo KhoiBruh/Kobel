@@ -54,11 +54,11 @@ impl Diagnostic {
 	pub fn warning(span: Span, file_path: str, message: str, hint: str = "")
 		=> Diagnostic(Severity.WARNING, span, file_path, message, hint);
 
-	pub fn span(val self): Span => Span(self.file_id, self.line, self.col, self.length);
+	pub fn span(*self): Span => Span(self.file_id, self.line, self.col, self.length);
 
-	pub fn key(val self) => "${self.file_path}:${self.line}:${self.col}:${self.message}";
+	pub fn key(*self) => "${self.file_path}:${self.line}:${self.col}:${self.message}";
 
-	pub fn render(val self, sources: *SourceMap? = null): str {
+	pub fn render(*self, sources: *SourceMap? = null): str {
 		val c_red = "\x1b[1;31m";
 		val c_yellow = "\x1b[1;33m";
 		val c_blue = "\x1b[1;34m";
@@ -202,11 +202,11 @@ impl DiagnosticBag {
 
 	pub init() => Self(List<Diagnostic>(), HashSet<str>());
 
-	pub fn has_errors(val self) => self.error_count > 0;
+	pub fn has_errors(*self) => self.error_count > 0;
 
-	pub fn empty(val self) => self.items.empty();
+	pub fn empty(*self) => self.items.empty();
 
-	pub fn add(var self, diagnostic: Diagnostic) {
+	pub fn add(&self, diagnostic: Diagnostic) {
 		val key = diagnostic.key();
 		if (key in self.seen) return;
 
@@ -220,16 +220,16 @@ impl DiagnosticBag {
 	}
 
 	pub fn report_error(
-		var self, span: Span,
+		&self, span: Span,
 		file_path: str, message: str, hint: str = ""
 	) => self.add(Diagnostic.error(span, file_path, message, hint));
 
 	pub fn report_warning(
-		var self, span: Span,
+		&self, span: Span,
 		file_path: str, message: str, hint: str = ""
 	) => self.add(Diagnostic.warning(span, file_path, message, hint));
 
-	pub fn print_all(val self, default_file: str, sources: *SourceMap? = null) {
+	pub fn print_all(*self, default_file: str, sources: *SourceMap? = null) {
 		for (d in self.items) {
 			print(d.render(sources));
 			println("");

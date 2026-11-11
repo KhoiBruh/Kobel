@@ -28,7 +28,7 @@ impl TypeResolver {
 	 * Propagates generic type arguments from a target type annotation (e.g. `List<i32>`)
 	 * to a call expression initializer without type arguments (e.g. `List()`).
 	 */
-	pub fn propagate_target_type(var self, node: *AstNode?, init_node: *AstNode?) {
+	pub fn propagate_target_type(&self, node: *AstNode?, init_node: *AstNode?) {
 		if (node == null || init_node == null) return;
 
 		if (node is NamedType as nt) {
@@ -55,7 +55,7 @@ impl TypeResolver {
 		}
 	}
 
-	fn propagate_call_target_type(val self, nt: *NamedType, var call: *CallExpr) {
+	fn propagate_call_target_type(*self, nt: *NamedType, var call: *CallExpr) {
 		if (!call.type_args.empty()) return;
 
 		if (call.callee is IdentifierExpr as var cid) {
@@ -81,7 +81,7 @@ impl TypeResolver {
 	 * ----------------------------------------------------------------------------
 	 */
 
-	pub fn rewrite_generics(var self, node: *AstNode?) {
+	pub fn rewrite_generics(&self, node: *AstNode?) {
 		if (node == null) return;
 		if (self.rewrite_type_generics(node!)) return;
 		if (self.rewrite_expr_generics(node!)) return;
@@ -90,7 +90,7 @@ impl TypeResolver {
 	}
 
 	// Rewrite a child node and report the parent as handled.
-	fn rewrite_child(var self, child: *AstNode?): bool {
+	fn rewrite_child(&self, child: *AstNode?): bool {
 		self.rewrite_generics(child);
 		return true;
 	}
@@ -99,7 +99,7 @@ impl TypeResolver {
 	 * Type nodes. `List<i32>` instantiates here; a type that stays generic has its
 	 * argument list rewritten element by element.
 	 */
-	fn rewrite_type_generics(var self, node: *AstNode): bool {
+	fn rewrite_type_generics(&self, node: *AstNode): bool {
 		val target = node;
 
 		return when (target) {
@@ -116,7 +116,7 @@ impl TypeResolver {
 		};
 	}
 
-	fn rewrite_named_type(var self, node: *AstNode): bool {
+	fn rewrite_named_type(&self, node: *AstNode): bool {
 		if (node is NamedType as nt) {
 			if (nt.type_args.len > 0) {
 				val tmpl = self.find_struct_template(nt.name);
@@ -140,7 +140,7 @@ impl TypeResolver {
 	 * struct's name. A *method* template is deliberately left alone: choosing one
 	 * needs the receiver's type, which only the body pass knows.
 	 */
-	fn rewrite_call_target(var self, node: *AstNode, c: &CallExpr) {
+	fn rewrite_call_target(&self, node: *AstNode, c: &CallExpr) {
 		if (c.type_args.empty()) return;
 
 		val callee = c.callee;
@@ -161,7 +161,7 @@ impl TypeResolver {
 		}
 	}
 
-	fn rewrite_expr_generics(var self, node: *AstNode): bool {
+	fn rewrite_expr_generics(&self, node: *AstNode): bool {
 		val cur = node;
 		return when (cur) {
 			is CallExpr as var c -> {
@@ -237,7 +237,7 @@ impl TypeResolver {
 		};
 	}
 
-	fn rewrite_stmt_generics(var self, node: *AstNode): bool {
+	fn rewrite_stmt_generics(&self, node: *AstNode): bool {
 		val cur = node;
 		return when (cur) {
 			is BlockStmt as b -> {
@@ -296,7 +296,7 @@ impl TypeResolver {
 		};
 	}
 
-	fn rewrite_decl_generics(var self, node: *AstNode): bool {
+	fn rewrite_decl_generics(&self, node: *AstNode): bool {
 		val cur = node;
 		return when (cur) {
 			is StructDecl as s -> {

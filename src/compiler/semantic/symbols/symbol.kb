@@ -51,12 +51,12 @@ pub struct Symbol {
 
 impl Symbol {
 
-	pub op unpack(val self, name: &str, type_ptr: &*Type) {
+	pub op unpack(*self, name: &str, type_ptr: &*Type) {
 		name.write(self.name);
 		type_ptr.write(self.type_ptr);
 	}
 
-	pub op unpack(val self, name: &str, kind: &SymbolKind, type_ptr: &*Type) {
+	pub op unpack(*self, name: &str, kind: &SymbolKind, type_ptr: &*Type) {
 		name.write(self.name);
 		kind.write(self.kind);
 		type_ptr.write(self.type_ptr);
@@ -76,23 +76,23 @@ pub struct Scope {
 
 impl Scope {
 
-	pub fn lookup(val self, name: str): *Symbol? {
+	pub fn lookup(*self, name: str): *Symbol? {
 		for (sym in self.symbols) if (sym.name == name) return sym;
 		return null;
 	}
 
-	pub op get(val self, name: str) => self.lookup(name);
+	pub op get(*self, name: str) => self.lookup(name);
 
-	pub op contains(val self, name: str) => self.lookup(name) != null;
+	pub op contains(*self, name: str) => self.lookup(name) != null;
 
-	pub op plus_assign(var self, sym: *Symbol) => self.symbols += sym;
+	pub op plus_assign(&self, sym: *Symbol) => self.symbols += sym;
 
 }
 
 impl Iterable for Scope {
 
-	pub fn count(val self) => self.symbols.len;
-	pub fn at(val self, i: usz) => self.symbols[i];
+	pub fn count(*self) => self.symbols.len;
+	pub fn at(*self, i: usz) => self.symbols[i];
 
 }
 
@@ -121,16 +121,16 @@ pub struct ModuleScope {
 
 impl ModuleScope {
 
-	pub fn lookup(val self, name: str): *Symbol? {
+	pub fn lookup(*self, name: str): *Symbol? {
 		val p = self.sym_map.get(name) ?: return null;
 		return p.read();
 	}
 
-	pub op get(val self, name: str) => self.lookup(name);
+	pub op get(*self, name: str) => self.lookup(name);
 
-	pub op contains(val self, name: str) => name in self.sym_map;
+	pub op contains(*self, name: str) => name in self.sym_map;
 
-	pub op plus_assign(var self, sym: *Symbol) {
+	pub op plus_assign(&self, sym: *Symbol) {
 		self.symbols += sym;
 		self.sym_map[sym.name] = sym;
 	}
@@ -139,7 +139,7 @@ impl ModuleScope {
 
 impl Iterable for ModuleScope {
 
-	pub fn count(val self) => self.symbols.len;
-	pub fn at(val self, i: usz) => self.symbols[i];
+	pub fn count(*self) => self.symbols.len;
+	pub fn at(*self, i: usz) => self.symbols[i];
 
 }

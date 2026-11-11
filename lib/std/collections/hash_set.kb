@@ -34,12 +34,12 @@ impl HashSet<T: Hash> {
 		return Self(keys, hashes, occ, 0, cap);
 	}
 
-	fn dist(val self, from: usz, to: usz): usz {
+	fn dist(*self, from: usz, to: usz): usz {
 		if (to >= from) return to - from;
 		return self.cap + to - from;
 	}
 
-	pub fn add(var self, key: T): bool {
+	pub fn add(&self, key: T): bool {
 		if (self.cap == 0 || self.len * 10 >= self.cap * 7) self.grow();
 
 		val h = key.hash();
@@ -57,7 +57,7 @@ impl HashSet<T: Hash> {
 		return true;
 	}
 
-	pub fn remove(var self, key: T): bool {
+	pub fn remove(&self, key: T): bool {
 		if (self.len == 0 || self.cap == 0) return false;
 
 		val h = key.hash();
@@ -85,28 +85,28 @@ impl HashSet<T: Hash> {
 		return false;
 	}
 
-	pub fn clear(var self) {
+	pub fn clear(&self) {
 		if (self.cap > 0) for (i in 0..<self.cap) self.occupied[i] = false;
 		self.len = 0;
 	}
 
-	pub fn empty(val self) => self.len == 0;
+	pub fn empty(*self) => self.len == 0;
 
-	pub fn reserve(var self, min_elements: usz) {
+	pub fn reserve(&self, min_elements: usz) {
 		while (
 			self.cap == 0
 			|| min_elements * 10 >= self.cap * 7
 		) self.grow();
 	}
 
-	pub fn extend(var self, other: Self) {
+	pub fn extend(&self, other: Self) {
 		if (other.cap == 0) return;
 		for (i in 0..<other.cap) {
 			if (other.occupied[i]) self.add(other.keys[i]);
 		}
 	}
 
-	pub fn clone(val self): Self {
+	pub fn clone(*self): Self {
 		val cap = if (self.cap >= 8) self.cap else 16;
 		val keys = Heap.create_array<T>(cap);
 		val hashes = Heap.create_array<usz>(cap);
@@ -122,7 +122,7 @@ impl HashSet<T: Hash> {
 		return res;
 	}
 
-	pub fn to_list(val self): List<T> {
+	pub fn to_list(*self): List<T> {
 		var res = List<T>();
 		if (self.cap == 0) return res;
 
@@ -132,14 +132,14 @@ impl HashSet<T: Hash> {
 		return res;
 	}
 
-	pub fn each(val self, action: (T) -> none) {
+	pub fn each(*self, action: (T) -> none) {
 		if (self.cap == 0) return;
 		for (i in 0..<self.cap) {
 			if (self.occupied[i]) action(self.keys[i]);
 		}
 	}
 
-	pub fn filter(val self, predicate: (T) -> bool): Self {
+	pub fn filter(*self, predicate: (T) -> bool): Self {
 		var res = HashSet<T>();
 		if (self.cap == 0) return res;
 		for (i in 0..<self.cap) {
@@ -151,7 +151,7 @@ impl HashSet<T: Hash> {
 		return res;
 	}
 
-	pub fn any(val self, predicate: (T) -> bool): bool {
+	pub fn any(*self, predicate: (T) -> bool): bool {
 		if (self.cap == 0) return false;
 		for (i in 0..<self.cap) {
 			if (self.occupied[i] && predicate(self.keys[i])) return true;
@@ -159,7 +159,7 @@ impl HashSet<T: Hash> {
 		return false;
 	}
 
-	pub fn all(val self, predicate: (T) -> bool): bool {
+	pub fn all(*self, predicate: (T) -> bool): bool {
 		if (self.cap == 0) return true;
 		for (i in 0..<self.cap) {
 			if (self.occupied[i] && !predicate(self.keys[i])) return false;
@@ -167,7 +167,7 @@ impl HashSet<T: Hash> {
 		return true;
 	}
 
-	pub fn count_where(val self, predicate: (T) -> bool): usz {
+	pub fn count_where(*self, predicate: (T) -> bool): usz {
 		var n: usz = 0;
 		if (self.cap == 0) return n;
 		for (i in 0..<self.cap) {
@@ -176,7 +176,7 @@ impl HashSet<T: Hash> {
 		return n;
 	}
 
-	fn grow(var self) {
+	fn grow(&self) {
 		val old_cap = self.cap;
 		val old_keys = self.keys;
 		val old_hashes = self.hashes;
@@ -221,9 +221,9 @@ impl HashSet<T: Hash> {
 		}
 	}
 
-	pub op plus_assign(var self, key: T) => self.add(key);
+	pub op plus_assign(&self, key: T) => self.add(key);
 
-	pub op contains(val self, key: T): bool {
+	pub op contains(*self, key: T): bool {
 		if (self.len == 0 || self.cap == 0) return false;
 		val h = key.hash();
 		var idx = h % self.cap;
@@ -241,9 +241,9 @@ impl HashSet<T: Hash> {
 // `for (key in set)` walks the occupied set keys.
 impl Iterable for HashSet<T: Hash> {
 
-	pub fn count(val self) => self.len;
+	pub fn count(*self) => self.len;
 
-	pub fn at(val self, i: usz): T {
+	pub fn at(*self, i: usz): T {
 		var seen = 0;
 		for (idx in 0..<self.cap) {
 			if (self.occupied[idx]) {

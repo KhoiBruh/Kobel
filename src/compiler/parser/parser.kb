@@ -33,51 +33,51 @@ impl Parser {
 		return p;
 	}
 
-	pub fn node(var self, data: NodeData, line: usz = 0, col: usz = 0): *AstNode {
+	pub fn node(&self, data: NodeData, line: usz = 0, col: usz = 0): *AstNode {
 		var n = self.arena.node(data, line, col);
 		n.span.file_id = self.file_id;
 		return n;
 	}
 
-	pub fn node_at(var self, data: NodeData, tok: Token): *AstNode {
+	pub fn node_at(&self, data: NodeData, tok: Token): *AstNode {
 		var n = self.arena.node(data, tok.line, tok.col);
 		n.span = tok.span;
 		return n;
 	}
 
-	pub fn is_end(val self): bool {
+	pub fn is_end(*self): bool {
 		if (self.current >= self.tokens.len) return true;
 		val tok = self.tokens[self.current];
 		return tok.type == TokenType.END_OF_FILE;
 	}
 
-	pub fn peek(val self) =>
+	pub fn peek(*self) =>
 		if (self.current >= self.tokens.len) self.tokens.last()
 		else self.tokens[self.current];
 
 	// Token `offset` positions ahead of the cursor (0 == peek), clamped to the end.
-	pub fn peek_at(val self, offset: usz): Token {
+	pub fn peek_at(*self, offset: usz): Token {
 		val idx = self.current + offset;
 		if (idx >= self.tokens.len) return self.tokens.last();
 		return self.tokens[idx];
 	}
 
-	pub fn previous(val self) =>
+	pub fn previous(*self) =>
 		if (self.current == 0) self.tokens.first()
 		else self.tokens[self.current - 1];
 
-	pub fn advance(var self): Token {
+	pub fn advance(&self): Token {
 		if (!self.is_end()) self.current++;
 		return self.previous();
 	}
 
-	pub fn check(val self, t: TokenType): bool {
+	pub fn check(*self, t: TokenType): bool {
 		if (self.is_end()) return false;
 		val tok = self.peek();
 		return tok.type == t;
 	}
 
-	pub fn match_token(var self, t: TokenType): bool {
+	pub fn match_token(&self, t: TokenType): bool {
 		if (self.check(t)) {
 			self.advance();
 			return true;
@@ -86,7 +86,7 @@ impl Parser {
 	}
 
 	// Record a parse error at the token's span; the loader fills in the file path.
-	pub fn error(var self, tok: Token, msg: str) {
+	pub fn error(&self, tok: Token, msg: str) {
 		val span = Span(
 			self.file_id, tok.line as u32, tok.col as u32,
 			if (tok.span.length > 0) tok.span.length else 1
@@ -94,7 +94,7 @@ impl Parser {
 		self.errors += Diagnostic(Severity.ERROR, span, "", msg, "");
 	}
 
-	pub fn consume(var self, t: TokenType, msg: str): Token {
+	pub fn consume(&self, t: TokenType, msg: str): Token {
 		if (self.check(t)) return self.advance();
 		if (t == TokenType.IDENTIFIER && self.check(TokenType.KW_OP)) return self.advance();
 		val tok = self.peek();
@@ -102,7 +102,7 @@ impl Parser {
 		return tok;
 	}
 
-	pub fn synchronize(var self) {
+	pub fn synchronize(&self) {
 		self.advance();
 
 		while (!self.is_end()) {
@@ -125,7 +125,7 @@ impl Parser {
 	}
 
 	// Check whether the token at `idx` is `{ [params] -> ... }` (a lambda block).
-	pub fn is_lambda_brace_at(val self, idx: usz): bool {
+	pub fn is_lambda_brace_at(*self, idx: usz): bool {
 		if (idx >= self.tokens.len) return false;
 		val open_tok = self.tokens[idx];
 		if (open_tok.type != TokenType.OPEN_BRACE) return false;
@@ -182,10 +182,10 @@ impl Parser {
 		return false;
 	}
 
-	pub fn is_lambda_brace_ahead(val self): bool => self.is_lambda_brace_at(self.current);
+	pub fn is_lambda_brace_ahead(*self): bool => self.is_lambda_brace_at(self.current);
 
 	// Check whether the position after '<' looks like type arguments ending with '>(' or '> {'
-	pub fn is_generic_args_ahead(val self): bool {
+	pub fn is_generic_args_ahead(*self): bool {
 		if (!self.check(TokenType.LESS)) return false;
 
 		var depth = 1;

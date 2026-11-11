@@ -119,29 +119,29 @@ impl Token {
 	pub init(type: TokenType, text: str, line: usz, col: usz, span: Span)
 		=> Self(type, text, line, col, span);
 
-	pub fn is_eof(val self) => self.type == TokenType.END_OF_FILE;
+	pub fn is_eof(*self) => self.type == TokenType.END_OF_FILE;
 
-	pub op unpack(val self, line: &usz, col: &usz) {
+	pub op unpack(*self, line: &usz, col: &usz) {
 		line.write(self.line);
 		col.write(self.col);
 	}
 
-	pub op unpack(val self, tok_type: &TokenType, line: &usz, col: &usz) {
+	pub op unpack(*self, tok_type: &TokenType, line: &usz, col: &usz) {
 		tok_type.write(self.type);
 		line.write(self.line);
 		col.write(self.col);
 	}
 
-	pub op unpack(val self, tok_type: &TokenType, text: &str, line: &usz, col: &usz) {
+	pub op unpack(*self, tok_type: &TokenType, text: &str, line: &usz, col: &usz) {
 		tok_type.write(self.type);
 		text.write(self.text);
 		line.write(self.line);
 		col.write(self.col);
 	}
 
-	pub fn is_unknown(val self) => self.type == TokenType.UNKNOWN;
+	pub fn is_unknown(*self) => self.type == TokenType.UNKNOWN;
 
-	pub fn is_keyword(val self) => when (self.type) {
+	pub fn is_keyword(*self) => when (self.type) {
 		TokenType.KW_EXTERN, TokenType.KW_STRUCT, TokenType.KW_ENUM,
 		TokenType.KW_FN, TokenType.KW_RETURN, TokenType.KW_CONST,
 		TokenType.KW_NULL, TokenType.KW_TRUE, TokenType.KW_FALSE,
@@ -155,13 +155,13 @@ impl Token {
 		else -> false;
 	};
 
-	pub fn is_literal(val self) => when (self.type) {
+	pub fn is_literal(*self) => when (self.type) {
 		TokenType.CHAR, TokenType.NUMBER, TokenType.STRING,
 		TokenType.KW_TRUE, TokenType.KW_FALSE, TokenType.KW_NULL -> true;
 		else -> false;
 	};
 
-	pub fn is_assignment_op(val self) => when (self.type) {
+	pub fn is_assignment_op(*self) => when (self.type) {
 		TokenType.EQUAL, TokenType.PLUS_EQUAL, TokenType.MINUS_EQUAL,
 		TokenType.STAR_EQUAL, TokenType.SLASH_EQUAL, TokenType.PERCENT_EQUAL -> true;
 		else -> false;
@@ -170,5 +170,5 @@ impl Token {
 }
 
 impl Stringer for Token {
-	pub fn to_str(val self) => self.text;
+	pub fn to_str(*self) => self.text;
 }

@@ -14,11 +14,11 @@ struct Inner {
 }
 
 impl Inner {
-	pub fn check_ok(val self): bool {
+	pub fn check_ok(*self): bool {
 		return self.is_active;
 	}
 
-	pub fn get_kind(val self): ItemKind {
+	pub fn get_kind(*self): ItemKind {
 		return self.kind;
 	}
 }

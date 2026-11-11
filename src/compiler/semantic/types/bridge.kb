@@ -17,10 +17,10 @@ use compiler.ast.*;
 
 impl Arena {
 
-	fn ast_named_type(var self, name: str)
+	fn ast_named_type(&self, name: str)
 		=> self.node(NodeData.NamedType(name, List<*AstNode>()));
 
-	pub fn ast_type_from_type(var self, ty: *Type): *AstNode {
+	pub fn ast_type_from_type(&self, ty: *Type): *AstNode {
 		if (ty.is_enum()) return self.ast_named_type(ty.as_enum().c_name);
 
 		return when (ty.kind) {

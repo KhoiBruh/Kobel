@@ -83,28 +83,34 @@ impl Formatter {
 		FormatBuffer(options), comments, options, source
 	);
 
-	pub fn to_str(val self) => self.buf.to_str();
+	pub fn to_str(*self) => self.buf.to_str();
 
 	/*
 	 * Width bookkeeping: render a fragment into a scratch formatter so a long
 	 * argument/parameter list can break before it, without touching the line.
 	 */
-	fn measure_expr(val self, node: *AstNode): usz {
+	fn measure_expr(*self, node: *AstNode): usz {
 		var scratch = Formatter(self.options, CommentTable(List<Comment>()), "");
 		scratch.format_expr(node);
 		return scratch.buf.to_str().len;
 	}
 
-	fn measure_param(val self, p: Param): usz {
+	fn measure_param(*self, p: Param): usz {
 		var scratch = Formatter(self.options, CommentTable(List<Comment>()), "");
 		scratch.format_param(p);
 		return scratch.buf.to_str().len;
 	}
 
-	pub fn format_param(var self, p: Param) {
-		if (p.mutable) self.buf += "var ";
-		else if (p.has_val) self.buf += "val ";
-		self.buf += p.name;
+	pub fn format_param(&self, p: Param) {
+		if (p.name == "self") {
+			if (p.mutable) self.buf += "&self";
+			else if (p.has_val) self.buf += "*self";
+			else self.buf += "self";
+		} else {
+			if (p.mutable) self.buf += "var ";
+			else if (p.has_val) self.buf += "val ";
+			self.buf += p.name;
+		}
 		if (p.type_node != null) {
 			self.buf += ": ";
 			self.format_type(p.type_node!);
@@ -115,7 +121,7 @@ impl Formatter {
 		}
 	}
 
-	fn source_offset(val self, line: usz, col: usz): isz {
+	fn source_offset(*self, line: usz, col: usz): isz {
 		var cur: usz = 1;
 		var i: usz = 0;
 		while (cur < line && i < self.source.len) {
@@ -128,7 +134,7 @@ impl Formatter {
 
 	// A `"""` literal is re-emitted exactly as written; its indentation is part
 	// of the language semantics, so reconstructing it is not safe.
-	fn original_string(val self, node: *AstNode): str {
+	fn original_string(*self, node: *AstNode): str {
 		if (self.source.empty() || node.span.length == 0 || node.span.line == 0) return "";
 		val off = self.source_offset(node.span.line, node.span.col);
 		if (off < 0) return "";
@@ -144,7 +150,7 @@ impl Formatter {
 	// Types
 	// ------------------------------------------------------------------------
 
-	pub fn format_type(var self, node: *AstNode) {
+	pub fn format_type(&self, node: *AstNode) {
 		if (node == null) return;
 
 		when (node) {
@@ -191,7 +197,7 @@ impl Formatter {
 	// Expressions
 	// ------------------------------------------------------------------------
 
-	pub fn format_expr(var self, node: *AstNode) {
+	pub fn format_expr(&self, node: *AstNode) {
 		if (node == null) return;
 
 		when (node) {
@@ -433,7 +439,7 @@ impl Formatter {
 	// Statements
 	// ------------------------------------------------------------------------
 
-	pub fn format_stmt(var self, node: *AstNode) {
+	pub fn format_stmt(&self, node: *AstNode) {
 		if (node == null) return;
 		self.comments.emit_before(&self.buf, node.line);
 
@@ -609,7 +615,7 @@ impl Formatter {
 		}
 	}
 
-	fn format_when_patterns(var self, patterns: List<*AstNode>) {
+	fn format_when_patterns(&self, patterns: List<*AstNode>) {
 		var prev_was_prefix_is = false;
 		for (p in 0..<patterns.len) {
 			if (p > 0) self.buf += ", ";
@@ -637,7 +643,7 @@ impl Formatter {
 	// Generic type parameters
 	// ------------------------------------------------------------------------
 
-	pub fn format_type_params(var self, type_params: List<GenericParam>) {
+	pub fn format_type_params(&self, type_params: List<GenericParam>) {
 		if (type_params.empty()) return;
 		self.buf += "<";
 		for (i in 0..<type_params.len) {
@@ -659,7 +665,7 @@ impl Formatter {
 	// Declarations
 	// ------------------------------------------------------------------------
 
-	pub fn format_decl(var self, node: *AstNode) {
+	pub fn format_decl(&self, node: *AstNode) {
 		if (node == null) return;
 		self.comments.emit_before(&self.buf, node.line);
 
@@ -884,7 +890,7 @@ impl Formatter {
 	// Program entry
 	// ------------------------------------------------------------------------
 
-	pub fn format_program(var self, program: *AstNode) {
+	pub fn format_program(&self, program: *AstNode) {
 		if (program == null) return;
 
 		when (program) {

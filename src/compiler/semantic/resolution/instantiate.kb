@@ -69,7 +69,7 @@ fn trait_put_method(out: &List<*TraitMethod>, m: *TraitMethod) {
 
 impl TypeResolver {
 
-	pub fn instantiate_struct(var self, tmpl: *GenericTemplate, arg_asts: List<*AstNode>): *Type {
+	pub fn instantiate_struct(&self, tmpl: *GenericTemplate, arg_asts: List<*AstNode>): *Type {
 		self.check_bounds(tmpl, arg_asts);
 
 		var args = List<*Type>();
@@ -231,7 +231,7 @@ impl TypeResolver {
 	}
 
 	fn make_fn_view(
-		var self, fn_node: *AstNode, tmpl: *GenericTemplate,
+		&self, fn_node: *AstNode, tmpl: *GenericTemplate,
 		args: List<*Type>, arg_asts: List<*AstNode>, cname: str
 	): *AstNode {
 		if (fn_node is FnDecl as f) {
@@ -273,7 +273,7 @@ impl TypeResolver {
 	}
 
 	fn make_fn_sig(
-		var self, fn_node: *AstNode, tmpl: *GenericTemplate,
+		&self, fn_node: *AstNode, tmpl: *GenericTemplate,
 		args: List<*Type>, receiver: *Type?
 	): *Type {
 		if (fn_node is FnDecl as t) {
@@ -307,7 +307,7 @@ impl TypeResolver {
 		return self.symtab.prims.t_none();
 	}
 
-	fn instance_receiver_type(val self, tmpl: *GenericTemplate, args: List<*Type>): *Type? {
+	fn instance_receiver_type(*self, tmpl: *GenericTemplate, args: List<*Type>): *Type? {
 		if (!tmpl.is_method || tmpl.self_type.empty()) return null;
 		val sym = self.symtab.lookup(tmpl.self_type);
 		if (sym != null) return sym.type_ptr;
@@ -315,7 +315,7 @@ impl TypeResolver {
 	}
 
 	fn struct_decl_view(
-		var self, name: str, fields: List<StructField>,
+		&self, name: str, fields: List<StructField>,
 		public: bool, line: usz, col: usz
 	): *AstNode {
 		val ast_fields = fields.map { f ->
@@ -328,7 +328,7 @@ impl TypeResolver {
 		);
 	}
 
-	fn canonical_type_token(val self, ty: *Type): str {
+	fn canonical_type_token(*self, ty: *Type): str {
 		if (ty.is_enum()) return ty.as_enum().c_name;
 
 		return when (ty.kind) {
@@ -346,7 +346,7 @@ impl TypeResolver {
 		};
 	}
 
-	fn type_token_list_of(val self, args: List<*Type>): str {
+	fn type_token_list_of(*self, args: List<*Type>): str {
 		var res = "";
 		for (i in 0..<args.len) {
 			res = if (i > 0) "${res}_${self.canonical_type_token(args[i])}"
@@ -355,7 +355,7 @@ impl TypeResolver {
 		return res;
 	}
 
-	pub fn instantiate_fn(var self, tmpl: *GenericTemplate, arg_asts: List<*AstNode>): str {
+	pub fn instantiate_fn(&self, tmpl: *GenericTemplate, arg_asts: List<*AstNode>): str {
 		self.check_bounds(tmpl, arg_asts);
 
 		var args = List<*Type>();
@@ -396,7 +396,7 @@ impl TypeResolver {
 		return cname;
 	}
 
-	pub fn collect_fn_as(var self, node: *AstNode, final_name: str, sig: *Type? = null) {
+	pub fn collect_fn_as(&self, node: *AstNode, final_name: str, sig: *Type? = null) {
 		if (node is FnDecl as f) {
 			var param_types = List<*Type>();
 			for (p in f.params) param_types += if (p.type_node != null) self.resolve_ast_type(p.type_node!)
@@ -419,7 +419,7 @@ impl TypeResolver {
 		}
 	}
 
-	pub fn trait_record_impl(var self, t: *TraitInfo?, struct_name: str) {
+	pub fn trait_record_impl(&self, t: *TraitInfo?, struct_name: str) {
 		if (t == null) return;
 		if (t.has_impl(struct_name)) return;
 
@@ -427,7 +427,7 @@ impl TypeResolver {
 		for (bname in t.bases) self.trait_record_impl(self.symtab.find_trait(bname), struct_name);
 	}
 
-	pub fn trait_effective(var self, t: *TraitInfo?, out: &List<*TraitMethod>, seen: &HashSet<str>) {
+	pub fn trait_effective(&self, t: *TraitInfo?, out: &List<*TraitMethod>, seen: &HashSet<str>) {
 		if (t == null) return;
 		if (t.name in seen) return;
 
@@ -436,7 +436,7 @@ impl TypeResolver {
 		for (m in t.methods) trait_put_method(out, m);
 	}
 
-	fn register_assoc_bindings(var self, node: *AstNode, im: *ImplDecl, st_type: *Type, struct_name: str) {
+	fn register_assoc_bindings(&self, node: *AstNode, im: *ImplDecl, st_type: *Type, struct_name: str) {
 		var trait_info: *TraitInfo? = null;
 		if (!im.trait_name.empty()) trait_info = self.symtab.find_trait(im.trait_name);
 		if (trait_info == null) {
@@ -471,7 +471,7 @@ impl TypeResolver {
 		}
 	}
 
-	pub fn apply_trait(var self, node: *AstNode, im: *ImplDecl, struct_name: str) {
+	pub fn apply_trait(&self, node: *AstNode, im: *ImplDecl, struct_name: str) {
 		val t = self.symtab.find_trait(im.trait_name);
 		if (t == null) {
 			self.report_error(node, "Unknown trait '${im.trait_name}'");
@@ -499,7 +499,7 @@ impl TypeResolver {
 		}
 	}
 
-	pub fn register_instance_impl(var self, node: *AstNode) {
+	pub fn register_instance_impl(&self, node: *AstNode) {
 		if (node is ImplDecl as im) {
 			if (im.type_params.len > 0) return;
 

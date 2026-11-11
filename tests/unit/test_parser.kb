@@ -275,8 +275,31 @@ fn test_safe_member_and_elvis_parsing() {
 	println("  [PASS] test_safe_member_and_elvis_parsing");
 }
 
+fn test_val_var_self_rejected() {
+	val src_val = "impl S { fn f(val self) {} }";
+	var l_val = Lexer(src_val);
+	var p_val = Parser(l_val.tokenize());
+	p_val.parse_program();
+	assert_true(p_val.errors.len >= 1, "Must reject 'val self'");
+
+	val src_var = "impl S { fn f(var self) {} }";
+	var l_var = Lexer(src_var);
+	var p_var = Parser(l_var.tokenize());
+	p_var.parse_program();
+	assert_true(p_var.errors.len >= 1, "Must reject 'var self'");
+
+	val src_valid = "impl S { fn f(*self) {} fn g(&self) {} fn h(self) {} }";
+	var l_valid = Lexer(src_valid);
+	var p_valid = Parser(l_valid.tokenize());
+	p_valid.parse_program();
+	assert_eq_usz(p_valid.errors.len, 0, "Must accept '*self', '&self', and 'self'");
+
+	println("  [PASS] test_val_var_self_rejected");
+}
+
 fn main(): i32 {
 	println("[RUNNING] Bootstrap Parser tests...");
+	test_val_var_self_rejected();
 	test_expression_parsing();
 	test_call_and_member_parsing();
 	test_safe_member_and_elvis_parsing();

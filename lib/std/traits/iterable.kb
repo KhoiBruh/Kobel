@@ -6,8 +6,8 @@ mod std.traits;
 // A type implements `count`/`at` to become usable in a `for (x in seq)` loop:
 //
 //	impl Iterable for MyType {
-//		pub fn count(val self): usz => self.n;
-//		pub fn at(val self, i: usz): Elem => ...;
+//		pub fn count(*self): usz => self.n;
+//		pub fn at(*self, i: usz): Elem => ...;
 //	}
 //
 // `for` lowers to `seq.count()` plus `seq.at(i)` and takes the element type
@@ -18,7 +18,7 @@ mod std.traits;
 // ============================================================================
 
 pub trait Iterable {
-	fn count(val self): usz;
+	fn count(*self): usz;
 
-	fn at(val self, i: usz);
+	fn at(*self, i: usz);
 }

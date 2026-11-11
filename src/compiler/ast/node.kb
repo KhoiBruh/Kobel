@@ -27,14 +27,14 @@ impl NodeId {
 
 	pub fn invalid() => NodeId(0);
 
-	pub fn is_valid(val self) => self.id != 0;
+	pub fn is_valid(*self) => self.id != 0;
 
-	pub op equals(val self, other: NodeId) => self.id == other.id;
+	pub op equals(*self, other: NodeId) => self.id == other.id;
 
 }
 
 impl Hash for NodeId {
-	pub fn hash(val self) => self.id.hash();
+	pub fn hash(*self) => self.id.hash();
 }
 
 pub enum NodeData {
@@ -106,7 +106,7 @@ pub struct AstNode {
 
 impl AstNode {
 
-	pub op unpack(val self, line: &usz, col: &usz) {
+	pub op unpack(*self, line: &usz, col: &usz) {
 		line.write(self.line);
 		col.write(self.col);
 	}
@@ -116,7 +116,7 @@ impl AstNode {
 impl Arena {
 
 	pub fn node(
-		var self, data: NodeData,
+		&self, data: NodeData,
 		line: usz = 0, col: usz = 0
 	): *AstNode {
 		val span = Span(0, line as u32, col as u32, 0);
@@ -127,7 +127,7 @@ impl Arena {
 	}
 
 	pub fn node_spanned(
-		var self, data: NodeData,
+		&self, data: NodeData,
 		span: Span, id: NodeId = NodeId(0)
 	) => self.create_val(
 		AstNode(span.line, span.col, data, id, span)

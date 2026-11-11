@@ -18,7 +18,7 @@ use compiler.ast.*;
 impl Arena {
 
 	// A call to a prelude helper without symbol table lookup.
-	pub fn interp_call(var self, name: str, arg: *AstNode, line: usz, col: usz): *AstNode {
+	pub fn interp_call(&self, name: str, arg: *AstNode, line: usz, col: usz): *AstNode {
 		var args = List<*AstNode>();
 		args += arg;
 		val callee = self.node(NodeData.IdentifierExpr(name), line, col);
@@ -26,7 +26,7 @@ impl Arena {
 	}
 
 	// Two-operand concatenation: `kobel_concat(2, a, b)`.
-	pub fn interp_concat(var self, a: *AstNode, b_node: *AstNode, line: usz, col: usz): *AstNode {
+	pub fn interp_concat(&self, a: *AstNode, b_node: *AstNode, line: usz, col: usz): *AstNode {
 		var args = List<*AstNode>();
 		args += self.node(NodeData.LiteralExpr(Literal.INTEGER, "2"), line, col);
 		args += a;
@@ -36,7 +36,7 @@ impl Arena {
 	}
 
 	// Joins `pieces` in a single variadic call: `kobel_concat(count, p0, p1, ...)`.
-	pub fn interp_concat_many(var self, pieces: List<*AstNode>, line: usz, col: usz): *AstNode? {
+	pub fn interp_concat_many(&self, pieces: List<*AstNode>, line: usz, col: usz): *AstNode? {
 		if (pieces.empty()) return null;
 		if (pieces.len == 1) return pieces[0];
 
@@ -51,7 +51,7 @@ impl Arena {
 
 	// Builds `kobel_streq(a, b)`, optionally negated for `!=`.
 	pub fn make_str_eq(
-		var self,
+		&self,
 		is_neq: bool,
 		left: *AstNode,
 		right: *AstNode,
@@ -71,7 +71,7 @@ impl Arena {
 
 	// Builds `kobel_memeq(&a, &b, sizeof)`, optionally negated for struct equality.
 	pub fn make_mem_eq(
-		var self,
+		&self,
 		is_neq: bool,
 		left: *AstNode,
 		right: *AstNode,

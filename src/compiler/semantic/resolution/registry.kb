@@ -26,7 +26,7 @@ fn template_matches(kind: TemplateKind, t: *GenericTemplate, name: str) => when 
 
 impl TypeResolver {
 
-	pub fn register_template(var self, node: *AstNode) {
+	pub fn register_template(&self, node: *AstNode) {
 		val cur = node;
 		when (cur) {
 			is StructDecl as s -> {
@@ -51,7 +51,7 @@ impl TypeResolver {
 		}
 	}
 
-	pub fn validate_fn_lambda_rules(var self, node: *AstNode, f: *FnDecl) {
+	pub fn validate_fn_lambda_rules(&self, node: *AstNode, f: *FnDecl) {
 		if (f.return_type != null && f.return_type is FnType) {
 			self.report_error(f.return_type!, "Function cannot return a lambda/closure type");
 		}
@@ -75,7 +75,7 @@ impl TypeResolver {
 		}
 	}
 
-	fn collect_generic_impl_methods(var self, im: *ImplDecl) {
+	fn collect_generic_impl_methods(&self, im: *ImplDecl) {
 		for (m in im.methods) {
 			if (m is FnDecl as var f) {
 				if (f.type_params.len == 0) continue;
@@ -86,7 +86,7 @@ impl TypeResolver {
 		}
 	}
 
-	fn normalize_generic_self_param(var self, var f: *FnDecl, struct_name: str, line: i32, col: i32) {
+	fn normalize_generic_self_param(&self, var f: *FnDecl, struct_name: str, line: i32, col: i32) {
 		for (i in 0..<f.params.len) {
 			val p = f.params[i];
 			if (p.name != "self" || p.type_node != null) continue;
@@ -102,29 +102,29 @@ impl TypeResolver {
 	}
 
 	pub fn generic_template(
-		var self, name: str, node: *AstNode,
+		&self, name: str, node: *AstNode,
 		is_method: bool, self_type: str = ""
 	): *GenericTemplate => self.arena.create_val(
 		GenericTemplate(name, self.current_module, node, is_method, self_type)
 	);
 
-	pub fn template_in_module(val self, module: str, name: str): bool =>
+	pub fn template_in_module(*self, module: str, name: str): bool =>
 		self.symtab.gen.struct_templates.any { t -> t.name == name && t.module == module }
 		|| self.symtab.gen.fn_templates.any { f -> f.name == name && f.module == module };
 
-	pub fn find_instance_symbol(val self, name: str) => self.symtab.gen.find_instance_symbol(name);
+	pub fn find_instance_symbol(*self, name: str) => self.symtab.gen.find_instance_symbol(name);
 
-	fn templates_of(val self, kind: TemplateKind) =>
+	fn templates_of(*self, kind: TemplateKind) =>
 		if (kind == TemplateKind.STRUCT) self.symtab.gen.struct_templates
 		else self.symtab.gen.fn_templates;
 
-	fn template_fits(val self, kind: TemplateKind, t: *GenericTemplate, name: str, self_type: str): bool {
+	fn template_fits(*self, kind: TemplateKind, t: *GenericTemplate, name: str, self_type: str): bool {
 		if (!template_matches(kind, t, name)) return false;
 		if (self_type.empty()) return true;
 		return t.self_type == self_type;
 	}
 
-	fn find_template(val self, kind: TemplateKind, name: str, self_type: str = ""): *GenericTemplate? {
+	fn find_template(*self, kind: TemplateKind, name: str, self_type: str = ""): *GenericTemplate? {
 		val list = self.templates_of(kind);
 		for (t in list) if (
 			self.template_fits(kind, t, name, self_type)
@@ -152,13 +152,13 @@ impl TypeResolver {
 		return null;
 	}
 
-	pub fn find_fn_template(val self, name: str) => self.find_template(TemplateKind.FN, name);
+	pub fn find_fn_template(*self, name: str) => self.find_template(TemplateKind.FN, name);
 
-	pub fn find_method_template(val self, name: str, self_type: str = "") => self.find_template(TemplateKind.METHOD, name, self_type);
+	pub fn find_method_template(*self, name: str, self_type: str = "") => self.find_template(TemplateKind.METHOD, name, self_type);
 
-	pub fn find_struct_template(val self, name: str) => self.find_template(TemplateKind.STRUCT, name);
+	pub fn find_struct_template(*self, name: str) => self.find_template(TemplateKind.STRUCT, name);
 
-	pub fn type_token(val self, ty: *Type): str => when (ty.kind) {
+	pub fn type_token(*self, ty: *Type): str => when (ty.kind) {
 		DataType.NONE -> "none";
 		DataType.BOOL -> "bool";
 		DataType.CHAR -> "char";
@@ -184,7 +184,7 @@ impl TypeResolver {
 		else -> "x";
 	};
 
-	pub fn ast_type_size(var self, node: *AstNode): usz {
+	pub fn ast_type_size(&self, node: *AstNode): usz {
 		if (node == null) return 8;
 		return when (node) {
 			is PointerType -> 8;
@@ -212,7 +212,7 @@ impl TypeResolver {
 		};
 	}
 
-	pub fn check_bounds(var self, tmpl: *GenericTemplate, arg_asts: List<*AstNode>) {
+	pub fn check_bounds(&self, tmpl: *GenericTemplate, arg_asts: List<*AstNode>) {
 		val params = tmpl.params();
 		for (i in 0..<params.len) {
 			val gp = params[i];
@@ -252,12 +252,12 @@ impl TypeResolver {
 	}
 
 	pub fn alloc_subst(
-		var self,
+		&self,
 		names: List<str>,
 		args: List<*AstNode>
 	) => self.arena.create_val(GenericSubst(names, args));
 
-	pub fn queue_decl(var self, module: str, node: *AstNode) {
+	pub fn queue_decl(&self, module: str, node: *AstNode) {
 		val marker = self.arena.node(
 			NodeData.ModuleDecl(module.split('.'), module),
 			node.line, node.col
@@ -267,7 +267,7 @@ impl TypeResolver {
 		self.symtab.gen.instances += node;
 	}
 
-	pub fn drain_instances(var self) {
+	pub fn drain_instances(&self) {
 		var i = 0;
 		while (i + 1 < self.symtab.gen.instances.len) {
 			val marker = self.symtab.gen.instances[i];

@@ -56,20 +56,20 @@ pub struct EnumMember {
 }
 
 impl Program {
-	pub fn declared_module_name(val self): str {
+	pub fn declared_module_name(*self): str {
 		for (decl in self.declarations) if (decl is ModuleDecl) return decl.full_path;
 		return "";
 	}
 }
 
 impl Iterable for ExternBlock {
-	pub fn count(val self) => self.declarations.len;
-	pub fn at(val self, i: usz) => self.declarations[i];
+	pub fn count(*self) => self.declarations.len;
+	pub fn at(*self, i: usz) => self.declarations[i];
 }
 
 impl Iterable for Program {
-	pub fn count(val self) => self.declarations.len;
-	pub fn at(val self, i: usz) => self.declarations[i];
+	pub fn count(*self) => self.declarations.len;
+	pub fn at(*self, i: usz) => self.declarations[i];
 }
 
 /*

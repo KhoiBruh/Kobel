@@ -84,20 +84,20 @@ impl Lexer {
 	pub init(src: str, file_id: u32 = 0)
 		=> Self(strip_utf8_bom(src), 0, 1, 1, file_id, List<Diagnostic>());
 
-	pub fn is_end(val self) => self.cursor >= self.src.len;
+	pub fn is_end(*self) => self.cursor >= self.src.len;
 
-	pub fn peek(val self) => if (self.is_end()) '\0' else self.src[self.cursor];
+	pub fn peek(*self) => if (self.is_end()) '\0' else self.src[self.cursor];
 
-	pub fn peek_at(val self, offset: usz): char {
+	pub fn peek_at(*self, offset: usz): char {
 		val idx = self.cursor + offset;
 		if (idx >= self.src.len) return '\0';
 
 		return self.src[idx];
 	}
 
-	pub fn sub(val self, start: usz) => self.src.slice(start, self.cursor);
+	pub fn sub(*self, start: usz) => self.src.slice(start, self.cursor);
 
-	pub fn next(var self): char {
+	pub fn next(&self): char {
 		if (self.is_end()) return '\0';
 
 		val c = self.src[self.cursor];
@@ -106,7 +106,7 @@ impl Lexer {
 		return c;
 	}
 
-	pub fn match(var self, expected: char): bool {
+	pub fn match(&self, expected: char): bool {
 		if (self.is_end()) return false;
 		if (self.src[self.cursor] != expected) return false;
 
@@ -115,19 +115,19 @@ impl Lexer {
 		return true;
 	}
 
-	pub fn record_error(var self, line: usz, col: usz, msg: str) {
+	pub fn record_error(&self, line: usz, col: usz, msg: str) {
 		self.errors += Diagnostic.error(
 			Span(self.file_id, line, col), "", msg
 		);
 	}
 
 	pub fn make_token(
-		val self, type: TokenType,
+		*self, type: TokenType,
 		start_cursor: usz, start_col: usz
 	) => self.make_token_at(type, start_cursor, self.line, start_col);
 
 	pub fn make_token_at(
-		val self, type: TokenType,
+		*self, type: TokenType,
 		start_cursor: usz, start_line: usz, start_col: usz
 	): Token {
 		val text = self.sub(start_cursor);
@@ -135,7 +135,7 @@ impl Lexer {
 		return Token(type, text, start_line, start_col, span);
 	}
 
-	pub fn newline(var self) {
+	pub fn newline(&self) {
 		val c = self.peek();
 		when (c) {
 			'\r' -> {
@@ -149,7 +149,7 @@ impl Lexer {
 		self.col = 1;
 	}
 
-	pub fn skip_space(var self) {
+	pub fn skip_space(&self) {
 		while (!self.is_end()) {
 			val c = self.peek();
 			when (c) {
@@ -160,7 +160,7 @@ impl Lexer {
 		}
 	}
 
-	pub fn scan_identifier(var self, start_cursor: usz, start_col: usz): Token {
+	pub fn scan_identifier(&self, start_cursor: usz, start_col: usz): Token {
 		while (!self.is_end()) {
 			val c = self.peek();
 			when (c) {
@@ -175,7 +175,7 @@ impl Lexer {
 		return Token(kw, text, self.line, start_col, sp);
 	}
 
-	pub fn scan_decimal_digits_and_fraction(var self) {
+	pub fn scan_decimal_digits_and_fraction(&self) {
 		while (!self.is_end()) {
 			val c = self.peek();
 			when (c) {
@@ -200,7 +200,7 @@ impl Lexer {
 		}
 	}
 
-	pub fn scan_number(var self, start_cursor: usz, start_col: usz): Token {
+	pub fn scan_number(&self, start_cursor: usz, start_col: usz): Token {
 		val first = self.src[start_cursor];
 		if (first == '0' && !self.is_end()) {
 			val p = self.peek();
@@ -267,7 +267,7 @@ impl Lexer {
 		return self.make_token(TokenType.NUMBER, start_cursor, start_col);
 	}
 
-	pub fn scan_string(var self, start_cursor: usz, start_col: usz): Token {
+	pub fn scan_string(&self, start_cursor: usz, start_col: usz): Token {
 		val start_line = self.line;
 		var closed = false;
 		while (!self.is_end()) {
@@ -316,7 +316,7 @@ impl Lexer {
 		return self.make_token_at(TokenType.STRING, start_cursor, start_line, start_col);
 	}
 
-	pub fn scan_multiline_string(var self, start_cursor: usz, start_col: usz): Token {
+	pub fn scan_multiline_string(&self, start_cursor: usz, start_col: usz): Token {
 		val start_line = self.line;
 		var closed = false;
 		while (!self.is_end()) {
@@ -367,7 +367,7 @@ impl Lexer {
 	 * Nested braces, string literals, char literals and nested `${...}` are all
 	 * honoured so the matching '}' is the right one.
 	 */
-	pub fn skip_hole(var self) {
+	pub fn skip_hole(&self) {
 		var depth = 0;
 		while (!self.is_end()) {
 			val c = self.peek();
@@ -404,7 +404,7 @@ impl Lexer {
 		}
 	}
 
-	pub fn skip_multiline_string_raw(var self) {
+	pub fn skip_multiline_string_raw(&self) {
 		self.next(); // 1st quote
 		self.next(); // 2nd quote
 		self.next(); // 3rd quote
@@ -447,7 +447,7 @@ impl Lexer {
 	 * Skips a string literal that starts on the current '"' (may itself be
 	 * interpolated).
 	 */
-	pub fn skip_string_raw(var self) {
+	pub fn skip_string_raw(&self) {
 		self.next(); // opening quote
 		while (!self.is_end()) {
 			val c = self.peek();
@@ -477,7 +477,7 @@ impl Lexer {
 	}
 
 	// Skips a char literal that starts on the current '\''.
-	pub fn skip_char_raw(var self) {
+	pub fn skip_char_raw(&self) {
 		self.next(); // opening quote
 		while (!self.is_end()) {
 			val c = self.peek();
@@ -497,7 +497,7 @@ impl Lexer {
 		}
 	}
 
-	pub fn scan_char(var self, start_cursor: usz, start_col: usz): Token {
+	pub fn scan_char(&self, start_cursor: usz, start_col: usz): Token {
 		val start_line = self.line;
 		if (self.is_end() || self.peek() == '\'') {
 			if (!self.is_end() && self.peek() == '\'') self.next();
@@ -517,7 +517,7 @@ impl Lexer {
 		return self.make_token_at(TokenType.UNKNOWN, start_cursor, start_line, start_col);
 	}
 
-	pub fn next_token(var self): Token {
+	pub fn next_token(&self): Token {
 		while (true) {
 			self.skip_space();
 			if (self.is_end()) {
@@ -666,7 +666,7 @@ impl Lexer {
 		return Token(TokenType.UNKNOWN, "", self.line, self.col, unk_sp);
 	}
 
-	pub fn tokenize(var self): List<Token> {
+	pub fn tokenize(&self): List<Token> {
 		var tokens = List<Token>();
 		while (true) {
 			val tok = self.next_token();

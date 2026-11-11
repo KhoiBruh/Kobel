@@ -21,7 +21,7 @@ use compiler.semantic.lowering.*;
 
 impl BodyChecker {
 
-	pub fn check_when_expr(var self, node: *AstNode, expected: *Type? = null): *Type {
+	pub fn check_when_expr(&self, node: *AstNode, expected: *Type? = null): *Type {
 		if (node is WhenExpr as we) {
 			if (we.condition != null && self.expr_has_call(we.condition)) {
 				self.report_error(
@@ -80,7 +80,7 @@ impl BodyChecker {
 		return self.prims().t_none();
 	}
 
-	fn check_when_exhaustiveness(var self, node: *AstNode, we: *WhenExpr, cond_ty: *Type?): bool {
+	fn check_when_exhaustiveness(&self, node: *AstNode, we: *WhenExpr, cond_ty: *Type?): bool {
 		if (cond_ty == null) return false;
 
 		var base_ty = cond_ty;
@@ -133,7 +133,7 @@ impl BodyChecker {
 		return covered.len == enum_info.members.len;
 	}
 
-	fn match_enum_variant(var self, pat: *AstNode, enum_info: *EnumInfo): str {
+	fn match_enum_variant(&self, pat: *AstNode, enum_info: *EnumInfo): str {
 		if (pat is MemberExpr as mem) {
 			var target_matches = true;
 			if (mem.object is IdentifierExpr as tid) {
@@ -163,7 +163,7 @@ impl BodyChecker {
 		return "";
 	}
 
-	pub fn arm_smart_cast_sym(val self, patterns: List<*AstNode>, cond: *AstNode?): str {
+	pub fn arm_smart_cast_sym(*self, patterns: List<*AstNode>, cond: *AstNode?): str {
 		if (cond == null || patterns.len != 1) return "";
 		val pat = patterns.first();
 		if (pat is IsExpr as is_e) {
@@ -173,7 +173,7 @@ impl BodyChecker {
 		return "";
 	}
 
-	pub fn arm_smart_cast_mutable(val self, patterns: List<*AstNode>, cond: *AstNode?): bool {
+	pub fn arm_smart_cast_mutable(*self, patterns: List<*AstNode>, cond: *AstNode?): bool {
 		if (cond == null || patterns.len != 1) return false;
 		val pat = patterns.first();
 		if (pat is IsExpr as is_e) {
@@ -187,7 +187,7 @@ impl BodyChecker {
 	}
 
 	pub fn resolve_arm_patterns(
-		var self,
+		&self,
 		patterns: List<*AstNode>,
 		cond: *AstNode?,
 		cond_ty: *Type?
@@ -210,7 +210,7 @@ impl BodyChecker {
 		return null;
 	}
 
-	pub fn expr_has_call(val self, node: *AstNode?): bool {
+	pub fn expr_has_call(*self, node: *AstNode?): bool {
 		if (node == null) return false;
 		val cur = node!;
 		return when (cur) {
@@ -228,7 +228,7 @@ impl BodyChecker {
 		};
 	}
 
-	pub fn expr_has_implicit_subject(val self, node: *AstNode?): bool {
+	pub fn expr_has_implicit_subject(*self, node: *AstNode?): bool {
 		if (node == null) return false;
 		val cur = node!;
 		return when (cur) {
@@ -246,7 +246,7 @@ impl BodyChecker {
 		};
 	}
 
-	fn check_arm_pattern(var self, pat: *AstNode, cond: *AstNode?, cond_ty: *Type?): *Type {
+	fn check_arm_pattern(&self, pat: *AstNode, cond: *AstNode?, cond_ty: *Type?): *Type {
 		if (cond == null) return self.check_expr(pat);
 
 		if (pat is IsExpr as var is_e) {
@@ -298,7 +298,7 @@ impl BodyChecker {
 	}
 
 	fn check_arm_body(
-		var self,
+		&self,
 		body: *AstNode,
 		sym: str,
 		smart_cast_ty: *Type?,
@@ -313,7 +313,7 @@ impl BodyChecker {
 		return self.check_when_arm_body(body, expected);
 	}
 
-	pub fn check_when_arm_body(var self, body: *AstNode, expected: *Type? = null): *Type {
+	pub fn check_when_arm_body(&self, body: *AstNode, expected: *Type? = null): *Type {
 		if (body is BlockStmt as blk) {
 			var yield_ty: *Type? = null;
 			self.symtab.enter_scope(false);
@@ -341,7 +341,7 @@ impl BodyChecker {
 		return self.check_expr(body, expected);
 	}
 
-	pub fn check_is_pattern(var self, subject: *AstNode?, subj_ty: *Type?, is_node: *AstNode): *Type? {
+	pub fn check_is_pattern(&self, subject: *AstNode?, subj_ty: *Type?, is_node: *AstNode): *Type? {
 		if (is_node == null) return null;
 
 		if (is_node is IsExpr as is_e) {
@@ -477,26 +477,26 @@ impl BodyChecker {
 		return null;
 	}
 
-	fn find_tag_const(val self, struct_name: str): *Symbol? {
+	fn find_tag_const(*self, struct_name: str): *Symbol? {
 		return self.symtab.lookup("${struct_name}__TAG")
 			?: self.symtab.lookup_struct_const(struct_name, "TAG")
 			?: self.symtab.lookup("${struct_name}__KIND")
 			?: self.symtab.lookup_struct_const(struct_name, "KIND");
 	}
 
-	fn tag_field_name_of(val self, base_s: *StructType): str {
+	fn tag_field_name_of(*self, base_s: *StructType): str {
 		if (base_s.fields.empty()) return "";
 		return base_s.fields[0].name;
 	}
 
-	fn field_type_of(val self, base_s: *StructType, name: str): *Type? {
+	fn field_type_of(*self, base_s: *StructType, name: str): *Type? {
 		for (f in base_s.fields) {
 			if (f.name == name) return f.type_ptr;
 		}
 		return null;
 	}
 
-	pub fn check_is_expr(var self, node: *AstNode): *Type {
+	pub fn check_is_expr(&self, node: *AstNode): *Type {
 		if (node is IsExpr as is_e) {
 			if (is_e.expr == null) {
 				self.report_error(node, "'is' expression requires a subject");

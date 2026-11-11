@@ -16,7 +16,7 @@ use compiler.semantic.symbols.*;
 
 impl CCodeGen {
 
-	pub fn gen_program(var self, program_node: *AstNode): str {
+	pub fn gen_program(&self, program_node: *AstNode): str {
 		if (program_node is Program as prog) {
 			self.out.clear();
 			defer self.out.free();
@@ -213,20 +213,20 @@ impl CCodeGen {
 
 	// C name of the struct a field embeds by value ("" for pointers, arrays and
 	// primitives): such a struct must be emitted before the field's owner.
-	fn by_value_struct_name(val self, node: *AstNode): str {
+	fn by_value_struct_name(*self, node: *AstNode): str {
 		if (node == null) return "";
 		if (node is NamedType as nt) return nt.name;
 		return "";
 	}
 
-	fn body_item_name(val self, item: *AstNode) => when (item) {
+	fn body_item_name(*self, item: *AstNode) => when (item) {
 		is StructDecl -> item.name;
 		is EnumDecl -> item.name;
 		else -> "";
 	};
 
 	// Names a body item needs complete before it can be emitted.
-	fn body_item_deps(val self, item: *AstNode): List<str> {
+	fn body_item_deps(*self, item: *AstNode): List<str> {
 		var deps = List<str>();
 		if (item is StructDecl as s) {
 			for (f in s.fields) deps += self.by_value_struct_name(f.type_node);
@@ -238,7 +238,7 @@ impl CCodeGen {
 		return deps;
 	}
 
-	pub fn gen_struct_decl(var self, s: *StructDecl) {
+	pub fn gen_struct_decl(&self, s: *StructDecl) {
 		// The definition carries the fields; a forward declaration only
 		// contributes the typedef emitted in the first pass.
 		if (s.forward) return;
@@ -259,7 +259,7 @@ impl CCodeGen {
 
 	// A payload enum is emitted as a tag plus a union of one payload struct per
 	// variant, so a pattern binding can point straight at the active payload.
-	pub fn gen_payload_enum(var self, e: *EnumDecl) {
+	pub fn gen_payload_enum(&self, e: *EnumDecl) {
 		if (!self.enum_has_payload(e)) return;
 
 		for (m in e.members) {
@@ -296,7 +296,7 @@ impl CCodeGen {
 
 	// `self_c_type` is the C name of the enclosing struct when generating an impl
 	// method ("" for free functions). It types the untyped `self` receiver.
-	pub fn gen_fn_decl(var self, f: *FnDecl, is_proto: bool, self_c_type: str) {
+	pub fn gen_fn_decl(&self, f: *FnDecl, is_proto: bool, self_c_type: str) {
 		val ret_ty = self.fn_ret_c_type(f);
 		val f_body = f.body;
 		if (!is_proto && f_body == null) return;
@@ -423,7 +423,7 @@ impl CCodeGen {
 
 // C return type of a function: explicit annotation, else inferred from an
 // arrow body (used by both the prototype and the definition).
-	pub fn fn_ret_c_type(val self, f: *FnDecl): str {
+	pub fn fn_ret_c_type(*self, f: *FnDecl): str {
 		if (f.return_type != null) return c_type_from_ast(f.return_type!);
 
 		val f_body = f.body;
@@ -434,7 +434,7 @@ impl CCodeGen {
 		return "void";
 	}
 
-	pub fn collect_lambdas_in_node(val self, node: *AstNode?, var out: &List<*AstNode>) {
+	pub fn collect_lambdas_in_node(*self, node: *AstNode?, var out: &List<*AstNode>) {
 		if (node == null) return;
 		val cur = node!;
 		when (cur) {
@@ -518,7 +518,7 @@ impl CCodeGen {
 		}
 	}
 
-	pub fn gen_lambda_helper(var self, node: *AstNode) {
+	pub fn gen_lambda_helper(&self, node: *AstNode) {
 		if (node is LambdaExpr as lam) {
 			val info = self.lambda_info_of(node);
 			if (info.id == 0 || info.fn_type == null) return;

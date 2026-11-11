@@ -50,7 +50,7 @@ impl PrimTypes {
 	}
 
 	// Resolves a built-in primitive type name to its canonical `*Type` instance.
-	pub fn resolve_name(val self, name: str): *Type? => when (name) {
+	pub fn resolve_name(*self, name: str): *Type? => when (name) {
 		"none" -> self.get(DataType.NONE);
 		"bool" -> self.get(DataType.BOOL);
 		"char" -> self.get(DataType.CHAR);
@@ -71,7 +71,7 @@ impl PrimTypes {
 	};
 
 	// Determines the canonical integer type of an integer literal from its suffix.
-	pub fn integer(val self, raw: str): *Type {
+	pub fn integer(*self, raw: str): *Type {
 		val suffix = raw.num_suffix();
 
 		return when (suffix) {
@@ -88,20 +88,20 @@ impl PrimTypes {
 		};
 	}
 
-	pub fn get(val self, kind: DataType): *Type {
+	pub fn get(*self, kind: DataType): *Type {
 		for (t in self.types) if (t.kind == kind) return t;
 		return self.types[0];
 	}
 
-	pub fn t_none(val self) => self.get(DataType.NONE);
-	pub fn t_bool(val self) => self.get(DataType.BOOL);
-	pub fn t_char(val self) => self.get(DataType.CHAR);
-	pub fn t_str(val self) => self.get(DataType.STR);
-	pub fn t_usz(val self) => self.get(DataType.USZ);
-	pub fn t_i32(val self) => self.get(DataType.I32);
-	pub fn t_f32(val self) => self.get(DataType.F32);
-	pub fn t_f64(val self) => self.get(DataType.F64);
-	pub fn t_prim(val self, base: Type) => self.get(base.kind);
+	pub fn t_none(*self) => self.get(DataType.NONE);
+	pub fn t_bool(*self) => self.get(DataType.BOOL);
+	pub fn t_char(*self) => self.get(DataType.CHAR);
+	pub fn t_str(*self) => self.get(DataType.STR);
+	pub fn t_usz(*self) => self.get(DataType.USZ);
+	pub fn t_i32(*self) => self.get(DataType.I32);
+	pub fn t_f32(*self) => self.get(DataType.F32);
+	pub fn t_f64(*self) => self.get(DataType.F64);
+	pub fn t_prim(*self, base: Type) => self.get(base.kind);
 
 }
 

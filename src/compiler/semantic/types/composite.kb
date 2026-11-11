@@ -61,19 +61,19 @@ pub struct StructType {
 
 impl StructType {
 
-	pub fn find_method(val self, name: str): *MethodInfo? {
+	pub fn find_method(*self, name: str): *MethodInfo? {
 		for (m in self.methods) if (!m.operator && m.name == name) return m;
 		for (m in self.methods) if (m.name == name) return m;
 		return null;
 	}
 
-	pub fn find_static_method(val self, name: str): *MethodInfo? {
+	pub fn find_static_method(*self, name: str): *MethodInfo? {
 		for (m in self.methods) if (!m.operator && m.is_static && m.name == name) return m;
 		for (m in self.methods) if (m.is_static && m.name == name) return m;
 		return null;
 	}
 
-	pub fn find_static_method_arity(val self, name: str, argc: usz): *MethodInfo? {
+	pub fn find_static_method_arity(*self, name: str, argc: usz): *MethodInfo? {
 		for (m in self.methods) {
 			if (
 				!m.operator
@@ -94,12 +94,12 @@ impl StructType {
 		return null;
 	}
 
-	pub fn count_static_method_arity(val self, name: str, argc: usz): usz =>
+	pub fn count_static_method_arity(*self, name: str, argc: usz): usz =>
 		self.methods.count_where { m ->
 			!m.operator && m.is_static && m.name == name && m.fn_type.as_fn().param_types.len == argc
 		};
 
-	pub fn find_method_arity(val self, name: str, argc: usz): *MethodInfo? {
+	pub fn find_method_arity(*self, name: str, argc: usz): *MethodInfo? {
 		for (m in self.methods) {
 			if (
 				!m.operator
@@ -120,17 +120,17 @@ impl StructType {
 		return null;
 	}
 
-	pub fn count_method_arity(val self, name: str, argc: usz): usz =>
+	pub fn count_method_arity(*self, name: str, argc: usz): usz =>
 		self.methods.count_where { m ->
 			!m.operator && !m.is_static && m.name == name && m.fn_type.as_fn().param_types.len == argc
 		};
 
-	pub fn find_method_c(val self, c_name: str): *MethodInfo? {
+	pub fn find_method_c(*self, c_name: str): *MethodInfo? {
 		for (m in self.methods) if (m.c_name == c_name) return m;
 		return null;
 	}
 
-	pub fn find_operator(val self, op_name: str, arg_types: List<*Type>): *MethodInfo? {
+	pub fn find_operator(*self, op_name: str, arg_types: List<*Type>): *MethodInfo? {
 		var assignable_match: *MethodInfo? = null;
 
 		for (m in self.methods) {
@@ -169,7 +169,7 @@ impl StructType {
 
 impl Arena {
 
-	pub fn struct_type(var self, name: str, var fields: List<StructField>): *Type {
+	pub fn struct_type(&self, name: str, var fields: List<StructField>): *Type {
 		var max_align = 1;
 		var current_offset = 0;
 
@@ -219,7 +219,7 @@ pub struct EnumInfo {
 
 impl EnumInfo {
 
-	pub fn find_member(val self, name: str): *EnumMemberInfo? {
+	pub fn find_member(*self, name: str): *EnumMemberInfo? {
 		for (m in self.members) if (m.name == name) return m;
 		return null;
 	}
@@ -247,11 +247,11 @@ pub struct TraitInfo {
 
 impl TraitInfo {
 
-	pub fn find_method(val self, name: str): *TraitMethod? {
+	pub fn find_method(*self, name: str): *TraitMethod? {
 		for (m in self.methods) if (m.name == name) return m;
 		return null;
 	}
 
-	pub fn has_impl(val self, struct_name: str) => struct_name in self.impls;
+	pub fn has_impl(*self, struct_name: str) => struct_name in self.impls;
 
 }

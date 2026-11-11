@@ -8,7 +8,7 @@ mod compiler.ast;
 
 impl AstNode {
 
-	pub fn is_statement(val self) => when (self) {
+	pub fn is_statement(*self) => when (self) {
 		is BlockStmt, ExprStmt, VarDeclStmt, DestructDeclStmt,
 		IfStmt, WhileStmt, ForStmt,
 		ReturnStmt, BreakStmt, ContinueStmt,
@@ -16,13 +16,13 @@ impl AstNode {
 		else -> false;
 	};
 
-	pub fn is_control_flow(val self) => when (self) {
+	pub fn is_control_flow(*self) => when (self) {
 		is ReturnStmt, BreakStmt, ContinueStmt,
 		YieldStmt, BlockStmt -> true;
 		else -> false;
 	};
 
-	pub fn is_declaration(val self) => when (self) {
+	pub fn is_declaration(*self) => when (self) {
 		is ModuleDecl, UseDecl, FnDecl,
 		StructDecl, TraitDecl, ImplDecl,
 		EnumDecl, ConstDecl, ExternBlock,
@@ -30,12 +30,12 @@ impl AstNode {
 		else -> false;
 	};
 
-	pub fn is_type_node(val self) => when (self) {
+	pub fn is_type_node(*self) => when (self) {
 		is NamedType, PointerType, ArrayType, NullableType -> true;
 		else -> false;
 	};
 
-	pub fn is_expression(val self) => !self.is_statement()
+	pub fn is_expression(*self) => !self.is_statement()
 		&& !self.is_declaration()
 		&& !self.is_type_node();
 

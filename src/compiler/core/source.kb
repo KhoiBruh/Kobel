@@ -24,14 +24,14 @@ impl Span {
 	pub init(file_id: u32 = 0, line: usz = 0, col: usz = 0, length: usz = 1)
 		=> Self(file_id, line, col, if (length == 0) 1 else length);
 
-	pub fn is_valid(val self) => self.line > 0;
+	pub fn is_valid(*self) => self.line > 0;
 
-	pub op unpack(val self, line: &usz, col: &usz) {
+	pub op unpack(*self, line: &usz, col: &usz) {
 		line.write(self.line);
 		col.write(self.col);
 	}
 
-	pub op unpack(val self, file_id: &u32, line: &usz, col: &usz, length: &usz) {
+	pub op unpack(*self, file_id: &u32, line: &usz, col: &usz, length: &usz) {
 		file_id.write(self.file_id);
 		line.write(self.line);
 		col.write(self.col);
@@ -55,7 +55,7 @@ impl SourceFile {
 		return Self(id, path, module_name, content, lines);
 	}
 
-	pub fn line_text(val self, line_num: usz): str {
+	pub fn line_text(*self, line_num: usz): str {
 		if (line_num == 0 || line_num > self.lines.len) return "";
 		return self.lines[line_num - 1];
 	}
@@ -78,7 +78,7 @@ impl SourceMap {
 		HashMap<str, u32>()
 	);
 
-	pub fn add_file(var self, path: str, module_name: str, content: str): u32 {
+	pub fn add_file(&self, path: str, module_name: str, content: str): u32 {
 		val existing = self.path_index[path];
 		if (existing != null) return *existing;
 
@@ -90,22 +90,22 @@ impl SourceMap {
 		return id;
 	}
 
-	pub fn get_file(val self, file_id: u32): *SourceFile? {
+	pub fn get_file(*self, file_id: u32): *SourceFile? {
 		if (file_id == 0 || file_id > self.files.len) return null;
 		return &self.files.data[file_id - 1];
 	}
 
-	pub fn find_by_path(val self, path: str): *SourceFile? {
+	pub fn find_by_path(*self, path: str): *SourceFile? {
 		val id_ptr = self.path_index[path] ?: return null;
 		return self.get_file(*id_ptr);
 	}
 
-	pub fn find_by_module(val self, module_name: str): *SourceFile? {
+	pub fn find_by_module(*self, module_name: str): *SourceFile? {
 		val id_ptr = self.module_index[module_name] ?: return null;
 		return self.get_file(*id_ptr);
 	}
 
-	pub fn count(val self) => self.files.len;
+	pub fn count(*self) => self.files.len;
 
 	pub fn free(self) {
 		for (file in self.files) file.free();

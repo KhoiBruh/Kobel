@@ -41,9 +41,9 @@ fn check_str(got: str, want: str, msg: str, var t: &Tally) {
 // --- 1. required method + default method -----------------------------------
 
 trait Greeter {
-	fn name(val self): str;
-	fn greet(val self): str => "Hello " + self.name();
-	fn shout(val self): str => self.greet() + "!";
+	fn name(*self): str;
+	fn greet(*self): str => "Hello " + self.name();
+	fn shout(*self): str => self.greet() + "!";
 }
 
 struct Person {
@@ -51,7 +51,7 @@ struct Person {
 }
 
 impl Greeter for Person {
-	fn name(val self): str => self.who;
+	fn name(*self): str => self.who;
 }
 
 fn test_required_and_default(var t: &Tally) {
@@ -64,11 +64,11 @@ fn test_required_and_default(var t: &Tally) {
 // --- 2. trait inheritance --------------------------------------------------
 
 trait Measurable {
-	fn measure(val self): i32;
+	fn measure(*self): i32;
 }
 
 trait Summarizable : Measurable {
-	fn summary(val self): i32 => self.measure() * 2;
+	fn summary(*self): i32 => self.measure() * 2;
 }
 
 struct Box {
@@ -77,7 +77,7 @@ struct Box {
 }
 
 impl Summarizable for Box {
-	fn measure(val self): i32 => self.w * self.h;
+	fn measure(*self): i32 => self.w * self.h;
 }
 
 fn test_inheritance(var t: &Tally) {
@@ -93,8 +93,8 @@ struct Fake {
 }
 
 impl Summarizable for Fake {
-	fn measure(val self): i32 => self.v;
-	fn summary(val self): i32 => 999;
+	fn measure(*self): i32 => self.v;
+	fn summary(*self): i32 => 999;
 }
 
 fn test_override(var t: &Tally) {
@@ -125,7 +125,7 @@ fn test_bounds(var t: &Tally) {
 // --- 5. two structs implementing one trait ---------------------------------
 
 trait Named {
-	fn tag(val self): str;
+	fn tag(*self): str;
 }
 
 struct Alpha {
@@ -137,11 +137,11 @@ struct Beta {
 }
 
 impl Named for Alpha {
-	fn tag(val self): str => "alpha";
+	fn tag(*self): str => "alpha";
 }
 
 impl Named for Beta {
-	fn tag(val self): str => "beta";
+	fn tag(*self): str => "beta";
 }
 
 fn label<T: Named>(val item: T): str => item.tag();
@@ -154,11 +154,11 @@ fn test_two_impls(var t: &Tally) {
 // --- 6. methods on built-in types ------------------------------------------
 
 impl i32 {
-	fn twice(val self): i32 => self * 2;
+	fn twice(*self): i32 => self * 2;
 }
 
 impl str {
-	fn shout(val self): str => self + "!";
+	fn shout(*self): str => self + "!";
 }
 
 fn test_prim_methods(var t: &Tally) {
@@ -175,9 +175,9 @@ struct Counter {
 }
 
 impl Counter {
-	fn add_to(val self): i32 => self.n;
-	fn add_to(val self, extra: i32): i32 => self.n + extra;
-	fn add_to(val self, a: i32, b: i32): i32 => self.n + a + b;
+	fn add_to(*self): i32 => self.n;
+	fn add_to(*self, extra: i32): i32 => self.n + extra;
+	fn add_to(*self, a: i32, b: i32): i32 => self.n + a + b;
 }
 
 fn test_overloads(var t: &Tally) {
@@ -195,7 +195,7 @@ struct Vec2 {
 }
 
 impl Vec2 {
-	fn shifted(val self, d: i32): Vec2 => Self(self.x + d, self.y + d);
+	fn shifted(*self, d: i32): Vec2 => Self(self.x + d, self.y + d);
 	fn origin(): Vec2 => Self(0, 0);
 }
 

@@ -24,12 +24,12 @@ impl ConditionAlias {
 
 	pub init(name: str, c_type: str, decl: str) => Self(name, c_type, decl);
 
-	pub op unpack(val self, name: &str, c_type: &str) {
+	pub op unpack(*self, name: &str, c_type: &str) {
 		name.write(self.name);
 		c_type.write(self.c_type);
 	}
 
-	pub op unpack(val self, name: &str, c_type: &str, decl: &str) {
+	pub op unpack(*self, name: &str, c_type: &str, decl: &str) {
 		name.write(self.name);
 		c_type.write(self.c_type);
 		decl.write(self.decl);
@@ -66,41 +66,41 @@ impl CCodeGen {
 		return cg;
 	}
 
-	pub fn node_type(val self, node: *AstNode?): *Type? {
+	pub fn node_type(*self, node: *AstNode?): *Type? {
 		if (node == null || self.symtab == null) return null;
 		return self.symtab!.get_node_type(node);
 	}
 
-	pub fn is_pattern_info(val self, node: *AstNode?): IsPatternInfo {
+	pub fn is_pattern_info(*self, node: *AstNode?): IsPatternInfo {
 		if (node == null || self.symtab == null) return IsPatternInfo();
 		return self.symtab!.get_is_pattern(node);
 	}
 
-	pub fn is_predicate_pattern(val self, node: *AstNode?): bool {
+	pub fn is_predicate_pattern(*self, node: *AstNode?): bool {
 		if (node == null || self.symtab == null) return false;
 		return self.symtab!.is_predicate_pattern(node);
 	}
 
-	pub fn lambda_info_of(val self, node: *AstNode?): LambdaInfo {
+	pub fn lambda_info_of(*self, node: *AstNode?): LambdaInfo {
 		if (node == null || self.symtab == null) return LambdaInfo();
 		return self.symtab!.get_lambda_info(node);
 	}
 
-	pub fn enter_defer_scope(var self) {
+	pub fn enter_defer_scope(&self) {
 		self.scope_starts += self.defer_nodes.len;
 		self.scope_jumped += false;
 	}
 
-	pub fn add_defer(var self, stmt: *AstNode) => self.defer_nodes += stmt;
+	pub fn add_defer(&self, stmt: *AstNode) => self.defer_nodes += stmt;
 
-	pub fn mark_current_scope_jumped(var self) {
+	pub fn mark_current_scope_jumped(&self) {
 		if (!self.scope_jumped.empty()) {
 			self.scope_jumped.pop();
 			self.scope_jumped += true;
 		}
 	}
 
-	pub fn exit_defer_scope(var self) {
+	pub fn exit_defer_scope(&self) {
 		if (self.scope_starts.empty()) return;
 		val start_idx = self.scope_starts.pop();
 		val jumped = self.scope_jumped.pop();
@@ -120,9 +120,9 @@ impl CCodeGen {
 		}
 	}
 
-	pub fn has_active_defers(val self) => !self.defer_nodes.empty();
+	pub fn has_active_defers(*self) => !self.defer_nodes.empty();
 
-	pub fn gen_defers_unwind(var self, depth: usz) {
+	pub fn gen_defers_unwind(&self, depth: usz) {
 		if (self.defer_nodes.empty()) return;
 		val min_idx = if (depth < self.scope_starts.len) self.scope_starts[depth] else 0;
 		if (self.defer_nodes.len <= min_idx) return;
@@ -135,7 +135,7 @@ impl CCodeGen {
 
 	// True when the enum carries data on at least one variant; such an enum is
 	// emitted as a struct instead of a plain integer typedef.
-	pub fn enum_has_payload(val self, e: *EnumDecl): bool =>
+	pub fn enum_has_payload(*self, e: *EnumDecl): bool =>
 		e.members.any { m -> !m.payload.empty() };
 
 }

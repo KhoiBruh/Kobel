@@ -48,83 +48,83 @@ impl SymbolTable {
 		return st;
 	}
 
-	pub fn set_node_type(val self, node: *AstNode?, ty: *Type?) {
+	pub fn set_node_type(*self, node: *AstNode?, ty: *Type?) {
 		if (node == null || ty == null || self.sem == null) return;
 		var s = self.sem;
 		s.node_types[node.addr()] = ty!;
 	}
 
-	pub fn get_node_type(val self, node: *AstNode?): *Type? {
+	pub fn get_node_type(*self, node: *AstNode?): *Type? {
 		if (node == null || self.sem == null) return null;
 		val p = self.sem.node_types.get(node.addr()) ?: return null;
 		return p.read();
 	}
 
-	pub fn set_resolved_method(val self, node: *AstNode?, mi: *MethodInfo?) {
+	pub fn set_resolved_method(*self, node: *AstNode?, mi: *MethodInfo?) {
 		if (node == null || mi == null || self.sem == null) return;
 		var s = self.sem;
 		s.resolved_methods[node.addr()] = mi!;
 	}
 
-	pub fn get_resolved_method(val self, node: *AstNode?): *MethodInfo? {
+	pub fn get_resolved_method(*self, node: *AstNode?): *MethodInfo? {
 		if (node == null || self.sem == null) return null;
 		val p = self.sem.resolved_methods.get(node.addr()) ?: return null;
 		return p.read();
 	}
 
-	pub fn set_resolved_node(val self, node: *AstNode?, r: *AstNode?) {
+	pub fn set_resolved_node(*self, node: *AstNode?, r: *AstNode?) {
 		if (node == null || r == null || self.sem == null) return;
 		var s = self.sem;
 		s.resolved_nodes[node.addr()] = r!;
 	}
 
-	pub fn get_resolved_node(val self, node: *AstNode?): *AstNode? {
+	pub fn get_resolved_node(*self, node: *AstNode?): *AstNode? {
 		if (node == null || self.sem == null) return null;
 		val p = self.sem.resolved_nodes.get(node.addr()) ?: return null;
 		return p.read();
 	}
 
-	pub fn set_node_instance(val self, node: *AstNode?, rec: *InstanceRecord?) {
+	pub fn set_node_instance(*self, node: *AstNode?, rec: *InstanceRecord?) {
 		if (node == null || rec == null || self.sem == null) return;
 		var s = self.sem;
 		s.node_instances[node.addr()] = rec!;
 	}
 
-	pub fn get_node_instance(val self, node: *AstNode?): *InstanceRecord? {
+	pub fn get_node_instance(*self, node: *AstNode?): *InstanceRecord? {
 		if (node == null || self.sem == null) return null;
 		val p = self.sem.node_instances.get(node.addr()) ?: return null;
 		return p.read();
 	}
 
-	pub fn set_is_pattern(val self, node: *AstNode?, info: IsPatternInfo) {
+	pub fn set_is_pattern(*self, node: *AstNode?, info: IsPatternInfo) {
 		if (node == null || self.sem == null) return;
 		var s = self.sem;
 		s.is_patterns[node.addr()] = info;
 	}
 
-	pub fn has_is_pattern(val self, node: *AstNode?): bool {
+	pub fn has_is_pattern(*self, node: *AstNode?): bool {
 		if (node == null || self.sem == null) return false;
 		return self.sem.is_patterns.get(node.addr()) != null;
 	}
 
-	pub fn get_is_pattern(val self, node: *AstNode?): IsPatternInfo {
+	pub fn get_is_pattern(*self, node: *AstNode?): IsPatternInfo {
 		if (node == null || self.sem == null) return IsPatternInfo();
 		val p = self.sem.is_patterns.get(node.addr()) ?: return IsPatternInfo();
 		return p.read();
 	}
 
-	pub fn set_predicate_pattern(val self, node: *AstNode?) {
+	pub fn set_predicate_pattern(*self, node: *AstNode?) {
 		if (node == null || self.sem == null) return;
 		var s = self.sem;
 		s.predicate_patterns[node.addr()] = true;
 	}
 
-	pub fn is_predicate_pattern(val self, node: *AstNode?): bool {
+	pub fn is_predicate_pattern(*self, node: *AstNode?): bool {
 		if (node == null || self.sem == null) return false;
 		return self.sem.predicate_patterns.get(node.addr()) != null;
 	}
 
-	pub fn alloc_lambda_id(val self): usz {
+	pub fn alloc_lambda_id(*self): usz {
 		if (self.sem == null) return 0;
 		var s = self.sem;
 		val id = s.next_lambda_id;
@@ -132,37 +132,37 @@ impl SymbolTable {
 		return id;
 	}
 
-	pub fn set_lambda_info(val self, node: *AstNode?, info: LambdaInfo) {
+	pub fn set_lambda_info(*self, node: *AstNode?, info: LambdaInfo) {
 		if (node == null || self.sem == null) return;
 		var s = self.sem;
 		s.lambdas[node.addr()] = info;
 	}
 
-	pub fn has_lambda_info(val self, node: *AstNode?): bool {
+	pub fn has_lambda_info(*self, node: *AstNode?): bool {
 		if (node == null || self.sem == null) return false;
 		return self.sem.lambdas.get(node.addr()) != null;
 	}
 
-	pub fn get_lambda_info(val self, node: *AstNode?): LambdaInfo {
+	pub fn get_lambda_info(*self, node: *AstNode?): LambdaInfo {
 		if (node == null || self.sem == null) return LambdaInfo();
 		val p = self.sem.lambdas.get(node.addr()) ?: return LambdaInfo();
 		return p.read();
 	}
 
-	pub fn set_closure_call(val self, node: *AstNode?) {
+	pub fn set_closure_call(*self, node: *AstNode?) {
 		if (node == null || self.sem == null) return;
 		var s = self.sem;
 		s.closure_calls[node.addr()] = true;
 	}
 
-	pub fn is_closure_call(val self, node: *AstNode?): bool {
+	pub fn is_closure_call(*self, node: *AstNode?): bool {
 		if (node == null || self.sem == null) return false;
 		return self.sem.closure_calls.get(node.addr()) != null;
 	}
 
 	// Returns the enclosing local/parameter symbol if `name` is resolved in `boundary`
 	// or an ancestor scope of `boundary`, or null if resolved inside the lambda or globally.
-	pub fn lookup_local_at_or_above(val self, name: str, boundary: *Scope?): *Symbol? {
+	pub fn lookup_local_at_or_above(*self, name: str, boundary: *Scope?): *Symbol? {
 		if (boundary == null) return null;
 		var curr: *Scope? = self.current_scope;
 		var reached_boundary = false;
@@ -183,7 +183,7 @@ impl SymbolTable {
 	}
 
 	// Returns the local/parameter symbol if `name` is defined in any enclosing local scope.
-	pub fn lookup_any_local(val self, name: str): *Symbol? {
+	pub fn lookup_any_local(*self, name: str): *Symbol? {
 		var curr: *Scope? = self.current_scope;
 		while (curr != null) {
 			for (sym in curr) {
@@ -197,27 +197,27 @@ impl SymbolTable {
 		return null;
 	}
 
-	pub fn register_prim_method(val self, prim: *Type, mi: *MethodInfo) {
+	pub fn register_prim_method(*self, prim: *Type, mi: *MethodInfo) {
 		var target = prim;
 		target.add_method(mi);
 	}
 
-	pub fn find_prim_method(val self, kind: DataType, name: str): *MethodInfo? {
+	pub fn find_prim_method(*self, kind: DataType, name: str): *MethodInfo? {
 		val t = self.prims.get(kind) ?: return null;
 		return t.method_named(name);
 	}
 
-	pub fn find_prim_method_arity(val self, kind: DataType, name: str, argc: usz): *MethodInfo? {
+	pub fn find_prim_method_arity(*self, kind: DataType, name: str, argc: usz): *MethodInfo? {
 		val t = self.prims.get(kind) ?: return null;
 		return t.method_arity(name, argc);
 	}
 
-	pub fn prim_methods_of(val self, kind: DataType): List<*MethodInfo> {
+	pub fn prim_methods_of(*self, kind: DataType): List<*MethodInfo> {
 		val t = self.prims.get(kind) ?: return List();
 		return t.method_list();
 	}
 
-	pub fn find_prim_method_c(val self, c_name: str): *MethodInfo? {
+	pub fn find_prim_method_c(*self, c_name: str): *MethodInfo? {
 		for (t in self.prims.types) {
 			val m = t.method_by_c_name(c_name);
 			if (m != null) return m;
@@ -225,17 +225,17 @@ impl SymbolTable {
 		return null;
 	}
 
-	pub fn register_trait(var self, info: *TraitInfo) {
+	pub fn register_trait(&self, info: *TraitInfo) {
 		self.traits += info;
 		self.trait_map[info.name] = info;
 	}
 
-	pub fn find_trait(val self, name: str): *TraitInfo? {
+	pub fn find_trait(*self, name: str): *TraitInfo? {
 		val p = self.trait_map.get(name) ?: return null;
 		return p.read();
 	}
 
-	pub fn register_enum_info(var self, info: *EnumInfo) {
+	pub fn register_enum_info(&self, info: *EnumInfo) {
 		self.enums += info;
 		self.enum_map[info.name] = info;
 		if (
@@ -244,22 +244,22 @@ impl SymbolTable {
 		) self.enum_map[info.c_name] = info;
 	}
 
-	pub fn find_enum_info(val self, name: str): *EnumInfo? {
+	pub fn find_enum_info(*self, name: str): *EnumInfo? {
 		val p = self.enum_map.get(name) ?: return null;
 		return p.read();
 	}
 
-	pub fn enter_scope(var self, is_fn_boundary: bool): *Scope {
+	pub fn enter_scope(&self, is_fn_boundary: bool): *Scope {
 		val new_sc = self.arena.create_val(Scope(self.current_scope, List<*Symbol>(), is_fn_boundary));
 		self.current_scope = new_sc;
 		return new_sc;
 	}
 
-	pub fn exit_scope(var self) {
+	pub fn exit_scope(&self) {
 		self.current_scope = self.current_scope.parent ?: return;
 	}
 
-	pub fn is_in_function(val self): bool {
+	pub fn is_in_function(*self): bool {
 		var curr: *Scope? = self.current_scope;
 		while (curr != null) {
 			if (curr.is_fn_boundary) return true;
@@ -269,13 +269,13 @@ impl SymbolTable {
 		return false;
 	}
 
-	pub fn lookup_current(val self, name: str): *Symbol? {
+	pub fn lookup_current(*self, name: str): *Symbol? {
 		val scope = self.current_scope;
 		for (sym in scope) if (sym.name == name) return sym;
 		return null;
 	}
 
-	pub fn lookup(val self, name: str): *Symbol? {
+	pub fn lookup(*self, name: str): *Symbol? {
 		var curr: *Scope? = self.current_scope;
 		while (curr != null) {
 			for (sym in curr) if (sym.name == name) return sym;
@@ -301,7 +301,7 @@ impl SymbolTable {
 		return self.gen.find_instance_symbol(name) ?: self.lookup_c_name(name);
 	}
 
-	pub fn define(var self, sym: Symbol): bool {
+	pub fn define(&self, sym: Symbol): bool {
 		val existing = self.lookup_current(sym.name);
 		if (existing != null) return false;
 
@@ -310,7 +310,7 @@ impl SymbolTable {
 		return true;
 	}
 
-	pub fn set_current_module(var self, name: str) => self.current_module = name;
+	pub fn set_current_module(&self, name: str) => self.current_module = name;
 
 	/*
 	 * Struct layouts are computed when a declaration is collected, but a by-value
@@ -330,7 +330,7 @@ impl SymbolTable {
 	 * tag + payload union computed by `collect_payload_enum`, not a plain field
 	 * layout, so they must be skipped here.
 	 */
-	pub fn relayout_structs(val self) {
+	pub fn relayout_structs(*self) {
 		var changed = true;
 		var round = 0;
 		while (changed && round < 32) {
@@ -351,14 +351,14 @@ impl SymbolTable {
 		}
 	}
 
-	pub fn find_module(val self, name: str): *ModuleScope? {
+	pub fn find_module(*self, name: str): *ModuleScope? {
 		val p = self.module_map.get(name) ?: return null;
 		return p.read();
 	}
 
-	pub fn module_exists(val self, name: str) => name in self.module_map;
+	pub fn module_exists(*self, name: str) => name in self.module_map;
 
-	pub fn has_wildcard(val self, owner: str, module_name: str): bool {
+	pub fn has_wildcard(*self, owner: str, module_name: str): bool {
 		for (i in 0..<self.wildcard_owners.len) {
 			if (
 				self.wildcard_owners[i] == owner
@@ -369,18 +369,18 @@ impl SymbolTable {
 	}
 
 	pub fn set_assoc_type(
-		var self, struct_name: str,
+		&self, struct_name: str,
 		assoc: str, ty: *Type
 	) {
 		self.assoc_types["${struct_name}.${assoc}"] = ty;
 	}
 
-	pub fn find_assoc_type(val self, struct_name: str, assoc: str): *Type? {
+	pub fn find_assoc_type(*self, struct_name: str, assoc: str): *Type? {
 		val p = self.assoc_types.get("${struct_name}.${assoc}") ?: return null;
 		return p.read();
 	}
 
-	pub fn define_in_module(var self, module_name: str, sym: Symbol): bool {
+	pub fn define_in_module(&self, module_name: str, sym: Symbol): bool {
 		val sc = self.find_module(module_name);
 		if (sc != null) {
 			if (sym.name in sc) return false;
@@ -411,9 +411,9 @@ impl SymbolTable {
 		return true;
 	}
 
-	pub fn define_global(var self, sym: Symbol) => self.define_in_module(self.current_module, sym);
+	pub fn define_global(&self, sym: Symbol) => self.define_in_module(self.current_module, sym);
 
-	pub fn add_import(var self, module_name: str, symbol_name: str, local_name: str, wildcard: bool) {
+	pub fn add_import(&self, module_name: str, symbol_name: str, local_name: str, wildcard: bool) {
 		val binding = ImportBinding(module_name, symbol_name, local_name, wildcard, self.current_module);
 		self.imports += binding;
 
@@ -425,18 +425,18 @@ impl SymbolTable {
 		}
 	}
 
-	pub fn lookup_in_module(val self, module_name: str, name: str): *Symbol? {
+	pub fn lookup_in_module(*self, module_name: str, name: str): *Symbol? {
 		val sc = self.find_module(module_name) ?: return null;
 		return sc.lookup(name);
 	}
 
-	pub fn lookup_c_name(val self, c_name: str): *Symbol? {
+	pub fn lookup_c_name(*self, c_name: str): *Symbol? {
 		if (c_name.empty()) return null;
 		val p = self.c_name_map.get(c_name) ?: return null;
 		return p.read();
 	}
 
-	pub fn lookup_struct_const(val self, struct_name: str, member_name: str): *Symbol? {
+	pub fn lookup_struct_const(*self, struct_name: str, member_name: str): *Symbol? {
 		val direct = "${struct_name}__${member_name}";
 		val p = self.struct_const_map.get(direct);
 		val s = p.read();

@@ -103,11 +103,11 @@ impl Point {
     // Static helper
     pub fn origin(): Self => Self(0, 0);
 
-    // Instance method (read-only self)
-    pub fn length_squared(val self): i32 => self.x * self.x + self.y * self.y;
+    // Instance method (read-only pointer receiver)
+    pub fn length_squared(*self): i32 => self.x * self.x + self.y * self.y;
 
-    // Mutating instance method
-    pub fn translate(var self, dx: i32, dy: i32) {
+    // Mutating instance method (mutable pointer receiver)
+    pub fn translate(&self, dx: i32, dy: i32) {
         self.x += dx;
         self.y += dy;
     }
@@ -117,7 +117,10 @@ impl Point {
 - **Fields:** Declared inside `struct`. Fields support `pub` visibility and default initializers.
 - **Constructors:** Declared with `init(...) [=> expr; | { ... }]`. Constructors never declare a return type (specifying a return type is a syntax error); they implicitly return an instance of `Self`. Instances are created via `TypeName(...)`.
 - **Methods:** Defined in `impl StructName` blocks.
-  - Instance methods require an explicit `val self` (read-only) or `var self` (mutable) receiver.
+  - Instance methods require an explicit receiver:
+    - `*self`: Read-only pointer receiver (`const T*`).
+    - `&self`: Mutable pointer receiver (`T*`).
+    - bare `self`: Consuming/move receiver (moves/consumes the caller variable).
   - Static methods omit `self` and are called via `TypeName.method(...)` or `Self.method(...)` within `impl`.
 - **Construction:**
   - Unified constructor syntax: `Point(1, 2)` calls `Point.new(1, 2)` if defined, otherwise falls back to positional field construction.
@@ -145,13 +148,13 @@ Traits define shared interfaces with static dispatch:
 
 ```kobel
 trait Greeter {
-    fn name(val self): str;
+    fn name(*self): str;
     // Default implementation:
-    fn greet(val self): str => "Hello, " + self.name();
+    fn greet(*self): str => "Hello, " + self.name();
 }
 
 impl Greeter for Point {
-    fn name(val self): str => "Point(${self.x}, ${self.y})";
+    fn name(*self): str => "Point(${self.x}, ${self.y})";
 }
 ```
 
@@ -166,12 +169,12 @@ Traits can declare associated types, resolved per implementation:
 ```kobel
 trait Container {
     type Item;
-    fn first(val self): Self.Item;
+    fn first(*self): Self.Item;
 }
 
 impl Container for IntBox {
     type Item = i32;
-    fn first(val self): Self.Item => self.value;
+    fn first(*self): Self.Item => self.value;
 }
 ```
 
@@ -226,14 +229,14 @@ struct Box<T> {
 }
 
 impl Box<T> {
-    pub fn get(val self): T => self.value;
+    pub fn get(*self): T => self.value;
 }
 
 fn identity<T>(val x: T): T => x;
 
 // Generic method on struct:
 impl Arena {
-    pub fn alloc<T>(var self): *T { ... }
+    pub fn alloc<T>(&self): *T { ... }
 }
 ```
 
@@ -252,11 +255,11 @@ pub struct Vec2 {
 }
 
 impl Vec2 {
-    pub op plus(val self, other: Vec2): Vec2 => Vec2(self.x + other.x, self.y + other.y);
-    pub op minus(val self, other: Vec2): Vec2 => Vec2(self.x - other.x, self.y - other.y);
-    pub op negate(val self): Vec2 => Vec2(-self.x, -self.y);
-    pub op equals(val self, other: Vec2): bool => self.x == other.x && self.y == other.y;
-    pub op plus_assign(var self, other: Vec2) {
+    pub op plus(*self, other: Vec2): Vec2 => Vec2(self.x + other.x, self.y + other.y);
+    pub op minus(*self, other: Vec2): Vec2 => Vec2(self.x - other.x, self.y - other.y);
+    pub op negate(*self): Vec2 => Vec2(-self.x, -self.y);
+    pub op equals(*self, other: Vec2): bool => self.x == other.x && self.y == other.y;
+    pub op plus_assign(&self, other: Vec2) {
         self.x += other.x;
         self.y += other.y;
     }
@@ -306,14 +309,14 @@ for (val (k, v) in &hashmap) { ... }
 A struct implements destructuring by defining `pub op unpack`:
 - **Out-pointer form** (supports heterogeneous element types):
   ```kobel
-  pub op unpack(val self, k: &K, v: &V) {
+  pub op unpack(*self, k: &K, v: &V) {
       k.write(self.key);
       v.write(self.value);
   }
   ```
 - **Indexed form** (homogeneous element type):
   ```kobel
-  pub op unpack(val self, idx: usz): i32 {
+  pub op unpack(*self, idx: usz): i32 {
       if (idx == 0) return self.x;
       return self.y;
   }

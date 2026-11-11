@@ -10667,6 +10667,9 @@ compiler__lexer__Token pname = compiler__parser__Parser_consume(self, 43, KOBEL_
 if (is_prefix_ptr && (!allow_self || !kobel_streq(pname.text, KOBEL_STR("self")))) {
 compiler__parser__Parser_error(self, pname, KOBEL_STR("Prefix '*' and '&' are only supported for the 'self' receiver parameter"));
 }
+if ((kobel_streq(pname.text, KOBEL_STR("self")) && !is_prefix_ptr) && (mutable || has_val)) {
+compiler__parser__Parser_error(self, pname, KOBEL_STR("'*self' and '&self' are no longer supported; use '*self', '&self', or bare 'self'"));
+}
 compiler__ast__AstNode* ptype;
 if (compiler__parser__Parser_match_token(self, 1)) {
 ptype = compiler__parser__Parser_parse_type(self);
@@ -18813,7 +18816,7 @@ compiler__semantic__declaration__DeclarationCollector_report_error(self, m_node,
 }
 } else if (kobel_streq(f->name, KOBEL_STR("plus_assign")) || kobel_streq(f->name, KOBEL_STR("minus_assign")) || kobel_streq(f->name, KOBEL_STR("mul_assign")) || kobel_streq(f->name, KOBEL_STR("div_assign")) || kobel_streq(f->name, KOBEL_STR("rem_assign")) || kobel_streq(f->name, KOBEL_STR("bit_and_assign")) || kobel_streq(f->name, KOBEL_STR("bit_or_assign")) || kobel_streq(f->name, KOBEL_STR("bit_xor_assign")) || kobel_streq(f->name, KOBEL_STR("shl_assign")) || kobel_streq(f->name, KOBEL_STR("shr_assign"))) {
 if (!mutable_self) {
-compiler__semantic__declaration__DeclarationCollector_report_error(self, m_node, kobel_concat(3, KOBEL_STR("Compound assignment operator '"), f->name, KOBEL_STR("' requires a mutable receiver 'var self'")));
+compiler__semantic__declaration__DeclarationCollector_report_error(self, m_node, kobel_concat(3, KOBEL_STR("Compound assignment operator '"), f->name, KOBEL_STR("' requires a mutable receiver '&self'")));
 }
 if (f->params.len != 2) {
 compiler__semantic__declaration__DeclarationCollector_report_error(self, m_node, kobel_concat(3, KOBEL_STR("Compound assignment operator '"), f->name, KOBEL_STR("' must take exactly 1 parameter besides 'self'")));
@@ -18824,7 +18827,7 @@ compiler__semantic__declaration__DeclarationCollector_report_error(self, m_node,
 }
 } else if (kobel_streq(f->name, KOBEL_STR("set"))) {
 if (!mutable_self) {
-compiler__semantic__declaration__DeclarationCollector_report_error(self, m_node, KOBEL_STR("Index assignment operator 'set' requires a mutable receiver 'var self'"));
+compiler__semantic__declaration__DeclarationCollector_report_error(self, m_node, KOBEL_STR("Index assignment operator 'set' requires a mutable receiver '&self'"));
 }
 if (f->params.len < 3) {
 compiler__semantic__declaration__DeclarationCollector_report_error(self, m_node, KOBEL_STR("Index assignment operator 'set' must take at least 2 parameters besides 'self' (index and value)"));
@@ -20953,7 +20956,7 @@ if (cur->is_safe) {
 compiler__semantic__checker__BodyChecker_report_error(self, op_node, KOBEL_STR("Cannot assign to safe navigation expression"));
 }
 if (compiler__semantic__checker__BodyChecker_is_immutable_self(self, cur->object)) {
-compiler__semantic__checker__BodyChecker_report_error(self, op_node, kobel_concat(3, KOBEL_STR("Cannot mutate field '"), cur->member, KOBEL_STR("' on immutable receiver 'self' in 'val self' method")));
+compiler__semantic__checker__BodyChecker_report_error(self, op_node, kobel_concat(3, KOBEL_STR("Cannot mutate field '"), cur->member, KOBEL_STR("' on immutable receiver 'self' in '*self' method")));
 } else {
 compiler__ast__AstNode* obj_expr = compiler__semantic__checker__BodyChecker_unwrap_group(self, cur->object);
 {
@@ -20972,7 +20975,7 @@ void* __orig_cur = (void*)cur;
 compiler__ast__NodeData__IndexExpr* cur = (compiler__ast__NodeData__IndexExpr*)((&((compiler__ast__AstNode*)__orig_cur)->data.u.IndexExpr));
 if (compiler__semantic__checker__BodyChecker_is_immutable_self(self, cur->target)) {
 kobel_str act = (is_update ? KOBEL_STR("update") : KOBEL_STR("mutate"));
-compiler__semantic__checker__BodyChecker_report_error(self, op_node, kobel_concat(3, KOBEL_STR("Cannot "), act, KOBEL_STR(" through index on immutable receiver 'self' in 'val self' method")));
+compiler__semantic__checker__BodyChecker_report_error(self, op_node, kobel_concat(3, KOBEL_STR("Cannot "), act, KOBEL_STR(" through index on immutable receiver 'self' in '*self' method")));
 } else {
 compiler__ast__AstNode* target_expr = compiler__semantic__checker__BodyChecker_unwrap_group(self, cur->target);
 {
@@ -21104,7 +21107,7 @@ if (mi != NULL) {
 if (!t_is_ptr) {
 compiler__semantic__checker__BodyChecker_check_lvalue_mutability(self, target_expr, node, false);
 } else if (compiler__semantic__checker__BodyChecker_is_immutable_self(self, target_expr)) {
-compiler__semantic__checker__BodyChecker_report_error(self, node, KOBEL_STR("Cannot mutate immutable receiver 'self' in 'val self' method"));
+compiler__semantic__checker__BodyChecker_report_error(self, node, KOBEL_STR("Cannot mutate immutable receiver 'self' in '*self' method"));
 }
 compiler__semantic__checker__BodyChecker_mark_node_mutated(self, target_expr);
 compiler__semantic__checker__BodyChecker_set_method(self, node, mi);
@@ -21651,7 +21654,7 @@ return NULL;
 
 void compiler__semantic__checker__BodyChecker_check_receiver_mutability(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* node, compiler__ast__AstNode* obj_node, kobel_str member, compiler__semantic__types__Type* obj_raw_ty) {
 if (compiler__semantic__checker__BodyChecker_is_immutable_self(self, obj_node)) {
-compiler__semantic__checker__BodyChecker_report_error(self, node, kobel_concat(3, KOBEL_STR("Cannot call mutating method '"), member, KOBEL_STR("' on immutable receiver 'val self'")));
+compiler__semantic__checker__BodyChecker_report_error(self, node, kobel_concat(3, KOBEL_STR("Cannot call mutating method '"), member, KOBEL_STR("' on immutable receiver '*self'")));
 return;
 }
 if (obj_raw_ty->kind != 16) {
@@ -25397,7 +25400,7 @@ compiler__semantic__symbols__Symbol* sym = compiler__semantic__symbols__SymbolTa
 if ((sym != NULL) && !sym->mutated) {
 if (kobel_streq(p.name, KOBEL_STR("self"))) {
 if (!is_trait_impl) {
-compiler__semantic__checker__BodyChecker_report_warning(self, fn_node, kobel_concat(2, kobel_concat(3, KOBEL_STR("In function '"), f->name, KOBEL_STR("': Receiver 'self' is declared mutable ")), KOBEL_STR("with 'var', but is never mutated; consider using 'val self'")));
+compiler__semantic__checker__BodyChecker_report_warning(self, fn_node, kobel_concat(2, kobel_concat(3, KOBEL_STR("In function '"), f->name, KOBEL_STR("': Receiver 'self' is declared mutable ")), KOBEL_STR("with '&self', but is never mutated; consider using '*self'")));
 }
 } else if (!str_starts_with(p.name, KOBEL_STR("_"))) {
 compiler__semantic__checker__BodyChecker_report_warning(self, fn_node, kobel_concat(2, kobel_concat(5, KOBEL_STR("In function '"), f->name, KOBEL_STR("': Parameter '"), p.name, KOBEL_STR("' is declared mutable ")), KOBEL_STR("with 'var', but is never mutated; consider using 'val'")));
@@ -30404,12 +30407,22 @@ return fmt__FormatBuffer_to_str(&scratch.buf).len;
 }
 
 void fmt__Formatter_format_param(fmt__Formatter* self, compiler__ast__Param p) {
+if (kobel_streq(p.name, KOBEL_STR("self"))) {
+if (p.mutable) {
+fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR("&self"));
+} else if (p.has_val) {
+fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR("*self"));
+} else {
+fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR("self"));
+}
+} else {
 if (p.mutable) {
 fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR("var "));
 } else if (p.has_val) {
 fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR("val "));
 }
 fmt__FormatBuffer_plus_assign_2(&self->buf, p.name);
+}
 if (p.type_node != NULL) {
 fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR(": "));
 fmt__Formatter_format_type(self, p.type_node);

@@ -40,7 +40,7 @@ pub fn expr_needs_parens_for_member(node: *AstNode) => when (node) {
 
 impl CCodeGen {
 
-	pub fn gen_expr(var self, node: *AstNode?): str {
+	pub fn gen_expr(&self, node: *AstNode?): str {
 		if (node == null) return "";
 		val ast_node = node!;
 
@@ -125,7 +125,7 @@ impl CCodeGen {
 		};
 	}
 
-	pub fn gen_ident_expr(val self, name: str): str {
+	pub fn gen_ident_expr(*self, name: str): str {
 		for (cap in self.active_lambda_captures) {
 			if (cap.name == name) {
 				if (cap.is_mutable) return "(*(__env->${name}))";
@@ -135,7 +135,7 @@ impl CCodeGen {
 		return name;
 	}
 
-	fn gen_lambda_expr(val self, ast_node: *AstNode): str {
+	fn gen_lambda_expr(*self, ast_node: *AstNode): str {
 		val info = self.lambda_info_of(ast_node);
 		if (info.id == 0) return "(kobel_closure){ NULL, NULL }";
 		if (info.captures.empty()) {
@@ -150,7 +150,7 @@ impl CCodeGen {
 	}
 
 	// Literals lower to their C spelling (ints/floats normalised, strings wrapped in KOBEL_STR).
-	fn gen_literal_expr(val self, ast_node: *AstNode, lit: *LiteralExpr): str {
+	fn gen_literal_expr(*self, ast_node: *AstNode, lit: *LiteralExpr): str {
 		return when (lit.literal_kind) {
 			Literal.INTEGER -> c_format_int_literal(lit.raw_text);
 			Literal.FLOAT -> c_format_float_literal(lit.raw_text);
@@ -178,7 +178,7 @@ impl CCodeGen {
 	}
 
 	// Binary expressions lower to a parenthesised C operator (?: for the elvis form).
-	fn gen_binary_expr(var self, ast_node: *AstNode, bin: *BinaryExpr): str {
+	fn gen_binary_expr(&self, ast_node: *AstNode, bin: *BinaryExpr): str {
 		if (bin.op == TokenType.DOT_DOT || bin.op == TokenType.DOT_DOT_LESS) {
 			val c_ty = self.c_type_of(ast_node);
 			val l = self.gen_expr(bin.left);
@@ -305,7 +305,7 @@ impl CCodeGen {
 	}
 
 	// Unary operators lower to a C prefix operator (- guards a negative operand).
-	fn gen_unary_expr(var self, un: *UnaryExpr): str {
+	fn gen_unary_expr(&self, un: *UnaryExpr): str {
 		val opnd = self.gen_expr(un.operand);
 		if (un.is_postfix && un.op == TokenType.BANG) return opnd;
 
@@ -320,7 +320,7 @@ impl CCodeGen {
 
 	// `[1, 2, 3]` -> a C99 compound literal, `(int32_t[]){1, 2, 3}`. It decays
 	// to a pointer, which is how this backend represents an array value.
-	fn gen_array_literal_expr(var self, al: *ArrayLiteralExpr): str {
+	fn gen_array_literal_expr(&self, al: *ArrayLiteralExpr): str {
 		val elem_c = when {
 			al.elem_type_node != null -> c_type_from_ast(al.elem_type_node!);
 
@@ -344,7 +344,7 @@ impl CCodeGen {
 	}
 
 	// Calls lower to a C call, a struct compound literal, or an inlined string/size helper.
-	fn gen_call_expr(var self, call: *CallExpr): str {
+	fn gen_call_expr(&self, call: *CallExpr): str {
 		// Static or string method call: T.size() -> sizeof(T), s.c_str() -> kobel_cstr(s)
 		val callee = call.callee;
 		if (callee is MemberExpr as mem) {
@@ -415,7 +415,7 @@ impl CCodeGen {
 
 	// Member access lowers to ./->. `str` is a struct (`kobel_str`), so `.len` and
 	// `.data` emit directly as field accesses.
-	fn gen_member_expr(var self, ast_node: *AstNode, mem: *MemberExpr): str {
+	fn gen_member_expr(&self, ast_node: *AstNode, mem: *MemberExpr): str {
 		val obj_node = mem.object;
 		val obj = self.gen_expr(obj_node);
 		// A member access on a pointer value needs `->`; the receiver of a
@@ -477,7 +477,7 @@ impl CCodeGen {
 	}
 
 	// Assignments lower to the matching C compound-assignment operator.
-	fn gen_assign_expr(var self, asgn: *AssignExpr): str {
+	fn gen_assign_expr(&self, asgn: *AssignExpr): str {
 		val op_str = when (asgn.op) {
 			TokenType.PLUS_EQUAL -> "+=";
 			TokenType.MINUS_EQUAL -> "-=";
@@ -490,7 +490,7 @@ impl CCodeGen {
 	}
 
 	// when expressions lower to nested C ternaries, evaluated from the last arm back.
-	fn gen_when_expr(var self, we: *WhenExpr): str {
+	fn gen_when_expr(&self, we: *WhenExpr): str {
 		if (we.arms.empty()) return "0";
 		val cond = if (we.condition != null) self.gen_expr(we.condition!) else "";
 		val has_else = we.arms.any { arm -> arm.is_else };
@@ -519,11 +519,11 @@ impl CCodeGen {
 	// hoisting `void* __subj = ...;` in statement position if a call ever
 	// becomes a subject.
 	pub fn gen_tag_test(
-		val self, subject: str, is_ptr: bool, tag_field: str, tag_const: str
+		*self, subject: str, is_ptr: bool, tag_field: str, tag_const: str
 	): str => if (is_ptr) "${subject} != NULL && ${subject}->${tag_field} == ${tag_const}"
 		else "${subject}.${tag_field} == ${tag_const}";
 
-	pub fn gen_cast_expr(var self, cst: *CastExpr): str {
+	pub fn gen_cast_expr(&self, cst: *CastExpr): str {
 		val ty = c_type_from_ast(cst.target_type);
 		if (ty == "kobel_str" && cst.expr != null && self.is_pointer_value(cst.expr!)) {
 			return "kobel_from_cstr((const char*)(${self.gen_expr(cst.expr)}))";
@@ -531,7 +531,7 @@ impl CCodeGen {
 		return "(${ty})${self.gen_expr(cst.expr)}";
 	}
 
-	pub fn gen_is_expr(var self, ast_node: *AstNode, is_e: *IsExpr): str {
+	pub fn gen_is_expr(&self, ast_node: *AstNode, is_e: *IsExpr): str {
 		val pat_info = self.is_pattern_info(ast_node);
 		val obj = if (is_e.expr != null) self.gen_expr(is_e.expr!) else "";
 		val target_name = c_type_from_ast(is_e.target_type);
@@ -565,7 +565,7 @@ impl CCodeGen {
 	// Builds the test expression of a `when` arm: `c == p1 || c == p2`.
 	// For the boolean form (`cond` empty) each pattern is itself the test.
 	// String patterns compare with `kobel_streq`.
-	pub fn gen_when_test(var self, cond: str, patterns: List<*AstNode>): str {
+	pub fn gen_when_test(&self, cond: str, patterns: List<*AstNode>): str {
 		var res = "";
 		for (i in 0..<patterns.len) {
 			val p = patterns[i];
@@ -609,13 +609,13 @@ impl CCodeGen {
 	// C type of an expression: sema resolved it and stored the result on the
 	// node, so the backend never re-derives a type from syntax or from variable
 	// names. Empty for nodes that desugaring synthesised and were never checked.
-	pub fn c_type_of(val self, expr: *AstNode): str {
+	pub fn c_type_of(*self, expr: *AstNode): str {
 		val ty = self.node_type(expr) ?: return "";
 		return c_type_from_type(ty);
 	}
 
 	// Same, with a fallback for synthesised nodes.
-	pub fn c_type_or(val self, expr: *AstNode, fallback: str): str {
+	pub fn c_type_or(*self, expr: *AstNode, fallback: str): str {
 		val ty = self.c_type_of(expr);
 		if (ty.empty()) return fallback;
 		return ty;
@@ -623,17 +623,17 @@ impl CCodeGen {
 
 	// True when the value is a pointer: a smart cast over a pointer casts the
 	// value itself, while a struct value has to be addressed.
-	pub fn is_pointer_value(val self, node: *AstNode): bool {
+	pub fn is_pointer_value(*self, node: *AstNode): bool {
 		val ty = self.node_type(node) ?: return false;
 		return ty.kind == DataType.POINTER;
 	}
 
-	pub fn is_str_value(val self, node: *AstNode): bool {
+	pub fn is_str_value(*self, node: *AstNode): bool {
 		val ty = self.node_type(node) ?: return false;
 		return ty.kind == DataType.STR;
 	}
 
-	fn is_char_value(val self, node: *AstNode): bool {
+	fn is_char_value(*self, node: *AstNode): bool {
 		val ty = self.node_type(node) ?: return false;
 		return ty.kind == DataType.CHAR;
 	}

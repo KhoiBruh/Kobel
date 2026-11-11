@@ -20,14 +20,14 @@ pub struct Range<T> {
 
 impl Range<T> {
 
-	pub fn is_ascending(val self): bool => self.start <= self.end;
+	pub fn is_ascending(*self): bool => self.start <= self.end;
 
-	pub op equals(val self, other: Range<T>): bool =>
+	pub op equals(*self, other: Range<T>): bool =>
 		self.start == other.start
 		&& self.end == other.end
 		&& self.inclusive == other.inclusive;
 
-	pub op contains(val self, item: T): bool {
+	pub op contains(*self, item: T): bool {
 		if (self.is_ascending()) {
 			if (self.inclusive) return item >= self.start && item <= self.end;
 			return item >= self.start && item < self.end;
@@ -42,7 +42,7 @@ impl Range<T> {
 
 impl Iterable for Range<T> {
 
-	pub fn count(val self): usz {
+	pub fn count(*self): usz {
 		if (self.is_ascending()) {
 			val diff = (self.end - self.start) as usz;
 			return if (self.inclusive) diff + 1 else diff;
@@ -52,7 +52,7 @@ impl Iterable for Range<T> {
 		return if (self.inclusive) diff + 1 else diff;
 	}
 
-	pub fn at(val self, i: usz): T {
+	pub fn at(*self, i: usz): T {
 		if (self.is_ascending()) return (self.start + (i as isz)) as T;
 		return (self.start - (i as isz)) as T;
 	}

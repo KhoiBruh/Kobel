@@ -7,7 +7,7 @@ pub struct Pair<F, S> {
 
 impl Pair<F, S> {
 
-	pub op unpack(val self, first: &F, second: &S) {
+	pub op unpack(*self, first: &F, second: &S) {
 		first.write(self.first);
 		second.write(self.second);
 	}
@@ -22,7 +22,7 @@ pub struct Triple<F, S, T> {
 
 impl Triple<F, S, T> {
 
-	pub op unpack(val self, first: &F, second: &S, third: &T) {
+	pub op unpack(*self, first: &F, second: &S, third: &T) {
 		first.write(self.first);
 		second.write(self.second);
 		third.write(self.third);

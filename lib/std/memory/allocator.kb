@@ -10,5 +10,5 @@ mod std.memory;
  */
 
 pub trait Allocator {
-	fn alloc_bytes(var self, size: usz, align: usz): &u8;
+	fn alloc_bytes(&self, size: usz, align: usz): &u8;
 }

@@ -121,12 +121,12 @@ if (node == null) return none_ty;
 | Function, variable, field, param | snake_case | `collect_program`, `type_size` |
 | Enum variant, `const TAG` | UPPER_SNAKE | `POINTER`, `KW_FN` |
 
-- Method receivers are explicit: `val self` (read-only) or `var self` (mutating). Single-expression bodies may use `=>`.
+- Method receivers are explicit: `*self` (read-only pointer receiver), `&self` (mutable pointer receiver), or bare `self` (consuming / move receiver). Single-expression bodies may use `=>`.
 
 ```kobel
 impl PointerType {
-    pub fn type_size(val self) => 8;
-    pub fn ensure(var self, cond: bool, node: *AstNode, msg: str) { ... }
+    pub fn type_size(*self) => 8;
+    pub fn ensure(&self, cond: bool, node: *AstNode, msg: str) { ... }
 }
 ```
 

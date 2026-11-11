@@ -53,22 +53,22 @@ impl Toml {
 		return self;
 	}
 
-	pub fn get(val self, key: str, default_val: str) => self.entries.get_or(key, default_val);
+	pub fn get(*self, key: str, default_val: str) => self.entries.get_or(key, default_val);
 
-	pub op get(val self, key: str) => self.entries.get_or(key, "");
+	pub op get(*self, key: str) => self.entries.get_or(key, "");
 
-	pub op set(var self, key: str, value: str) {
+	pub op set(&self, key: str, value: str) {
 		self.entries[key] = value;
 	}
 
-	pub op contains(val self, key: str) => key in self.entries;
+	pub op contains(*self, key: str) => key in self.entries;
 
 }
 
 impl Iterable for Toml {
 
-	pub fn count(val self) => self.entries.count();
+	pub fn count(*self) => self.entries.count();
 
-	pub fn at(val self, i: usz) => self.entries.at(i);
+	pub fn at(*self, i: usz) => self.entries.at(i);
 
 }

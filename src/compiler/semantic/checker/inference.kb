@@ -19,7 +19,7 @@ use compiler.semantic.symbols.*;
 impl BodyChecker {
 
 	pub fn infer_type_args_for_fn(
-		var self,
+		&self,
 		fn_decl: *FnDecl,
 		call_args: List<*AstNode>,
 		is_method: bool,
@@ -90,7 +90,7 @@ impl BodyChecker {
 	}
 
 	fn resolve_type_with_partial_tparams(
-		var self,
+		&self,
 		node: *AstNode,
 		type_params: List<GenericParam>,
 		inferred: List<*Type>,
@@ -138,7 +138,7 @@ impl BodyChecker {
 	}
 
 	pub fn infer_type_args_for_struct(
-		var self,
+		&self,
 		decl: *StructDecl,
 		call_args: List<*AstNode>
 	): List<*AstNode> {
@@ -174,7 +174,7 @@ impl BodyChecker {
 	}
 
 	pub fn match_type_param(
-		var self,
+		&self,
 		param_ty_node: *AstNode,
 		arg_ty: *Type,
 		type_params: List<GenericParam>,
