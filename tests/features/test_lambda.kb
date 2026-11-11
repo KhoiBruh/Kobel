@@ -54,7 +54,7 @@ fn main(): i32 {
 	list += 4;
 	list += 5;
 
-	list.for_each { x -> acc += x * factor };
+	list.each { x -> acc += x * factor };
 	if (acc != 150) return 6;
 
 	// Case 6: `List.filter`, `List.any`, `List.all`, `List.count_where`
@@ -119,8 +119,8 @@ fn main(): i32 {
 	row1 += 10;
 	row1 += 20;
 
-	row1.for_each { a ->
-		evens.for_each { b ->
+	row1.each { a ->
+		evens.each { b ->
 			counter.total += a + b;
 			counter.steps++;
 		};

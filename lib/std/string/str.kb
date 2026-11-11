@@ -66,23 +66,23 @@ impl str {
 
 	pub fn empty(val self) => self.len == 0;
 
-	pub fn for_each(val self, action: (char) -> none) {
-		for (i in 0..<self.len) action(self[i]);
+	pub fn each(val self, action: (char) -> none) {
+		for (data in self) action(data);
 	}
 
 	pub fn any(val self, predicate: (char) -> bool): bool {
-		for (i in 0..<self.len) if (predicate(self[i])) return true;
+		for (data in self) if (predicate(data)) return true;
 		return false;
 	}
 
 	pub fn all(val self, predicate: (char) -> bool): bool {
-		for (i in 0..<self.len) if (!predicate(self[i])) return false;
+		for (data in self) if (!predicate(data)) return false;
 		return true;
 	}
 
 	pub fn count_where(val self, predicate: (char) -> bool): usz {
-		var n: usz = 0;
-		for (i in 0..<self.len) if (predicate(self[i])) n++;
+		var n = 0;
+		for (data in self) if (predicate(data)) n++;
 		return n;
 	}
 
@@ -107,8 +107,7 @@ impl str {
 	pub fn filter(val self, predicate: (char) -> bool): str {
 		val buf = Heap.create_array<u8>(self.len + 1);
 		var w = 0;
-		for (i in 0..<self.len) {
-			val ch = self[i];
+		for (ch in self) {
 			if (predicate(ch)) {
 				buf[w] = ch.code();
 				w++;
@@ -206,7 +205,7 @@ impl str {
 		if (list.empty()) return "";
 		if (list.len == 1) return list.data[0];
 
-		var total = list.fold(0 as usz) { acc, item -> acc + item.len };
+		var total = list.fold(0) { acc, item -> acc + item.len };
 		total += self.len * (list.len - 1);
 
 		val buf = Heap.create_array<u8>(total + 1);

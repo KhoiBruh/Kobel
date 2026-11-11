@@ -169,7 +169,7 @@ fn test_collections(): bool {
 	// test HashMap higher-order methods
 	{
 		var sum = 0;
-		map.for_each { k, v -> sum += v };
+		map.each { k, v -> sum += v };
 		if (sum != 601) return false;
 		if (!map.any { k, v -> k == "second" && v == 200 }) return false;
 		if (map.any { k, v -> v > 500 }) return false;
@@ -260,7 +260,7 @@ fn test_collections(): bool {
 		if (iset.len != 3 || !(10 in iset) || !(20 in iset) || !(30 in iset)) return false;
 		if (!iset.remove(20) || (20 in iset) || iset.len != 2) return false;
 		var set_sum = 0;
-		iset.for_each { x -> set_sum += x };
+		iset.each { x -> set_sum += x };
 		if (set_sum != 40) return false;
 		if (!iset.any { x -> x == 30 } || iset.any { x -> x == 20 }) return false;
 		if (!iset.all { x -> x >= 10 } || iset.all { x -> x > 10 }) return false;
@@ -364,7 +364,7 @@ fn test_str(): bool {
 	if ("abc123".index_where { c -> c.is_digit() } != 3) return false;
 	if ("abc123".last_index_where { c -> c.is_digit() } != 5) return false;
 	var char_count = 0;
-	"kobel".for_each { c -> char_count++ };
+	"kobel".each { c -> char_count++ };
 	if (char_count != 5) return false;
 
 	return true;
