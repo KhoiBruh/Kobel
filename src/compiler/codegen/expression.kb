@@ -98,8 +98,7 @@ impl CCodeGen {
 
 			// A struct value built from its fields: `(Point){ 1, 2 }`.
 			is StructCtorExpr -> {
-				var ctor_args = List<str>();
-				for (a in node.args) ctor_args += self.gen_expr(a);
+				val ctor_args = node.args.map { a -> self.gen_expr(a) };
 				val joined = ", ".join(ctor_args);
 				yield "(${node.c_name}){ ${joined} }";
 			}
@@ -109,8 +108,7 @@ impl CCodeGen {
 				if (node.payload_path.empty()) {
 					yield "(${node.c_name}){ .${node.tag_field} = ${node.tag_value} }";
 				}
-				var ctor_args = List<str>();
-				for (a in node.args) ctor_args += self.gen_expr(a);
+				val ctor_args = node.args.map { a -> self.gen_expr(a) };
 				val joined = ", ".join(ctor_args);
 				yield "(${node.c_name}){ .${node.tag_field} = ${node.tag_value}, "
 					".${node.payload_path} = { ${joined} } }";
@@ -143,12 +141,10 @@ impl CCodeGen {
 		if (info.captures.empty()) {
 			return "(kobel_closure){ (void*)__lambda_fn_${info.id}, NULL }";
 		}
-		var cap_inits = List<str>();
-		for (cap in info.captures) {
+		val cap_inits = info.captures.map { cap ->
 			val expr_s = self.gen_ident_expr(cap.name);
-			if (cap.is_mutable) cap_inits += "&${expr_s}";
-			else cap_inits += expr_s;
-		}
+			yield if (cap.is_mutable) "&${expr_s}" else expr_s;
+		};
 		val joined = ", ".join(cap_inits);
 		return "(kobel_closure){ (void*)__lambda_fn_${info.id}, (void*)&(struct __lambda_env_${info.id}){ ${joined} } }";
 	}
@@ -335,8 +331,7 @@ impl CCodeGen {
 			else -> "int32_t";
 		};
 
-		var elems_str = List<str>();
-		for (el in al.elements) elems_str += self.gen_expr(el);
+		val elems_str = al.elements.map { el -> self.gen_expr(el) };
 		val joined_elems = ", ".join(elems_str);
 		val arr_res = "(${elem_c}[]){${joined_elems}}";
 
@@ -394,8 +389,7 @@ impl CCodeGen {
 
 		val callee_str = self.gen_expr(call.callee);
 
-		var args_str = List<str>();
-		for (arg in call.args) args_str += self.gen_expr(arg);
+		val args_str = call.args.map { arg -> self.gen_expr(arg) };
 		val joined_args = ", ".join(args_str);
 
 		val callee_ty = self.node_type(call.callee);
@@ -499,10 +493,7 @@ impl CCodeGen {
 	fn gen_when_expr(var self, we: *WhenExpr): str {
 		if (we.arms.empty()) return "0";
 		val cond = if (we.condition != null) self.gen_expr(we.condition!) else "";
-		var has_else = false;
-		for (arm in we.arms) {
-			if (arm.is_else) has_else = true;
-		}
+		val has_else = we.arms.any { arm -> arm.is_else };
 
 		var res = "0";
 		var i = we.arms.len;

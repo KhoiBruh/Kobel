@@ -111,7 +111,7 @@ impl HashMap<K: Hash, V> {
 		return res;
 	}
 
-	pub fn for_each(val self, action: (K, V) -> none) {
+	pub fn each(val self, action: (K, V) -> none) {
 		if (self.cap == 0) return;
 		for (i in 0..<self.cap) {
 			if (self.occupied[i]) action(self.keys[i], self.values[i]);

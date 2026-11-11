@@ -237,14 +237,8 @@ impl BodyChecker {
 			is UnaryExpr as u -> self.expr_has_implicit_subject(u.operand);
 			is BinaryExpr as b -> self.expr_has_implicit_subject(b.left) || self.expr_has_implicit_subject(b.right);
 			is MemberExpr as m -> self.expr_has_implicit_subject(m.object);
-			is CallExpr as c -> {
-				if (self.expr_has_implicit_subject(c.callee)) yield true;
-				var found = false;
-				for (arg in c.args) {
-					if (self.expr_has_implicit_subject(arg)) found = true;
-				}
-				yield found;
-			}
+			is CallExpr as c -> self.expr_has_implicit_subject(c.callee)
+				|| c.args.any { arg -> self.expr_has_implicit_subject(arg) };
 			is IndexExpr as ix -> self.expr_has_implicit_subject(ix.target) || self.expr_has_implicit_subject(ix.index);
 			is CastExpr as c -> self.expr_has_implicit_subject(c.expr);
 			is IsExpr as ise -> self.expr_has_implicit_subject(ise.expr);
@@ -438,11 +432,7 @@ impl BodyChecker {
 					val p_ty = matched_data_member.payload_ty;
 					if (p_ty != null && p_ty.kind == DataType.STRUCT) {
 						val s = p_ty.as_struct();
-						var has_inner = false;
-						for (f in s.fields) {
-							if (f.name == "inner") has_inner = true;
-						}
-						if (!has_inner) is_inner_ptr = false;
+						if (!s.fields.any { f -> f.name == "inner" }) is_inner_ptr = false;
 					}
 				}
 

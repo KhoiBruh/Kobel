@@ -106,15 +106,9 @@ impl TypeResolver {
 		GenericTemplate(name, self.current_module, node, is_method, self_type)
 	);
 
-	pub fn template_in_module(val self, module: str, name: str): bool {
-		for (t in self.symtab.gen.struct_templates) {
-			if (t.name == name && t.module == module) return true;
-		}
-		for (f in self.symtab.gen.fn_templates) {
-			if (f.name == name && f.module == module) return true;
-		}
-		return false;
-	}
+	pub fn template_in_module(val self, module: str, name: str): bool =>
+		self.symtab.gen.struct_templates.any { t -> t.name == name && t.module == module }
+		|| self.symtab.gen.fn_templates.any { f -> f.name == name && f.module == module };
 
 	pub fn find_instance_symbol(val self, name: str) => self.symtab.gen.find_instance_symbol(name);
 

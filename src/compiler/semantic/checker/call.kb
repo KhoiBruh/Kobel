@@ -875,8 +875,7 @@ impl BodyChecker {
 
 			var field_types = List<*Type>();
 			if (mi.payload_ty != null) {
-				val payload_fields = mi.payload_ty.as_struct().fields;
-				for (f in payload_fields) field_types += f.type_ptr;
+				field_types = mi.payload_ty.as_struct().fields.map { f -> f.type_ptr };
 			}
 
 			if (call.args.len != field_types.len) {

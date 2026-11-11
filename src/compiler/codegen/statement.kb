@@ -22,14 +22,9 @@ use compiler.semantic.symbols.*;
 // ============================================================================
 
 impl WhenExpr {
-	pub fn has_blocks(val self): bool {
-		for (arm in self.arms) {
-			val arm_b = arm.body;
-			if (arm_b is BlockStmt) return true;
-			for (p in arm.patterns) if (p is IsExpr) return true;
-		}
-		return false;
-	}
+	pub fn has_blocks(val self): bool => self.arms.any { arm ->
+		arm.body is BlockStmt || arm.patterns.any { p -> p is IsExpr }
+	};
 }
 
 impl CCodeGen {

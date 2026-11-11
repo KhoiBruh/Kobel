@@ -182,12 +182,7 @@ pub fn cmd_test(manifest_path: str, filter: str): i32 {
 			else ProjectConfig();
 
 	val all_tests = discover_test_files(cfg.test_dir);
-	var active_tests = List<str>();
-
-	for (t in all_tests) if (
-		filter.empty() ||
-		filter in t
-	) active_tests += t;
+	val active_tests = all_tests.filter { t -> filter.empty() || filter in t };
 
 	println("============================================================");
 	if (filter.empty()) println("  Running Kobel Test Suite (${active_tests.len} tests)");
@@ -295,16 +290,12 @@ pub fn snap_corpus(test_dir: str): List<str> {
 
 // Flat name for a source path: `tests/unit/test_lexer.kb` becomes
 // `tests_unit_test_lexer_kb`, so goldens stay one file per entry.
-pub fn snap_name(path: str): str {
-	var out = "";
-	for (c in path) {
-		when (c) {
-			'/', '\\', '.' -> out += "_";
-			else -> out += "${c}";
-		}
+pub fn snap_name(path: str): str => path.map_chars { c ->
+	when (c) {
+		'/', '\\', '.' -> '_';
+		else -> c;
 	}
-	return out;
-}
+};
 
 /*
  * Feature tests keep the emitted C text, so a codegen change is reviewable as a

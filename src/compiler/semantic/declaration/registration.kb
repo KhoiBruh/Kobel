@@ -135,8 +135,7 @@ impl DeclarationCollector {
 			// Methods may be overloaded, so each needs a distinct C name.
 			val overloaded = overloaded_names(im);
 			// C names already owned by this struct (from earlier `impl` blocks too).
-			var used_names = List<str>();
-			for (m in st_info.methods) used_names += m.c_name;
+			var used_names = st_info.methods.map { m -> m.c_name };
 
 			for (m_node in im.methods) {
 				if (m_node is FnDecl as var f) {
@@ -513,8 +512,7 @@ impl DeclarationCollector {
 
 		val assoc_decls = trait_info.assoc_types;
 		for (b in im.assoc_bindings) {
-			var declared = false;
-			for (a in assoc_decls) if (a == b.name) declared = true;
+			val declared = assoc_decls.any { a -> a == b.name };
 
 			if (!declared) {
 				self.report_error(node,
@@ -560,14 +558,10 @@ impl DeclarationCollector {
 		self.trait_effective(t, &effective, &seen);
 
 		for (tm in effective) {
-			var have = false;
-			for (m in im.methods) {
-				if (
-					m is FnDecl as f
-					&& f.name == tm.name
-					&& f.params.len == tm.arity
-				) have = true;
-			}
+			val have = im.methods.any { m ->
+				if (m is FnDecl as f) yield f.name == tm.name && f.params.len == tm.arity;
+				yield false;
+			};
 			if (have) continue;
 
 			if (!tm.has_default) {

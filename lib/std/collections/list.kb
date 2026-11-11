@@ -102,7 +102,7 @@ impl List<T> {
 	pub fn clone(val self): Self {
 		val cap = if (self.cap > 0) self.cap else 4;
 		var res = Self(Heap.create_array<T>(cap), 0, cap);
-		for (i in 0..<self.len) res += self.data[i];
+		for (data in self) res += data;
 		return res;
 	}
 
@@ -177,10 +177,7 @@ impl List<T> {
 	}
 
 	pub fn first_or(val self, default_val: T, predicate: (T) -> bool): T {
-		for (i in 0..<self.len) {
-			val item = self.data[i];
-			if (predicate(item)) return item;
-		}
+		for (data in self) if (predicate(data)) return data;
 		return default_val;
 	}
 
@@ -191,7 +188,7 @@ impl List<T> {
 		return true;
 	}
 
-	pub fn remove_all(var self, value: T): usz => self.remove_where { x -> x == value };
+	pub fn remove_all(var self, value: T) => self.remove_where { x -> x == value };
 
 	pub fn remove_where(var self, predicate: (T) -> bool): usz {
 		var write = 0;
@@ -203,6 +200,7 @@ impl List<T> {
 				write++;
 			}
 		}
+
 		self.len = write;
 		return removed;
 	}
@@ -216,49 +214,47 @@ impl List<T> {
 				write++;
 			} else removed++;
 		}
+
 		self.len = write;
 		return removed;
 	}
 
-	pub fn for_each(val self, action: (T) -> none) {
-		for (i in 0..<self.len) action(self.data[i]);
+	pub fn each(val self, action: (T) -> none) {
+		for (data in self) action(data);
 	}
 
 	pub fn filter(val self, predicate: (T) -> bool): List<T> {
 		var res = List<T>();
-		for (i in 0..<self.len) {
-			val item = self.data[i];
-			if (predicate(item)) res += item;
-		}
+		for (data in self) if (predicate(data)) res += data;
 		return res;
 	}
 
 	pub fn any(val self, predicate: (T) -> bool): bool {
-		for (i in 0..<self.len) if (predicate(self.data[i])) return true;
+		for (data in self) if (predicate(data)) return true;
 		return false;
 	}
 
 	pub fn all(val self, predicate: (T) -> bool): bool {
-		for (i in 0..<self.len) if (!predicate(self.data[i])) return false;
+		for (data in self) if (!predicate(data)) return false;
 		return true;
 	}
 
 	pub fn count_where(val self, predicate: (T) -> bool): usz {
-		var n: usz = 0;
-		for (i in 0..<self.len) if (predicate(self.data[i])) n++;
+		var n = 0;
+		for (data in self) if (predicate(data)) n++;
 		return n;
 	}
 
 	pub fn map<U>(val self, transform: (T) -> U): List<U> {
 		val cap = if (self.len > 4) self.len else 4;
 		var res = List<U>(cap);
-		for (i in 0..<self.len) res += transform(self.data[i]);
+		for (data in self) res += transform(data);
 		return res;
 	}
 
 	pub fn fold<U>(val self, initial: U, operation: (U, T) -> U): U {
 		var acc = initial;
-		for (i in 0..<self.len) acc = operation(acc, self.data[i]);
+		for (data in self) acc = operation(acc, data);
 		return acc;
 	}
 
@@ -271,4 +267,5 @@ impl List<T> {
 	pub op set(var self, index: usz, value: T) => self.data[index] = value;
 
 	pub op plus_assign(var self, value: T) => self.add(value);
+
 }

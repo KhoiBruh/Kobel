@@ -93,19 +93,10 @@ impl StructType {
 		return null;
 	}
 
-	pub fn count_static_method_arity(val self, name: str, argc: usz): usz {
-		var n = 0;
-		for (m in self.methods) {
-			if (
-				!m.operator
-				&& m.is_static
-				&& m.name == name
-				&& m.fn_type.as_fn().param_types.len == argc
-			) n++;
-		}
-
-		return n;
-	}
+	pub fn count_static_method_arity(val self, name: str, argc: usz): usz =>
+		self.methods.count_where { m ->
+			!m.operator && m.is_static && m.name == name && m.fn_type.as_fn().param_types.len == argc
+		};
 
 	pub fn find_method_arity(val self, name: str, argc: usz): *MethodInfo? {
 		for (m in self.methods) {
@@ -128,19 +119,10 @@ impl StructType {
 		return null;
 	}
 
-	pub fn count_method_arity(val self, name: str, argc: usz): usz {
-		var n = 0;
-		for (m in self.methods) {
-			if (
-				!m.operator
-				&& !m.is_static
-				&& m.name == name
-				&& m.fn_type.as_fn().param_types.len == argc
-			) n++;
-		}
-
-		return n;
-	}
+	pub fn count_method_arity(val self, name: str, argc: usz): usz =>
+		self.methods.count_where { m ->
+			!m.operator && !m.is_static && m.name == name && m.fn_type.as_fn().param_types.len == argc
+		};
 
 	pub fn find_method_c(val self, c_name: str): *MethodInfo? {
 		for (m in self.methods) if (m.c_name == c_name) return m;

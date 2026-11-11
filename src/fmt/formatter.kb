@@ -19,10 +19,7 @@ use compiler.parser.*;
  */
 fn strip_cr(src: str): str {
 	if (src.index_of("\r") < 0) return src;
-
-	var sb = StringBuilder();
-	for (c in src) if (c != '\r') sb += c;
-	return sb.to_str();
+	return src.strip_char('\r');
 }
 
 // A single-line body keeps `if (cond) stmt;` on one line; block-like bodies

@@ -203,18 +203,12 @@ impl ModuleLoader {
 			val dir_p = root_p.join(rel_dir);
 			val entries = dir_p.list_dir();
 			if (!entries.empty()) {
-				var kb_files = List<str>();
-				for (e in entries) {
-					if (e.ends_with(".kb")) kb_files += e;
-				}
+				var kb_files = entries.filter { e -> e.ends_with(".kb") };
 				sort_strings(kb_files);
 
 				for (f in kb_files) {
 					val f_p = dir_p.join(f);
-					var already = false;
-					for ((m_path, _) in list) {
-						if (m_path == f_p.raw) already = true;
-					}
+					val already = list.any { m -> m.path == f_p.raw };
 					if (!already) {
 						val f_src = f_p.read_text();
 						if (!f_src.empty()) list += ModuleFile(true, f_p.raw, f_src);

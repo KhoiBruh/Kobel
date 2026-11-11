@@ -136,9 +136,7 @@ impl BodyChecker {
 
 	pub fn record_lambda_capture(var self, sym: *Symbol) {
 		val cap_ty = sym.orig_type ?: sym.type_ptr;
-		for (c in self.lambda_captures) {
-			if (c.name == sym.name) return;
-		}
+		if (self.lambda_captures.any { c -> c.name == sym.name }) return;
 		self.lambda_captures += LambdaCapture(sym.name, cap_ty, sym.mutable);
 	}
 

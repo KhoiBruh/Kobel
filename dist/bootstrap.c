@@ -6707,20 +6707,30 @@ size_t std__range__Range_usz_count(std__range__Range_usz* self);
 size_t std__range__Range_usz_at(std__range__Range_usz* self, size_t i);
 compiler__semantic__types__StructType* std__memory__Arena_create_val_compiler__semantic__types__StructType(std__memory__Arena* self, compiler__semantic__types__StructType value);
 compiler__semantic__types__PrimMethods* std__memory__Arena_create_val_compiler__semantic__types__PrimMethods(std__memory__Arena* self, compiler__semantic__types__PrimMethods value);
+std__collections__List_str std__collections__std__collections__List_compiler__ast__GenericParam_map_str(std__collections__List_compiler__ast__GenericParam* self, kobel_closure transform);
 compiler__semantic__symbols__Scope* std__memory__Arena_create_val_compiler__semantic__symbols__Scope(std__memory__Arena* self, compiler__semantic__symbols__Scope value);
 compiler__semantic__types__PrimTypes* std__memory__Arena_create_val_compiler__semantic__types__PrimTypes(std__memory__Arena* self, compiler__semantic__types__PrimTypes value);
 compiler__semantic__symbols__SemanticTable* std__memory__Arena_create_val_compiler__semantic__symbols__SemanticTable(std__memory__Arena* self, compiler__semantic__symbols__SemanticTable value);
 compiler__semantic__symbols__Symbol* std__memory__Arena_create_val_compiler__semantic__symbols__Symbol(std__memory__Arena* self, compiler__semantic__symbols__Symbol value);
 compiler__semantic__symbols__ModuleScope* std__memory__Arena_create_val_compiler__semantic__symbols__ModuleScope(std__memory__Arena* self, compiler__semantic__symbols__ModuleScope value);
+std__collections__List_compiler__ast__Param std__collections__std__collections__List_compiler__ast__Param_map_compiler__ast__Param(std__collections__List_compiler__ast__Param* self, kobel_closure transform);
+std__collections__List_ptr_compiler__ast__AstNode std__collections__std__collections__List_ptr_compiler__ast__AstNode_map_ptr_compiler__ast__AstNode(std__collections__List_ptr_compiler__ast__AstNode* self, kobel_closure transform);
+std__collections__List_compiler__ast__WhenArm std__collections__std__collections__List_compiler__ast__WhenArm_map_compiler__ast__WhenArm(std__collections__List_compiler__ast__WhenArm* self, kobel_closure transform);
+std__collections__List_ptr_compiler__ast__AstNode std__collections__std__collections__List_ptr_compiler__semantic__types__Type_map_ptr_compiler__ast__AstNode(std__collections__List_ptr_compiler__semantic__types__Type* self, kobel_closure transform);
 compiler__semantic__symbols__InstanceRecord* std__memory__Arena_create_val_compiler__semantic__symbols__InstanceRecord(std__memory__Arena* self, compiler__semantic__symbols__InstanceRecord value);
+std__collections__List_compiler__ast__StructField std__collections__std__collections__List_compiler__semantic__types__StructField_map_compiler__ast__StructField(std__collections__List_compiler__semantic__types__StructField* self, kobel_closure transform);
+std__collections__List_str std__collections__std__collections__List_ptr_compiler__semantic__types__MethodInfo_map_str(std__collections__List_ptr_compiler__semantic__types__MethodInfo* self, kobel_closure transform);
 compiler__semantic__types__MethodInfo* std__memory__Arena_create_val_compiler__semantic__types__MethodInfo(std__memory__Arena* self, compiler__semantic__types__MethodInfo value);
 compiler__semantic__symbols__GenericTemplate* std__memory__Arena_create_val_compiler__semantic__symbols__GenericTemplate(std__memory__Arena* self, compiler__semantic__symbols__GenericTemplate value);
 compiler__semantic__types__EnumInfo* std__memory__Arena_create_val_compiler__semantic__types__EnumInfo(std__memory__Arena* self, compiler__semantic__types__EnumInfo value);
 compiler__semantic__types__EnumMemberInfo* std__memory__Arena_create_val_compiler__semantic__types__EnumMemberInfo(std__memory__Arena* self, compiler__semantic__types__EnumMemberInfo value);
 compiler__semantic__types__TraitMethod* std__memory__Arena_create_val_compiler__semantic__types__TraitMethod(std__memory__Arena* self, compiler__semantic__types__TraitMethod value);
 compiler__semantic__types__TraitInfo* std__memory__Arena_create_val_compiler__semantic__types__TraitInfo(std__memory__Arena* self, compiler__semantic__types__TraitInfo value);
+std__collections__List_ptr_compiler__semantic__types__Type std__collections__std__collections__List_compiler__semantic__types__StructField_map_ptr_compiler__semantic__types__Type(std__collections__List_compiler__semantic__types__StructField* self, kobel_closure transform);
 compiler__semantic__symbols__AnnotationEntry* std__memory__Arena_create_val_compiler__semantic__symbols__AnnotationEntry(std__memory__Arena* self, compiler__semantic__symbols__AnnotationEntry value);
 compiler__semantic__checker__ArrowCandidate* std__memory__Arena_create_val_compiler__semantic__checker__ArrowCandidate(std__memory__Arena* self, compiler__semantic__checker__ArrowCandidate value);
+std__collections__List_str std__collections__std__collections__List_ptr_compiler__ast__AstNode_map_str(std__collections__List_ptr_compiler__ast__AstNode* self, kobel_closure transform);
+std__collections__List_str std__collections__std__collections__List_compiler__semantic__symbols__LambdaCapture_map_str(std__collections__List_compiler__semantic__symbols__LambdaCapture* self, kobel_closure transform);
 lsp__JsonValue* std__memory__Heap_create_lsp__JsonValue(void);
 compiler__ast__AstNode** std__memory__Heap_create_array_ptr_compiler__ast__AstNode(size_t count);
 compiler__ast__AstNode** std__memory__Heap_resize_ptr_compiler__ast__AstNode(compiler__ast__AstNode** ptr, size_t count);
@@ -9661,22 +9671,20 @@ compiler__driver__collect_kb_files(test_dir, KOBEL_STR("test_"), &list);
 return list;
 }
 
+struct __lambda_env_10 {
+    kobel_str filter;
+};
+
+static bool __lambda_fn_10(void* __raw_env, kobel_str t) {
+    struct __lambda_env_10* __env = (struct __lambda_env_10*)__raw_env;
+    return (str_empty((__env->filter)) || str_contains(t, (__env->filter)));
+}
+
 int32_t compiler__driver__cmd_test(kobel_str manifest_path, kobel_str filter) {
 std__filesystem__Path man_p = std__filesystem__Path_init(manifest_path);
 config__ProjectConfig cfg = (std__filesystem__Path_exists(&man_p) ? config__ProjectConfig_init(manifest_path) : (config__ProjectConfig){ KOBEL_STR("kobel"), KOBEL_STR("1.0.0"), KOBEL_STR("src/main.kb"), KOBEL_STR("build/kobel.exe"), KOBEL_STR("cl"), KOBEL_STR("tests") });
 std__collections__List_str all_tests = compiler__driver__discover_test_files(cfg.test_dir);
-std__collections__List_str active_tests = std__collections__List_str_init(4);
-{
-size_t __for_n = std__collections__List_str_count(&all_tests);
-size_t __for_i = 0;
-while (__for_i < __for_n) {
-kobel_str t = std__collections__List_str_at(&all_tests, __for_i);
-if (str_empty(filter) || str_contains(t, filter)) {
-std__collections__List_str_plus_assign(&active_tests, t);
-}
-__for_i = (__for_i + 1);
-}
-}
+std__collections__List_str active_tests = std__collections__List_str_filter(&all_tests, (kobel_closure){ (void*)__lambda_fn_10, (void*)&(struct __lambda_env_10){ filter } });
 std__io__println(KOBEL_STR("============================================================"));
 if (str_empty(filter)) {
 std__io__println(kobel_concat(3, KOBEL_STR("  Running Kobel Test Suite ("), usz_to_str(active_tests.len), KOBEL_STR(" tests)")));
@@ -9771,22 +9779,13 @@ std__collections__List_str_plus_assign(&corpus, KOBEL_STR("src/main.kb"));
 return corpus;
 }
 
+static char __lambda_fn_11(void* __raw_env, char c) {
+    (void)__raw_env;
+    return (c == '/' || c == '\\' || c == '.' ? '_' : c);
+}
+
 kobel_str compiler__driver__snap_name(kobel_str path) {
-kobel_str out = KOBEL_STR("");
-{
-size_t __for_n = path.len;
-size_t __for_i = 0;
-while (__for_i < __for_n) {
-char c = path.data[__for_i];
-if (c == '/' || c == '\\' || c == '.') {
-out = kobel_concat(2, out, KOBEL_STR("_"));
-} else {
-out = kobel_concat(2, out, char_to_str(c));
-}
-__for_i = (__for_i + 1);
-}
-}
-return out;
+    return str_map_chars(path, (kobel_closure){ (void*)__lambda_fn_11, NULL });
 }
 
 bool compiler__driver__snapshot_as_text(kobel_str src) {
@@ -12876,6 +12875,20 @@ return NULL;
 return prog;
 }
 
+static bool __lambda_fn_12(void* __raw_env, kobel_str e) {
+    (void)__raw_env;
+    return str_ends_with(e, KOBEL_STR(".kb"));
+}
+
+struct __lambda_env_13 {
+    std__filesystem__Path f_p;
+};
+
+static bool __lambda_fn_13(void* __raw_env, compiler__loader__ModuleFile m) {
+    struct __lambda_env_13* __env = (struct __lambda_env_13*)__raw_env;
+    return kobel_streq(m.path, (__env->f_p).raw);
+}
+
 std__collections__List_compiler__loader__ModuleFile compiler__loader__ModuleLoader_find_module_files(compiler__loader__ModuleLoader* self, kobel_str module_name) {
 std__collections__List_compiler__loader__ModuleFile list = std__collections__List_compiler__loader__ModuleFile_init(4);
 kobel_str rel_file = kobel_concat(2, str_module_to_rel(module_name), KOBEL_STR(".kb"));
@@ -12894,18 +12907,7 @@ std__collections__List_compiler__loader__ModuleFile_plus_assign(&list, compiler_
 std__filesystem__Path dir_p = std__filesystem__Path_join(&root_p, rel_dir);
 std__collections__List_str entries = std__filesystem__Path_list_dir(&dir_p);
 if (!std__collections__List_str_empty(&entries)) {
-std__collections__List_str kb_files = std__collections__List_str_init(4);
-{
-size_t __for_n = std__collections__List_str_count(&entries);
-size_t __for_i = 0;
-while (__for_i < __for_n) {
-kobel_str e = std__collections__List_str_at(&entries, __for_i);
-if (str_ends_with(e, KOBEL_STR(".kb"))) {
-std__collections__List_str_plus_assign(&kb_files, e);
-}
-__for_i = (__for_i + 1);
-}
-}
+std__collections__List_str kb_files = std__collections__List_str_filter(&entries, (kobel_closure){ (void*)__lambda_fn_12, NULL });
 compiler__loader__sort_strings(kb_files);
 {
 size_t __for_n = std__collections__List_str_count(&kb_files);
@@ -12913,21 +12915,7 @@ size_t __for_i = 0;
 while (__for_i < __for_n) {
 kobel_str f = std__collections__List_str_at(&kb_files, __for_i);
 std__filesystem__Path f_p = std__filesystem__Path_join(&dir_p, f);
-bool already = false;
-{
-size_t __for_n = std__collections__List_compiler__loader__ModuleFile_count(&list);
-size_t __for_i = 0;
-while (__for_i < __for_n) {
-compiler__loader__ModuleFile __destruct_tmp_14 = std__collections__List_compiler__loader__ModuleFile_at(&list, __for_i);
-kobel_str m_path;
-kobel_str __destruct_unused_14_1;
-compiler__loader__ModuleFile_unpack_3(&__destruct_tmp_14, &m_path, &__destruct_unused_14_1);
-if (kobel_streq(m_path, f_p.raw)) {
-already = true;
-}
-__for_i = (__for_i + 1);
-}
-}
+bool already = std__collections__List_compiler__loader__ModuleFile_any(&list, (kobel_closure){ (void*)__lambda_fn_13, (void*)&(struct __lambda_env_13){ f_p } });
 if (!already) {
 kobel_str f_src = std__filesystem__Path_read_text(&f_p);
 if (!str_empty(f_src)) {
@@ -12974,10 +12962,10 @@ return;
 size_t __for_n = std__collections__List_compiler__loader__ModuleFile_count(&files);
 size_t __for_i = 0;
 while (__for_i < __for_n) {
-compiler__loader__ModuleFile __destruct_tmp_15 = std__collections__List_compiler__loader__ModuleFile_at(&files, __for_i);
+compiler__loader__ModuleFile __destruct_tmp_14 = std__collections__List_compiler__loader__ModuleFile_at(&files, __for_i);
 kobel_str f_path;
 kobel_str f_src;
-compiler__loader__ModuleFile_unpack_3(&__destruct_tmp_15, &f_path, &f_src);
+compiler__loader__ModuleFile_unpack_3(&__destruct_tmp_14, &f_path, &f_src);
 compiler__ast__AstNode* prog = compiler__loader__ModuleLoader_parse_source(self, f_path, f_src, module_name);
 if (prog == NULL) {
 {
@@ -13337,20 +13325,18 @@ __for_i = (__for_i + 1);
 return NULL;
 }
 
+struct __lambda_env_14 {
+    kobel_str name;
+    size_t argc;
+};
+
+static bool __lambda_fn_14(void* __raw_env, compiler__semantic__types__MethodInfo* m) {
+    struct __lambda_env_14* __env = (struct __lambda_env_14*)__raw_env;
+    return (((!m->operator && m->is_static) && kobel_streq(m->name, (__env->name))) && ((*compiler__semantic__types__Type_as_fn(m->fn_type)).param_types.len == (__env->argc)));
+}
+
 size_t compiler__semantic__types__StructType_count_static_method_arity(compiler__semantic__types__StructType* self, kobel_str name, size_t argc) {
-int32_t n = 0;
-{
-size_t __for_n = std__collections__List_ptr_compiler__semantic__types__MethodInfo_count(&self->methods);
-size_t __for_i = 0;
-while (__for_i < __for_n) {
-compiler__semantic__types__MethodInfo* m = std__collections__List_ptr_compiler__semantic__types__MethodInfo_at(&self->methods, __for_i);
-if (((!m->operator && m->is_static) && kobel_streq(m->name, name)) && ((*compiler__semantic__types__Type_as_fn(m->fn_type)).param_types.len == argc)) {
-n++;
-}
-__for_i = (__for_i + 1);
-}
-}
-return n;
+    return std__collections__List_ptr_compiler__semantic__types__MethodInfo_count_where(&self->methods, (kobel_closure){ (void*)__lambda_fn_14, (void*)&(struct __lambda_env_14){ name, argc } });
 }
 
 compiler__semantic__types__MethodInfo* compiler__semantic__types__StructType_find_method_arity(compiler__semantic__types__StructType* self, kobel_str name, size_t argc) {
@@ -13379,20 +13365,18 @@ __for_i = (__for_i + 1);
 return NULL;
 }
 
+struct __lambda_env_15 {
+    kobel_str name;
+    size_t argc;
+};
+
+static bool __lambda_fn_15(void* __raw_env, compiler__semantic__types__MethodInfo* m) {
+    struct __lambda_env_15* __env = (struct __lambda_env_15*)__raw_env;
+    return (((!m->operator && !m->is_static) && kobel_streq(m->name, (__env->name))) && ((*compiler__semantic__types__Type_as_fn(m->fn_type)).param_types.len == (__env->argc)));
+}
+
 size_t compiler__semantic__types__StructType_count_method_arity(compiler__semantic__types__StructType* self, kobel_str name, size_t argc) {
-int32_t n = 0;
-{
-size_t __for_n = std__collections__List_ptr_compiler__semantic__types__MethodInfo_count(&self->methods);
-size_t __for_i = 0;
-while (__for_i < __for_n) {
-compiler__semantic__types__MethodInfo* m = std__collections__List_ptr_compiler__semantic__types__MethodInfo_at(&self->methods, __for_i);
-if (((!m->operator && !m->is_static) && kobel_streq(m->name, name)) && ((*compiler__semantic__types__Type_as_fn(m->fn_type)).param_types.len == argc)) {
-n++;
-}
-__for_i = (__for_i + 1);
-}
-}
-return n;
+    return std__collections__List_ptr_compiler__semantic__types__MethodInfo_count_where(&self->methods, (kobel_closure){ (void*)__lambda_fn_15, (void*)&(struct __lambda_env_15){ name, argc } });
 }
 
 compiler__semantic__types__MethodInfo* compiler__semantic__types__StructType_find_method_c(compiler__semantic__types__StructType* self, kobel_str c_name) {
@@ -14208,41 +14192,14 @@ return kobel_concat(3, res, KOBEL_STR(") -> "), compiler__semantic__types__Type_
 }
 }
 
+static kobel_str __lambda_fn_16(void* __raw_env, compiler__ast__GenericParam p) {
+    (void)__raw_env;
+    return p.name;
+}
+
 std__collections__List_str compiler__semantic__symbols__GenericTemplate_param_names(compiler__semantic__symbols__GenericTemplate* self) {
-std__collections__List_str names = std__collections__List_str_init(4);
-compiler__ast__AstNode* node = self->node;
-if (node != NULL && node->data.tag == compiler__ast__NodeData__StructDecl__TAG) {
-void* __orig_node = (void*)node;
-compiler__ast__NodeData__StructDecl* node = (compiler__ast__NodeData__StructDecl*)((&((compiler__ast__AstNode*)__orig_node)->data.u.StructDecl));
-size_t __for_n = std__collections__List_compiler__ast__GenericParam_count(&node->type_params);
-size_t __for_i = 0;
-while (__for_i < __for_n) {
-compiler__ast__GenericParam tp = std__collections__List_compiler__ast__GenericParam_at(&node->type_params, __for_i);
-std__collections__List_str_plus_assign(&names, tp.name);
-__for_i = (__for_i + 1);
-}
-} else if (node != NULL && node->data.tag == compiler__ast__NodeData__FnDecl__TAG) {
-void* __orig_node = (void*)node;
-compiler__ast__NodeData__FnDecl* node = (compiler__ast__NodeData__FnDecl*)((&((compiler__ast__AstNode*)__orig_node)->data.u.FnDecl));
-size_t __for_n = std__collections__List_compiler__ast__GenericParam_count(&node->type_params);
-size_t __for_i = 0;
-while (__for_i < __for_n) {
-compiler__ast__GenericParam p = std__collections__List_compiler__ast__GenericParam_at(&node->type_params, __for_i);
-std__collections__List_str_plus_assign(&names, p.name);
-__for_i = (__for_i + 1);
-}
-} else if (node != NULL && node->data.tag == compiler__ast__NodeData__ImplDecl__TAG) {
-void* __orig_node = (void*)node;
-compiler__ast__NodeData__ImplDecl* node = (compiler__ast__NodeData__ImplDecl*)((&((compiler__ast__AstNode*)__orig_node)->data.u.ImplDecl));
-size_t __for_n = std__collections__List_compiler__ast__GenericParam_count(&node->type_params);
-size_t __for_i = 0;
-while (__for_i < __for_n) {
-compiler__ast__GenericParam p = std__collections__List_compiler__ast__GenericParam_at(&node->type_params, __for_i);
-std__collections__List_str_plus_assign(&names, p.name);
-__for_i = (__for_i + 1);
-}
-}
-return names;
+std__collections__List_compiler__ast__GenericParam ps = compiler__semantic__symbols__GenericTemplate_params(self);
+return std__collections__std__collections__List_compiler__ast__GenericParam_map_str(&ps, (kobel_closure){ (void*)__lambda_fn_16, NULL });
 }
 
 std__collections__List_compiler__ast__GenericParam compiler__semantic__symbols__GenericTemplate_params(compiler__semantic__symbols__GenericTemplate* self) {
@@ -15058,6 +15015,21 @@ return NULL;
 return compiler__semantic__symbols__InstanceRecord_find_ann(self->mat_rec, node);
 }
 
+struct __lambda_env_17 {
+    compiler__semantic__resolution__TypeResolver** self;
+};
+
+static bool __lambda_fn_17(void* __raw_env, compiler__ast__AstNode* ca) {
+    struct __lambda_env_17* __env = (struct __lambda_env_17*)__raw_env;
+{
+compiler__ast__NodeData__NamedType* t_nt = NULL;
+if ((ca != NULL && ca->data.tag == compiler__ast__NodeData__NamedType__TAG && (t_nt = (compiler__ast__NodeData__NamedType*)(&(ca)->data.u.NamedType), 1))) {
+return (((compiler__semantic__types__resolve_primitive_name((*(__env->self))->symtab.prims, t_nt->name) == NULL) && (compiler__semantic__symbols__SymbolTable_lookup(&(*(__env->self))->symtab, t_nt->name) == NULL)) && (compiler__semantic__resolution__TypeResolver_find_struct_template((*(__env->self)), t_nt->name) == NULL));
+}
+}
+return false;
+}
+
 compiler__ast__AstNode* compiler__semantic__resolution__TypeResolver_clone_type(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node, compiler__semantic__symbols__GenericSubst* subst) {
 compiler__semantic__symbols__AnnotationEntry* e = compiler__semantic__resolution__TypeResolver_mat_ann(self, node);
 if (e != NULL && e->ty != NULL) {
@@ -15071,49 +15043,15 @@ if (sa != NULL) {
 return compiler__semantic__resolution__TypeResolver_clone_type(self, sa, NULL);
 }
 if (nt->type_args.len > 0) {
-std__collections__List_ptr_compiler__ast__AstNode args = std__collections__List_ptr_compiler__ast__AstNode_init(4);
-{
-size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&nt->type_args);
-size_t __for_i = 0;
-while (__for_i < __for_n) {
-compiler__ast__AstNode* ta = std__collections__List_ptr_compiler__ast__AstNode_at(&nt->type_args, __for_i);
-std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&args, compiler__semantic__resolution__TypeResolver_clone_type(self, ta, subst));
-__for_i = (__for_i + 1);
-}
-}
-bool has_unsubstituted = false;
-{
-size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&args);
-size_t __for_i = 0;
-while (__for_i < __for_n) {
-compiler__ast__AstNode* ca = std__collections__List_ptr_compiler__ast__AstNode_at(&args, __for_i);
-{
-compiler__ast__NodeData__NamedType* t_nt = NULL;
-if ((ca != NULL && ca->data.tag == compiler__ast__NodeData__NamedType__TAG && (t_nt = (compiler__ast__NodeData__NamedType*)(&(ca)->data.u.NamedType), 1))) {
-if (((compiler__semantic__types__resolve_primitive_name(self->symtab.prims, t_nt->name) == NULL) && (compiler__semantic__symbols__SymbolTable_lookup(&self->symtab, t_nt->name) == NULL)) && (compiler__semantic__resolution__TypeResolver_find_struct_template(self, t_nt->name) == NULL)) {
-has_unsubstituted = true;
-}
-}
-}
-__for_i = (__for_i + 1);
-}
-}
+std__collections__List_ptr_compiler__ast__AstNode args = compiler__semantic__resolution__TypeResolver_clone_type_args(self, nt->type_args, subst);
+bool has_unsubstituted = std__collections__List_ptr_compiler__ast__AstNode_any(&args, (kobel_closure){ (void*)__lambda_fn_17, (void*)&(struct __lambda_env_17){ &self } });
 compiler__semantic__symbols__GenericTemplate* tmpl = (!has_unsubstituted ? compiler__semantic__resolution__TypeResolver_find_struct_template(self, nt->name) : NULL);
 if (tmpl != NULL) {
 compiler__semantic__types__Type* cty = compiler__semantic__resolution__TypeResolver_instantiate_struct(self, tmpl, args);
 return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 1, .u.NamedType = { (*compiler__semantic__types__Type_as_struct(cty)).name, std__collections__List_ptr_compiler__ast__AstNode_init(4) } }, node->line, node->col);
 }
 }
-std__collections__List_ptr_compiler__ast__AstNode targs = std__collections__List_ptr_compiler__ast__AstNode_init(4);
-{
-size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&nt->type_args);
-size_t __for_i = 0;
-while (__for_i < __for_n) {
-compiler__ast__AstNode* ta = std__collections__List_ptr_compiler__ast__AstNode_at(&nt->type_args, __for_i);
-std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&targs, compiler__semantic__resolution__TypeResolver_clone_type(self, ta, subst));
-__for_i = (__for_i + 1);
-}
-}
+std__collections__List_ptr_compiler__ast__AstNode targs = compiler__semantic__resolution__TypeResolver_clone_type_args(self, nt->type_args, subst);
 return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 1, .u.NamedType = { nt->name, targs } }, node->line, node->col);
 } else if (target != NULL && target->data.tag == compiler__ast__NodeData__PointerType__TAG) {
 compiler__ast__NodeData__PointerType* pt = (compiler__ast__NodeData__PointerType*)(&(target)->data.u.PointerType);
@@ -15126,20 +15064,21 @@ compiler__ast__NodeData__NullableType* nt = (compiler__ast__NodeData__NullableTy
 return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 4, .u.NullableType = { compiler__semantic__resolution__TypeResolver_clone_type(self, nt->inner_type, subst) } }, node->line, node->col);
 } else if (target != NULL && target->data.tag == compiler__ast__NodeData__FnType__TAG) {
 compiler__ast__NodeData__FnType* ft = (compiler__ast__NodeData__FnType*)(&(target)->data.u.FnType);
-std__collections__List_ptr_compiler__ast__AstNode p_nodes = std__collections__List_ptr_compiler__ast__AstNode_init(4);
-{
-size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&ft->param_types);
-size_t __for_i = 0;
-while (__for_i < __for_n) {
-compiler__ast__AstNode* pt = std__collections__List_ptr_compiler__ast__AstNode_at(&ft->param_types, __for_i);
-std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&p_nodes, compiler__semantic__resolution__TypeResolver_clone_type(self, pt, subst));
-__for_i = (__for_i + 1);
-}
-}
-return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 5, .u.FnType = { p_nodes, compiler__semantic__resolution__TypeResolver_clone_type(self, ft->return_type, subst) } }, node->line, node->col);
+return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 5, .u.FnType = { compiler__semantic__resolution__TypeResolver_clone_type_args(self, ft->param_types, subst), compiler__semantic__resolution__TypeResolver_clone_type(self, ft->return_type, subst) } }, node->line, node->col);
 } else {
 return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 1, .u.NamedType = { KOBEL_STR("none"), std__collections__List_ptr_compiler__ast__AstNode_init(4) } }, node->line, node->col);
 }
+}
+
+struct __lambda_env_18 {
+    compiler__semantic__resolution__TypeResolver** self;
+    compiler__semantic__symbols__GenericSubst* subst;
+};
+
+static compiler__ast__Param __lambda_fn_18(void* __raw_env, compiler__ast__Param p) {
+    struct __lambda_env_18* __env = (struct __lambda_env_18*)__raw_env;
+compiler__ast__AstNode* pt = ((p.type_node != NULL) ? compiler__semantic__resolution__TypeResolver_clone_type((*(__env->self)), p.type_node, (__env->subst)) : NULL);
+return (compiler__ast__Param){ p.name, pt, p.mutable, p.has_val, NULL };
 }
 
 compiler__ast__AstNode* compiler__semantic__resolution__TypeResolver_clone_expr(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node, compiler__semantic__symbols__GenericSubst* subst) {
@@ -15246,17 +15185,7 @@ compiler__ast__NodeData__SizeOfParam* sop = (compiler__ast__NodeData__SizeOfPara
 out = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 25, .u.SizeOfParam = { sop->param_index, sop->size_text } }, node->line, node->col);
 } else if (target != NULL && target->data.tag == compiler__ast__NodeData__LambdaExpr__TAG) {
 compiler__ast__NodeData__LambdaExpr* lam = (compiler__ast__NodeData__LambdaExpr*)(&(target)->data.u.LambdaExpr);
-std__collections__List_compiler__ast__Param c_params = std__collections__List_compiler__ast__Param_init(4);
-{
-size_t __for_n = std__collections__List_compiler__ast__Param_count(&lam->params);
-size_t __for_i = 0;
-while (__for_i < __for_n) {
-compiler__ast__Param p = std__collections__List_compiler__ast__Param_at(&lam->params, __for_i);
-compiler__ast__AstNode* pt = ((p.type_node != NULL) ? compiler__semantic__resolution__TypeResolver_clone_type(self, p.type_node, subst) : NULL);
-std__collections__List_compiler__ast__Param_plus_assign(&c_params, (compiler__ast__Param){ p.name, pt, p.mutable, p.has_val, NULL });
-__for_i = (__for_i + 1);
-}
-}
+std__collections__List_compiler__ast__Param c_params = std__collections__std__collections__List_compiler__ast__Param_map_compiler__ast__Param(&lam->params, (kobel_closure){ (void*)__lambda_fn_18, (void*)&(struct __lambda_env_18){ &self, subst } });
 compiler__ast__AstNode* c_body = ((lam->body != NULL && lam->body->data.tag == compiler__ast__NodeData__BlockStmt__TAG) ? compiler__semantic__resolution__TypeResolver_clone_stmt(self, lam->body, subst) : compiler__semantic__resolution__TypeResolver_clone_expr(self, lam->body, subst));
 out = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 22, .u.LambdaExpr = { c_params, c_body, lam->is_trailing, lam->had_empty_parens } }, node->line, node->col);
 goto __when_end_28;
@@ -15344,6 +15273,21 @@ return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 6
 return NULL;
 }
 
+struct __lambda_env_19 {
+    compiler__semantic__resolution__TypeResolver** self;
+};
+
+static bool __lambda_fn_19(void* __raw_env, compiler__ast__AstNode* ca) {
+    struct __lambda_env_19* __env = (struct __lambda_env_19*)__raw_env;
+{
+compiler__ast__NodeData__NamedType* t_nt = NULL;
+if ((ca != NULL && ca->data.tag == compiler__ast__NodeData__NamedType__TAG && (t_nt = (compiler__ast__NodeData__NamedType*)(&(ca)->data.u.NamedType), 1))) {
+return (((compiler__semantic__types__resolve_primitive_name((*(__env->self))->symtab.prims, t_nt->name) == NULL) && (compiler__semantic__symbols__SymbolTable_lookup(&(*(__env->self))->symtab, t_nt->name) == NULL)) && (compiler__semantic__resolution__TypeResolver_find_struct_template((*(__env->self)), t_nt->name) == NULL));
+}
+}
+return false;
+}
+
 compiler__ast__AstNode* compiler__semantic__resolution__TypeResolver_clone_template_call(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node, compiler__semantic__symbols__GenericSubst* subst) {
 {
 compiler__ast__NodeData__CallExpr* c = NULL;
@@ -15428,48 +15372,14 @@ return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 1
 compiler__semantic__symbols__GenericTemplate* st = compiler__semantic__resolution__TypeResolver_find_struct_template(self, cid->name);
 if (st != NULL) {
 std__collections__List_ptr_compiler__ast__AstNode targs = compiler__semantic__resolution__TypeResolver_clone_type_args(self, c->type_args, subst);
-bool has_unsubstituted = false;
-{
-size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&targs);
-size_t __for_i = 0;
-while (__for_i < __for_n) {
-compiler__ast__AstNode* ca = std__collections__List_ptr_compiler__ast__AstNode_at(&targs, __for_i);
-{
-compiler__ast__NodeData__NamedType* t_nt = NULL;
-if ((ca != NULL && ca->data.tag == compiler__ast__NodeData__NamedType__TAG && (t_nt = (compiler__ast__NodeData__NamedType*)(&(ca)->data.u.NamedType), 1))) {
-if (((compiler__semantic__types__resolve_primitive_name(self->symtab.prims, t_nt->name) == NULL) && (compiler__semantic__symbols__SymbolTable_lookup(&self->symtab, t_nt->name) == NULL)) && (compiler__semantic__resolution__TypeResolver_find_struct_template(self, t_nt->name) == NULL)) {
-has_unsubstituted = true;
-}
-}
-}
-__for_i = (__for_i + 1);
-}
-}
+bool has_unsubstituted = std__collections__List_ptr_compiler__ast__AstNode_any(&targs, (kobel_closure){ (void*)__lambda_fn_19, (void*)&(struct __lambda_env_19){ &self } });
 if (!has_unsubstituted) {
 compiler__semantic__types__Type* cty = compiler__semantic__resolution__TypeResolver_instantiate_struct(self, st, targs);
-std__collections__List_ptr_compiler__ast__AstNode cargs = std__collections__List_ptr_compiler__ast__AstNode_init(4);
-{
-size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&c->args);
-size_t __for_i = 0;
-while (__for_i < __for_n) {
-compiler__ast__AstNode* a = std__collections__List_ptr_compiler__ast__AstNode_at(&c->args, __for_i);
-std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&cargs, compiler__semantic__resolution__TypeResolver_clone_expr(self, a, subst));
-__for_i = (__for_i + 1);
-}
-}
+std__collections__List_ptr_compiler__ast__AstNode cargs = compiler__semantic__resolution__TypeResolver_clone_expr_list(self, c->args, subst);
 compiler__ast__AstNode* callee = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 7, .u.IdentifierExpr = { (*compiler__semantic__types__Type_as_struct(cty)).name } }, node->line, node->col);
 return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 10, .u.CallExpr = { callee, cargs, std__collections__List_ptr_compiler__ast__AstNode_init(4) } }, node->line, node->col);
 }
-std__collections__List_ptr_compiler__ast__AstNode cargs = std__collections__List_ptr_compiler__ast__AstNode_init(4);
-{
-size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&c->args);
-size_t __for_i = 0;
-while (__for_i < __for_n) {
-compiler__ast__AstNode* a = std__collections__List_ptr_compiler__ast__AstNode_at(&c->args, __for_i);
-std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&cargs, compiler__semantic__resolution__TypeResolver_clone_expr(self, a, subst));
-__for_i = (__for_i + 1);
-}
-}
+std__collections__List_ptr_compiler__ast__AstNode cargs = compiler__semantic__resolution__TypeResolver_clone_expr_list(self, c->args, subst);
 compiler__ast__AstNode* callee = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 7, .u.IdentifierExpr = { cid->name } }, node->line, node->col);
 return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 10, .u.CallExpr = { callee, cargs, targs } }, node->line, node->col);
 }
@@ -15480,32 +15390,32 @@ return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 1
 return NULL;
 }
 
+struct __lambda_env_20 {
+    compiler__semantic__resolution__TypeResolver** self;
+    compiler__semantic__symbols__GenericSubst* subst;
+};
+
+static compiler__ast__AstNode* __lambda_fn_20(void* __raw_env, compiler__ast__AstNode* n) {
+    struct __lambda_env_20* __env = (struct __lambda_env_20*)__raw_env;
+    return compiler__semantic__resolution__TypeResolver_clone_expr((*(__env->self)), n, (__env->subst));
+}
+
 std__collections__List_ptr_compiler__ast__AstNode compiler__semantic__resolution__TypeResolver_clone_expr_list(compiler__semantic__resolution__TypeResolver* self, std__collections__List_ptr_compiler__ast__AstNode nodes, compiler__semantic__symbols__GenericSubst* subst) {
-std__collections__List_ptr_compiler__ast__AstNode out = std__collections__List_ptr_compiler__ast__AstNode_init(4);
-{
-size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&nodes);
-size_t __for_i = 0;
-while (__for_i < __for_n) {
-compiler__ast__AstNode* n = std__collections__List_ptr_compiler__ast__AstNode_at(&nodes, __for_i);
-std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&out, compiler__semantic__resolution__TypeResolver_clone_expr(self, n, subst));
-__for_i = (__for_i + 1);
+    return std__collections__std__collections__List_ptr_compiler__ast__AstNode_map_ptr_compiler__ast__AstNode(&nodes, (kobel_closure){ (void*)__lambda_fn_20, (void*)&(struct __lambda_env_20){ &self, subst } });
 }
-}
-return out;
+
+struct __lambda_env_21 {
+    compiler__semantic__resolution__TypeResolver** self;
+    compiler__semantic__symbols__GenericSubst* subst;
+};
+
+static compiler__ast__AstNode* __lambda_fn_21(void* __raw_env, compiler__ast__AstNode* n) {
+    struct __lambda_env_21* __env = (struct __lambda_env_21*)__raw_env;
+    return compiler__semantic__resolution__TypeResolver_clone_type((*(__env->self)), n, (__env->subst));
 }
 
 std__collections__List_ptr_compiler__ast__AstNode compiler__semantic__resolution__TypeResolver_clone_type_args(compiler__semantic__resolution__TypeResolver* self, std__collections__List_ptr_compiler__ast__AstNode nodes, compiler__semantic__symbols__GenericSubst* subst) {
-std__collections__List_ptr_compiler__ast__AstNode out = std__collections__List_ptr_compiler__ast__AstNode_init(4);
-{
-size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&nodes);
-size_t __for_i = 0;
-while (__for_i < __for_n) {
-compiler__ast__AstNode* n = std__collections__List_ptr_compiler__ast__AstNode_at(&nodes, __for_i);
-std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&out, compiler__semantic__resolution__TypeResolver_clone_type(self, n, subst));
-__for_i = (__for_i + 1);
-}
-}
-return out;
+    return std__collections__std__collections__List_ptr_compiler__ast__AstNode_map_ptr_compiler__ast__AstNode(&nodes, (kobel_closure){ (void*)__lambda_fn_21, (void*)&(struct __lambda_env_21){ &self, subst } });
 }
 
 std__collections__List_compiler__ast__WhenArm compiler__semantic__resolution__TypeResolver_clone_when_arms(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node, compiler__semantic__symbols__GenericSubst* subst) {
@@ -15556,6 +15466,26 @@ __for_i = (__for_i + 1);
 return parts;
 }
 
+struct __lambda_env_22 {
+    compiler__semantic__resolution__TypeResolver** self;
+    compiler__semantic__symbols__GenericSubst* subst;
+};
+
+static compiler__ast__AstNode* __lambda_fn_22(void* __raw_env, compiler__ast__AstNode* s) {
+    struct __lambda_env_22* __env = (struct __lambda_env_22*)__raw_env;
+    return compiler__semantic__resolution__TypeResolver_clone_stmt((*(__env->self)), s, (__env->subst));
+}
+
+struct __lambda_env_23 {
+    compiler__semantic__resolution__TypeResolver** self;
+    compiler__semantic__symbols__GenericSubst* subst;
+};
+
+static compiler__ast__WhenArm __lambda_fn_23(void* __raw_env, compiler__ast__WhenArm arm) {
+    struct __lambda_env_23* __env = (struct __lambda_env_23*)__raw_env;
+    return (compiler__ast__WhenArm){ compiler__semantic__resolution__TypeResolver_clone_expr_list((*(__env->self)), arm.patterns, (__env->subst)), arm.is_else, compiler__semantic__resolution__TypeResolver_clone_stmt((*(__env->self)), arm.body, (__env->subst)), arm.line, arm.col };
+}
+
 compiler__ast__AstNode* compiler__semantic__resolution__TypeResolver_clone_stmt(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node, compiler__semantic__symbols__GenericSubst* subst) {
 compiler__semantic__symbols__AnnotationEntry* se = compiler__semantic__resolution__TypeResolver_mat_ann(self, node);
 if (se != NULL && se->resolved != NULL) {
@@ -15564,17 +15494,7 @@ return compiler__semantic__resolution__TypeResolver_clone_stmt(self, se->resolve
 compiler__ast__AstNode* target = node;
 if (target != NULL && target->data.tag == compiler__ast__NodeData__BlockStmt__TAG) {
 compiler__ast__NodeData__BlockStmt* b = (compiler__ast__NodeData__BlockStmt*)(&(target)->data.u.BlockStmt);
-std__collections__List_ptr_compiler__ast__AstNode ss = std__collections__List_ptr_compiler__ast__AstNode_init(4);
-{
-size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&b->statements);
-size_t __for_i = 0;
-while (__for_i < __for_n) {
-compiler__ast__AstNode* s = std__collections__List_ptr_compiler__ast__AstNode_at(&b->statements, __for_i);
-std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&ss, compiler__semantic__resolution__TypeResolver_clone_stmt(self, s, subst));
-__for_i = (__for_i + 1);
-}
-}
-return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 26, .u.BlockStmt = { ss } }, node->line, node->col);
+return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 26, .u.BlockStmt = { std__collections__std__collections__List_ptr_compiler__ast__AstNode_map_ptr_compiler__ast__AstNode(&b->statements, (kobel_closure){ (void*)__lambda_fn_22, (void*)&(struct __lambda_env_22){ &self, subst } }) } }, node->line, node->col);
 } else if (target != NULL && target->data.tag == compiler__ast__NodeData__ExprStmt__TAG) {
 compiler__ast__NodeData__ExprStmt* e = (compiler__ast__NodeData__ExprStmt*)(&(target)->data.u.ExprStmt);
 return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 27, .u.ExprStmt = { compiler__semantic__resolution__TypeResolver_clone_expr(self, e->expr, subst) } }, node->line, node->col);
@@ -15621,26 +15541,7 @@ compiler__ast__NodeData__ContinueStmt* target = (compiler__ast__NodeData__Contin
 return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 35 }, node->line, node->col);
 } else if (target != NULL && target->data.tag == compiler__ast__NodeData__WhenStmt__TAG) {
 compiler__ast__NodeData__WhenStmt* w = (compiler__ast__NodeData__WhenStmt*)(&(target)->data.u.WhenStmt);
-std__collections__List_compiler__ast__WhenArm arms = std__collections__List_compiler__ast__WhenArm_init(4);
-{
-size_t __for_n = std__collections__List_compiler__ast__WhenArm_count(&w->arms);
-size_t __for_i = 0;
-while (__for_i < __for_n) {
-compiler__ast__WhenArm arm = std__collections__List_compiler__ast__WhenArm_at(&w->arms, __for_i);
-std__collections__List_ptr_compiler__ast__AstNode pats = std__collections__List_ptr_compiler__ast__AstNode_init(4);
-{
-size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&arm.patterns);
-size_t __for_i = 0;
-while (__for_i < __for_n) {
-compiler__ast__AstNode* pat = std__collections__List_ptr_compiler__ast__AstNode_at(&arm.patterns, __for_i);
-std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&pats, compiler__semantic__resolution__TypeResolver_clone_expr(self, pat, subst));
-__for_i = (__for_i + 1);
-}
-}
-std__collections__List_compiler__ast__WhenArm_plus_assign(&arms, (compiler__ast__WhenArm){ pats, arm.is_else, compiler__semantic__resolution__TypeResolver_clone_stmt(self, arm.body, subst), arm.line, arm.col });
-__for_i = (__for_i + 1);
-}
-}
+std__collections__List_compiler__ast__WhenArm arms = std__collections__std__collections__List_compiler__ast__WhenArm_map_compiler__ast__WhenArm(&w->arms, (kobel_closure){ (void*)__lambda_fn_23, (void*)&(struct __lambda_env_23){ &self, subst } });
 return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 36, .u.WhenStmt = { ((w->condition != NULL) ? compiler__semantic__resolution__TypeResolver_clone_expr(self, w->condition, subst) : NULL), arms } }, node->line, node->col);
 } else if (target != NULL && target->data.tag == compiler__ast__NodeData__DeferStmt__TAG) {
 compiler__ast__NodeData__DeferStmt* d = (compiler__ast__NodeData__DeferStmt*)(&(target)->data.u.DeferStmt);
@@ -15650,22 +15551,23 @@ return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 2
 }
 }
 
+struct __lambda_env_24 {
+    compiler__semantic__resolution__TypeResolver** self;
+    compiler__semantic__symbols__GenericSubst* subst;
+};
+
+static compiler__ast__Param __lambda_fn_24(void* __raw_env, compiler__ast__Param p) {
+    struct __lambda_env_24* __env = (struct __lambda_env_24*)__raw_env;
+compiler__ast__AstNode* pt = ((p.type_node != NULL) ? compiler__semantic__resolution__TypeResolver_clone_type((*(__env->self)), p.type_node, (__env->subst)) : NULL);
+compiler__ast__AstNode* dflt = ((p.default_val != NULL) ? compiler__semantic__resolution__TypeResolver_clone_expr((*(__env->self)), p.default_val, (__env->subst)) : NULL);
+return (compiler__ast__Param){ p.name, pt, p.mutable, p.has_val, dflt };
+}
+
 compiler__ast__AstNode* compiler__semantic__resolution__TypeResolver_clone_fn(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node, compiler__semantic__symbols__GenericSubst* subst, kobel_str new_name) {
 {
 compiler__ast__NodeData__FnDecl* f = NULL;
 if ((node != NULL && node->data.tag == compiler__ast__NodeData__FnDecl__TAG && (f = (compiler__ast__NodeData__FnDecl*)(&(node)->data.u.FnDecl), 1))) {
-std__collections__List_compiler__ast__Param params = std__collections__List_compiler__ast__Param_init(4);
-{
-size_t __for_n = std__collections__List_compiler__ast__Param_count(&f->params);
-size_t __for_i = 0;
-while (__for_i < __for_n) {
-compiler__ast__Param p = std__collections__List_compiler__ast__Param_at(&f->params, __for_i);
-compiler__ast__AstNode* pt = ((p.type_node != NULL) ? compiler__semantic__resolution__TypeResolver_clone_type(self, p.type_node, subst) : NULL);
-compiler__ast__AstNode* dflt = ((p.default_val != NULL) ? compiler__semantic__resolution__TypeResolver_clone_expr(self, p.default_val, subst) : NULL);
-std__collections__List_compiler__ast__Param_plus_assign(&params, (compiler__ast__Param){ p.name, pt, p.mutable, p.has_val, dflt });
-__for_i = (__for_i + 1);
-}
-}
+std__collections__List_compiler__ast__Param params = std__collections__std__collections__List_compiler__ast__Param_map_compiler__ast__Param(&f->params, (kobel_closure){ (void*)__lambda_fn_24, (void*)&(struct __lambda_env_24){ &self, subst } });
 compiler__ast__AstNode* rt = ((f->return_type != NULL) ? compiler__semantic__resolution__TypeResolver_clone_type(self, f->return_type, subst) : NULL);
 return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 41, .u.FnDecl = { new_name, std__collections__List_compiler__ast__GenericParam_init(4), params, rt, ((f->body != NULL) ? compiler__semantic__resolution__TypeResolver_clone_stmt(self, f->body, subst) : NULL), f->public, f->operator, f->initializer, self->current_module } }, node->line, node->col);
 }
@@ -15833,6 +15735,15 @@ __for_i = (__for_i - 1);
 std__collections__List_ptr_compiler__semantic__types__TraitMethod_plus_assign(out, m);
 }
 
+struct __lambda_env_25 {
+    compiler__semantic__resolution__TypeResolver** self;
+};
+
+static compiler__ast__AstNode* __lambda_fn_25(void* __raw_env, compiler__semantic__types__Type* aty) {
+    struct __lambda_env_25* __env = (struct __lambda_env_25*)__raw_env;
+    return std__memory__Arena_ast_type_from_type(&(*(__env->self))->arena, aty);
+}
+
 compiler__semantic__types__Type* compiler__semantic__resolution__TypeResolver_instantiate_struct(compiler__semantic__resolution__TypeResolver* self, compiler__semantic__symbols__GenericTemplate* tmpl, std__collections__List_ptr_compiler__ast__AstNode arg_asts) {
 compiler__semantic__resolution__TypeResolver_check_bounds(self, tmpl, arg_asts);
 std__collections__List_ptr_compiler__semantic__types__Type args = std__collections__List_ptr_compiler__semantic__types__Type_init(4);
@@ -15917,16 +15828,7 @@ if ((impl_tmpl->node != NULL && impl_tmpl->node->data.tag == compiler__ast__Node
 self->current_self_type = s_type;
 size_t mark2 = compiler__semantic__resolution__TypeSubst_push(&self->subst, compiler__semantic__symbols__GenericTemplate_param_names(impl_tmpl), args, compiler__semantic__types__PrimTypes_t_none(compiler__semantic__resolution__TypeResolver_prims(self)));
 std__collections__List_ptr_compiler__ast__AstNode methods = std__collections__List_ptr_compiler__ast__AstNode_init(4);
-std__collections__List_ptr_compiler__ast__AstNode canon_arg_asts = std__collections__List_ptr_compiler__ast__AstNode_init(4);
-{
-size_t __for_n = std__collections__List_ptr_compiler__semantic__types__Type_count(&args);
-size_t __for_i = 0;
-while (__for_i < __for_n) {
-compiler__semantic__types__Type* aty = std__collections__List_ptr_compiler__semantic__types__Type_at(&args, __for_i);
-std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&canon_arg_asts, std__memory__Arena_ast_type_from_type(&self->arena, aty));
-__for_i = (__for_i + 1);
-}
-}
+std__collections__List_ptr_compiler__ast__AstNode canon_arg_asts = std__collections__std__collections__List_ptr_compiler__semantic__types__Type_map_ptr_compiler__ast__AstNode(&args, (kobel_closure){ (void*)__lambda_fn_25, (void*)&(struct __lambda_env_25){ &self } });
 {
 size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&im->methods);
 size_t __for_i = 0;
@@ -16101,17 +16003,17 @@ return sym->type_ptr;
 return NULL;
 }
 
+struct __lambda_env_26 {
+    compiler__semantic__resolution__TypeResolver** self;
+};
+
+static compiler__ast__StructField __lambda_fn_26(void* __raw_env, compiler__semantic__types__StructField f) {
+    struct __lambda_env_26* __env = (struct __lambda_env_26*)__raw_env;
+    return (compiler__ast__StructField){ f.name, std__memory__Arena_ast_type_from_type(&(*(__env->self))->arena, f.type_ptr), f.public, f.default_val };
+}
+
 compiler__ast__AstNode* compiler__semantic__resolution__TypeResolver_struct_decl_view(compiler__semantic__resolution__TypeResolver* self, kobel_str name, std__collections__List_compiler__semantic__types__StructField fields, bool public, size_t line, size_t col) {
-std__collections__List_compiler__ast__StructField ast_fields = std__collections__List_compiler__ast__StructField_init(4);
-{
-size_t __for_n = std__collections__List_compiler__semantic__types__StructField_count(&fields);
-size_t __for_i = 0;
-while (__for_i < __for_n) {
-compiler__semantic__types__StructField f = std__collections__List_compiler__semantic__types__StructField_at(&fields, __for_i);
-std__collections__List_compiler__ast__StructField_plus_assign(&ast_fields, (compiler__ast__StructField){ f.name, std__memory__Arena_ast_type_from_type(&self->arena, f.type_ptr), f.public, f.default_val });
-__for_i = (__for_i + 1);
-}
-}
+std__collections__List_compiler__ast__StructField ast_fields = std__collections__std__collections__List_compiler__semantic__types__StructField_map_compiler__ast__StructField(&fields, (kobel_closure){ (void*)__lambda_fn_26, (void*)&(struct __lambda_env_26){ &self } });
 return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 42, .u.StructDecl = { name, std__collections__List_compiler__ast__GenericParam_init(4), ast_fields, public, false, true } }, line, col);
 }
 
@@ -16282,6 +16184,15 @@ __for_i = (__for_i + 1);
 }
 }
 
+struct __lambda_env_27 {
+    compiler__ast__AssocBinding b;
+};
+
+static bool __lambda_fn_27(void* __raw_env, kobel_str a) {
+    struct __lambda_env_27* __env = (struct __lambda_env_27*)__raw_env;
+    return kobel_streq(a, (__env->b).name);
+}
+
 void compiler__semantic__resolution__TypeResolver_register_assoc_bindings(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node, compiler__ast__NodeData__ImplDecl* im, compiler__semantic__types__Type* st_type, kobel_str struct_name) {
 compiler__semantic__types__TraitInfo* trait_info = NULL;
 if (!str_empty(im->trait_name)) {
@@ -16299,18 +16210,7 @@ size_t __for_n = std__collections__List_compiler__ast__AssocBinding_count(&im->a
 size_t __for_i = 0;
 while (__for_i < __for_n) {
 compiler__ast__AssocBinding b = std__collections__List_compiler__ast__AssocBinding_at(&im->assoc_bindings, __for_i);
-bool declared = false;
-{
-size_t __for_n = std__collections__List_str_count(&assoc_decls);
-size_t __for_i = 0;
-while (__for_i < __for_n) {
-kobel_str a = std__collections__List_str_at(&assoc_decls, __for_i);
-if (kobel_streq(a, b.name)) {
-declared = true;
-}
-__for_i = (__for_i + 1);
-}
-}
+bool declared = std__collections__List_str_any(&assoc_decls, (kobel_closure){ (void*)__lambda_fn_27, (void*)&(struct __lambda_env_27){ b } });
 if (!declared) {
 compiler__semantic__resolution__TypeResolver_report_error(self, node, kobel_concat(5, KOBEL_STR("Trait '"), trait_info->name, KOBEL_STR("' has no associated type '"), b.name, KOBEL_STR("'")));
 }
@@ -16346,6 +16246,21 @@ __for_i = (__for_i + 1);
 }
 }
 
+struct __lambda_env_28 {
+    compiler__semantic__types__TraitMethod* tm;
+};
+
+static bool __lambda_fn_28(void* __raw_env, compiler__ast__AstNode* m) {
+    struct __lambda_env_28* __env = (struct __lambda_env_28*)__raw_env;
+{
+compiler__ast__NodeData__FnDecl* f = NULL;
+if ((m != NULL && m->data.tag == compiler__ast__NodeData__FnDecl__TAG && (f = (compiler__ast__NodeData__FnDecl*)(&(m)->data.u.FnDecl), 1))) {
+return (kobel_streq(f->name, (__env->tm)->name) && (f->params.len == (__env->tm)->arity));
+}
+}
+return false;
+}
+
 void compiler__semantic__resolution__TypeResolver_apply_trait(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node, compiler__ast__NodeData__ImplDecl* im, kobel_str struct_name) {
 compiler__semantic__types__TraitInfo* t = compiler__semantic__symbols__SymbolTable_find_trait(&self->symtab, im->trait_name);
 if (t == NULL) {
@@ -16361,21 +16276,7 @@ size_t __for_n = std__collections__List_ptr_compiler__semantic__types__TraitMeth
 size_t __for_i = 0;
 while (__for_i < __for_n) {
 compiler__semantic__types__TraitMethod* tm = std__collections__List_ptr_compiler__semantic__types__TraitMethod_at(&effective, __for_i);
-bool have = false;
-{
-size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&im->methods);
-size_t __for_i = 0;
-while (__for_i < __for_n) {
-compiler__ast__AstNode* m = std__collections__List_ptr_compiler__ast__AstNode_at(&im->methods, __for_i);
-{
-compiler__ast__NodeData__FnDecl* f = NULL;
-if (((m != NULL && m->data.tag == compiler__ast__NodeData__FnDecl__TAG && (f = (compiler__ast__NodeData__FnDecl*)(&(m)->data.u.FnDecl), 1)) && kobel_streq(f->name, tm->name)) && (f->params.len == tm->arity)) {
-have = true;
-}
-}
-__for_i = (__for_i + 1);
-}
-}
+bool have = std__collections__List_ptr_compiler__ast__AstNode_any(&im->methods, (kobel_closure){ (void*)__lambda_fn_28, (void*)&(struct __lambda_env_28){ tm } });
 if (have) {
 __for_i = (__for_i + 1);
 continue;
@@ -16391,6 +16292,11 @@ std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&im->methods, comp
 __for_i = (__for_i + 1);
 }
 }
+}
+
+static kobel_str __lambda_fn_29(void* __raw_env, compiler__semantic__types__MethodInfo* m) {
+    (void)__raw_env;
+    return m->c_name;
 }
 
 void compiler__semantic__resolution__TypeResolver_register_instance_impl(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node) {
@@ -16420,16 +16326,7 @@ if (!str_empty(im->trait_name)) {
 compiler__semantic__resolution__TypeResolver_apply_trait(self, node, im, st_info->name);
 }
 std__collections__List_str overloaded = compiler__semantic__resolution__overloaded_names(im);
-std__collections__List_str used_names = std__collections__List_str_init(4);
-{
-size_t __for_n = std__collections__List_ptr_compiler__semantic__types__MethodInfo_count(&st_info->methods);
-size_t __for_i = 0;
-while (__for_i < __for_n) {
-compiler__semantic__types__MethodInfo* m = std__collections__List_ptr_compiler__semantic__types__MethodInfo_at(&st_info->methods, __for_i);
-std__collections__List_str_plus_assign(&used_names, m->c_name);
-__for_i = (__for_i + 1);
-}
-}
+std__collections__List_str used_names = std__collections__std__collections__List_ptr_compiler__semantic__types__MethodInfo_map_str(&st_info->methods, (kobel_closure){ (void*)__lambda_fn_29, NULL });
 {
 size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&im->methods);
 size_t __for_i = 0;
@@ -16644,30 +16541,28 @@ compiler__semantic__symbols__GenericTemplate* compiler__semantic__resolution__Ty
     return std__memory__Arena_create_val_compiler__semantic__symbols__GenericTemplate(&self->arena, (compiler__semantic__symbols__GenericTemplate){ name, self->current_module, node, is_method, self_type });
 }
 
+struct __lambda_env_30 {
+    kobel_str name;
+    kobel_str module;
+};
+
+static bool __lambda_fn_30(void* __raw_env, compiler__semantic__symbols__GenericTemplate* t) {
+    struct __lambda_env_30* __env = (struct __lambda_env_30*)__raw_env;
+    return (kobel_streq(t->name, (__env->name)) && kobel_streq(t->module, (__env->module)));
+}
+
+struct __lambda_env_31 {
+    kobel_str name;
+    kobel_str module;
+};
+
+static bool __lambda_fn_31(void* __raw_env, compiler__semantic__symbols__GenericTemplate* f) {
+    struct __lambda_env_31* __env = (struct __lambda_env_31*)__raw_env;
+    return (kobel_streq(f->name, (__env->name)) && kobel_streq(f->module, (__env->module)));
+}
+
 bool compiler__semantic__resolution__TypeResolver_template_in_module(compiler__semantic__resolution__TypeResolver* self, kobel_str module, kobel_str name) {
-{
-size_t __for_n = std__collections__List_ptr_compiler__semantic__symbols__GenericTemplate_count(&self->symtab.gen.struct_templates);
-size_t __for_i = 0;
-while (__for_i < __for_n) {
-compiler__semantic__symbols__GenericTemplate* t = std__collections__List_ptr_compiler__semantic__symbols__GenericTemplate_at(&self->symtab.gen.struct_templates, __for_i);
-if (kobel_streq(t->name, name) && kobel_streq(t->module, module)) {
-return true;
-}
-__for_i = (__for_i + 1);
-}
-}
-{
-size_t __for_n = std__collections__List_ptr_compiler__semantic__symbols__GenericTemplate_count(&self->symtab.gen.fn_templates);
-size_t __for_i = 0;
-while (__for_i < __for_n) {
-compiler__semantic__symbols__GenericTemplate* f = std__collections__List_ptr_compiler__semantic__symbols__GenericTemplate_at(&self->symtab.gen.fn_templates, __for_i);
-if (kobel_streq(f->name, name) && kobel_streq(f->module, module)) {
-return true;
-}
-__for_i = (__for_i + 1);
-}
-}
-return false;
+    return (std__collections__List_ptr_compiler__semantic__symbols__GenericTemplate_any(&self->symtab.gen.struct_templates, (kobel_closure){ (void*)__lambda_fn_30, (void*)&(struct __lambda_env_30){ name, module } }) || std__collections__List_ptr_compiler__semantic__symbols__GenericTemplate_any(&self->symtab.gen.fn_templates, (kobel_closure){ (void*)__lambda_fn_31, (void*)&(struct __lambda_env_31){ name, module } }));
 }
 
 compiler__semantic__symbols__Symbol* compiler__semantic__resolution__TypeResolver_find_instance_symbol(compiler__semantic__resolution__TypeResolver* self, kobel_str name) {
@@ -18119,23 +18014,17 @@ f->name = c_name;
 }
 }
 
+static bool __lambda_fn_32(void* __raw_env, compiler__ast__EnumMember m) {
+    (void)__raw_env;
+    return !std__collections__List_compiler__ast__EnumField_empty(&m.payload);
+}
+
 void compiler__semantic__declaration__DeclarationCollector_collect_enum(compiler__semantic__declaration__DeclarationCollector* self, compiler__ast__AstNode* node) {
 {
 compiler__ast__NodeData__EnumDecl* e = NULL;
 if ((node != NULL && node->data.tag == compiler__ast__NodeData__EnumDecl__TAG && (e = (compiler__ast__NodeData__EnumDecl*)(&(node)->data.u.EnumDecl), 1))) {
 compiler__semantic__types__Type* under_type = ((e->underlying_type != NULL) ? compiler__semantic__declaration__DeclarationCollector_resolve_ast_type(self, e->underlying_type) : compiler__semantic__types__PrimTypes_t_prim(compiler__semantic__declaration__DeclarationCollector_prims(self), compiler__semantic__types__Type_i32()));
-bool is_payload = false;
-{
-size_t __for_n = std__collections__List_compiler__ast__EnumMember_count(&e->members);
-size_t __for_i = 0;
-while (__for_i < __for_n) {
-compiler__ast__EnumMember m = std__collections__List_compiler__ast__EnumMember_at(&e->members, __for_i);
-if (!std__collections__List_compiler__ast__EnumField_empty(&m.payload)) {
-is_payload = true;
-}
-__for_i = (__for_i + 1);
-}
-}
+bool is_payload = std__collections__List_compiler__ast__EnumMember_any(&e->members, (kobel_closure){ (void*)__lambda_fn_32, NULL });
 if (is_payload) {
 compiler__semantic__declaration__DeclarationCollector_collect_payload_enum(self, node, e, under_type);
 return;
@@ -18601,6 +18490,11 @@ __for_i = (__for_i + 1);
 }
 }
 
+static bool __lambda_fn_33(void* __raw_env, compiler__ast__EnumMember m) {
+    (void)__raw_env;
+    return !std__collections__List_compiler__ast__EnumField_empty(&m.payload);
+}
+
 void compiler__semantic__declaration__DeclarationCollector_pass1_enums(compiler__semantic__declaration__DeclarationCollector* self, compiler__ast__NodeData__Program* prog, bool want_payload) {
 {
 size_t __for_n = compiler__ast__NodeData__Program_count(prog);
@@ -18614,18 +18508,7 @@ compiler__ast__NodeData__ModuleDecl* t = (compiler__ast__NodeData__ModuleDecl*)(
 compiler__semantic__declaration__DeclarationCollector_collect_module(self, d);
 } else if (t != NULL && t->data.tag == compiler__ast__NodeData__EnumDecl__TAG) {
 compiler__ast__NodeData__EnumDecl* e = (compiler__ast__NodeData__EnumDecl*)(&(t)->data.u.EnumDecl);
-bool has_p = false;
-{
-size_t __for_n = std__collections__List_compiler__ast__EnumMember_count(&e->members);
-size_t __for_i = 0;
-while (__for_i < __for_n) {
-compiler__ast__EnumMember m = std__collections__List_compiler__ast__EnumMember_at(&e->members, __for_i);
-if (!std__collections__List_compiler__ast__EnumField_empty(&m.payload)) {
-has_p = true;
-}
-__for_i = (__for_i + 1);
-}
-}
+bool has_p = std__collections__List_compiler__ast__EnumMember_any(&e->members, (kobel_closure){ (void*)__lambda_fn_33, NULL });
 if (has_p == want_payload) {
 compiler__semantic__declaration__DeclarationCollector_collect_enum(self, d);
 }
@@ -18891,6 +18774,11 @@ compiler__semantic__declaration__DeclarationCollector_report_error(self, expr, K
 return 0;
 }
 
+static kobel_str __lambda_fn_34(void* __raw_env, compiler__semantic__types__MethodInfo* m) {
+    (void)__raw_env;
+    return m->c_name;
+}
+
 void compiler__semantic__declaration__DeclarationCollector_collect_impl(compiler__semantic__declaration__DeclarationCollector* self, compiler__ast__AstNode* node) {
 {
 compiler__ast__NodeData__ImplDecl* im = NULL;
@@ -18918,16 +18806,7 @@ if (!str_empty(im->trait_name)) {
 compiler__semantic__declaration__DeclarationCollector_apply_trait(self, node, im, st_info->name);
 }
 std__collections__List_str overloaded = compiler__semantic__declaration__overloaded_names(im);
-std__collections__List_str used_names = std__collections__List_str_init(4);
-{
-size_t __for_n = std__collections__List_ptr_compiler__semantic__types__MethodInfo_count(&st_info->methods);
-size_t __for_i = 0;
-while (__for_i < __for_n) {
-compiler__semantic__types__MethodInfo* m = std__collections__List_ptr_compiler__semantic__types__MethodInfo_at(&st_info->methods, __for_i);
-std__collections__List_str_plus_assign(&used_names, m->c_name);
-__for_i = (__for_i + 1);
-}
-}
+std__collections__List_str used_names = std__collections__std__collections__List_ptr_compiler__semantic__types__MethodInfo_map_str(&st_info->methods, (kobel_closure){ (void*)__lambda_fn_34, NULL });
 {
 size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&im->methods);
 size_t __for_i = 0;
@@ -19388,6 +19267,15 @@ __for_i = (__for_i + 1);
 }
 }
 
+struct __lambda_env_35 {
+    compiler__ast__AssocBinding b;
+};
+
+static bool __lambda_fn_35(void* __raw_env, kobel_str a) {
+    struct __lambda_env_35* __env = (struct __lambda_env_35*)__raw_env;
+    return kobel_streq(a, (__env->b).name);
+}
+
 void compiler__semantic__declaration__DeclarationCollector_register_assoc_bindings(compiler__semantic__declaration__DeclarationCollector* self, compiler__ast__AstNode* node, compiler__ast__NodeData__ImplDecl* im, compiler__semantic__types__Type* st_type, kobel_str struct_name) {
 compiler__semantic__types__TraitInfo* trait_info = NULL;
 if (!str_empty(im->trait_name)) {
@@ -19405,18 +19293,7 @@ size_t __for_n = std__collections__List_compiler__ast__AssocBinding_count(&im->a
 size_t __for_i = 0;
 while (__for_i < __for_n) {
 compiler__ast__AssocBinding b = std__collections__List_compiler__ast__AssocBinding_at(&im->assoc_bindings, __for_i);
-bool declared = false;
-{
-size_t __for_n = std__collections__List_str_count(&assoc_decls);
-size_t __for_i = 0;
-while (__for_i < __for_n) {
-kobel_str a = std__collections__List_str_at(&assoc_decls, __for_i);
-if (kobel_streq(a, b.name)) {
-declared = true;
-}
-__for_i = (__for_i + 1);
-}
-}
+bool declared = std__collections__List_str_any(&assoc_decls, (kobel_closure){ (void*)__lambda_fn_35, (void*)&(struct __lambda_env_35){ b } });
 if (!declared) {
 compiler__semantic__declaration__DeclarationCollector_report_error(self, node, kobel_concat(5, KOBEL_STR("Trait '"), trait_info->name, KOBEL_STR("' has no associated type '"), b.name, KOBEL_STR("'")));
 }
@@ -19452,6 +19329,21 @@ __for_i = (__for_i + 1);
 }
 }
 
+struct __lambda_env_36 {
+    compiler__semantic__types__TraitMethod* tm;
+};
+
+static bool __lambda_fn_36(void* __raw_env, compiler__ast__AstNode* m) {
+    struct __lambda_env_36* __env = (struct __lambda_env_36*)__raw_env;
+{
+compiler__ast__NodeData__FnDecl* f = NULL;
+if ((m != NULL && m->data.tag == compiler__ast__NodeData__FnDecl__TAG && (f = (compiler__ast__NodeData__FnDecl*)(&(m)->data.u.FnDecl), 1))) {
+return (kobel_streq(f->name, (__env->tm)->name) && (f->params.len == (__env->tm)->arity));
+}
+}
+return false;
+}
+
 void compiler__semantic__declaration__DeclarationCollector_apply_trait(compiler__semantic__declaration__DeclarationCollector* self, compiler__ast__AstNode* node, compiler__ast__NodeData__ImplDecl* im, kobel_str struct_name) {
 compiler__semantic__types__TraitInfo* t = compiler__semantic__symbols__SymbolTable_find_trait(&self->symtab, im->trait_name);
 if (t == NULL) {
@@ -19467,21 +19359,7 @@ size_t __for_n = std__collections__List_ptr_compiler__semantic__types__TraitMeth
 size_t __for_i = 0;
 while (__for_i < __for_n) {
 compiler__semantic__types__TraitMethod* tm = std__collections__List_ptr_compiler__semantic__types__TraitMethod_at(&effective, __for_i);
-bool have = false;
-{
-size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&im->methods);
-size_t __for_i = 0;
-while (__for_i < __for_n) {
-compiler__ast__AstNode* m = std__collections__List_ptr_compiler__ast__AstNode_at(&im->methods, __for_i);
-{
-compiler__ast__NodeData__FnDecl* f = NULL;
-if (((m != NULL && m->data.tag == compiler__ast__NodeData__FnDecl__TAG && (f = (compiler__ast__NodeData__FnDecl*)(&(m)->data.u.FnDecl), 1)) && kobel_streq(f->name, tm->name)) && (f->params.len == tm->arity)) {
-have = true;
-}
-}
-__for_i = (__for_i + 1);
-}
-}
+bool have = std__collections__List_ptr_compiler__ast__AstNode_any(&im->methods, (kobel_closure){ (void*)__lambda_fn_36, (void*)&(struct __lambda_env_36){ tm } });
 if (have) {
 __for_i = (__for_i + 1);
 continue;
@@ -22367,6 +22245,11 @@ self->infer_blocked = true;
 }
 }
 
+static compiler__semantic__types__Type* __lambda_fn_37(void* __raw_env, compiler__semantic__types__StructField f) {
+    (void)__raw_env;
+    return f.type_ptr;
+}
+
 compiler__semantic__types__Type* compiler__semantic__checker__BodyChecker_check_enum_ctor_call(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* node, compiler__ast__NodeData__MemberExpr* mem, compiler__ast__NodeData__CallExpr* call) {
 compiler__ast__AstNode* obj = mem->object;
 {
@@ -22387,16 +22270,7 @@ return compiler__semantic__types__PrimTypes_t_none(compiler__semantic__checker__
 }
 std__collections__List_ptr_compiler__semantic__types__Type field_types = std__collections__List_ptr_compiler__semantic__types__Type_init(4);
 if (mi->payload_ty != NULL) {
-std__collections__List_compiler__semantic__types__StructField payload_fields = (*compiler__semantic__types__Type_as_struct(mi->payload_ty)).fields;
-{
-size_t __for_n = std__collections__List_compiler__semantic__types__StructField_count(&payload_fields);
-size_t __for_i = 0;
-while (__for_i < __for_n) {
-compiler__semantic__types__StructField f = std__collections__List_compiler__semantic__types__StructField_at(&payload_fields, __for_i);
-std__collections__List_ptr_compiler__semantic__types__Type_plus_assign(&field_types, f.type_ptr);
-__for_i = (__for_i + 1);
-}
-}
+field_types = std__collections__std__collections__List_compiler__semantic__types__StructField_map_ptr_compiler__semantic__types__Type(&(*compiler__semantic__types__Type_as_struct(mi->payload_ty)).fields, (kobel_closure){ (void*)__lambda_fn_37, NULL });
 }
 if (call->args.len != field_types.len) {
 compiler__semantic__checker__BodyChecker_report_error(self, node, kobel_concat(5, KOBEL_STR("Argument count mismatch in variant '"), enum_id->name, KOBEL_STR("."), mem->member, KOBEL_STR("'")));
@@ -23593,19 +23467,20 @@ return std__memory__Arena_nullable_pointer_type(&self->arena, compiler__semantic
 return compiler__semantic__types__PrimTypes_t_none(compiler__semantic__checker__BodyChecker_prims(self));
 }
 
+struct __lambda_env_38 {
+    compiler__semantic__symbols__Symbol* sym;
+};
+
+static bool __lambda_fn_38(void* __raw_env, compiler__semantic__symbols__LambdaCapture c) {
+    struct __lambda_env_38* __env = (struct __lambda_env_38*)__raw_env;
+    return kobel_streq(c.name, (__env->sym)->name);
+}
+
 void compiler__semantic__checker__BodyChecker_record_lambda_capture(compiler__semantic__checker__BodyChecker* self, compiler__semantic__symbols__Symbol* sym) {
 compiler__semantic__types__Type* cap_ty = sym->orig_type;
 if (cap_ty == NULL) cap_ty = sym->type_ptr;
-{
-size_t __for_n = std__collections__List_compiler__semantic__symbols__LambdaCapture_count(&self->lambda_captures);
-size_t __for_i = 0;
-while (__for_i < __for_n) {
-compiler__semantic__symbols__LambdaCapture c = std__collections__List_compiler__semantic__symbols__LambdaCapture_at(&self->lambda_captures, __for_i);
-if (kobel_streq(c.name, sym->name)) {
+if (std__collections__List_compiler__semantic__symbols__LambdaCapture_any(&self->lambda_captures, (kobel_closure){ (void*)__lambda_fn_38, (void*)&(struct __lambda_env_38){ sym } })) {
 return;
-}
-__for_i = (__for_i + 1);
-}
 }
 std__collections__List_compiler__semantic__symbols__LambdaCapture_plus_assign(&self->lambda_captures, (compiler__semantic__symbols__LambdaCapture){ sym->name, cap_ty, sym->mutable });
 }
@@ -25106,6 +24981,15 @@ return false;
 }
 }
 
+struct __lambda_env_39 {
+    compiler__semantic__checker__BodyChecker* self;
+};
+
+static bool __lambda_fn_39(void* __raw_env, compiler__ast__AstNode* arg) {
+    struct __lambda_env_39* __env = (struct __lambda_env_39*)__raw_env;
+    return compiler__semantic__checker__BodyChecker_expr_has_implicit_subject((__env->self), arg);
+}
+
 bool compiler__semantic__checker__BodyChecker_expr_has_implicit_subject(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* node) {
 if (node == NULL) {
 return false;
@@ -25128,22 +25012,7 @@ compiler__ast__NodeData__MemberExpr* m = (compiler__ast__NodeData__MemberExpr*)(
 return compiler__semantic__checker__BodyChecker_expr_has_implicit_subject(self, m->object);
 } else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__CallExpr__TAG) {
 compiler__ast__NodeData__CallExpr* c = (compiler__ast__NodeData__CallExpr*)(&(cur)->data.u.CallExpr);
-if (compiler__semantic__checker__BodyChecker_expr_has_implicit_subject(self, c->callee)) {
-return true;
-}
-bool found = false;
-{
-size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&c->args);
-size_t __for_i = 0;
-while (__for_i < __for_n) {
-compiler__ast__AstNode* arg = std__collections__List_ptr_compiler__ast__AstNode_at(&c->args, __for_i);
-if (compiler__semantic__checker__BodyChecker_expr_has_implicit_subject(self, arg)) {
-found = true;
-}
-__for_i = (__for_i + 1);
-}
-}
-return found;
+return (compiler__semantic__checker__BodyChecker_expr_has_implicit_subject(self, c->callee) || std__collections__List_ptr_compiler__ast__AstNode_any(&c->args, (kobel_closure){ (void*)__lambda_fn_39, (void*)&(struct __lambda_env_39){ self } }));
 } else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__IndexExpr__TAG) {
 compiler__ast__NodeData__IndexExpr* ix = (compiler__ast__NodeData__IndexExpr*)(&(cur)->data.u.IndexExpr);
 return (compiler__semantic__checker__BodyChecker_expr_has_implicit_subject(self, ix->target) || compiler__semantic__checker__BodyChecker_expr_has_implicit_subject(self, ix->index));
@@ -25255,6 +25124,11 @@ return __ret_tmp;
 return compiler__semantic__checker__BodyChecker_check_expr(self, body, expected);
 }
 
+static bool __lambda_fn_40(void* __raw_env, compiler__semantic__types__StructField f) {
+    (void)__raw_env;
+    return kobel_streq(f.name, KOBEL_STR("inner"));
+}
+
 compiler__semantic__types__Type* compiler__semantic__checker__BodyChecker_check_is_pattern(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* subject, compiler__semantic__types__Type* subj_ty, compiler__ast__AstNode* is_node) {
 if (is_node == NULL) {
 return NULL;
@@ -25332,19 +25206,7 @@ member_name = matched_data_member->name;
 compiler__semantic__types__Type* p_ty = matched_data_member->payload_ty;
 if ((p_ty != NULL) && (p_ty->kind == 18)) {
 compiler__semantic__types__StructType* s = compiler__semantic__types__Type_as_struct(p_ty);
-bool has_inner = false;
-{
-size_t __for_n = std__collections__List_compiler__semantic__types__StructField_count(&s->fields);
-size_t __for_i = 0;
-while (__for_i < __for_n) {
-compiler__semantic__types__StructField f = std__collections__List_compiler__semantic__types__StructField_at(&s->fields, __for_i);
-if (kobel_streq(f.name, KOBEL_STR("inner"))) {
-has_inner = true;
-}
-__for_i = (__for_i + 1);
-}
-}
-if (!has_inner) {
+if (!std__collections__List_compiler__semantic__types__StructField_any(&s->fields, (kobel_closure){ (void*)__lambda_fn_40, NULL })) {
 is_inner_ptr = false;
 }
 }
@@ -26644,10 +26506,10 @@ compiler__ast__AstNode* block = compiler__semantic__lowering__LoopLowerer_desuga
 size_t __for_n = std__collections__List_compiler__semantic__lowering__PendingResolve_count(&pending);
 size_t __for_i = 0;
 while (__for_i < __for_n) {
-compiler__semantic__lowering__PendingResolve __destruct_tmp_18 = std__collections__List_compiler__semantic__lowering__PendingResolve_at(&pending, __for_i);
+compiler__semantic__lowering__PendingResolve __destruct_tmp_17 = std__collections__List_compiler__semantic__lowering__PendingResolve_at(&pending, __for_i);
 compiler__ast__AstNode* p_node;
 compiler__ast__AstNode* target;
-compiler__semantic__lowering__PendingResolve_unpack(&__destruct_tmp_18, &p_node, &target);
+compiler__semantic__lowering__PendingResolve_unpack(&__destruct_tmp_17, &p_node, &target);
 compiler__semantic__checker__BodyChecker_set_resolved(self, p_node, target);
 __for_i = (__for_i + 1);
 }
@@ -26873,6 +26735,24 @@ return true;
 }
 }
 
+struct __lambda_env_41 {
+    compiler__codegen__CCodeGen** self;
+};
+
+static kobel_str __lambda_fn_41(void* __raw_env, compiler__ast__AstNode* a) {
+    struct __lambda_env_41* __env = (struct __lambda_env_41*)__raw_env;
+    return compiler__codegen__CCodeGen_gen_expr((*(__env->self)), a);
+}
+
+struct __lambda_env_42 {
+    compiler__codegen__CCodeGen** self;
+};
+
+static kobel_str __lambda_fn_42(void* __raw_env, compiler__ast__AstNode* a) {
+    struct __lambda_env_42* __env = (struct __lambda_env_42*)__raw_env;
+    return compiler__codegen__CCodeGen_gen_expr((*(__env->self)), a);
+}
+
 kobel_str compiler__codegen__CCodeGen_gen_expr(compiler__codegen__CCodeGen* self, compiler__ast__AstNode* node) {
 if (node == NULL) {
 return KOBEL_STR("");
@@ -26955,16 +26835,7 @@ return compiler__codegen__CCodeGen_gen_is_expr(self, ast_node, node);
 } else if (node != NULL && node->data.tag == compiler__ast__NodeData__StructCtorExpr__TAG) {
 void* __orig_node = (void*)node;
 compiler__ast__NodeData__StructCtorExpr* node = (compiler__ast__NodeData__StructCtorExpr*)((&((compiler__ast__AstNode*)__orig_node)->data.u.StructCtorExpr));
-std__collections__List_str ctor_args = std__collections__List_str_init(4);
-{
-size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&node->args);
-size_t __for_i = 0;
-while (__for_i < __for_n) {
-compiler__ast__AstNode* a = std__collections__List_ptr_compiler__ast__AstNode_at(&node->args, __for_i);
-std__collections__List_str_plus_assign(&ctor_args, compiler__codegen__CCodeGen_gen_expr(self, a));
-__for_i = (__for_i + 1);
-}
-}
+std__collections__List_str ctor_args = std__collections__std__collections__List_ptr_compiler__ast__AstNode_map_str(&node->args, (kobel_closure){ (void*)__lambda_fn_41, (void*)&(struct __lambda_env_41){ &self } });
 kobel_str joined = str_join(KOBEL_STR(", "), ctor_args);
 return kobel_concat(5, KOBEL_STR("("), node->c_name, KOBEL_STR("){ "), joined, KOBEL_STR(" }"));
 } else if (node != NULL && node->data.tag == compiler__ast__NodeData__EnumCtorExpr__TAG) {
@@ -26973,16 +26844,7 @@ compiler__ast__NodeData__EnumCtorExpr* node = (compiler__ast__NodeData__EnumCtor
 if (str_empty(node->payload_path)) {
 return kobel_concat(7, KOBEL_STR("("), node->c_name, KOBEL_STR("){ ."), node->tag_field, KOBEL_STR(" = "), i64_to_str(node->tag_value), KOBEL_STR(" }"));
 }
-std__collections__List_str ctor_args = std__collections__List_str_init(4);
-{
-size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&node->args);
-size_t __for_i = 0;
-while (__for_i < __for_n) {
-compiler__ast__AstNode* a = std__collections__List_ptr_compiler__ast__AstNode_at(&node->args, __for_i);
-std__collections__List_str_plus_assign(&ctor_args, compiler__codegen__CCodeGen_gen_expr(self, a));
-__for_i = (__for_i + 1);
-}
-}
+std__collections__List_str ctor_args = std__collections__std__collections__List_ptr_compiler__ast__AstNode_map_str(&node->args, (kobel_closure){ (void*)__lambda_fn_42, (void*)&(struct __lambda_env_42){ &self } });
 kobel_str joined = str_join(KOBEL_STR(", "), ctor_args);
 return kobel_concat(11, KOBEL_STR("("), node->c_name, KOBEL_STR("){ ."), node->tag_field, KOBEL_STR(" = "), i64_to_str(node->tag_value), KOBEL_STR(", ."), node->payload_path, KOBEL_STR(" = { "), joined, KOBEL_STR(" } }"));
 } else if (node != NULL && node->data.tag == compiler__ast__NodeData__SizeOfParam__TAG) {
@@ -27016,6 +26878,16 @@ __for_i = (__for_i + 1);
 return name;
 }
 
+struct __lambda_env_43 {
+    compiler__codegen__CCodeGen* self;
+};
+
+static kobel_str __lambda_fn_43(void* __raw_env, compiler__semantic__symbols__LambdaCapture cap) {
+    struct __lambda_env_43* __env = (struct __lambda_env_43*)__raw_env;
+kobel_str expr_s = compiler__codegen__CCodeGen_gen_ident_expr((__env->self), cap.name);
+return (cap.is_mutable ? kobel_concat(2, KOBEL_STR("&"), expr_s) : expr_s);
+}
+
 kobel_str compiler__codegen__CCodeGen_gen_lambda_expr(compiler__codegen__CCodeGen* self, compiler__ast__AstNode* ast_node) {
 compiler__semantic__symbols__LambdaInfo info = compiler__codegen__CCodeGen_lambda_info_of(self, ast_node);
 if (info.id == 0) {
@@ -27024,21 +26896,7 @@ return KOBEL_STR("(kobel_closure){ NULL, NULL }");
 if (std__collections__List_compiler__semantic__symbols__LambdaCapture_empty(&info.captures)) {
 return kobel_concat(3, KOBEL_STR("(kobel_closure){ (void*)__lambda_fn_"), usz_to_str(info.id), KOBEL_STR(", NULL }"));
 }
-std__collections__List_str cap_inits = std__collections__List_str_init(4);
-{
-size_t __for_n = std__collections__List_compiler__semantic__symbols__LambdaCapture_count(&info.captures);
-size_t __for_i = 0;
-while (__for_i < __for_n) {
-compiler__semantic__symbols__LambdaCapture cap = std__collections__List_compiler__semantic__symbols__LambdaCapture_at(&info.captures, __for_i);
-kobel_str expr_s = compiler__codegen__CCodeGen_gen_ident_expr(self, cap.name);
-if (cap.is_mutable) {
-std__collections__List_str_plus_assign(&cap_inits, kobel_concat(2, KOBEL_STR("&"), expr_s));
-} else {
-std__collections__List_str_plus_assign(&cap_inits, expr_s);
-}
-__for_i = (__for_i + 1);
-}
-}
+std__collections__List_str cap_inits = std__collections__std__collections__List_compiler__semantic__symbols__LambdaCapture_map_str(&info.captures, (kobel_closure){ (void*)__lambda_fn_43, (void*)&(struct __lambda_env_43){ self } });
 kobel_str joined = str_join(KOBEL_STR(", "), cap_inits);
 return kobel_concat(7, KOBEL_STR("(kobel_closure){ (void*)__lambda_fn_"), usz_to_str(info.id), KOBEL_STR(", (void*)&(struct __lambda_env_"), usz_to_str(info.id), KOBEL_STR("){ "), joined, KOBEL_STR(" } }"));
 }
@@ -27188,24 +27046,33 @@ return opnd;
 return (un->op == 7 ? (str_starts_with(opnd, KOBEL_STR("-")) ? kobel_concat(3, KOBEL_STR("- ("), opnd, KOBEL_STR(")")) : kobel_concat(2, KOBEL_STR("-"), opnd)) : (un->op == 4 ? kobel_concat(2, KOBEL_STR("!"), opnd) : (un->op == 8 ? kobel_concat(2, KOBEL_STR("*"), opnd) : (un->op == 19 ? kobel_concat(2, KOBEL_STR("&"), opnd) : opnd))));
 }
 
+struct __lambda_env_44 {
+    compiler__codegen__CCodeGen** self;
+};
+
+static kobel_str __lambda_fn_44(void* __raw_env, compiler__ast__AstNode* el) {
+    struct __lambda_env_44* __env = (struct __lambda_env_44*)__raw_env;
+    return compiler__codegen__CCodeGen_gen_expr((*(__env->self)), el);
+}
+
 kobel_str compiler__codegen__CCodeGen_gen_array_literal_expr(compiler__codegen__CCodeGen* self, compiler__ast__NodeData__ArrayLiteralExpr* al) {
 kobel_str elem_c = (al->elem_type_node != NULL ? compiler__codegen__c_type_from_ast(al->elem_type_node) : (!str_empty(self->array_elem_hint) ? self->array_elem_hint : (!std__collections__List_ptr_compiler__ast__AstNode_empty(&al->elements) ? compiler__codegen__CCodeGen_c_type_or(self, std__collections__List_ptr_compiler__ast__AstNode_first(&al->elements), KOBEL_STR("int32_t")) : KOBEL_STR("int32_t"))));
-std__collections__List_str elems_str = std__collections__List_str_init(4);
-{
-size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&al->elements);
-size_t __for_i = 0;
-while (__for_i < __for_n) {
-compiler__ast__AstNode* el = std__collections__List_ptr_compiler__ast__AstNode_at(&al->elements, __for_i);
-std__collections__List_str_plus_assign(&elems_str, compiler__codegen__CCodeGen_gen_expr(self, el));
-__for_i = (__for_i + 1);
-}
-}
+std__collections__List_str elems_str = std__collections__std__collections__List_ptr_compiler__ast__AstNode_map_str(&al->elements, (kobel_closure){ (void*)__lambda_fn_44, (void*)&(struct __lambda_env_44){ &self } });
 kobel_str joined_elems = str_join(KOBEL_STR(", "), elems_str);
 kobel_str arr_res = kobel_concat(5, KOBEL_STR("("), elem_c, KOBEL_STR("[]){"), joined_elems, KOBEL_STR("}"));
 if (!str_empty(al->list_struct_name)) {
 return (std__collections__List_ptr_compiler__ast__AstNode_empty(&al->elements) ? kobel_concat(2, al->list_struct_name, KOBEL_STR("_from_array(NULL, 0)")) : kobel_concat(6, al->list_struct_name, KOBEL_STR("_from_array("), arr_res, KOBEL_STR(", "), usz_to_str(al->elements.len), KOBEL_STR(")")));
 }
 return arr_res;
+}
+
+struct __lambda_env_45 {
+    compiler__codegen__CCodeGen** self;
+};
+
+static kobel_str __lambda_fn_45(void* __raw_env, compiler__ast__AstNode* arg) {
+    struct __lambda_env_45* __env = (struct __lambda_env_45*)__raw_env;
+    return compiler__codegen__CCodeGen_gen_expr((*(__env->self)), arg);
 }
 
 kobel_str compiler__codegen__CCodeGen_gen_call_expr(compiler__codegen__CCodeGen* self, compiler__ast__NodeData__CallExpr* call) {
@@ -27262,16 +27129,7 @@ return kobel_concat(3, KOBEL_STR("kobel_from_cstr((const char*)("), compiler__co
 }
 }
 kobel_str callee_str = compiler__codegen__CCodeGen_gen_expr(self, call->callee);
-std__collections__List_str args_str = std__collections__List_str_init(4);
-{
-size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&call->args);
-size_t __for_i = 0;
-while (__for_i < __for_n) {
-compiler__ast__AstNode* arg = std__collections__List_ptr_compiler__ast__AstNode_at(&call->args, __for_i);
-std__collections__List_str_plus_assign(&args_str, compiler__codegen__CCodeGen_gen_expr(self, arg));
-__for_i = (__for_i + 1);
-}
-}
+std__collections__List_str args_str = std__collections__std__collections__List_ptr_compiler__ast__AstNode_map_str(&call->args, (kobel_closure){ (void*)__lambda_fn_45, (void*)&(struct __lambda_env_45){ &self } });
 kobel_str joined_args = str_join(KOBEL_STR(", "), args_str);
 compiler__semantic__types__Type* callee_ty = compiler__codegen__CCodeGen_node_type(self, call->callee);
 if (((callee_ty != NULL) && (callee_ty->kind == 19)) && ((self->symtab != NULL) && compiler__semantic__symbols__SymbolTable_is_closure_call(self->symtab, call->callee))) {
@@ -27369,23 +27227,17 @@ kobel_str op_str = (asgn->op == 33 ? KOBEL_STR("+=") : (asgn->op == 34 ? KOBEL_S
 return kobel_concat(5, compiler__codegen__CCodeGen_gen_expr(self, asgn->target), KOBEL_STR(" "), op_str, KOBEL_STR(" "), compiler__codegen__CCodeGen_gen_expr(self, asgn->value));
 }
 
+static bool __lambda_fn_46(void* __raw_env, compiler__ast__WhenArm arm) {
+    (void)__raw_env;
+    return arm.is_else;
+}
+
 kobel_str compiler__codegen__CCodeGen_gen_when_expr(compiler__codegen__CCodeGen* self, compiler__ast__NodeData__WhenExpr* we) {
 if (std__collections__List_compiler__ast__WhenArm_empty(&we->arms)) {
 return KOBEL_STR("0");
 }
 kobel_str cond = ((we->condition != NULL) ? compiler__codegen__CCodeGen_gen_expr(self, we->condition) : KOBEL_STR(""));
-bool has_else = false;
-{
-size_t __for_n = std__collections__List_compiler__ast__WhenArm_count(&we->arms);
-size_t __for_i = 0;
-while (__for_i < __for_n) {
-compiler__ast__WhenArm arm = std__collections__List_compiler__ast__WhenArm_at(&we->arms, __for_i);
-if (arm.is_else) {
-has_else = true;
-}
-__for_i = (__for_i + 1);
-}
-}
+bool has_else = std__collections__List_compiler__ast__WhenArm_any(&we->arms, (kobel_closure){ (void*)__lambda_fn_46, NULL });
 kobel_str res = KOBEL_STR("0");
 size_t i = we->arms.len;
 if (!has_else) {
@@ -27650,19 +27502,13 @@ compiler__codegen__CCodeGen_gen_statement(self, std__collections__List_ptr_compi
 }
 }
 
+static bool __lambda_fn_47(void* __raw_env, compiler__ast__EnumMember m) {
+    (void)__raw_env;
+    return !std__collections__List_compiler__ast__EnumField_empty(&m.payload);
+}
+
 bool compiler__codegen__CCodeGen_enum_has_payload(compiler__codegen__CCodeGen* self, compiler__ast__NodeData__EnumDecl* e) {
-{
-size_t __for_n = std__collections__List_compiler__ast__EnumMember_count(&e->members);
-size_t __for_i = 0;
-while (__for_i < __for_n) {
-compiler__ast__EnumMember m = std__collections__List_compiler__ast__EnumMember_at(&e->members, __for_i);
-if (!std__collections__List_compiler__ast__EnumField_empty(&m.payload)) {
-return true;
-}
-__for_i = (__for_i + 1);
-}
-}
-return false;
+    return std__collections__List_compiler__ast__EnumMember_any(&e->members, (kobel_closure){ (void*)__lambda_fn_47, NULL });
 }
 
 kobel_str compiler__codegen__c_format_int_literal(kobel_str raw) {
@@ -27680,22 +27526,14 @@ kobel_str compiler__codegen__c_float_literal_c_type(kobel_str raw) {
     return (str_ends_with(raw, KOBEL_STR("F")) ? KOBEL_STR("float") : KOBEL_STR("double"));
 }
 
+static bool __lambda_fn_48(void* __raw_env, char c) {
+    (void)__raw_env;
+    return (((c == '.') || (c == 'e')) || (c == 'E'));
+}
+
 kobel_str compiler__codegen__c_format_float_literal(kobel_str raw) {
 kobel_str text = str_strip_char(raw, '_');
-bool has_dot = false;
-{
-size_t __for_n = text.len;
-size_t __for_i = 0;
-while (__for_i < __for_n) {
-char c = text.data[__for_i];
-if (c == '.' || c == 'e' || c == 'E') {
-has_dot = true;
-break;
-}
-__for_i = (__for_i + 1);
-}
-}
-if (has_dot) {
+if (str_any(text, (kobel_closure){ (void*)__lambda_fn_48, NULL })) {
 return text;
 }
 size_t len = text.len;
@@ -28620,35 +28458,18 @@ std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("}\n\n"));
 }
 }
 
+static bool __lambda_fn_49(void* __raw_env, compiler__ast__AstNode* p) {
+    (void)__raw_env;
+    return (p != NULL && p->data.tag == compiler__ast__NodeData__IsExpr__TAG);
+}
+
+static bool __lambda_fn_50(void* __raw_env, compiler__ast__WhenArm arm) {
+    (void)__raw_env;
+    return ((arm.body != NULL && arm.body->data.tag == compiler__ast__NodeData__BlockStmt__TAG) || std__collections__List_ptr_compiler__ast__AstNode_any(&arm.patterns, (kobel_closure){ (void*)__lambda_fn_49, NULL }));
+}
+
 bool compiler__ast__NodeData__WhenExpr_has_blocks(compiler__ast__NodeData__WhenExpr* self) {
-{
-size_t __for_n = std__collections__List_compiler__ast__WhenArm_count(&self->arms);
-size_t __for_i = 0;
-while (__for_i < __for_n) {
-compiler__ast__WhenArm arm = std__collections__List_compiler__ast__WhenArm_at(&self->arms, __for_i);
-compiler__ast__AstNode* arm_b = arm.body;
-if ((arm_b != NULL && arm_b->data.tag == compiler__ast__NodeData__BlockStmt__TAG)) {
-void* __orig_arm_b = (void*)arm_b;
-compiler__ast__NodeData__BlockStmt* arm_b = (compiler__ast__NodeData__BlockStmt*)((&((compiler__ast__AstNode*)__orig_arm_b)->data.u.BlockStmt));
-return true;
-}
-{
-size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&arm.patterns);
-size_t __for_i = 0;
-while (__for_i < __for_n) {
-compiler__ast__AstNode* p = std__collections__List_ptr_compiler__ast__AstNode_at(&arm.patterns, __for_i);
-if ((p != NULL && p->data.tag == compiler__ast__NodeData__IsExpr__TAG)) {
-void* __orig_p = (void*)p;
-compiler__ast__NodeData__IsExpr* p = (compiler__ast__NodeData__IsExpr*)((&((compiler__ast__AstNode*)__orig_p)->data.u.IsExpr));
-return true;
-}
-__for_i = (__for_i + 1);
-}
-}
-__for_i = (__for_i + 1);
-}
-}
-return false;
+    return std__collections__List_compiler__ast__WhenArm_any(&self->arms, (kobel_closure){ (void*)__lambda_fn_50, NULL });
 }
 
 kobel_str compiler__codegen__CCodeGen_gen_cond(compiler__codegen__CCodeGen* self, compiler__ast__AstNode* cond) {
@@ -29204,18 +29025,18 @@ std__collections__List_compiler__codegen__ConditionAlias cond_aliases = compiler
 size_t __for_n = std__collections__List_compiler__codegen__ConditionAlias_count(&cond_aliases);
 size_t __for_i = 0;
 while (__for_i < __for_n) {
-compiler__codegen__ConditionAlias __destruct_tmp_19 = std__collections__List_compiler__codegen__ConditionAlias_at(&cond_aliases, __for_i);
+compiler__codegen__ConditionAlias __destruct_tmp_18 = std__collections__List_compiler__codegen__ConditionAlias_at(&cond_aliases, __for_i);
 kobel_str ca_name;
 kobel_str ca_type;
-compiler__codegen__ConditionAlias_unpack_3(&__destruct_tmp_19, &ca_name, &ca_type);
+compiler__codegen__ConditionAlias_unpack_3(&__destruct_tmp_18, &ca_name, &ca_type);
 {
 size_t __for_n = std__collections__List_compiler__codegen__ConditionAlias_count(&aliases);
 size_t __for_i = 0;
 while (__for_i < __for_n) {
-compiler__codegen__ConditionAlias __destruct_tmp_20 = std__collections__List_compiler__codegen__ConditionAlias_at(&aliases, __for_i);
+compiler__codegen__ConditionAlias __destruct_tmp_19 = std__collections__List_compiler__codegen__ConditionAlias_at(&aliases, __for_i);
 kobel_str a_name;
 kobel_str a_type;
-compiler__codegen__ConditionAlias_unpack_3(&__destruct_tmp_20, &a_name, &a_type);
+compiler__codegen__ConditionAlias_unpack_3(&__destruct_tmp_19, &a_name, &a_type);
 if (kobel_streq(ca_name, a_name) && !kobel_streq(ca_type, a_type)) {
 return true;
 }
@@ -29246,16 +29067,16 @@ while (__for_i < __for_n) {
 compiler__codegen__ConditionAlias ea = std__collections__List_compiler__codegen__ConditionAlias_at(&elif_aliases, __for_i);
 bool found = false;
 kobel_str ea_name;
-kobel_str __destruct_unused_21_1;
-compiler__codegen__ConditionAlias_unpack_3(&ea, &ea_name, &__destruct_unused_21_1);
+kobel_str __destruct_unused_20_1;
+compiler__codegen__ConditionAlias_unpack_3(&ea, &ea_name, &__destruct_unused_20_1);
 {
 size_t __for_n = std__collections__List_compiler__codegen__ConditionAlias_count(&aliases);
 size_t __for_i = 0;
 while (__for_i < __for_n) {
-compiler__codegen__ConditionAlias __destruct_tmp_22 = std__collections__List_compiler__codegen__ConditionAlias_at(&aliases, __for_i);
+compiler__codegen__ConditionAlias __destruct_tmp_21 = std__collections__List_compiler__codegen__ConditionAlias_at(&aliases, __for_i);
 kobel_str a_name;
-kobel_str __destruct_unused_22_1;
-compiler__codegen__ConditionAlias_unpack_3(&__destruct_tmp_22, &a_name, &__destruct_unused_22_1);
+kobel_str __destruct_unused_21_1;
+compiler__codegen__ConditionAlias_unpack_3(&__destruct_tmp_21, &a_name, &__destruct_unused_21_1);
 if (kobel_streq(a_name, ea_name)) {
 found = true;
 break;
@@ -30578,19 +30399,7 @@ kobel_str fmt__strip_cr(kobel_str src) {
 if (str_index_of(src, KOBEL_STR("\r")) < 0) {
 return src;
 }
-std__string__StringBuilder sb = std__string__StringBuilder_init(32);
-{
-size_t __for_n = src.len;
-size_t __for_i = 0;
-while (__for_i < __for_n) {
-char c = src.data[__for_i];
-if (c != '\r') {
-std__string__StringBuilder_plus_assign_2_2(&sb, c);
-}
-__for_i = (__for_i + 1);
-}
-}
-return std__string__StringBuilder_to_str(&sb);
+return str_strip_char(src, '\r');
 }
 
 bool fmt__is_inline_stmt(compiler__ast__AstNode* node) {
@@ -32394,11 +32203,11 @@ compiler__semantic__symbols__ModuleScope* mod_scope = std__collections__List_ptr
 size_t __for_n = compiler__semantic__symbols__ModuleScope_count(mod_scope);
 size_t __for_i = 0;
 while (__for_i < __for_n) {
-compiler__semantic__symbols__Symbol* __destruct_tmp_23 = compiler__semantic__symbols__ModuleScope_at(mod_scope, __for_i);
+compiler__semantic__symbols__Symbol* __destruct_tmp_22 = compiler__semantic__symbols__ModuleScope_at(mod_scope, __for_i);
 kobel_str name;
 compiler__semantic__symbols__SymbolKind kind;
 compiler__semantic__types__Type* type_ptr;
-compiler__semantic__symbols__Symbol_unpack_4(__destruct_tmp_23, &name, &kind, &type_ptr);
+compiler__semantic__symbols__Symbol_unpack_4(__destruct_tmp_22, &name, &kind, &type_ptr);
 int64_t k = (kind == 3 ? 3 : (kind == 4 ? 22 : (kind == 5 ? 13 : (kind == 0 ? 6 : (kind == 1 ? 21 : 6)))));
 lsp__add_completion_item(items, name, k, compiler__semantic__types__Type_to_str(type_ptr));
 __for_i = (__for_i + 1);
@@ -33436,10 +33245,10 @@ kobel_str uri = lsp__JsonValue_get_str(text_doc, KOBEL_STR("uri"), KOBEL_STR("")
 lsp__JsonValue* pos = lsp__JsonValue_get_obj(params, KOBEL_STR("position"));
 size_t line = (size_t)lsp__JsonValue_get_num(pos, KOBEL_STR("line"), 0);
 size_t char_col = (size_t)lsp__JsonValue_get_num(pos, KOBEL_STR("character"), 0);
-lsp__Document __destruct_tmp_24 = lsp__DocumentStore_get(&self->docs, uri);
+lsp__Document __destruct_tmp_23 = lsp__DocumentStore_get(&self->docs, uri);
 kobel_str doc_path;
 kobel_str doc_text;
-lsp__Document_unpack_3(&__destruct_tmp_24, &doc_path, &doc_text);
+lsp__Document_unpack_3(&__destruct_tmp_23, &doc_path, &doc_text);
 if (!str_empty(doc_text)) {
 lsp__AnalysisResult analysis = lsp__AnalysisResult_init(doc_path, doc_text, self->workspace_root);
 lsp__JsonValue* h = lsp__AnalysisResult_hover_at(&analysis, line, char_col);
@@ -33453,10 +33262,10 @@ kobel_str uri = lsp__JsonValue_get_str(text_doc, KOBEL_STR("uri"), KOBEL_STR("")
 lsp__JsonValue* pos = lsp__JsonValue_get_obj(params, KOBEL_STR("position"));
 size_t line = (size_t)lsp__JsonValue_get_num(pos, KOBEL_STR("line"), 0);
 size_t char_col = (size_t)lsp__JsonValue_get_num(pos, KOBEL_STR("character"), 0);
-lsp__Document __destruct_tmp_25 = lsp__DocumentStore_get(&self->docs, uri);
+lsp__Document __destruct_tmp_24 = lsp__DocumentStore_get(&self->docs, uri);
 kobel_str doc_path;
 kobel_str doc_text;
-lsp__Document_unpack_3(&__destruct_tmp_25, &doc_path, &doc_text);
+lsp__Document_unpack_3(&__destruct_tmp_24, &doc_path, &doc_text);
 if (!str_empty(doc_text)) {
 lsp__AnalysisResult analysis = lsp__AnalysisResult_init(doc_path, doc_text, self->workspace_root);
 lsp__JsonValue* def_res = lsp__AnalysisResult_definition_at(&analysis, uri, line, char_col);
@@ -33467,10 +33276,10 @@ lsp__send_response(id, lsp__JsonValue_null_val());
 } else if (kobel_streq(method, KOBEL_STR("textDocument/formatting"))) {
 lsp__JsonValue* text_doc = lsp__JsonValue_get_obj(params, KOBEL_STR("textDocument"));
 kobel_str uri = lsp__JsonValue_get_str(text_doc, KOBEL_STR("uri"), KOBEL_STR(""));
-lsp__Document __destruct_tmp_26 = lsp__DocumentStore_get(&self->docs, uri);
-kobel_str __destruct_unused_26_0;
+lsp__Document __destruct_tmp_25 = lsp__DocumentStore_get(&self->docs, uri);
+kobel_str __destruct_unused_25_0;
 kobel_str doc_text;
-lsp__Document_unpack_3(&__destruct_tmp_26, &__destruct_unused_26_0, &doc_text);
+lsp__Document_unpack_3(&__destruct_tmp_25, &__destruct_unused_25_0, &doc_text);
 if (!str_empty(doc_text)) {
 lsp__JsonValue* edits = lsp__AnalysisResult_format_document(doc_text);
 lsp__send_response(id, edits);
@@ -33480,10 +33289,10 @@ lsp__send_response(id, lsp__JsonValue_arr());
 } else if (kobel_streq(method, KOBEL_STR("textDocument/documentSymbol"))) {
 lsp__JsonValue* text_doc = lsp__JsonValue_get_obj(params, KOBEL_STR("textDocument"));
 kobel_str uri = lsp__JsonValue_get_str(text_doc, KOBEL_STR("uri"), KOBEL_STR(""));
-lsp__Document __destruct_tmp_27 = lsp__DocumentStore_get(&self->docs, uri);
-kobel_str __destruct_unused_27_0;
+lsp__Document __destruct_tmp_26 = lsp__DocumentStore_get(&self->docs, uri);
+kobel_str __destruct_unused_26_0;
 kobel_str doc_text;
-lsp__Document_unpack_3(&__destruct_tmp_27, &__destruct_unused_27_0, &doc_text);
+lsp__Document_unpack_3(&__destruct_tmp_26, &__destruct_unused_26_0, &doc_text);
 if (!str_empty(doc_text)) {
 lsp__JsonValue* syms = lsp__AnalysisResult_document_symbols(doc_text);
 lsp__send_response(id, syms);
@@ -33493,10 +33302,10 @@ lsp__send_response(id, lsp__JsonValue_arr());
 } else if (kobel_streq(method, KOBEL_STR("textDocument/completion"))) {
 lsp__JsonValue* text_doc = lsp__JsonValue_get_obj(params, KOBEL_STR("textDocument"));
 kobel_str uri = lsp__JsonValue_get_str(text_doc, KOBEL_STR("uri"), KOBEL_STR(""));
-lsp__Document __destruct_tmp_28 = lsp__DocumentStore_get(&self->docs, uri);
+lsp__Document __destruct_tmp_27 = lsp__DocumentStore_get(&self->docs, uri);
 kobel_str doc_path;
 kobel_str doc_text;
-lsp__Document_unpack_3(&__destruct_tmp_28, &doc_path, &doc_text);
+lsp__Document_unpack_3(&__destruct_tmp_27, &doc_path, &doc_text);
 if (!str_empty(doc_text)) {
 lsp__AnalysisResult analysis = lsp__AnalysisResult_init(doc_path, doc_text, self->workspace_root);
 lsp__JsonValue* items = lsp__AnalysisResult_complete_at(&analysis);
@@ -34055,17 +33864,17 @@ std__collections__List_ptr_compiler__ast__AstNode_remove_at(self, (size_t)idx);
 return true;
 }
 
-struct __lambda_env_11 {
+struct __lambda_env_52 {
     compiler__ast__AstNode* value;
 };
 
-static bool __lambda_fn_11(void* __raw_env, compiler__ast__AstNode* x) {
-    struct __lambda_env_11* __env = (struct __lambda_env_11*)__raw_env;
+static bool __lambda_fn_52(void* __raw_env, compiler__ast__AstNode* x) {
+    struct __lambda_env_52* __env = (struct __lambda_env_52*)__raw_env;
     return (x == (__env->value));
 }
 
 size_t std__collections__List_ptr_compiler__ast__AstNode_remove_all(std__collections__List_ptr_compiler__ast__AstNode* self, compiler__ast__AstNode* value) {
-    return std__collections__List_ptr_compiler__ast__AstNode_remove_where(self, (kobel_closure){ (void*)__lambda_fn_11, (void*)&(struct __lambda_env_11){ value } });
+    return std__collections__List_ptr_compiler__ast__AstNode_remove_where(self, (kobel_closure){ (void*)__lambda_fn_52, (void*)&(struct __lambda_env_52){ value } });
 }
 
 size_t std__collections__List_ptr_compiler__ast__AstNode_remove_where(std__collections__List_ptr_compiler__ast__AstNode* self, kobel_closure predicate) {
@@ -34735,17 +34544,17 @@ std__collections__List_compiler__ast__WhenArm_remove_at(self, (size_t)idx);
 return true;
 }
 
-struct __lambda_env_12 {
+struct __lambda_env_53 {
     compiler__ast__WhenArm value;
 };
 
-static bool __lambda_fn_12(void* __raw_env, compiler__ast__WhenArm x) {
-    struct __lambda_env_12* __env = (struct __lambda_env_12*)__raw_env;
+static bool __lambda_fn_53(void* __raw_env, compiler__ast__WhenArm x) {
+    struct __lambda_env_53* __env = (struct __lambda_env_53*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 56);
 }
 
 size_t std__collections__List_compiler__ast__WhenArm_remove_all(std__collections__List_compiler__ast__WhenArm* self, compiler__ast__WhenArm value) {
-    return std__collections__List_compiler__ast__WhenArm_remove_where(self, (kobel_closure){ (void*)__lambda_fn_12, (void*)&(struct __lambda_env_12){ value } });
+    return std__collections__List_compiler__ast__WhenArm_remove_where(self, (kobel_closure){ (void*)__lambda_fn_53, (void*)&(struct __lambda_env_53){ value } });
 }
 
 size_t std__collections__List_compiler__ast__WhenArm_remove_where(std__collections__List_compiler__ast__WhenArm* self, kobel_closure predicate) {
@@ -35415,17 +35224,17 @@ std__collections__List_compiler__ast__InterpPart_remove_at(self, (size_t)idx);
 return true;
 }
 
-struct __lambda_env_13 {
+struct __lambda_env_54 {
     compiler__ast__InterpPart value;
 };
 
-static bool __lambda_fn_13(void* __raw_env, compiler__ast__InterpPart x) {
-    struct __lambda_env_13* __env = (struct __lambda_env_13*)__raw_env;
+static bool __lambda_fn_54(void* __raw_env, compiler__ast__InterpPart x) {
+    struct __lambda_env_54* __env = (struct __lambda_env_54*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 16);
 }
 
 size_t std__collections__List_compiler__ast__InterpPart_remove_all(std__collections__List_compiler__ast__InterpPart* self, compiler__ast__InterpPart value) {
-    return std__collections__List_compiler__ast__InterpPart_remove_where(self, (kobel_closure){ (void*)__lambda_fn_13, (void*)&(struct __lambda_env_13){ value } });
+    return std__collections__List_compiler__ast__InterpPart_remove_where(self, (kobel_closure){ (void*)__lambda_fn_54, (void*)&(struct __lambda_env_54){ value } });
 }
 
 size_t std__collections__List_compiler__ast__InterpPart_remove_where(std__collections__List_compiler__ast__InterpPart* self, kobel_closure predicate) {
@@ -36095,17 +35904,17 @@ std__collections__List_compiler__ast__Param_remove_at(self, (size_t)idx);
 return true;
 }
 
-struct __lambda_env_14 {
+struct __lambda_env_55 {
     compiler__ast__Param value;
 };
 
-static bool __lambda_fn_14(void* __raw_env, compiler__ast__Param x) {
-    struct __lambda_env_14* __env = (struct __lambda_env_14*)__raw_env;
+static bool __lambda_fn_55(void* __raw_env, compiler__ast__Param x) {
+    struct __lambda_env_55* __env = (struct __lambda_env_55*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 40);
 }
 
 size_t std__collections__List_compiler__ast__Param_remove_all(std__collections__List_compiler__ast__Param* self, compiler__ast__Param value) {
-    return std__collections__List_compiler__ast__Param_remove_where(self, (kobel_closure){ (void*)__lambda_fn_14, (void*)&(struct __lambda_env_14){ value } });
+    return std__collections__List_compiler__ast__Param_remove_where(self, (kobel_closure){ (void*)__lambda_fn_55, (void*)&(struct __lambda_env_55){ value } });
 }
 
 size_t std__collections__List_compiler__ast__Param_remove_where(std__collections__List_compiler__ast__Param* self, kobel_closure predicate) {
@@ -36775,17 +36584,17 @@ std__collections__List_str_remove_at(self, (size_t)idx);
 return true;
 }
 
-struct __lambda_env_15 {
+struct __lambda_env_56 {
     kobel_str value;
 };
 
-static bool __lambda_fn_15(void* __raw_env, kobel_str x) {
-    struct __lambda_env_15* __env = (struct __lambda_env_15*)__raw_env;
+static bool __lambda_fn_56(void* __raw_env, kobel_str x) {
+    struct __lambda_env_56* __env = (struct __lambda_env_56*)__raw_env;
     return kobel_streq(x, (__env->value));
 }
 
 size_t std__collections__List_str_remove_all(std__collections__List_str* self, kobel_str value) {
-    return std__collections__List_str_remove_where(self, (kobel_closure){ (void*)__lambda_fn_15, (void*)&(struct __lambda_env_15){ value } });
+    return std__collections__List_str_remove_where(self, (kobel_closure){ (void*)__lambda_fn_56, (void*)&(struct __lambda_env_56){ value } });
 }
 
 size_t std__collections__List_str_remove_where(std__collections__List_str* self, kobel_closure predicate) {
@@ -37455,17 +37264,17 @@ std__collections__List_compiler__ast__GenericParam_remove_at(self, (size_t)idx);
 return true;
 }
 
-struct __lambda_env_16 {
+struct __lambda_env_57 {
     compiler__ast__GenericParam value;
 };
 
-static bool __lambda_fn_16(void* __raw_env, compiler__ast__GenericParam x) {
-    struct __lambda_env_16* __env = (struct __lambda_env_16*)__raw_env;
+static bool __lambda_fn_57(void* __raw_env, compiler__ast__GenericParam x) {
+    struct __lambda_env_57* __env = (struct __lambda_env_57*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 40);
 }
 
 size_t std__collections__List_compiler__ast__GenericParam_remove_all(std__collections__List_compiler__ast__GenericParam* self, compiler__ast__GenericParam value) {
-    return std__collections__List_compiler__ast__GenericParam_remove_where(self, (kobel_closure){ (void*)__lambda_fn_16, (void*)&(struct __lambda_env_16){ value } });
+    return std__collections__List_compiler__ast__GenericParam_remove_where(self, (kobel_closure){ (void*)__lambda_fn_57, (void*)&(struct __lambda_env_57){ value } });
 }
 
 size_t std__collections__List_compiler__ast__GenericParam_remove_where(std__collections__List_compiler__ast__GenericParam* self, kobel_closure predicate) {
@@ -38135,17 +37944,17 @@ std__collections__List_compiler__ast__StructField_remove_at(self, (size_t)idx);
 return true;
 }
 
-struct __lambda_env_17 {
+struct __lambda_env_58 {
     compiler__ast__StructField value;
 };
 
-static bool __lambda_fn_17(void* __raw_env, compiler__ast__StructField x) {
-    struct __lambda_env_17* __env = (struct __lambda_env_17*)__raw_env;
+static bool __lambda_fn_58(void* __raw_env, compiler__ast__StructField x) {
+    struct __lambda_env_58* __env = (struct __lambda_env_58*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 40);
 }
 
 size_t std__collections__List_compiler__ast__StructField_remove_all(std__collections__List_compiler__ast__StructField* self, compiler__ast__StructField value) {
-    return std__collections__List_compiler__ast__StructField_remove_where(self, (kobel_closure){ (void*)__lambda_fn_17, (void*)&(struct __lambda_env_17){ value } });
+    return std__collections__List_compiler__ast__StructField_remove_where(self, (kobel_closure){ (void*)__lambda_fn_58, (void*)&(struct __lambda_env_58){ value } });
 }
 
 size_t std__collections__List_compiler__ast__StructField_remove_where(std__collections__List_compiler__ast__StructField* self, kobel_closure predicate) {
@@ -38815,17 +38624,17 @@ std__collections__List_compiler__ast__AssocBinding_remove_at(self, (size_t)idx);
 return true;
 }
 
-struct __lambda_env_18 {
+struct __lambda_env_59 {
     compiler__ast__AssocBinding value;
 };
 
-static bool __lambda_fn_18(void* __raw_env, compiler__ast__AssocBinding x) {
-    struct __lambda_env_18* __env = (struct __lambda_env_18*)__raw_env;
+static bool __lambda_fn_59(void* __raw_env, compiler__ast__AssocBinding x) {
+    struct __lambda_env_59* __env = (struct __lambda_env_59*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 24);
 }
 
 size_t std__collections__List_compiler__ast__AssocBinding_remove_all(std__collections__List_compiler__ast__AssocBinding* self, compiler__ast__AssocBinding value) {
-    return std__collections__List_compiler__ast__AssocBinding_remove_where(self, (kobel_closure){ (void*)__lambda_fn_18, (void*)&(struct __lambda_env_18){ value } });
+    return std__collections__List_compiler__ast__AssocBinding_remove_where(self, (kobel_closure){ (void*)__lambda_fn_59, (void*)&(struct __lambda_env_59){ value } });
 }
 
 size_t std__collections__List_compiler__ast__AssocBinding_remove_where(std__collections__List_compiler__ast__AssocBinding* self, kobel_closure predicate) {
@@ -39495,17 +39304,17 @@ std__collections__List_compiler__ast__EnumMember_remove_at(self, (size_t)idx);
 return true;
 }
 
-struct __lambda_env_19 {
+struct __lambda_env_60 {
     compiler__ast__EnumMember value;
 };
 
-static bool __lambda_fn_19(void* __raw_env, compiler__ast__EnumMember x) {
-    struct __lambda_env_19* __env = (struct __lambda_env_19*)__raw_env;
+static bool __lambda_fn_60(void* __raw_env, compiler__ast__EnumMember x) {
+    struct __lambda_env_60* __env = (struct __lambda_env_60*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 64);
 }
 
 size_t std__collections__List_compiler__ast__EnumMember_remove_all(std__collections__List_compiler__ast__EnumMember* self, compiler__ast__EnumMember value) {
-    return std__collections__List_compiler__ast__EnumMember_remove_where(self, (kobel_closure){ (void*)__lambda_fn_19, (void*)&(struct __lambda_env_19){ value } });
+    return std__collections__List_compiler__ast__EnumMember_remove_where(self, (kobel_closure){ (void*)__lambda_fn_60, (void*)&(struct __lambda_env_60){ value } });
 }
 
 size_t std__collections__List_compiler__ast__EnumMember_remove_where(std__collections__List_compiler__ast__EnumMember* self, kobel_closure predicate) {
@@ -40175,17 +39984,17 @@ std__collections__List_ptr_compiler__semantic__types__Type_remove_at(self, (size
 return true;
 }
 
-struct __lambda_env_20 {
+struct __lambda_env_61 {
     compiler__semantic__types__Type* value;
 };
 
-static bool __lambda_fn_20(void* __raw_env, compiler__semantic__types__Type* x) {
-    struct __lambda_env_20* __env = (struct __lambda_env_20*)__raw_env;
+static bool __lambda_fn_61(void* __raw_env, compiler__semantic__types__Type* x) {
+    struct __lambda_env_61* __env = (struct __lambda_env_61*)__raw_env;
     return (x == (__env->value));
 }
 
 size_t std__collections__List_ptr_compiler__semantic__types__Type_remove_all(std__collections__List_ptr_compiler__semantic__types__Type* self, compiler__semantic__types__Type* value) {
-    return std__collections__List_ptr_compiler__semantic__types__Type_remove_where(self, (kobel_closure){ (void*)__lambda_fn_20, (void*)&(struct __lambda_env_20){ value } });
+    return std__collections__List_ptr_compiler__semantic__types__Type_remove_where(self, (kobel_closure){ (void*)__lambda_fn_61, (void*)&(struct __lambda_env_61){ value } });
 }
 
 size_t std__collections__List_ptr_compiler__semantic__types__Type_remove_where(std__collections__List_ptr_compiler__semantic__types__Type* self, kobel_closure predicate) {
@@ -40864,17 +40673,17 @@ std__collections__List_std__collections__MapEntry_str_str_remove_at(self, (size_
 return true;
 }
 
-struct __lambda_env_21 {
+struct __lambda_env_62 {
     std__collections__MapEntry_str_str value;
 };
 
-static bool __lambda_fn_21(void* __raw_env, std__collections__MapEntry_str_str x) {
-    struct __lambda_env_21* __env = (struct __lambda_env_21*)__raw_env;
+static bool __lambda_fn_62(void* __raw_env, std__collections__MapEntry_str_str x) {
+    struct __lambda_env_62* __env = (struct __lambda_env_62*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 32);
 }
 
 size_t std__collections__List_std__collections__MapEntry_str_str_remove_all(std__collections__List_std__collections__MapEntry_str_str* self, std__collections__MapEntry_str_str value) {
-    return std__collections__List_std__collections__MapEntry_str_str_remove_where(self, (kobel_closure){ (void*)__lambda_fn_21, (void*)&(struct __lambda_env_21){ value } });
+    return std__collections__List_std__collections__MapEntry_str_str_remove_where(self, (kobel_closure){ (void*)__lambda_fn_62, (void*)&(struct __lambda_env_62){ value } });
 }
 
 size_t std__collections__List_std__collections__MapEntry_str_str_remove_where(std__collections__List_std__collections__MapEntry_str_str* self, kobel_closure predicate) {
@@ -42127,17 +41936,17 @@ std__collections__List_compiler__core__Diagnostic_remove_at(self, (size_t)idx);
 return true;
 }
 
-struct __lambda_env_22 {
+struct __lambda_env_63 {
     compiler__core__Diagnostic value;
 };
 
-static bool __lambda_fn_22(void* __raw_env, compiler__core__Diagnostic x) {
-    struct __lambda_env_22* __env = (struct __lambda_env_22*)__raw_env;
+static bool __lambda_fn_63(void* __raw_env, compiler__core__Diagnostic x) {
+    struct __lambda_env_63* __env = (struct __lambda_env_63*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 88);
 }
 
 size_t std__collections__List_compiler__core__Diagnostic_remove_all(std__collections__List_compiler__core__Diagnostic* self, compiler__core__Diagnostic value) {
-    return std__collections__List_compiler__core__Diagnostic_remove_where(self, (kobel_closure){ (void*)__lambda_fn_22, (void*)&(struct __lambda_env_22){ value } });
+    return std__collections__List_compiler__core__Diagnostic_remove_where(self, (kobel_closure){ (void*)__lambda_fn_63, (void*)&(struct __lambda_env_63){ value } });
 }
 
 size_t std__collections__List_compiler__core__Diagnostic_remove_where(std__collections__List_compiler__core__Diagnostic* self, kobel_closure predicate) {
@@ -43428,17 +43237,17 @@ std__collections__List_compiler__core__SourceFile_remove_at(self, (size_t)idx);
 return true;
 }
 
-struct __lambda_env_23 {
+struct __lambda_env_64 {
     compiler__core__SourceFile value;
 };
 
-static bool __lambda_fn_23(void* __raw_env, compiler__core__SourceFile x) {
-    struct __lambda_env_23* __env = (struct __lambda_env_23*)__raw_env;
+static bool __lambda_fn_64(void* __raw_env, compiler__core__SourceFile x) {
+    struct __lambda_env_64* __env = (struct __lambda_env_64*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 80);
 }
 
 size_t std__collections__List_compiler__core__SourceFile_remove_all(std__collections__List_compiler__core__SourceFile* self, compiler__core__SourceFile value) {
-    return std__collections__List_compiler__core__SourceFile_remove_where(self, (kobel_closure){ (void*)__lambda_fn_23, (void*)&(struct __lambda_env_23){ value } });
+    return std__collections__List_compiler__core__SourceFile_remove_where(self, (kobel_closure){ (void*)__lambda_fn_64, (void*)&(struct __lambda_env_64){ value } });
 }
 
 size_t std__collections__List_compiler__core__SourceFile_remove_where(std__collections__List_compiler__core__SourceFile* self, kobel_closure predicate) {
@@ -44108,17 +43917,17 @@ std__collections__List_u32_remove_at(self, (size_t)idx);
 return true;
 }
 
-struct __lambda_env_24 {
+struct __lambda_env_65 {
     uint32_t value;
 };
 
-static bool __lambda_fn_24(void* __raw_env, uint32_t x) {
-    struct __lambda_env_24* __env = (struct __lambda_env_24*)__raw_env;
+static bool __lambda_fn_65(void* __raw_env, uint32_t x) {
+    struct __lambda_env_65* __env = (struct __lambda_env_65*)__raw_env;
     return (x == (__env->value));
 }
 
 size_t std__collections__List_u32_remove_all(std__collections__List_u32* self, uint32_t value) {
-    return std__collections__List_u32_remove_where(self, (kobel_closure){ (void*)__lambda_fn_24, (void*)&(struct __lambda_env_24){ value } });
+    return std__collections__List_u32_remove_where(self, (kobel_closure){ (void*)__lambda_fn_65, (void*)&(struct __lambda_env_65){ value } });
 }
 
 size_t std__collections__List_u32_remove_where(std__collections__List_u32* self, kobel_closure predicate) {
@@ -44797,17 +44606,17 @@ std__collections__List_std__collections__MapEntry_str_u32_remove_at(self, (size_
 return true;
 }
 
-struct __lambda_env_25 {
+struct __lambda_env_66 {
     std__collections__MapEntry_str_u32 value;
 };
 
-static bool __lambda_fn_25(void* __raw_env, std__collections__MapEntry_str_u32 x) {
-    struct __lambda_env_25* __env = (struct __lambda_env_25*)__raw_env;
+static bool __lambda_fn_66(void* __raw_env, std__collections__MapEntry_str_u32 x) {
+    struct __lambda_env_66* __env = (struct __lambda_env_66*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 24);
 }
 
 size_t std__collections__List_std__collections__MapEntry_str_u32_remove_all(std__collections__List_std__collections__MapEntry_str_u32* self, std__collections__MapEntry_str_u32 value) {
-    return std__collections__List_std__collections__MapEntry_str_u32_remove_where(self, (kobel_closure){ (void*)__lambda_fn_25, (void*)&(struct __lambda_env_25){ value } });
+    return std__collections__List_std__collections__MapEntry_str_u32_remove_where(self, (kobel_closure){ (void*)__lambda_fn_66, (void*)&(struct __lambda_env_66){ value } });
 }
 
 size_t std__collections__List_std__collections__MapEntry_str_u32_remove_where(std__collections__List_std__collections__MapEntry_str_u32* self, kobel_closure predicate) {
@@ -46060,17 +45869,17 @@ std__collections__List_compiler__ast__EnumField_remove_at(self, (size_t)idx);
 return true;
 }
 
-struct __lambda_env_26 {
+struct __lambda_env_67 {
     compiler__ast__EnumField value;
 };
 
-static bool __lambda_fn_26(void* __raw_env, compiler__ast__EnumField x) {
-    struct __lambda_env_26* __env = (struct __lambda_env_26*)__raw_env;
+static bool __lambda_fn_67(void* __raw_env, compiler__ast__EnumField x) {
+    struct __lambda_env_67* __env = (struct __lambda_env_67*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 24);
 }
 
 size_t std__collections__List_compiler__ast__EnumField_remove_all(std__collections__List_compiler__ast__EnumField* self, compiler__ast__EnumField value) {
-    return std__collections__List_compiler__ast__EnumField_remove_where(self, (kobel_closure){ (void*)__lambda_fn_26, (void*)&(struct __lambda_env_26){ value } });
+    return std__collections__List_compiler__ast__EnumField_remove_where(self, (kobel_closure){ (void*)__lambda_fn_67, (void*)&(struct __lambda_env_67){ value } });
 }
 
 size_t std__collections__List_compiler__ast__EnumField_remove_where(std__collections__List_compiler__ast__EnumField* self, kobel_closure predicate) {
@@ -46740,17 +46549,17 @@ std__collections__List_compiler__lexer__Token_remove_at(self, (size_t)idx);
 return true;
 }
 
-struct __lambda_env_27 {
+struct __lambda_env_68 {
     compiler__lexer__Token value;
 };
 
-static bool __lambda_fn_27(void* __raw_env, compiler__lexer__Token x) {
-    struct __lambda_env_27* __env = (struct __lambda_env_27*)__raw_env;
+static bool __lambda_fn_68(void* __raw_env, compiler__lexer__Token x) {
+    struct __lambda_env_68* __env = (struct __lambda_env_68*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 72);
 }
 
 size_t std__collections__List_compiler__lexer__Token_remove_all(std__collections__List_compiler__lexer__Token* self, compiler__lexer__Token value) {
-    return std__collections__List_compiler__lexer__Token_remove_where(self, (kobel_closure){ (void*)__lambda_fn_27, (void*)&(struct __lambda_env_27){ value } });
+    return std__collections__List_compiler__lexer__Token_remove_where(self, (kobel_closure){ (void*)__lambda_fn_68, (void*)&(struct __lambda_env_68){ value } });
 }
 
 size_t std__collections__List_compiler__lexer__Token_remove_where(std__collections__List_compiler__lexer__Token* self, kobel_closure predicate) {
@@ -47420,17 +47229,17 @@ std__collections__List_compiler__loader__LoadedModule_remove_at(self, (size_t)id
 return true;
 }
 
-struct __lambda_env_28 {
+struct __lambda_env_69 {
     compiler__loader__LoadedModule value;
 };
 
-static bool __lambda_fn_28(void* __raw_env, compiler__loader__LoadedModule x) {
-    struct __lambda_env_28* __env = (struct __lambda_env_28*)__raw_env;
+static bool __lambda_fn_69(void* __raw_env, compiler__loader__LoadedModule x) {
+    struct __lambda_env_69* __env = (struct __lambda_env_69*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 48);
 }
 
 size_t std__collections__List_compiler__loader__LoadedModule_remove_all(std__collections__List_compiler__loader__LoadedModule* self, compiler__loader__LoadedModule value) {
-    return std__collections__List_compiler__loader__LoadedModule_remove_where(self, (kobel_closure){ (void*)__lambda_fn_28, (void*)&(struct __lambda_env_28){ value } });
+    return std__collections__List_compiler__loader__LoadedModule_remove_where(self, (kobel_closure){ (void*)__lambda_fn_69, (void*)&(struct __lambda_env_69){ value } });
 }
 
 size_t std__collections__List_compiler__loader__LoadedModule_remove_where(std__collections__List_compiler__loader__LoadedModule* self, kobel_closure predicate) {
@@ -48100,17 +47909,17 @@ std__collections__List_ptr_compiler__semantic__types__MethodInfo_remove_at(self,
 return true;
 }
 
-struct __lambda_env_29 {
+struct __lambda_env_70 {
     compiler__semantic__types__MethodInfo* value;
 };
 
-static bool __lambda_fn_29(void* __raw_env, compiler__semantic__types__MethodInfo* x) {
-    struct __lambda_env_29* __env = (struct __lambda_env_29*)__raw_env;
+static bool __lambda_fn_70(void* __raw_env, compiler__semantic__types__MethodInfo* x) {
+    struct __lambda_env_70* __env = (struct __lambda_env_70*)__raw_env;
     return (x == (__env->value));
 }
 
 size_t std__collections__List_ptr_compiler__semantic__types__MethodInfo_remove_all(std__collections__List_ptr_compiler__semantic__types__MethodInfo* self, compiler__semantic__types__MethodInfo* value) {
-    return std__collections__List_ptr_compiler__semantic__types__MethodInfo_remove_where(self, (kobel_closure){ (void*)__lambda_fn_29, (void*)&(struct __lambda_env_29){ value } });
+    return std__collections__List_ptr_compiler__semantic__types__MethodInfo_remove_where(self, (kobel_closure){ (void*)__lambda_fn_70, (void*)&(struct __lambda_env_70){ value } });
 }
 
 size_t std__collections__List_ptr_compiler__semantic__types__MethodInfo_remove_where(std__collections__List_ptr_compiler__semantic__types__MethodInfo* self, kobel_closure predicate) {
@@ -48780,17 +48589,17 @@ std__collections__List_compiler__semantic__types__StructField_remove_at(self, (s
 return true;
 }
 
-struct __lambda_env_30 {
+struct __lambda_env_71 {
     compiler__semantic__types__StructField value;
 };
 
-static bool __lambda_fn_30(void* __raw_env, compiler__semantic__types__StructField x) {
-    struct __lambda_env_30* __env = (struct __lambda_env_30*)__raw_env;
+static bool __lambda_fn_71(void* __raw_env, compiler__semantic__types__StructField x) {
+    struct __lambda_env_71* __env = (struct __lambda_env_71*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 48);
 }
 
 size_t std__collections__List_compiler__semantic__types__StructField_remove_all(std__collections__List_compiler__semantic__types__StructField* self, compiler__semantic__types__StructField value) {
-    return std__collections__List_compiler__semantic__types__StructField_remove_where(self, (kobel_closure){ (void*)__lambda_fn_30, (void*)&(struct __lambda_env_30){ value } });
+    return std__collections__List_compiler__semantic__types__StructField_remove_where(self, (kobel_closure){ (void*)__lambda_fn_71, (void*)&(struct __lambda_env_71){ value } });
 }
 
 size_t std__collections__List_compiler__semantic__types__StructField_remove_where(std__collections__List_compiler__semantic__types__StructField* self, kobel_closure predicate) {
@@ -49460,17 +49269,17 @@ std__collections__List_ptr_compiler__semantic__types__EnumMemberInfo_remove_at(s
 return true;
 }
 
-struct __lambda_env_31 {
+struct __lambda_env_72 {
     compiler__semantic__types__EnumMemberInfo* value;
 };
 
-static bool __lambda_fn_31(void* __raw_env, compiler__semantic__types__EnumMemberInfo* x) {
-    struct __lambda_env_31* __env = (struct __lambda_env_31*)__raw_env;
+static bool __lambda_fn_72(void* __raw_env, compiler__semantic__types__EnumMemberInfo* x) {
+    struct __lambda_env_72* __env = (struct __lambda_env_72*)__raw_env;
     return (x == (__env->value));
 }
 
 size_t std__collections__List_ptr_compiler__semantic__types__EnumMemberInfo_remove_all(std__collections__List_ptr_compiler__semantic__types__EnumMemberInfo* self, compiler__semantic__types__EnumMemberInfo* value) {
-    return std__collections__List_ptr_compiler__semantic__types__EnumMemberInfo_remove_where(self, (kobel_closure){ (void*)__lambda_fn_31, (void*)&(struct __lambda_env_31){ value } });
+    return std__collections__List_ptr_compiler__semantic__types__EnumMemberInfo_remove_where(self, (kobel_closure){ (void*)__lambda_fn_72, (void*)&(struct __lambda_env_72){ value } });
 }
 
 size_t std__collections__List_ptr_compiler__semantic__types__EnumMemberInfo_remove_where(std__collections__List_ptr_compiler__semantic__types__EnumMemberInfo* self, kobel_closure predicate) {
@@ -50140,17 +49949,17 @@ std__collections__List_ptr_compiler__semantic__types__TraitMethod_remove_at(self
 return true;
 }
 
-struct __lambda_env_32 {
+struct __lambda_env_73 {
     compiler__semantic__types__TraitMethod* value;
 };
 
-static bool __lambda_fn_32(void* __raw_env, compiler__semantic__types__TraitMethod* x) {
-    struct __lambda_env_32* __env = (struct __lambda_env_32*)__raw_env;
+static bool __lambda_fn_73(void* __raw_env, compiler__semantic__types__TraitMethod* x) {
+    struct __lambda_env_73* __env = (struct __lambda_env_73*)__raw_env;
     return (x == (__env->value));
 }
 
 size_t std__collections__List_ptr_compiler__semantic__types__TraitMethod_remove_all(std__collections__List_ptr_compiler__semantic__types__TraitMethod* self, compiler__semantic__types__TraitMethod* value) {
-    return std__collections__List_ptr_compiler__semantic__types__TraitMethod_remove_where(self, (kobel_closure){ (void*)__lambda_fn_32, (void*)&(struct __lambda_env_32){ value } });
+    return std__collections__List_ptr_compiler__semantic__types__TraitMethod_remove_where(self, (kobel_closure){ (void*)__lambda_fn_73, (void*)&(struct __lambda_env_73){ value } });
 }
 
 size_t std__collections__List_ptr_compiler__semantic__types__TraitMethod_remove_where(std__collections__List_ptr_compiler__semantic__types__TraitMethod* self, kobel_closure predicate) {
@@ -50820,17 +50629,17 @@ std__collections__List_compiler__semantic__symbols__LambdaCapture_remove_at(self
 return true;
 }
 
-struct __lambda_env_33 {
+struct __lambda_env_74 {
     compiler__semantic__symbols__LambdaCapture value;
 };
 
-static bool __lambda_fn_33(void* __raw_env, compiler__semantic__symbols__LambdaCapture x) {
-    struct __lambda_env_33* __env = (struct __lambda_env_33*)__raw_env;
+static bool __lambda_fn_74(void* __raw_env, compiler__semantic__symbols__LambdaCapture x) {
+    struct __lambda_env_74* __env = (struct __lambda_env_74*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 32);
 }
 
 size_t std__collections__List_compiler__semantic__symbols__LambdaCapture_remove_all(std__collections__List_compiler__semantic__symbols__LambdaCapture* self, compiler__semantic__symbols__LambdaCapture value) {
-    return std__collections__List_compiler__semantic__symbols__LambdaCapture_remove_where(self, (kobel_closure){ (void*)__lambda_fn_33, (void*)&(struct __lambda_env_33){ value } });
+    return std__collections__List_compiler__semantic__symbols__LambdaCapture_remove_where(self, (kobel_closure){ (void*)__lambda_fn_74, (void*)&(struct __lambda_env_74){ value } });
 }
 
 size_t std__collections__List_compiler__semantic__symbols__LambdaCapture_remove_where(std__collections__List_compiler__semantic__symbols__LambdaCapture* self, kobel_closure predicate) {
@@ -51500,17 +51309,17 @@ std__collections__List_usz_remove_at(self, (size_t)idx);
 return true;
 }
 
-struct __lambda_env_34 {
+struct __lambda_env_75 {
     size_t value;
 };
 
-static bool __lambda_fn_34(void* __raw_env, size_t x) {
-    struct __lambda_env_34* __env = (struct __lambda_env_34*)__raw_env;
+static bool __lambda_fn_75(void* __raw_env, size_t x) {
+    struct __lambda_env_75* __env = (struct __lambda_env_75*)__raw_env;
     return (x == (__env->value));
 }
 
 size_t std__collections__List_usz_remove_all(std__collections__List_usz* self, size_t value) {
-    return std__collections__List_usz_remove_where(self, (kobel_closure){ (void*)__lambda_fn_34, (void*)&(struct __lambda_env_34){ value } });
+    return std__collections__List_usz_remove_where(self, (kobel_closure){ (void*)__lambda_fn_75, (void*)&(struct __lambda_env_75){ value } });
 }
 
 size_t std__collections__List_usz_remove_where(std__collections__List_usz* self, kobel_closure predicate) {
@@ -52189,17 +51998,17 @@ std__collections__List_std__collections__MapEntry_usz_ptr_compiler__semantic__ty
 return true;
 }
 
-struct __lambda_env_35 {
+struct __lambda_env_76 {
     std__collections__MapEntry_usz_ptr_compiler__semantic__types__Type value;
 };
 
-static bool __lambda_fn_35(void* __raw_env, std__collections__MapEntry_usz_ptr_compiler__semantic__types__Type x) {
-    struct __lambda_env_35* __env = (struct __lambda_env_35*)__raw_env;
+static bool __lambda_fn_76(void* __raw_env, std__collections__MapEntry_usz_ptr_compiler__semantic__types__Type x) {
+    struct __lambda_env_76* __env = (struct __lambda_env_76*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 16);
 }
 
 size_t std__collections__List_std__collections__MapEntry_usz_ptr_compiler__semantic__types__Type_remove_all(std__collections__List_std__collections__MapEntry_usz_ptr_compiler__semantic__types__Type* self, std__collections__MapEntry_usz_ptr_compiler__semantic__types__Type value) {
-    return std__collections__List_std__collections__MapEntry_usz_ptr_compiler__semantic__types__Type_remove_where(self, (kobel_closure){ (void*)__lambda_fn_35, (void*)&(struct __lambda_env_35){ value } });
+    return std__collections__List_std__collections__MapEntry_usz_ptr_compiler__semantic__types__Type_remove_where(self, (kobel_closure){ (void*)__lambda_fn_76, (void*)&(struct __lambda_env_76){ value } });
 }
 
 size_t std__collections__List_std__collections__MapEntry_usz_ptr_compiler__semantic__types__Type_remove_where(std__collections__List_std__collections__MapEntry_usz_ptr_compiler__semantic__types__Type* self, kobel_closure predicate) {
@@ -53461,17 +53270,17 @@ std__collections__List_std__collections__MapEntry_usz_ptr_compiler__semantic__ty
 return true;
 }
 
-struct __lambda_env_36 {
+struct __lambda_env_77 {
     std__collections__MapEntry_usz_ptr_compiler__semantic__types__MethodInfo value;
 };
 
-static bool __lambda_fn_36(void* __raw_env, std__collections__MapEntry_usz_ptr_compiler__semantic__types__MethodInfo x) {
-    struct __lambda_env_36* __env = (struct __lambda_env_36*)__raw_env;
+static bool __lambda_fn_77(void* __raw_env, std__collections__MapEntry_usz_ptr_compiler__semantic__types__MethodInfo x) {
+    struct __lambda_env_77* __env = (struct __lambda_env_77*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 16);
 }
 
 size_t std__collections__List_std__collections__MapEntry_usz_ptr_compiler__semantic__types__MethodInfo_remove_all(std__collections__List_std__collections__MapEntry_usz_ptr_compiler__semantic__types__MethodInfo* self, std__collections__MapEntry_usz_ptr_compiler__semantic__types__MethodInfo value) {
-    return std__collections__List_std__collections__MapEntry_usz_ptr_compiler__semantic__types__MethodInfo_remove_where(self, (kobel_closure){ (void*)__lambda_fn_36, (void*)&(struct __lambda_env_36){ value } });
+    return std__collections__List_std__collections__MapEntry_usz_ptr_compiler__semantic__types__MethodInfo_remove_where(self, (kobel_closure){ (void*)__lambda_fn_77, (void*)&(struct __lambda_env_77){ value } });
 }
 
 size_t std__collections__List_std__collections__MapEntry_usz_ptr_compiler__semantic__types__MethodInfo_remove_where(std__collections__List_std__collections__MapEntry_usz_ptr_compiler__semantic__types__MethodInfo* self, kobel_closure predicate) {
@@ -54733,17 +54542,17 @@ std__collections__List_std__collections__MapEntry_usz_ptr_compiler__ast__AstNode
 return true;
 }
 
-struct __lambda_env_37 {
+struct __lambda_env_78 {
     std__collections__MapEntry_usz_ptr_compiler__ast__AstNode value;
 };
 
-static bool __lambda_fn_37(void* __raw_env, std__collections__MapEntry_usz_ptr_compiler__ast__AstNode x) {
-    struct __lambda_env_37* __env = (struct __lambda_env_37*)__raw_env;
+static bool __lambda_fn_78(void* __raw_env, std__collections__MapEntry_usz_ptr_compiler__ast__AstNode x) {
+    struct __lambda_env_78* __env = (struct __lambda_env_78*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 16);
 }
 
 size_t std__collections__List_std__collections__MapEntry_usz_ptr_compiler__ast__AstNode_remove_all(std__collections__List_std__collections__MapEntry_usz_ptr_compiler__ast__AstNode* self, std__collections__MapEntry_usz_ptr_compiler__ast__AstNode value) {
-    return std__collections__List_std__collections__MapEntry_usz_ptr_compiler__ast__AstNode_remove_where(self, (kobel_closure){ (void*)__lambda_fn_37, (void*)&(struct __lambda_env_37){ value } });
+    return std__collections__List_std__collections__MapEntry_usz_ptr_compiler__ast__AstNode_remove_where(self, (kobel_closure){ (void*)__lambda_fn_78, (void*)&(struct __lambda_env_78){ value } });
 }
 
 size_t std__collections__List_std__collections__MapEntry_usz_ptr_compiler__ast__AstNode_remove_where(std__collections__List_std__collections__MapEntry_usz_ptr_compiler__ast__AstNode* self, kobel_closure predicate) {
@@ -55996,17 +55805,17 @@ std__collections__List_ptr_compiler__semantic__symbols__InstanceRecord_remove_at
 return true;
 }
 
-struct __lambda_env_38 {
+struct __lambda_env_79 {
     compiler__semantic__symbols__InstanceRecord* value;
 };
 
-static bool __lambda_fn_38(void* __raw_env, compiler__semantic__symbols__InstanceRecord* x) {
-    struct __lambda_env_38* __env = (struct __lambda_env_38*)__raw_env;
+static bool __lambda_fn_79(void* __raw_env, compiler__semantic__symbols__InstanceRecord* x) {
+    struct __lambda_env_79* __env = (struct __lambda_env_79*)__raw_env;
     return (x == (__env->value));
 }
 
 size_t std__collections__List_ptr_compiler__semantic__symbols__InstanceRecord_remove_all(std__collections__List_ptr_compiler__semantic__symbols__InstanceRecord* self, compiler__semantic__symbols__InstanceRecord* value) {
-    return std__collections__List_ptr_compiler__semantic__symbols__InstanceRecord_remove_where(self, (kobel_closure){ (void*)__lambda_fn_38, (void*)&(struct __lambda_env_38){ value } });
+    return std__collections__List_ptr_compiler__semantic__symbols__InstanceRecord_remove_where(self, (kobel_closure){ (void*)__lambda_fn_79, (void*)&(struct __lambda_env_79){ value } });
 }
 
 size_t std__collections__List_ptr_compiler__semantic__symbols__InstanceRecord_remove_where(std__collections__List_ptr_compiler__semantic__symbols__InstanceRecord* self, kobel_closure predicate) {
@@ -56685,17 +56494,17 @@ std__collections__List_std__collections__MapEntry_usz_ptr_compiler__semantic__sy
 return true;
 }
 
-struct __lambda_env_39 {
+struct __lambda_env_80 {
     std__collections__MapEntry_usz_ptr_compiler__semantic__symbols__InstanceRecord value;
 };
 
-static bool __lambda_fn_39(void* __raw_env, std__collections__MapEntry_usz_ptr_compiler__semantic__symbols__InstanceRecord x) {
-    struct __lambda_env_39* __env = (struct __lambda_env_39*)__raw_env;
+static bool __lambda_fn_80(void* __raw_env, std__collections__MapEntry_usz_ptr_compiler__semantic__symbols__InstanceRecord x) {
+    struct __lambda_env_80* __env = (struct __lambda_env_80*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 16);
 }
 
 size_t std__collections__List_std__collections__MapEntry_usz_ptr_compiler__semantic__symbols__InstanceRecord_remove_all(std__collections__List_std__collections__MapEntry_usz_ptr_compiler__semantic__symbols__InstanceRecord* self, std__collections__MapEntry_usz_ptr_compiler__semantic__symbols__InstanceRecord value) {
-    return std__collections__List_std__collections__MapEntry_usz_ptr_compiler__semantic__symbols__InstanceRecord_remove_where(self, (kobel_closure){ (void*)__lambda_fn_39, (void*)&(struct __lambda_env_39){ value } });
+    return std__collections__List_std__collections__MapEntry_usz_ptr_compiler__semantic__symbols__InstanceRecord_remove_where(self, (kobel_closure){ (void*)__lambda_fn_80, (void*)&(struct __lambda_env_80){ value } });
 }
 
 size_t std__collections__List_std__collections__MapEntry_usz_ptr_compiler__semantic__symbols__InstanceRecord_remove_where(std__collections__List_std__collections__MapEntry_usz_ptr_compiler__semantic__symbols__InstanceRecord* self, kobel_closure predicate) {
@@ -57948,17 +57757,17 @@ std__collections__List_compiler__semantic__symbols__IsPatternInfo_remove_at(self
 return true;
 }
 
-struct __lambda_env_40 {
+struct __lambda_env_81 {
     compiler__semantic__symbols__IsPatternInfo value;
 };
 
-static bool __lambda_fn_40(void* __raw_env, compiler__semantic__symbols__IsPatternInfo x) {
-    struct __lambda_env_40* __env = (struct __lambda_env_40*)__raw_env;
+static bool __lambda_fn_81(void* __raw_env, compiler__semantic__symbols__IsPatternInfo x) {
+    struct __lambda_env_81* __env = (struct __lambda_env_81*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 80);
 }
 
 size_t std__collections__List_compiler__semantic__symbols__IsPatternInfo_remove_all(std__collections__List_compiler__semantic__symbols__IsPatternInfo* self, compiler__semantic__symbols__IsPatternInfo value) {
-    return std__collections__List_compiler__semantic__symbols__IsPatternInfo_remove_where(self, (kobel_closure){ (void*)__lambda_fn_40, (void*)&(struct __lambda_env_40){ value } });
+    return std__collections__List_compiler__semantic__symbols__IsPatternInfo_remove_where(self, (kobel_closure){ (void*)__lambda_fn_81, (void*)&(struct __lambda_env_81){ value } });
 }
 
 size_t std__collections__List_compiler__semantic__symbols__IsPatternInfo_remove_where(std__collections__List_compiler__semantic__symbols__IsPatternInfo* self, kobel_closure predicate) {
@@ -58637,17 +58446,17 @@ std__collections__List_std__collections__MapEntry_usz_compiler__semantic__symbol
 return true;
 }
 
-struct __lambda_env_41 {
+struct __lambda_env_82 {
     std__collections__MapEntry_usz_compiler__semantic__symbols__IsPatternInfo value;
 };
 
-static bool __lambda_fn_41(void* __raw_env, std__collections__MapEntry_usz_compiler__semantic__symbols__IsPatternInfo x) {
-    struct __lambda_env_41* __env = (struct __lambda_env_41*)__raw_env;
+static bool __lambda_fn_82(void* __raw_env, std__collections__MapEntry_usz_compiler__semantic__symbols__IsPatternInfo x) {
+    struct __lambda_env_82* __env = (struct __lambda_env_82*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 88);
 }
 
 size_t std__collections__List_std__collections__MapEntry_usz_compiler__semantic__symbols__IsPatternInfo_remove_all(std__collections__List_std__collections__MapEntry_usz_compiler__semantic__symbols__IsPatternInfo* self, std__collections__MapEntry_usz_compiler__semantic__symbols__IsPatternInfo value) {
-    return std__collections__List_std__collections__MapEntry_usz_compiler__semantic__symbols__IsPatternInfo_remove_where(self, (kobel_closure){ (void*)__lambda_fn_41, (void*)&(struct __lambda_env_41){ value } });
+    return std__collections__List_std__collections__MapEntry_usz_compiler__semantic__symbols__IsPatternInfo_remove_where(self, (kobel_closure){ (void*)__lambda_fn_82, (void*)&(struct __lambda_env_82){ value } });
 }
 
 size_t std__collections__List_std__collections__MapEntry_usz_compiler__semantic__symbols__IsPatternInfo_remove_where(std__collections__List_std__collections__MapEntry_usz_compiler__semantic__symbols__IsPatternInfo* self, kobel_closure predicate) {
@@ -59900,17 +59709,17 @@ std__collections__List_bool_remove_at(self, (size_t)idx);
 return true;
 }
 
-struct __lambda_env_42 {
+struct __lambda_env_83 {
     bool value;
 };
 
-static bool __lambda_fn_42(void* __raw_env, bool x) {
-    struct __lambda_env_42* __env = (struct __lambda_env_42*)__raw_env;
+static bool __lambda_fn_83(void* __raw_env, bool x) {
+    struct __lambda_env_83* __env = (struct __lambda_env_83*)__raw_env;
     return (x == (__env->value));
 }
 
 size_t std__collections__List_bool_remove_all(std__collections__List_bool* self, bool value) {
-    return std__collections__List_bool_remove_where(self, (kobel_closure){ (void*)__lambda_fn_42, (void*)&(struct __lambda_env_42){ value } });
+    return std__collections__List_bool_remove_where(self, (kobel_closure){ (void*)__lambda_fn_83, (void*)&(struct __lambda_env_83){ value } });
 }
 
 size_t std__collections__List_bool_remove_where(std__collections__List_bool* self, kobel_closure predicate) {
@@ -60589,17 +60398,17 @@ std__collections__List_std__collections__MapEntry_usz_bool_remove_at(self, (size
 return true;
 }
 
-struct __lambda_env_43 {
+struct __lambda_env_84 {
     std__collections__MapEntry_usz_bool value;
 };
 
-static bool __lambda_fn_43(void* __raw_env, std__collections__MapEntry_usz_bool x) {
-    struct __lambda_env_43* __env = (struct __lambda_env_43*)__raw_env;
+static bool __lambda_fn_84(void* __raw_env, std__collections__MapEntry_usz_bool x) {
+    struct __lambda_env_84* __env = (struct __lambda_env_84*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 16);
 }
 
 size_t std__collections__List_std__collections__MapEntry_usz_bool_remove_all(std__collections__List_std__collections__MapEntry_usz_bool* self, std__collections__MapEntry_usz_bool value) {
-    return std__collections__List_std__collections__MapEntry_usz_bool_remove_where(self, (kobel_closure){ (void*)__lambda_fn_43, (void*)&(struct __lambda_env_43){ value } });
+    return std__collections__List_std__collections__MapEntry_usz_bool_remove_where(self, (kobel_closure){ (void*)__lambda_fn_84, (void*)&(struct __lambda_env_84){ value } });
 }
 
 size_t std__collections__List_std__collections__MapEntry_usz_bool_remove_where(std__collections__List_std__collections__MapEntry_usz_bool* self, kobel_closure predicate) {
@@ -61852,17 +61661,17 @@ std__collections__List_compiler__semantic__symbols__LambdaInfo_remove_at(self, (
 return true;
 }
 
-struct __lambda_env_44 {
+struct __lambda_env_85 {
     compiler__semantic__symbols__LambdaInfo value;
 };
 
-static bool __lambda_fn_44(void* __raw_env, compiler__semantic__symbols__LambdaInfo x) {
-    struct __lambda_env_44* __env = (struct __lambda_env_44*)__raw_env;
+static bool __lambda_fn_85(void* __raw_env, compiler__semantic__symbols__LambdaInfo x) {
+    struct __lambda_env_85* __env = (struct __lambda_env_85*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 40);
 }
 
 size_t std__collections__List_compiler__semantic__symbols__LambdaInfo_remove_all(std__collections__List_compiler__semantic__symbols__LambdaInfo* self, compiler__semantic__symbols__LambdaInfo value) {
-    return std__collections__List_compiler__semantic__symbols__LambdaInfo_remove_where(self, (kobel_closure){ (void*)__lambda_fn_44, (void*)&(struct __lambda_env_44){ value } });
+    return std__collections__List_compiler__semantic__symbols__LambdaInfo_remove_where(self, (kobel_closure){ (void*)__lambda_fn_85, (void*)&(struct __lambda_env_85){ value } });
 }
 
 size_t std__collections__List_compiler__semantic__symbols__LambdaInfo_remove_where(std__collections__List_compiler__semantic__symbols__LambdaInfo* self, kobel_closure predicate) {
@@ -62541,17 +62350,17 @@ std__collections__List_std__collections__MapEntry_usz_compiler__semantic__symbol
 return true;
 }
 
-struct __lambda_env_45 {
+struct __lambda_env_86 {
     std__collections__MapEntry_usz_compiler__semantic__symbols__LambdaInfo value;
 };
 
-static bool __lambda_fn_45(void* __raw_env, std__collections__MapEntry_usz_compiler__semantic__symbols__LambdaInfo x) {
-    struct __lambda_env_45* __env = (struct __lambda_env_45*)__raw_env;
+static bool __lambda_fn_86(void* __raw_env, std__collections__MapEntry_usz_compiler__semantic__symbols__LambdaInfo x) {
+    struct __lambda_env_86* __env = (struct __lambda_env_86*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 48);
 }
 
 size_t std__collections__List_std__collections__MapEntry_usz_compiler__semantic__symbols__LambdaInfo_remove_all(std__collections__List_std__collections__MapEntry_usz_compiler__semantic__symbols__LambdaInfo* self, std__collections__MapEntry_usz_compiler__semantic__symbols__LambdaInfo value) {
-    return std__collections__List_std__collections__MapEntry_usz_compiler__semantic__symbols__LambdaInfo_remove_where(self, (kobel_closure){ (void*)__lambda_fn_45, (void*)&(struct __lambda_env_45){ value } });
+    return std__collections__List_std__collections__MapEntry_usz_compiler__semantic__symbols__LambdaInfo_remove_where(self, (kobel_closure){ (void*)__lambda_fn_86, (void*)&(struct __lambda_env_86){ value } });
 }
 
 size_t std__collections__List_std__collections__MapEntry_usz_compiler__semantic__symbols__LambdaInfo_remove_where(std__collections__List_std__collections__MapEntry_usz_compiler__semantic__symbols__LambdaInfo* self, kobel_closure predicate) {
@@ -63804,17 +63613,17 @@ std__collections__List_ptr_compiler__semantic__symbols__AnnotationEntry_remove_a
 return true;
 }
 
-struct __lambda_env_46 {
+struct __lambda_env_87 {
     compiler__semantic__symbols__AnnotationEntry* value;
 };
 
-static bool __lambda_fn_46(void* __raw_env, compiler__semantic__symbols__AnnotationEntry* x) {
-    struct __lambda_env_46* __env = (struct __lambda_env_46*)__raw_env;
+static bool __lambda_fn_87(void* __raw_env, compiler__semantic__symbols__AnnotationEntry* x) {
+    struct __lambda_env_87* __env = (struct __lambda_env_87*)__raw_env;
     return (x == (__env->value));
 }
 
 size_t std__collections__List_ptr_compiler__semantic__symbols__AnnotationEntry_remove_all(std__collections__List_ptr_compiler__semantic__symbols__AnnotationEntry* self, compiler__semantic__symbols__AnnotationEntry* value) {
-    return std__collections__List_ptr_compiler__semantic__symbols__AnnotationEntry_remove_where(self, (kobel_closure){ (void*)__lambda_fn_46, (void*)&(struct __lambda_env_46){ value } });
+    return std__collections__List_ptr_compiler__semantic__symbols__AnnotationEntry_remove_where(self, (kobel_closure){ (void*)__lambda_fn_87, (void*)&(struct __lambda_env_87){ value } });
 }
 
 size_t std__collections__List_ptr_compiler__semantic__symbols__AnnotationEntry_remove_where(std__collections__List_ptr_compiler__semantic__symbols__AnnotationEntry* self, kobel_closure predicate) {
@@ -64493,17 +64302,17 @@ std__collections__List_std__collections__MapEntry_usz_ptr_compiler__semantic__sy
 return true;
 }
 
-struct __lambda_env_47 {
+struct __lambda_env_88 {
     std__collections__MapEntry_usz_ptr_compiler__semantic__symbols__AnnotationEntry value;
 };
 
-static bool __lambda_fn_47(void* __raw_env, std__collections__MapEntry_usz_ptr_compiler__semantic__symbols__AnnotationEntry x) {
-    struct __lambda_env_47* __env = (struct __lambda_env_47*)__raw_env;
+static bool __lambda_fn_88(void* __raw_env, std__collections__MapEntry_usz_ptr_compiler__semantic__symbols__AnnotationEntry x) {
+    struct __lambda_env_88* __env = (struct __lambda_env_88*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 16);
 }
 
 size_t std__collections__List_std__collections__MapEntry_usz_ptr_compiler__semantic__symbols__AnnotationEntry_remove_all(std__collections__List_std__collections__MapEntry_usz_ptr_compiler__semantic__symbols__AnnotationEntry* self, std__collections__MapEntry_usz_ptr_compiler__semantic__symbols__AnnotationEntry value) {
-    return std__collections__List_std__collections__MapEntry_usz_ptr_compiler__semantic__symbols__AnnotationEntry_remove_where(self, (kobel_closure){ (void*)__lambda_fn_47, (void*)&(struct __lambda_env_47){ value } });
+    return std__collections__List_std__collections__MapEntry_usz_ptr_compiler__semantic__symbols__AnnotationEntry_remove_where(self, (kobel_closure){ (void*)__lambda_fn_88, (void*)&(struct __lambda_env_88){ value } });
 }
 
 size_t std__collections__List_std__collections__MapEntry_usz_ptr_compiler__semantic__symbols__AnnotationEntry_remove_where(std__collections__List_std__collections__MapEntry_usz_ptr_compiler__semantic__symbols__AnnotationEntry* self, kobel_closure predicate) {
@@ -65756,17 +65565,17 @@ std__collections__List_ptr_compiler__semantic__symbols__GenericTemplate_remove_a
 return true;
 }
 
-struct __lambda_env_48 {
+struct __lambda_env_89 {
     compiler__semantic__symbols__GenericTemplate* value;
 };
 
-static bool __lambda_fn_48(void* __raw_env, compiler__semantic__symbols__GenericTemplate* x) {
-    struct __lambda_env_48* __env = (struct __lambda_env_48*)__raw_env;
+static bool __lambda_fn_89(void* __raw_env, compiler__semantic__symbols__GenericTemplate* x) {
+    struct __lambda_env_89* __env = (struct __lambda_env_89*)__raw_env;
     return (x == (__env->value));
 }
 
 size_t std__collections__List_ptr_compiler__semantic__symbols__GenericTemplate_remove_all(std__collections__List_ptr_compiler__semantic__symbols__GenericTemplate* self, compiler__semantic__symbols__GenericTemplate* value) {
-    return std__collections__List_ptr_compiler__semantic__symbols__GenericTemplate_remove_where(self, (kobel_closure){ (void*)__lambda_fn_48, (void*)&(struct __lambda_env_48){ value } });
+    return std__collections__List_ptr_compiler__semantic__symbols__GenericTemplate_remove_where(self, (kobel_closure){ (void*)__lambda_fn_89, (void*)&(struct __lambda_env_89){ value } });
 }
 
 size_t std__collections__List_ptr_compiler__semantic__symbols__GenericTemplate_remove_where(std__collections__List_ptr_compiler__semantic__symbols__GenericTemplate* self, kobel_closure predicate) {
@@ -66436,17 +66245,17 @@ std__collections__List_ptr_compiler__semantic__symbols__Symbol_remove_at(self, (
 return true;
 }
 
-struct __lambda_env_49 {
+struct __lambda_env_90 {
     compiler__semantic__symbols__Symbol* value;
 };
 
-static bool __lambda_fn_49(void* __raw_env, compiler__semantic__symbols__Symbol* x) {
-    struct __lambda_env_49* __env = (struct __lambda_env_49*)__raw_env;
+static bool __lambda_fn_90(void* __raw_env, compiler__semantic__symbols__Symbol* x) {
+    struct __lambda_env_90* __env = (struct __lambda_env_90*)__raw_env;
     return (x == (__env->value));
 }
 
 size_t std__collections__List_ptr_compiler__semantic__symbols__Symbol_remove_all(std__collections__List_ptr_compiler__semantic__symbols__Symbol* self, compiler__semantic__symbols__Symbol* value) {
-    return std__collections__List_ptr_compiler__semantic__symbols__Symbol_remove_where(self, (kobel_closure){ (void*)__lambda_fn_49, (void*)&(struct __lambda_env_49){ value } });
+    return std__collections__List_ptr_compiler__semantic__symbols__Symbol_remove_where(self, (kobel_closure){ (void*)__lambda_fn_90, (void*)&(struct __lambda_env_90){ value } });
 }
 
 size_t std__collections__List_ptr_compiler__semantic__symbols__Symbol_remove_where(std__collections__List_ptr_compiler__semantic__symbols__Symbol* self, kobel_closure predicate) {
@@ -67125,17 +66934,17 @@ std__collections__List_std__collections__MapEntry_str_ptr_compiler__semantic__sy
 return true;
 }
 
-struct __lambda_env_50 {
+struct __lambda_env_91 {
     std__collections__MapEntry_str_ptr_compiler__semantic__symbols__Symbol value;
 };
 
-static bool __lambda_fn_50(void* __raw_env, std__collections__MapEntry_str_ptr_compiler__semantic__symbols__Symbol x) {
-    struct __lambda_env_50* __env = (struct __lambda_env_50*)__raw_env;
+static bool __lambda_fn_91(void* __raw_env, std__collections__MapEntry_str_ptr_compiler__semantic__symbols__Symbol x) {
+    struct __lambda_env_91* __env = (struct __lambda_env_91*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 24);
 }
 
 size_t std__collections__List_std__collections__MapEntry_str_ptr_compiler__semantic__symbols__Symbol_remove_all(std__collections__List_std__collections__MapEntry_str_ptr_compiler__semantic__symbols__Symbol* self, std__collections__MapEntry_str_ptr_compiler__semantic__symbols__Symbol value) {
-    return std__collections__List_std__collections__MapEntry_str_ptr_compiler__semantic__symbols__Symbol_remove_where(self, (kobel_closure){ (void*)__lambda_fn_50, (void*)&(struct __lambda_env_50){ value } });
+    return std__collections__List_std__collections__MapEntry_str_ptr_compiler__semantic__symbols__Symbol_remove_where(self, (kobel_closure){ (void*)__lambda_fn_91, (void*)&(struct __lambda_env_91){ value } });
 }
 
 size_t std__collections__List_std__collections__MapEntry_str_ptr_compiler__semantic__symbols__Symbol_remove_where(std__collections__List_std__collections__MapEntry_str_ptr_compiler__semantic__symbols__Symbol* self, kobel_closure predicate) {
@@ -68397,17 +68206,17 @@ std__collections__List_std__collections__MapEntry_str_ptr_compiler__semantic__sy
 return true;
 }
 
-struct __lambda_env_51 {
+struct __lambda_env_92 {
     std__collections__MapEntry_str_ptr_compiler__semantic__symbols__InstanceRecord value;
 };
 
-static bool __lambda_fn_51(void* __raw_env, std__collections__MapEntry_str_ptr_compiler__semantic__symbols__InstanceRecord x) {
-    struct __lambda_env_51* __env = (struct __lambda_env_51*)__raw_env;
+static bool __lambda_fn_92(void* __raw_env, std__collections__MapEntry_str_ptr_compiler__semantic__symbols__InstanceRecord x) {
+    struct __lambda_env_92* __env = (struct __lambda_env_92*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 24);
 }
 
 size_t std__collections__List_std__collections__MapEntry_str_ptr_compiler__semantic__symbols__InstanceRecord_remove_all(std__collections__List_std__collections__MapEntry_str_ptr_compiler__semantic__symbols__InstanceRecord* self, std__collections__MapEntry_str_ptr_compiler__semantic__symbols__InstanceRecord value) {
-    return std__collections__List_std__collections__MapEntry_str_ptr_compiler__semantic__symbols__InstanceRecord_remove_where(self, (kobel_closure){ (void*)__lambda_fn_51, (void*)&(struct __lambda_env_51){ value } });
+    return std__collections__List_std__collections__MapEntry_str_ptr_compiler__semantic__symbols__InstanceRecord_remove_where(self, (kobel_closure){ (void*)__lambda_fn_92, (void*)&(struct __lambda_env_92){ value } });
 }
 
 size_t std__collections__List_std__collections__MapEntry_str_ptr_compiler__semantic__symbols__InstanceRecord_remove_where(std__collections__List_std__collections__MapEntry_str_ptr_compiler__semantic__symbols__InstanceRecord* self, kobel_closure predicate) {
@@ -69660,17 +69469,17 @@ std__collections__List_ptr_compiler__semantic__symbols__ModuleScope_remove_at(se
 return true;
 }
 
-struct __lambda_env_52 {
+struct __lambda_env_93 {
     compiler__semantic__symbols__ModuleScope* value;
 };
 
-static bool __lambda_fn_52(void* __raw_env, compiler__semantic__symbols__ModuleScope* x) {
-    struct __lambda_env_52* __env = (struct __lambda_env_52*)__raw_env;
+static bool __lambda_fn_93(void* __raw_env, compiler__semantic__symbols__ModuleScope* x) {
+    struct __lambda_env_93* __env = (struct __lambda_env_93*)__raw_env;
     return (x == (__env->value));
 }
 
 size_t std__collections__List_ptr_compiler__semantic__symbols__ModuleScope_remove_all(std__collections__List_ptr_compiler__semantic__symbols__ModuleScope* self, compiler__semantic__symbols__ModuleScope* value) {
-    return std__collections__List_ptr_compiler__semantic__symbols__ModuleScope_remove_where(self, (kobel_closure){ (void*)__lambda_fn_52, (void*)&(struct __lambda_env_52){ value } });
+    return std__collections__List_ptr_compiler__semantic__symbols__ModuleScope_remove_where(self, (kobel_closure){ (void*)__lambda_fn_93, (void*)&(struct __lambda_env_93){ value } });
 }
 
 size_t std__collections__List_ptr_compiler__semantic__symbols__ModuleScope_remove_where(std__collections__List_ptr_compiler__semantic__symbols__ModuleScope* self, kobel_closure predicate) {
@@ -70349,17 +70158,17 @@ std__collections__List_std__collections__MapEntry_str_ptr_compiler__semantic__sy
 return true;
 }
 
-struct __lambda_env_53 {
+struct __lambda_env_94 {
     std__collections__MapEntry_str_ptr_compiler__semantic__symbols__ModuleScope value;
 };
 
-static bool __lambda_fn_53(void* __raw_env, std__collections__MapEntry_str_ptr_compiler__semantic__symbols__ModuleScope x) {
-    struct __lambda_env_53* __env = (struct __lambda_env_53*)__raw_env;
+static bool __lambda_fn_94(void* __raw_env, std__collections__MapEntry_str_ptr_compiler__semantic__symbols__ModuleScope x) {
+    struct __lambda_env_94* __env = (struct __lambda_env_94*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 24);
 }
 
 size_t std__collections__List_std__collections__MapEntry_str_ptr_compiler__semantic__symbols__ModuleScope_remove_all(std__collections__List_std__collections__MapEntry_str_ptr_compiler__semantic__symbols__ModuleScope* self, std__collections__MapEntry_str_ptr_compiler__semantic__symbols__ModuleScope value) {
-    return std__collections__List_std__collections__MapEntry_str_ptr_compiler__semantic__symbols__ModuleScope_remove_where(self, (kobel_closure){ (void*)__lambda_fn_53, (void*)&(struct __lambda_env_53){ value } });
+    return std__collections__List_std__collections__MapEntry_str_ptr_compiler__semantic__symbols__ModuleScope_remove_where(self, (kobel_closure){ (void*)__lambda_fn_94, (void*)&(struct __lambda_env_94){ value } });
 }
 
 size_t std__collections__List_std__collections__MapEntry_str_ptr_compiler__semantic__symbols__ModuleScope_remove_where(std__collections__List_std__collections__MapEntry_str_ptr_compiler__semantic__symbols__ModuleScope* self, kobel_closure predicate) {
@@ -71612,17 +71421,17 @@ std__collections__List_compiler__semantic__symbols__ImportBinding_remove_at(self
 return true;
 }
 
-struct __lambda_env_54 {
+struct __lambda_env_95 {
     compiler__semantic__symbols__ImportBinding value;
 };
 
-static bool __lambda_fn_54(void* __raw_env, compiler__semantic__symbols__ImportBinding x) {
-    struct __lambda_env_54* __env = (struct __lambda_env_54*)__raw_env;
+static bool __lambda_fn_95(void* __raw_env, compiler__semantic__symbols__ImportBinding x) {
+    struct __lambda_env_95* __env = (struct __lambda_env_95*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 72);
 }
 
 size_t std__collections__List_compiler__semantic__symbols__ImportBinding_remove_all(std__collections__List_compiler__semantic__symbols__ImportBinding* self, compiler__semantic__symbols__ImportBinding value) {
-    return std__collections__List_compiler__semantic__symbols__ImportBinding_remove_where(self, (kobel_closure){ (void*)__lambda_fn_54, (void*)&(struct __lambda_env_54){ value } });
+    return std__collections__List_compiler__semantic__symbols__ImportBinding_remove_where(self, (kobel_closure){ (void*)__lambda_fn_95, (void*)&(struct __lambda_env_95){ value } });
 }
 
 size_t std__collections__List_compiler__semantic__symbols__ImportBinding_remove_where(std__collections__List_compiler__semantic__symbols__ImportBinding* self, kobel_closure predicate) {
@@ -72292,17 +72101,17 @@ std__collections__List_ptr_compiler__semantic__types__EnumInfo_remove_at(self, (
 return true;
 }
 
-struct __lambda_env_55 {
+struct __lambda_env_96 {
     compiler__semantic__types__EnumInfo* value;
 };
 
-static bool __lambda_fn_55(void* __raw_env, compiler__semantic__types__EnumInfo* x) {
-    struct __lambda_env_55* __env = (struct __lambda_env_55*)__raw_env;
+static bool __lambda_fn_96(void* __raw_env, compiler__semantic__types__EnumInfo* x) {
+    struct __lambda_env_96* __env = (struct __lambda_env_96*)__raw_env;
     return (x == (__env->value));
 }
 
 size_t std__collections__List_ptr_compiler__semantic__types__EnumInfo_remove_all(std__collections__List_ptr_compiler__semantic__types__EnumInfo* self, compiler__semantic__types__EnumInfo* value) {
-    return std__collections__List_ptr_compiler__semantic__types__EnumInfo_remove_where(self, (kobel_closure){ (void*)__lambda_fn_55, (void*)&(struct __lambda_env_55){ value } });
+    return std__collections__List_ptr_compiler__semantic__types__EnumInfo_remove_where(self, (kobel_closure){ (void*)__lambda_fn_96, (void*)&(struct __lambda_env_96){ value } });
 }
 
 size_t std__collections__List_ptr_compiler__semantic__types__EnumInfo_remove_where(std__collections__List_ptr_compiler__semantic__types__EnumInfo* self, kobel_closure predicate) {
@@ -72981,17 +72790,17 @@ std__collections__List_std__collections__MapEntry_str_ptr_compiler__semantic__ty
 return true;
 }
 
-struct __lambda_env_56 {
+struct __lambda_env_97 {
     std__collections__MapEntry_str_ptr_compiler__semantic__types__EnumInfo value;
 };
 
-static bool __lambda_fn_56(void* __raw_env, std__collections__MapEntry_str_ptr_compiler__semantic__types__EnumInfo x) {
-    struct __lambda_env_56* __env = (struct __lambda_env_56*)__raw_env;
+static bool __lambda_fn_97(void* __raw_env, std__collections__MapEntry_str_ptr_compiler__semantic__types__EnumInfo x) {
+    struct __lambda_env_97* __env = (struct __lambda_env_97*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 24);
 }
 
 size_t std__collections__List_std__collections__MapEntry_str_ptr_compiler__semantic__types__EnumInfo_remove_all(std__collections__List_std__collections__MapEntry_str_ptr_compiler__semantic__types__EnumInfo* self, std__collections__MapEntry_str_ptr_compiler__semantic__types__EnumInfo value) {
-    return std__collections__List_std__collections__MapEntry_str_ptr_compiler__semantic__types__EnumInfo_remove_where(self, (kobel_closure){ (void*)__lambda_fn_56, (void*)&(struct __lambda_env_56){ value } });
+    return std__collections__List_std__collections__MapEntry_str_ptr_compiler__semantic__types__EnumInfo_remove_where(self, (kobel_closure){ (void*)__lambda_fn_97, (void*)&(struct __lambda_env_97){ value } });
 }
 
 size_t std__collections__List_std__collections__MapEntry_str_ptr_compiler__semantic__types__EnumInfo_remove_where(std__collections__List_std__collections__MapEntry_str_ptr_compiler__semantic__types__EnumInfo* self, kobel_closure predicate) {
@@ -74244,17 +74053,17 @@ std__collections__List_ptr_compiler__semantic__types__TraitInfo_remove_at(self, 
 return true;
 }
 
-struct __lambda_env_57 {
+struct __lambda_env_98 {
     compiler__semantic__types__TraitInfo* value;
 };
 
-static bool __lambda_fn_57(void* __raw_env, compiler__semantic__types__TraitInfo* x) {
-    struct __lambda_env_57* __env = (struct __lambda_env_57*)__raw_env;
+static bool __lambda_fn_98(void* __raw_env, compiler__semantic__types__TraitInfo* x) {
+    struct __lambda_env_98* __env = (struct __lambda_env_98*)__raw_env;
     return (x == (__env->value));
 }
 
 size_t std__collections__List_ptr_compiler__semantic__types__TraitInfo_remove_all(std__collections__List_ptr_compiler__semantic__types__TraitInfo* self, compiler__semantic__types__TraitInfo* value) {
-    return std__collections__List_ptr_compiler__semantic__types__TraitInfo_remove_where(self, (kobel_closure){ (void*)__lambda_fn_57, (void*)&(struct __lambda_env_57){ value } });
+    return std__collections__List_ptr_compiler__semantic__types__TraitInfo_remove_where(self, (kobel_closure){ (void*)__lambda_fn_98, (void*)&(struct __lambda_env_98){ value } });
 }
 
 size_t std__collections__List_ptr_compiler__semantic__types__TraitInfo_remove_where(std__collections__List_ptr_compiler__semantic__types__TraitInfo* self, kobel_closure predicate) {
@@ -74933,17 +74742,17 @@ std__collections__List_std__collections__MapEntry_str_ptr_compiler__semantic__ty
 return true;
 }
 
-struct __lambda_env_58 {
+struct __lambda_env_99 {
     std__collections__MapEntry_str_ptr_compiler__semantic__types__TraitInfo value;
 };
 
-static bool __lambda_fn_58(void* __raw_env, std__collections__MapEntry_str_ptr_compiler__semantic__types__TraitInfo x) {
-    struct __lambda_env_58* __env = (struct __lambda_env_58*)__raw_env;
+static bool __lambda_fn_99(void* __raw_env, std__collections__MapEntry_str_ptr_compiler__semantic__types__TraitInfo x) {
+    struct __lambda_env_99* __env = (struct __lambda_env_99*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 24);
 }
 
 size_t std__collections__List_std__collections__MapEntry_str_ptr_compiler__semantic__types__TraitInfo_remove_all(std__collections__List_std__collections__MapEntry_str_ptr_compiler__semantic__types__TraitInfo* self, std__collections__MapEntry_str_ptr_compiler__semantic__types__TraitInfo value) {
-    return std__collections__List_std__collections__MapEntry_str_ptr_compiler__semantic__types__TraitInfo_remove_where(self, (kobel_closure){ (void*)__lambda_fn_58, (void*)&(struct __lambda_env_58){ value } });
+    return std__collections__List_std__collections__MapEntry_str_ptr_compiler__semantic__types__TraitInfo_remove_where(self, (kobel_closure){ (void*)__lambda_fn_99, (void*)&(struct __lambda_env_99){ value } });
 }
 
 size_t std__collections__List_std__collections__MapEntry_str_ptr_compiler__semantic__types__TraitInfo_remove_where(std__collections__List_std__collections__MapEntry_str_ptr_compiler__semantic__types__TraitInfo* self, kobel_closure predicate) {
@@ -76205,17 +76014,17 @@ std__collections__List_std__collections__MapEntry_str_compiler__semantic__symbol
 return true;
 }
 
-struct __lambda_env_59 {
+struct __lambda_env_100 {
     std__collections__MapEntry_str_compiler__semantic__symbols__ImportBinding value;
 };
 
-static bool __lambda_fn_59(void* __raw_env, std__collections__MapEntry_str_compiler__semantic__symbols__ImportBinding x) {
-    struct __lambda_env_59* __env = (struct __lambda_env_59*)__raw_env;
+static bool __lambda_fn_100(void* __raw_env, std__collections__MapEntry_str_compiler__semantic__symbols__ImportBinding x) {
+    struct __lambda_env_100* __env = (struct __lambda_env_100*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 88);
 }
 
 size_t std__collections__List_std__collections__MapEntry_str_compiler__semantic__symbols__ImportBinding_remove_all(std__collections__List_std__collections__MapEntry_str_compiler__semantic__symbols__ImportBinding* self, std__collections__MapEntry_str_compiler__semantic__symbols__ImportBinding value) {
-    return std__collections__List_std__collections__MapEntry_str_compiler__semantic__symbols__ImportBinding_remove_where(self, (kobel_closure){ (void*)__lambda_fn_59, (void*)&(struct __lambda_env_59){ value } });
+    return std__collections__List_std__collections__MapEntry_str_compiler__semantic__symbols__ImportBinding_remove_where(self, (kobel_closure){ (void*)__lambda_fn_100, (void*)&(struct __lambda_env_100){ value } });
 }
 
 size_t std__collections__List_std__collections__MapEntry_str_compiler__semantic__symbols__ImportBinding_remove_where(std__collections__List_std__collections__MapEntry_str_compiler__semantic__symbols__ImportBinding* self, kobel_closure predicate) {
@@ -77477,17 +77286,17 @@ std__collections__List_std__collections__MapEntry_str_ptr_compiler__semantic__ty
 return true;
 }
 
-struct __lambda_env_60 {
+struct __lambda_env_101 {
     std__collections__MapEntry_str_ptr_compiler__semantic__types__Type value;
 };
 
-static bool __lambda_fn_60(void* __raw_env, std__collections__MapEntry_str_ptr_compiler__semantic__types__Type x) {
-    struct __lambda_env_60* __env = (struct __lambda_env_60*)__raw_env;
+static bool __lambda_fn_101(void* __raw_env, std__collections__MapEntry_str_ptr_compiler__semantic__types__Type x) {
+    struct __lambda_env_101* __env = (struct __lambda_env_101*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 24);
 }
 
 size_t std__collections__List_std__collections__MapEntry_str_ptr_compiler__semantic__types__Type_remove_all(std__collections__List_std__collections__MapEntry_str_ptr_compiler__semantic__types__Type* self, std__collections__MapEntry_str_ptr_compiler__semantic__types__Type value) {
-    return std__collections__List_std__collections__MapEntry_str_ptr_compiler__semantic__types__Type_remove_where(self, (kobel_closure){ (void*)__lambda_fn_60, (void*)&(struct __lambda_env_60){ value } });
+    return std__collections__List_std__collections__MapEntry_str_ptr_compiler__semantic__types__Type_remove_where(self, (kobel_closure){ (void*)__lambda_fn_101, (void*)&(struct __lambda_env_101){ value } });
 }
 
 size_t std__collections__List_std__collections__MapEntry_str_ptr_compiler__semantic__types__Type_remove_where(std__collections__List_std__collections__MapEntry_str_ptr_compiler__semantic__types__Type* self, kobel_closure predicate) {
@@ -78740,17 +78549,17 @@ std__collections__List_fmt__Comment_remove_at(self, (size_t)idx);
 return true;
 }
 
-struct __lambda_env_61 {
+struct __lambda_env_102 {
     fmt__Comment value;
 };
 
-static bool __lambda_fn_61(void* __raw_env, fmt__Comment x) {
-    struct __lambda_env_61* __env = (struct __lambda_env_61*)__raw_env;
+static bool __lambda_fn_102(void* __raw_env, fmt__Comment x) {
+    struct __lambda_env_102* __env = (struct __lambda_env_102*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 40);
 }
 
 size_t std__collections__List_fmt__Comment_remove_all(std__collections__List_fmt__Comment* self, fmt__Comment value) {
-    return std__collections__List_fmt__Comment_remove_where(self, (kobel_closure){ (void*)__lambda_fn_61, (void*)&(struct __lambda_env_61){ value } });
+    return std__collections__List_fmt__Comment_remove_where(self, (kobel_closure){ (void*)__lambda_fn_102, (void*)&(struct __lambda_env_102){ value } });
 }
 
 size_t std__collections__List_fmt__Comment_remove_where(std__collections__List_fmt__Comment* self, kobel_closure predicate) {
@@ -79420,17 +79229,17 @@ std__collections__List_lsp__LspDiagnostic_remove_at(self, (size_t)idx);
 return true;
 }
 
-struct __lambda_env_62 {
+struct __lambda_env_103 {
     lsp__LspDiagnostic value;
 };
 
-static bool __lambda_fn_62(void* __raw_env, lsp__LspDiagnostic x) {
-    struct __lambda_env_62* __env = (struct __lambda_env_62*)__raw_env;
+static bool __lambda_fn_103(void* __raw_env, lsp__LspDiagnostic x) {
+    struct __lambda_env_103* __env = (struct __lambda_env_103*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 56);
 }
 
 size_t std__collections__List_lsp__LspDiagnostic_remove_all(std__collections__List_lsp__LspDiagnostic* self, lsp__LspDiagnostic value) {
-    return std__collections__List_lsp__LspDiagnostic_remove_where(self, (kobel_closure){ (void*)__lambda_fn_62, (void*)&(struct __lambda_env_62){ value } });
+    return std__collections__List_lsp__LspDiagnostic_remove_where(self, (kobel_closure){ (void*)__lambda_fn_103, (void*)&(struct __lambda_env_103){ value } });
 }
 
 size_t std__collections__List_lsp__LspDiagnostic_remove_where(std__collections__List_lsp__LspDiagnostic* self, kobel_closure predicate) {
@@ -80100,17 +79909,17 @@ std__collections__List_lsp__Document_remove_at(self, (size_t)idx);
 return true;
 }
 
-struct __lambda_env_63 {
+struct __lambda_env_104 {
     lsp__Document value;
 };
 
-static bool __lambda_fn_63(void* __raw_env, lsp__Document x) {
-    struct __lambda_env_63* __env = (struct __lambda_env_63*)__raw_env;
+static bool __lambda_fn_104(void* __raw_env, lsp__Document x) {
+    struct __lambda_env_104* __env = (struct __lambda_env_104*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 56);
 }
 
 size_t std__collections__List_lsp__Document_remove_all(std__collections__List_lsp__Document* self, lsp__Document value) {
-    return std__collections__List_lsp__Document_remove_where(self, (kobel_closure){ (void*)__lambda_fn_63, (void*)&(struct __lambda_env_63){ value } });
+    return std__collections__List_lsp__Document_remove_where(self, (kobel_closure){ (void*)__lambda_fn_104, (void*)&(struct __lambda_env_104){ value } });
 }
 
 size_t std__collections__List_lsp__Document_remove_where(std__collections__List_lsp__Document* self, kobel_closure predicate) {
@@ -80789,17 +80598,17 @@ std__collections__List_std__collections__MapEntry_str_lsp__Document_remove_at(se
 return true;
 }
 
-struct __lambda_env_64 {
+struct __lambda_env_105 {
     std__collections__MapEntry_str_lsp__Document value;
 };
 
-static bool __lambda_fn_64(void* __raw_env, std__collections__MapEntry_str_lsp__Document x) {
-    struct __lambda_env_64* __env = (struct __lambda_env_64*)__raw_env;
+static bool __lambda_fn_105(void* __raw_env, std__collections__MapEntry_str_lsp__Document x) {
+    struct __lambda_env_105* __env = (struct __lambda_env_105*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 72);
 }
 
 size_t std__collections__List_std__collections__MapEntry_str_lsp__Document_remove_all(std__collections__List_std__collections__MapEntry_str_lsp__Document* self, std__collections__MapEntry_str_lsp__Document value) {
-    return std__collections__List_std__collections__MapEntry_str_lsp__Document_remove_where(self, (kobel_closure){ (void*)__lambda_fn_64, (void*)&(struct __lambda_env_64){ value } });
+    return std__collections__List_std__collections__MapEntry_str_lsp__Document_remove_where(self, (kobel_closure){ (void*)__lambda_fn_105, (void*)&(struct __lambda_env_105){ value } });
 }
 
 size_t std__collections__List_std__collections__MapEntry_str_lsp__Document_remove_where(std__collections__List_std__collections__MapEntry_str_lsp__Document* self, kobel_closure predicate) {
@@ -82052,17 +81861,17 @@ std__collections__List_ptr_lsp__JsonValue_remove_at(self, (size_t)idx);
 return true;
 }
 
-struct __lambda_env_65 {
+struct __lambda_env_106 {
     lsp__JsonValue* value;
 };
 
-static bool __lambda_fn_65(void* __raw_env, lsp__JsonValue* x) {
-    struct __lambda_env_65* __env = (struct __lambda_env_65*)__raw_env;
+static bool __lambda_fn_106(void* __raw_env, lsp__JsonValue* x) {
+    struct __lambda_env_106* __env = (struct __lambda_env_106*)__raw_env;
     return (x == (__env->value));
 }
 
 size_t std__collections__List_ptr_lsp__JsonValue_remove_all(std__collections__List_ptr_lsp__JsonValue* self, lsp__JsonValue* value) {
-    return std__collections__List_ptr_lsp__JsonValue_remove_where(self, (kobel_closure){ (void*)__lambda_fn_65, (void*)&(struct __lambda_env_65){ value } });
+    return std__collections__List_ptr_lsp__JsonValue_remove_where(self, (kobel_closure){ (void*)__lambda_fn_106, (void*)&(struct __lambda_env_106){ value } });
 }
 
 size_t std__collections__List_ptr_lsp__JsonValue_remove_where(std__collections__List_ptr_lsp__JsonValue* self, kobel_closure predicate) {
@@ -82732,17 +82541,17 @@ std__collections__List_std__filesystem__Path_remove_at(self, (size_t)idx);
 return true;
 }
 
-struct __lambda_env_66 {
+struct __lambda_env_107 {
     std__filesystem__Path value;
 };
 
-static bool __lambda_fn_66(void* __raw_env, std__filesystem__Path x) {
-    struct __lambda_env_66* __env = (struct __lambda_env_66*)__raw_env;
+static bool __lambda_fn_107(void* __raw_env, std__filesystem__Path x) {
+    struct __lambda_env_107* __env = (struct __lambda_env_107*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 16);
 }
 
 size_t std__collections__List_std__filesystem__Path_remove_all(std__collections__List_std__filesystem__Path* self, std__filesystem__Path value) {
-    return std__collections__List_std__filesystem__Path_remove_where(self, (kobel_closure){ (void*)__lambda_fn_66, (void*)&(struct __lambda_env_66){ value } });
+    return std__collections__List_std__filesystem__Path_remove_where(self, (kobel_closure){ (void*)__lambda_fn_107, (void*)&(struct __lambda_env_107){ value } });
 }
 
 size_t std__collections__List_std__filesystem__Path_remove_where(std__collections__List_std__filesystem__Path* self, kobel_closure predicate) {
@@ -83412,17 +83221,17 @@ std__collections__List_compiler__loader__ModuleFile_remove_at(self, (size_t)idx)
 return true;
 }
 
-struct __lambda_env_67 {
+struct __lambda_env_108 {
     compiler__loader__ModuleFile value;
 };
 
-static bool __lambda_fn_67(void* __raw_env, compiler__loader__ModuleFile x) {
-    struct __lambda_env_67* __env = (struct __lambda_env_67*)__raw_env;
+static bool __lambda_fn_108(void* __raw_env, compiler__loader__ModuleFile x) {
+    struct __lambda_env_108* __env = (struct __lambda_env_108*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 40);
 }
 
 size_t std__collections__List_compiler__loader__ModuleFile_remove_all(std__collections__List_compiler__loader__ModuleFile* self, compiler__loader__ModuleFile value) {
-    return std__collections__List_compiler__loader__ModuleFile_remove_where(self, (kobel_closure){ (void*)__lambda_fn_67, (void*)&(struct __lambda_env_67){ value } });
+    return std__collections__List_compiler__loader__ModuleFile_remove_where(self, (kobel_closure){ (void*)__lambda_fn_108, (void*)&(struct __lambda_env_108){ value } });
 }
 
 size_t std__collections__List_compiler__loader__ModuleFile_remove_where(std__collections__List_compiler__loader__ModuleFile* self, kobel_closure predicate) {
@@ -84092,17 +83901,17 @@ std__collections__List_compiler__semantic__lowering__PendingResolve_remove_at(se
 return true;
 }
 
-struct __lambda_env_68 {
+struct __lambda_env_109 {
     compiler__semantic__lowering__PendingResolve value;
 };
 
-static bool __lambda_fn_68(void* __raw_env, compiler__semantic__lowering__PendingResolve x) {
-    struct __lambda_env_68* __env = (struct __lambda_env_68*)__raw_env;
+static bool __lambda_fn_109(void* __raw_env, compiler__semantic__lowering__PendingResolve x) {
+    struct __lambda_env_109* __env = (struct __lambda_env_109*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 16);
 }
 
 size_t std__collections__List_compiler__semantic__lowering__PendingResolve_remove_all(std__collections__List_compiler__semantic__lowering__PendingResolve* self, compiler__semantic__lowering__PendingResolve value) {
-    return std__collections__List_compiler__semantic__lowering__PendingResolve_remove_where(self, (kobel_closure){ (void*)__lambda_fn_68, (void*)&(struct __lambda_env_68){ value } });
+    return std__collections__List_compiler__semantic__lowering__PendingResolve_remove_where(self, (kobel_closure){ (void*)__lambda_fn_109, (void*)&(struct __lambda_env_109){ value } });
 }
 
 size_t std__collections__List_compiler__semantic__lowering__PendingResolve_remove_where(std__collections__List_compiler__semantic__lowering__PendingResolve* self, kobel_closure predicate) {
@@ -84772,17 +84581,17 @@ std__collections__List_ptr_compiler__semantic__checker__ArrowCandidate_remove_at
 return true;
 }
 
-struct __lambda_env_69 {
+struct __lambda_env_110 {
     compiler__semantic__checker__ArrowCandidate* value;
 };
 
-static bool __lambda_fn_69(void* __raw_env, compiler__semantic__checker__ArrowCandidate* x) {
-    struct __lambda_env_69* __env = (struct __lambda_env_69*)__raw_env;
+static bool __lambda_fn_110(void* __raw_env, compiler__semantic__checker__ArrowCandidate* x) {
+    struct __lambda_env_110* __env = (struct __lambda_env_110*)__raw_env;
     return (x == (__env->value));
 }
 
 size_t std__collections__List_ptr_compiler__semantic__checker__ArrowCandidate_remove_all(std__collections__List_ptr_compiler__semantic__checker__ArrowCandidate* self, compiler__semantic__checker__ArrowCandidate* value) {
-    return std__collections__List_ptr_compiler__semantic__checker__ArrowCandidate_remove_where(self, (kobel_closure){ (void*)__lambda_fn_69, (void*)&(struct __lambda_env_69){ value } });
+    return std__collections__List_ptr_compiler__semantic__checker__ArrowCandidate_remove_where(self, (kobel_closure){ (void*)__lambda_fn_110, (void*)&(struct __lambda_env_110){ value } });
 }
 
 size_t std__collections__List_ptr_compiler__semantic__checker__ArrowCandidate_remove_where(std__collections__List_ptr_compiler__semantic__checker__ArrowCandidate* self, kobel_closure predicate) {
@@ -85452,17 +85261,17 @@ std__collections__List_compiler__codegen__ConditionAlias_remove_at(self, (size_t
 return true;
 }
 
-struct __lambda_env_70 {
+struct __lambda_env_111 {
     compiler__codegen__ConditionAlias value;
 };
 
-static bool __lambda_fn_70(void* __raw_env, compiler__codegen__ConditionAlias x) {
-    struct __lambda_env_70* __env = (struct __lambda_env_70*)__raw_env;
+static bool __lambda_fn_111(void* __raw_env, compiler__codegen__ConditionAlias x) {
+    struct __lambda_env_111* __env = (struct __lambda_env_111*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 48);
 }
 
 size_t std__collections__List_compiler__codegen__ConditionAlias_remove_all(std__collections__List_compiler__codegen__ConditionAlias* self, compiler__codegen__ConditionAlias value) {
-    return std__collections__List_compiler__codegen__ConditionAlias_remove_where(self, (kobel_closure){ (void*)__lambda_fn_70, (void*)&(struct __lambda_env_70){ value } });
+    return std__collections__List_compiler__codegen__ConditionAlias_remove_where(self, (kobel_closure){ (void*)__lambda_fn_111, (void*)&(struct __lambda_env_111){ value } });
 }
 
 size_t std__collections__List_compiler__codegen__ConditionAlias_remove_where(std__collections__List_compiler__codegen__ConditionAlias* self, kobel_closure predicate) {
@@ -86170,6 +85979,40 @@ compiler__semantic__types__PrimMethods* ptr = std__memory__Arena_create_compiler
 return ptr;
 }
 
+std__collections__List_str std__collections__std__collections__List_compiler__ast__GenericParam_map_str(std__collections__List_compiler__ast__GenericParam* self, kobel_closure transform) {
+size_t cap = ((self->len > 4) ? self->len : 4);
+std__collections__List_str res = std__collections__List_str_init(cap);
+{
+size_t __for_e = self->len;
+size_t __for_i = __for_e;
+__for_i = 0;
+bool __for_up = (__for_i <= __for_e);
+bool __for_go = false;
+if (__for_up) {
+__for_go = (__for_i < __for_e);
+} else {
+__for_go = (__for_i > __for_e);
+}
+while (__for_go) {
+size_t i = __for_i;
+std__collections__List_str_plus_assign(&res, ((kobel_str (*)(void*, compiler__ast__GenericParam))transform.fn)(transform.env, self->data[i]));
+if (__for_up) {
+__for_go = ((__for_i + 1) < __for_e);
+} else {
+__for_go = ((__for_i - 1) > __for_e);
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = (__for_i + 1);
+} else {
+__for_i = (__for_i - 1);
+}
+}
+}
+}
+return res;
+}
+
 compiler__semantic__symbols__Scope* std__memory__Arena_create_val_compiler__semantic__symbols__Scope(std__memory__Arena* self, compiler__semantic__symbols__Scope value) {
 compiler__semantic__symbols__Scope* ptr = std__memory__Arena_create_compiler__semantic__symbols__Scope(self);
 (*(ptr) = value);
@@ -86200,10 +86043,214 @@ compiler__semantic__symbols__ModuleScope* ptr = std__memory__Arena_create_compil
 return ptr;
 }
 
+std__collections__List_compiler__ast__Param std__collections__std__collections__List_compiler__ast__Param_map_compiler__ast__Param(std__collections__List_compiler__ast__Param* self, kobel_closure transform) {
+size_t cap = ((self->len > 4) ? self->len : 4);
+std__collections__List_compiler__ast__Param res = std__collections__List_compiler__ast__Param_init(cap);
+{
+size_t __for_e = self->len;
+size_t __for_i = __for_e;
+__for_i = 0;
+bool __for_up = (__for_i <= __for_e);
+bool __for_go = false;
+if (__for_up) {
+__for_go = (__for_i < __for_e);
+} else {
+__for_go = (__for_i > __for_e);
+}
+while (__for_go) {
+size_t i = __for_i;
+std__collections__List_compiler__ast__Param_plus_assign(&res, ((compiler__ast__Param (*)(void*, compiler__ast__Param))transform.fn)(transform.env, self->data[i]));
+if (__for_up) {
+__for_go = ((__for_i + 1) < __for_e);
+} else {
+__for_go = ((__for_i - 1) > __for_e);
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = (__for_i + 1);
+} else {
+__for_i = (__for_i - 1);
+}
+}
+}
+}
+return res;
+}
+
+std__collections__List_ptr_compiler__ast__AstNode std__collections__std__collections__List_ptr_compiler__ast__AstNode_map_ptr_compiler__ast__AstNode(std__collections__List_ptr_compiler__ast__AstNode* self, kobel_closure transform) {
+size_t cap = ((self->len > 4) ? self->len : 4);
+std__collections__List_ptr_compiler__ast__AstNode res = std__collections__List_ptr_compiler__ast__AstNode_init(cap);
+{
+size_t __for_e = self->len;
+size_t __for_i = __for_e;
+__for_i = 0;
+bool __for_up = (__for_i <= __for_e);
+bool __for_go = false;
+if (__for_up) {
+__for_go = (__for_i < __for_e);
+} else {
+__for_go = (__for_i > __for_e);
+}
+while (__for_go) {
+size_t i = __for_i;
+std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&res, ((compiler__ast__AstNode* (*)(void*, compiler__ast__AstNode*))transform.fn)(transform.env, self->data[i]));
+if (__for_up) {
+__for_go = ((__for_i + 1) < __for_e);
+} else {
+__for_go = ((__for_i - 1) > __for_e);
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = (__for_i + 1);
+} else {
+__for_i = (__for_i - 1);
+}
+}
+}
+}
+return res;
+}
+
+std__collections__List_compiler__ast__WhenArm std__collections__std__collections__List_compiler__ast__WhenArm_map_compiler__ast__WhenArm(std__collections__List_compiler__ast__WhenArm* self, kobel_closure transform) {
+size_t cap = ((self->len > 4) ? self->len : 4);
+std__collections__List_compiler__ast__WhenArm res = std__collections__List_compiler__ast__WhenArm_init(cap);
+{
+size_t __for_e = self->len;
+size_t __for_i = __for_e;
+__for_i = 0;
+bool __for_up = (__for_i <= __for_e);
+bool __for_go = false;
+if (__for_up) {
+__for_go = (__for_i < __for_e);
+} else {
+__for_go = (__for_i > __for_e);
+}
+while (__for_go) {
+size_t i = __for_i;
+std__collections__List_compiler__ast__WhenArm_plus_assign(&res, ((compiler__ast__WhenArm (*)(void*, compiler__ast__WhenArm))transform.fn)(transform.env, self->data[i]));
+if (__for_up) {
+__for_go = ((__for_i + 1) < __for_e);
+} else {
+__for_go = ((__for_i - 1) > __for_e);
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = (__for_i + 1);
+} else {
+__for_i = (__for_i - 1);
+}
+}
+}
+}
+return res;
+}
+
+std__collections__List_ptr_compiler__ast__AstNode std__collections__std__collections__List_ptr_compiler__semantic__types__Type_map_ptr_compiler__ast__AstNode(std__collections__List_ptr_compiler__semantic__types__Type* self, kobel_closure transform) {
+size_t cap = ((self->len > 4) ? self->len : 4);
+std__collections__List_ptr_compiler__ast__AstNode res = std__collections__List_ptr_compiler__ast__AstNode_init(cap);
+{
+size_t __for_e = self->len;
+size_t __for_i = __for_e;
+__for_i = 0;
+bool __for_up = (__for_i <= __for_e);
+bool __for_go = false;
+if (__for_up) {
+__for_go = (__for_i < __for_e);
+} else {
+__for_go = (__for_i > __for_e);
+}
+while (__for_go) {
+size_t i = __for_i;
+std__collections__List_ptr_compiler__ast__AstNode_plus_assign(&res, ((compiler__ast__AstNode* (*)(void*, compiler__semantic__types__Type*))transform.fn)(transform.env, self->data[i]));
+if (__for_up) {
+__for_go = ((__for_i + 1) < __for_e);
+} else {
+__for_go = ((__for_i - 1) > __for_e);
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = (__for_i + 1);
+} else {
+__for_i = (__for_i - 1);
+}
+}
+}
+}
+return res;
+}
+
 compiler__semantic__symbols__InstanceRecord* std__memory__Arena_create_val_compiler__semantic__symbols__InstanceRecord(std__memory__Arena* self, compiler__semantic__symbols__InstanceRecord value) {
 compiler__semantic__symbols__InstanceRecord* ptr = std__memory__Arena_create_compiler__semantic__symbols__InstanceRecord(self);
 (*(ptr) = value);
 return ptr;
+}
+
+std__collections__List_compiler__ast__StructField std__collections__std__collections__List_compiler__semantic__types__StructField_map_compiler__ast__StructField(std__collections__List_compiler__semantic__types__StructField* self, kobel_closure transform) {
+size_t cap = ((self->len > 4) ? self->len : 4);
+std__collections__List_compiler__ast__StructField res = std__collections__List_compiler__ast__StructField_init(cap);
+{
+size_t __for_e = self->len;
+size_t __for_i = __for_e;
+__for_i = 0;
+bool __for_up = (__for_i <= __for_e);
+bool __for_go = false;
+if (__for_up) {
+__for_go = (__for_i < __for_e);
+} else {
+__for_go = (__for_i > __for_e);
+}
+while (__for_go) {
+size_t i = __for_i;
+std__collections__List_compiler__ast__StructField_plus_assign(&res, ((compiler__ast__StructField (*)(void*, compiler__semantic__types__StructField))transform.fn)(transform.env, self->data[i]));
+if (__for_up) {
+__for_go = ((__for_i + 1) < __for_e);
+} else {
+__for_go = ((__for_i - 1) > __for_e);
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = (__for_i + 1);
+} else {
+__for_i = (__for_i - 1);
+}
+}
+}
+}
+return res;
+}
+
+std__collections__List_str std__collections__std__collections__List_ptr_compiler__semantic__types__MethodInfo_map_str(std__collections__List_ptr_compiler__semantic__types__MethodInfo* self, kobel_closure transform) {
+size_t cap = ((self->len > 4) ? self->len : 4);
+std__collections__List_str res = std__collections__List_str_init(cap);
+{
+size_t __for_e = self->len;
+size_t __for_i = __for_e;
+__for_i = 0;
+bool __for_up = (__for_i <= __for_e);
+bool __for_go = false;
+if (__for_up) {
+__for_go = (__for_i < __for_e);
+} else {
+__for_go = (__for_i > __for_e);
+}
+while (__for_go) {
+size_t i = __for_i;
+std__collections__List_str_plus_assign(&res, ((kobel_str (*)(void*, compiler__semantic__types__MethodInfo*))transform.fn)(transform.env, self->data[i]));
+if (__for_up) {
+__for_go = ((__for_i + 1) < __for_e);
+} else {
+__for_go = ((__for_i - 1) > __for_e);
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = (__for_i + 1);
+} else {
+__for_i = (__for_i - 1);
+}
+}
+}
+}
+return res;
 }
 
 compiler__semantic__types__MethodInfo* std__memory__Arena_create_val_compiler__semantic__types__MethodInfo(std__memory__Arena* self, compiler__semantic__types__MethodInfo value) {
@@ -86242,6 +86289,40 @@ compiler__semantic__types__TraitInfo* ptr = std__memory__Arena_create_compiler__
 return ptr;
 }
 
+std__collections__List_ptr_compiler__semantic__types__Type std__collections__std__collections__List_compiler__semantic__types__StructField_map_ptr_compiler__semantic__types__Type(std__collections__List_compiler__semantic__types__StructField* self, kobel_closure transform) {
+size_t cap = ((self->len > 4) ? self->len : 4);
+std__collections__List_ptr_compiler__semantic__types__Type res = std__collections__List_ptr_compiler__semantic__types__Type_init(cap);
+{
+size_t __for_e = self->len;
+size_t __for_i = __for_e;
+__for_i = 0;
+bool __for_up = (__for_i <= __for_e);
+bool __for_go = false;
+if (__for_up) {
+__for_go = (__for_i < __for_e);
+} else {
+__for_go = (__for_i > __for_e);
+}
+while (__for_go) {
+size_t i = __for_i;
+std__collections__List_ptr_compiler__semantic__types__Type_plus_assign(&res, ((compiler__semantic__types__Type* (*)(void*, compiler__semantic__types__StructField))transform.fn)(transform.env, self->data[i]));
+if (__for_up) {
+__for_go = ((__for_i + 1) < __for_e);
+} else {
+__for_go = ((__for_i - 1) > __for_e);
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = (__for_i + 1);
+} else {
+__for_i = (__for_i - 1);
+}
+}
+}
+}
+return res;
+}
+
 compiler__semantic__symbols__AnnotationEntry* std__memory__Arena_create_val_compiler__semantic__symbols__AnnotationEntry(std__memory__Arena* self, compiler__semantic__symbols__AnnotationEntry value) {
 compiler__semantic__symbols__AnnotationEntry* ptr = std__memory__Arena_create_compiler__semantic__symbols__AnnotationEntry(self);
 (*(ptr) = value);
@@ -86252,6 +86333,74 @@ compiler__semantic__checker__ArrowCandidate* std__memory__Arena_create_val_compi
 compiler__semantic__checker__ArrowCandidate* ptr = std__memory__Arena_create_compiler__semantic__checker__ArrowCandidate(self);
 (*(ptr) = value);
 return ptr;
+}
+
+std__collections__List_str std__collections__std__collections__List_ptr_compiler__ast__AstNode_map_str(std__collections__List_ptr_compiler__ast__AstNode* self, kobel_closure transform) {
+size_t cap = ((self->len > 4) ? self->len : 4);
+std__collections__List_str res = std__collections__List_str_init(cap);
+{
+size_t __for_e = self->len;
+size_t __for_i = __for_e;
+__for_i = 0;
+bool __for_up = (__for_i <= __for_e);
+bool __for_go = false;
+if (__for_up) {
+__for_go = (__for_i < __for_e);
+} else {
+__for_go = (__for_i > __for_e);
+}
+while (__for_go) {
+size_t i = __for_i;
+std__collections__List_str_plus_assign(&res, ((kobel_str (*)(void*, compiler__ast__AstNode*))transform.fn)(transform.env, self->data[i]));
+if (__for_up) {
+__for_go = ((__for_i + 1) < __for_e);
+} else {
+__for_go = ((__for_i - 1) > __for_e);
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = (__for_i + 1);
+} else {
+__for_i = (__for_i - 1);
+}
+}
+}
+}
+return res;
+}
+
+std__collections__List_str std__collections__std__collections__List_compiler__semantic__symbols__LambdaCapture_map_str(std__collections__List_compiler__semantic__symbols__LambdaCapture* self, kobel_closure transform) {
+size_t cap = ((self->len > 4) ? self->len : 4);
+std__collections__List_str res = std__collections__List_str_init(cap);
+{
+size_t __for_e = self->len;
+size_t __for_i = __for_e;
+__for_i = 0;
+bool __for_up = (__for_i <= __for_e);
+bool __for_go = false;
+if (__for_up) {
+__for_go = (__for_i < __for_e);
+} else {
+__for_go = (__for_i > __for_e);
+}
+while (__for_go) {
+size_t i = __for_i;
+std__collections__List_str_plus_assign(&res, ((kobel_str (*)(void*, compiler__semantic__symbols__LambdaCapture))transform.fn)(transform.env, self->data[i]));
+if (__for_up) {
+__for_go = ((__for_i + 1) < __for_e);
+} else {
+__for_go = ((__for_i - 1) > __for_e);
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = (__for_i + 1);
+} else {
+__for_i = (__for_i - 1);
+}
+}
+}
+}
+return res;
 }
 
 lsp__JsonValue* std__memory__Heap_create_lsp__JsonValue(void) {

@@ -410,10 +410,7 @@ impl DeclarationCollector {
 			val under_type = if (e.underlying_type != null) self.resolve_ast_type(e.underlying_type!)
 			else self.prims().t_prim(Type.i32());
 
-			var is_payload = false;
-			for (m in e.members) {
-				if (!m.payload.empty()) is_payload = true;
-			}
+			val is_payload = e.members.any { m -> !m.payload.empty() };
 			if (is_payload) {
 				self.collect_payload_enum(node, e, under_type);
 				return;
@@ -770,8 +767,7 @@ impl DeclarationCollector {
 			when (t) {
 				is ModuleDecl -> self.collect_module(d);
 				is EnumDecl as e -> {
-					var has_p = false;
-					for (m in e.members) if (!m.payload.empty()) has_p = true;
+					val has_p = e.members.any { m -> !m.payload.empty() };
 					if (has_p == want_payload) self.collect_enum(d);
 				}
 			}

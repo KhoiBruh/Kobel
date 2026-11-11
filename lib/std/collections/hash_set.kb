@@ -132,7 +132,7 @@ impl HashSet<T: Hash> {
 		return res;
 	}
 
-	pub fn for_each(val self, action: (T) -> none) {
+	pub fn each(val self, action: (T) -> none) {
 		if (self.cap == 0) return;
 		for (i in 0..<self.cap) {
 			if (self.occupied[i]) action(self.keys[i]);

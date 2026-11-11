@@ -135,12 +135,8 @@ impl CCodeGen {
 
 	// True when the enum carries data on at least one variant; such an enum is
 	// emitted as a struct instead of a plain integer typedef.
-	pub fn enum_has_payload(val self, e: *EnumDecl): bool {
-		for (m in e.members) {
-			if (!m.payload.empty()) return true;
-		}
-		return false;
-	}
+	pub fn enum_has_payload(val self, e: *EnumDecl): bool =>
+		e.members.any { m -> !m.payload.empty() };
 
 }
 
@@ -191,16 +187,7 @@ pub fn c_float_literal_c_type(raw: str) => if (raw.ends_with("F")) "float" else 
 pub fn c_format_float_literal(raw: str): str {
 	// `_` digit separators are not C syntax, so they are dropped first.
 	val text = raw.strip_char('_');
-	var has_dot = false;
-	for (c in text) {
-		when (c) {
-			'.', 'e', 'E' -> {
-				has_dot = true;
-				break;
-			}
-		}
-	}
-	if (has_dot) return text;
+	if (text.any { c -> c == '.' || c == 'e' || c == 'E' }) return text;
 
 	val len = text.len;
 	return when (text) {

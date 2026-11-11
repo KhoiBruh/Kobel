@@ -37,14 +37,8 @@ pub struct GenericTemplate {
 impl GenericTemplate {
 
 	pub fn param_names(val self): List<str> {
-		var names = List<str>();
-		val node = self.node;
-		when (node) {
-			is StructDecl -> for (tp in node.type_params) names += tp.name;
-			is FnDecl -> for (p in node.type_params) names += p.name;
-			is ImplDecl -> for (p in node.type_params) names += p.name;
-		}
-		return names;
+		val ps = self.params();
+		return ps.map { p -> p.name };
 	}
 
 	pub fn params(val self) => when (self.node) {
