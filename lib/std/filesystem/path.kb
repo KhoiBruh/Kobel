@@ -50,27 +50,16 @@ impl str {
 
 	// Directory part of a path ("" when the path has no separator).
 	pub fn dir_of(val self): str {
-		var last = 0;
-		var found = false;
-		for (i in 0..<self.len) {
-			if (str_is_sep(self[i])) {
-				last = i;
-				found = true;
-			}
-		}
-
-		if (!found) return "";
-		return self.slice(0, last);
+		val last = self.last_index_where { c -> str_is_sep(c) };
+		if (last < 0) return "";
+		return self.slice(0, last as usz);
 	}
 
 	// File name part of a path (input with separators included).
 	pub fn base_name(val self): str {
-		var start = 0;
-		for (i in 0..<self.len) {
-			if (str_is_sep(self[i])) start = i + 1;
-		}
-
-		return self.slice(start);
+		val last = self.last_index_where { c -> str_is_sep(c) };
+		if (last < 0) return self;
+		return self.slice((last + 1) as usz);
 	}
 
 	// Joins a directory and a relative path with a single '/' separator.
@@ -115,33 +104,17 @@ impl Path {
 	// Extension without the leading dot ("kb" from "src/main.kb", "" if none).
 	pub fn extension(val self): str {
 		val fname = self.file_name();
-		var last_dot: usz = 0;
-		var found = false;
-		for (i in 0..<fname.len) {
-			if (fname[i] == '.') {
-				last_dot = i;
-				found = true;
-			}
-		}
-
-		if (!found || last_dot == 0 || last_dot == fname.len - 1) return "";
-		return fname.slice(last_dot + 1);
+		val last_dot = fname.last_index_where { c -> c == '.' };
+		if (last_dot <= 0 || (last_dot as usz) == fname.len - 1) return "";
+		return fname.slice((last_dot + 1) as usz);
 	}
 
 	// File name without the trailing extension ("main" from "src/main.kb").
 	pub fn stem(val self): str {
 		val fname = self.file_name();
-		var last_dot = 0;
-		var found = false;
-		for (i in 0..<fname.len) {
-			if (fname[i] == '.') {
-				last_dot = i;
-				found = true;
-			}
-		}
-
-		if (!found || last_dot == 0) return fname;
-		return fname.slice(0, last_dot);
+		val last_dot = fname.last_index_where { c -> c == '.' };
+		if (last_dot <= 0) return fname;
+		return fname.slice(0, last_dot as usz);
 	}
 
 	// Joins two path segments with a normalized '/' separator.
@@ -218,9 +191,7 @@ impl Path {
 		val names = self.list_dir();
 		defer names.free();
 
-		var res = List<Path>();
-		for (name in names) res += self.join(name);
-		return res;
+		return names.map { name -> self.join(name) };
 	}
 
 	// ------------------------------------------------------------------------

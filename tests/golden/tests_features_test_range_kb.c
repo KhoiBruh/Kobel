@@ -393,6 +393,14 @@ void std__memory__Heap_free_1(void* ptr);
 kobel_str std__string__str_from_bytes(uint8_t* buf, size_t len);
 kobel_str std__string__common_whitespace_prefix(std__collections__List_str lines, size_t start_idx, size_t end_idx);
 bool str_empty(kobel_str self);
+void str_for_each(kobel_str self, kobel_closure action);
+bool str_any(kobel_str self, kobel_closure predicate);
+bool str_all(kobel_str self, kobel_closure predicate);
+size_t str_count_where(kobel_str self, kobel_closure predicate);
+intptr_t str_index_where(kobel_str self, kobel_closure predicate);
+intptr_t str_last_index_where(kobel_str self, kobel_closure predicate);
+kobel_str str_filter(kobel_str self, kobel_closure predicate);
+kobel_str str_map_chars(kobel_str self, kobel_closure transform);
 bool str_blank(kobel_str self);
 bool str_starts_with(kobel_str self, kobel_str prefix);
 bool str_ends_with(kobel_str self, kobel_str suffix);
@@ -504,8 +512,14 @@ void std__collections__List_str_reverse(std__collections__List_str* self);
 std__collections__List_str std__collections__List_str_sub(std__collections__List_str* self, size_t start, size_t count);
 intptr_t std__collections__List_str_index_of(std__collections__List_str* self, kobel_str value);
 intptr_t std__collections__List_str_last_index_of(std__collections__List_str* self, kobel_str value);
+intptr_t std__collections__List_str_index_where(std__collections__List_str* self, kobel_closure predicate);
+intptr_t std__collections__List_str_last_index_where(std__collections__List_str* self, kobel_closure predicate);
+kobel_str* std__collections__List_str_find_ptr(std__collections__List_str* self, kobel_closure predicate);
+kobel_str std__collections__List_str_first_or(std__collections__List_str* self, kobel_str default_val, kobel_closure predicate);
 bool std__collections__List_str_remove(std__collections__List_str* self, kobel_str value);
 size_t std__collections__List_str_remove_all(std__collections__List_str* self, kobel_str value);
+size_t std__collections__List_str_remove_where(std__collections__List_str* self, kobel_closure predicate);
+size_t std__collections__List_str_retain(std__collections__List_str* self, kobel_closure predicate);
 void std__collections__List_str_for_each(std__collections__List_str* self, kobel_closure action);
 std__collections__List_str std__collections__List_str_filter(std__collections__List_str* self, kobel_closure predicate);
 bool std__collections__List_str_any(std__collections__List_str* self, kobel_closure predicate);
@@ -521,6 +535,7 @@ void std__memory__Heap_free_str(kobel_str* ptr);
 uint8_t* std__memory__Heap_create_array_u8(size_t count);
 std__memory__ArenaBlock* std__memory__Heap_create_std__memory__ArenaBlock(void);
 void std__memory__Heap_free_std__memory__ArenaBlock(std__memory__ArenaBlock* ptr);
+size_t std__collections__std__collections__List_str_fold_usz(std__collections__List_str* self, size_t initial, kobel_closure operation);
 uint8_t* std__memory__Heap_resize_u8(uint8_t* ptr, size_t count);
 bool std__range__Range_char_is_ascending(std__range__Range_char* self);
 bool std__range__Range_char_equals(std__range__Range_char* self, std__range__Range_char other);
@@ -787,20 +802,274 @@ bool str_empty(kobel_str self) {
     return (self.len == 0);
 }
 
-bool str_blank(kobel_str self) {
+void str_for_each(kobel_str self, kobel_closure action) {
 {
-size_t __for_n = self.len;
-size_t __for_i = 0;
-while (__for_i < __for_n) {
-char c = self.data[__for_i];
-if (c == ' ' || c == '\t' || c == '\r' || c == '\n') {
+size_t __for_e = self.len;
+size_t __for_i = __for_e;
+__for_i = 0;
+bool __for_up = (__for_i <= __for_e);
+bool __for_go = false;
+if (__for_up) {
+__for_go = (__for_i < __for_e);
 } else {
+__for_go = (__for_i > __for_e);
+}
+while (__for_go) {
+size_t i = __for_i;
+((void (*)(void*, char))action.fn)(action.env, self.data[i]);
+if (__for_up) {
+__for_go = ((__for_i + 1) < __for_e);
+} else {
+__for_go = ((__for_i - 1) > __for_e);
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = (__for_i + 1);
+} else {
+__for_i = (__for_i - 1);
+}
+}
+}
+}
+}
+
+bool str_any(kobel_str self, kobel_closure predicate) {
+{
+size_t __for_e = self.len;
+size_t __for_i = __for_e;
+__for_i = 0;
+bool __for_up = (__for_i <= __for_e);
+bool __for_go = false;
+if (__for_up) {
+__for_go = (__for_i < __for_e);
+} else {
+__for_go = (__for_i > __for_e);
+}
+while (__for_go) {
+size_t i = __for_i;
+if (((bool (*)(void*, char))predicate.fn)(predicate.env, self.data[i])) {
+return true;
+}
+if (__for_up) {
+__for_go = ((__for_i + 1) < __for_e);
+} else {
+__for_go = ((__for_i - 1) > __for_e);
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = (__for_i + 1);
+} else {
+__for_i = (__for_i - 1);
+}
+}
+}
+}
 return false;
 }
+
+bool str_all(kobel_str self, kobel_closure predicate) {
+{
+size_t __for_e = self.len;
+size_t __for_i = __for_e;
+__for_i = 0;
+bool __for_up = (__for_i <= __for_e);
+bool __for_go = false;
+if (__for_up) {
+__for_go = (__for_i < __for_e);
+} else {
+__for_go = (__for_i > __for_e);
+}
+while (__for_go) {
+size_t i = __for_i;
+if (!((bool (*)(void*, char))predicate.fn)(predicate.env, self.data[i])) {
+return false;
+}
+if (__for_up) {
+__for_go = ((__for_i + 1) < __for_e);
+} else {
+__for_go = ((__for_i - 1) > __for_e);
+}
+if (__for_go) {
+if (__for_up) {
 __for_i = (__for_i + 1);
+} else {
+__for_i = (__for_i - 1);
+}
+}
 }
 }
 return true;
+}
+
+size_t str_count_where(kobel_str self, kobel_closure predicate) {
+size_t n = 0;
+{
+size_t __for_e = self.len;
+size_t __for_i = __for_e;
+__for_i = 0;
+bool __for_up = (__for_i <= __for_e);
+bool __for_go = false;
+if (__for_up) {
+__for_go = (__for_i < __for_e);
+} else {
+__for_go = (__for_i > __for_e);
+}
+while (__for_go) {
+size_t i = __for_i;
+if (((bool (*)(void*, char))predicate.fn)(predicate.env, self.data[i])) {
+n++;
+}
+if (__for_up) {
+__for_go = ((__for_i + 1) < __for_e);
+} else {
+__for_go = ((__for_i - 1) > __for_e);
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = (__for_i + 1);
+} else {
+__for_i = (__for_i - 1);
+}
+}
+}
+}
+return n;
+}
+
+intptr_t str_index_where(kobel_str self, kobel_closure predicate) {
+{
+size_t __for_e = self.len;
+size_t __for_i = __for_e;
+__for_i = 0;
+bool __for_up = (__for_i <= __for_e);
+bool __for_go = false;
+if (__for_up) {
+__for_go = (__for_i < __for_e);
+} else {
+__for_go = (__for_i > __for_e);
+}
+while (__for_go) {
+size_t i = __for_i;
+if (((bool (*)(void*, char))predicate.fn)(predicate.env, self.data[i])) {
+return i;
+}
+if (__for_up) {
+__for_go = ((__for_i + 1) < __for_e);
+} else {
+__for_go = ((__for_i - 1) > __for_e);
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = (__for_i + 1);
+} else {
+__for_i = (__for_i - 1);
+}
+}
+}
+}
+return -1;
+}
+
+intptr_t str_last_index_where(kobel_str self, kobel_closure predicate) {
+if (self.len == 0) {
+return -1;
+}
+size_t i = (self.len - 1);
+while (true) {
+if (((bool (*)(void*, char))predicate.fn)(predicate.env, self.data[i])) {
+return i;
+}
+if (i == 0) {
+break;
+}
+i--;
+}
+return -1;
+}
+
+kobel_str str_filter(kobel_str self, kobel_closure predicate) {
+uint8_t* buf = std__memory__Heap_create_array_u8((self.len + 1));
+int32_t w = 0;
+{
+size_t __for_e = self.len;
+size_t __for_i = __for_e;
+__for_i = 0;
+bool __for_up = (__for_i <= __for_e);
+bool __for_go = false;
+if (__for_up) {
+__for_go = (__for_i < __for_e);
+} else {
+__for_go = (__for_i > __for_e);
+}
+while (__for_go) {
+size_t i = __for_i;
+char ch = self.data[i];
+if (((bool (*)(void*, char))predicate.fn)(predicate.env, ch)) {
+buf[w] = ((int32_t)(uint8_t)(ch));
+w++;
+}
+if (__for_up) {
+__for_go = ((__for_i + 1) < __for_e);
+} else {
+__for_go = ((__for_i - 1) > __for_e);
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = (__for_i + 1);
+} else {
+__for_i = (__for_i - 1);
+}
+}
+}
+}
+buf[w] = 0;
+return std__string__str_from_bytes(buf, w);
+}
+
+kobel_str str_map_chars(kobel_str self, kobel_closure transform) {
+if (str_empty(self)) {
+return self;
+}
+uint8_t* buf = std__memory__Heap_create_array_u8((self.len + 1));
+{
+size_t __for_e = self.len;
+size_t __for_i = __for_e;
+__for_i = 0;
+bool __for_up = (__for_i <= __for_e);
+bool __for_go = false;
+if (__for_up) {
+__for_go = (__for_i < __for_e);
+} else {
+__for_go = (__for_i > __for_e);
+}
+while (__for_go) {
+size_t i = __for_i;
+buf[i] = ((int32_t)(uint8_t)(((char (*)(void*, char))transform.fn)(transform.env, self.data[i])));
+if (__for_up) {
+__for_go = ((__for_i + 1) < __for_e);
+} else {
+__for_go = ((__for_i - 1) > __for_e);
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = (__for_i + 1);
+} else {
+__for_i = (__for_i - 1);
+}
+}
+}
+}
+buf[self.len] = 0;
+return std__string__str_from_bytes(buf, self.len);
+}
+
+static bool __lambda_fn_1(void* __raw_env, char c) {
+    (void)__raw_env;
+return (c == ' ' || c == '\t' || c == '\r' || c == '\n' ? true : false);
+}
+
+bool str_blank(kobel_str self) {
+    return str_all(self, (kobel_closure){ (void*)__lambda_fn_1, NULL });
 }
 
 bool str_starts_with(kobel_str self, kobel_str prefix) {
@@ -955,81 +1224,31 @@ kobel_str str_strip_suffix(kobel_str self, size_t n) {
     return ((self.len <= n) ? KOBEL_STR("") : kobel_slice(self, 0, (self.len - n)));
 }
 
+struct __lambda_env_2 {
+    char c;
+};
+
+static bool __lambda_fn_2(void* __raw_env, char ch) {
+    struct __lambda_env_2* __env = (struct __lambda_env_2*)__raw_env;
+    return (ch != (__env->c));
+}
+
 kobel_str str_strip_char(kobel_str self, char c) {
-uint8_t* buf = std__memory__Heap_create_array_u8((self.len + 1));
-int32_t w = 0;
-{
-size_t __for_e = self.len;
-size_t __for_i = __for_e;
-__for_i = 0;
-bool __for_up = (__for_i <= __for_e);
-bool __for_go = false;
-if (__for_up) {
-__for_go = (__for_i < __for_e);
-} else {
-__for_go = (__for_i > __for_e);
+    return str_filter(self, (kobel_closure){ (void*)__lambda_fn_2, (void*)&(struct __lambda_env_2){ c } });
 }
-while (__for_go) {
-size_t i = __for_i;
-char ch = self.data[i];
-if (ch != c) {
-buf[w] = ((int32_t)(uint8_t)(ch));
-w++;
-}
-if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
-} else {
-__for_go = ((__for_i - 1) > __for_e);
-}
-if (__for_go) {
-if (__for_up) {
-__for_i = (__for_i + 1);
-} else {
-__for_i = (__for_i - 1);
-}
-}
-}
-}
-buf[w] = 0;
-return std__string__str_from_bytes(buf, w);
+
+struct __lambda_env_3 {
+    char from;
+    char to;
+};
+
+static char __lambda_fn_3(void* __raw_env, char c) {
+    struct __lambda_env_3* __env = (struct __lambda_env_3*)__raw_env;
+    return ((c == (__env->from)) ? (__env->to) : c);
 }
 
 kobel_str str_replace_char(kobel_str self, char from, char to) {
-if (str_empty(self)) {
-return self;
-}
-uint8_t* buf = std__memory__Heap_create_array_u8((self.len + 1));
-{
-size_t __for_e = self.len;
-size_t __for_i = __for_e;
-__for_i = 0;
-bool __for_up = (__for_i <= __for_e);
-bool __for_go = false;
-if (__for_up) {
-__for_go = (__for_i < __for_e);
-} else {
-__for_go = (__for_i > __for_e);
-}
-while (__for_go) {
-size_t i = __for_i;
-char c = self.data[i];
-buf[i] = ((c == from) ? ((int32_t)(uint8_t)(to)) : ((int32_t)(uint8_t)(c)));
-if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
-} else {
-__for_go = ((__for_i - 1) > __for_e);
-}
-if (__for_go) {
-if (__for_up) {
-__for_i = (__for_i + 1);
-} else {
-__for_i = (__for_i - 1);
-}
-}
-}
-}
-buf[self.len] = 0;
-return std__string__str_from_bytes(buf, self.len);
+    return str_map_chars(self, (kobel_closure){ (void*)__lambda_fn_3, (void*)&(struct __lambda_env_3){ from, to } });
 }
 
 kobel_str str_repeat(kobel_str self, size_t n) {
@@ -1071,6 +1290,11 @@ buf[w] = 0;
 return std__string__str_from_bytes(buf, w);
 }
 
+static size_t __lambda_fn_4(void* __raw_env, size_t acc, kobel_str item) {
+    (void)__raw_env;
+    return (acc + item.len);
+}
+
 kobel_str str_join(kobel_str self, std__collections__List_str list) {
 if (std__collections__List_str_empty(&list)) {
 return KOBEL_STR("");
@@ -1078,16 +1302,7 @@ return KOBEL_STR("");
 if (list.len == 1) {
 return list.data[0];
 }
-int32_t total = 0;
-{
-size_t __for_n = std__collections__List_str_count(&list);
-size_t __for_i = 0;
-while (__for_i < __for_n) {
-kobel_str item = std__collections__List_str_at(&list, __for_i);
-total += item.len;
-__for_i = (__for_i + 1);
-}
-}
+size_t total = std__collections__std__collections__List_str_fold_usz(&list, (size_t)0, (kobel_closure){ (void*)__lambda_fn_4, NULL });
 total += (self.len * (list.len - 1));
 uint8_t* buf = std__memory__Heap_create_array_u8((total + 1));
 int32_t w = 0;
@@ -2835,6 +3050,126 @@ i--;
 return -1;
 }
 
+intptr_t std__collections__List_str_index_where(std__collections__List_str* self, kobel_closure predicate) {
+{
+size_t __for_e = self->len;
+size_t __for_i = __for_e;
+__for_i = 0;
+bool __for_up = (__for_i <= __for_e);
+bool __for_go = false;
+if (__for_up) {
+__for_go = (__for_i < __for_e);
+} else {
+__for_go = (__for_i > __for_e);
+}
+while (__for_go) {
+size_t i = __for_i;
+if (((bool (*)(void*, kobel_str))predicate.fn)(predicate.env, self->data[i])) {
+return i;
+}
+if (__for_up) {
+__for_go = ((__for_i + 1) < __for_e);
+} else {
+__for_go = ((__for_i - 1) > __for_e);
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = (__for_i + 1);
+} else {
+__for_i = (__for_i - 1);
+}
+}
+}
+}
+return -1;
+}
+
+intptr_t std__collections__List_str_last_index_where(std__collections__List_str* self, kobel_closure predicate) {
+if (self->len == 0) {
+return -1;
+}
+size_t i = (self->len - 1);
+while (true) {
+if (((bool (*)(void*, kobel_str))predicate.fn)(predicate.env, self->data[i])) {
+return i;
+}
+if (i == 0) {
+break;
+}
+i--;
+}
+return -1;
+}
+
+kobel_str* std__collections__List_str_find_ptr(std__collections__List_str* self, kobel_closure predicate) {
+{
+size_t __for_e = self->len;
+size_t __for_i = __for_e;
+__for_i = 0;
+bool __for_up = (__for_i <= __for_e);
+bool __for_go = false;
+if (__for_up) {
+__for_go = (__for_i < __for_e);
+} else {
+__for_go = (__for_i > __for_e);
+}
+while (__for_go) {
+size_t i = __for_i;
+if (((bool (*)(void*, kobel_str))predicate.fn)(predicate.env, self->data[i])) {
+return &self->data[i];
+}
+if (__for_up) {
+__for_go = ((__for_i + 1) < __for_e);
+} else {
+__for_go = ((__for_i - 1) > __for_e);
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = (__for_i + 1);
+} else {
+__for_i = (__for_i - 1);
+}
+}
+}
+}
+return NULL;
+}
+
+kobel_str std__collections__List_str_first_or(std__collections__List_str* self, kobel_str default_val, kobel_closure predicate) {
+{
+size_t __for_e = self->len;
+size_t __for_i = __for_e;
+__for_i = 0;
+bool __for_up = (__for_i <= __for_e);
+bool __for_go = false;
+if (__for_up) {
+__for_go = (__for_i < __for_e);
+} else {
+__for_go = (__for_i > __for_e);
+}
+while (__for_go) {
+size_t i = __for_i;
+kobel_str item = self->data[i];
+if (((bool (*)(void*, kobel_str))predicate.fn)(predicate.env, item)) {
+return item;
+}
+if (__for_up) {
+__for_go = ((__for_i + 1) < __for_e);
+} else {
+__for_go = ((__for_i - 1) > __for_e);
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = (__for_i + 1);
+} else {
+__for_i = (__for_i - 1);
+}
+}
+}
+}
+return default_val;
+}
+
 bool std__collections__List_str_remove(std__collections__List_str* self, kobel_str value) {
 intptr_t idx = std__collections__List_str_index_of(self, value);
 if (idx < 0) {
@@ -2844,7 +3179,20 @@ std__collections__List_str_remove_at(self, (size_t)idx);
 return true;
 }
 
+struct __lambda_env_6 {
+    kobel_str value;
+};
+
+static bool __lambda_fn_6(void* __raw_env, kobel_str x) {
+    struct __lambda_env_6* __env = (struct __lambda_env_6*)__raw_env;
+    return kobel_streq(x, (__env->value));
+}
+
 size_t std__collections__List_str_remove_all(std__collections__List_str* self, kobel_str value) {
+    return std__collections__List_str_remove_where(self, (kobel_closure){ (void*)__lambda_fn_6, (void*)&(struct __lambda_env_6){ value } });
+}
+
+size_t std__collections__List_str_remove_where(std__collections__List_str* self, kobel_closure predicate) {
 int32_t write = 0;
 int32_t removed = 0;
 {
@@ -2860,13 +3208,55 @@ __for_go = (__for_i > __for_e);
 }
 while (__for_go) {
 size_t i = __for_i;
-if (kobel_streq(self->data[i], value)) {
+if (((bool (*)(void*, kobel_str))predicate.fn)(predicate.env, self->data[i])) {
 removed++;
 } else {
 if (write != i) {
 self->data[write] = self->data[i];
 }
 write++;
+}
+if (__for_up) {
+__for_go = ((__for_i + 1) < __for_e);
+} else {
+__for_go = ((__for_i - 1) > __for_e);
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = (__for_i + 1);
+} else {
+__for_i = (__for_i - 1);
+}
+}
+}
+}
+self->len = write;
+return removed;
+}
+
+size_t std__collections__List_str_retain(std__collections__List_str* self, kobel_closure predicate) {
+int32_t write = 0;
+int32_t removed = 0;
+{
+size_t __for_e = self->len;
+size_t __for_i = __for_e;
+__for_i = 0;
+bool __for_up = (__for_i <= __for_e);
+bool __for_go = false;
+if (__for_up) {
+__for_go = (__for_i < __for_e);
+} else {
+__for_go = (__for_i > __for_e);
+}
+while (__for_go) {
+size_t i = __for_i;
+if (((bool (*)(void*, kobel_str))predicate.fn)(predicate.env, self->data[i])) {
+if (write != i) {
+self->data[write] = self->data[i];
+}
+write++;
+} else {
+removed++;
 }
 if (__for_up) {
 __for_go = ((__for_i + 1) < __for_e);
@@ -3094,6 +3484,39 @@ std__memory__ArenaBlock* std__memory__Heap_create_std__memory__ArenaBlock(void) 
 
 void std__memory__Heap_free_std__memory__ArenaBlock(std__memory__ArenaBlock* ptr) {
     free((uint8_t*)ptr);
+}
+
+size_t std__collections__std__collections__List_str_fold_usz(std__collections__List_str* self, size_t initial, kobel_closure operation) {
+size_t acc = initial;
+{
+size_t __for_e = self->len;
+size_t __for_i = __for_e;
+__for_i = 0;
+bool __for_up = (__for_i <= __for_e);
+bool __for_go = false;
+if (__for_up) {
+__for_go = (__for_i < __for_e);
+} else {
+__for_go = (__for_i > __for_e);
+}
+while (__for_go) {
+size_t i = __for_i;
+acc = ((size_t (*)(void*, size_t, kobel_str))operation.fn)(operation.env, acc, self->data[i]);
+if (__for_up) {
+__for_go = ((__for_i + 1) < __for_e);
+} else {
+__for_go = ((__for_i - 1) > __for_e);
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = (__for_i + 1);
+} else {
+__for_i = (__for_i - 1);
+}
+}
+}
+}
+return acc;
 }
 
 uint8_t* std__memory__Heap_resize_u8(uint8_t* ptr, size_t count) {

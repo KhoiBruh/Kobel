@@ -66,15 +66,75 @@ impl str {
 
 	pub fn empty(val self) => self.len == 0;
 
-	pub fn blank(val self): bool {
-		for (c in self) {
-			when (c) {
-				' ', '\t', '\r', '\n' -> {}
-				else -> return false;
-			}
-		}
+	pub fn for_each(val self, action: (char) -> none) {
+		for (i in 0..<self.len) action(self[i]);
+	}
+
+	pub fn any(val self, predicate: (char) -> bool): bool {
+		for (i in 0..<self.len) if (predicate(self[i])) return true;
+		return false;
+	}
+
+	pub fn all(val self, predicate: (char) -> bool): bool {
+		for (i in 0..<self.len) if (!predicate(self[i])) return false;
 		return true;
 	}
+
+	pub fn count_where(val self, predicate: (char) -> bool): usz {
+		var n: usz = 0;
+		for (i in 0..<self.len) if (predicate(self[i])) n++;
+		return n;
+	}
+
+	pub fn index_where(val self, predicate: (char) -> bool): isz {
+		for (i in 0..<self.len) if (predicate(self[i])) return i;
+		return -1;
+	}
+
+	pub fn last_index_where(val self, predicate: (char) -> bool): isz {
+		if (self.len == 0) return -1;
+
+		var i = self.len - 1;
+		while (true) {
+			if (predicate(self[i])) return i;
+			if (i == 0) break;
+			i--;
+		}
+
+		return -1;
+	}
+
+	pub fn filter(val self, predicate: (char) -> bool): str {
+		val buf = Heap.create_array<u8>(self.len + 1);
+		var w = 0;
+		for (i in 0..<self.len) {
+			val ch = self[i];
+			if (predicate(ch)) {
+				buf[w] = ch.code();
+				w++;
+			}
+		}
+
+		buf[w] = 0;
+		return str_from_bytes(buf, w);
+	}
+
+	pub fn map_chars(val self, transform: (char) -> char): str {
+		if (self.empty()) return self;
+
+		val buf = Heap.create_array<u8>(self.len + 1);
+		for (i in 0..<self.len) buf[i] = transform(self[i]).code();
+
+		buf[self.len] = 0;
+		return str_from_bytes(buf, self.len);
+	}
+
+	pub fn blank(val self) => self.all { c ->
+		yield when (c) {
+			' ', '\t', '\r', '\n' -> true;
+			else -> false;
+		};
+	};
 
 	pub fn starts_with(val self, prefix: str): bool {
 		if (self.len < prefix.len) return false;
@@ -121,33 +181,10 @@ impl str {
 		else self.slice(0, self.len - n);
 
 	// Copy of `self` with every occurrence of `c` removed (`"1_000".strip_char('_')` -> `"1000"`).
-	pub fn strip_char(val self, c: char): str {
-		val buf = Heap.create_array<u8>(self.len + 1);
-		var w = 0;
-		for (i in 0..<self.len) {
-			val ch = self[i];
-			if (ch != c) {
-				buf[w] = ch.code();
-				w++;
-			}
-		}
+	pub fn strip_char(val self, c: char) => self.filter { ch -> ch != c };
 
-		buf[w] = 0;
-		return str_from_bytes(buf, w);
-	}
-
-	pub fn replace_char(val self, from: char, to: char): str {
-		if (self.empty()) return self;
-
-		val buf = Heap.create_array<u8>(self.len + 1);
-		for (i in 0..<self.len) {
-			val c = self[i];
-			buf[i] = if (c == from) to.code() else c.code();
-		}
-
-		buf[self.len] = 0;
-		return str_from_bytes(buf, self.len);
-	}
+	pub fn replace_char(val self, from: char, to: char) =>
+		self.map_chars { c -> if (c == from) to else c };
 
 	// `n` copies of `self` in a single allocation (`""` when `n == 0`).
 	pub fn repeat(val self, n: usz): str {
@@ -169,8 +206,7 @@ impl str {
 		if (list.empty()) return "";
 		if (list.len == 1) return list.data[0];
 
-		var total = 0;
-		for (item in list) total += item.len;
+		var total = list.fold(0 as usz) { acc, item -> acc + item.len };
 		total += self.len * (list.len - 1);
 
 		val buf = Heap.create_array<u8>(total + 1);

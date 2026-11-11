@@ -153,6 +153,37 @@ impl List<T> {
 		return -1;
 	}
 
+	pub fn index_where(val self, predicate: (T) -> bool): isz {
+		for (i in 0..<self.len) if (predicate(self.data[i])) return i;
+		return -1;
+	}
+
+	pub fn last_index_where(val self, predicate: (T) -> bool): isz {
+		if (self.len == 0) return -1;
+
+		var i = self.len - 1;
+		while (true) {
+			if (predicate(self.data[i])) return i;
+			if (i == 0) break;
+			i--;
+		}
+
+		return -1;
+	}
+
+	pub fn find_ptr(val self, predicate: (T) -> bool): *T? {
+		for (i in 0..<self.len) if (predicate(self.data[i])) return &self.data[i];
+		return null;
+	}
+
+	pub fn first_or(val self, default_val: T, predicate: (T) -> bool): T {
+		for (i in 0..<self.len) {
+			val item = self.data[i];
+			if (predicate(item)) return item;
+		}
+		return default_val;
+	}
+
 	pub fn remove(var self, value: T): bool {
 		val idx = self.index_of(value);
 		if (idx < 0) return false;
@@ -160,15 +191,30 @@ impl List<T> {
 		return true;
 	}
 
-	pub fn remove_all(var self, value: T): usz {
+	pub fn remove_all(var self, value: T): usz => self.remove_where { x -> x == value };
+
+	pub fn remove_where(var self, predicate: (T) -> bool): usz {
 		var write = 0;
 		var removed = 0;
 		for (i in 0..<self.len) {
-			if (self.data[i] == value) removed++;
+			if (predicate(self.data[i])) removed++;
 			else {
 				if (write != i) self.data[write] = self.data[i];
 				write++;
 			}
+		}
+		self.len = write;
+		return removed;
+	}
+
+	pub fn retain(var self, predicate: (T) -> bool): usz {
+		var write = 0;
+		var removed = 0;
+		for (i in 0..<self.len) {
+			if (predicate(self.data[i])) {
+				if (write != i) self.data[write] = self.data[i];
+				write++;
+			} else removed++;
 		}
 		self.len = write;
 		return removed;

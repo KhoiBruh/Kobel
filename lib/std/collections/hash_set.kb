@@ -132,6 +132,50 @@ impl HashSet<T: Hash> {
 		return res;
 	}
 
+	pub fn for_each(val self, action: (T) -> none) {
+		if (self.cap == 0) return;
+		for (i in 0..<self.cap) {
+			if (self.occupied[i]) action(self.keys[i]);
+		}
+	}
+
+	pub fn filter(val self, predicate: (T) -> bool): Self {
+		var res = HashSet<T>();
+		if (self.cap == 0) return res;
+		for (i in 0..<self.cap) {
+			if (self.occupied[i]) {
+				val item = self.keys[i];
+				if (predicate(item)) res.add(item);
+			}
+		}
+		return res;
+	}
+
+	pub fn any(val self, predicate: (T) -> bool): bool {
+		if (self.cap == 0) return false;
+		for (i in 0..<self.cap) {
+			if (self.occupied[i] && predicate(self.keys[i])) return true;
+		}
+		return false;
+	}
+
+	pub fn all(val self, predicate: (T) -> bool): bool {
+		if (self.cap == 0) return true;
+		for (i in 0..<self.cap) {
+			if (self.occupied[i] && !predicate(self.keys[i])) return false;
+		}
+		return true;
+	}
+
+	pub fn count_where(val self, predicate: (T) -> bool): usz {
+		var n: usz = 0;
+		if (self.cap == 0) return n;
+		for (i in 0..<self.cap) {
+			if (self.occupied[i] && predicate(self.keys[i])) n++;
+		}
+		return n;
+	}
+
 	fn grow(var self) {
 		val old_cap = self.cap;
 		val old_keys = self.keys;
