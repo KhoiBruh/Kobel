@@ -1,0 +1,137 @@
+mod test.lambda;
+
+use std.collections.*;
+
+// 1. Free function with zero-parameter lambda
+fn run_once(f: () -> i32): i32 => f();
+
+// 2. Free function with single lambda parameter
+fn compute(f: (i32) -> i32): i32 => f(10) + f(20);
+
+// 3. Free function with normal parameters before trailing lambda
+fn apply_pair(a: i32, b: i32, op_fn: (i32, i32) -> i32): i32 => op_fn(a, b);
+
+// 4. Forwarding a lambda parameter to another higher-order function
+fn forward_compute(f: (i32) -> i32): i32 => compute(f);
+
+// 5. Generic free function with trailing lambda
+fn transform_val<T, R>(v: T, f: (T) -> R): R => f(v);
+
+// 6. Struct with mutable field for testing capture of `var` struct instances
+struct Counter {
+	pub total: i32,
+	pub steps: i32
+}
+
+fn main(): i32 {
+	// Case 1: Zero-parameter trailing lambda
+	val r0 = run_once { -> 42 };
+	if (r0 != 42) return 1;
+
+	// Case 2: Single-parameter trailing lambda with inferred & explicit types
+	val r1 = compute { x -> x * 3 };
+	if (r1 != 90) return 2;
+
+	val r2 = compute { x: i32 -> x + 5 };
+	if (r2 != 40) return 3;
+
+	// Case 3: Multi-parameter trailing lambda after normal args
+	val r3 = apply_pair(7, 8) { a, b -> a * b };
+	if (r3 != 56) return 4;
+
+	// Case 4: Forwarding lambda parameter to another higher-order function
+	val r4 = forward_compute { x -> x * 2 };
+	if (r4 != 60) return 5;
+
+	// Case 5: Capturing outer `val` by value and `var` by pointer (stack-allocated env)
+	val factor = 10;
+	var acc = 0;
+	var list = List<i32>();
+	defer list.free();
+	list += 1;
+	list += 2;
+	list += 3;
+	list += 4;
+	list += 5;
+
+	list.for_each { x -> acc += x * factor };
+	if (acc != 150) return 6;
+
+	// Case 6: `List.filter`, `List.any`, `List.all`, `List.count_where`
+	var evens = list.filter { x -> x % 2 == 0 };
+	defer evens.free();
+	if (evens.len != 2) return 7;
+	if (evens[0] != 2 || evens[1] != 4) return 8;
+
+	if (!list.any { x -> x == 4 }) return 9;
+	if (list.any { x -> x > 10 }) return 10;
+	if (!list.all { x -> x > 0 }) return 11;
+	if (list.all { x -> x < 5 }) return 12;
+	if (list.count_where { x -> x >= 3 } != 3) return 13;
+
+	// Case 7: Generic `List.map` and `List.fold` with type inference from lambda body
+	var squares = list.map { x -> x * x };
+	defer squares.free();
+	if (squares.len != 5) return 14;
+	if (squares[0] != 1 || squares[2] != 9 || squares[4] != 25) return 15;
+
+	var labels = evens.map { x -> "v=${x}" };
+	defer labels.free();
+	if (labels.len != 2) return 16;
+	if (labels[0] != "v=2" || labels[1] != "v=4") return 17;
+
+	val sum = list.fold(100) { s, x -> s + x };
+	if (sum != 115) return 18;
+
+	// Case 8: Multi-statement block lambda with `yield` and early `yield`
+	var defer_runs = 0;
+	var clamped = list.map { x ->
+		defer defer_runs++;
+		if (x <= 2) {
+			yield 0;
+		}
+		val doubled = x * 2;
+		yield doubled + 1;
+	};
+	defer clamped.free();
+	if (defer_runs != 5) return 19;
+	if (clamped[0] != 0 || clamped[1] != 0 || clamped[2] != 7 || clamped[4] != 11) return 20;
+
+	// Case 9: `when` expression inside a multi-statement lambda (verifies `when` yield vs lambda yield)
+	var grades = list.map { x ->
+		val bonus = when (x) {
+			1, 2 -> 10;
+			3, 4 -> {
+				val base = 20;
+				yield base + x;
+			}
+			else -> 50;
+		};
+		yield bonus * 2;
+	};
+	defer grades.free();
+	if (grades[0] != 20 || grades[2] != 46 || grades[4] != 100) return 21;
+
+	// Case 10: Capturing and mutating a `var` struct instance across nested lambdas
+	var counter = Counter(0, 0);
+	var row1 = List<i32>();
+	defer row1.free();
+	row1 += 10;
+	row1 += 20;
+
+	row1.for_each { a ->
+		evens.for_each { b ->
+			counter.total += a + b;
+			counter.steps++;
+		};
+	};
+	if (counter.steps != 4) return 22;
+	// (10+2) + (10+4) + (20+2) + (20+4) = 12 + 14 + 22 + 24 = 72
+	if (counter.total != 72) return 23;
+
+	// Case 11: Generic free function with trailing lambda
+	val str_res = transform_val(99) { n -> "num:${n}" };
+	if (str_res != "num:99") return 24;
+
+	return 0;
+}

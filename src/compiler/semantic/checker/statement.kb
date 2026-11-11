@@ -79,6 +79,10 @@ impl BodyChecker {
 				}
 			}
 
+			if (var_ty.kind == DataType.FN) {
+				self.report_error(node, "Lambda closure cannot be stored in a variable; pass it directly to a function call");
+			}
+
 			val ok = self.symtab.define(
 				Symbol(vd.name, vd.name, SymbolKind.VAR, var_ty, vd.mutable, false, node.line, node.col, null)
 			);
@@ -425,6 +429,13 @@ impl BodyChecker {
 	}
 
 	pub fn check_return_stmt(var self, node: *AstNode) {
+		if (self.in_lambda) {
+			self.report_error(node, "Cannot use 'return' inside a lambda; use 'yield' to return a value from the lambda");
+			if (node is ReturnStmt as r && r.value != null) {
+				self.check_expr(r.value!);
+			}
+			return;
+		}
 		if (self.defer_depth > 0) {
 			self.report_error(node, "Return statement is not allowed inside defer");
 		}
@@ -440,6 +451,9 @@ impl BodyChecker {
 				);
 				if (needs_infer) {
 					val val_ty = self.check_expr(ret.value!);
+					if (val_ty.kind == DataType.FN) {
+						self.report_error(node, "Function cannot return a lambda/closure");
+					}
 					self.current_fn_return_type = val_ty;
 				} else {
 					val val_ty = self.check_expr(ret.value!, self.current_fn_return_type);

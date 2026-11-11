@@ -40,6 +40,12 @@ impl Arena {
 				if (st_info.c_name.len > 0) st_name = st_info.c_name;
 				yield self.ast_named_type(st_name);
 			}
+			DataType.FN -> {
+				val fn_info = ty.as_fn();
+				var p_nodes = List<*AstNode>();
+				for (pt in fn_info.param_types) p_nodes += self.ast_type_from_type(pt);
+				yield self.node(NodeData.FnType(p_nodes, self.ast_type_from_type(fn_info.return_type)), 0, 0);
+			}
 			DataType.NONE -> self.ast_named_type("none");
 			DataType.STR -> self.ast_named_type("str");
 			DataType.BOOL -> self.ast_named_type("bool");
@@ -56,7 +62,6 @@ impl Arena {
 			DataType.USZ -> self.ast_named_type("usz");
 			DataType.F32 -> self.ast_named_type("f32");
 			DataType.F64 -> self.ast_named_type("f64");
-			else -> self.ast_named_type("none");
 		};
 	}
 

@@ -54,7 +54,8 @@ pub struct CCodeGen {
 	pub scope_starts: List<usz> = List(),
 	pub scope_jumped: List<bool> = List(),
 	pub loop_defer_depths: List<usz> = List(),
-	pub symtab: *SymbolTable? = null
+	pub symtab: *SymbolTable? = null,
+	pub active_lambda_captures: List<LambdaCapture> = List()
 }
 
 impl CCodeGen {
@@ -78,6 +79,11 @@ impl CCodeGen {
 	pub fn is_predicate_pattern(val self, node: *AstNode?): bool {
 		if (node == null || self.symtab == null) return false;
 		return self.symtab!.is_predicate_pattern(node);
+	}
+
+	pub fn lambda_info_of(val self, node: *AstNode?): LambdaInfo {
+		if (node == null || self.symtab == null) return LambdaInfo();
+		return self.symtab!.get_lambda_info(node);
 	}
 
 	pub fn enter_defer_scope(var self) {

@@ -156,6 +156,7 @@ impl DeclarationCollector {
 	) {
 		if (f.type_params.len > 0) return;
 
+		self.validate_fn_lambda_rules(m_node, f);
 		self.validate_constructor_signature(f, m_node, st_info.name);
 		if (f.operator) self.validate_operator_signature(f, m_node, st_info.name);
 
@@ -436,6 +437,7 @@ impl DeclarationCollector {
 		prim: *Type, prim_name: str, overloaded: List<str>, var used_names: &List<str>
 	) {
 		if (f.type_params.len > 0) return;
+		self.validate_fn_lambda_rules(m_node, f);
 		var param_types = List<*Type>();
 
 		for (i in 0..<f.params.len) {

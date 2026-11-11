@@ -62,6 +62,8 @@ pub fn c_type_from_ast(node: *AstNode): str {
 
 		is NullableType -> c_type_from_ast(node.inner_type);
 
+		is FnType -> "kobel_closure";
+
 		else -> "void*";
 	};
 }
@@ -101,6 +103,6 @@ pub fn c_type_from_type(ty: *Type): str {
 
 		DataType.ARRAY -> "${c_type_from_type(ty.as_array().elem)}*";
 		DataType.STRUCT -> ty.as_struct().c_name;
-		else -> "void";
+		DataType.FN -> "kobel_closure";
 	};
 }

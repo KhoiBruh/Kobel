@@ -31,6 +31,11 @@ typedef struct {
 	size_t len;
 } kobel_str;
 
+typedef struct {
+	void* fn;
+	void* env;
+} kobel_closure;
+
 #define KOBEL_STR(s) ((kobel_str){ (s), sizeof(s) - 1 })
 
 static inline kobel_str kobel_null_str(void) {

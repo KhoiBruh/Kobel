@@ -174,6 +174,48 @@ impl List<T> {
 		return removed;
 	}
 
+	pub fn for_each(val self, action: (T) -> none) {
+		for (i in 0..<self.len) action(self.data[i]);
+	}
+
+	pub fn filter(val self, predicate: (T) -> bool): List<T> {
+		var res = List<T>();
+		for (i in 0..<self.len) {
+			val item = self.data[i];
+			if (predicate(item)) res += item;
+		}
+		return res;
+	}
+
+	pub fn any(val self, predicate: (T) -> bool): bool {
+		for (i in 0..<self.len) if (predicate(self.data[i])) return true;
+		return false;
+	}
+
+	pub fn all(val self, predicate: (T) -> bool): bool {
+		for (i in 0..<self.len) if (!predicate(self.data[i])) return false;
+		return true;
+	}
+
+	pub fn count_where(val self, predicate: (T) -> bool): usz {
+		var n: usz = 0;
+		for (i in 0..<self.len) if (predicate(self.data[i])) n++;
+		return n;
+	}
+
+	pub fn map<U>(val self, transform: (T) -> U): List<U> {
+		val cap = if (self.len > 4) self.len else 4;
+		var res = List<U>(cap);
+		for (i in 0..<self.len) res += transform(self.data[i]);
+		return res;
+	}
+
+	pub fn fold<U>(val self, initial: U, operation: (U, T) -> U): U {
+		var acc = initial;
+		for (i in 0..<self.len) acc = operation(acc, self.data[i]);
+		return acc;
+	}
+
 	pub fn free(self) => Heap.free(self.data);
 
 	pub op get(val self, index: usz) => self.data[index];

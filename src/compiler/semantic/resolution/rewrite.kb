@@ -106,6 +106,12 @@ impl TypeResolver {
 			is NamedType -> self.rewrite_named_type(node);
 			is PointerType -> self.rewrite_child(target.pointee);
 			is ArrayType -> self.rewrite_child(target.element_type);
+			is NullableType -> self.rewrite_child(target.inner_type);
+			is FnType as ft -> {
+				for (pt in ft.param_types) self.rewrite_generics(pt);
+				self.rewrite_generics(ft.return_type);
+				yield true;
+			}
 			else -> false;
 		};
 	}
@@ -218,6 +224,13 @@ impl TypeResolver {
 			is IsExpr as is_e -> {
 				if (is_e.expr != null) self.rewrite_generics(is_e.expr);
 				self.rewrite_generics(is_e.target_type);
+				yield true;
+			}
+			is LambdaExpr as lam -> {
+				for (p in lam.params) {
+					if (p.type_node != null) self.rewrite_generics(p.type_node);
+				}
+				self.rewrite_generics(lam.body);
 				yield true;
 			}
 			else -> false;

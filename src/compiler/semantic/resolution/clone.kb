@@ -39,10 +39,22 @@ impl TypeResolver {
 				if (sa != null) yield self.clone_type(sa, null);
 
 				if (nt.type_args.len > 0) {
-					val tmpl = self.find_struct_template(nt.name);
+					var args = List<*AstNode>();
+					for (ta in nt.type_args) args += self.clone_type(ta, subst);
+					var has_unsubstituted = false;
+					for (ca in args) {
+						if (ca is NamedType as t_nt) {
+							if (
+								resolve_primitive_name(self.symtab.prims!, t_nt.name) == null
+								&& self.symtab.lookup(t_nt.name) == null
+								&& self.find_struct_template(t_nt.name) == null
+							) {
+								has_unsubstituted = true;
+							}
+						}
+					}
+					val tmpl = if (!has_unsubstituted) self.find_struct_template(nt.name) else null;
 					if (tmpl != null) {
-						var args = List<*AstNode>();
-						for (ta in nt.type_args) args += self.clone_type(ta, subst);
 						val cty = self.instantiate_struct(tmpl, args);
 
 						yield self.arena.node(
@@ -71,6 +83,15 @@ impl TypeResolver {
 				NodeData.NullableType(self.clone_type(nt.inner_type, subst)),
 				node.line, node.col
 			);
+
+			is FnType as ft -> {
+				var p_nodes = List<*AstNode>();
+				for (pt in ft.param_types) p_nodes += self.clone_type(pt, subst);
+				yield self.arena.node(
+					NodeData.FnType(p_nodes, self.clone_type(ft.return_type, subst)),
+					node.line, node.col
+				);
+			}
 
 			else -> self.arena.node(
 				NodeData.NamedType("none", List<*AstNode>()),
@@ -230,6 +251,22 @@ impl TypeResolver {
 				node.line, node.col
 			);
 
+			is LambdaExpr as lam -> {
+				var c_params = List<Param>();
+				for (p in lam.params) {
+					val pt = if (p.type_node != null) self.clone_type(p.type_node!, subst) else null;
+					c_params += Param(p.name, pt, p.mutable, p.has_val, null);
+				}
+				val c_body = if (lam.body is BlockStmt)
+					self.clone_stmt(lam.body, subst)
+				else
+					self.clone_expr(lam.body, subst);
+				yield self.arena.node(
+					NodeData.LambdaExpr(c_params, c_body, lam.is_trailing, lam.had_empty_parens),
+					node.line, node.col
+				);
+			}
+
 			else -> self.arena.node(
 				NodeData.IdentifierExpr("<unsupported-expr>"),
 				node.line, node.col
@@ -241,12 +278,26 @@ impl TypeResolver {
 			if (e.method != null) self.symtab.set_resolved_method(out, e.method);
 			if (e.has_is_info) self.symtab.set_is_pattern(out, e.is_info);
 			if (e.is_predicate) self.symtab.set_predicate_pattern(out);
+			if (e.has_lambda_info) {
+				var linfo = e.lambda_info;
+				linfo.id = self.symtab.alloc_lambda_id();
+				self.symtab.set_lambda_info(out, linfo);
+			}
+			if (e.is_closure_call) self.symtab.set_closure_call(out);
 		} else {
 			if (self.symtab.has_is_pattern(node)) {
 				self.symtab.set_is_pattern(out, self.symtab.get_is_pattern(node));
 			}
 			if (self.symtab.is_predicate_pattern(node)) {
 				self.symtab.set_predicate_pattern(out);
+			}
+			if (self.symtab.has_lambda_info(node)) {
+				var linfo = self.symtab.get_lambda_info(node);
+				linfo.id = self.symtab.alloc_lambda_id();
+				self.symtab.set_lambda_info(out, linfo);
+			}
+			if (self.symtab.is_closure_call(node)) {
+				self.symtab.set_closure_call(out);
 			}
 		}
 		return out;
@@ -355,17 +406,38 @@ impl TypeResolver {
 				val st = self.find_struct_template(cid.name);
 				if (st != null) {
 					val targs = self.clone_type_args(c.type_args, subst);
-					val cty = self.instantiate_struct(st, targs);
+					var has_unsubstituted = false;
+					for (ca in targs) {
+						if (ca is NamedType as t_nt) {
+							if (
+								resolve_primitive_name(self.symtab.prims!, t_nt.name) == null
+								&& self.symtab.lookup(t_nt.name) == null
+								&& self.find_struct_template(t_nt.name) == null
+							) {
+								has_unsubstituted = true;
+							}
+						}
+					}
+					if (!has_unsubstituted) {
+						val cty = self.instantiate_struct(st, targs);
+						var cargs = List<*AstNode>();
+						for (a in c.args) cargs += self.clone_expr(a, subst);
+
+						val callee = self.arena.node(
+							NodeData.IdentifierExpr(cty.as_struct()!.name),
+							node.line, node.col
+						);
+
+						return self.arena.node(
+							NodeData.CallExpr(callee, cargs, List<*AstNode>()),
+							node.line, node.col
+						);
+					}
 					var cargs = List<*AstNode>();
 					for (a in c.args) cargs += self.clone_expr(a, subst);
-
-					val callee = self.arena.node(
-						NodeData.IdentifierExpr(cty.as_struct()!.name),
-						node.line, node.col
-					);
-
+					val callee = self.arena.node(NodeData.IdentifierExpr(cid.name), node.line, node.col);
 					return self.arena.node(
-						NodeData.CallExpr(callee, cargs, List<*AstNode>()),
+						NodeData.CallExpr(callee, cargs, targs),
 						node.line, node.col
 					);
 				}

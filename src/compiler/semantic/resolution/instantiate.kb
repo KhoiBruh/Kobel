@@ -73,7 +73,15 @@ impl TypeResolver {
 		self.check_bounds(tmpl, arg_asts);
 
 		var args = List<*Type>();
-		for (a in arg_asts) args += self.resolve_ast_type(a);
+		for (a in arg_asts) {
+			val aty = self.resolve_ast_type(a);
+			if (aty.kind == DataType.FN) {
+				self.report_error(a, "Lambda/closure type cannot be used as a generic type argument");
+				args += self.prims().t_none();
+			} else {
+				args += aty;
+			}
+		}
 
 		val known = self.symtab.gen.find_instance_record(tmpl, args, InstanceKind.STRUCT);
 		if (known != null) {
@@ -128,8 +136,45 @@ impl TypeResolver {
 					val mark2 = self.subst.push(impl_tmpl.param_names(), args, self.prims().t_none());
 
 					var methods = List<*AstNode>();
+					var canon_arg_asts = List<*AstNode>();
+					for (aty in args) canon_arg_asts += self.arena.ast_type_from_type(aty);
 					for (m in im.methods) {
 						if (m is FnDecl as mf) {
+							if (mf.type_params.len > 0) {
+								self.subst.pop(mark2);
+								val impl_subst = self.alloc_subst(impl_tmpl.param_names(), canon_arg_asts);
+								var m_params = List<Param>();
+								for (p in mf.params) {
+									var pt: *AstNode? = null;
+									if (p.name == "self" && p.type_node == null) {
+										val named = self.arena.node(NodeData.NamedType(cname, List<*AstNode>()), m.line, m.col);
+										pt = self.arena.node(NodeData.PointerType(p.mutable, named), m.line, m.col);
+									} else if (p.type_node != null) {
+										pt = self.clone_type(p.type_node!, impl_subst);
+									}
+									val dflt = if (p.default_val != null)
+										self.clone_expr(p.default_val!, impl_subst)
+										else null;
+									m_params += Param(p.name, pt, p.mutable, p.has_val, dflt);
+								}
+								val m_rt = if (mf.return_type != null)
+									self.clone_type(mf.return_type!, impl_subst)
+									else null;
+								val m_body = if (mf.body != null)
+									self.clone_stmt(mf.body!, impl_subst)
+									else null;
+								val gm_node = self.arena.node(
+									NodeData.FnDecl(
+										mf.name, mf.type_params, m_params,
+										m_rt, m_body, mf.public,
+										mf.operator, mf.initializer, impl_tmpl.module
+									),
+									m.line, m.col
+								);
+								self.symtab.gen.fn_templates += self.generic_template(mf.name, gm_node, true, cname);
+								self.subst.push(impl_tmpl.param_names(), args, self.prims().t_none());
+								continue;
+							}
 							val mview = self.make_fn_view(m, impl_tmpl, args, arg_asts, mf.name);
 							val mrec = self.arena.create_val(InstanceRecord(InstanceKind.FUNCTION, impl_tmpl, args, cname, mview));
 							mrec.sig = self.make_fn_sig(m, impl_tmpl, args, s_type);
@@ -300,7 +345,15 @@ impl TypeResolver {
 		self.check_bounds(tmpl, arg_asts);
 
 		var args = List<*Type>();
-		for (a in arg_asts) args += self.resolve_ast_type(a);
+		for (a in arg_asts) {
+			val aty = self.resolve_ast_type(a);
+			if (aty.kind == DataType.FN) {
+				self.report_error(a, "Lambda/closure type cannot be used as a generic type argument");
+				args += self.prims().t_none();
+			} else {
+				args += aty;
+			}
+		}
 
 		val known = self.symtab.gen.find_instance_record(tmpl, args, InstanceKind.FUNCTION);
 		if (known != null) return known.c_name;

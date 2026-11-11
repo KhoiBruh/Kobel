@@ -4,6 +4,8 @@ use std.collections.*;
 
 use compiler.lexer.*;
 use compiler.ast.*;
+use compiler.semantic.types.*;
+use compiler.semantic.symbols.*;
 
 // ============================================================================
 // Declaration Code Generation
@@ -299,6 +301,14 @@ impl CCodeGen {
 		val f_body = f.body;
 		if (!is_proto && f_body == null) return;
 
+		if (!is_proto && f_body != null) {
+			var lambdas = List<*AstNode>();
+			self.collect_lambdas_in_node(f_body, &lambdas);
+			for (lam_node in lambdas) {
+				self.gen_lambda_helper(lam_node);
+			}
+		}
+
 		self.out += ret_ty;
 		self.out += ' ';
 		self.out += f.name;
@@ -419,6 +429,185 @@ impl CCodeGen {
 			if (!ty.empty()) return ty;
 		}
 		return "void";
+	}
+
+	pub fn collect_lambdas_in_node(val self, node: *AstNode?, var out: &List<*AstNode>) {
+		if (node == null) return;
+		val cur = node!;
+		when (cur) {
+			is LambdaExpr as lam -> {
+				self.collect_lambdas_in_node(lam.body, out);
+				out += cur;
+			}
+			is BlockStmt as b -> {
+				for (s in b.statements) self.collect_lambdas_in_node(s, out);
+			}
+			is ExprStmt as e -> self.collect_lambdas_in_node(e.expr, out);
+			is VarDeclStmt as v -> self.collect_lambdas_in_node(v.initializer, out);
+			is DestructDeclStmt as d -> self.collect_lambdas_in_node(d.initializer, out);
+			is IfStmt as s -> {
+				self.collect_lambdas_in_node(s.condition, out);
+				self.collect_lambdas_in_node(s.then_branch, out);
+				self.collect_lambdas_in_node(s.else_branch, out);
+			}
+			is WhileStmt as w -> {
+				self.collect_lambdas_in_node(w.condition, out);
+				self.collect_lambdas_in_node(w.body, out);
+			}
+			is ForStmt as f -> {
+				self.collect_lambdas_in_node(f.iterable, out);
+				self.collect_lambdas_in_node(f.range_start, out);
+				self.collect_lambdas_in_node(f.range_end, out);
+				self.collect_lambdas_in_node(f.body, out);
+			}
+			is ReturnStmt as r -> self.collect_lambdas_in_node(r.value, out);
+			is YieldStmt as y -> self.collect_lambdas_in_node(y.value, out);
+			is DeferStmt as d -> self.collect_lambdas_in_node(d.body, out);
+			is WhenStmt as w -> {
+				self.collect_lambdas_in_node(w.condition, out);
+				for (arm in w.arms) {
+					for (p in arm.patterns) self.collect_lambdas_in_node(p, out);
+					self.collect_lambdas_in_node(arm.body, out);
+				}
+			}
+			is CallExpr as c -> {
+				self.collect_lambdas_in_node(c.callee, out);
+				for (a in c.args) self.collect_lambdas_in_node(a, out);
+			}
+			is BinaryExpr as b -> {
+				self.collect_lambdas_in_node(b.left, out);
+				self.collect_lambdas_in_node(b.right, out);
+			}
+			is UnaryExpr as u -> self.collect_lambdas_in_node(u.operand, out);
+			is MemberExpr as m -> self.collect_lambdas_in_node(m.object, out);
+			is IndexExpr as ix -> {
+				self.collect_lambdas_in_node(ix.target, out);
+				self.collect_lambdas_in_node(ix.index, out);
+			}
+			is AssignExpr as a -> {
+				self.collect_lambdas_in_node(a.target, out);
+				self.collect_lambdas_in_node(a.value, out);
+			}
+			is UpdateExpr as u -> self.collect_lambdas_in_node(u.target, out);
+			is CastExpr as cst -> self.collect_lambdas_in_node(cst.expr, out);
+			is GroupExpr as g -> self.collect_lambdas_in_node(g.expr, out);
+			is IfExpr as ie -> {
+				self.collect_lambdas_in_node(ie.condition, out);
+				self.collect_lambdas_in_node(ie.then_branch, out);
+				self.collect_lambdas_in_node(ie.else_branch, out);
+			}
+			is ArrayLiteralExpr as al -> {
+				for (el in al.elements) self.collect_lambdas_in_node(el, out);
+			}
+			is WhenExpr as we -> {
+				self.collect_lambdas_in_node(we.condition, out);
+				for (arm in we.arms) {
+					for (p in arm.patterns) self.collect_lambdas_in_node(p, out);
+					self.collect_lambdas_in_node(arm.body, out);
+				}
+			}
+			is StructCtorExpr as sc -> {
+				for (a in sc.args) self.collect_lambdas_in_node(a, out);
+			}
+			is EnumCtorExpr as ec -> {
+				for (a in ec.args) self.collect_lambdas_in_node(a, out);
+			}
+		}
+	}
+
+	pub fn gen_lambda_helper(var self, node: *AstNode) {
+		if (node is LambdaExpr as lam) {
+			val info = self.lambda_info_of(node);
+			if (info.id == 0 || info.fn_type == null) return;
+			val fn_info = info.fn_type!.as_fn();
+			val ret_c = c_type_from_type(fn_info.return_type);
+
+			if (!info.captures.empty()) {
+				self.out += "struct __lambda_env_";
+				self.out += info.id;
+				self.out += " {\n";
+				for (cap in info.captures) {
+					val cap_c = if (cap.ty != null) c_type_from_type(cap.ty!) else "int32_t";
+					self.out += "    ";
+					self.out += cap_c;
+					if (cap.is_mutable) self.out += '*';
+					self.out += ' ';
+					self.out += cap.name;
+					self.out += ";\n";
+				}
+				self.out += "};\n\n";
+			}
+
+			self.out += "static ";
+			self.out += ret_c;
+			self.out += " __lambda_fn_";
+			self.out += info.id;
+			self.out += "(void* __raw_env";
+			for (i in 0..<lam.params.len) {
+				val p = lam.params[i];
+				val p_c = if (i < fn_info.param_types.len) c_type_from_type(fn_info.param_types[i]) else "int32_t";
+				self.out += ", ";
+				self.out += p_c;
+				self.out += ' ';
+				self.out += p.name;
+			}
+			self.out += ") {\n";
+			if (!info.captures.empty()) {
+				self.out += "    struct __lambda_env_";
+				self.out += info.id;
+				self.out += "* __env = (struct __lambda_env_";
+				self.out += info.id;
+				self.out += "*)__raw_env;\n";
+			} else {
+				self.out += "    (void)__raw_env;\n";
+			}
+
+			val saved_ret_ty = self.current_fn_ret_type;
+			val saved_yield_ret = self.is_yield_return;
+			val saved_yield_target = self.yield_target;
+			val saved_yield_exit = self.yield_exit_label;
+			val saved_captures = self.active_lambda_captures;
+			val saved_defers = self.defer_nodes.clone();
+			val saved_starts = self.scope_starts.clone();
+			val saved_jumped = self.scope_jumped.clone();
+			val saved_loop_depths = self.loop_defer_depths.clone();
+
+			self.current_fn_ret_type = ret_c;
+			self.is_yield_return = true;
+			self.yield_target = "";
+			self.yield_exit_label = "";
+			self.active_lambda_captures = info.captures;
+			self.defer_nodes.clear();
+			self.scope_starts.clear();
+			self.scope_jumped.clear();
+			self.loop_defer_depths.clear();
+
+			if (lam.body is BlockStmt) {
+				self.gen_block_body(lam.body);
+			} else if (ret_c == "void") {
+				self.out += "    ";
+				self.out += self.gen_expr(lam.body);
+				self.out += ";\n";
+			} else if (lam.body is WhenExpr as we && we.has_blocks()) {
+				self.gen_when_with_target(we, "", true);
+			} else {
+				self.out += "    return ";
+				self.out += self.gen_expr(lam.body);
+				self.out += ";\n";
+			}
+
+			self.current_fn_ret_type = saved_ret_ty;
+			self.is_yield_return = saved_yield_ret;
+			self.yield_target = saved_yield_target;
+			self.yield_exit_label = saved_yield_exit;
+			self.active_lambda_captures = saved_captures;
+			self.defer_nodes = saved_defers;
+			self.scope_starts = saved_starts;
+			self.scope_jumped = saved_jumped;
+			self.loop_defer_depths = saved_loop_depths;
+
+			self.out += "}\n\n";
+		}
 	}
 
 }

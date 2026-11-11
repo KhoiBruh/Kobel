@@ -127,12 +127,34 @@ impl TypeResolver {
 
 			is PointerType as ptr_ast -> {
 				val pointee = self.resolve_ast_type(ptr_ast.pointee);
+				if (pointee.kind == DataType.FN) {
+					self.report_error(node, "Pointer to a lambda/closure type is not allowed");
+				}
 				yield self.arena.pointer_type(pointee, ptr_ast.mutable);
 			}
 
 			is ArrayType as arr_ast -> {
 				val elem = self.resolve_ast_type(arr_ast.element_type);
+				if (elem.kind == DataType.FN) {
+					self.report_error(node, "Array of lambda/closure types is not allowed");
+				}
 				yield self.arena.array_type(elem, arr_ast.size);
+			}
+
+			is FnType as fn_ast -> {
+				var p_types = List<*Type>();
+				for (pt in fn_ast.param_types) {
+					val resolved_pt = self.resolve_ast_type(pt);
+					if (resolved_pt.kind == DataType.FN) {
+						self.report_error(pt, "Nested lambda/closure parameter types are not allowed");
+					}
+					p_types += resolved_pt;
+				}
+				val ret_ty = self.resolve_ast_type(fn_ast.return_type);
+				if (ret_ty.kind == DataType.FN) {
+					self.report_error(fn_ast.return_type, "Lambda/closure type cannot return another lambda/closure type");
+				}
+				yield self.arena.fn_type(p_types, ret_ty);
 			}
 
 			is NullableType as null_ast -> {

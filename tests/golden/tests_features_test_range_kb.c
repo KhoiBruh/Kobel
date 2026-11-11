@@ -24,6 +24,11 @@ typedef struct {
 	size_t len;
 } kobel_str;
 
+typedef struct {
+	void* fn;
+	void* env;
+} kobel_closure;
+
 #define KOBEL_STR(s) ((kobel_str){ (s), sizeof(s) - 1 })
 
 static inline kobel_str kobel_null_str(void) {
@@ -501,6 +506,11 @@ intptr_t std__collections__List_str_index_of(std__collections__List_str* self, k
 intptr_t std__collections__List_str_last_index_of(std__collections__List_str* self, kobel_str value);
 bool std__collections__List_str_remove(std__collections__List_str* self, kobel_str value);
 size_t std__collections__List_str_remove_all(std__collections__List_str* self, kobel_str value);
+void std__collections__List_str_for_each(std__collections__List_str* self, kobel_closure action);
+std__collections__List_str std__collections__List_str_filter(std__collections__List_str* self, kobel_closure predicate);
+bool std__collections__List_str_any(std__collections__List_str* self, kobel_closure predicate);
+bool std__collections__List_str_all(std__collections__List_str* self, kobel_closure predicate);
+size_t std__collections__List_str_count_where(std__collections__List_str* self, kobel_closure predicate);
 void std__collections__List_str_free(std__collections__List_str* self);
 kobel_str std__collections__List_str_get(std__collections__List_str* self, size_t index);
 bool std__collections__List_str_contains(std__collections__List_str* self, kobel_str value);
@@ -2874,6 +2884,176 @@ __for_i = (__for_i - 1);
 }
 self->len = write;
 return removed;
+}
+
+void std__collections__List_str_for_each(std__collections__List_str* self, kobel_closure action) {
+{
+size_t __for_e = self->len;
+size_t __for_i = __for_e;
+__for_i = 0;
+bool __for_up = (__for_i <= __for_e);
+bool __for_go = false;
+if (__for_up) {
+__for_go = (__for_i < __for_e);
+} else {
+__for_go = (__for_i > __for_e);
+}
+while (__for_go) {
+size_t i = __for_i;
+((void (*)(void*, kobel_str))action.fn)(action.env, self->data[i]);
+if (__for_up) {
+__for_go = ((__for_i + 1) < __for_e);
+} else {
+__for_go = ((__for_i - 1) > __for_e);
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = (__for_i + 1);
+} else {
+__for_i = (__for_i - 1);
+}
+}
+}
+}
+}
+
+std__collections__List_str std__collections__List_str_filter(std__collections__List_str* self, kobel_closure predicate) {
+std__collections__List_str res = std__collections__List_str_init(4);
+{
+size_t __for_e = self->len;
+size_t __for_i = __for_e;
+__for_i = 0;
+bool __for_up = (__for_i <= __for_e);
+bool __for_go = false;
+if (__for_up) {
+__for_go = (__for_i < __for_e);
+} else {
+__for_go = (__for_i > __for_e);
+}
+while (__for_go) {
+size_t i = __for_i;
+kobel_str item = self->data[i];
+if (((bool (*)(void*, kobel_str))predicate.fn)(predicate.env, item)) {
+std__collections__List_str_plus_assign(&res, item);
+}
+if (__for_up) {
+__for_go = ((__for_i + 1) < __for_e);
+} else {
+__for_go = ((__for_i - 1) > __for_e);
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = (__for_i + 1);
+} else {
+__for_i = (__for_i - 1);
+}
+}
+}
+}
+return res;
+}
+
+bool std__collections__List_str_any(std__collections__List_str* self, kobel_closure predicate) {
+{
+size_t __for_e = self->len;
+size_t __for_i = __for_e;
+__for_i = 0;
+bool __for_up = (__for_i <= __for_e);
+bool __for_go = false;
+if (__for_up) {
+__for_go = (__for_i < __for_e);
+} else {
+__for_go = (__for_i > __for_e);
+}
+while (__for_go) {
+size_t i = __for_i;
+if (((bool (*)(void*, kobel_str))predicate.fn)(predicate.env, self->data[i])) {
+return true;
+}
+if (__for_up) {
+__for_go = ((__for_i + 1) < __for_e);
+} else {
+__for_go = ((__for_i - 1) > __for_e);
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = (__for_i + 1);
+} else {
+__for_i = (__for_i - 1);
+}
+}
+}
+}
+return false;
+}
+
+bool std__collections__List_str_all(std__collections__List_str* self, kobel_closure predicate) {
+{
+size_t __for_e = self->len;
+size_t __for_i = __for_e;
+__for_i = 0;
+bool __for_up = (__for_i <= __for_e);
+bool __for_go = false;
+if (__for_up) {
+__for_go = (__for_i < __for_e);
+} else {
+__for_go = (__for_i > __for_e);
+}
+while (__for_go) {
+size_t i = __for_i;
+if (!((bool (*)(void*, kobel_str))predicate.fn)(predicate.env, self->data[i])) {
+return false;
+}
+if (__for_up) {
+__for_go = ((__for_i + 1) < __for_e);
+} else {
+__for_go = ((__for_i - 1) > __for_e);
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = (__for_i + 1);
+} else {
+__for_i = (__for_i - 1);
+}
+}
+}
+}
+return true;
+}
+
+size_t std__collections__List_str_count_where(std__collections__List_str* self, kobel_closure predicate) {
+size_t n = 0;
+{
+size_t __for_e = self->len;
+size_t __for_i = __for_e;
+__for_i = 0;
+bool __for_up = (__for_i <= __for_e);
+bool __for_go = false;
+if (__for_up) {
+__for_go = (__for_i < __for_e);
+} else {
+__for_go = (__for_i > __for_e);
+}
+while (__for_go) {
+size_t i = __for_i;
+if (((bool (*)(void*, kobel_str))predicate.fn)(predicate.env, self->data[i])) {
+n++;
+}
+if (__for_up) {
+__for_go = ((__for_i + 1) < __for_e);
+} else {
+__for_go = ((__for_i - 1) > __for_e);
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = (__for_i + 1);
+} else {
+__for_i = (__for_i - 1);
+}
+}
+}
+}
+return n;
 }
 
 void std__collections__List_str_free(std__collections__List_str* self) {

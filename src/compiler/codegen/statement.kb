@@ -810,6 +810,25 @@ impl CCodeGen {
 
 	fn gen_yield_stmt(var self, ys: *YieldStmt) {
 		if (self.is_yield_return) {
+			if (self.has_active_defers()) {
+				self.mark_current_scope_jumped();
+				if (ys.value != null) {
+					var ret_ty = self.current_fn_ret_type;
+					if (ret_ty.empty() || ret_ty == "void") ret_ty = self.c_type_or(ys.value!, "int32_t");
+					self.out += "{\n";
+					self.out += ret_ty;
+					self.out += " __ret_tmp = ";
+					self.out += self.gen_expr(ys.value!);
+					self.out += ";\n";
+					self.gen_defers_unwind(0);
+					self.out += "return __ret_tmp;\n";
+					self.out += "}\n";
+					return;
+				}
+				self.gen_defers_unwind(0);
+				self.out += "return;\n";
+				return;
+			}
 			if (ys.value != null) {
 				self.out += "return ";
 				self.out += self.gen_expr(ys.value!);

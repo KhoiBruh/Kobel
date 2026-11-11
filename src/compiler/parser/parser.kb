@@ -124,7 +124,67 @@ impl Parser {
 		}
 	}
 
-	// Check whether the position after '<' looks like type arguments ending with '>('
+	// Check whether the token at `idx` is `{ [params] -> ... }` (a lambda block).
+	pub fn is_lambda_brace_at(val self, idx: usz): bool {
+		if (idx >= self.tokens.len) return false;
+		val open_tok = self.tokens[idx];
+		if (open_tok.type != TokenType.OPEN_BRACE) return false;
+
+		var cur = idx + 1;
+		if (cur >= self.tokens.len) return false;
+		val first_tok = self.tokens[cur];
+		if (first_tok.type == TokenType.ARROW) return true;
+
+		while (cur < self.tokens.len) {
+			val p_tok = self.tokens[cur];
+			if (
+				p_tok.type == TokenType.KW_VAR
+				|| p_tok.type == TokenType.KW_VAL
+			) cur++;
+			if (cur >= self.tokens.len) return false;
+			val id_tok = self.tokens[cur];
+			if (id_tok.type != TokenType.IDENTIFIER) return false;
+			cur++;
+
+			if (cur < self.tokens.len && self.tokens[cur].type == TokenType.COLON) {
+				cur++;
+				var depth = 0;
+				while (cur < self.tokens.len) {
+					val t_tok = self.tokens[cur];
+					if (
+						depth == 0
+						&& (t_tok.type == TokenType.COMMA || t_tok.type == TokenType.ARROW)
+					) break;
+					when (t_tok.type) {
+						TokenType.LESS, TokenType.OPEN_PAREN,
+						TokenType.OPEN_BRACKET -> depth++;
+						TokenType.GREATER, TokenType.CLOSE_PAREN,
+						TokenType.CLOSE_BRACKET -> {
+							if (depth == 0) return false;
+							depth--;
+						}
+						TokenType.SEMI_COLON, TokenType.OPEN_BRACE,
+						TokenType.CLOSE_BRACE, TokenType.END_OF_FILE -> return false;
+					}
+					cur++;
+				}
+			}
+
+			if (cur >= self.tokens.len) return false;
+			val sep_tok = self.tokens[cur];
+			if (sep_tok.type == TokenType.ARROW) return true;
+			if (sep_tok.type == TokenType.COMMA) {
+				cur++;
+				continue;
+			}
+			return false;
+		}
+		return false;
+	}
+
+	pub fn is_lambda_brace_ahead(val self): bool => self.is_lambda_brace_at(self.current);
+
+	// Check whether the position after '<' looks like type arguments ending with '>(' or '> {'
 	pub fn is_generic_args_ahead(val self): bool {
 		if (!self.check(TokenType.LESS)) return false;
 
@@ -135,10 +195,13 @@ impl Parser {
 				TokenType.LESS -> depth++;
 				TokenType.GREATER -> {
 					depth--;
-					if (depth == 0) return (
-						i + 1 < self.tokens.len
-						&& self.tokens[i + 1].type == TokenType.OPEN_PAREN
-					);
+					if (depth == 0) {
+						if (i + 1 >= self.tokens.len) return false;
+						val next_t = self.tokens[i + 1].type;
+						if (next_t == TokenType.OPEN_PAREN) return true;
+						if (next_t == TokenType.OPEN_BRACE) return self.is_lambda_brace_at(i + 1);
+						return false;
+					}
 				}
 				TokenType.SEMI_COLON, TokenType.OPEN_BRACE,
 				TokenType.CLOSE_BRACE, TokenType.END_OF_FILE -> return false;

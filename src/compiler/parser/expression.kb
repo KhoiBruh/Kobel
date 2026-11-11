@@ -271,6 +271,10 @@ impl Parser {
 		TokenType.DOT, TokenType.QUESTION_DOT, TokenType.OPEN_PAREN,
 		TokenType.OPEN_BRACKET, TokenType.PLUS_PLUS,
 		TokenType.MINUS_MINUS -> Precedence.CALL;
+		TokenType.OPEN_BRACE -> {
+			if (self.is_lambda_brace_ahead()) yield Precedence.CALL;
+			yield Precedence.NONE;
+		}
 		else -> Precedence.NONE;
 	};
 
@@ -321,6 +325,99 @@ impl Parser {
 		}
 		self.consume(TokenType.CLOSE_PAREN, "Expected ')' after function arguments");
 		return args;
+	}
+
+	// Checks whether the current lambda body (starting right after `->`) is a
+	// multi-statement block rather than a single expression.
+	fn is_lambda_body_block(val self): bool {
+		if (self.is_end()) return false;
+		val first = self.peek();
+		when (first.type) {
+			TokenType.KW_VAL, TokenType.KW_VAR, TokenType.KW_YIELD,
+			TokenType.KW_RETURN, TokenType.KW_DEFER, TokenType.KW_WHILE,
+			TokenType.KW_FOR, TokenType.KW_BREAK, TokenType.KW_CONTINUE,
+			TokenType.CLOSE_BRACE -> return true;
+		}
+
+		var brace_depth = 0;
+		var when_brace_depth = 0;
+		var pending_when = false;
+		var paren_depth = 0;
+
+		for (i in self.current..<self.tokens.len) {
+			val tok = self.tokens[i];
+			when (tok.type) {
+				TokenType.KW_WHEN -> if (paren_depth == 0) pending_when = true;
+				TokenType.OPEN_PAREN -> paren_depth++;
+				TokenType.CLOSE_PAREN -> if (paren_depth > 0) paren_depth--;
+				TokenType.OPEN_BRACE -> {
+					brace_depth++;
+					if (pending_when && paren_depth == 0) {
+						when_brace_depth++;
+						pending_when = false;
+					}
+				}
+				TokenType.CLOSE_BRACE -> {
+					if (brace_depth == 0) return false;
+					if (when_brace_depth > 0 && brace_depth == when_brace_depth) {
+						when_brace_depth--;
+					}
+					brace_depth--;
+				}
+				TokenType.SEMI_COLON -> {
+					if (brace_depth == 0) return true;
+					if (when_brace_depth == 0) return true;
+				}
+				TokenType.KW_YIELD, TokenType.KW_RETURN -> {
+					if (when_brace_depth == 0) return true;
+				}
+				TokenType.END_OF_FILE -> return false;
+			}
+		}
+		return false;
+	}
+
+	pub fn parse_lambda_expr(var self, is_trailing: bool, had_empty_parens: bool): *AstNode {
+		val open_tok = self.consume(TokenType.OPEN_BRACE, "Expected '{' to start lambda");
+		val (line, col) = open_tok;
+
+		var params = List<Param>();
+		if (!self.check(TokenType.ARROW)) {
+			while (!self.is_end()) {
+				val p_peek = self.peek();
+				if (p_peek.type == TokenType.KW_VAR || p_peek.type == TokenType.KW_VAL) {
+					self.error(p_peek, "Lambda parameters are always immutable ('val') and cannot specify 'val' or 'var'");
+					self.advance();
+				}
+				val name_tok = self.consume(TokenType.IDENTIFIER, "Expected lambda parameter name before '->'");
+				var type_node: *AstNode? = null;
+				if (self.match_token(TokenType.COLON)) {
+					type_node = self.parse_type();
+				}
+				if (self.match_token(TokenType.EQUAL)) {
+					self.error(self.previous(), "Lambda parameters cannot have default values");
+					self.parse_expression(Precedence.NONE);
+				}
+				params += Param(name_tok.text, type_node, false, false, null);
+				if (!self.match_token(TokenType.COMMA)) break;
+			}
+		}
+
+		self.consume(TokenType.ARROW, "Expected '->' after lambda parameters");
+
+		var body: *AstNode? = null;
+		if (self.is_lambda_body_block()) {
+			var stmts = List<*AstNode>();
+			while (!self.check(TokenType.CLOSE_BRACE) && !self.is_end()) {
+				stmts += self.parse_statement();
+			}
+			body = self.node(NodeData.BlockStmt(stmts), line, col);
+		} else {
+			body = self.parse_expression(Precedence.NONE);
+		}
+
+		self.consume(TokenType.CLOSE_BRACE, "Expected '}' after lambda body");
+		return self.node(NodeData.LambdaExpr(params, body!, is_trailing, had_empty_parens), line, col);
 	}
 
 	// ============================================================================
@@ -446,6 +543,17 @@ impl Parser {
 
 				self.consume(TokenType.CLOSE_BRACE, "Expected '}' after when arms");
 				yield self.node(NodeData.WhenExpr(condition, arms), line, col);
+			}
+
+			// Non-trailing lambda literal `{ x -> ... }` (parsed for clear semantic diagnostics)
+			TokenType.OPEN_BRACE -> {
+				self.current--;
+				if (self.is_lambda_brace_ahead()) {
+					yield self.parse_lambda_expr(false, false);
+				}
+				self.advance();
+				self.error(tok, "Expected expression");
+				yield self.node(NodeData.IdentifierExpr("<error>"), line, col);
 			}
 
 			else -> {
@@ -574,7 +682,7 @@ impl Parser {
 				yield self.node(NodeData.UnaryExpr(TokenType.BANG, in_expr, false), line, col);
 			}
 
-			// 5. Generic Call: left<T1, T2>(arg1, arg2)
+			// 5. Generic Call: left<T1, T2>(arg1, arg2) or left<T1, T2> { x -> ... }
 			.check(TokenType.LESS) &&
 			.is_generic_args_ahead() -> {
 				self.advance(); // consume '<'
@@ -582,6 +690,12 @@ impl Parser {
 				type_args += self.parse_type();
 				while (self.match_token(TokenType.COMMA)) type_args += self.parse_type();
 				self.consume(TokenType.GREATER, "Expected '>' after generic call type arguments");
+
+				if (self.check(TokenType.OPEN_BRACE) && self.is_lambda_brace_ahead()) {
+					var args = List<*AstNode>();
+					args += self.parse_lambda_expr(true, false);
+					yield self.node(NodeData.CallExpr(left, args, type_args), line, col);
+				}
 
 				self.consume(TokenType.OPEN_PAREN, "Expected '(' after generic type arguments");
 				val args = self.parse_call_args();
@@ -591,6 +705,19 @@ impl Parser {
 			// 6. Normal Call: left(arg1, arg2)
 			.match_token(TokenType.OPEN_PAREN) -> {
 				val args = self.parse_call_args();
+				yield self.node(NodeData.CallExpr(left, args, List<*AstNode>()), line, col);
+			}
+
+			// 6b. Trailing Lambda Call: left { x -> ... } or left(a) { x -> ... }
+			.check(TokenType.OPEN_BRACE) &&
+			.is_lambda_brace_ahead() -> {
+				if (left is CallExpr as var call) {
+					val had_empty = call.args.empty();
+					call.args += self.parse_lambda_expr(true, had_empty);
+					yield left;
+				}
+				var args = List<*AstNode>();
+				args += self.parse_lambda_expr(true, false);
 				yield self.node(NodeData.CallExpr(left, args, List<*AstNode>()), line, col);
 			}
 

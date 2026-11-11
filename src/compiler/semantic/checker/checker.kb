@@ -54,7 +54,14 @@ pub struct BodyChecker {
 	pub has_env_saved: bool = false,
 	pub warnings: List<Diagnostic> = List(),
 	pub current_trait_name: str = "",
-	pub when_subject: *AstNode? = null
+	pub when_subject: *AstNode? = null,
+	pub in_lambda: bool = false,
+	pub lambda_scope: *Scope? = null,
+	pub lambda_return_type: *Type? = null,
+	pub lambda_has_yield: bool = false,
+	pub lambda_inferring_return: bool = false,
+	pub lambda_captures: List<LambdaCapture> = List(),
+	pub allowing_fn_param_ref: bool = false
 }
 
 impl BodyChecker {
@@ -247,6 +254,23 @@ impl BodyChecker {
 		self.symtab.set_predicate_pattern(node);
 	}
 
+	pub fn set_lambda_info(var self, node: *AstNode, info: LambdaInfo) {
+		if (self.current_rec != null) {
+			var e = self.ann_entry(node);
+			e.lambda_info = info;
+			e.has_lambda_info = true;
+		}
+		self.symtab.set_lambda_info(node, info);
+	}
+
+	pub fn set_closure_call(var self, node: *AstNode) {
+		if (self.current_rec != null) {
+			var e = self.ann_entry(node);
+			e.is_closure_call = true;
+		}
+		self.symtab.set_closure_call(node);
+	}
+
 	pub fn set_ann_ty(var self, node: *AstNode, ty: *Type) {
 		if (self.current_rec == null) return;
 		self.ann_entry(node).ty = ty;
@@ -339,7 +363,7 @@ impl BodyChecker {
 			DataType.POINTER -> 8;
 			DataType.ARRAY -> ty.as_array().length * self.type_c_size_num(ty.as_array().elem);
 			DataType.STRUCT -> ty.size;
-			else -> 8;
+			DataType.FN -> 16;
 		};
 	}
 
@@ -375,6 +399,7 @@ impl BodyChecker {
 			is ArrayLiteralExpr -> self.check_array_literal_expr(node);
 			is InterpExpr -> self.check_interp_expr(node);
 			is IsExpr -> self.check_is_expr(node);
+			is LambdaExpr -> self.check_lambda_expr(node, expected);
 			else -> self.prims().t_none();
 		};
 	}
@@ -387,6 +412,7 @@ impl BodyChecker {
 				self.check_expr_stmt(es.expr);
 				return;
 			}
+
 			is DeferStmt as ds -> {
 				if (self.defer_depth > 0) {
 					self.report_error(node, "Nested defer statement is not allowed inside defer");
@@ -396,16 +422,58 @@ impl BodyChecker {
 				self.defer_depth--;
 				return;
 			}
+
 			is YieldStmt as ys -> {
-				if (self.defer_depth > 0) {
+				if (self.defer_depth > 0)
 					self.report_error(node, "Yield statement is not allowed inside defer");
+
+				if (self.when_depth == 0 && !self.in_lambda)
+					self.report_error(node, "Yield statement outside of when expression or lambda");
+
+				if (self.when_depth == 0 && self.in_lambda) {
+					self.lambda_has_yield = true;
+					if (ys.value != null) {
+						if (ys.value is LambdaExpr)
+							self.report_error(ys.value!, "Lambda cannot return or yield another lambda/closure");
+
+						if (self.lambda_return_type?.is_list())
+							self.coerce_to_list(ys.value!, self.lambda_return_type!);
+
+						val val_ty = self.check_expr(ys.value!, self.lambda_return_type);
+						if (val_ty.kind == DataType.FN)
+							self.report_error(node, "Lambda cannot return or yield another lambda/closure");
+
+						if (self.lambda_return_type == null || self.lambda_return_type.kind == DataType.NONE) {
+							if (self.lambda_inferring_return) {
+								self.lambda_return_type = val_ty;
+							} else {
+								self.report_error(node, "Lambda returning 'none' cannot yield a value");
+							}
+						} else {
+							self.ensure(
+								self.lambda_return_type.can_assign(val_ty),
+								node,
+								"Lambda 'yield' value type does not match expected return type"
+							);
+						}
+					} else if (
+						self.lambda_return_type != null &&
+						self.lambda_return_type.kind != DataType.NONE
+					) self.report_error(node, "Lambda returning a value must yield an expression");
+
+					return;
 				}
-				if (self.when_depth == 0) {
-					self.report_error(node, "Yield statement outside of when expression");
+
+				if (ys.value != null) {
+					val y_ty = self.check_expr(ys.value!);
+					if (y_ty.kind == DataType.FN) {
+						self.report_error(node, "Cannot yield a lambda/closure from a when expression");
+					}
 				}
-				if (ys.value != null) self.check_expr(ys.value!);
+
 				return;
 			}
+
 			is BlockStmt -> self.check_block_stmt(node);
 			is VarDeclStmt -> self.check_var_decl_stmt(node);
 			is DestructDeclStmt -> self.check_destruct_decl_stmt(node);
@@ -413,6 +481,7 @@ impl BodyChecker {
 			is WhileStmt -> self.check_while_stmt(node);
 			is ForStmt -> self.check_for_stmt(node);
 			is ReturnStmt -> self.check_return_stmt(node);
+
 			is BreakStmt, ContinueStmt -> {
 				if (self.defer_depth > 0) {
 					self.report_error(node, "Break or continue statement is not allowed inside defer");
@@ -421,6 +490,7 @@ impl BodyChecker {
 					self.report_error(node, "Break or continue statement outside of loop");
 				}
 			}
+
 			is WhenStmt -> self.check_when_stmt(node);
 		}
 	}

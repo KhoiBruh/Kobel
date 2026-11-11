@@ -145,9 +145,40 @@ fn test_generic_bounds_checking() {
 	println("  [PASS] test_generic_bounds_checking");
 }
 
+// ============================================================================
+// Test 4: Lambda Declaration Safety Rules
+// ============================================================================
+
+fn test_lambda_declaration_restrictions() {
+	val src = """
+		fn bad_multi(a: (i32) -> i32, b: (i32) -> i32) {}
+		fn bad_non_final(f: (i32) -> i32, x: i32) {}
+		fn bad_ret(): (i32) -> i32 {}
+		fn bad_var(var f: (i32) -> i32) {}
+		struct BadStruct {
+		    pub cb: (i32) -> i32
+		}
+		enum BadEnum {
+		    Cb(f: (i32) -> i32),
+		    None
+		}
+	""";
+
+	var lexer = Lexer(src);
+	var parser = Parser(lexer.tokenize());
+	val prog = parser.parse_program();
+
+	var decl_p = DeclarationCollector();
+	decl_p.collect_program(prog);
+
+	assert_true(decl_p.errors.len >= 6, "Must reject multiple/non-final/return/var/struct/enum lambda types");
+	println("  [PASS] test_lambda_declaration_restrictions");
+}
+
 fn main(): i32 {
 	println("[RUNNING] Bootstrap Semantic DeclarationCollector tests...");
 	test_generic_bounds_checking();
+	test_lambda_declaration_restrictions();
 	test_collect_program();
 	test_duplicate_declarations();
 	println("[ALL PASSED] Bootstrap Semantic DeclarationCollector passed all tests successfully!");

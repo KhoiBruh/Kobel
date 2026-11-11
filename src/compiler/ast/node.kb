@@ -44,6 +44,7 @@ pub enum NodeData {
 	PointerType(mutable: bool, pointee: *AstNode),
 	ArrayType(element_type: *AstNode, size: usz),
 	NullableType(inner_type: *AstNode),
+	FnType(param_types: List<*AstNode>, return_type: *AstNode),
 
 	// Expressions
 	LiteralExpr(literal_kind: Literal, raw_text: str),
@@ -62,6 +63,7 @@ pub enum NodeData {
 	WhenExpr(condition: *AstNode?, arms: List<WhenArm>),
 	InterpExpr(parts: List<InterpPart>),
 	IsExpr(expr: *AstNode?, target_type: *AstNode, alias: str, mutable: bool),
+	LambdaExpr(params: List<Param>, body: *AstNode, is_trailing: bool, had_empty_parens: bool),
 	StructCtorExpr(c_name: str, args: List<*AstNode>),
 	EnumCtorExpr(c_name: str, tag_field: str, tag_value: i64, payload_path: str, args: List<*AstNode>),
 	SizeOfParam(param_index: usz, size_text: str),

@@ -70,10 +70,21 @@ impl BodyChecker {
 				if (inferred_ty != null) return inferred_ty;
 			}
 
+			val prev_allow_fn = self.allowing_fn_param_ref;
+			self.allowing_fn_param_ref = true;
 			val callee_ty = self.check_expr(call.callee);
+			self.allowing_fn_param_ref = prev_allow_fn;
 
 			// 1. Function call
-			if (callee_ty.kind == DataType.FN) return self.check_fn_call(node, callee_ty, call);
+			if (callee_ty.kind == DataType.FN) {
+				if (call.callee is IdentifierExpr as cid) {
+					val c_sym = self.symtab.lookup(cid.name);
+					if (c_sym != null && (c_sym.kind == SymbolKind.PARAM || c_sym.kind == SymbolKind.VAR)) {
+						self.set_closure_call(call.callee);
+					}
+				}
+				return self.check_fn_call(node, callee_ty, call);
+			}
 
 			// 2. Struct construction: Point(1, 2)
 			if (callee_ty.kind == DataType.STRUCT) {
@@ -411,7 +422,15 @@ impl BodyChecker {
 					self.mark_node_mutated(arg_n);
 				}
 				if (param_ty?.is_list()) self.coerce_to_list(arg_n, param_ty);
+				val is_fn_forward = (
+					param_ty?.kind == DataType.FN
+					&& i == call.args.len - 1
+					&& arg_n is IdentifierExpr
+				);
+				val prev_allow = self.allowing_fn_param_ref;
+				if (is_fn_forward) self.allowing_fn_param_ref = true;
 				val arg_ty = self.check_expr(arg_n, param_ty);
+				self.allowing_fn_param_ref = prev_allow;
 				self.ensure(
 					param_ty.can_assign(arg_ty),
 					node,
@@ -505,7 +524,15 @@ impl BodyChecker {
 						val param_ty = fn_info.param_types[i];
 						val arg_n = call.args[i];
 						if (param_ty?.is_list()) self.coerce_to_list(arg_n, param_ty);
+						val is_fn_forward = (
+							param_ty?.kind == DataType.FN
+							&& i == call.args.len - 1
+							&& arg_n is IdentifierExpr
+						);
+						val prev_allow = self.allowing_fn_param_ref;
+						if (is_fn_forward) self.allowing_fn_param_ref = true;
 						val arg_ty = self.check_expr(arg_n, param_ty);
+						self.allowing_fn_param_ref = prev_allow;
 						self.ensure(
 							param_ty.can_assign(arg_ty),
 							node,
@@ -556,7 +583,15 @@ impl BodyChecker {
 					self.mark_node_mutated(arg_n);
 				}
 				if (param_ty?.is_list()) self.coerce_to_list(arg_n, param_ty);
+				val is_fn_forward = (
+					param_ty?.kind == DataType.FN
+					&& i == call.args.len - 1
+					&& arg_n is IdentifierExpr
+				);
+				val prev_allow = self.allowing_fn_param_ref;
+				if (is_fn_forward) self.allowing_fn_param_ref = true;
 				val arg_ty = self.check_expr(arg_n, param_ty);
+				self.allowing_fn_param_ref = prev_allow;
 				self.ensure(
 					param_ty.can_assign(arg_ty),
 					node,
@@ -701,7 +736,7 @@ impl BodyChecker {
 
 		var targs = call.type_args;
 		if (targs.empty() && tmpl.node is FnDecl as tmpl_f) {
-			targs = self.infer_type_args_for_fn(tmpl_f, call.args, true);
+			targs = self.infer_type_args_for_fn(tmpl_f, call.args, true, obj_ty);
 			if (targs.empty()) return null;
 		}
 
@@ -747,7 +782,15 @@ impl BodyChecker {
 					self.mark_node_mutated(arg_n);
 				}
 				if (param_ty?.is_list()) self.coerce_to_list(arg_n, param_ty);
+				val is_fn_forward = (
+					param_ty?.kind == DataType.FN
+					&& i == args.len - 1
+					&& arg_n is IdentifierExpr
+				);
+				val prev_allow = self.allowing_fn_param_ref;
+				if (is_fn_forward) self.allowing_fn_param_ref = true;
 				val arg_ty = self.check_expr(arg_n, param_ty);
+				self.allowing_fn_param_ref = prev_allow;
 				self.ensure(
 					param_ty.can_assign(arg_ty),
 					node,
@@ -881,7 +924,15 @@ impl BodyChecker {
 					self.mark_node_mutated(arg_n);
 				}
 				if (param_ty?.is_list()) self.coerce_to_list(arg_n, param_ty);
+				val is_fn_forward = (
+					param_ty?.kind == DataType.FN
+					&& i == call.args.len - 1
+					&& arg_n is IdentifierExpr
+				);
+				val prev_allow = self.allowing_fn_param_ref;
+				if (is_fn_forward) self.allowing_fn_param_ref = true;
 				val arg_ty = self.check_expr(arg_n, param_ty);
+				self.allowing_fn_param_ref = prev_allow;
 				if (!param_ty.can_assign(arg_ty)) {
 					if (param_ty.kind == DataType.POINTER && arg_ty.kind == DataType.STRUCT) {
 						val p_pointee = param_ty.as_pointer().pointee;
@@ -899,6 +950,167 @@ impl BodyChecker {
 			}
 		}
 		return fn_info.return_type;
+	}
+
+	pub fn check_lambda_expr(var self, node: *AstNode, expected: *Type? = null): *Type {
+		if (node is LambdaExpr as lam) {
+			if (!lam.is_trailing) {
+				self.report_error(
+					node,
+					"Lambda must be passed outside parentheses as a trailing lambda (e.g. 'fn { x -> ... }' or 'fn(arg) { x -> ... }')"
+				);
+			}
+			if (lam.had_empty_parens) {
+				self.report_error(
+					node,
+					"Redundant empty parentheses '()' before trailing lambda; write 'fn { ... }' instead"
+				);
+			}
+			if (expected == null || expected.kind != DataType.FN) {
+				self.report_error(node, "Unexpected lambda expression; target parameter does not expect a function type");
+				return self.prims().t_none();
+			}
+
+			val fn_info = expected.as_fn();
+			if (lam.params.len != fn_info.param_types.len) {
+				self.report_error(
+					node,
+					"Lambda parameter count mismatch: expected ${fn_info.param_types.len}, got ${lam.params.len}"
+				);
+				return expected!;
+			}
+
+			var resolved_param_types = List<*Type>();
+			for (i in 0..<lam.params.len) {
+				val p = lam.params[i];
+				val exp_pt = fn_info.param_types[i];
+				var p_ty = exp_pt;
+				if (p.type_node != null) {
+					p_ty = self.resolve_type(p.type_node!);
+					if (exp_pt.kind != DataType.NONE && !exp_pt.equals(p_ty)) {
+						self.report_error(
+							p.type_node!,
+							"Lambda parameter '${p.name}' type '${self.type_display(p_ty)}' does not match expected '${self.type_display(exp_pt)}'"
+						);
+					}
+				}
+				if (p_ty.kind == DataType.NONE) {
+					self.report_error(node, "Cannot infer type for lambda parameter '${p.name}'");
+				}
+				resolved_param_types += p_ty;
+
+				val outer_local = self.symtab.lookup_any_local(p.name);
+				if (outer_local != null) {
+					self.report_error(
+						node,
+						"Lambda parameter '${p.name}' cannot shadow outer local variable or parameter '${p.name}'"
+					);
+				}
+			}
+
+			val outer_in_lambda = self.in_lambda;
+			val outer_lambda_scope = self.lambda_scope;
+			val outer_lambda_ret = self.lambda_return_type;
+			val outer_has_yield = self.lambda_has_yield;
+			val outer_inferring_ret = self.lambda_inferring_return;
+			val outer_captures = self.lambda_captures;
+			val outer_loop_depth = self.loop_depth;
+			val outer_when_depth = self.when_depth;
+			val outer_defer_depth = self.defer_depth;
+			val outer_when_subj = self.when_subject;
+
+			self.in_lambda = true;
+			self.lambda_scope = self.symtab.current_scope;
+			self.lambda_return_type = fn_info.return_type;
+			self.lambda_has_yield = false;
+			self.lambda_captures = List<LambdaCapture>();
+			self.loop_depth = 0;
+			self.when_depth = 0;
+			self.defer_depth = 0;
+			self.when_subject = null;
+
+			self.symtab.enter_scope(false);
+			for (i in 0..<lam.params.len) {
+				val p = lam.params[i];
+				val p_ty = resolved_param_types[i];
+				val ok = self.symtab.define(
+					Symbol(p.name, p.name, SymbolKind.PARAM, p_ty, false, false, node.line, node.col, null)
+				);
+				if (!ok) {
+					self.report_error(node, "Duplicate lambda parameter '${p.name}'");
+				}
+			}
+
+			var inferred_ret = fn_info.return_type;
+			if (lam.body is BlockStmt) {
+				self.check_statement(lam.body);
+				inferred_ret = self.lambda_return_type ?: self.prims().t_none();
+				if (inferred_ret.kind != DataType.NONE && !self.lambda_has_yield) {
+					self.report_error(
+						node,
+						"Multi-statement lambda expecting return type '${self.type_display(inferred_ret)}' must return a value using 'yield'"
+					);
+				}
+			} else {
+				if (lam.body is LambdaExpr) {
+					self.report_error(lam.body, "Lambda cannot return another lambda/closure");
+				}
+				if (inferred_ret != null && inferred_ret.kind != DataType.NONE) {
+					if (inferred_ret.is_list()) self.coerce_to_list(lam.body, inferred_ret);
+					val body_ty = self.check_expr(lam.body, inferred_ret);
+					if (body_ty.kind == DataType.FN) {
+						self.report_error(lam.body, "Lambda cannot return another lambda/closure");
+					}
+					self.ensure(
+						inferred_ret.can_assign(body_ty),
+						lam.body,
+						"Lambda body type '${self.type_display(body_ty)}' does not match expected return type '${self.type_display(inferred_ret)}'"
+					);
+				} else {
+					val body_ty = self.check_expr_stmt(lam.body);
+					if (body_ty.kind == DataType.FN) {
+						self.report_error(lam.body, "Lambda cannot return another lambda/closure");
+					}
+					if (self.lambda_inferring_return && fn_info.return_type.kind == DataType.NONE) {
+						inferred_ret = body_ty;
+					}
+				}
+			}
+
+			val final_ret = if (fn_info.return_type.kind != DataType.NONE) fn_info.return_type else inferred_ret;
+			val final_fn_ty = self.arena.fn_type(resolved_param_types, final_ret);
+			val captures = self.lambda_captures;
+
+			self.symtab.exit_scope();
+
+			self.in_lambda = outer_in_lambda;
+			self.lambda_scope = outer_lambda_scope;
+			self.lambda_return_type = outer_lambda_ret;
+			self.lambda_has_yield = outer_has_yield;
+			self.lambda_inferring_return = outer_inferring_ret;
+			self.lambda_captures = outer_captures;
+			self.loop_depth = outer_loop_depth;
+			self.when_depth = outer_when_depth;
+			self.defer_depth = outer_defer_depth;
+			self.when_subject = outer_when_subj;
+
+			// If this lambda is nested inside an outer lambda, propagate captures that belong
+			// outside the outer lambda's boundary scope so the outer lambda also captures them.
+			if (self.in_lambda && self.lambda_scope != null) {
+				for (cap in captures) {
+					val outer_sym = self.symtab.lookup_local_at_or_above(cap.name, self.lambda_scope);
+					if (outer_sym != null) {
+						self.record_lambda_capture(outer_sym);
+					}
+				}
+			}
+
+			val existing_id = if (self.symtab.has_lambda_info(node)) self.symtab.get_lambda_info(node).id else 0;
+			val lam_id = if (existing_id > 0) existing_id else self.symtab.alloc_lambda_id();
+			self.set_lambda_info(node, LambdaInfo(lam_id, final_fn_ty, captures));
+			return final_fn_ty;
+		}
+		return self.prims().t_none();
 	}
 
 	pub fn check_struct_ctor(

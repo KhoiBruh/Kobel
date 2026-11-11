@@ -123,6 +123,9 @@ impl BodyChecker {
 					}
 
 					val body_ty = self.check_expr(es.expr);
+					if (body_ty.kind == DataType.FN) {
+						self.report_error(fn_node, "Function cannot return a lambda/closure");
+					}
 					if (f.return_type == null) {
 						val fn_info_mut = fn_type.as_fn();
 						fn_info_mut.return_type = body_ty;

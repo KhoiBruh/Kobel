@@ -134,6 +134,14 @@ impl BodyChecker {
 		return self.prims().t_none();
 	}
 
+	pub fn record_lambda_capture(var self, sym: *Symbol) {
+		val cap_ty = sym.orig_type ?: sym.type_ptr;
+		for (c in self.lambda_captures) {
+			if (c.name == sym.name) return;
+		}
+		self.lambda_captures += LambdaCapture(sym.name, cap_ty, sym.mutable);
+	}
+
 	pub fn check_ident_expr(var self, node: *AstNode): *Type {
 		if (node is IdentifierExpr as id) {
 			if (id.name.empty()) {
@@ -156,6 +164,24 @@ impl BodyChecker {
 			if (sym == null) {
 				self.report_error(node, "Undeclared identifier '${id.name}'");
 				return self.prims().t_none();
+			}
+
+			if (
+				sym.type_ptr.kind == DataType.FN
+				&& (sym.kind == SymbolKind.PARAM || sym.kind == SymbolKind.VAR)
+				&& !self.allowing_fn_param_ref
+			) {
+				self.report_error(
+					node,
+					"Lambda parameter '${id.name}' cannot escape; it can only be called or forwarded as the final argument of a call"
+				);
+			}
+
+			if (self.in_lambda) {
+				val outer_sym = self.symtab.lookup_local_at_or_above(id.name, self.lambda_scope);
+				if (outer_sym != null) {
+					self.record_lambda_capture(outer_sym);
+				}
 			}
 
 			if (!sym.c_name.empty() && sym.c_name != id.name) {

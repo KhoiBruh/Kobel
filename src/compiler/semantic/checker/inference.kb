@@ -22,7 +22,8 @@ impl BodyChecker {
 		var self,
 		fn_decl: *FnDecl,
 		call_args: List<*AstNode>,
-		is_method: bool
+		is_method: bool,
+		self_ty: *Type? = null
 	): List<*AstNode> {
 		val type_params = fn_decl.type_params;
 		if (type_params.empty()) return List<*AstNode>();
@@ -34,7 +35,13 @@ impl BodyChecker {
 		}
 
 		val params = fn_decl.params;
+		if (is_method && self_ty != null && params.len > 0 && params[0].type_node != null) {
+			self.match_type_param(params[0].type_node!, self_ty, type_params, inferred.data);
+		}
+
+		// Pass 1: Infer from non-lambda arguments first.
 		for (i in 0..<call_args.len) {
+			if (call_args[i] is LambdaExpr) continue;
 			val param_idx = if (is_method) i + 1 else i;
 			if (param_idx >= params.len) break;
 			val p = params[param_idx];
@@ -46,6 +53,31 @@ impl BodyChecker {
 			self.match_type_param(p.type_node!, arg_ty, type_params, inferred.data);
 		}
 
+		// Pass 2: Infer from lambda arguments using already-known type parameters.
+		for (i in 0..<call_args.len) {
+			if (!(call_args[i] is LambdaExpr)) continue;
+			val param_idx = if (is_method) i + 1 else i;
+			if (param_idx >= params.len) break;
+			val p = params[param_idx];
+			if (p.type_node == null) continue;
+			if (p.type_node is FnType as ft) {
+				var partial_params = List<*Type>();
+				for (pt in ft.param_types) {
+					partial_params += self.resolve_type_with_partial_tparams(pt, type_params, inferred, self_ty);
+				}
+				val partial_ret = self.resolve_type_with_partial_tparams(ft.return_type, type_params, inferred, self_ty);
+				val partial_fn_ty = self.arena.fn_type(partial_params, partial_ret);
+				val saved_errs = self.errors.len;
+				val prev_inf_ret = self.lambda_inferring_return;
+				self.lambda_inferring_return = (partial_ret.kind == DataType.NONE);
+				val lam_ty = self.check_expr(call_args[i], partial_fn_ty);
+				self.lambda_inferring_return = prev_inf_ret;
+				if (self.errors.len == saved_errs && lam_ty != null && lam_ty.kind == DataType.FN) {
+					self.match_type_param(p.type_node!, lam_ty, type_params, inferred.data);
+				}
+			}
+		}
+
 		for (k in 0..<num_tparams) {
 			if (inferred[k].kind == DataType.NONE) return List<*AstNode>();
 		}
@@ -55,6 +87,54 @@ impl BodyChecker {
 			result += self.arena.ast_type_from_type(inferred[k]);
 		}
 		return result;
+	}
+
+	fn resolve_type_with_partial_tparams(
+		var self,
+		node: *AstNode,
+		type_params: List<GenericParam>,
+		inferred: List<*Type>,
+		self_ty: *Type?
+	): *Type {
+		if (node == null) return self.prims().t_none();
+		if (node is NamedType as nt && nt.type_args.empty()) {
+			for (k in 0..<type_params.len) {
+				if (type_params[k].name == nt.name) {
+					return inferred[k];
+				}
+			}
+			if (self.has_decl) {
+				for (k in 0..<self.decl.subst_names.len) {
+					if (self.decl.subst_names[k] == nt.name) {
+						return self.decl.subst_types[k];
+					}
+				}
+			}
+			if (self_ty != null && self_ty.kind == DataType.STRUCT) {
+				val st = self_ty.as_struct();
+				val rec = self.symtab.gen.find_record_by_cname(st.c_name);
+				if (rec != null) {
+					val tnames = rec.template.param_names();
+					for (k in 0..<tnames.len) {
+						if (tnames[k] == nt.name && k < rec.args.len) {
+							return rec.args[k];
+						}
+					}
+				}
+			}
+		}
+		val saved_errs = self.errors.len;
+		val saved_self = self.current_self_type;
+		if (self_ty != null) self.current_self_type = self_ty;
+		val res = self.resolve_type(node);
+		self.current_self_type = saved_self;
+		if (self.errors.len > saved_errs) {
+			while (self.errors.len > saved_errs) {
+				self.errors.pop();
+			}
+			return self.prims().t_none();
+		}
+		return res;
 	}
 
 	pub fn infer_type_args_for_struct(
@@ -145,6 +225,17 @@ impl BodyChecker {
 			is ArrayType as at -> {
 				if (arg_ty.kind == DataType.ARRAY) {
 					self.match_type_param(at.element_type, arg_ty.as_array().elem, type_params, inferred);
+				}
+			}
+			is FnType as ft -> {
+				if (arg_ty.kind == DataType.FN) {
+					val fn_info = arg_ty.as_fn();
+					if (fn_info.param_types.len == ft.param_types.len) {
+						for (j in 0..<ft.param_types.len) {
+							self.match_type_param(ft.param_types[j], fn_info.param_types[j], type_params, inferred);
+						}
+					}
+					self.match_type_param(ft.return_type, fn_info.return_type, type_params, inferred);
 				}
 			}
 		}

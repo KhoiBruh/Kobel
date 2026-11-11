@@ -114,6 +114,18 @@ fn test_wraps_long_lines() {
 	println("  [PASS] test_wraps_long_lines");
 }
 
+fn test_lambda_formatting() {
+	val code = "fn run(a: i32, f: (i32) -> i32): i32 {\n\tval x = list.filter { item -> item > 0 };\n\tval y = list.fold(0) { acc, item ->\n\t\tval next = acc + item;\n\t\tyield next;\n\t};\n\treturn f(a);\n}\n";
+	val once = format_source(code, FormatOptions());
+	val twice = format_source(once, FormatOptions());
+
+	assert_eq_str(twice, once, "lambda formatting must be idempotent");
+	assert_true(("f: (i32) -> i32" in once), "function type parameter must format cleanly");
+	assert_true(("list.filter { item -> item > 0 }" in once), "single-arg trailing lambda must format without parens");
+	assert_true(("list.fold(0) { acc, item ->" in once), "multi-arg trailing lambda must format with normal args in parens");
+	println("  [PASS] test_lambda_formatting");
+}
+
 fn main(): i32 {
 	println("[RUNNING] Kobel Formatter tests...");
 	test_basic_formatting();
@@ -123,6 +135,7 @@ fn main(): i32 {
 	test_whitespace_and_eol();
 	test_multiline_literal_preserved();
 	test_wraps_long_lines();
+	test_lambda_formatting();
 	test_idempotent();
 	println("[ALL PASSED] Kobel Formatter tests passed successfully!");
 	return 0;

@@ -124,7 +124,7 @@ impl Arena {
 		=> self.type_payload(DataType.ARRAY, elem.size * length, elem.align, TypePayload.Array(elem, length));
 
 	pub fn fn_type(var self, param_types: List<*Type>, return_type: *Type): *Type
-		=> self.type_payload(DataType.FN, 8, 8, TypePayload.Fn(param_types, return_type));
+		=> self.type_payload(DataType.FN, 16, 8, TypePayload.Fn(param_types, return_type));
 
 }
 
@@ -415,7 +415,15 @@ impl Stringer for Type {
 			val s = self.as_struct();
 			yield s.name;
 		}
-		DataType.FN -> "fn(...)";
+		DataType.FN -> {
+			val fn_info = self.as_fn();
+			var res = "(";
+			for (i in 0..<fn_info.param_types.len) {
+				if (i > 0) res = "${res}, ";
+				res = "${res}${fn_info.param_types[i].to_str()}";
+			}
+			yield "${res}) -> ${fn_info.return_type.to_str()}";
+		}
 	};
 
 }

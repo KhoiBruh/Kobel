@@ -47,7 +47,7 @@ impl CCodeGen {
 		return when (node) {
 			is LiteralExpr -> self.gen_literal_expr(ast_node, node);
 
-			is IdentifierExpr -> node.name;
+			is IdentifierExpr -> self.gen_ident_expr(node.name);
 
 			is GroupExpr -> {
 				val inner = self.gen_expr(node.expr);
@@ -121,8 +121,36 @@ impl CCodeGen {
 			// literal path, so generated C stays byte-identical).
 			is SizeOfParam -> c_format_int_literal(node.size_text);
 
+			is LambdaExpr -> self.gen_lambda_expr(ast_node);
+
 			else -> "";
 		};
+	}
+
+	pub fn gen_ident_expr(val self, name: str): str {
+		for (cap in self.active_lambda_captures) {
+			if (cap.name == name) {
+				if (cap.is_mutable) return "(*(__env->${name}))";
+				return "(__env->${name})";
+			}
+		}
+		return name;
+	}
+
+	fn gen_lambda_expr(val self, ast_node: *AstNode): str {
+		val info = self.lambda_info_of(ast_node);
+		if (info.id == 0) return "(kobel_closure){ NULL, NULL }";
+		if (info.captures.empty()) {
+			return "(kobel_closure){ (void*)__lambda_fn_${info.id}, NULL }";
+		}
+		var cap_inits = List<str>();
+		for (cap in info.captures) {
+			val expr_s = self.gen_ident_expr(cap.name);
+			if (cap.is_mutable) cap_inits += "&${expr_s}";
+			else cap_inits += expr_s;
+		}
+		val joined = ", ".join(cap_inits);
+		return "(kobel_closure){ (void*)__lambda_fn_${info.id}, (void*)&(struct __lambda_env_${info.id}){ ${joined} } }";
 	}
 
 	// Literals lower to their C spelling (ints/floats normalised, strings wrapped in KOBEL_STR).
@@ -369,6 +397,23 @@ impl CCodeGen {
 		var args_str = List<str>();
 		for (arg in call.args) args_str += self.gen_expr(arg);
 		val joined_args = ", ".join(args_str);
+
+		val callee_ty = self.node_type(call.callee);
+		if (
+			callee_ty != null
+			&& callee_ty.kind == DataType.FN
+			&& self.symtab?.is_closure_call(call.callee)
+		) {
+			val fn_info = callee_ty.as_fn();
+			val ret_c = c_type_from_type(fn_info.return_type);
+			var param_c = "void*";
+			for (pt in fn_info.param_types) {
+				param_c = "${param_c}, ${c_type_from_type(pt)}";
+			}
+			val env_and_args = if (joined_args.empty()) "${callee_str}.env"
+				else "${callee_str}.env, ${joined_args}";
+			return "((${ret_c} (*)(${param_c}))${callee_str}.fn)(${env_and_args})";
+		}
 
 		// Ordinary C function call: func(arg1, arg2)
 		return "${callee_str}(${joined_args})";

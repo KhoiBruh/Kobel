@@ -580,9 +580,135 @@ fn test_when_subject_and_implicit_dot_restrictions() {
 	println("  [PASS] test_when_subject_and_implicit_dot_restrictions");
 }
 
+fn check_single_error(src: str, desc: str) {
+	var l = Lexer(src);
+	var p = Parser(l.tokenize());
+	var bp = BodyChecker();
+	bp.check_program(p.parse_program());
+	val total_errs = p.errors.len + bp.errors.len;
+	assert_true(total_errs >= 1, desc);
+}
+
+fn test_lambda_body_and_call_restrictions() {
+	// 1. Passing lambda inside parentheses: fn({ x -> ... })
+	check_single_error(
+		"""
+		fn apply(f: (i32) -> i32): i32 => f(1);
+		fn test(): i32 => apply({ x -> x + 1 });
+		""",
+		"Lambda inside parentheses must be rejected"
+	);
+
+	// 2. Empty parentheses before trailing lambda: fn() { x -> ... }
+	check_single_error(
+		"""
+		fn apply(f: (i32) -> i32): i32 => f(1);
+		fn test(): i32 => apply() { x -> x + 1 };
+		""",
+		"Empty parens before single-arg trailing lambda must be rejected"
+	);
+
+	// 3. Storing lambda literal in a local variable
+	check_single_error(
+		"""
+		fn test() {
+		    val f = { x: i32 -> x + 1 };
+		}
+		""",
+		"Storing lambda literal in variable must be rejected"
+	);
+
+	// 4. Escaping a lambda parameter by assigning to a variable
+	check_single_error(
+		"""
+		fn test(f: (i32) -> i32) {
+		    val saved = f;
+		}
+		""",
+		"Escaping lambda parameter into local variable must be rejected"
+	);
+
+	// 5. Mutating captured outer `val` inside lambda
+	check_single_error(
+		"""
+		fn apply(f: (i32) -> i32): i32 => f(1);
+		fn test(): i32 {
+		    val limit = 10;
+		    return apply { x ->
+		        limit = 20;
+		        yield x;
+		    };
+		}
+		""",
+		"Mutating captured outer val inside lambda must be rejected"
+	);
+
+	// 6. Shadowing outer local variable with lambda parameter
+	check_single_error(
+		"""
+		fn apply(f: (i32) -> i32): i32 => f(1);
+		fn test(): i32 {
+		    val x = 5;
+		    return apply { x -> x + 1 };
+		}
+		""",
+		"Shadowing outer local variable with lambda parameter must be rejected"
+	);
+
+	// 7. Using `return` inside a lambda
+	check_single_error(
+		"""
+		fn apply(f: (i32) -> i32): i32 => f(1);
+		fn test(): i32 => apply { x ->
+		    return x + 1;
+		};
+		""",
+		"Using return inside lambda must be rejected"
+	);
+
+	// 8. Using `break` inside lambda to exit outer loop
+	check_single_error(
+		"""
+		fn apply(f: (i32) -> i32): i32 => f(1);
+		fn test() {
+		    while (true) {
+		        apply { x ->
+		            break;
+		            yield x;
+		        };
+		    }
+		}
+		""",
+		"Using break inside lambda targeting outer loop must be rejected"
+	);
+
+	// 9. Multi-statement value-returning lambda missing `yield`
+	check_single_error(
+		"""
+		fn apply(f: (i32) -> i32): i32 => f(1);
+		fn test(): i32 => apply { x ->
+		    val y = x + 1;
+		};
+		""",
+		"Multi-statement lambda without yield must be rejected"
+	);
+
+	// 10. Lambda parameter count mismatch
+	check_single_error(
+		"""
+		fn apply(f: (i32) -> i32): i32 => f(1);
+		fn test(): i32 => apply { a, b -> a + b };
+		""",
+		"Lambda parameter count mismatch must be rejected"
+	);
+
+	println("  [PASS] test_lambda_body_and_call_restrictions");
+}
+
 fn main(): i32 {
 	println("[RUNNING] Bootstrap Semantic BodyChecker tests...");
 	test_when_subject_and_implicit_dot_restrictions();
+	test_lambda_body_and_call_restrictions();
 	test_destructure_nullable_pointer_error();
 	test_cast_null_to_non_null_pointer_rejected();
 	test_unused_mutability_warning();

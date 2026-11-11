@@ -178,6 +178,15 @@ impl Formatter {
 				self.format_type(nt.inner_type);
 				self.buf += "?";
 			}
+			is FnType as ft -> {
+				self.buf += "(";
+				for (i in 0..<ft.param_types.len) {
+					if (i > 0) self.buf += ", ";
+					self.format_type(ft.param_types[i]);
+				}
+				self.buf += ") -> ";
+				self.format_type(ft.return_type);
+			}
 		}
 	}
 
@@ -225,24 +234,84 @@ impl Formatter {
 					}
 					self.buf += ">";
 				}
-				self.buf += "(";
-				var call_broke = false;
-				for (j in 0..<c.args.len) {
-					if (j > 0) {
-						val need = 2 + self.measure_expr(c.args[j]);
-						if (self.buf.current_col + need > self.options.max_width) {
-							self.buf += ",";
-							self.buf.newline();
-							if (!call_broke) {
-								self.buf.indent();
-								call_broke = true;
-							}
-						} else self.buf += ", ";
+				var has_trailing_lambda = false;
+				if (!c.args.empty()) {
+					val last_arg = c.args.last();
+					if (last_arg is LambdaExpr as lam) {
+						if (lam.is_trailing) has_trailing_lambda = true;
 					}
-					self.format_expr(c.args[j]);
 				}
-				if (call_broke) self.buf.dedent();
-				self.buf += ")";
+				if (has_trailing_lambda) {
+					val normal_count = c.args.len - 1;
+					if (normal_count > 0) {
+						self.buf += "(";
+						var call_broke = false;
+						for (j in 0..<normal_count) {
+							if (j > 0) {
+								val need = 2 + self.measure_expr(c.args[j]);
+								if (self.buf.current_col + need > self.options.max_width) {
+									self.buf += ",";
+									self.buf.newline();
+									if (!call_broke) {
+										self.buf.indent();
+										call_broke = true;
+									}
+								} else self.buf += ", ";
+							}
+							self.format_expr(c.args[j]);
+						}
+						if (call_broke) self.buf.dedent();
+						self.buf += ") ";
+					} else {
+						self.buf += " ";
+					}
+					self.format_expr(c.args.last());
+				} else {
+					self.buf += "(";
+					var call_broke = false;
+					for (j in 0..<c.args.len) {
+						if (j > 0) {
+							val need = 2 + self.measure_expr(c.args[j]);
+							if (self.buf.current_col + need > self.options.max_width) {
+								self.buf += ",";
+								self.buf.newline();
+								if (!call_broke) {
+									self.buf.indent();
+									call_broke = true;
+								}
+							} else self.buf += ", ";
+						}
+						self.format_expr(c.args[j]);
+					}
+					if (call_broke) self.buf.dedent();
+					self.buf += ")";
+				}
+			}
+			is LambdaExpr as lam -> {
+				self.buf += "{ ";
+				if (!lam.params.empty()) {
+					for (i in 0..<lam.params.len) {
+						if (i > 0) self.buf += ", ";
+						self.format_param(lam.params[i]);
+					}
+					self.buf += " ->";
+				} else {
+					self.buf += "->";
+				}
+				if (lam.body is BlockStmt as blk) {
+					self.buf.indent();
+					for (s in blk.statements) {
+						self.buf.newline();
+						self.format_stmt(s);
+					}
+					self.buf.dedent();
+					self.buf.newline();
+					self.buf += "}";
+				} else {
+					self.buf += " ";
+					self.format_expr(lam.body);
+					self.buf += " }";
+				}
 			}
 			is MemberExpr as m -> {
 				self.format_expr(m.object);

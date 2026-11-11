@@ -124,6 +124,79 @@ impl SymbolTable {
 		return self.sem.predicate_patterns.get(node.addr()) != null;
 	}
 
+	pub fn alloc_lambda_id(val self): usz {
+		if (self.sem == null) return 0;
+		var s = self.sem;
+		val id = s.next_lambda_id;
+		s.next_lambda_id = id + 1;
+		return id;
+	}
+
+	pub fn set_lambda_info(val self, node: *AstNode?, info: LambdaInfo) {
+		if (node == null || self.sem == null) return;
+		var s = self.sem;
+		s.lambdas[node.addr()] = info;
+	}
+
+	pub fn has_lambda_info(val self, node: *AstNode?): bool {
+		if (node == null || self.sem == null) return false;
+		return self.sem.lambdas.get(node.addr()) != null;
+	}
+
+	pub fn get_lambda_info(val self, node: *AstNode?): LambdaInfo {
+		if (node == null || self.sem == null) return LambdaInfo();
+		val p = self.sem.lambdas.get(node.addr()) ?: return LambdaInfo();
+		return p.read();
+	}
+
+	pub fn set_closure_call(val self, node: *AstNode?) {
+		if (node == null || self.sem == null) return;
+		var s = self.sem;
+		s.closure_calls[node.addr()] = true;
+	}
+
+	pub fn is_closure_call(val self, node: *AstNode?): bool {
+		if (node == null || self.sem == null) return false;
+		return self.sem.closure_calls.get(node.addr()) != null;
+	}
+
+	// Returns the enclosing local/parameter symbol if `name` is resolved in `boundary`
+	// or an ancestor scope of `boundary`, or null if resolved inside the lambda or globally.
+	pub fn lookup_local_at_or_above(val self, name: str, boundary: *Scope?): *Symbol? {
+		if (boundary == null) return null;
+		var curr: *Scope? = self.current_scope;
+		var reached_boundary = false;
+		while (curr != null) {
+			if (curr == boundary) reached_boundary = true;
+			for (sym in curr) {
+				if (sym.name == name) {
+					if (
+						reached_boundary
+						&& (sym.kind == SymbolKind.VAR || sym.kind == SymbolKind.PARAM)
+					) return sym;
+					return null;
+				}
+			}
+			curr = curr.parent;
+		}
+		return null;
+	}
+
+	// Returns the local/parameter symbol if `name` is defined in any enclosing local scope.
+	pub fn lookup_any_local(val self, name: str): *Symbol? {
+		var curr: *Scope? = self.current_scope;
+		while (curr != null) {
+			for (sym in curr) {
+				if (
+					sym.name == name
+					&& (sym.kind == SymbolKind.VAR || sym.kind == SymbolKind.PARAM)
+				) return sym;
+			}
+			curr = curr.parent;
+		}
+		return null;
+	}
+
 	pub fn register_prim_method(val self, prim: *Type, mi: *MethodInfo) {
 		var target = prim;
 		target.add_method(mi);

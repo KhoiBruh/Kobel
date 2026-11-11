@@ -50,6 +50,21 @@ impl Parser {
 			return self.node(NodeData.ArrayType(elem_type, size), line, col);
 		}
 
+		// 3. Function type: (T1, T2) -> R
+		if (self.match_token(TokenType.OPEN_PAREN)) {
+			var param_types = List<*AstNode>();
+			if (!self.check(TokenType.CLOSE_PAREN)) {
+				param_types += self.parse_type();
+				while (self.match_token(TokenType.COMMA)) {
+					param_types += self.parse_type();
+				}
+			}
+			self.consume(TokenType.CLOSE_PAREN, "Expected ')' after function parameter types");
+			self.consume(TokenType.ARROW, "Expected '->' after function parameter types");
+			val ret_type = self.parse_type();
+			return self.node(NodeData.FnType(param_types, ret_type), line, col);
+		}
+
 		// 3. Named type / Path: Foo, std.collections.List, List<T>
 		val id_tok = self.consume(TokenType.IDENTIFIER, "Expected type name");
 		var full_name = id_tok.text;

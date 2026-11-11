@@ -33,13 +33,43 @@ impl TypeResolver {
 				if (s.type_params.len > 0) self.symtab.gen.struct_templates += self.generic_template(s.name, node, false);
 			}
 			is FnDecl as f -> {
-				if (f.type_params.len > 0) self.symtab.gen.fn_templates += self.generic_template(f.name, node, false);
+				if (f.type_params.len > 0) {
+					self.validate_fn_lambda_rules(node, f);
+					self.symtab.gen.fn_templates += self.generic_template(f.name, node, false);
+				}
 			}
 			is ImplDecl as im -> {
 				if (im.type_params.len > 0) {
+					for (m in im.methods) {
+						if (m is FnDecl as mf) self.validate_fn_lambda_rules(m, mf);
+					}
 					self.symtab.gen.impl_templates += self.generic_template(im.struct_name, node, true);
 				} else {
 					self.collect_generic_impl_methods(im);
+				}
+			}
+		}
+	}
+
+	pub fn validate_fn_lambda_rules(var self, node: *AstNode, f: *FnDecl) {
+		if (f.return_type != null && f.return_type is FnType) {
+			self.report_error(f.return_type!, "Function cannot return a lambda/closure type");
+		}
+		var fn_param_count = 0;
+		for (i in 0..<f.params.len) {
+			val p = f.params[i];
+			if (p.type_node != null && p.type_node is FnType) {
+				fn_param_count++;
+				if (p.mutable) {
+					self.report_error(node, "Lambda parameter '${p.name}' cannot be declared 'var'");
+				}
+				if (p.default_val != null) {
+					self.report_error(node, "Lambda parameter '${p.name}' cannot have a default value");
+				}
+				if (fn_param_count > 1) {
+					self.report_error(p.type_node!, "Function can have at most one lambda parameter");
+				} else if (i != f.params.len - 1) {
+					self.report_error(p.type_node!, "Lambda parameter must be the last parameter of '${f.name}'");
 				}
 			}
 		}
@@ -49,6 +79,7 @@ impl TypeResolver {
 		for (m in im.methods) {
 			if (m is FnDecl as var f) {
 				if (f.type_params.len == 0) continue;
+				self.validate_fn_lambda_rules(m, f);
 				self.normalize_generic_self_param(f, im.struct_name, m.line, m.col);
 				self.symtab.gen.fn_templates += self.generic_template(f.name, m, true, im.struct_name);
 			}
@@ -194,6 +225,10 @@ impl TypeResolver {
 			val arg = arg_asts[i];
 			val ty = self.resolve_ast_type(arg);
 			if (ty == null || ty.kind == DataType.NONE) continue;
+			if (ty.kind == DataType.FN) {
+				self.report_error(arg, "Lambda/closure type cannot be used as a generic type argument");
+				continue;
+			}
 
 			var cur_ty = ty;
 			if (cur_ty.kind == DataType.POINTER) cur_ty = cur_ty.as_pointer().pointee;

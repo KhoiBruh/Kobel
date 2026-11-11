@@ -29,6 +29,20 @@ pub struct IsPatternInfo {
 	pub tag_const: str = ""
 }
 
+// Captured outer local variable or parameter in a non-escaping stack lambda.
+pub struct LambdaCapture {
+	pub name: str = "",
+	pub ty: *Type? = null,
+	pub is_mutable: bool = false
+}
+
+// Synthesized metadata for a checked lambda closure expression.
+pub struct LambdaInfo {
+	pub id: usz = 0,
+	pub fn_type: *Type? = null,
+	pub captures: List<LambdaCapture> = List()
+}
+
 /*
  * One per-node annotation entry for a function or method instance whose body
  * shares the generic template's AST.
@@ -49,7 +63,10 @@ pub struct AnnotationEntry {
 	pub init_override: *AstNode? = null,
 	pub ident_name: str = "",
 	pub has_ident_name: bool = false,
-	pub is_predicate: bool = false
+	pub is_predicate: bool = false,
+	pub lambda_info: LambdaInfo = LambdaInfo(),
+	pub has_lambda_info: bool = false,
+	pub is_closure_call: bool = false
 }
 
 pub struct SemanticTable {
@@ -58,5 +75,8 @@ pub struct SemanticTable {
 	pub resolved_nodes: HashMap<usz, *AstNode> = HashMap(),
 	pub node_instances: HashMap<usz, *InstanceRecord> = HashMap(),
 	pub is_patterns: HashMap<usz, IsPatternInfo> = HashMap(),
-	pub predicate_patterns: HashMap<usz, bool> = HashMap()
+	pub predicate_patterns: HashMap<usz, bool> = HashMap(),
+	pub lambdas: HashMap<usz, LambdaInfo> = HashMap(),
+	pub closure_calls: HashMap<usz, bool> = HashMap(),
+	pub next_lambda_id: usz = 1
 }

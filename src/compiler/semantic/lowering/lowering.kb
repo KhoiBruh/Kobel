@@ -238,6 +238,10 @@ impl LoweringPass {
 			is EnumCtorExpr as var ec -> {
 				for (i in 0..<ec.args.len) ec.args[i] = self.lower_expr(ec.args[i]);
 			}
+			is LambdaExpr as var lam -> {
+				if (lam.body is BlockStmt) lam.body = self.lower_stmt(lam.body);
+				else lam.body = self.lower_expr(lam.body);
+			}
 		}
 		return out;
 	}
@@ -257,6 +261,12 @@ impl LoweringPass {
 		if (orig_ty != null) self.symtab.set_node_type(replacement, orig_ty);
 		if (self.symtab.is_predicate_pattern(original)) {
 			self.symtab.set_predicate_pattern(replacement);
+		}
+		if (self.symtab.has_lambda_info(original)) {
+			self.symtab.set_lambda_info(replacement, self.symtab.get_lambda_info(original));
+		}
+		if (self.symtab.is_closure_call(original)) {
+			self.symtab.set_closure_call(replacement);
 		}
 		return replacement;
 	}
