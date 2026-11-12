@@ -1,0 +1,53 @@
+use std.collections.*;
+
+fn sum(items: ..i32): i32 {
+	var total = 0;
+	for (x in items) {
+		total += x;
+	}
+	return total;
+}
+
+fn count_items(prefix: str, items: ..i32): usz {
+	return items.len;
+}
+
+fn main(): i32 {
+	// 1. Variadic function with arguments
+	val s = sum(1, 2, 3, 4, 5);
+	if (s != 15) return 1;
+
+	// 2. Variadic function with 0 arguments
+	val empty_s = sum();
+	if (empty_s != 0) return 2;
+
+	// 3. Variadic function with fixed + variadic
+	val c = count_items("test", 10, 20, 30);
+	if (c != 3) return 3;
+
+	val c0 = count_items("test");
+	if (c0 != 0) return 4;
+
+	// 4. Array stack initialization
+	val arr = Array<i32>(1, 2, 3, 4, 5);
+	if (arr.len != 5) return 8;
+	if (arr[0] != 1 || arr[4] != 5) return 9;
+
+	var arr_sum = 0;
+	for (n in arr) {
+		arr_sum += n;
+	}
+	if (arr_sum != 15) return 10;
+
+	// 5. List initialization with variadic items
+	var list = List<i32>(10, 20, 30);
+	defer list.free();
+	if (list.len != 3) return 11;
+	if (list[0] != 10 || list[1] != 20 || list[2] != 30) return 12;
+
+	var empty_list = List<i32>();
+	defer empty_list.free();
+	if (empty_list.len != 0) return 13;
+
+	return 0;
+}

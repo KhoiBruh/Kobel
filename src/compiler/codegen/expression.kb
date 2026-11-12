@@ -62,13 +62,23 @@ impl CCodeGen {
 
 			is ArrayLiteralExpr -> self.gen_array_literal_expr(node);
 
-			is CallExpr -> self.gen_call_expr(node);
+			is CallExpr -> self.gen_call_expr(ast_node, node);
 
 			is MemberExpr -> self.gen_member_expr(ast_node, node);
 
 			is IndexExpr -> {
 				val tgt = self.gen_expr(node.target);
 				val idx = self.gen_expr(node.index);
+				val tgt_ty = self.node_type(node.target);
+				if (tgt_ty?.kind == DataType.ARRAY && tgt_ty.as_array().length == 0 && node.target is IdentifierExpr as id) {
+					yield "${id.name}_data[${idx}]";
+				}
+				if (node.target is IdentifierExpr as id) {
+					val sym = self.symtab?.lookup(id.name);
+					if (sym != null && sym.is_vararg) {
+						yield "${id.name}_data[${idx}]";
+					}
+				}
 				if (self.is_str_value(node.target)) {
 					val tgt_wrap = if (expr_needs_parens_for_member(node.target)) "(${tgt})" else tgt;
 					yield "${tgt_wrap}.data[${idx}]";
@@ -344,7 +354,7 @@ impl CCodeGen {
 	}
 
 	// Calls lower to a C call, a struct compound literal, or an inlined string/size helper.
-	fn gen_call_expr(&self, call: *CallExpr): str {
+	fn gen_call_expr(&self, ast_node: *AstNode, call: *CallExpr): str {
 		// Static or string method call: T.size() -> sizeof(T), s.c_str() -> kobel_cstr(s)
 		val callee = call.callee;
 		if (callee is MemberExpr as mem) {
@@ -389,19 +399,61 @@ impl CCodeGen {
 
 		val callee_str = self.gen_expr(call.callee);
 
-		val args_str = call.args.map { arg -> self.gen_expr(arg) };
+		var is_vararg_call = false;
+		var varg_fixed_count: usz = 0;
+		var varg_elem_c = "";
+
+		var fn_info: *TypePayload.Fn? = null;
+		val mi = self.symtab?.get_resolved_method(ast_node);
+		val callee_ty = self.node_type(call.callee);
+		if (mi != null && mi.fn_type.kind == DataType.FN) {
+			fn_info = mi.fn_type.as_fn();
+		} else if (callee_ty != null && callee_ty.kind == DataType.FN) {
+			fn_info = callee_ty.as_fn();
+		} else if (call.callee is IdentifierExpr as callee_id) {
+			val sym = self.symtab?.lookup(callee_id.name);
+			if (sym != null && sym.type_ptr.kind == DataType.FN) {
+				fn_info = sym.type_ptr.as_fn();
+			}
+		}
+
+		if (fn_info != null && fn_info.is_variadic && fn_info.param_types.len > 0) {
+			is_vararg_call = true;
+			varg_fixed_count = fn_info.param_types.len - 1;
+			varg_elem_c = c_type_from_type(fn_info.param_types[varg_fixed_count]);
+		}
+
+		var args_str = List<str>();
+		if (is_vararg_call) {
+			for (i in 0..<varg_fixed_count) {
+				if (i < call.args.len) args_str += self.gen_expr(call.args[i]);
+			}
+			val varg_count = if (call.args.len >= varg_fixed_count) call.args.len - varg_fixed_count else 0;
+			if (varg_count > 0) {
+				var vargs = List<str>();
+				for (i in varg_fixed_count..<call.args.len) {
+					vargs += self.gen_expr(call.args[i]);
+				}
+				args_str += "(${varg_elem_c}[]){ ${", ".join(vargs)} }";
+				args_str += "${varg_count}";
+			} else {
+				args_str += "NULL";
+				args_str += "0";
+			}
+		} else {
+			for (arg in call.args) args_str += self.gen_expr(arg);
+		}
 		val joined_args = ", ".join(args_str);
 
-		val callee_ty = self.node_type(call.callee);
 		if (
 			callee_ty != null
 			&& callee_ty.kind == DataType.FN
 			&& self.symtab?.is_closure_call(call.callee)
 		) {
-			val fn_info = callee_ty.as_fn();
-			val ret_c = c_type_from_type(fn_info.return_type);
+			val c_fn_info = callee_ty.as_fn();
+			val ret_c = c_type_from_type(c_fn_info.return_type);
 			var param_c = "void*";
-			for (pt in fn_info.param_types) {
+			for (pt in c_fn_info.param_types) {
 				param_c = "${param_c}, ${c_type_from_type(pt)}";
 			}
 			val env_and_args = if (joined_args.empty()) "${callee_str}.env"
@@ -417,6 +469,18 @@ impl CCodeGen {
 	// `.data` emit directly as field accesses.
 	fn gen_member_expr(&self, ast_node: *AstNode, mem: *MemberExpr): str {
 		val obj_node = mem.object;
+		val obj_ty = self.node_type(obj_node);
+		if (obj_ty?.kind == DataType.ARRAY && obj_ty.as_array().length == 0 && obj_node is IdentifierExpr as id) {
+			if (mem.member == "len" || mem.member == "size") return "${id.name}_len";
+			if (mem.member == "data") return "${id.name}_data";
+		}
+		if (obj_node is IdentifierExpr as id) {
+			val sym = self.symtab?.lookup(id.name);
+			if (sym != null && sym.is_vararg) {
+				if (mem.member == "len" || mem.member == "size") return "${id.name}_len";
+				if (mem.member == "data") return "${id.name}_data";
+			}
+		}
 		val obj = self.gen_expr(obj_node);
 		// A member access on a pointer value needs `->`; the receiver of a
 		// non-identifier pointer is dereferenced by sema instead.

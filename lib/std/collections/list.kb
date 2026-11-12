@@ -19,7 +19,7 @@ use std.traits.*;
 */
 
 // `cap` is private: another module cannot build a List from its fields and must
-// go through a constructor (`List<T>()` or `List<T>(capacity)`).
+// go through a constructor (`List<T>()` or `List<T>(elements...)`).
 //
 // `data` and `len` stay `pub` on purpose: the `for (x in seq)` lowering reads
 // `seq.len` / `seq.data` directly (see docs section 6.2), so they are part of
@@ -39,7 +39,14 @@ impl Iterable for List<T> {
 
 impl List<T> {
 
-	pub init(cap: usz = 4) => Self(Heap.create_array<T>(cap), 0, cap);
+	pub init(items: ..T) {
+		val cap = if (items.len < 4) 4 else items.len;
+		val buf = Heap.create_array<T>(cap);
+		for (i in 0..<items.len) {
+			buf[i] = items[i];
+		}
+		return Self(buf, items.len, cap);
+	}
 
 	pub fn first(*self) => self.data[0];
 
@@ -246,8 +253,7 @@ impl List<T> {
 	}
 
 	pub fn map<U>(*self, transform: (T) -> U): List<U> {
-		val cap = if (self.len > 4) self.len else 4;
-		var res = List<U>(cap);
+		var res = List<U>();
 		for (data in self) res += transform(data);
 		return res;
 	}

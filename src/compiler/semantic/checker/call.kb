@@ -431,7 +431,46 @@ impl BodyChecker {
 			}
 		}
 
-		if (call.args.len + 1 != fn_info.param_types.len) {
+		if (fn_info.is_variadic) {
+			val min_user_args = if (fn_info.param_types.len >= 2) fn_info.param_types.len - 2 else 0;
+			if (call.args.len < min_user_args) {
+				self.report_error(node, "Argument count mismatch in method call '${mem.member}'");
+			} else {
+				val elem_ty = fn_info.param_types.last();
+				for (i in 0..<min_user_args) {
+					val param_ty = fn_info.param_types[i + 1];
+					val arg_n = call.args[i];
+					if (param_ty?.kind == DataType.POINTER && param_ty.as_pointer().mutable) {
+						self.mark_node_mutated(arg_n);
+					}
+					if (param_ty?.is_list()) self.coerce_to_list(arg_n, param_ty);
+					val is_fn_forward = (
+						param_ty?.kind == DataType.FN
+						&& i == call.args.len - 1
+						&& arg_n is IdentifierExpr
+					);
+					val prev_allow = self.allowing_fn_param_ref;
+					if (is_fn_forward) self.allowing_fn_param_ref = true;
+					val arg_ty = self.check_expr(arg_n, param_ty);
+					self.allowing_fn_param_ref = prev_allow;
+					self.ensure(
+						param_ty.can_assign(arg_ty),
+						node,
+						"Argument type mismatch in method call '${mem.member}'"
+					);
+				}
+				for (i in min_user_args..<call.args.len) {
+					val arg_n = call.args[i];
+					if (elem_ty?.is_list()) self.coerce_to_list(arg_n, elem_ty);
+					val arg_ty = self.check_expr(arg_n, elem_ty);
+					self.ensure(
+						elem_ty.can_assign(arg_ty),
+						node,
+						"Argument type mismatch in variadic arguments of '${mem.member}'"
+					);
+				}
+			}
+		} else if (call.args.len + 1 != fn_info.param_types.len) {
 			self.report_error(node, "Argument count mismatch in method call '${mem.member}'");
 		} else {
 			for (i in 0..<call.args.len) {
@@ -592,7 +631,46 @@ impl BodyChecker {
 		val mi = (mi_def ?: cand)!;
 
 		val fn_info = mi.fn_type.as_fn();
-		if (call.args.len != fn_info.param_types.len) {
+		if (fn_info.is_variadic) {
+			val min_args = fn_info.param_types.len - 1;
+			if (call.args.len < min_args) {
+				self.report_error(node, "Argument count mismatch in call to '${st.name}.${mem.member}'");
+			} else {
+				val elem_ty = fn_info.param_types[min_args];
+				for (i in 0..<min_args) {
+					val param_ty = fn_info.param_types[i];
+					val arg_n = call.args[i];
+					if (param_ty?.kind == DataType.POINTER && param_ty.as_pointer().mutable) {
+						self.mark_node_mutated(arg_n);
+					}
+					if (param_ty?.is_list()) self.coerce_to_list(arg_n, param_ty);
+					val is_fn_forward = (
+						param_ty?.kind == DataType.FN
+						&& i == call.args.len - 1
+						&& arg_n is IdentifierExpr
+					);
+					val prev_allow = self.allowing_fn_param_ref;
+					if (is_fn_forward) self.allowing_fn_param_ref = true;
+					val arg_ty = self.check_expr(arg_n, param_ty);
+					self.allowing_fn_param_ref = prev_allow;
+					self.ensure(
+						param_ty.can_assign(arg_ty),
+						node,
+						"Argument type mismatch in call to '${st.name}.${mem.member}'"
+					);
+				}
+				for (i in min_args..<call.args.len) {
+					val arg_n = call.args[i];
+					if (elem_ty?.is_list()) self.coerce_to_list(arg_n, elem_ty);
+					val arg_ty = self.check_expr(arg_n, elem_ty);
+					self.ensure(
+						elem_ty.can_assign(arg_ty),
+						node,
+						"Argument type mismatch in variadic arguments of '${st.name}.${mem.member}'"
+					);
+				}
+			}
+		} else if (call.args.len != fn_info.param_types.len) {
 			self.report_error(node, "Argument count mismatch in call to '${st.name}.${mem.member}'");
 		} else {
 			for (i in 0..<call.args.len) {
@@ -932,7 +1010,53 @@ impl BodyChecker {
 			}
 		}
 		val fn_info = callee_ty.as_fn();
-		if (call.args.len != fn_info.param_types.len) {
+		if (fn_info.is_variadic) {
+			val min_args = fn_info.param_types.len - 1;
+			if (call.args.len < min_args) {
+				self.report_error(node, "Argument count mismatch in function call");
+			} else {
+				val elem_ty = fn_info.param_types[min_args];
+				for (i in 0..<min_args) {
+					val param_ty = fn_info.param_types[i];
+					val arg_n = call.args[i];
+					if (param_ty?.kind == DataType.POINTER && param_ty.as_pointer().mutable) {
+						self.mark_node_mutated(arg_n);
+					}
+					if (param_ty?.is_list()) self.coerce_to_list(arg_n, param_ty);
+					val is_fn_forward = (
+						param_ty?.kind == DataType.FN
+						&& i == call.args.len - 1
+						&& arg_n is IdentifierExpr
+					);
+					val prev_allow = self.allowing_fn_param_ref;
+					if (is_fn_forward) self.allowing_fn_param_ref = true;
+					val arg_ty = self.check_expr(arg_n, param_ty);
+					self.allowing_fn_param_ref = prev_allow;
+					if (!param_ty.can_assign(arg_ty)) {
+						if (param_ty.kind == DataType.POINTER && arg_ty.kind == DataType.STRUCT) {
+							val p_pointee = param_ty.as_pointer().pointee;
+							if (p_pointee.equals(arg_ty)) {
+								val ref_arg = self.arena.node(
+									NodeData.UnaryExpr(TokenType.AMPERSAND, arg_n, false),
+									arg_n.line, arg_n.col
+								);
+								call.args[i] = ref_arg;
+								continue;
+							}
+						}
+						self.report_error(node, "Argument type mismatch in function call");
+					}
+				}
+				for (i in min_args..<call.args.len) {
+					val arg_n = call.args[i];
+					if (elem_ty?.is_list()) self.coerce_to_list(arg_n, elem_ty);
+					val arg_ty = self.check_expr(arg_n, elem_ty);
+					if (!elem_ty.can_assign(arg_ty)) {
+						self.report_error(node, "Argument type mismatch in variadic arguments");
+					}
+				}
+			}
+		} else if (call.args.len != fn_info.param_types.len) {
 			self.report_error(node, "Argument count mismatch in function call");
 		} else {
 			for (i in 0..<call.args.len) {
@@ -1153,12 +1277,30 @@ impl BodyChecker {
 			}
 			if (nm != null) {
 				val n_info = nm.fn_type.as_fn();
-				for (i in 0..<call.args.len) {
-					val param_ty = n_info.param_types[i];
-					val arg_n = call.args[i];
-					if (param_ty?.is_list()) self.coerce_to_list(arg_n, param_ty);
-					val arg_ty = self.check_expr(arg_n, param_ty);
-					self.ensure(param_ty.can_assign(arg_ty), node, "Argument type mismatch in call to 'new'");
+				if (n_info.is_variadic) {
+					val min_args = n_info.param_types.len - 1;
+					val elem_ty = n_info.param_types[min_args];
+					for (i in 0..<min_args) {
+						val param_ty = n_info.param_types[i];
+						val arg_n = call.args[i];
+						if (param_ty?.is_list()) self.coerce_to_list(arg_n, param_ty);
+						val arg_ty = self.check_expr(arg_n, param_ty);
+						self.ensure(param_ty.can_assign(arg_ty), node, "Argument type mismatch in call to constructor");
+					}
+					for (i in min_args..<call.args.len) {
+						val arg_n = call.args[i];
+						if (elem_ty?.is_list()) self.coerce_to_list(arg_n, elem_ty);
+						val arg_ty = self.check_expr(arg_n, elem_ty);
+						self.ensure(elem_ty.can_assign(arg_ty), node, "Argument type mismatch in variadic arguments");
+					}
+				} else {
+					for (i in 0..<call.args.len) {
+						val param_ty = n_info.param_types[i];
+						val arg_n = call.args[i];
+						if (param_ty?.is_list()) self.coerce_to_list(arg_n, param_ty);
+						val arg_ty = self.check_expr(arg_n, param_ty);
+						self.ensure(param_ty.can_assign(arg_ty), node, "Argument type mismatch in call to 'new'");
+					}
 				}
 				self.set_method(node, nm);
 				if (self.arrow_pending(nm.ast_node)) self.infer_blocked = true;

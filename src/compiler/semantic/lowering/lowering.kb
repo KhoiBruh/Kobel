@@ -259,6 +259,8 @@ impl LoweringPass {
 	fn lowered(*self, original: *AstNode, replacement: *AstNode): *AstNode {
 		val orig_ty = self.symtab.get_node_type(original);
 		if (orig_ty != null) self.symtab.set_node_type(replacement, orig_ty);
+		val rm = self.symtab.get_resolved_method(original);
+		if (rm != null) self.symtab.set_resolved_method(replacement, rm);
 		if (self.symtab.is_predicate_pattern(original)) {
 			self.symtab.set_predicate_pattern(replacement);
 		}
@@ -455,8 +457,24 @@ impl LoweringPass {
 		}
 
 		if (self.is_array_expr(obj)) {
+			val arr = self.type_of(obj).as_array();
+			if (arr.length == 0 && obj is IdentifierExpr as id) {
+				if (mem.member == "len" || mem.member == "size") {
+					val id_node = self.arena.node(
+						NodeData.IdentifierExpr("${id.name}_len"),
+						node.line, node.col
+					);
+					return self.lowered(node, id_node);
+				}
+				if (mem.member == "data") {
+					val id_node = self.arena.node(
+						NodeData.IdentifierExpr("${id.name}_data"),
+						node.line, node.col
+					);
+					return self.lowered(node, id_node);
+				}
+			}
 			if (mem.member == "len" || mem.member == "size") {
-				val arr = self.type_of(obj).as_array();
 				val lit = self.arena.node(
 					NodeData.LiteralExpr(Literal.INTEGER, "${arr.length}"),
 					node.line, node.col
@@ -487,6 +505,20 @@ impl LoweringPass {
 	}
 
 	fn lower_index(&self, node: *AstNode, idx: &IndexExpr): *AstNode {
+		if (idx.target is IdentifierExpr as id) {
+			val target_arr = self.type_of(idx.target);
+			if (target_arr?.kind == DataType.ARRAY && target_arr.as_array().length == 0) {
+				val data_id = self.arena.node(
+					NodeData.IdentifierExpr("${id.name}_data"),
+					node.line, node.col
+				);
+				val new_idx = self.arena.node(
+					NodeData.IndexExpr(data_id, self.lower_expr(idx.index)),
+					node.line, node.col
+				);
+				return self.lowered(node, new_idx);
+			}
+		}
 		if (self.symtab.get_resolved_method(node) == null) return node;
 		val mi = self.symtab.get_resolved_method(node)!;
 		val target_ty = self.type_of(idx.target);

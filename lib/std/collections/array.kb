@@ -1,0 +1,60 @@
+mod std.collections;
+
+use std.traits.*;
+
+/*
+ * Array<T> - Stack-allocated or slice view of contiguous elements.
+ *
+ * C ABI layout:
+ *   data: *T  - pointer to contiguous elements
+ *   len:  usz - number of elements
+ *
+ * Usage:
+ *   val a = Array<i32>(1, 2, 3, 4, 5);
+ *   val x = a[0];
+ *   val n = a.len;
+ *   for (item in a) { ... }
+ */
+pub struct Array<T> {
+	pub data: *T,
+	pub len: usz
+}
+
+impl Iterable for Array<T> {
+	pub fn count(*self) => self.len;
+
+	pub fn at(*self, i: usz) => self.data[i];
+}
+
+impl Array<T> {
+
+	pub init(items: ..T) => Self(items.data, items.len);
+
+	pub fn empty(*self) => self.len == 0;
+
+	pub fn first(*self) => self.data[0];
+
+	pub fn last(*self) => self.data[self.len - 1];
+
+	pub op get(*self, i: usz) => self.data[i];
+
+	pub op set(&self, i: usz, value: T) {
+		self.data[i] = value;
+	}
+
+	pub op contains(*self, value: T): bool {
+		for (i in 0..<self.len) {
+			if (self.data[i] == value) return true;
+		}
+		return false;
+	}
+
+	pub fn slice(*self, start: usz, end: usz): Array<T> {
+		val s = if (start > self.len) self.len else start;
+		val e = if (end > self.len) self.len else end;
+		val new_len = if (e > s) e - s else 0;
+		val new_ptr = if (new_len > 0) (&self.data[s]) as *T else self.data;
+		return Self(new_ptr, new_len);
+	}
+
+}

@@ -97,11 +97,18 @@ impl BodyChecker {
 
 			for (i in 0..<f.params.len) {
 				val p = f.params[i];
-				val p_ty = fn_info.param_types[i];
-				self.symtab.define(Symbol(
+				var p_ty = fn_info.param_types[i];
+				var is_vararg = false;
+				if (fn_info.is_variadic && i == f.params.len - 1) {
+					p_ty = self.arena.array_type(p_ty, 0);
+					is_vararg = true;
+				}
+				var sym = Symbol(
 					p.name, p.name, SymbolKind.PARAM, p_ty, p.mutable, false,
 					fn_node.line, fn_node.col, null
-				));
+				);
+				sym.is_vararg = is_vararg;
+				self.symtab.define(sym);
 			}
 
 			val f_body = f.body;

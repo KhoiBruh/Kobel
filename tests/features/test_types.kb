@@ -270,7 +270,8 @@ fn test_list_ctor(var t: &Tally) {
 	{
 		var ys = List<i32>(16);
 		defer ys.free();
-		check_i(ys.len, 0, "List<i32>(capacity) starts empty", t);
+		check_i(ys.len, 1, "List<i32>(16) initializes with 1 item", t);
+		check_i(ys[0], 16, "List<i32>(16) holds 16", t);
 	}
 }
 

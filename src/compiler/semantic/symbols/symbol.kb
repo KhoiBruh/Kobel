@@ -46,7 +46,8 @@ pub struct Symbol {
 	pub ast_node: *AstNode? = null,
 	pub orig_type: *Type? = null,
 	pub mutated: bool = false,
-	pub is_moved: bool = false
+	pub is_moved: bool = false,
+	pub is_vararg: bool = false
 }
 
 impl Symbol {

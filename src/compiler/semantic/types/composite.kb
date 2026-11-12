@@ -91,12 +91,28 @@ impl StructType {
 			) return m;
 		}
 
+		for (m in self.methods) {
+			if (!m.operator && m.is_static && m.name == name) {
+				val fn_t = m.fn_type.as_fn();
+				if (fn_t.is_variadic && fn_t.param_types.len > 0 && argc >= fn_t.param_types.len - 1) return m;
+			}
+		}
+
+		for (m in self.methods) {
+			if (m.is_static && m.name == name) {
+				val fn_t = m.fn_type.as_fn();
+				if (fn_t.is_variadic && fn_t.param_types.len > 0 && argc >= fn_t.param_types.len - 1) return m;
+			}
+		}
+
 		return null;
 	}
 
 	pub fn count_static_method_arity(*self, name: str, argc: usz): usz =>
 		self.methods.count_where { m ->
-			!m.operator && m.is_static && m.name == name && m.fn_type.as_fn().param_types.len == argc
+			val fn_t = m.fn_type.as_fn();
+			val arity_ok = fn_t.param_types.len == argc || (fn_t.is_variadic && fn_t.param_types.len > 0 && argc >= fn_t.param_types.len - 1);
+			yield !m.operator && m.is_static && m.name == name && arity_ok;
 		};
 
 	pub fn find_method_arity(*self, name: str, argc: usz): *MethodInfo? {
@@ -117,12 +133,28 @@ impl StructType {
 			) return m;
 		}
 
+		for (m in self.methods) {
+			if (!m.operator && !m.is_static && m.name == name) {
+				val fn_t = m.fn_type.as_fn();
+				if (fn_t.is_variadic && fn_t.param_types.len > 0 && argc >= fn_t.param_types.len - 1) return m;
+			}
+		}
+
+		for (m in self.methods) {
+			if (!m.is_static && m.name == name) {
+				val fn_t = m.fn_type.as_fn();
+				if (fn_t.is_variadic && fn_t.param_types.len > 0 && argc >= fn_t.param_types.len - 1) return m;
+			}
+		}
+
 		return null;
 	}
 
 	pub fn count_method_arity(*self, name: str, argc: usz): usz =>
 		self.methods.count_where { m ->
-			!m.operator && !m.is_static && m.name == name && m.fn_type.as_fn().param_types.len == argc
+			val fn_t = m.fn_type.as_fn();
+			val arity_ok = fn_t.param_types.len == argc || (fn_t.is_variadic && fn_t.param_types.len > 0 && argc >= fn_t.param_types.len - 1);
+			yield !m.operator && !m.is_static && m.name == name && arity_ok;
 		};
 
 	pub fn find_method_c(*self, c_name: str): *MethodInfo? {

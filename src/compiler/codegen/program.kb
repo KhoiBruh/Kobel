@@ -322,6 +322,11 @@ impl CCodeGen {
 			for (i in 0..<f.params.len) {
 				if (i > 0) self.out += ", ";
 				val p = f.params[i];
+				if (p.type_node is VariadicType as vt) {
+					val elem_c = c_type_from_ast(vt.element_type);
+					self.out += "${elem_c}* ${p.name}_data, size_t ${p.name}_len";
+					continue;
+				}
 				var p_ty = if (p.type_node != null) c_type_from_ast(p.type_node!) else "void*";
 
 				if (

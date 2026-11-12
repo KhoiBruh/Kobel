@@ -564,7 +564,7 @@ void test__test_destructuring__test_nullable_destructuring(void);
 int32_t main(void);
 size_t std__collections__List_str_count(std__collections__List_str* self);
 kobel_str std__collections__List_str_at(std__collections__List_str* self, size_t i);
-std__collections__List_str std__collections__List_str_init(size_t cap);
+std__collections__List_str std__collections__List_str_init(kobel_str* items_data, size_t items_len);
 kobel_str std__collections__List_str_first(std__collections__List_str* self);
 kobel_str std__collections__List_str_last(std__collections__List_str* self);
 bool std__collections__List_str_empty(std__collections__List_str* self);
@@ -605,7 +605,7 @@ test__test_destructuring__Tuple3_i32_str_bool test__test_destructuring__Tuple3_i
 void test__test_destructuring__Tuple3_i32_str_bool_unpack(test__test_destructuring__Tuple3_i32_str_bool* self, int32_t* a, kobel_str* b, bool* c);
 size_t std__collections__List_i32_count(std__collections__List_i32* self);
 int32_t std__collections__List_i32_at(std__collections__List_i32* self, size_t i);
-std__collections__List_i32 std__collections__List_i32_init(size_t cap);
+std__collections__List_i32 std__collections__List_i32_init(int32_t* items_data, size_t items_len);
 int32_t std__collections__List_i32_first(std__collections__List_i32* self);
 int32_t std__collections__List_i32_last(std__collections__List_i32* self);
 bool std__collections__List_i32_empty(std__collections__List_i32* self);
@@ -645,7 +645,7 @@ void std__collections__List_i32_plus_assign(std__collections__List_i32* self, in
 void std__collections__Pair_str_i32_unpack(std__collections__Pair_str_i32* self, kobel_str* first, int32_t* second);
 size_t std__collections__List_std__collections__Pair_str_i32_count(std__collections__List_std__collections__Pair_str_i32* self);
 std__collections__Pair_str_i32 std__collections__List_std__collections__Pair_str_i32_at(std__collections__List_std__collections__Pair_str_i32* self, size_t i);
-std__collections__List_std__collections__Pair_str_i32 std__collections__List_std__collections__Pair_str_i32_init(size_t cap);
+std__collections__List_std__collections__Pair_str_i32 std__collections__List_std__collections__Pair_str_i32_init(std__collections__Pair_str_i32* items_data, size_t items_len);
 std__collections__Pair_str_i32 std__collections__List_std__collections__Pair_str_i32_first(std__collections__List_std__collections__Pair_str_i32* self);
 std__collections__Pair_str_i32 std__collections__List_std__collections__Pair_str_i32_last(std__collections__List_std__collections__Pair_str_i32* self);
 bool std__collections__List_std__collections__Pair_str_i32_empty(std__collections__List_std__collections__Pair_str_i32* self);
@@ -704,7 +704,7 @@ size_t std__collections__HashMap_str_i32_count(std__collections__HashMap_str_i32
 std__collections__Pair_str_i32 std__collections__HashMap_str_i32_at(std__collections__HashMap_str_i32* self, size_t i);
 size_t std__collections__List_test__test_destructuring__Point2D_count(std__collections__List_test__test_destructuring__Point2D* self);
 test__test_destructuring__Point2D std__collections__List_test__test_destructuring__Point2D_at(std__collections__List_test__test_destructuring__Point2D* self, size_t i);
-std__collections__List_test__test_destructuring__Point2D std__collections__List_test__test_destructuring__Point2D_init(size_t cap);
+std__collections__List_test__test_destructuring__Point2D std__collections__List_test__test_destructuring__Point2D_init(test__test_destructuring__Point2D* items_data, size_t items_len);
 test__test_destructuring__Point2D std__collections__List_test__test_destructuring__Point2D_first(std__collections__List_test__test_destructuring__Point2D* self);
 test__test_destructuring__Point2D std__collections__List_test__test_destructuring__Point2D_last(std__collections__List_test__test_destructuring__Point2D* self);
 bool std__collections__List_test__test_destructuring__Point2D_empty(std__collections__List_test__test_destructuring__Point2D* self);
@@ -1563,7 +1563,7 @@ return kobel_slice(self, start, end);
 }
 
 std__collections__List_str str_split(kobel_str self, char delim) {
-std__collections__List_str parts = std__collections__List_str_init(4);
+std__collections__List_str parts = std__collections__List_str_init(NULL, 0);
 int32_t start = 0;
 {
 size_t __for_e = self.len;
@@ -1601,7 +1601,7 @@ return parts;
 }
 
 std__collections__List_str str_split_lines(kobel_str self) {
-std__collections__List_str res = std__collections__List_str_init(4);
+std__collections__List_str res = std__collections__List_str_init(NULL, 0);
 int32_t start = 0;
 int32_t i = 0;
 while (i < self.len) {
@@ -2378,7 +2378,7 @@ std__collections__HashMap_str_i32_free(map);
 }
 
 void test__test_destructuring__test_loop_and_nested(void) {
-std__collections__List_test__test_destructuring__Point2D pairs = std__collections__List_test__test_destructuring__Point2D_init(4);
+std__collections__List_test__test_destructuring__Point2D pairs = std__collections__List_test__test_destructuring__Point2D_init(NULL, 0);
 std__collections__List_test__test_destructuring__Point2D_plus_assign(&pairs, test__test_destructuring__Point2D_init(1, 2));
 std__collections__List_test__test_destructuring__Point2D_plus_assign(&pairs, test__test_destructuring__Point2D_init(3, 4));
 int32_t total_x = 0;
@@ -2475,8 +2475,38 @@ kobel_str std__collections__List_str_at(std__collections__List_str* self, size_t
     return self->data[i];
 }
 
-std__collections__List_str std__collections__List_str_init(size_t cap) {
-    return (std__collections__List_str){ std__memory__Heap_create_array_str(cap), 0, cap };
+std__collections__List_str std__collections__List_str_init(kobel_str* items_data, size_t items_len) {
+size_t cap = ((items_len < 4) ? 4 : items_len);
+kobel_str* buf = std__memory__Heap_create_array_str(cap);
+{
+size_t __for_e = items_len;
+size_t __for_i = __for_e;
+__for_i = 0;
+bool __for_up = (__for_i <= __for_e);
+bool __for_go = false;
+if (__for_up) {
+__for_go = (__for_i < __for_e);
+} else {
+__for_go = (__for_i > __for_e);
+}
+while (__for_go) {
+size_t i = __for_i;
+buf[i] = items_data[i];
+if (__for_up) {
+__for_go = ((__for_i + 1) < __for_e);
+} else {
+__for_go = ((__for_i - 1) > __for_e);
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = (__for_i + 1);
+} else {
+__for_i = (__for_i - 1);
+}
+}
+}
+}
+return (std__collections__List_str){ buf, items_len, cap };
 }
 
 kobel_str std__collections__List_str_first(std__collections__List_str* self) {
@@ -2931,7 +2961,7 @@ __for_i = (__for_i + 1);
 }
 
 std__collections__List_str std__collections__List_str_filter(std__collections__List_str* self, kobel_closure predicate) {
-std__collections__List_str res = std__collections__List_str_init(4);
+std__collections__List_str res = std__collections__List_str_init(NULL, 0);
 {
 size_t __for_n = std__collections__List_str_count(self);
 size_t __for_i = 0;
@@ -3030,8 +3060,38 @@ int32_t std__collections__List_i32_at(std__collections__List_i32* self, size_t i
     return self->data[i];
 }
 
-std__collections__List_i32 std__collections__List_i32_init(size_t cap) {
-    return (std__collections__List_i32){ std__memory__Heap_create_array_i32(cap), 0, cap };
+std__collections__List_i32 std__collections__List_i32_init(int32_t* items_data, size_t items_len) {
+size_t cap = ((items_len < 4) ? 4 : items_len);
+int32_t* buf = std__memory__Heap_create_array_i32(cap);
+{
+size_t __for_e = items_len;
+size_t __for_i = __for_e;
+__for_i = 0;
+bool __for_up = (__for_i <= __for_e);
+bool __for_go = false;
+if (__for_up) {
+__for_go = (__for_i < __for_e);
+} else {
+__for_go = (__for_i > __for_e);
+}
+while (__for_go) {
+size_t i = __for_i;
+buf[i] = items_data[i];
+if (__for_up) {
+__for_go = ((__for_i + 1) < __for_e);
+} else {
+__for_go = ((__for_i - 1) > __for_e);
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = (__for_i + 1);
+} else {
+__for_i = (__for_i - 1);
+}
+}
+}
+}
+return (std__collections__List_i32){ buf, items_len, cap };
 }
 
 int32_t std__collections__List_i32_first(std__collections__List_i32* self) {
@@ -3486,7 +3546,7 @@ __for_i = (__for_i + 1);
 }
 
 std__collections__List_i32 std__collections__List_i32_filter(std__collections__List_i32* self, kobel_closure predicate) {
-std__collections__List_i32 res = std__collections__List_i32_init(4);
+std__collections__List_i32 res = std__collections__List_i32_init(NULL, 0);
 {
 size_t __for_n = std__collections__List_i32_count(self);
 size_t __for_i = 0;
@@ -3580,8 +3640,38 @@ std__collections__Pair_str_i32 std__collections__List_std__collections__Pair_str
     return self->data[i];
 }
 
-std__collections__List_std__collections__Pair_str_i32 std__collections__List_std__collections__Pair_str_i32_init(size_t cap) {
-    return (std__collections__List_std__collections__Pair_str_i32){ std__memory__Heap_create_array_std__collections__Pair_str_i32(cap), 0, cap };
+std__collections__List_std__collections__Pair_str_i32 std__collections__List_std__collections__Pair_str_i32_init(std__collections__Pair_str_i32* items_data, size_t items_len) {
+size_t cap = ((items_len < 4) ? 4 : items_len);
+std__collections__Pair_str_i32* buf = std__memory__Heap_create_array_std__collections__Pair_str_i32(cap);
+{
+size_t __for_e = items_len;
+size_t __for_i = __for_e;
+__for_i = 0;
+bool __for_up = (__for_i <= __for_e);
+bool __for_go = false;
+if (__for_up) {
+__for_go = (__for_i < __for_e);
+} else {
+__for_go = (__for_i > __for_e);
+}
+while (__for_go) {
+size_t i = __for_i;
+buf[i] = items_data[i];
+if (__for_up) {
+__for_go = ((__for_i + 1) < __for_e);
+} else {
+__for_go = ((__for_i - 1) > __for_e);
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = (__for_i + 1);
+} else {
+__for_i = (__for_i - 1);
+}
+}
+}
+}
+return (std__collections__List_std__collections__Pair_str_i32){ buf, items_len, cap };
 }
 
 std__collections__Pair_str_i32 std__collections__List_std__collections__Pair_str_i32_first(std__collections__List_std__collections__Pair_str_i32* self) {
@@ -4036,7 +4126,7 @@ __for_i = (__for_i + 1);
 }
 
 std__collections__List_std__collections__Pair_str_i32 std__collections__List_std__collections__Pair_str_i32_filter(std__collections__List_std__collections__Pair_str_i32* self, kobel_closure predicate) {
-std__collections__List_std__collections__Pair_str_i32 res = std__collections__List_std__collections__Pair_str_i32_init(4);
+std__collections__List_std__collections__Pair_str_i32 res = std__collections__List_std__collections__Pair_str_i32_init(NULL, 0);
 {
 size_t __for_n = std__collections__List_std__collections__Pair_str_i32_count(self);
 size_t __for_i = 0;
@@ -4248,7 +4338,7 @@ bool std__collections__HashMap_str_i32_empty(std__collections__HashMap_str_i32* 
 }
 
 std__collections__List_str std__collections__HashMap_str_i32_keys(std__collections__HashMap_str_i32* self) {
-std__collections__List_str res = std__collections__List_str_init(4);
+std__collections__List_str res = std__collections__List_str_init(NULL, 0);
 if (self->cap == 0) {
 return res;
 }
@@ -4286,7 +4376,7 @@ return res;
 }
 
 std__collections__List_i32 std__collections__HashMap_str_i32_values(std__collections__HashMap_str_i32* self) {
-std__collections__List_i32 res = std__collections__List_i32_init(4);
+std__collections__List_i32 res = std__collections__List_i32_init(NULL, 0);
 if (self->cap == 0) {
 return res;
 }
@@ -4324,7 +4414,7 @@ return res;
 }
 
 std__collections__List_std__collections__Pair_str_i32 std__collections__HashMap_str_i32_entries(std__collections__HashMap_str_i32* self) {
-std__collections__List_std__collections__Pair_str_i32 res = std__collections__List_std__collections__Pair_str_i32_init(4);
+std__collections__List_std__collections__Pair_str_i32 res = std__collections__List_std__collections__Pair_str_i32_init(NULL, 0);
 if (self->cap == 0) {
 return res;
 }
@@ -4708,8 +4798,38 @@ test__test_destructuring__Point2D std__collections__List_test__test_destructurin
     return self->data[i];
 }
 
-std__collections__List_test__test_destructuring__Point2D std__collections__List_test__test_destructuring__Point2D_init(size_t cap) {
-    return (std__collections__List_test__test_destructuring__Point2D){ std__memory__Heap_create_array_test__test_destructuring__Point2D(cap), 0, cap };
+std__collections__List_test__test_destructuring__Point2D std__collections__List_test__test_destructuring__Point2D_init(test__test_destructuring__Point2D* items_data, size_t items_len) {
+size_t cap = ((items_len < 4) ? 4 : items_len);
+test__test_destructuring__Point2D* buf = std__memory__Heap_create_array_test__test_destructuring__Point2D(cap);
+{
+size_t __for_e = items_len;
+size_t __for_i = __for_e;
+__for_i = 0;
+bool __for_up = (__for_i <= __for_e);
+bool __for_go = false;
+if (__for_up) {
+__for_go = (__for_i < __for_e);
+} else {
+__for_go = (__for_i > __for_e);
+}
+while (__for_go) {
+size_t i = __for_i;
+buf[i] = items_data[i];
+if (__for_up) {
+__for_go = ((__for_i + 1) < __for_e);
+} else {
+__for_go = ((__for_i - 1) > __for_e);
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = (__for_i + 1);
+} else {
+__for_i = (__for_i - 1);
+}
+}
+}
+}
+return (std__collections__List_test__test_destructuring__Point2D){ buf, items_len, cap };
 }
 
 test__test_destructuring__Point2D std__collections__List_test__test_destructuring__Point2D_first(std__collections__List_test__test_destructuring__Point2D* self) {
@@ -5164,7 +5284,7 @@ __for_i = (__for_i + 1);
 }
 
 std__collections__List_test__test_destructuring__Point2D std__collections__List_test__test_destructuring__Point2D_filter(std__collections__List_test__test_destructuring__Point2D* self, kobel_closure predicate) {
-std__collections__List_test__test_destructuring__Point2D res = std__collections__List_test__test_destructuring__Point2D_init(4);
+std__collections__List_test__test_destructuring__Point2D res = std__collections__List_test__test_destructuring__Point2D_init(NULL, 0);
 {
 size_t __for_n = std__collections__List_test__test_destructuring__Point2D_count(self);
 size_t __for_i = 0;

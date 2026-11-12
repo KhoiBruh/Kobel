@@ -541,7 +541,7 @@ int32_t test__static_methods__Point_length_squared(test__static_methods__Point* 
 int32_t main(void);
 size_t std__collections__List_str_count(std__collections__List_str* self);
 kobel_str std__collections__List_str_at(std__collections__List_str* self, size_t i);
-std__collections__List_str std__collections__List_str_init(size_t cap);
+std__collections__List_str std__collections__List_str_init(kobel_str* items_data, size_t items_len);
 kobel_str std__collections__List_str_first(std__collections__List_str* self);
 kobel_str std__collections__List_str_last(std__collections__List_str* self);
 bool std__collections__List_str_empty(std__collections__List_str* self);
@@ -580,7 +580,7 @@ kobel_str std__collections__List_str_set(std__collections__List_str* self, size_
 void std__collections__List_str_plus_assign(std__collections__List_str* self, kobel_str value);
 size_t std__collections__List_std__filesystem__Path_count(std__collections__List_std__filesystem__Path* self);
 std__filesystem__Path std__collections__List_std__filesystem__Path_at(std__collections__List_std__filesystem__Path* self, size_t i);
-std__collections__List_std__filesystem__Path std__collections__List_std__filesystem__Path_init(size_t cap);
+std__collections__List_std__filesystem__Path std__collections__List_std__filesystem__Path_init(std__filesystem__Path* items_data, size_t items_len);
 std__filesystem__Path std__collections__List_std__filesystem__Path_first(std__collections__List_std__filesystem__Path* self);
 std__filesystem__Path std__collections__List_std__filesystem__Path_last(std__collections__List_std__filesystem__Path* self);
 bool std__collections__List_std__filesystem__Path_empty(std__collections__List_std__filesystem__Path* self);
@@ -1435,7 +1435,7 @@ return kobel_slice(self, start, end);
 }
 
 std__collections__List_str str_split(kobel_str self, char delim) {
-std__collections__List_str parts = std__collections__List_str_init(4);
+std__collections__List_str parts = std__collections__List_str_init(NULL, 0);
 int32_t start = 0;
 {
 size_t __for_e = self.len;
@@ -1473,7 +1473,7 @@ return parts;
 }
 
 std__collections__List_str str_split_lines(kobel_str self) {
-std__collections__List_str res = std__collections__List_str_init(4);
+std__collections__List_str res = std__collections__List_str_init(NULL, 0);
 int32_t start = 0;
 int32_t i = 0;
 while (i < self.len) {
@@ -2294,9 +2294,9 @@ return (rename(kobel_cstr(self->raw), kobel_cstr(target.raw)) == 0);
 std__collections__List_str std__filesystem__Path_list_dir(std__filesystem__Path* self) {
 kobel_str raw = kobel_list_dir(self->raw);
 if (str_empty(raw)) {
-return std__collections__List_str_init(4);
+return std__collections__List_str_init(NULL, 0);
 }
-std__collections__List_str res = std__collections__List_str_init(4);
+std__collections__List_str res = std__collections__List_str_init(NULL, 0);
 int32_t start = 0;
 {
 size_t __for_e = raw.len;
@@ -2505,8 +2505,38 @@ kobel_str std__collections__List_str_at(std__collections__List_str* self, size_t
     return self->data[i];
 }
 
-std__collections__List_str std__collections__List_str_init(size_t cap) {
-    return (std__collections__List_str){ std__memory__Heap_create_array_str(cap), 0, cap };
+std__collections__List_str std__collections__List_str_init(kobel_str* items_data, size_t items_len) {
+size_t cap = ((items_len < 4) ? 4 : items_len);
+kobel_str* buf = std__memory__Heap_create_array_str(cap);
+{
+size_t __for_e = items_len;
+size_t __for_i = __for_e;
+__for_i = 0;
+bool __for_up = (__for_i <= __for_e);
+bool __for_go = false;
+if (__for_up) {
+__for_go = (__for_i < __for_e);
+} else {
+__for_go = (__for_i > __for_e);
+}
+while (__for_go) {
+size_t i = __for_i;
+buf[i] = items_data[i];
+if (__for_up) {
+__for_go = ((__for_i + 1) < __for_e);
+} else {
+__for_go = ((__for_i - 1) > __for_e);
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = (__for_i + 1);
+} else {
+__for_i = (__for_i - 1);
+}
+}
+}
+}
+return (std__collections__List_str){ buf, items_len, cap };
 }
 
 kobel_str std__collections__List_str_first(std__collections__List_str* self) {
@@ -2961,7 +2991,7 @@ __for_i = (__for_i + 1);
 }
 
 std__collections__List_str std__collections__List_str_filter(std__collections__List_str* self, kobel_closure predicate) {
-std__collections__List_str res = std__collections__List_str_init(4);
+std__collections__List_str res = std__collections__List_str_init(NULL, 0);
 {
 size_t __for_n = std__collections__List_str_count(self);
 size_t __for_i = 0;
@@ -3050,8 +3080,38 @@ std__filesystem__Path std__collections__List_std__filesystem__Path_at(std__colle
     return self->data[i];
 }
 
-std__collections__List_std__filesystem__Path std__collections__List_std__filesystem__Path_init(size_t cap) {
-    return (std__collections__List_std__filesystem__Path){ std__memory__Heap_create_array_std__filesystem__Path(cap), 0, cap };
+std__collections__List_std__filesystem__Path std__collections__List_std__filesystem__Path_init(std__filesystem__Path* items_data, size_t items_len) {
+size_t cap = ((items_len < 4) ? 4 : items_len);
+std__filesystem__Path* buf = std__memory__Heap_create_array_std__filesystem__Path(cap);
+{
+size_t __for_e = items_len;
+size_t __for_i = __for_e;
+__for_i = 0;
+bool __for_up = (__for_i <= __for_e);
+bool __for_go = false;
+if (__for_up) {
+__for_go = (__for_i < __for_e);
+} else {
+__for_go = (__for_i > __for_e);
+}
+while (__for_go) {
+size_t i = __for_i;
+buf[i] = items_data[i];
+if (__for_up) {
+__for_go = ((__for_i + 1) < __for_e);
+} else {
+__for_go = ((__for_i - 1) > __for_e);
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = (__for_i + 1);
+} else {
+__for_i = (__for_i - 1);
+}
+}
+}
+}
+return (std__collections__List_std__filesystem__Path){ buf, items_len, cap };
 }
 
 std__filesystem__Path std__collections__List_std__filesystem__Path_first(std__collections__List_std__filesystem__Path* self) {
@@ -3506,7 +3566,7 @@ __for_i = (__for_i + 1);
 }
 
 std__collections__List_std__filesystem__Path std__collections__List_std__filesystem__Path_filter(std__collections__List_std__filesystem__Path* self, kobel_closure predicate) {
-std__collections__List_std__filesystem__Path res = std__collections__List_std__filesystem__Path_init(4);
+std__collections__List_std__filesystem__Path res = std__collections__List_std__filesystem__Path_init(NULL, 0);
 {
 size_t __for_n = std__collections__List_std__filesystem__Path_count(self);
 size_t __for_i = 0;
@@ -3667,8 +3727,7 @@ return (char)(self->start - ((intptr_t)i));
 }
 
 std__collections__List_std__filesystem__Path std__collections__std__collections__List_str_map_std__filesystem__Path(std__collections__List_str* self, kobel_closure transform) {
-size_t cap = ((self->len > 4) ? self->len : 4);
-std__collections__List_std__filesystem__Path res = std__collections__List_std__filesystem__Path_init(cap);
+std__collections__List_std__filesystem__Path res = std__collections__List_std__filesystem__Path_init(NULL, 0);
 {
 size_t __for_n = std__collections__List_str_count(self);
 size_t __for_i = 0;

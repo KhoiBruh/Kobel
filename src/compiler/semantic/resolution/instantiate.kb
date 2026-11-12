@@ -241,8 +241,17 @@ impl TypeResolver {
 			for (p in f.params) {
 				var pt: *AstNode? = null;
 				if (p.type_node != null) {
-					val ty = self.resolve_ast_type(p.type_node!);
-					pt = self.arena.ast_type_from_type(ty);
+					if (p.type_node is VariadicType as vt) {
+						val ty = self.resolve_ast_type(vt.element_type);
+						val elem_ast = self.arena.ast_type_from_type(ty);
+						pt = self.arena.node(
+							NodeData.VariadicType(elem_ast),
+							p.type_node.line, p.type_node.col
+						);
+					} else {
+						val ty = self.resolve_ast_type(p.type_node!);
+						pt = self.arena.ast_type_from_type(ty);
+					}
 				}
 
 				val dflt = if (p.default_val != null)
