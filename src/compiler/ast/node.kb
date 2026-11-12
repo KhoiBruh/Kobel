@@ -44,6 +44,7 @@ pub enum NodeData {
 	PointerType(mutable: bool, pointee: *AstNode),
 	ArrayType(element_type: *AstNode, size: usz),
 	NullableType(inner_type: *AstNode),
+	VariadicType(element_type: *AstNode),
 	FnType(param_types: List<*AstNode>, return_type: *AstNode),
 
 	// Expressions

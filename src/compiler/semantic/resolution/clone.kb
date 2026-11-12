@@ -78,6 +78,11 @@ impl TypeResolver {
 				node.line, node.col
 			);
 
+			is VariadicType as vt -> self.arena.node(
+				NodeData.VariadicType(self.clone_type(vt.element_type, subst)),
+				node.line, node.col
+			);
+
 			is FnType as ft -> self.arena.node(
 				NodeData.FnType(
 					self.clone_type_args(ft.param_types, subst),

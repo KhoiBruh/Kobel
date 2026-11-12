@@ -38,7 +38,7 @@ pub enum TypePayload {
 	Pointer(pointee: *Type, mutable: bool, nullable: bool),
 	Array(elem: *Type, length: usz),
 	Struct(inner: *StructType),
-	Fn(param_types: List<*Type>, return_type: *Type),
+	Fn(param_types: List<*Type>, return_type: *Type, is_variadic: bool),
 	Enum(inner: *EnumInfo)
 }
 
@@ -123,8 +123,8 @@ impl Arena {
 	pub fn array_type(&self, elem: *Type, length: usz): *Type
 		=> self.type_payload(DataType.ARRAY, elem.size * length, elem.align, TypePayload.Array(elem, length));
 
-	pub fn fn_type(&self, param_types: List<*Type>, return_type: *Type): *Type
-		=> self.type_payload(DataType.FN, 16, 8, TypePayload.Fn(param_types, return_type));
+	pub fn fn_type(&self, param_types: List<*Type>, return_type: *Type, is_variadic: bool = false): *Type
+		=> self.type_payload(DataType.FN, 16, 8, TypePayload.Fn(param_types, return_type, is_variadic));
 
 }
 
@@ -307,6 +307,7 @@ impl Type {
 			DataType.FN -> {
 				val f_a = self.as_fn();
 				val f_b = b.as_fn();
+				if (f_a.is_variadic != f_b.is_variadic) yield false;
 				if (f_a.param_types.len != f_b.param_types.len) yield false;
 				if (!f_a.return_type.equals(f_b.return_type)) yield false;
 
@@ -420,6 +421,9 @@ impl Stringer for Type {
 			var res = "(";
 			for (i in 0..<fn_info.param_types.len) {
 				if (i > 0) res = "${res}, ";
+				if (fn_info.is_variadic && i == fn_info.param_types.len - 1) {
+					res = "${res}..";
+				}
 				res = "${res}${fn_info.param_types[i].to_str()}";
 			}
 			yield "${res}) -> ${fn_info.return_type.to_str()}";

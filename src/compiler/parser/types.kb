@@ -29,7 +29,13 @@ impl Parser {
 	pub fn parse_single_type(&self): *AstNode {
 		val (line, col) = self.peek();
 
-		// 1. Pointer type: *T (read-only) or &T (read-write)
+		// 1. Variadic type: ..T
+		if (self.match_token(TokenType.DOT_DOT)) {
+			val elem_type = self.parse_single_type();
+			return self.node(NodeData.VariadicType(elem_type), line, col);
+		}
+
+		// 2. Pointer type: *T (read-only) or &T (read-write)
 		if (self.match_token(TokenType.STAR)) {
 			val pointee = self.parse_single_type();
 			return self.node(NodeData.PointerType(false, pointee), line, col);

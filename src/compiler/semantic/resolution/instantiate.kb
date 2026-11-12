@@ -279,6 +279,7 @@ impl TypeResolver {
 		if (fn_node is FnDecl as t) {
 			val mark = self.subst.push(tmpl.param_names(), args, self.prims().t_none());
 
+			var is_vararg = false;
 			var param_types = List<*Type>();
 			for (p in t.params) {
 				if (p.name == "self" && p.type_node == null) {
@@ -294,6 +295,7 @@ impl TypeResolver {
 					param_types += self.prims().t_none();
 					continue;
 				}
+				if (p.type_node is VariadicType) is_vararg = true;
 				param_types += self.resolve_ast_type(p.type_node!);
 			}
 
@@ -302,7 +304,7 @@ impl TypeResolver {
 
 			self.subst.pop(mark);
 
-			return self.arena.fn_type(param_types, ret_type);
+			return self.arena.fn_type(param_types, ret_type, is_vararg);
 		}
 		return self.symtab.prims.t_none();
 	}
@@ -398,14 +400,18 @@ impl TypeResolver {
 
 	pub fn collect_fn_as(&self, node: *AstNode, final_name: str, sig: *Type? = null) {
 		if (node is FnDecl as f) {
+			var is_vararg = false;
 			var param_types = List<*Type>();
-			for (p in f.params) param_types += if (p.type_node != null) self.resolve_ast_type(p.type_node!)
-												else self.prims().t_none();
+			for (p in f.params) {
+				if (p.type_node is VariadicType) is_vararg = true;
+				param_types += if (p.type_node != null) self.resolve_ast_type(p.type_node!)
+								else self.prims().t_none();
+			}
 
 			val ret_type = if (f.return_type != null) self.resolve_ast_type(f.return_type!)
 							else self.prims().t_none();
 
-			val fn_type = sig ?: self.arena.fn_type(param_types, ret_type);
+			val fn_type = sig ?: self.arena.fn_type(param_types, ret_type, is_vararg);
 			self.symtab.gen.add_inst(
 				self.arena.create_val(
 					Symbol(
@@ -532,7 +538,9 @@ impl TypeResolver {
 					if (f.type_params.len > 0) continue;
 
 					var param_types = List<*Type>();
+					var is_vararg = false;
 					for (p in f.params) {
+						if (p.type_node is VariadicType) is_vararg = true;
 						var pt: *Type = self.prims().t_none();
 						pt = when (p) {
 							.name == "self" &&
@@ -550,7 +558,7 @@ impl TypeResolver {
 					if (f.return_type != null) ret_type = self.resolve_ast_type(f.return_type!);
 
 					val rec_sig = self.symtab.get_node_instance(m_node)?.sig;
-					val fn_type = rec_sig ?: self.arena.fn_type(param_types, ret_type);
+					val fn_type = rec_sig ?: self.arena.fn_type(param_types, ret_type, is_vararg);
 
 					val m_c_name = method_c_name(
 						"${st_c_name}_${f.name}", param_types.len, f.name in overloaded, used_names

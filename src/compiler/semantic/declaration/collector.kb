@@ -382,10 +382,12 @@ impl DeclarationCollector {
 			self.validate_fn_lambda_rules(node, f);
 			var param_types = List<*Type>();
 
+			var is_vararg = false;
 			for (p in f.params) {
 				if (p.name == "self") {
 					self.report_error(node, "Top-level function '${f.name}' cannot have a 'self' parameter");
 				}
+				if (p.type_node is VariadicType) is_vararg = true;
 				val p_type = if (p.type_node != null) self.resolve_ast_type(p.type_node!) else self.prims().t_none();
 				param_types += p_type;
 			}
@@ -393,7 +395,7 @@ impl DeclarationCollector {
 			var ret_type = if (f.return_type != null) self.resolve_ast_type(f.return_type!)
 			else self.infer_decl_return_type(f) ?: self.prims().t_none();
 
-			val fn_type = self.arena.fn_type(param_types, ret_type);
+			val fn_type = self.arena.fn_type(param_types, ret_type, is_vararg);
 			val c_name = self.c_name_for(f.name);
 			val ok = self.symtab.define_global(
 				Symbol(f.name, c_name, SymbolKind.FN, fn_type, false, f.public, node.line, node.col, node)

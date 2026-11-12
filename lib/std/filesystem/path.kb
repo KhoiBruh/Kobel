@@ -85,8 +85,6 @@ pub struct Path {
 
 impl Path {
 
-	pub init(raw: str) => Self(raw);
-
 	pub fn is_sep(c: char) => str_is_sep(c);
 
 	pub fn c_str(*self) => self.raw.c_str();

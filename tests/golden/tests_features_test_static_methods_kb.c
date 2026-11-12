@@ -502,7 +502,6 @@ kobel_str str_join_path(kobel_str self, kobel_str rel);
 kobel_str str_normalize_path(kobel_str self);
 kobel_str str_to_win_path(kobel_str self);
 kobel_str str_to_posix_path(kobel_str self);
-std__filesystem__Path std__filesystem__Path_init(kobel_str raw);
 bool std__filesystem__Path_is_sep(char c);
 const char* std__filesystem__Path_c_str(std__filesystem__Path* self);
 bool std__filesystem__Path_empty(std__filesystem__Path* self);
@@ -2177,10 +2176,6 @@ kobel_str str_to_posix_path(kobel_str self) {
     return std__filesystem__remap_path_bytes(self, '\\', '/', false);
 }
 
-std__filesystem__Path std__filesystem__Path_init(kobel_str raw) {
-    return (std__filesystem__Path){ raw };
-}
-
 bool std__filesystem__Path_is_sep(char c) {
     return std__filesystem__str_is_sep(c);
 }
@@ -2198,7 +2193,7 @@ size_t std__filesystem__Path_len(std__filesystem__Path* self) {
 }
 
 std__filesystem__Path std__filesystem__Path_parent(std__filesystem__Path* self) {
-    return std__filesystem__Path_init(str_dir_of(self->raw));
+    return (std__filesystem__Path){ str_dir_of(self->raw) };
 }
 
 kobel_str std__filesystem__Path_file_name(std__filesystem__Path* self) {
@@ -2235,18 +2230,18 @@ return kobel_slice(fname, 0, (size_t)last_dot);
 
 std__filesystem__Path std__filesystem__Path_join(std__filesystem__Path* self, kobel_str part) {
 if (str_empty(self->raw)) {
-return std__filesystem__Path_init(part);
+return (std__filesystem__Path){ part };
 }
 if (str_empty(part)) {
-return std__filesystem__Path_init(self->raw);
+return (std__filesystem__Path){ self->raw };
 }
 if (std__filesystem__str_is_sep(self->raw.data[(self->raw.len - 1)]) || std__filesystem__str_is_sep(part.data[0])) {
 if (std__filesystem__str_is_sep(self->raw.data[(self->raw.len - 1)]) && std__filesystem__str_is_sep(part.data[0])) {
-return std__filesystem__Path_init(kobel_concat(2, self->raw, kobel_slice1(part, 1)));
+return (std__filesystem__Path){ kobel_concat(2, self->raw, kobel_slice1(part, 1)) };
 }
-return std__filesystem__Path_init(kobel_concat(2, self->raw, part));
+return (std__filesystem__Path){ kobel_concat(2, self->raw, part) };
 }
-return std__filesystem__Path_init(kobel_concat(3, self->raw, KOBEL_STR("/"), part));
+return (std__filesystem__Path){ kobel_concat(3, self->raw, KOBEL_STR("/"), part) };
 }
 
 std__filesystem__Path std__filesystem__Path_join_path(std__filesystem__Path* self, std__filesystem__Path other) {
@@ -2254,15 +2249,15 @@ std__filesystem__Path std__filesystem__Path_join_path(std__filesystem__Path* sel
 }
 
 std__filesystem__Path std__filesystem__Path_to_win_path(std__filesystem__Path* self) {
-    return std__filesystem__Path_init(str_to_win_path(self->raw));
+    return (std__filesystem__Path){ str_to_win_path(self->raw) };
 }
 
 std__filesystem__Path std__filesystem__Path_to_posix_path(std__filesystem__Path* self) {
-    return std__filesystem__Path_init(str_to_posix_path(self->raw));
+    return (std__filesystem__Path){ str_to_posix_path(self->raw) };
 }
 
 std__filesystem__Path std__filesystem__Path_normalize(std__filesystem__Path* self) {
-    return std__filesystem__Path_init(str_normalize_path(self->raw));
+    return (std__filesystem__Path){ str_normalize_path(self->raw) };
 }
 
 bool std__filesystem__Path_exists(std__filesystem__Path* self) {
@@ -2477,7 +2472,7 @@ if (test__static_methods__Point_length_squared(&p1) != 25) {
 return 7;
 }
 kobel_str tmp_test = KOBEL_STR("build/test_static_file.tmp");
-std__filesystem__Path p = std__filesystem__Path_init(tmp_test);
+std__filesystem__Path p = (std__filesystem__Path){ tmp_test };
 if (std__filesystem__Path_exists(&p)) {
 std__filesystem__Path_remove(&p);
 }

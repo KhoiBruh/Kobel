@@ -181,6 +181,10 @@ impl Formatter {
 				self.format_type(nt.inner_type);
 				self.buf += "?";
 			}
+			is VariadicType as vt -> {
+				self.buf += "..";
+				self.format_type(vt.element_type);
+			}
 			is FnType as ft -> {
 				self.buf += "(";
 				for (i in 0..<ft.param_types.len) {

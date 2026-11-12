@@ -99,6 +99,9 @@ impl Parser {
 			params += Param(pname.text, ptype, mutable, has_val, p_default);
 
 			while (self.match_token(TokenType.COMMA)) {
+				if (params.last().type_node is VariadicType) {
+					self.error(self.peek(), "Variadic parameter '..T' must be the last parameter in the function declaration");
+				}
 				var p_mutable = false;
 				var p_has_val = false;
 				when (self) {

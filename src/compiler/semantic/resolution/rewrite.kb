@@ -107,6 +107,7 @@ impl TypeResolver {
 			is PointerType -> self.rewrite_child(target.pointee);
 			is ArrayType -> self.rewrite_child(target.element_type);
 			is NullableType -> self.rewrite_child(target.inner_type);
+			is VariadicType -> self.rewrite_child(target.element_type);
 			is FnType as ft -> {
 				for (pt in ft.param_types) self.rewrite_generics(pt);
 				self.rewrite_generics(ft.return_type);
