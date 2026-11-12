@@ -6687,7 +6687,7 @@ void std__memory__Heap_free_compiler__loader__ModuleFile(compiler__loader__Modul
 void std__memory__Heap_free_compiler__semantic__lowering__PendingResolve(compiler__semantic__lowering__PendingResolve* ptr);
 void std__memory__Heap_free_ptr_compiler__semantic__checker__ArrowCandidate(compiler__semantic__checker__ArrowCandidate** ptr);
 void std__memory__Heap_free_compiler__codegen__ConditionAlias(compiler__codegen__ConditionAlias* ptr);
-uint8_t* std__memory__Heap_create_array_u8(size_t count);
+uint8_t* std__memory__Heap_alloc_u8(size_t count);
 std__memory__ArenaBlock* std__memory__Heap_create_std__memory__ArenaBlock(void);
 void std__memory__Heap_free_std__memory__ArenaBlock(std__memory__ArenaBlock* ptr);
 int32_t std__collections__std__collections__List_str_fold_i32(std__collections__List_str* self, int32_t initial, kobel_closure operation);
@@ -6726,125 +6726,125 @@ compiler__semantic__checker__ArrowCandidate* std__memory__Arena_create_val_compi
 std__collections__List_str std__collections__std__collections__List_ptr_compiler__ast__AstNode_map_str(std__collections__List_ptr_compiler__ast__AstNode* self, kobel_closure transform);
 std__collections__List_str std__collections__std__collections__List_compiler__semantic__symbols__LambdaCapture_map_str(std__collections__List_compiler__semantic__symbols__LambdaCapture* self, kobel_closure transform);
 lsp__JsonValue* std__memory__Heap_create_lsp__JsonValue(void);
-compiler__ast__AstNode** std__memory__Heap_create_array_ptr_compiler__ast__AstNode(size_t count);
+compiler__ast__AstNode** std__memory__Heap_alloc_ptr_compiler__ast__AstNode(size_t count);
 compiler__ast__AstNode** std__memory__Heap_resize_ptr_compiler__ast__AstNode(compiler__ast__AstNode** ptr, size_t count);
-compiler__ast__WhenArm* std__memory__Heap_create_array_compiler__ast__WhenArm(size_t count);
+compiler__ast__WhenArm* std__memory__Heap_alloc_compiler__ast__WhenArm(size_t count);
 compiler__ast__WhenArm* std__memory__Heap_resize_compiler__ast__WhenArm(compiler__ast__WhenArm* ptr, size_t count);
-compiler__ast__InterpPart* std__memory__Heap_create_array_compiler__ast__InterpPart(size_t count);
+compiler__ast__InterpPart* std__memory__Heap_alloc_compiler__ast__InterpPart(size_t count);
 compiler__ast__InterpPart* std__memory__Heap_resize_compiler__ast__InterpPart(compiler__ast__InterpPart* ptr, size_t count);
-compiler__ast__Param* std__memory__Heap_create_array_compiler__ast__Param(size_t count);
+compiler__ast__Param* std__memory__Heap_alloc_compiler__ast__Param(size_t count);
 compiler__ast__Param* std__memory__Heap_resize_compiler__ast__Param(compiler__ast__Param* ptr, size_t count);
-kobel_str* std__memory__Heap_create_array_str(size_t count);
+kobel_str* std__memory__Heap_alloc_str(size_t count);
 kobel_str* std__memory__Heap_resize_str(kobel_str* ptr, size_t count);
-compiler__ast__GenericParam* std__memory__Heap_create_array_compiler__ast__GenericParam(size_t count);
+compiler__ast__GenericParam* std__memory__Heap_alloc_compiler__ast__GenericParam(size_t count);
 compiler__ast__GenericParam* std__memory__Heap_resize_compiler__ast__GenericParam(compiler__ast__GenericParam* ptr, size_t count);
-compiler__ast__StructField* std__memory__Heap_create_array_compiler__ast__StructField(size_t count);
+compiler__ast__StructField* std__memory__Heap_alloc_compiler__ast__StructField(size_t count);
 compiler__ast__StructField* std__memory__Heap_resize_compiler__ast__StructField(compiler__ast__StructField* ptr, size_t count);
-compiler__ast__AssocBinding* std__memory__Heap_create_array_compiler__ast__AssocBinding(size_t count);
+compiler__ast__AssocBinding* std__memory__Heap_alloc_compiler__ast__AssocBinding(size_t count);
 compiler__ast__AssocBinding* std__memory__Heap_resize_compiler__ast__AssocBinding(compiler__ast__AssocBinding* ptr, size_t count);
-compiler__ast__EnumMember* std__memory__Heap_create_array_compiler__ast__EnumMember(size_t count);
+compiler__ast__EnumMember* std__memory__Heap_alloc_compiler__ast__EnumMember(size_t count);
 compiler__ast__EnumMember* std__memory__Heap_resize_compiler__ast__EnumMember(compiler__ast__EnumMember* ptr, size_t count);
-compiler__semantic__types__Type** std__memory__Heap_create_array_ptr_compiler__semantic__types__Type(size_t count);
+compiler__semantic__types__Type** std__memory__Heap_alloc_ptr_compiler__semantic__types__Type(size_t count);
 compiler__semantic__types__Type** std__memory__Heap_resize_ptr_compiler__semantic__types__Type(compiler__semantic__types__Type** ptr, size_t count);
-std__collections__Pair_str_str* std__memory__Heap_create_array_std__collections__Pair_str_str(size_t count);
+std__collections__Pair_str_str* std__memory__Heap_alloc_std__collections__Pair_str_str(size_t count);
 std__collections__Pair_str_str* std__memory__Heap_resize_std__collections__Pair_str_str(std__collections__Pair_str_str* ptr, size_t count);
-size_t* std__memory__Heap_create_array_usz(size_t count);
-bool* std__memory__Heap_create_array_bool(size_t count);
-compiler__core__Diagnostic* std__memory__Heap_create_array_compiler__core__Diagnostic(size_t count);
+size_t* std__memory__Heap_alloc_usz(size_t count);
+bool* std__memory__Heap_alloc_bool(size_t count);
+compiler__core__Diagnostic* std__memory__Heap_alloc_compiler__core__Diagnostic(size_t count);
 compiler__core__Diagnostic* std__memory__Heap_resize_compiler__core__Diagnostic(compiler__core__Diagnostic* ptr, size_t count);
-compiler__core__SourceFile* std__memory__Heap_create_array_compiler__core__SourceFile(size_t count);
+compiler__core__SourceFile* std__memory__Heap_alloc_compiler__core__SourceFile(size_t count);
 compiler__core__SourceFile* std__memory__Heap_resize_compiler__core__SourceFile(compiler__core__SourceFile* ptr, size_t count);
-uint32_t* std__memory__Heap_create_array_u32(size_t count);
+uint32_t* std__memory__Heap_alloc_u32(size_t count);
 uint32_t* std__memory__Heap_resize_u32(uint32_t* ptr, size_t count);
-std__collections__Pair_str_u32* std__memory__Heap_create_array_std__collections__Pair_str_u32(size_t count);
+std__collections__Pair_str_u32* std__memory__Heap_alloc_std__collections__Pair_str_u32(size_t count);
 std__collections__Pair_str_u32* std__memory__Heap_resize_std__collections__Pair_str_u32(std__collections__Pair_str_u32* ptr, size_t count);
-compiler__ast__EnumField* std__memory__Heap_create_array_compiler__ast__EnumField(size_t count);
+compiler__ast__EnumField* std__memory__Heap_alloc_compiler__ast__EnumField(size_t count);
 compiler__ast__EnumField* std__memory__Heap_resize_compiler__ast__EnumField(compiler__ast__EnumField* ptr, size_t count);
-compiler__lexer__Token* std__memory__Heap_create_array_compiler__lexer__Token(size_t count);
+compiler__lexer__Token* std__memory__Heap_alloc_compiler__lexer__Token(size_t count);
 compiler__lexer__Token* std__memory__Heap_resize_compiler__lexer__Token(compiler__lexer__Token* ptr, size_t count);
-compiler__loader__LoadedModule* std__memory__Heap_create_array_compiler__loader__LoadedModule(size_t count);
+compiler__loader__LoadedModule* std__memory__Heap_alloc_compiler__loader__LoadedModule(size_t count);
 compiler__loader__LoadedModule* std__memory__Heap_resize_compiler__loader__LoadedModule(compiler__loader__LoadedModule* ptr, size_t count);
-compiler__semantic__types__MethodInfo** std__memory__Heap_create_array_ptr_compiler__semantic__types__MethodInfo(size_t count);
+compiler__semantic__types__MethodInfo** std__memory__Heap_alloc_ptr_compiler__semantic__types__MethodInfo(size_t count);
 compiler__semantic__types__MethodInfo** std__memory__Heap_resize_ptr_compiler__semantic__types__MethodInfo(compiler__semantic__types__MethodInfo** ptr, size_t count);
-compiler__semantic__types__StructField* std__memory__Heap_create_array_compiler__semantic__types__StructField(size_t count);
+compiler__semantic__types__StructField* std__memory__Heap_alloc_compiler__semantic__types__StructField(size_t count);
 compiler__semantic__types__StructField* std__memory__Heap_resize_compiler__semantic__types__StructField(compiler__semantic__types__StructField* ptr, size_t count);
-compiler__semantic__types__EnumMemberInfo** std__memory__Heap_create_array_ptr_compiler__semantic__types__EnumMemberInfo(size_t count);
+compiler__semantic__types__EnumMemberInfo** std__memory__Heap_alloc_ptr_compiler__semantic__types__EnumMemberInfo(size_t count);
 compiler__semantic__types__EnumMemberInfo** std__memory__Heap_resize_ptr_compiler__semantic__types__EnumMemberInfo(compiler__semantic__types__EnumMemberInfo** ptr, size_t count);
-compiler__semantic__types__TraitMethod** std__memory__Heap_create_array_ptr_compiler__semantic__types__TraitMethod(size_t count);
+compiler__semantic__types__TraitMethod** std__memory__Heap_alloc_ptr_compiler__semantic__types__TraitMethod(size_t count);
 compiler__semantic__types__TraitMethod** std__memory__Heap_resize_ptr_compiler__semantic__types__TraitMethod(compiler__semantic__types__TraitMethod** ptr, size_t count);
-compiler__semantic__symbols__LambdaCapture* std__memory__Heap_create_array_compiler__semantic__symbols__LambdaCapture(size_t count);
+compiler__semantic__symbols__LambdaCapture* std__memory__Heap_alloc_compiler__semantic__symbols__LambdaCapture(size_t count);
 compiler__semantic__symbols__LambdaCapture* std__memory__Heap_resize_compiler__semantic__symbols__LambdaCapture(compiler__semantic__symbols__LambdaCapture* ptr, size_t count);
 size_t* std__memory__Heap_resize_usz(size_t* ptr, size_t count);
-std__collections__Pair_usz_ptr_compiler__semantic__types__Type* std__memory__Heap_create_array_std__collections__Pair_usz_ptr_compiler__semantic__types__Type(size_t count);
+std__collections__Pair_usz_ptr_compiler__semantic__types__Type* std__memory__Heap_alloc_std__collections__Pair_usz_ptr_compiler__semantic__types__Type(size_t count);
 std__collections__Pair_usz_ptr_compiler__semantic__types__Type* std__memory__Heap_resize_std__collections__Pair_usz_ptr_compiler__semantic__types__Type(std__collections__Pair_usz_ptr_compiler__semantic__types__Type* ptr, size_t count);
-std__collections__Pair_usz_ptr_compiler__semantic__types__MethodInfo* std__memory__Heap_create_array_std__collections__Pair_usz_ptr_compiler__semantic__types__MethodInfo(size_t count);
+std__collections__Pair_usz_ptr_compiler__semantic__types__MethodInfo* std__memory__Heap_alloc_std__collections__Pair_usz_ptr_compiler__semantic__types__MethodInfo(size_t count);
 std__collections__Pair_usz_ptr_compiler__semantic__types__MethodInfo* std__memory__Heap_resize_std__collections__Pair_usz_ptr_compiler__semantic__types__MethodInfo(std__collections__Pair_usz_ptr_compiler__semantic__types__MethodInfo* ptr, size_t count);
-std__collections__Pair_usz_ptr_compiler__ast__AstNode* std__memory__Heap_create_array_std__collections__Pair_usz_ptr_compiler__ast__AstNode(size_t count);
+std__collections__Pair_usz_ptr_compiler__ast__AstNode* std__memory__Heap_alloc_std__collections__Pair_usz_ptr_compiler__ast__AstNode(size_t count);
 std__collections__Pair_usz_ptr_compiler__ast__AstNode* std__memory__Heap_resize_std__collections__Pair_usz_ptr_compiler__ast__AstNode(std__collections__Pair_usz_ptr_compiler__ast__AstNode* ptr, size_t count);
-compiler__semantic__symbols__InstanceRecord** std__memory__Heap_create_array_ptr_compiler__semantic__symbols__InstanceRecord(size_t count);
+compiler__semantic__symbols__InstanceRecord** std__memory__Heap_alloc_ptr_compiler__semantic__symbols__InstanceRecord(size_t count);
 compiler__semantic__symbols__InstanceRecord** std__memory__Heap_resize_ptr_compiler__semantic__symbols__InstanceRecord(compiler__semantic__symbols__InstanceRecord** ptr, size_t count);
-std__collections__Pair_usz_ptr_compiler__semantic__symbols__InstanceRecord* std__memory__Heap_create_array_std__collections__Pair_usz_ptr_compiler__semantic__symbols__InstanceRecord(size_t count);
+std__collections__Pair_usz_ptr_compiler__semantic__symbols__InstanceRecord* std__memory__Heap_alloc_std__collections__Pair_usz_ptr_compiler__semantic__symbols__InstanceRecord(size_t count);
 std__collections__Pair_usz_ptr_compiler__semantic__symbols__InstanceRecord* std__memory__Heap_resize_std__collections__Pair_usz_ptr_compiler__semantic__symbols__InstanceRecord(std__collections__Pair_usz_ptr_compiler__semantic__symbols__InstanceRecord* ptr, size_t count);
-compiler__semantic__symbols__IsPatternInfo* std__memory__Heap_create_array_compiler__semantic__symbols__IsPatternInfo(size_t count);
+compiler__semantic__symbols__IsPatternInfo* std__memory__Heap_alloc_compiler__semantic__symbols__IsPatternInfo(size_t count);
 compiler__semantic__symbols__IsPatternInfo* std__memory__Heap_resize_compiler__semantic__symbols__IsPatternInfo(compiler__semantic__symbols__IsPatternInfo* ptr, size_t count);
-std__collections__Pair_usz_compiler__semantic__symbols__IsPatternInfo* std__memory__Heap_create_array_std__collections__Pair_usz_compiler__semantic__symbols__IsPatternInfo(size_t count);
+std__collections__Pair_usz_compiler__semantic__symbols__IsPatternInfo* std__memory__Heap_alloc_std__collections__Pair_usz_compiler__semantic__symbols__IsPatternInfo(size_t count);
 std__collections__Pair_usz_compiler__semantic__symbols__IsPatternInfo* std__memory__Heap_resize_std__collections__Pair_usz_compiler__semantic__symbols__IsPatternInfo(std__collections__Pair_usz_compiler__semantic__symbols__IsPatternInfo* ptr, size_t count);
 bool* std__memory__Heap_resize_bool(bool* ptr, size_t count);
-std__collections__Pair_usz_bool* std__memory__Heap_create_array_std__collections__Pair_usz_bool(size_t count);
+std__collections__Pair_usz_bool* std__memory__Heap_alloc_std__collections__Pair_usz_bool(size_t count);
 std__collections__Pair_usz_bool* std__memory__Heap_resize_std__collections__Pair_usz_bool(std__collections__Pair_usz_bool* ptr, size_t count);
-compiler__semantic__symbols__LambdaInfo* std__memory__Heap_create_array_compiler__semantic__symbols__LambdaInfo(size_t count);
+compiler__semantic__symbols__LambdaInfo* std__memory__Heap_alloc_compiler__semantic__symbols__LambdaInfo(size_t count);
 compiler__semantic__symbols__LambdaInfo* std__memory__Heap_resize_compiler__semantic__symbols__LambdaInfo(compiler__semantic__symbols__LambdaInfo* ptr, size_t count);
-std__collections__Pair_usz_compiler__semantic__symbols__LambdaInfo* std__memory__Heap_create_array_std__collections__Pair_usz_compiler__semantic__symbols__LambdaInfo(size_t count);
+std__collections__Pair_usz_compiler__semantic__symbols__LambdaInfo* std__memory__Heap_alloc_std__collections__Pair_usz_compiler__semantic__symbols__LambdaInfo(size_t count);
 std__collections__Pair_usz_compiler__semantic__symbols__LambdaInfo* std__memory__Heap_resize_std__collections__Pair_usz_compiler__semantic__symbols__LambdaInfo(std__collections__Pair_usz_compiler__semantic__symbols__LambdaInfo* ptr, size_t count);
-compiler__semantic__symbols__AnnotationEntry** std__memory__Heap_create_array_ptr_compiler__semantic__symbols__AnnotationEntry(size_t count);
+compiler__semantic__symbols__AnnotationEntry** std__memory__Heap_alloc_ptr_compiler__semantic__symbols__AnnotationEntry(size_t count);
 compiler__semantic__symbols__AnnotationEntry** std__memory__Heap_resize_ptr_compiler__semantic__symbols__AnnotationEntry(compiler__semantic__symbols__AnnotationEntry** ptr, size_t count);
-std__collections__Pair_usz_ptr_compiler__semantic__symbols__AnnotationEntry* std__memory__Heap_create_array_std__collections__Pair_usz_ptr_compiler__semantic__symbols__AnnotationEntry(size_t count);
+std__collections__Pair_usz_ptr_compiler__semantic__symbols__AnnotationEntry* std__memory__Heap_alloc_std__collections__Pair_usz_ptr_compiler__semantic__symbols__AnnotationEntry(size_t count);
 std__collections__Pair_usz_ptr_compiler__semantic__symbols__AnnotationEntry* std__memory__Heap_resize_std__collections__Pair_usz_ptr_compiler__semantic__symbols__AnnotationEntry(std__collections__Pair_usz_ptr_compiler__semantic__symbols__AnnotationEntry* ptr, size_t count);
-compiler__semantic__symbols__GenericTemplate** std__memory__Heap_create_array_ptr_compiler__semantic__symbols__GenericTemplate(size_t count);
+compiler__semantic__symbols__GenericTemplate** std__memory__Heap_alloc_ptr_compiler__semantic__symbols__GenericTemplate(size_t count);
 compiler__semantic__symbols__GenericTemplate** std__memory__Heap_resize_ptr_compiler__semantic__symbols__GenericTemplate(compiler__semantic__symbols__GenericTemplate** ptr, size_t count);
-compiler__semantic__symbols__Symbol** std__memory__Heap_create_array_ptr_compiler__semantic__symbols__Symbol(size_t count);
+compiler__semantic__symbols__Symbol** std__memory__Heap_alloc_ptr_compiler__semantic__symbols__Symbol(size_t count);
 compiler__semantic__symbols__Symbol** std__memory__Heap_resize_ptr_compiler__semantic__symbols__Symbol(compiler__semantic__symbols__Symbol** ptr, size_t count);
-std__collections__Pair_str_ptr_compiler__semantic__symbols__Symbol* std__memory__Heap_create_array_std__collections__Pair_str_ptr_compiler__semantic__symbols__Symbol(size_t count);
+std__collections__Pair_str_ptr_compiler__semantic__symbols__Symbol* std__memory__Heap_alloc_std__collections__Pair_str_ptr_compiler__semantic__symbols__Symbol(size_t count);
 std__collections__Pair_str_ptr_compiler__semantic__symbols__Symbol* std__memory__Heap_resize_std__collections__Pair_str_ptr_compiler__semantic__symbols__Symbol(std__collections__Pair_str_ptr_compiler__semantic__symbols__Symbol* ptr, size_t count);
-std__collections__Pair_str_ptr_compiler__semantic__symbols__InstanceRecord* std__memory__Heap_create_array_std__collections__Pair_str_ptr_compiler__semantic__symbols__InstanceRecord(size_t count);
+std__collections__Pair_str_ptr_compiler__semantic__symbols__InstanceRecord* std__memory__Heap_alloc_std__collections__Pair_str_ptr_compiler__semantic__symbols__InstanceRecord(size_t count);
 std__collections__Pair_str_ptr_compiler__semantic__symbols__InstanceRecord* std__memory__Heap_resize_std__collections__Pair_str_ptr_compiler__semantic__symbols__InstanceRecord(std__collections__Pair_str_ptr_compiler__semantic__symbols__InstanceRecord* ptr, size_t count);
-compiler__semantic__symbols__ModuleScope** std__memory__Heap_create_array_ptr_compiler__semantic__symbols__ModuleScope(size_t count);
+compiler__semantic__symbols__ModuleScope** std__memory__Heap_alloc_ptr_compiler__semantic__symbols__ModuleScope(size_t count);
 compiler__semantic__symbols__ModuleScope** std__memory__Heap_resize_ptr_compiler__semantic__symbols__ModuleScope(compiler__semantic__symbols__ModuleScope** ptr, size_t count);
-std__collections__Pair_str_ptr_compiler__semantic__symbols__ModuleScope* std__memory__Heap_create_array_std__collections__Pair_str_ptr_compiler__semantic__symbols__ModuleScope(size_t count);
+std__collections__Pair_str_ptr_compiler__semantic__symbols__ModuleScope* std__memory__Heap_alloc_std__collections__Pair_str_ptr_compiler__semantic__symbols__ModuleScope(size_t count);
 std__collections__Pair_str_ptr_compiler__semantic__symbols__ModuleScope* std__memory__Heap_resize_std__collections__Pair_str_ptr_compiler__semantic__symbols__ModuleScope(std__collections__Pair_str_ptr_compiler__semantic__symbols__ModuleScope* ptr, size_t count);
-compiler__semantic__symbols__ImportBinding* std__memory__Heap_create_array_compiler__semantic__symbols__ImportBinding(size_t count);
+compiler__semantic__symbols__ImportBinding* std__memory__Heap_alloc_compiler__semantic__symbols__ImportBinding(size_t count);
 compiler__semantic__symbols__ImportBinding* std__memory__Heap_resize_compiler__semantic__symbols__ImportBinding(compiler__semantic__symbols__ImportBinding* ptr, size_t count);
-compiler__semantic__types__EnumInfo** std__memory__Heap_create_array_ptr_compiler__semantic__types__EnumInfo(size_t count);
+compiler__semantic__types__EnumInfo** std__memory__Heap_alloc_ptr_compiler__semantic__types__EnumInfo(size_t count);
 compiler__semantic__types__EnumInfo** std__memory__Heap_resize_ptr_compiler__semantic__types__EnumInfo(compiler__semantic__types__EnumInfo** ptr, size_t count);
-std__collections__Pair_str_ptr_compiler__semantic__types__EnumInfo* std__memory__Heap_create_array_std__collections__Pair_str_ptr_compiler__semantic__types__EnumInfo(size_t count);
+std__collections__Pair_str_ptr_compiler__semantic__types__EnumInfo* std__memory__Heap_alloc_std__collections__Pair_str_ptr_compiler__semantic__types__EnumInfo(size_t count);
 std__collections__Pair_str_ptr_compiler__semantic__types__EnumInfo* std__memory__Heap_resize_std__collections__Pair_str_ptr_compiler__semantic__types__EnumInfo(std__collections__Pair_str_ptr_compiler__semantic__types__EnumInfo* ptr, size_t count);
-compiler__semantic__types__TraitInfo** std__memory__Heap_create_array_ptr_compiler__semantic__types__TraitInfo(size_t count);
+compiler__semantic__types__TraitInfo** std__memory__Heap_alloc_ptr_compiler__semantic__types__TraitInfo(size_t count);
 compiler__semantic__types__TraitInfo** std__memory__Heap_resize_ptr_compiler__semantic__types__TraitInfo(compiler__semantic__types__TraitInfo** ptr, size_t count);
-std__collections__Pair_str_ptr_compiler__semantic__types__TraitInfo* std__memory__Heap_create_array_std__collections__Pair_str_ptr_compiler__semantic__types__TraitInfo(size_t count);
+std__collections__Pair_str_ptr_compiler__semantic__types__TraitInfo* std__memory__Heap_alloc_std__collections__Pair_str_ptr_compiler__semantic__types__TraitInfo(size_t count);
 std__collections__Pair_str_ptr_compiler__semantic__types__TraitInfo* std__memory__Heap_resize_std__collections__Pair_str_ptr_compiler__semantic__types__TraitInfo(std__collections__Pair_str_ptr_compiler__semantic__types__TraitInfo* ptr, size_t count);
-std__collections__Pair_str_compiler__semantic__symbols__ImportBinding* std__memory__Heap_create_array_std__collections__Pair_str_compiler__semantic__symbols__ImportBinding(size_t count);
+std__collections__Pair_str_compiler__semantic__symbols__ImportBinding* std__memory__Heap_alloc_std__collections__Pair_str_compiler__semantic__symbols__ImportBinding(size_t count);
 std__collections__Pair_str_compiler__semantic__symbols__ImportBinding* std__memory__Heap_resize_std__collections__Pair_str_compiler__semantic__symbols__ImportBinding(std__collections__Pair_str_compiler__semantic__symbols__ImportBinding* ptr, size_t count);
-std__collections__Pair_str_ptr_compiler__semantic__types__Type* std__memory__Heap_create_array_std__collections__Pair_str_ptr_compiler__semantic__types__Type(size_t count);
+std__collections__Pair_str_ptr_compiler__semantic__types__Type* std__memory__Heap_alloc_std__collections__Pair_str_ptr_compiler__semantic__types__Type(size_t count);
 std__collections__Pair_str_ptr_compiler__semantic__types__Type* std__memory__Heap_resize_std__collections__Pair_str_ptr_compiler__semantic__types__Type(std__collections__Pair_str_ptr_compiler__semantic__types__Type* ptr, size_t count);
-fmt__Comment* std__memory__Heap_create_array_fmt__Comment(size_t count);
+fmt__Comment* std__memory__Heap_alloc_fmt__Comment(size_t count);
 fmt__Comment* std__memory__Heap_resize_fmt__Comment(fmt__Comment* ptr, size_t count);
-lsp__LspDiagnostic* std__memory__Heap_create_array_lsp__LspDiagnostic(size_t count);
+lsp__LspDiagnostic* std__memory__Heap_alloc_lsp__LspDiagnostic(size_t count);
 lsp__LspDiagnostic* std__memory__Heap_resize_lsp__LspDiagnostic(lsp__LspDiagnostic* ptr, size_t count);
-lsp__Document* std__memory__Heap_create_array_lsp__Document(size_t count);
+lsp__Document* std__memory__Heap_alloc_lsp__Document(size_t count);
 lsp__Document* std__memory__Heap_resize_lsp__Document(lsp__Document* ptr, size_t count);
-std__collections__Pair_str_lsp__Document* std__memory__Heap_create_array_std__collections__Pair_str_lsp__Document(size_t count);
+std__collections__Pair_str_lsp__Document* std__memory__Heap_alloc_std__collections__Pair_str_lsp__Document(size_t count);
 std__collections__Pair_str_lsp__Document* std__memory__Heap_resize_std__collections__Pair_str_lsp__Document(std__collections__Pair_str_lsp__Document* ptr, size_t count);
-lsp__JsonValue** std__memory__Heap_create_array_ptr_lsp__JsonValue(size_t count);
+lsp__JsonValue** std__memory__Heap_alloc_ptr_lsp__JsonValue(size_t count);
 lsp__JsonValue** std__memory__Heap_resize_ptr_lsp__JsonValue(lsp__JsonValue** ptr, size_t count);
-std__filesystem__Path* std__memory__Heap_create_array_std__filesystem__Path(size_t count);
+std__filesystem__Path* std__memory__Heap_alloc_std__filesystem__Path(size_t count);
 std__filesystem__Path* std__memory__Heap_resize_std__filesystem__Path(std__filesystem__Path* ptr, size_t count);
-compiler__loader__ModuleFile* std__memory__Heap_create_array_compiler__loader__ModuleFile(size_t count);
+compiler__loader__ModuleFile* std__memory__Heap_alloc_compiler__loader__ModuleFile(size_t count);
 compiler__loader__ModuleFile* std__memory__Heap_resize_compiler__loader__ModuleFile(compiler__loader__ModuleFile* ptr, size_t count);
-compiler__semantic__lowering__PendingResolve* std__memory__Heap_create_array_compiler__semantic__lowering__PendingResolve(size_t count);
+compiler__semantic__lowering__PendingResolve* std__memory__Heap_alloc_compiler__semantic__lowering__PendingResolve(size_t count);
 compiler__semantic__lowering__PendingResolve* std__memory__Heap_resize_compiler__semantic__lowering__PendingResolve(compiler__semantic__lowering__PendingResolve* ptr, size_t count);
-compiler__semantic__checker__ArrowCandidate** std__memory__Heap_create_array_ptr_compiler__semantic__checker__ArrowCandidate(size_t count);
+compiler__semantic__checker__ArrowCandidate** std__memory__Heap_alloc_ptr_compiler__semantic__checker__ArrowCandidate(size_t count);
 compiler__semantic__checker__ArrowCandidate** std__memory__Heap_resize_ptr_compiler__semantic__checker__ArrowCandidate(compiler__semantic__checker__ArrowCandidate** ptr, size_t count);
-compiler__codegen__ConditionAlias* std__memory__Heap_create_array_compiler__codegen__ConditionAlias(size_t count);
+compiler__codegen__ConditionAlias* std__memory__Heap_alloc_compiler__codegen__ConditionAlias(size_t count);
 compiler__codegen__ConditionAlias* std__memory__Heap_resize_compiler__codegen__ConditionAlias(compiler__codegen__ConditionAlias* ptr, size_t count);
 compiler__ast__AstNode* std__memory__Arena_create_compiler__ast__AstNode(std__memory__Arena* self);
 compiler__semantic__types__Type* std__memory__Arena_create_compiler__semantic__types__Type(std__memory__Arena* self);
@@ -6988,7 +6988,7 @@ size_t sz = self->block_size;
 if (sz < min_size) {
 sz = min_size;
 }
-uint8_t* data = std__memory__Heap_create_array_u8(sz);
+uint8_t* data = std__memory__Heap_alloc_u8(sz);
 std__memory__ArenaBlock* blk = std__memory__Heap_create_std__memory__ArenaBlock();
 blk->data = data;
 blk->size = sz;
@@ -7229,7 +7229,7 @@ return -1;
 }
 
 kobel_str str_filter(kobel_str self, kobel_closure predicate) {
-uint8_t* buf = std__memory__Heap_create_array_u8((self.len + 1));
+uint8_t* buf = std__memory__Heap_alloc_u8((self.len + 1));
 int32_t w = 0;
 {
 size_t __for_n = self.len;
@@ -7251,7 +7251,7 @@ kobel_str str_map_chars(kobel_str self, kobel_closure transform) {
 if (str_empty(self)) {
 return self;
 }
-uint8_t* buf = std__memory__Heap_create_array_u8((self.len + 1));
+uint8_t* buf = std__memory__Heap_alloc_u8((self.len + 1));
 {
 size_t __for_e = self.len;
 size_t __for_i = __for_e;
@@ -7476,7 +7476,7 @@ kobel_str str_repeat(kobel_str self, size_t n) {
 if ((n == 0) || str_empty(self)) {
 return KOBEL_STR("");
 }
-uint8_t* buf = std__memory__Heap_create_array_u8(((self.len * n) + 1));
+uint8_t* buf = std__memory__Heap_alloc_u8(((self.len * n) + 1));
 int32_t w = 0;
 {
 size_t __for_e = n;
@@ -7525,7 +7525,7 @@ return list.data[0];
 }
 int32_t total = std__collections__std__collections__List_str_fold_i32(&list, 0, (kobel_closure){ (void*)__lambda_fn_5, NULL });
 total += (self.len * (list.len - 1));
-uint8_t* buf = std__memory__Heap_create_array_u8((total + 1));
+uint8_t* buf = std__memory__Heap_alloc_u8((total + 1));
 int32_t w = 0;
 {
 size_t __for_e = list.len;
@@ -7815,7 +7815,7 @@ size_t cap = init_cap;
 if (cap < 16) {
 cap = 16;
 }
-uint8_t* raw = std__memory__Heap_create_array_u8(cap);
+uint8_t* raw = std__memory__Heap_alloc_u8(cap);
 return (std__string__StringBuilder){ raw, 0, cap };
 }
 
@@ -8032,7 +8032,7 @@ char std__string__StringBuilder_at(std__string__StringBuilder* self, size_t i) {
 }
 
 kobel_str std__string__StringBuilder_to_str(std__string__StringBuilder* self) {
-uint8_t* str_data = std__memory__Heap_create_array_u8((self->len + 1));
+uint8_t* str_data = std__memory__Heap_alloc_u8((self->len + 1));
 if (self->len > 0) {
 memcpy(str_data, self->buf, self->len);
 }
@@ -8041,6 +8041,9 @@ return std__string__str_from_bytes(str_data, self->len);
 }
 
 kobel_str std__traits__fmt_u64(uint64_t n0) {
+if (n0 < 10) {
+return ((uint8_t)n0 == 0 ? KOBEL_STR("0") : ((uint8_t)n0 == 1 ? KOBEL_STR("1") : ((uint8_t)n0 == 2 ? KOBEL_STR("2") : ((uint8_t)n0 == 3 ? KOBEL_STR("3") : ((uint8_t)n0 == 4 ? KOBEL_STR("4") : ((uint8_t)n0 == 5 ? KOBEL_STR("5") : ((uint8_t)n0 == 6 ? KOBEL_STR("6") : ((uint8_t)n0 == 7 ? KOBEL_STR("7") : ((uint8_t)n0 == 8 ? KOBEL_STR("8") : KOBEL_STR("9"))))))))));
+}
 uint64_t n = n0;
 size_t digits = 1;
 uint64_t probe = n;
@@ -8048,7 +8051,7 @@ while (probe >= 10) {
 probe /= 10;
 digits++;
 }
-uint8_t* buf = std__memory__Heap_create_array_u8((digits + 1));
+uint8_t* buf = std__memory__Heap_alloc_u8((digits + 1));
 buf[digits] = 0;
 size_t i = digits;
 while (i > 0) {
@@ -8068,8 +8071,12 @@ return std__traits__fmt_u64((uint64_t)v);
 }
 
 kobel_str std__traits__fmt_char(char c) {
-uint8_t* buf = std__memory__Heap_create_array_u8(2);
-buf[0] = ((int32_t)(uint8_t)(c));
+int32_t code = ((int32_t)(uint8_t)(c));
+if ((code >= 48) && (code <= 57)) {
+return (c == '0' ? KOBEL_STR("0") : (c == '1' ? KOBEL_STR("1") : (c == '2' ? KOBEL_STR("2") : (c == '3' ? KOBEL_STR("3") : (c == '4' ? KOBEL_STR("4") : (c == '5' ? KOBEL_STR("5") : (c == '6' ? KOBEL_STR("6") : (c == '7' ? KOBEL_STR("7") : (c == '8' ? KOBEL_STR("8") : KOBEL_STR("9"))))))))));
+}
+uint8_t* buf = std__memory__Heap_alloc_u8(2);
+buf[0] = code;
 buf[1] = 0;
 return std__string__str_from_bytes(buf, 1);
 }
@@ -8082,7 +8089,10 @@ kobel_str std__traits__fmt_zeros(size_t n) {
 if (n == 0) {
 return KOBEL_STR("");
 }
-uint8_t* buf = std__memory__Heap_create_array_u8((n + 1));
+if (n <= 6) {
+return kobel_slice(KOBEL_STR("000000"), 0, n);
+}
+uint8_t* buf = std__memory__Heap_alloc_u8((n + 1));
 {
 size_t __for_e = n;
 size_t __for_i = __for_e;
@@ -8319,7 +8329,7 @@ return KOBEL_STR("");
 }
 fseek(self->handle, cur, 0);
 int64_t size = (end_pos - cur);
-uint8_t* buf = std__memory__Heap_create_array_u8((size + 1));
+uint8_t* buf = std__memory__Heap_alloc_u8((size + 1));
 if (buf == NULL) {
 return KOBEL_STR("");
 }
@@ -8332,52 +8342,19 @@ bool std__filesystem__str_is_sep(char c) {
     return (c == '/' || c == '\\' ? true : false);
 }
 
+struct __lambda_env_6 {
+    char from;
+    char to;
+    bool fold_case;
+};
+
+static char __lambda_fn_6(void* __raw_env, char c) {
+    struct __lambda_env_6* __env = (struct __lambda_env_6*)__raw_env;
+return (c == (__env->from) ? (__env->to) : ((__env->fold_case) && std__range__Range_char_contains(&(std__range__Range_char){ 'A', 'Z', true }, c) ? ((char)((((int32_t)(uint8_t)(c)) + 32))) : c));
+}
+
 kobel_str std__filesystem__remap_path_bytes(kobel_str s, char from, char to, bool fold_case) {
-uint8_t* buf = std__memory__Heap_create_array_u8((s.len + 1));
-{
-size_t __for_e = s.len;
-size_t __for_i = __for_e;
-__for_i = 0;
-bool __for_up = (__for_i <= __for_e);
-bool __for_go = false;
-if (__for_up) {
-__for_go = (__for_i < __for_e);
-} else {
-__for_go = (__for_i > __for_e);
-}
-while (__for_go) {
-size_t i = __for_i;
-char c = s.data[i];
-buf[i] = (c == from ? ((int32_t)(uint8_t)(to)) : (fold_case && std__range__Range_char_contains(&(std__range__Range_char){ 'A', 'Z', true }, c) ? (((int32_t)(uint8_t)(c)) + 32) : ((int32_t)(uint8_t)(c))));
-if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
-} else {
-__for_go = ((__for_i - 1) > __for_e);
-}
-if (__for_go) {
-if (__for_up) {
-__for_i = (__for_i + 1);
-} else {
-__for_i = (__for_i - 1);
-}
-}
-}
-}
-buf[s.len] = 0;
-return std__string__str_from_bytes(buf, s.len);
-}
-
-static bool __lambda_fn_6(void* __raw_env, char c) {
-    (void)__raw_env;
-    return std__filesystem__str_is_sep(c);
-}
-
-kobel_str str_dir_of(kobel_str self) {
-intptr_t last = str_last_index_where(self, (kobel_closure){ (void*)__lambda_fn_6, NULL });
-if (last < 0) {
-return KOBEL_STR("");
-}
-return kobel_slice(self, 0, (size_t)last);
+    return str_map_chars(s, (kobel_closure){ (void*)__lambda_fn_6, (void*)&(struct __lambda_env_6){ from, to, fold_case } });
 }
 
 static bool __lambda_fn_7(void* __raw_env, char c) {
@@ -8385,8 +8362,21 @@ static bool __lambda_fn_7(void* __raw_env, char c) {
     return std__filesystem__str_is_sep(c);
 }
 
-kobel_str str_base_name(kobel_str self) {
+kobel_str str_dir_of(kobel_str self) {
 intptr_t last = str_last_index_where(self, (kobel_closure){ (void*)__lambda_fn_7, NULL });
+if (last < 0) {
+return KOBEL_STR("");
+}
+return kobel_slice(self, 0, (size_t)last);
+}
+
+static bool __lambda_fn_8(void* __raw_env, char c) {
+    (void)__raw_env;
+    return std__filesystem__str_is_sep(c);
+}
+
+kobel_str str_base_name(kobel_str self) {
+intptr_t last = str_last_index_where(self, (kobel_closure){ (void*)__lambda_fn_8, NULL });
 if (last < 0) {
 return self;
 }
@@ -8439,28 +8429,28 @@ kobel_str std__filesystem__Path_file_name(std__filesystem__Path* self) {
     return str_base_name(self->raw);
 }
 
-static bool __lambda_fn_8(void* __raw_env, char c) {
+static bool __lambda_fn_9(void* __raw_env, char c) {
     (void)__raw_env;
     return (c == '.');
 }
 
 kobel_str std__filesystem__Path_extension(std__filesystem__Path* self) {
 kobel_str fname = std__filesystem__Path_file_name(self);
-intptr_t last_dot = str_last_index_where(fname, (kobel_closure){ (void*)__lambda_fn_8, NULL });
+intptr_t last_dot = str_last_index_where(fname, (kobel_closure){ (void*)__lambda_fn_9, NULL });
 if ((last_dot <= 0) || (((size_t)last_dot) == (fname.len - 1))) {
 return KOBEL_STR("");
 }
 return kobel_slice1(fname, (size_t)(last_dot + 1));
 }
 
-static bool __lambda_fn_9(void* __raw_env, char c) {
+static bool __lambda_fn_10(void* __raw_env, char c) {
     (void)__raw_env;
     return (c == '.');
 }
 
 kobel_str std__filesystem__Path_stem(std__filesystem__Path* self) {
 kobel_str fname = std__filesystem__Path_file_name(self);
-intptr_t last_dot = str_last_index_where(fname, (kobel_closure){ (void*)__lambda_fn_9, NULL });
+intptr_t last_dot = str_last_index_where(fname, (kobel_closure){ (void*)__lambda_fn_10, NULL });
 if (last_dot <= 0) {
 return fname;
 }
@@ -8576,19 +8566,19 @@ std__collections__List_str_plus_assign(&res, kobel_slice(raw, start, raw.len));
 return res;
 }
 
-struct __lambda_env_10 {
+struct __lambda_env_11 {
     std__filesystem__Path* self;
 };
 
-static std__filesystem__Path __lambda_fn_10(void* __raw_env, kobel_str name) {
-    struct __lambda_env_10* __env = (struct __lambda_env_10*)__raw_env;
+static std__filesystem__Path __lambda_fn_11(void* __raw_env, kobel_str name) {
+    struct __lambda_env_11* __env = (struct __lambda_env_11*)__raw_env;
     return std__filesystem__Path_join((__env->self), name);
 }
 
 std__collections__List_std__filesystem__Path std__filesystem__Path_entries(std__filesystem__Path* self) {
 std__collections__List_str names = std__filesystem__Path_list_dir(self);
 {
-std__collections__List_std__filesystem__Path __ret_tmp = std__collections__std__collections__List_str_map_std__filesystem__Path(&names, (kobel_closure){ (void*)__lambda_fn_10, (void*)&(struct __lambda_env_10){ self } });
+std__collections__List_std__filesystem__Path __ret_tmp = std__collections__std__collections__List_str_map_std__filesystem__Path(&names, (kobel_closure){ (void*)__lambda_fn_11, (void*)&(struct __lambda_env_11){ self } });
 std__collections__List_str_free(names);
 return __ret_tmp;
 }
@@ -8607,7 +8597,7 @@ return KOBEL_STR("");
 }
 fseek(f, 0, 0);
 size_t sz = (size_t)size_i64;
-uint8_t* buf = std__memory__Heap_create_array_u8((sz + 1));
+uint8_t* buf = std__memory__Heap_alloc_u8((sz + 1));
 if (buf == NULL) {
 fclose(f);
 return KOBEL_STR("");
@@ -9035,44 +9025,13 @@ kobel_str str_module_to_rel(kobel_str self) {
     return str_replace_char(self, '.', '/');
 }
 
+static char __lambda_fn_12(void* __raw_env, char c) {
+    (void)__raw_env;
+    return (std__filesystem__str_is_sep(c) ? '.' : c);
+}
+
 kobel_str str_path_to_module(kobel_str self) {
-kobel_str stem = str_strip_kb(self);
-uint8_t* buf = std__memory__Heap_create_array_u8((stem.len + 1));
-{
-size_t __for_e = stem.len;
-size_t __for_i = __for_e;
-__for_i = 0;
-bool __for_up = (__for_i <= __for_e);
-bool __for_go = false;
-if (__for_up) {
-__for_go = (__for_i < __for_e);
-} else {
-__for_go = (__for_i > __for_e);
-}
-while (__for_go) {
-size_t i = __for_i;
-char c = stem.data[i];
-if (std__filesystem__str_is_sep(c)) {
-buf[i] = ((int32_t)(uint8_t)('.'));
-} else {
-buf[i] = ((int32_t)(uint8_t)(c));
-}
-if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
-} else {
-__for_go = ((__for_i - 1) > __for_e);
-}
-if (__for_go) {
-if (__for_up) {
-__for_i = (__for_i + 1);
-} else {
-__for_i = (__for_i - 1);
-}
-}
-}
-}
-buf[stem.len] = 0;
-return std__string__str_from_bytes(buf, stem.len);
+    return str_map_chars(str_strip_kb(self), (kobel_closure){ (void*)__lambda_fn_12, NULL });
 }
 
 bool str_has_kb_suffix(kobel_str self) {
@@ -9087,43 +9046,25 @@ kobel_str str_mangle_symbol(kobel_str self, kobel_str name) {
 if (str_empty(self)) {
 return name;
 }
-size_t total = (((self.len * 2) + 2) + name.len);
-uint8_t* buf = std__memory__Heap_create_array_u8((total + 1));
-int32_t w = 0;
+std__string__StringBuilder sb = std__string__StringBuilder_init(32);
 {
 size_t __for_n = self.len;
 size_t __for_i = 0;
 while (__for_i < __for_n) {
 char c = self.data[__for_i];
 if (c == '.') {
-buf[w] = ((int32_t)(uint8_t)('_'));
-buf[(w + 1)] = ((int32_t)(uint8_t)('_'));
-w += 2;
-} else if (c == '_' || c == '-') {
-buf[w] = ((int32_t)(uint8_t)('_'));
-w++;
+std__string__StringBuilder_plus_assign_2(&sb, KOBEL_STR("__"));
+} else if (c == '-') {
+std__string__StringBuilder_plus_assign_2_2(&sb, '_');
 } else {
-buf[w] = ((int32_t)(uint8_t)(c));
-w++;
+std__string__StringBuilder_plus_assign_2_2(&sb, c);
 }
 __for_i = (__for_i + 1);
 }
 }
-buf[w] = ((int32_t)(uint8_t)('_'));
-buf[(w + 1)] = ((int32_t)(uint8_t)('_'));
-w += 2;
-{
-size_t __for_n = name.len;
-size_t __for_i = 0;
-while (__for_i < __for_n) {
-char c = name.data[__for_i];
-buf[w] = ((int32_t)(uint8_t)(c));
-w++;
-__for_i = (__for_i + 1);
-}
-}
-buf[w] = 0;
-return std__string__str_from_bytes(buf, w);
+std__string__StringBuilder_plus_assign_2(&sb, KOBEL_STR("__"));
+std__string__StringBuilder_plus_assign_2(&sb, name);
+return std__string__StringBuilder_to_str(&sb);
 }
 
 kobel_str str_hash_stamp(kobel_str self) {
@@ -9141,7 +9082,13 @@ return kobel_concat(3, i32_to_str(h), KOBEL_STR("_"), usz_to_str(self.len));
 }
 
 kobel_str compiler__core__str_join_dots(std__collections__List_str parts, size_t count) {
-int32_t total = 0;
+if (count == 0) {
+return KOBEL_STR("");
+}
+if (count == 1) {
+return std__collections__List_str_get(&parts, 0);
+}
+std__string__StringBuilder sb = std__string__StringBuilder_init(32);
 {
 size_t __for_e = count;
 size_t __for_i = __for_e;
@@ -9155,7 +9102,10 @@ __for_go = (__for_i > __for_e);
 }
 while (__for_go) {
 size_t i = __for_i;
-total += std__collections__List_str_get(&parts, i).len;
+if (i > 0) {
+std__string__StringBuilder_plus_assign_2_2(&sb, '.');
+}
+std__string__StringBuilder_plus_assign_2(&sb, std__collections__List_str_get(&parts, i));
 if (__for_up) {
 __for_go = ((__for_i + 1) < __for_e);
 } else {
@@ -9170,55 +9120,7 @@ __for_i = (__for_i - 1);
 }
 }
 }
-if (count > 1) {
-total += (count - 1);
-}
-uint8_t* buf = std__memory__Heap_create_array_u8((total + 1));
-int32_t w = 0;
-{
-size_t __for_e = count;
-size_t __for_i = __for_e;
-__for_i = 0;
-bool __for_up = (__for_i <= __for_e);
-bool __for_go = false;
-if (__for_up) {
-__for_go = (__for_i < __for_e);
-} else {
-__for_go = (__for_i > __for_e);
-}
-while (__for_go) {
-size_t i = __for_i;
-kobel_str p = std__collections__List_str_get(&parts, i);
-{
-size_t __for_n = p.len;
-size_t __for_i = 0;
-while (__for_i < __for_n) {
-char c = p.data[__for_i];
-buf[w] = ((int32_t)(uint8_t)(c));
-w++;
-__for_i = (__for_i + 1);
-}
-}
-if ((i + 1) < count) {
-buf[w] = ((int32_t)(uint8_t)('.'));
-w++;
-}
-if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
-} else {
-__for_go = ((__for_i - 1) > __for_e);
-}
-if (__for_go) {
-if (__for_up) {
-__for_i = (__for_i + 1);
-} else {
-__for_i = (__for_i - 1);
-}
-}
-}
-}
-buf[w] = 0;
-return std__string__str_from_bytes(buf, w);
+return std__string__StringBuilder_to_str(&sb);
 }
 
 compiler__core__Span compiler__core__Span_init(uint32_t file_id, size_t line, size_t col, size_t length) {
@@ -9648,12 +9550,12 @@ compiler__driver__collect_kb_files(test_dir, KOBEL_STR("test_"), &list);
 return list;
 }
 
-struct __lambda_env_11 {
+struct __lambda_env_13 {
     kobel_str filter;
 };
 
-static bool __lambda_fn_11(void* __raw_env, kobel_str t) {
-    struct __lambda_env_11* __env = (struct __lambda_env_11*)__raw_env;
+static bool __lambda_fn_13(void* __raw_env, kobel_str t) {
+    struct __lambda_env_13* __env = (struct __lambda_env_13*)__raw_env;
     return (str_empty((__env->filter)) || str_contains(t, (__env->filter)));
 }
 
@@ -9661,7 +9563,7 @@ int32_t compiler__driver__cmd_test(kobel_str manifest_path, kobel_str filter) {
 std__filesystem__Path man_p = (std__filesystem__Path){ manifest_path };
 config__ProjectConfig cfg = (std__filesystem__Path_exists(&man_p) ? config__ProjectConfig_init(manifest_path) : (config__ProjectConfig){ KOBEL_STR("kobel"), KOBEL_STR("1.0.0"), KOBEL_STR("src/main.kb"), KOBEL_STR("build/kobel.exe"), KOBEL_STR("cl"), KOBEL_STR("tests") });
 std__collections__List_str all_tests = compiler__driver__discover_test_files(cfg.test_dir);
-std__collections__List_str active_tests = std__collections__List_str_filter(&all_tests, (kobel_closure){ (void*)__lambda_fn_11, (void*)&(struct __lambda_env_11){ filter } });
+std__collections__List_str active_tests = std__collections__List_str_filter(&all_tests, (kobel_closure){ (void*)__lambda_fn_13, (void*)&(struct __lambda_env_13){ filter } });
 std__io__println(KOBEL_STR("============================================================"));
 if (str_empty(filter)) {
 std__io__println(kobel_concat(3, KOBEL_STR("  Running Kobel Test Suite ("), usz_to_str(active_tests.len), KOBEL_STR(" tests)")));
@@ -9756,13 +9658,13 @@ std__collections__List_str_plus_assign(&corpus, KOBEL_STR("src/main.kb"));
 return corpus;
 }
 
-static char __lambda_fn_12(void* __raw_env, char c) {
+static char __lambda_fn_14(void* __raw_env, char c) {
     (void)__raw_env;
     return (c == '/' || c == '\\' || c == '.' ? '_' : c);
 }
 
 kobel_str compiler__driver__snap_name(kobel_str path) {
-    return str_map_chars(path, (kobel_closure){ (void*)__lambda_fn_12, NULL });
+    return str_map_chars(path, (kobel_closure){ (void*)__lambda_fn_14, NULL });
 }
 
 bool compiler__driver__snapshot_as_text(kobel_str src) {
@@ -12886,17 +12788,17 @@ return __ret_tmp;
 }
 }
 
-static bool __lambda_fn_13(void* __raw_env, kobel_str e) {
+static bool __lambda_fn_15(void* __raw_env, kobel_str e) {
     (void)__raw_env;
     return str_ends_with(e, KOBEL_STR(".kb"));
 }
 
-struct __lambda_env_14 {
+struct __lambda_env_16 {
     std__filesystem__Path f_p;
 };
 
-static bool __lambda_fn_14(void* __raw_env, compiler__loader__ModuleFile m) {
-    struct __lambda_env_14* __env = (struct __lambda_env_14*)__raw_env;
+static bool __lambda_fn_16(void* __raw_env, compiler__loader__ModuleFile m) {
+    struct __lambda_env_16* __env = (struct __lambda_env_16*)__raw_env;
     return kobel_streq(m.path, (__env->f_p).raw);
 }
 
@@ -12918,7 +12820,7 @@ std__collections__List_compiler__loader__ModuleFile_plus_assign(&list, compiler_
 std__filesystem__Path dir_p = std__filesystem__Path_join(&root_p, rel_dir);
 std__collections__List_str entries = std__filesystem__Path_list_dir(&dir_p);
 if (!std__collections__List_str_empty(&entries)) {
-std__collections__List_str kb_files = std__collections__List_str_filter(&entries, (kobel_closure){ (void*)__lambda_fn_13, NULL });
+std__collections__List_str kb_files = std__collections__List_str_filter(&entries, (kobel_closure){ (void*)__lambda_fn_15, NULL });
 compiler__loader__sort_strings(kb_files);
 {
 size_t __for_n = std__collections__List_str_count(&kb_files);
@@ -12926,7 +12828,7 @@ size_t __for_i = 0;
 while (__for_i < __for_n) {
 kobel_str f = std__collections__List_str_at(&kb_files, __for_i);
 std__filesystem__Path f_p = std__filesystem__Path_join(&dir_p, f);
-bool already = std__collections__List_compiler__loader__ModuleFile_any(&list, (kobel_closure){ (void*)__lambda_fn_14, (void*)&(struct __lambda_env_14){ f_p } });
+bool already = std__collections__List_compiler__loader__ModuleFile_any(&list, (kobel_closure){ (void*)__lambda_fn_16, (void*)&(struct __lambda_env_16){ f_p } });
 if (!already) {
 kobel_str f_src = std__filesystem__Path_read_text(&f_p);
 if (!str_empty(f_src)) {
@@ -13370,20 +13272,20 @@ __for_i = (__for_i + 1);
 return NULL;
 }
 
-struct __lambda_env_15 {
+struct __lambda_env_17 {
     size_t argc;
     kobel_str name;
 };
 
-static bool __lambda_fn_15(void* __raw_env, compiler__semantic__types__MethodInfo* m) {
-    struct __lambda_env_15* __env = (struct __lambda_env_15*)__raw_env;
+static bool __lambda_fn_17(void* __raw_env, compiler__semantic__types__MethodInfo* m) {
+    struct __lambda_env_17* __env = (struct __lambda_env_17*)__raw_env;
 compiler__semantic__types__TypePayload__Fn* fn_t = compiler__semantic__types__Type_as_fn(m->fn_type);
 bool arity_ok = ((fn_t->param_types.len == (__env->argc)) || ((fn_t->is_variadic && (fn_t->param_types.len > 0)) && ((__env->argc) >= (fn_t->param_types.len - 1))));
 return (((!m->operator && m->is_static) && kobel_streq(m->name, (__env->name))) && arity_ok);
 }
 
 size_t compiler__semantic__types__StructType_count_static_method_arity(compiler__semantic__types__StructType* self, kobel_str name, size_t argc) {
-    return std__collections__List_ptr_compiler__semantic__types__MethodInfo_count_where(&self->methods, (kobel_closure){ (void*)__lambda_fn_15, (void*)&(struct __lambda_env_15){ argc, name } });
+    return std__collections__List_ptr_compiler__semantic__types__MethodInfo_count_where(&self->methods, (kobel_closure){ (void*)__lambda_fn_17, (void*)&(struct __lambda_env_17){ argc, name } });
 }
 
 compiler__semantic__types__MethodInfo* compiler__semantic__types__StructType_find_method_arity(compiler__semantic__types__StructType* self, kobel_str name, size_t argc) {
@@ -13440,20 +13342,20 @@ __for_i = (__for_i + 1);
 return NULL;
 }
 
-struct __lambda_env_16 {
+struct __lambda_env_18 {
     size_t argc;
     kobel_str name;
 };
 
-static bool __lambda_fn_16(void* __raw_env, compiler__semantic__types__MethodInfo* m) {
-    struct __lambda_env_16* __env = (struct __lambda_env_16*)__raw_env;
+static bool __lambda_fn_18(void* __raw_env, compiler__semantic__types__MethodInfo* m) {
+    struct __lambda_env_18* __env = (struct __lambda_env_18*)__raw_env;
 compiler__semantic__types__TypePayload__Fn* fn_t = compiler__semantic__types__Type_as_fn(m->fn_type);
 bool arity_ok = ((fn_t->param_types.len == (__env->argc)) || ((fn_t->is_variadic && (fn_t->param_types.len > 0)) && ((__env->argc) >= (fn_t->param_types.len - 1))));
 return (((!m->operator && !m->is_static) && kobel_streq(m->name, (__env->name))) && arity_ok);
 }
 
 size_t compiler__semantic__types__StructType_count_method_arity(compiler__semantic__types__StructType* self, kobel_str name, size_t argc) {
-    return std__collections__List_ptr_compiler__semantic__types__MethodInfo_count_where(&self->methods, (kobel_closure){ (void*)__lambda_fn_16, (void*)&(struct __lambda_env_16){ argc, name } });
+    return std__collections__List_ptr_compiler__semantic__types__MethodInfo_count_where(&self->methods, (kobel_closure){ (void*)__lambda_fn_18, (void*)&(struct __lambda_env_18){ argc, name } });
 }
 
 compiler__semantic__types__MethodInfo* compiler__semantic__types__StructType_find_method_c(compiler__semantic__types__StructType* self, kobel_str c_name) {
@@ -14275,14 +14177,14 @@ return kobel_concat(3, res, KOBEL_STR(") -> "), compiler__semantic__types__Type_
 }
 }
 
-static kobel_str __lambda_fn_17(void* __raw_env, compiler__ast__GenericParam p) {
+static kobel_str __lambda_fn_19(void* __raw_env, compiler__ast__GenericParam p) {
     (void)__raw_env;
     return p.name;
 }
 
 std__collections__List_str compiler__semantic__symbols__GenericTemplate_param_names(compiler__semantic__symbols__GenericTemplate* self) {
 std__collections__List_compiler__ast__GenericParam ps = compiler__semantic__symbols__GenericTemplate_params(self);
-return std__collections__std__collections__List_compiler__ast__GenericParam_map_str(&ps, (kobel_closure){ (void*)__lambda_fn_17, NULL });
+return std__collections__std__collections__List_compiler__ast__GenericParam_map_str(&ps, (kobel_closure){ (void*)__lambda_fn_19, NULL });
 }
 
 std__collections__List_compiler__ast__GenericParam compiler__semantic__symbols__GenericTemplate_params(compiler__semantic__symbols__GenericTemplate* self) {
@@ -15101,12 +15003,12 @@ return NULL;
 return compiler__semantic__symbols__InstanceRecord_find_ann(self->mat_rec, node);
 }
 
-struct __lambda_env_18 {
+struct __lambda_env_20 {
     compiler__semantic__resolution__TypeResolver** self;
 };
 
-static bool __lambda_fn_18(void* __raw_env, compiler__ast__AstNode* ca) {
-    struct __lambda_env_18* __env = (struct __lambda_env_18*)__raw_env;
+static bool __lambda_fn_20(void* __raw_env, compiler__ast__AstNode* ca) {
+    struct __lambda_env_20* __env = (struct __lambda_env_20*)__raw_env;
 {
 compiler__ast__NodeData__NamedType* t_nt = NULL;
 if ((ca != NULL && ca->data.tag == compiler__ast__NodeData__NamedType__TAG && (t_nt = (compiler__ast__NodeData__NamedType*)(&(ca)->data.u.NamedType), 1))) {
@@ -15130,7 +15032,7 @@ return compiler__semantic__resolution__TypeResolver_clone_type(self, sa, NULL);
 }
 if (nt->type_args.len > 0) {
 std__collections__List_ptr_compiler__ast__AstNode args = compiler__semantic__resolution__TypeResolver_clone_type_args(self, nt->type_args, subst);
-bool has_unsubstituted = std__collections__List_ptr_compiler__ast__AstNode_any(&args, (kobel_closure){ (void*)__lambda_fn_18, (void*)&(struct __lambda_env_18){ &self } });
+bool has_unsubstituted = std__collections__List_ptr_compiler__ast__AstNode_any(&args, (kobel_closure){ (void*)__lambda_fn_20, (void*)&(struct __lambda_env_20){ &self } });
 compiler__semantic__symbols__GenericTemplate* tmpl = (!has_unsubstituted ? compiler__semantic__resolution__TypeResolver_find_struct_template(self, nt->name) : NULL);
 if (tmpl != NULL) {
 compiler__semantic__types__Type* cty = compiler__semantic__resolution__TypeResolver_instantiate_struct(self, tmpl, args);
@@ -15159,13 +15061,13 @@ return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 1
 }
 }
 
-struct __lambda_env_19 {
+struct __lambda_env_21 {
     compiler__semantic__resolution__TypeResolver** self;
     compiler__semantic__symbols__GenericSubst* subst;
 };
 
-static compiler__ast__Param __lambda_fn_19(void* __raw_env, compiler__ast__Param p) {
-    struct __lambda_env_19* __env = (struct __lambda_env_19*)__raw_env;
+static compiler__ast__Param __lambda_fn_21(void* __raw_env, compiler__ast__Param p) {
+    struct __lambda_env_21* __env = (struct __lambda_env_21*)__raw_env;
 compiler__ast__AstNode* pt = ((p.type_node != NULL) ? compiler__semantic__resolution__TypeResolver_clone_type((*(__env->self)), p.type_node, (__env->subst)) : NULL);
 return (compiler__ast__Param){ p.name, pt, p.mutable, p.has_val, NULL };
 }
@@ -15274,7 +15176,7 @@ compiler__ast__NodeData__SizeOfParam* sop = (compiler__ast__NodeData__SizeOfPara
 out = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 26, .u.SizeOfParam = { sop->param_index, sop->size_text } }, node->line, node->col);
 } else if (target != NULL && target->data.tag == compiler__ast__NodeData__LambdaExpr__TAG) {
 compiler__ast__NodeData__LambdaExpr* lam = (compiler__ast__NodeData__LambdaExpr*)(&(target)->data.u.LambdaExpr);
-std__collections__List_compiler__ast__Param c_params = std__collections__std__collections__List_compiler__ast__Param_map_compiler__ast__Param(&lam->params, (kobel_closure){ (void*)__lambda_fn_19, (void*)&(struct __lambda_env_19){ &self, subst } });
+std__collections__List_compiler__ast__Param c_params = std__collections__std__collections__List_compiler__ast__Param_map_compiler__ast__Param(&lam->params, (kobel_closure){ (void*)__lambda_fn_21, (void*)&(struct __lambda_env_21){ &self, subst } });
 compiler__ast__AstNode* c_body = ((lam->body != NULL && lam->body->data.tag == compiler__ast__NodeData__BlockStmt__TAG) ? compiler__semantic__resolution__TypeResolver_clone_stmt(self, lam->body, subst) : compiler__semantic__resolution__TypeResolver_clone_expr(self, lam->body, subst));
 out = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 23, .u.LambdaExpr = { c_params, c_body, lam->is_trailing, lam->had_empty_parens } }, node->line, node->col);
 goto __when_end_28;
@@ -15362,12 +15264,12 @@ return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 7
 return NULL;
 }
 
-struct __lambda_env_20 {
+struct __lambda_env_22 {
     compiler__semantic__resolution__TypeResolver** self;
 };
 
-static bool __lambda_fn_20(void* __raw_env, compiler__ast__AstNode* ca) {
-    struct __lambda_env_20* __env = (struct __lambda_env_20*)__raw_env;
+static bool __lambda_fn_22(void* __raw_env, compiler__ast__AstNode* ca) {
+    struct __lambda_env_22* __env = (struct __lambda_env_22*)__raw_env;
 {
 compiler__ast__NodeData__NamedType* t_nt = NULL;
 if ((ca != NULL && ca->data.tag == compiler__ast__NodeData__NamedType__TAG && (t_nt = (compiler__ast__NodeData__NamedType*)(&(ca)->data.u.NamedType), 1))) {
@@ -15461,7 +15363,7 @@ return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 1
 compiler__semantic__symbols__GenericTemplate* st = compiler__semantic__resolution__TypeResolver_find_struct_template(self, cid->name);
 if (st != NULL) {
 std__collections__List_ptr_compiler__ast__AstNode targs = compiler__semantic__resolution__TypeResolver_clone_type_args(self, c->type_args, subst);
-bool has_unsubstituted = std__collections__List_ptr_compiler__ast__AstNode_any(&targs, (kobel_closure){ (void*)__lambda_fn_20, (void*)&(struct __lambda_env_20){ &self } });
+bool has_unsubstituted = std__collections__List_ptr_compiler__ast__AstNode_any(&targs, (kobel_closure){ (void*)__lambda_fn_22, (void*)&(struct __lambda_env_22){ &self } });
 if (!has_unsubstituted) {
 compiler__semantic__types__Type* cty = compiler__semantic__resolution__TypeResolver_instantiate_struct(self, st, targs);
 std__collections__List_ptr_compiler__ast__AstNode cargs = compiler__semantic__resolution__TypeResolver_clone_expr_list(self, c->args, subst);
@@ -15479,32 +15381,32 @@ return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 1
 return NULL;
 }
 
-struct __lambda_env_21 {
+struct __lambda_env_23 {
     compiler__semantic__resolution__TypeResolver** self;
     compiler__semantic__symbols__GenericSubst* subst;
 };
 
-static compiler__ast__AstNode* __lambda_fn_21(void* __raw_env, compiler__ast__AstNode* n) {
-    struct __lambda_env_21* __env = (struct __lambda_env_21*)__raw_env;
+static compiler__ast__AstNode* __lambda_fn_23(void* __raw_env, compiler__ast__AstNode* n) {
+    struct __lambda_env_23* __env = (struct __lambda_env_23*)__raw_env;
     return compiler__semantic__resolution__TypeResolver_clone_expr((*(__env->self)), n, (__env->subst));
 }
 
 std__collections__List_ptr_compiler__ast__AstNode compiler__semantic__resolution__TypeResolver_clone_expr_list(compiler__semantic__resolution__TypeResolver* self, std__collections__List_ptr_compiler__ast__AstNode nodes, compiler__semantic__symbols__GenericSubst* subst) {
-    return std__collections__std__collections__List_ptr_compiler__ast__AstNode_map_ptr_compiler__ast__AstNode(&nodes, (kobel_closure){ (void*)__lambda_fn_21, (void*)&(struct __lambda_env_21){ &self, subst } });
+    return std__collections__std__collections__List_ptr_compiler__ast__AstNode_map_ptr_compiler__ast__AstNode(&nodes, (kobel_closure){ (void*)__lambda_fn_23, (void*)&(struct __lambda_env_23){ &self, subst } });
 }
 
-struct __lambda_env_22 {
+struct __lambda_env_24 {
     compiler__semantic__resolution__TypeResolver** self;
     compiler__semantic__symbols__GenericSubst* subst;
 };
 
-static compiler__ast__AstNode* __lambda_fn_22(void* __raw_env, compiler__ast__AstNode* n) {
-    struct __lambda_env_22* __env = (struct __lambda_env_22*)__raw_env;
+static compiler__ast__AstNode* __lambda_fn_24(void* __raw_env, compiler__ast__AstNode* n) {
+    struct __lambda_env_24* __env = (struct __lambda_env_24*)__raw_env;
     return compiler__semantic__resolution__TypeResolver_clone_type((*(__env->self)), n, (__env->subst));
 }
 
 std__collections__List_ptr_compiler__ast__AstNode compiler__semantic__resolution__TypeResolver_clone_type_args(compiler__semantic__resolution__TypeResolver* self, std__collections__List_ptr_compiler__ast__AstNode nodes, compiler__semantic__symbols__GenericSubst* subst) {
-    return std__collections__std__collections__List_ptr_compiler__ast__AstNode_map_ptr_compiler__ast__AstNode(&nodes, (kobel_closure){ (void*)__lambda_fn_22, (void*)&(struct __lambda_env_22){ &self, subst } });
+    return std__collections__std__collections__List_ptr_compiler__ast__AstNode_map_ptr_compiler__ast__AstNode(&nodes, (kobel_closure){ (void*)__lambda_fn_24, (void*)&(struct __lambda_env_24){ &self, subst } });
 }
 
 std__collections__List_compiler__ast__WhenArm compiler__semantic__resolution__TypeResolver_clone_when_arms(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node, compiler__semantic__symbols__GenericSubst* subst) {
@@ -15555,23 +15457,23 @@ __for_i = (__for_i + 1);
 return parts;
 }
 
-struct __lambda_env_23 {
+struct __lambda_env_25 {
     compiler__semantic__resolution__TypeResolver** self;
     compiler__semantic__symbols__GenericSubst* subst;
 };
 
-static compiler__ast__AstNode* __lambda_fn_23(void* __raw_env, compiler__ast__AstNode* s) {
-    struct __lambda_env_23* __env = (struct __lambda_env_23*)__raw_env;
+static compiler__ast__AstNode* __lambda_fn_25(void* __raw_env, compiler__ast__AstNode* s) {
+    struct __lambda_env_25* __env = (struct __lambda_env_25*)__raw_env;
     return compiler__semantic__resolution__TypeResolver_clone_stmt((*(__env->self)), s, (__env->subst));
 }
 
-struct __lambda_env_24 {
+struct __lambda_env_26 {
     compiler__semantic__resolution__TypeResolver** self;
     compiler__semantic__symbols__GenericSubst* subst;
 };
 
-static compiler__ast__WhenArm __lambda_fn_24(void* __raw_env, compiler__ast__WhenArm arm) {
-    struct __lambda_env_24* __env = (struct __lambda_env_24*)__raw_env;
+static compiler__ast__WhenArm __lambda_fn_26(void* __raw_env, compiler__ast__WhenArm arm) {
+    struct __lambda_env_26* __env = (struct __lambda_env_26*)__raw_env;
     return (compiler__ast__WhenArm){ compiler__semantic__resolution__TypeResolver_clone_expr_list((*(__env->self)), arm.patterns, (__env->subst)), arm.is_else, compiler__semantic__resolution__TypeResolver_clone_stmt((*(__env->self)), arm.body, (__env->subst)), arm.line, arm.col };
 }
 
@@ -15583,7 +15485,7 @@ return compiler__semantic__resolution__TypeResolver_clone_stmt(self, se->resolve
 compiler__ast__AstNode* target = node;
 if (target != NULL && target->data.tag == compiler__ast__NodeData__BlockStmt__TAG) {
 compiler__ast__NodeData__BlockStmt* b = (compiler__ast__NodeData__BlockStmt*)(&(target)->data.u.BlockStmt);
-return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 27, .u.BlockStmt = { std__collections__std__collections__List_ptr_compiler__ast__AstNode_map_ptr_compiler__ast__AstNode(&b->statements, (kobel_closure){ (void*)__lambda_fn_23, (void*)&(struct __lambda_env_23){ &self, subst } }) } }, node->line, node->col);
+return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 27, .u.BlockStmt = { std__collections__std__collections__List_ptr_compiler__ast__AstNode_map_ptr_compiler__ast__AstNode(&b->statements, (kobel_closure){ (void*)__lambda_fn_25, (void*)&(struct __lambda_env_25){ &self, subst } }) } }, node->line, node->col);
 } else if (target != NULL && target->data.tag == compiler__ast__NodeData__ExprStmt__TAG) {
 compiler__ast__NodeData__ExprStmt* e = (compiler__ast__NodeData__ExprStmt*)(&(target)->data.u.ExprStmt);
 return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 28, .u.ExprStmt = { compiler__semantic__resolution__TypeResolver_clone_expr(self, e->expr, subst) } }, node->line, node->col);
@@ -15630,7 +15532,7 @@ compiler__ast__NodeData__ContinueStmt* target = (compiler__ast__NodeData__Contin
 return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 36 }, node->line, node->col);
 } else if (target != NULL && target->data.tag == compiler__ast__NodeData__WhenStmt__TAG) {
 compiler__ast__NodeData__WhenStmt* w = (compiler__ast__NodeData__WhenStmt*)(&(target)->data.u.WhenStmt);
-std__collections__List_compiler__ast__WhenArm arms = std__collections__std__collections__List_compiler__ast__WhenArm_map_compiler__ast__WhenArm(&w->arms, (kobel_closure){ (void*)__lambda_fn_24, (void*)&(struct __lambda_env_24){ &self, subst } });
+std__collections__List_compiler__ast__WhenArm arms = std__collections__std__collections__List_compiler__ast__WhenArm_map_compiler__ast__WhenArm(&w->arms, (kobel_closure){ (void*)__lambda_fn_26, (void*)&(struct __lambda_env_26){ &self, subst } });
 return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 37, .u.WhenStmt = { ((w->condition != NULL) ? compiler__semantic__resolution__TypeResolver_clone_expr(self, w->condition, subst) : NULL), arms } }, node->line, node->col);
 } else if (target != NULL && target->data.tag == compiler__ast__NodeData__DeferStmt__TAG) {
 compiler__ast__NodeData__DeferStmt* d = (compiler__ast__NodeData__DeferStmt*)(&(target)->data.u.DeferStmt);
@@ -15640,13 +15542,13 @@ return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 2
 }
 }
 
-struct __lambda_env_25 {
+struct __lambda_env_27 {
     compiler__semantic__resolution__TypeResolver** self;
     compiler__semantic__symbols__GenericSubst* subst;
 };
 
-static compiler__ast__Param __lambda_fn_25(void* __raw_env, compiler__ast__Param p) {
-    struct __lambda_env_25* __env = (struct __lambda_env_25*)__raw_env;
+static compiler__ast__Param __lambda_fn_27(void* __raw_env, compiler__ast__Param p) {
+    struct __lambda_env_27* __env = (struct __lambda_env_27*)__raw_env;
 compiler__ast__AstNode* pt = ((p.type_node != NULL) ? compiler__semantic__resolution__TypeResolver_clone_type((*(__env->self)), p.type_node, (__env->subst)) : NULL);
 compiler__ast__AstNode* dflt = ((p.default_val != NULL) ? compiler__semantic__resolution__TypeResolver_clone_expr((*(__env->self)), p.default_val, (__env->subst)) : NULL);
 return (compiler__ast__Param){ p.name, pt, p.mutable, p.has_val, dflt };
@@ -15656,7 +15558,7 @@ compiler__ast__AstNode* compiler__semantic__resolution__TypeResolver_clone_fn(co
 {
 compiler__ast__NodeData__FnDecl* f = NULL;
 if ((node != NULL && node->data.tag == compiler__ast__NodeData__FnDecl__TAG && (f = (compiler__ast__NodeData__FnDecl*)(&(node)->data.u.FnDecl), 1))) {
-std__collections__List_compiler__ast__Param params = std__collections__std__collections__List_compiler__ast__Param_map_compiler__ast__Param(&f->params, (kobel_closure){ (void*)__lambda_fn_25, (void*)&(struct __lambda_env_25){ &self, subst } });
+std__collections__List_compiler__ast__Param params = std__collections__std__collections__List_compiler__ast__Param_map_compiler__ast__Param(&f->params, (kobel_closure){ (void*)__lambda_fn_27, (void*)&(struct __lambda_env_27){ &self, subst } });
 compiler__ast__AstNode* rt = ((f->return_type != NULL) ? compiler__semantic__resolution__TypeResolver_clone_type(self, f->return_type, subst) : NULL);
 return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 42, .u.FnDecl = { new_name, std__collections__List_compiler__ast__GenericParam_init(NULL, 0), params, rt, ((f->body != NULL) ? compiler__semantic__resolution__TypeResolver_clone_stmt(self, f->body, subst) : NULL), f->public, f->operator, f->initializer, self->current_module } }, node->line, node->col);
 }
@@ -15824,12 +15726,12 @@ __for_i = (__for_i - 1);
 std__collections__List_ptr_compiler__semantic__types__TraitMethod_plus_assign(out, m);
 }
 
-struct __lambda_env_26 {
+struct __lambda_env_28 {
     compiler__semantic__resolution__TypeResolver** self;
 };
 
-static compiler__ast__AstNode* __lambda_fn_26(void* __raw_env, compiler__semantic__types__Type* aty) {
-    struct __lambda_env_26* __env = (struct __lambda_env_26*)__raw_env;
+static compiler__ast__AstNode* __lambda_fn_28(void* __raw_env, compiler__semantic__types__Type* aty) {
+    struct __lambda_env_28* __env = (struct __lambda_env_28*)__raw_env;
     return std__memory__Arena_ast_type_from_type(&(*(__env->self))->arena, aty);
 }
 
@@ -15925,7 +15827,7 @@ if ((impl_tmpl->node != NULL && impl_tmpl->node->data.tag == compiler__ast__Node
 self->current_self_type = s_type;
 size_t mark2 = compiler__semantic__resolution__TypeSubst_push(&self->subst, compiler__semantic__symbols__GenericTemplate_param_names(impl_tmpl), args, compiler__semantic__types__PrimTypes_t_none(compiler__semantic__resolution__TypeResolver_prims(self)));
 std__collections__List_ptr_compiler__ast__AstNode methods = std__collections__List_ptr_compiler__ast__AstNode_init(NULL, 0);
-std__collections__List_ptr_compiler__ast__AstNode canon_arg_asts = std__collections__std__collections__List_ptr_compiler__semantic__types__Type_map_ptr_compiler__ast__AstNode(&args, (kobel_closure){ (void*)__lambda_fn_26, (void*)&(struct __lambda_env_26){ &self } });
+std__collections__List_ptr_compiler__ast__AstNode canon_arg_asts = std__collections__std__collections__List_ptr_compiler__semantic__types__Type_map_ptr_compiler__ast__AstNode(&args, (kobel_closure){ (void*)__lambda_fn_28, (void*)&(struct __lambda_env_28){ &self } });
 {
 size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&im->methods);
 size_t __for_i = 0;
@@ -16119,17 +16021,17 @@ return sym->type_ptr;
 return NULL;
 }
 
-struct __lambda_env_27 {
+struct __lambda_env_29 {
     compiler__semantic__resolution__TypeResolver** self;
 };
 
-static compiler__ast__StructField __lambda_fn_27(void* __raw_env, compiler__semantic__types__StructField f) {
-    struct __lambda_env_27* __env = (struct __lambda_env_27*)__raw_env;
+static compiler__ast__StructField __lambda_fn_29(void* __raw_env, compiler__semantic__types__StructField f) {
+    struct __lambda_env_29* __env = (struct __lambda_env_29*)__raw_env;
     return (compiler__ast__StructField){ f.name, std__memory__Arena_ast_type_from_type(&(*(__env->self))->arena, f.type_ptr), f.public, f.default_val };
 }
 
 compiler__ast__AstNode* compiler__semantic__resolution__TypeResolver_struct_decl_view(compiler__semantic__resolution__TypeResolver* self, kobel_str name, std__collections__List_compiler__semantic__types__StructField fields, bool public, size_t line, size_t col) {
-std__collections__List_compiler__ast__StructField ast_fields = std__collections__std__collections__List_compiler__semantic__types__StructField_map_compiler__ast__StructField(&fields, (kobel_closure){ (void*)__lambda_fn_27, (void*)&(struct __lambda_env_27){ &self } });
+std__collections__List_compiler__ast__StructField ast_fields = std__collections__std__collections__List_compiler__semantic__types__StructField_map_compiler__ast__StructField(&fields, (kobel_closure){ (void*)__lambda_fn_29, (void*)&(struct __lambda_env_29){ &self } });
 return std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 43, .u.StructDecl = { name, std__collections__List_compiler__ast__GenericParam_init(NULL, 0), ast_fields, public, false, true } }, line, col);
 }
 
@@ -16304,12 +16206,12 @@ __for_i = (__for_i + 1);
 }
 }
 
-struct __lambda_env_28 {
+struct __lambda_env_30 {
     compiler__ast__AssocBinding b;
 };
 
-static bool __lambda_fn_28(void* __raw_env, kobel_str a) {
-    struct __lambda_env_28* __env = (struct __lambda_env_28*)__raw_env;
+static bool __lambda_fn_30(void* __raw_env, kobel_str a) {
+    struct __lambda_env_30* __env = (struct __lambda_env_30*)__raw_env;
     return kobel_streq(a, (__env->b).name);
 }
 
@@ -16330,7 +16232,7 @@ size_t __for_n = std__collections__List_compiler__ast__AssocBinding_count(&im->a
 size_t __for_i = 0;
 while (__for_i < __for_n) {
 compiler__ast__AssocBinding b = std__collections__List_compiler__ast__AssocBinding_at(&im->assoc_bindings, __for_i);
-bool declared = std__collections__List_str_any(&assoc_decls, (kobel_closure){ (void*)__lambda_fn_28, (void*)&(struct __lambda_env_28){ b } });
+bool declared = std__collections__List_str_any(&assoc_decls, (kobel_closure){ (void*)__lambda_fn_30, (void*)&(struct __lambda_env_30){ b } });
 if (!declared) {
 compiler__semantic__resolution__TypeResolver_report_error(self, node, kobel_concat(5, KOBEL_STR("Trait '"), trait_info->name, KOBEL_STR("' has no associated type '"), b.name, KOBEL_STR("'")));
 }
@@ -16366,12 +16268,12 @@ __for_i = (__for_i + 1);
 }
 }
 
-struct __lambda_env_29 {
+struct __lambda_env_31 {
     compiler__semantic__types__TraitMethod* tm;
 };
 
-static bool __lambda_fn_29(void* __raw_env, compiler__ast__AstNode* m) {
-    struct __lambda_env_29* __env = (struct __lambda_env_29*)__raw_env;
+static bool __lambda_fn_31(void* __raw_env, compiler__ast__AstNode* m) {
+    struct __lambda_env_31* __env = (struct __lambda_env_31*)__raw_env;
 {
 compiler__ast__NodeData__FnDecl* f = NULL;
 if ((m != NULL && m->data.tag == compiler__ast__NodeData__FnDecl__TAG && (f = (compiler__ast__NodeData__FnDecl*)(&(m)->data.u.FnDecl), 1))) {
@@ -16396,7 +16298,7 @@ size_t __for_n = std__collections__List_ptr_compiler__semantic__types__TraitMeth
 size_t __for_i = 0;
 while (__for_i < __for_n) {
 compiler__semantic__types__TraitMethod* tm = std__collections__List_ptr_compiler__semantic__types__TraitMethod_at(&effective, __for_i);
-bool have = std__collections__List_ptr_compiler__ast__AstNode_any(&im->methods, (kobel_closure){ (void*)__lambda_fn_29, (void*)&(struct __lambda_env_29){ tm } });
+bool have = std__collections__List_ptr_compiler__ast__AstNode_any(&im->methods, (kobel_closure){ (void*)__lambda_fn_31, (void*)&(struct __lambda_env_31){ tm } });
 if (have) {
 __for_i = (__for_i + 1);
 continue;
@@ -16414,7 +16316,7 @@ __for_i = (__for_i + 1);
 }
 }
 
-static kobel_str __lambda_fn_30(void* __raw_env, compiler__semantic__types__MethodInfo* m) {
+static kobel_str __lambda_fn_32(void* __raw_env, compiler__semantic__types__MethodInfo* m) {
     (void)__raw_env;
     return m->c_name;
 }
@@ -16446,7 +16348,7 @@ if (!str_empty(im->trait_name)) {
 compiler__semantic__resolution__TypeResolver_apply_trait(self, node, im, st_info->name);
 }
 std__collections__List_str overloaded = compiler__semantic__resolution__overloaded_names(im);
-std__collections__List_str used_names = std__collections__std__collections__List_ptr_compiler__semantic__types__MethodInfo_map_str(&st_info->methods, (kobel_closure){ (void*)__lambda_fn_30, NULL });
+std__collections__List_str used_names = std__collections__std__collections__List_ptr_compiler__semantic__types__MethodInfo_map_str(&st_info->methods, (kobel_closure){ (void*)__lambda_fn_32, NULL });
 {
 size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&im->methods);
 size_t __for_i = 0;
@@ -16666,28 +16568,28 @@ compiler__semantic__symbols__GenericTemplate* compiler__semantic__resolution__Ty
     return std__memory__Arena_create_val_compiler__semantic__symbols__GenericTemplate(&self->arena, (compiler__semantic__symbols__GenericTemplate){ name, self->current_module, node, is_method, self_type });
 }
 
-struct __lambda_env_31 {
+struct __lambda_env_33 {
     kobel_str name;
     kobel_str module;
 };
 
-static bool __lambda_fn_31(void* __raw_env, compiler__semantic__symbols__GenericTemplate* t) {
-    struct __lambda_env_31* __env = (struct __lambda_env_31*)__raw_env;
+static bool __lambda_fn_33(void* __raw_env, compiler__semantic__symbols__GenericTemplate* t) {
+    struct __lambda_env_33* __env = (struct __lambda_env_33*)__raw_env;
     return (kobel_streq(t->name, (__env->name)) && kobel_streq(t->module, (__env->module)));
 }
 
-struct __lambda_env_32 {
+struct __lambda_env_34 {
     kobel_str name;
     kobel_str module;
 };
 
-static bool __lambda_fn_32(void* __raw_env, compiler__semantic__symbols__GenericTemplate* f) {
-    struct __lambda_env_32* __env = (struct __lambda_env_32*)__raw_env;
+static bool __lambda_fn_34(void* __raw_env, compiler__semantic__symbols__GenericTemplate* f) {
+    struct __lambda_env_34* __env = (struct __lambda_env_34*)__raw_env;
     return (kobel_streq(f->name, (__env->name)) && kobel_streq(f->module, (__env->module)));
 }
 
 bool compiler__semantic__resolution__TypeResolver_template_in_module(compiler__semantic__resolution__TypeResolver* self, kobel_str module, kobel_str name) {
-    return (std__collections__List_ptr_compiler__semantic__symbols__GenericTemplate_any(&self->symtab.gen.struct_templates, (kobel_closure){ (void*)__lambda_fn_31, (void*)&(struct __lambda_env_31){ name, module } }) || std__collections__List_ptr_compiler__semantic__symbols__GenericTemplate_any(&self->symtab.gen.fn_templates, (kobel_closure){ (void*)__lambda_fn_32, (void*)&(struct __lambda_env_32){ name, module } }));
+    return (std__collections__List_ptr_compiler__semantic__symbols__GenericTemplate_any(&self->symtab.gen.struct_templates, (kobel_closure){ (void*)__lambda_fn_33, (void*)&(struct __lambda_env_33){ name, module } }) || std__collections__List_ptr_compiler__semantic__symbols__GenericTemplate_any(&self->symtab.gen.fn_templates, (kobel_closure){ (void*)__lambda_fn_34, (void*)&(struct __lambda_env_34){ name, module } }));
 }
 
 compiler__semantic__symbols__Symbol* compiler__semantic__resolution__TypeResolver_find_instance_symbol(compiler__semantic__resolution__TypeResolver* self, kobel_str name) {
@@ -18150,7 +18052,7 @@ f->name = c_name;
 }
 }
 
-static bool __lambda_fn_33(void* __raw_env, compiler__ast__EnumMember m) {
+static bool __lambda_fn_35(void* __raw_env, compiler__ast__EnumMember m) {
     (void)__raw_env;
     return !std__collections__List_compiler__ast__EnumField_empty(&m.payload);
 }
@@ -18160,7 +18062,7 @@ void compiler__semantic__declaration__DeclarationCollector_collect_enum(compiler
 compiler__ast__NodeData__EnumDecl* e = NULL;
 if ((node != NULL && node->data.tag == compiler__ast__NodeData__EnumDecl__TAG && (e = (compiler__ast__NodeData__EnumDecl*)(&(node)->data.u.EnumDecl), 1))) {
 compiler__semantic__types__Type* under_type = ((e->underlying_type != NULL) ? compiler__semantic__declaration__DeclarationCollector_resolve_ast_type(self, e->underlying_type) : compiler__semantic__types__PrimTypes_t_prim(compiler__semantic__declaration__DeclarationCollector_prims(self), compiler__semantic__types__Type_i32()));
-bool is_payload = std__collections__List_compiler__ast__EnumMember_any(&e->members, (kobel_closure){ (void*)__lambda_fn_33, NULL });
+bool is_payload = std__collections__List_compiler__ast__EnumMember_any(&e->members, (kobel_closure){ (void*)__lambda_fn_35, NULL });
 if (is_payload) {
 compiler__semantic__declaration__DeclarationCollector_collect_payload_enum(self, node, e, under_type);
 return;
@@ -18626,7 +18528,7 @@ __for_i = (__for_i + 1);
 }
 }
 
-static bool __lambda_fn_34(void* __raw_env, compiler__ast__EnumMember m) {
+static bool __lambda_fn_36(void* __raw_env, compiler__ast__EnumMember m) {
     (void)__raw_env;
     return !std__collections__List_compiler__ast__EnumField_empty(&m.payload);
 }
@@ -18644,7 +18546,7 @@ compiler__ast__NodeData__ModuleDecl* t = (compiler__ast__NodeData__ModuleDecl*)(
 compiler__semantic__declaration__DeclarationCollector_collect_module(self, d);
 } else if (t != NULL && t->data.tag == compiler__ast__NodeData__EnumDecl__TAG) {
 compiler__ast__NodeData__EnumDecl* e = (compiler__ast__NodeData__EnumDecl*)(&(t)->data.u.EnumDecl);
-bool has_p = std__collections__List_compiler__ast__EnumMember_any(&e->members, (kobel_closure){ (void*)__lambda_fn_34, NULL });
+bool has_p = std__collections__List_compiler__ast__EnumMember_any(&e->members, (kobel_closure){ (void*)__lambda_fn_36, NULL });
 if (has_p == want_payload) {
 compiler__semantic__declaration__DeclarationCollector_collect_enum(self, d);
 }
@@ -18910,7 +18812,7 @@ compiler__semantic__declaration__DeclarationCollector_report_error(self, expr, K
 return 0;
 }
 
-static kobel_str __lambda_fn_35(void* __raw_env, compiler__semantic__types__MethodInfo* m) {
+static kobel_str __lambda_fn_37(void* __raw_env, compiler__semantic__types__MethodInfo* m) {
     (void)__raw_env;
     return m->c_name;
 }
@@ -18942,7 +18844,7 @@ if (!str_empty(im->trait_name)) {
 compiler__semantic__declaration__DeclarationCollector_apply_trait(self, node, im, st_info->name);
 }
 std__collections__List_str overloaded = compiler__semantic__declaration__overloaded_names(im);
-std__collections__List_str used_names = std__collections__std__collections__List_ptr_compiler__semantic__types__MethodInfo_map_str(&st_info->methods, (kobel_closure){ (void*)__lambda_fn_35, NULL });
+std__collections__List_str used_names = std__collections__std__collections__List_ptr_compiler__semantic__types__MethodInfo_map_str(&st_info->methods, (kobel_closure){ (void*)__lambda_fn_37, NULL });
 {
 size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(&im->methods);
 size_t __for_i = 0;
@@ -19418,12 +19320,12 @@ __for_i = (__for_i + 1);
 }
 }
 
-struct __lambda_env_36 {
+struct __lambda_env_38 {
     compiler__ast__AssocBinding b;
 };
 
-static bool __lambda_fn_36(void* __raw_env, kobel_str a) {
-    struct __lambda_env_36* __env = (struct __lambda_env_36*)__raw_env;
+static bool __lambda_fn_38(void* __raw_env, kobel_str a) {
+    struct __lambda_env_38* __env = (struct __lambda_env_38*)__raw_env;
     return kobel_streq(a, (__env->b).name);
 }
 
@@ -19444,7 +19346,7 @@ size_t __for_n = std__collections__List_compiler__ast__AssocBinding_count(&im->a
 size_t __for_i = 0;
 while (__for_i < __for_n) {
 compiler__ast__AssocBinding b = std__collections__List_compiler__ast__AssocBinding_at(&im->assoc_bindings, __for_i);
-bool declared = std__collections__List_str_any(&assoc_decls, (kobel_closure){ (void*)__lambda_fn_36, (void*)&(struct __lambda_env_36){ b } });
+bool declared = std__collections__List_str_any(&assoc_decls, (kobel_closure){ (void*)__lambda_fn_38, (void*)&(struct __lambda_env_38){ b } });
 if (!declared) {
 compiler__semantic__declaration__DeclarationCollector_report_error(self, node, kobel_concat(5, KOBEL_STR("Trait '"), trait_info->name, KOBEL_STR("' has no associated type '"), b.name, KOBEL_STR("'")));
 }
@@ -19480,12 +19382,12 @@ __for_i = (__for_i + 1);
 }
 }
 
-struct __lambda_env_37 {
+struct __lambda_env_39 {
     compiler__semantic__types__TraitMethod* tm;
 };
 
-static bool __lambda_fn_37(void* __raw_env, compiler__ast__AstNode* m) {
-    struct __lambda_env_37* __env = (struct __lambda_env_37*)__raw_env;
+static bool __lambda_fn_39(void* __raw_env, compiler__ast__AstNode* m) {
+    struct __lambda_env_39* __env = (struct __lambda_env_39*)__raw_env;
 {
 compiler__ast__NodeData__FnDecl* f = NULL;
 if ((m != NULL && m->data.tag == compiler__ast__NodeData__FnDecl__TAG && (f = (compiler__ast__NodeData__FnDecl*)(&(m)->data.u.FnDecl), 1))) {
@@ -19510,7 +19412,7 @@ size_t __for_n = std__collections__List_ptr_compiler__semantic__types__TraitMeth
 size_t __for_i = 0;
 while (__for_i < __for_n) {
 compiler__semantic__types__TraitMethod* tm = std__collections__List_ptr_compiler__semantic__types__TraitMethod_at(&effective, __for_i);
-bool have = std__collections__List_ptr_compiler__ast__AstNode_any(&im->methods, (kobel_closure){ (void*)__lambda_fn_37, (void*)&(struct __lambda_env_37){ tm } });
+bool have = std__collections__List_ptr_compiler__ast__AstNode_any(&im->methods, (kobel_closure){ (void*)__lambda_fn_39, (void*)&(struct __lambda_env_39){ tm } });
 if (have) {
 __for_i = (__for_i + 1);
 continue;
@@ -22626,7 +22528,7 @@ self->infer_blocked = true;
 }
 }
 
-static compiler__semantic__types__Type* __lambda_fn_38(void* __raw_env, compiler__semantic__types__StructField f) {
+static compiler__semantic__types__Type* __lambda_fn_40(void* __raw_env, compiler__semantic__types__StructField f) {
     (void)__raw_env;
     return f.type_ptr;
 }
@@ -22651,7 +22553,7 @@ return compiler__semantic__types__PrimTypes_t_none(compiler__semantic__checker__
 }
 std__collections__List_ptr_compiler__semantic__types__Type field_types = std__collections__List_ptr_compiler__semantic__types__Type_init(NULL, 0);
 if (mi->payload_ty != NULL) {
-field_types = std__collections__std__collections__List_compiler__semantic__types__StructField_map_ptr_compiler__semantic__types__Type(&(*compiler__semantic__types__Type_as_struct(mi->payload_ty)).fields, (kobel_closure){ (void*)__lambda_fn_38, NULL });
+field_types = std__collections__std__collections__List_compiler__semantic__types__StructField_map_ptr_compiler__semantic__types__Type(&(*compiler__semantic__types__Type_as_struct(mi->payload_ty)).fields, (kobel_closure){ (void*)__lambda_fn_40, NULL });
 }
 if (call->args.len != field_types.len) {
 compiler__semantic__checker__BodyChecker_report_error(self, node, kobel_concat(5, KOBEL_STR("Argument count mismatch in variant '"), enum_id->name, KOBEL_STR("."), mem->member, KOBEL_STR("'")));
@@ -24032,19 +23934,19 @@ return std__memory__Arena_nullable_pointer_type(&self->arena, compiler__semantic
 return compiler__semantic__types__PrimTypes_t_none(compiler__semantic__checker__BodyChecker_prims(self));
 }
 
-struct __lambda_env_39 {
+struct __lambda_env_41 {
     compiler__semantic__symbols__Symbol* sym;
 };
 
-static bool __lambda_fn_39(void* __raw_env, compiler__semantic__symbols__LambdaCapture c) {
-    struct __lambda_env_39* __env = (struct __lambda_env_39*)__raw_env;
+static bool __lambda_fn_41(void* __raw_env, compiler__semantic__symbols__LambdaCapture c) {
+    struct __lambda_env_41* __env = (struct __lambda_env_41*)__raw_env;
     return kobel_streq(c.name, (__env->sym)->name);
 }
 
 void compiler__semantic__checker__BodyChecker_record_lambda_capture(compiler__semantic__checker__BodyChecker* self, compiler__semantic__symbols__Symbol* sym) {
 compiler__semantic__types__Type* cap_ty = sym->orig_type;
 if (cap_ty == NULL) cap_ty = sym->type_ptr;
-if (std__collections__List_compiler__semantic__symbols__LambdaCapture_any(&self->lambda_captures, (kobel_closure){ (void*)__lambda_fn_39, (void*)&(struct __lambda_env_39){ sym } })) {
+if (std__collections__List_compiler__semantic__symbols__LambdaCapture_any(&self->lambda_captures, (kobel_closure){ (void*)__lambda_fn_41, (void*)&(struct __lambda_env_41){ sym } })) {
 return;
 }
 std__collections__List_compiler__semantic__symbols__LambdaCapture_plus_assign(&self->lambda_captures, (compiler__semantic__symbols__LambdaCapture){ sym->name, cap_ty, sym->mutable });
@@ -25550,12 +25452,12 @@ return false;
 }
 }
 
-struct __lambda_env_40 {
+struct __lambda_env_42 {
     compiler__semantic__checker__BodyChecker* self;
 };
 
-static bool __lambda_fn_40(void* __raw_env, compiler__ast__AstNode* arg) {
-    struct __lambda_env_40* __env = (struct __lambda_env_40*)__raw_env;
+static bool __lambda_fn_42(void* __raw_env, compiler__ast__AstNode* arg) {
+    struct __lambda_env_42* __env = (struct __lambda_env_42*)__raw_env;
     return compiler__semantic__checker__BodyChecker_expr_has_implicit_subject((__env->self), arg);
 }
 
@@ -25581,7 +25483,7 @@ compiler__ast__NodeData__MemberExpr* m = (compiler__ast__NodeData__MemberExpr*)(
 return compiler__semantic__checker__BodyChecker_expr_has_implicit_subject(self, m->object);
 } else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__CallExpr__TAG) {
 compiler__ast__NodeData__CallExpr* c = (compiler__ast__NodeData__CallExpr*)(&(cur)->data.u.CallExpr);
-return (compiler__semantic__checker__BodyChecker_expr_has_implicit_subject(self, c->callee) || std__collections__List_ptr_compiler__ast__AstNode_any(&c->args, (kobel_closure){ (void*)__lambda_fn_40, (void*)&(struct __lambda_env_40){ self } }));
+return (compiler__semantic__checker__BodyChecker_expr_has_implicit_subject(self, c->callee) || std__collections__List_ptr_compiler__ast__AstNode_any(&c->args, (kobel_closure){ (void*)__lambda_fn_42, (void*)&(struct __lambda_env_42){ self } }));
 } else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__IndexExpr__TAG) {
 compiler__ast__NodeData__IndexExpr* ix = (compiler__ast__NodeData__IndexExpr*)(&(cur)->data.u.IndexExpr);
 return (compiler__semantic__checker__BodyChecker_expr_has_implicit_subject(self, ix->target) || compiler__semantic__checker__BodyChecker_expr_has_implicit_subject(self, ix->index));
@@ -25693,7 +25595,7 @@ return __ret_tmp;
 return compiler__semantic__checker__BodyChecker_check_expr(self, body, expected);
 }
 
-static bool __lambda_fn_41(void* __raw_env, compiler__semantic__types__StructField f) {
+static bool __lambda_fn_43(void* __raw_env, compiler__semantic__types__StructField f) {
     (void)__raw_env;
     return kobel_streq(f.name, KOBEL_STR("inner"));
 }
@@ -25775,7 +25677,7 @@ member_name = matched_data_member->name;
 compiler__semantic__types__Type* p_ty = matched_data_member->payload_ty;
 if ((p_ty != NULL) && (p_ty->kind == 18)) {
 compiler__semantic__types__StructType* s = compiler__semantic__types__Type_as_struct(p_ty);
-if (!std__collections__List_compiler__semantic__types__StructField_any(&s->fields, (kobel_closure){ (void*)__lambda_fn_41, NULL })) {
+if (!std__collections__List_compiler__semantic__types__StructField_any(&s->fields, (kobel_closure){ (void*)__lambda_fn_43, NULL })) {
 is_inner_ptr = false;
 }
 }
@@ -27294,21 +27196,21 @@ return true;
 }
 }
 
-struct __lambda_env_42 {
+struct __lambda_env_44 {
     compiler__codegen__CCodeGen** self;
 };
 
-static kobel_str __lambda_fn_42(void* __raw_env, compiler__ast__AstNode* a) {
-    struct __lambda_env_42* __env = (struct __lambda_env_42*)__raw_env;
+static kobel_str __lambda_fn_44(void* __raw_env, compiler__ast__AstNode* a) {
+    struct __lambda_env_44* __env = (struct __lambda_env_44*)__raw_env;
     return compiler__codegen__CCodeGen_gen_expr((*(__env->self)), a);
 }
 
-struct __lambda_env_43 {
+struct __lambda_env_45 {
     compiler__codegen__CCodeGen** self;
 };
 
-static kobel_str __lambda_fn_43(void* __raw_env, compiler__ast__AstNode* a) {
-    struct __lambda_env_43* __env = (struct __lambda_env_43*)__raw_env;
+static kobel_str __lambda_fn_45(void* __raw_env, compiler__ast__AstNode* a) {
+    struct __lambda_env_45* __env = (struct __lambda_env_45*)__raw_env;
     return compiler__codegen__CCodeGen_gen_expr((*(__env->self)), a);
 }
 
@@ -27410,7 +27312,7 @@ return compiler__codegen__CCodeGen_gen_is_expr(self, ast_node, node);
 } else if (node != NULL && node->data.tag == compiler__ast__NodeData__StructCtorExpr__TAG) {
 void* __orig_node = (void*)node;
 compiler__ast__NodeData__StructCtorExpr* node = (compiler__ast__NodeData__StructCtorExpr*)((&((compiler__ast__AstNode*)__orig_node)->data.u.StructCtorExpr));
-std__collections__List_str ctor_args = std__collections__std__collections__List_ptr_compiler__ast__AstNode_map_str(&node->args, (kobel_closure){ (void*)__lambda_fn_42, (void*)&(struct __lambda_env_42){ &self } });
+std__collections__List_str ctor_args = std__collections__std__collections__List_ptr_compiler__ast__AstNode_map_str(&node->args, (kobel_closure){ (void*)__lambda_fn_44, (void*)&(struct __lambda_env_44){ &self } });
 kobel_str joined = str_join(KOBEL_STR(", "), ctor_args);
 return kobel_concat(5, KOBEL_STR("("), node->c_name, KOBEL_STR("){ "), joined, KOBEL_STR(" }"));
 } else if (node != NULL && node->data.tag == compiler__ast__NodeData__EnumCtorExpr__TAG) {
@@ -27419,7 +27321,7 @@ compiler__ast__NodeData__EnumCtorExpr* node = (compiler__ast__NodeData__EnumCtor
 if (str_empty(node->payload_path)) {
 return kobel_concat(7, KOBEL_STR("("), node->c_name, KOBEL_STR("){ ."), node->tag_field, KOBEL_STR(" = "), i64_to_str(node->tag_value), KOBEL_STR(" }"));
 }
-std__collections__List_str ctor_args = std__collections__std__collections__List_ptr_compiler__ast__AstNode_map_str(&node->args, (kobel_closure){ (void*)__lambda_fn_43, (void*)&(struct __lambda_env_43){ &self } });
+std__collections__List_str ctor_args = std__collections__std__collections__List_ptr_compiler__ast__AstNode_map_str(&node->args, (kobel_closure){ (void*)__lambda_fn_45, (void*)&(struct __lambda_env_45){ &self } });
 kobel_str joined = str_join(KOBEL_STR(", "), ctor_args);
 return kobel_concat(11, KOBEL_STR("("), node->c_name, KOBEL_STR("){ ."), node->tag_field, KOBEL_STR(" = "), i64_to_str(node->tag_value), KOBEL_STR(", ."), node->payload_path, KOBEL_STR(" = { "), joined, KOBEL_STR(" } }"));
 } else if (node != NULL && node->data.tag == compiler__ast__NodeData__SizeOfParam__TAG) {
@@ -27453,12 +27355,12 @@ __for_i = (__for_i + 1);
 return name;
 }
 
-struct __lambda_env_44 {
+struct __lambda_env_46 {
     compiler__codegen__CCodeGen* self;
 };
 
-static kobel_str __lambda_fn_44(void* __raw_env, compiler__semantic__symbols__LambdaCapture cap) {
-    struct __lambda_env_44* __env = (struct __lambda_env_44*)__raw_env;
+static kobel_str __lambda_fn_46(void* __raw_env, compiler__semantic__symbols__LambdaCapture cap) {
+    struct __lambda_env_46* __env = (struct __lambda_env_46*)__raw_env;
 kobel_str expr_s = compiler__codegen__CCodeGen_gen_ident_expr((__env->self), cap.name);
 return (cap.is_mutable ? kobel_concat(2, KOBEL_STR("&"), expr_s) : expr_s);
 }
@@ -27471,7 +27373,7 @@ return KOBEL_STR("(kobel_closure){ NULL, NULL }");
 if (std__collections__List_compiler__semantic__symbols__LambdaCapture_empty(&info.captures)) {
 return kobel_concat(3, KOBEL_STR("(kobel_closure){ (void*)__lambda_fn_"), usz_to_str(info.id), KOBEL_STR(", NULL }"));
 }
-std__collections__List_str cap_inits = std__collections__std__collections__List_compiler__semantic__symbols__LambdaCapture_map_str(&info.captures, (kobel_closure){ (void*)__lambda_fn_44, (void*)&(struct __lambda_env_44){ self } });
+std__collections__List_str cap_inits = std__collections__std__collections__List_compiler__semantic__symbols__LambdaCapture_map_str(&info.captures, (kobel_closure){ (void*)__lambda_fn_46, (void*)&(struct __lambda_env_46){ self } });
 kobel_str joined = str_join(KOBEL_STR(", "), cap_inits);
 return kobel_concat(7, KOBEL_STR("(kobel_closure){ (void*)__lambda_fn_"), usz_to_str(info.id), KOBEL_STR(", (void*)&(struct __lambda_env_"), usz_to_str(info.id), KOBEL_STR("){ "), joined, KOBEL_STR(" } }"));
 }
@@ -27621,18 +27523,18 @@ return opnd;
 return (un->op == 7 ? (str_starts_with(opnd, KOBEL_STR("-")) ? kobel_concat(3, KOBEL_STR("- ("), opnd, KOBEL_STR(")")) : kobel_concat(2, KOBEL_STR("-"), opnd)) : (un->op == 4 ? kobel_concat(2, KOBEL_STR("!"), opnd) : (un->op == 8 ? kobel_concat(2, KOBEL_STR("*"), opnd) : (un->op == 19 ? kobel_concat(2, KOBEL_STR("&"), opnd) : opnd))));
 }
 
-struct __lambda_env_45 {
+struct __lambda_env_47 {
     compiler__codegen__CCodeGen** self;
 };
 
-static kobel_str __lambda_fn_45(void* __raw_env, compiler__ast__AstNode* el) {
-    struct __lambda_env_45* __env = (struct __lambda_env_45*)__raw_env;
+static kobel_str __lambda_fn_47(void* __raw_env, compiler__ast__AstNode* el) {
+    struct __lambda_env_47* __env = (struct __lambda_env_47*)__raw_env;
     return compiler__codegen__CCodeGen_gen_expr((*(__env->self)), el);
 }
 
 kobel_str compiler__codegen__CCodeGen_gen_array_literal_expr(compiler__codegen__CCodeGen* self, compiler__ast__NodeData__ArrayLiteralExpr* al) {
 kobel_str elem_c = (al->elem_type_node != NULL ? compiler__codegen__c_type_from_ast(al->elem_type_node) : (!str_empty(self->array_elem_hint) ? self->array_elem_hint : (!std__collections__List_ptr_compiler__ast__AstNode_empty(&al->elements) ? compiler__codegen__CCodeGen_c_type_or(self, std__collections__List_ptr_compiler__ast__AstNode_first(&al->elements), KOBEL_STR("int32_t")) : KOBEL_STR("int32_t"))));
-std__collections__List_str elems_str = std__collections__std__collections__List_ptr_compiler__ast__AstNode_map_str(&al->elements, (kobel_closure){ (void*)__lambda_fn_45, (void*)&(struct __lambda_env_45){ &self } });
+std__collections__List_str elems_str = std__collections__std__collections__List_ptr_compiler__ast__AstNode_map_str(&al->elements, (kobel_closure){ (void*)__lambda_fn_47, (void*)&(struct __lambda_env_47){ &self } });
 kobel_str joined_elems = str_join(KOBEL_STR(", "), elems_str);
 kobel_str arr_res = kobel_concat(5, KOBEL_STR("("), elem_c, KOBEL_STR("[]){"), joined_elems, KOBEL_STR("}"));
 if (!str_empty(al->list_struct_name)) {
@@ -27921,7 +27823,7 @@ kobel_str op_str = (asgn->op == 33 ? KOBEL_STR("+=") : (asgn->op == 34 ? KOBEL_S
 return kobel_concat(5, compiler__codegen__CCodeGen_gen_expr(self, asgn->target), KOBEL_STR(" "), op_str, KOBEL_STR(" "), compiler__codegen__CCodeGen_gen_expr(self, asgn->value));
 }
 
-static bool __lambda_fn_46(void* __raw_env, compiler__ast__WhenArm arm) {
+static bool __lambda_fn_48(void* __raw_env, compiler__ast__WhenArm arm) {
     (void)__raw_env;
     return arm.is_else;
 }
@@ -27931,7 +27833,7 @@ if (std__collections__List_compiler__ast__WhenArm_empty(&we->arms)) {
 return KOBEL_STR("0");
 }
 kobel_str cond = ((we->condition != NULL) ? compiler__codegen__CCodeGen_gen_expr(self, we->condition) : KOBEL_STR(""));
-bool has_else = std__collections__List_compiler__ast__WhenArm_any(&we->arms, (kobel_closure){ (void*)__lambda_fn_46, NULL });
+bool has_else = std__collections__List_compiler__ast__WhenArm_any(&we->arms, (kobel_closure){ (void*)__lambda_fn_48, NULL });
 kobel_str res = KOBEL_STR("0");
 size_t i = we->arms.len;
 if (!has_else) {
@@ -28196,13 +28098,13 @@ compiler__codegen__CCodeGen_gen_statement(self, std__collections__List_ptr_compi
 }
 }
 
-static bool __lambda_fn_47(void* __raw_env, compiler__ast__EnumMember m) {
+static bool __lambda_fn_49(void* __raw_env, compiler__ast__EnumMember m) {
     (void)__raw_env;
     return !std__collections__List_compiler__ast__EnumField_empty(&m.payload);
 }
 
 bool compiler__codegen__CCodeGen_enum_has_payload(compiler__codegen__CCodeGen* self, compiler__ast__NodeData__EnumDecl* e) {
-    return std__collections__List_compiler__ast__EnumMember_any(&e->members, (kobel_closure){ (void*)__lambda_fn_47, NULL });
+    return std__collections__List_compiler__ast__EnumMember_any(&e->members, (kobel_closure){ (void*)__lambda_fn_49, NULL });
 }
 
 kobel_str compiler__codegen__c_format_int_literal(kobel_str raw) {
@@ -28220,14 +28122,14 @@ kobel_str compiler__codegen__c_float_literal_c_type(kobel_str raw) {
     return (str_ends_with(raw, KOBEL_STR("F")) ? KOBEL_STR("float") : KOBEL_STR("double"));
 }
 
-static bool __lambda_fn_48(void* __raw_env, char c) {
+static bool __lambda_fn_50(void* __raw_env, char c) {
     (void)__raw_env;
     return (((c == '.') || (c == 'e')) || (c == 'E'));
 }
 
 kobel_str compiler__codegen__c_format_float_literal(kobel_str raw) {
 kobel_str text = str_strip_char(raw, '_');
-if (str_any(text, (kobel_closure){ (void*)__lambda_fn_48, NULL })) {
+if (str_any(text, (kobel_closure){ (void*)__lambda_fn_50, NULL })) {
 return text;
 }
 size_t len = text.len;
@@ -29182,18 +29084,18 @@ std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("}\n\n"));
 }
 }
 
-static bool __lambda_fn_49(void* __raw_env, compiler__ast__AstNode* p) {
+static bool __lambda_fn_51(void* __raw_env, compiler__ast__AstNode* p) {
     (void)__raw_env;
     return (p != NULL && p->data.tag == compiler__ast__NodeData__IsExpr__TAG);
 }
 
-static bool __lambda_fn_50(void* __raw_env, compiler__ast__WhenArm arm) {
+static bool __lambda_fn_52(void* __raw_env, compiler__ast__WhenArm arm) {
     (void)__raw_env;
-    return ((arm.body != NULL && arm.body->data.tag == compiler__ast__NodeData__BlockStmt__TAG) || std__collections__List_ptr_compiler__ast__AstNode_any(&arm.patterns, (kobel_closure){ (void*)__lambda_fn_49, NULL }));
+    return ((arm.body != NULL && arm.body->data.tag == compiler__ast__NodeData__BlockStmt__TAG) || std__collections__List_ptr_compiler__ast__AstNode_any(&arm.patterns, (kobel_closure){ (void*)__lambda_fn_51, NULL }));
 }
 
 bool compiler__ast__NodeData__WhenExpr_has_blocks(compiler__ast__NodeData__WhenExpr* self) {
-    return std__collections__List_compiler__ast__WhenArm_any(&self->arms, (kobel_closure){ (void*)__lambda_fn_50, NULL });
+    return std__collections__List_compiler__ast__WhenArm_any(&self->arms, (kobel_closure){ (void*)__lambda_fn_52, NULL });
 }
 
 kobel_str compiler__codegen__CCodeGen_gen_cond(compiler__codegen__CCodeGen* self, compiler__ast__AstNode* cond) {
@@ -33851,7 +33753,7 @@ std__string__StringBuilder_free(header_line);
 if (content_length == 0) {
 return KOBEL_STR("");
 }
-uint8_t* buf = std__memory__Heap_create_array_u8((content_length + 1));
+uint8_t* buf = std__memory__Heap_alloc_u8((content_length + 1));
 {
 int32_t __for_e = content_length;
 int32_t __for_i = __for_e;
@@ -34236,7 +34138,7 @@ compiler__ast__AstNode* std__collections__List_ptr_compiler__ast__AstNode_at(std
 
 std__collections__List_ptr_compiler__ast__AstNode std__collections__List_ptr_compiler__ast__AstNode_init(compiler__ast__AstNode** items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-compiler__ast__AstNode** buf = std__memory__Heap_create_array_ptr_compiler__ast__AstNode(cap);
+compiler__ast__AstNode** buf = std__memory__Heap_alloc_ptr_compiler__ast__AstNode(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -34375,7 +34277,7 @@ self->len++;
 
 std__collections__List_ptr_compiler__ast__AstNode std__collections__List_ptr_compiler__ast__AstNode_clone(std__collections__List_ptr_compiler__ast__AstNode* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_ptr_compiler__ast__AstNode res = (std__collections__List_ptr_compiler__ast__AstNode){ std__memory__Heap_create_array_ptr_compiler__ast__AstNode(cap), 0, cap };
+std__collections__List_ptr_compiler__ast__AstNode res = (std__collections__List_ptr_compiler__ast__AstNode){ std__memory__Heap_alloc_ptr_compiler__ast__AstNode(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_ptr_compiler__ast__AstNode_count(self);
 size_t __for_i = 0;
@@ -34414,7 +34316,7 @@ right--;
 }
 
 std__collections__List_ptr_compiler__ast__AstNode std__collections__List_ptr_compiler__ast__AstNode_sub(std__collections__List_ptr_compiler__ast__AstNode* self, size_t start, size_t count) {
-std__collections__List_ptr_compiler__ast__AstNode res = (std__collections__List_ptr_compiler__ast__AstNode){ std__memory__Heap_create_array_ptr_compiler__ast__AstNode(count), 0, count };
+std__collections__List_ptr_compiler__ast__AstNode res = (std__collections__List_ptr_compiler__ast__AstNode){ std__memory__Heap_alloc_ptr_compiler__ast__AstNode(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -34610,17 +34512,17 @@ std__collections__List_ptr_compiler__ast__AstNode_remove_at(self, (size_t)idx);
 return true;
 }
 
-struct __lambda_env_51 {
+struct __lambda_env_53 {
     compiler__ast__AstNode* value;
 };
 
-static bool __lambda_fn_51(void* __raw_env, compiler__ast__AstNode* x) {
-    struct __lambda_env_51* __env = (struct __lambda_env_51*)__raw_env;
+static bool __lambda_fn_53(void* __raw_env, compiler__ast__AstNode* x) {
+    struct __lambda_env_53* __env = (struct __lambda_env_53*)__raw_env;
     return (x == (__env->value));
 }
 
 size_t std__collections__List_ptr_compiler__ast__AstNode_remove_all(std__collections__List_ptr_compiler__ast__AstNode* self, compiler__ast__AstNode* value) {
-    return std__collections__List_ptr_compiler__ast__AstNode_remove_where(self, (kobel_closure){ (void*)__lambda_fn_51, (void*)&(struct __lambda_env_51){ value } });
+    return std__collections__List_ptr_compiler__ast__AstNode_remove_where(self, (kobel_closure){ (void*)__lambda_fn_53, (void*)&(struct __lambda_env_53){ value } });
 }
 
 size_t std__collections__List_ptr_compiler__ast__AstNode_remove_where(std__collections__List_ptr_compiler__ast__AstNode* self, kobel_closure predicate) {
@@ -34811,7 +34713,7 @@ compiler__ast__WhenArm std__collections__List_compiler__ast__WhenArm_at(std__col
 
 std__collections__List_compiler__ast__WhenArm std__collections__List_compiler__ast__WhenArm_init(compiler__ast__WhenArm* items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-compiler__ast__WhenArm* buf = std__memory__Heap_create_array_compiler__ast__WhenArm(cap);
+compiler__ast__WhenArm* buf = std__memory__Heap_alloc_compiler__ast__WhenArm(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -34950,7 +34852,7 @@ self->len++;
 
 std__collections__List_compiler__ast__WhenArm std__collections__List_compiler__ast__WhenArm_clone(std__collections__List_compiler__ast__WhenArm* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_compiler__ast__WhenArm res = (std__collections__List_compiler__ast__WhenArm){ std__memory__Heap_create_array_compiler__ast__WhenArm(cap), 0, cap };
+std__collections__List_compiler__ast__WhenArm res = (std__collections__List_compiler__ast__WhenArm){ std__memory__Heap_alloc_compiler__ast__WhenArm(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_compiler__ast__WhenArm_count(self);
 size_t __for_i = 0;
@@ -34989,7 +34891,7 @@ right--;
 }
 
 std__collections__List_compiler__ast__WhenArm std__collections__List_compiler__ast__WhenArm_sub(std__collections__List_compiler__ast__WhenArm* self, size_t start, size_t count) {
-std__collections__List_compiler__ast__WhenArm res = (std__collections__List_compiler__ast__WhenArm){ std__memory__Heap_create_array_compiler__ast__WhenArm(count), 0, count };
+std__collections__List_compiler__ast__WhenArm res = (std__collections__List_compiler__ast__WhenArm){ std__memory__Heap_alloc_compiler__ast__WhenArm(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -35185,17 +35087,17 @@ std__collections__List_compiler__ast__WhenArm_remove_at(self, (size_t)idx);
 return true;
 }
 
-struct __lambda_env_52 {
+struct __lambda_env_54 {
     compiler__ast__WhenArm value;
 };
 
-static bool __lambda_fn_52(void* __raw_env, compiler__ast__WhenArm x) {
-    struct __lambda_env_52* __env = (struct __lambda_env_52*)__raw_env;
+static bool __lambda_fn_54(void* __raw_env, compiler__ast__WhenArm x) {
+    struct __lambda_env_54* __env = (struct __lambda_env_54*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 56);
 }
 
 size_t std__collections__List_compiler__ast__WhenArm_remove_all(std__collections__List_compiler__ast__WhenArm* self, compiler__ast__WhenArm value) {
-    return std__collections__List_compiler__ast__WhenArm_remove_where(self, (kobel_closure){ (void*)__lambda_fn_52, (void*)&(struct __lambda_env_52){ value } });
+    return std__collections__List_compiler__ast__WhenArm_remove_where(self, (kobel_closure){ (void*)__lambda_fn_54, (void*)&(struct __lambda_env_54){ value } });
 }
 
 size_t std__collections__List_compiler__ast__WhenArm_remove_where(std__collections__List_compiler__ast__WhenArm* self, kobel_closure predicate) {
@@ -35386,7 +35288,7 @@ compiler__ast__InterpPart std__collections__List_compiler__ast__InterpPart_at(st
 
 std__collections__List_compiler__ast__InterpPart std__collections__List_compiler__ast__InterpPart_init(compiler__ast__InterpPart* items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-compiler__ast__InterpPart* buf = std__memory__Heap_create_array_compiler__ast__InterpPart(cap);
+compiler__ast__InterpPart* buf = std__memory__Heap_alloc_compiler__ast__InterpPart(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -35525,7 +35427,7 @@ self->len++;
 
 std__collections__List_compiler__ast__InterpPart std__collections__List_compiler__ast__InterpPart_clone(std__collections__List_compiler__ast__InterpPart* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_compiler__ast__InterpPart res = (std__collections__List_compiler__ast__InterpPart){ std__memory__Heap_create_array_compiler__ast__InterpPart(cap), 0, cap };
+std__collections__List_compiler__ast__InterpPart res = (std__collections__List_compiler__ast__InterpPart){ std__memory__Heap_alloc_compiler__ast__InterpPart(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_compiler__ast__InterpPart_count(self);
 size_t __for_i = 0;
@@ -35564,7 +35466,7 @@ right--;
 }
 
 std__collections__List_compiler__ast__InterpPart std__collections__List_compiler__ast__InterpPart_sub(std__collections__List_compiler__ast__InterpPart* self, size_t start, size_t count) {
-std__collections__List_compiler__ast__InterpPart res = (std__collections__List_compiler__ast__InterpPart){ std__memory__Heap_create_array_compiler__ast__InterpPart(count), 0, count };
+std__collections__List_compiler__ast__InterpPart res = (std__collections__List_compiler__ast__InterpPart){ std__memory__Heap_alloc_compiler__ast__InterpPart(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -35760,17 +35662,17 @@ std__collections__List_compiler__ast__InterpPart_remove_at(self, (size_t)idx);
 return true;
 }
 
-struct __lambda_env_53 {
+struct __lambda_env_55 {
     compiler__ast__InterpPart value;
 };
 
-static bool __lambda_fn_53(void* __raw_env, compiler__ast__InterpPart x) {
-    struct __lambda_env_53* __env = (struct __lambda_env_53*)__raw_env;
+static bool __lambda_fn_55(void* __raw_env, compiler__ast__InterpPart x) {
+    struct __lambda_env_55* __env = (struct __lambda_env_55*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 16);
 }
 
 size_t std__collections__List_compiler__ast__InterpPart_remove_all(std__collections__List_compiler__ast__InterpPart* self, compiler__ast__InterpPart value) {
-    return std__collections__List_compiler__ast__InterpPart_remove_where(self, (kobel_closure){ (void*)__lambda_fn_53, (void*)&(struct __lambda_env_53){ value } });
+    return std__collections__List_compiler__ast__InterpPart_remove_where(self, (kobel_closure){ (void*)__lambda_fn_55, (void*)&(struct __lambda_env_55){ value } });
 }
 
 size_t std__collections__List_compiler__ast__InterpPart_remove_where(std__collections__List_compiler__ast__InterpPart* self, kobel_closure predicate) {
@@ -35961,7 +35863,7 @@ compiler__ast__Param std__collections__List_compiler__ast__Param_at(std__collect
 
 std__collections__List_compiler__ast__Param std__collections__List_compiler__ast__Param_init(compiler__ast__Param* items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-compiler__ast__Param* buf = std__memory__Heap_create_array_compiler__ast__Param(cap);
+compiler__ast__Param* buf = std__memory__Heap_alloc_compiler__ast__Param(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -36100,7 +36002,7 @@ self->len++;
 
 std__collections__List_compiler__ast__Param std__collections__List_compiler__ast__Param_clone(std__collections__List_compiler__ast__Param* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_compiler__ast__Param res = (std__collections__List_compiler__ast__Param){ std__memory__Heap_create_array_compiler__ast__Param(cap), 0, cap };
+std__collections__List_compiler__ast__Param res = (std__collections__List_compiler__ast__Param){ std__memory__Heap_alloc_compiler__ast__Param(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_compiler__ast__Param_count(self);
 size_t __for_i = 0;
@@ -36139,7 +36041,7 @@ right--;
 }
 
 std__collections__List_compiler__ast__Param std__collections__List_compiler__ast__Param_sub(std__collections__List_compiler__ast__Param* self, size_t start, size_t count) {
-std__collections__List_compiler__ast__Param res = (std__collections__List_compiler__ast__Param){ std__memory__Heap_create_array_compiler__ast__Param(count), 0, count };
+std__collections__List_compiler__ast__Param res = (std__collections__List_compiler__ast__Param){ std__memory__Heap_alloc_compiler__ast__Param(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -36335,17 +36237,17 @@ std__collections__List_compiler__ast__Param_remove_at(self, (size_t)idx);
 return true;
 }
 
-struct __lambda_env_54 {
+struct __lambda_env_56 {
     compiler__ast__Param value;
 };
 
-static bool __lambda_fn_54(void* __raw_env, compiler__ast__Param x) {
-    struct __lambda_env_54* __env = (struct __lambda_env_54*)__raw_env;
+static bool __lambda_fn_56(void* __raw_env, compiler__ast__Param x) {
+    struct __lambda_env_56* __env = (struct __lambda_env_56*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 40);
 }
 
 size_t std__collections__List_compiler__ast__Param_remove_all(std__collections__List_compiler__ast__Param* self, compiler__ast__Param value) {
-    return std__collections__List_compiler__ast__Param_remove_where(self, (kobel_closure){ (void*)__lambda_fn_54, (void*)&(struct __lambda_env_54){ value } });
+    return std__collections__List_compiler__ast__Param_remove_where(self, (kobel_closure){ (void*)__lambda_fn_56, (void*)&(struct __lambda_env_56){ value } });
 }
 
 size_t std__collections__List_compiler__ast__Param_remove_where(std__collections__List_compiler__ast__Param* self, kobel_closure predicate) {
@@ -36536,7 +36438,7 @@ kobel_str std__collections__List_str_at(std__collections__List_str* self, size_t
 
 std__collections__List_str std__collections__List_str_init(kobel_str* items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-kobel_str* buf = std__memory__Heap_create_array_str(cap);
+kobel_str* buf = std__memory__Heap_alloc_str(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -36675,7 +36577,7 @@ self->len++;
 
 std__collections__List_str std__collections__List_str_clone(std__collections__List_str* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_str res = (std__collections__List_str){ std__memory__Heap_create_array_str(cap), 0, cap };
+std__collections__List_str res = (std__collections__List_str){ std__memory__Heap_alloc_str(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_str_count(self);
 size_t __for_i = 0;
@@ -36714,7 +36616,7 @@ right--;
 }
 
 std__collections__List_str std__collections__List_str_sub(std__collections__List_str* self, size_t start, size_t count) {
-std__collections__List_str res = (std__collections__List_str){ std__memory__Heap_create_array_str(count), 0, count };
+std__collections__List_str res = (std__collections__List_str){ std__memory__Heap_alloc_str(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -36910,17 +36812,17 @@ std__collections__List_str_remove_at(self, (size_t)idx);
 return true;
 }
 
-struct __lambda_env_55 {
+struct __lambda_env_57 {
     kobel_str value;
 };
 
-static bool __lambda_fn_55(void* __raw_env, kobel_str x) {
-    struct __lambda_env_55* __env = (struct __lambda_env_55*)__raw_env;
+static bool __lambda_fn_57(void* __raw_env, kobel_str x) {
+    struct __lambda_env_57* __env = (struct __lambda_env_57*)__raw_env;
     return kobel_streq(x, (__env->value));
 }
 
 size_t std__collections__List_str_remove_all(std__collections__List_str* self, kobel_str value) {
-    return std__collections__List_str_remove_where(self, (kobel_closure){ (void*)__lambda_fn_55, (void*)&(struct __lambda_env_55){ value } });
+    return std__collections__List_str_remove_where(self, (kobel_closure){ (void*)__lambda_fn_57, (void*)&(struct __lambda_env_57){ value } });
 }
 
 size_t std__collections__List_str_remove_where(std__collections__List_str* self, kobel_closure predicate) {
@@ -37111,7 +37013,7 @@ compiler__ast__GenericParam std__collections__List_compiler__ast__GenericParam_a
 
 std__collections__List_compiler__ast__GenericParam std__collections__List_compiler__ast__GenericParam_init(compiler__ast__GenericParam* items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-compiler__ast__GenericParam* buf = std__memory__Heap_create_array_compiler__ast__GenericParam(cap);
+compiler__ast__GenericParam* buf = std__memory__Heap_alloc_compiler__ast__GenericParam(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -37250,7 +37152,7 @@ self->len++;
 
 std__collections__List_compiler__ast__GenericParam std__collections__List_compiler__ast__GenericParam_clone(std__collections__List_compiler__ast__GenericParam* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_compiler__ast__GenericParam res = (std__collections__List_compiler__ast__GenericParam){ std__memory__Heap_create_array_compiler__ast__GenericParam(cap), 0, cap };
+std__collections__List_compiler__ast__GenericParam res = (std__collections__List_compiler__ast__GenericParam){ std__memory__Heap_alloc_compiler__ast__GenericParam(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_compiler__ast__GenericParam_count(self);
 size_t __for_i = 0;
@@ -37289,7 +37191,7 @@ right--;
 }
 
 std__collections__List_compiler__ast__GenericParam std__collections__List_compiler__ast__GenericParam_sub(std__collections__List_compiler__ast__GenericParam* self, size_t start, size_t count) {
-std__collections__List_compiler__ast__GenericParam res = (std__collections__List_compiler__ast__GenericParam){ std__memory__Heap_create_array_compiler__ast__GenericParam(count), 0, count };
+std__collections__List_compiler__ast__GenericParam res = (std__collections__List_compiler__ast__GenericParam){ std__memory__Heap_alloc_compiler__ast__GenericParam(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -37485,17 +37387,17 @@ std__collections__List_compiler__ast__GenericParam_remove_at(self, (size_t)idx);
 return true;
 }
 
-struct __lambda_env_56 {
+struct __lambda_env_58 {
     compiler__ast__GenericParam value;
 };
 
-static bool __lambda_fn_56(void* __raw_env, compiler__ast__GenericParam x) {
-    struct __lambda_env_56* __env = (struct __lambda_env_56*)__raw_env;
+static bool __lambda_fn_58(void* __raw_env, compiler__ast__GenericParam x) {
+    struct __lambda_env_58* __env = (struct __lambda_env_58*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 40);
 }
 
 size_t std__collections__List_compiler__ast__GenericParam_remove_all(std__collections__List_compiler__ast__GenericParam* self, compiler__ast__GenericParam value) {
-    return std__collections__List_compiler__ast__GenericParam_remove_where(self, (kobel_closure){ (void*)__lambda_fn_56, (void*)&(struct __lambda_env_56){ value } });
+    return std__collections__List_compiler__ast__GenericParam_remove_where(self, (kobel_closure){ (void*)__lambda_fn_58, (void*)&(struct __lambda_env_58){ value } });
 }
 
 size_t std__collections__List_compiler__ast__GenericParam_remove_where(std__collections__List_compiler__ast__GenericParam* self, kobel_closure predicate) {
@@ -37686,7 +37588,7 @@ compiler__ast__StructField std__collections__List_compiler__ast__StructField_at(
 
 std__collections__List_compiler__ast__StructField std__collections__List_compiler__ast__StructField_init(compiler__ast__StructField* items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-compiler__ast__StructField* buf = std__memory__Heap_create_array_compiler__ast__StructField(cap);
+compiler__ast__StructField* buf = std__memory__Heap_alloc_compiler__ast__StructField(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -37825,7 +37727,7 @@ self->len++;
 
 std__collections__List_compiler__ast__StructField std__collections__List_compiler__ast__StructField_clone(std__collections__List_compiler__ast__StructField* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_compiler__ast__StructField res = (std__collections__List_compiler__ast__StructField){ std__memory__Heap_create_array_compiler__ast__StructField(cap), 0, cap };
+std__collections__List_compiler__ast__StructField res = (std__collections__List_compiler__ast__StructField){ std__memory__Heap_alloc_compiler__ast__StructField(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_compiler__ast__StructField_count(self);
 size_t __for_i = 0;
@@ -37864,7 +37766,7 @@ right--;
 }
 
 std__collections__List_compiler__ast__StructField std__collections__List_compiler__ast__StructField_sub(std__collections__List_compiler__ast__StructField* self, size_t start, size_t count) {
-std__collections__List_compiler__ast__StructField res = (std__collections__List_compiler__ast__StructField){ std__memory__Heap_create_array_compiler__ast__StructField(count), 0, count };
+std__collections__List_compiler__ast__StructField res = (std__collections__List_compiler__ast__StructField){ std__memory__Heap_alloc_compiler__ast__StructField(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -38060,17 +37962,17 @@ std__collections__List_compiler__ast__StructField_remove_at(self, (size_t)idx);
 return true;
 }
 
-struct __lambda_env_57 {
+struct __lambda_env_59 {
     compiler__ast__StructField value;
 };
 
-static bool __lambda_fn_57(void* __raw_env, compiler__ast__StructField x) {
-    struct __lambda_env_57* __env = (struct __lambda_env_57*)__raw_env;
+static bool __lambda_fn_59(void* __raw_env, compiler__ast__StructField x) {
+    struct __lambda_env_59* __env = (struct __lambda_env_59*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 40);
 }
 
 size_t std__collections__List_compiler__ast__StructField_remove_all(std__collections__List_compiler__ast__StructField* self, compiler__ast__StructField value) {
-    return std__collections__List_compiler__ast__StructField_remove_where(self, (kobel_closure){ (void*)__lambda_fn_57, (void*)&(struct __lambda_env_57){ value } });
+    return std__collections__List_compiler__ast__StructField_remove_where(self, (kobel_closure){ (void*)__lambda_fn_59, (void*)&(struct __lambda_env_59){ value } });
 }
 
 size_t std__collections__List_compiler__ast__StructField_remove_where(std__collections__List_compiler__ast__StructField* self, kobel_closure predicate) {
@@ -38261,7 +38163,7 @@ compiler__ast__AssocBinding std__collections__List_compiler__ast__AssocBinding_a
 
 std__collections__List_compiler__ast__AssocBinding std__collections__List_compiler__ast__AssocBinding_init(compiler__ast__AssocBinding* items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-compiler__ast__AssocBinding* buf = std__memory__Heap_create_array_compiler__ast__AssocBinding(cap);
+compiler__ast__AssocBinding* buf = std__memory__Heap_alloc_compiler__ast__AssocBinding(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -38400,7 +38302,7 @@ self->len++;
 
 std__collections__List_compiler__ast__AssocBinding std__collections__List_compiler__ast__AssocBinding_clone(std__collections__List_compiler__ast__AssocBinding* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_compiler__ast__AssocBinding res = (std__collections__List_compiler__ast__AssocBinding){ std__memory__Heap_create_array_compiler__ast__AssocBinding(cap), 0, cap };
+std__collections__List_compiler__ast__AssocBinding res = (std__collections__List_compiler__ast__AssocBinding){ std__memory__Heap_alloc_compiler__ast__AssocBinding(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_compiler__ast__AssocBinding_count(self);
 size_t __for_i = 0;
@@ -38439,7 +38341,7 @@ right--;
 }
 
 std__collections__List_compiler__ast__AssocBinding std__collections__List_compiler__ast__AssocBinding_sub(std__collections__List_compiler__ast__AssocBinding* self, size_t start, size_t count) {
-std__collections__List_compiler__ast__AssocBinding res = (std__collections__List_compiler__ast__AssocBinding){ std__memory__Heap_create_array_compiler__ast__AssocBinding(count), 0, count };
+std__collections__List_compiler__ast__AssocBinding res = (std__collections__List_compiler__ast__AssocBinding){ std__memory__Heap_alloc_compiler__ast__AssocBinding(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -38635,17 +38537,17 @@ std__collections__List_compiler__ast__AssocBinding_remove_at(self, (size_t)idx);
 return true;
 }
 
-struct __lambda_env_58 {
+struct __lambda_env_60 {
     compiler__ast__AssocBinding value;
 };
 
-static bool __lambda_fn_58(void* __raw_env, compiler__ast__AssocBinding x) {
-    struct __lambda_env_58* __env = (struct __lambda_env_58*)__raw_env;
+static bool __lambda_fn_60(void* __raw_env, compiler__ast__AssocBinding x) {
+    struct __lambda_env_60* __env = (struct __lambda_env_60*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 24);
 }
 
 size_t std__collections__List_compiler__ast__AssocBinding_remove_all(std__collections__List_compiler__ast__AssocBinding* self, compiler__ast__AssocBinding value) {
-    return std__collections__List_compiler__ast__AssocBinding_remove_where(self, (kobel_closure){ (void*)__lambda_fn_58, (void*)&(struct __lambda_env_58){ value } });
+    return std__collections__List_compiler__ast__AssocBinding_remove_where(self, (kobel_closure){ (void*)__lambda_fn_60, (void*)&(struct __lambda_env_60){ value } });
 }
 
 size_t std__collections__List_compiler__ast__AssocBinding_remove_where(std__collections__List_compiler__ast__AssocBinding* self, kobel_closure predicate) {
@@ -38836,7 +38738,7 @@ compiler__ast__EnumMember std__collections__List_compiler__ast__EnumMember_at(st
 
 std__collections__List_compiler__ast__EnumMember std__collections__List_compiler__ast__EnumMember_init(compiler__ast__EnumMember* items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-compiler__ast__EnumMember* buf = std__memory__Heap_create_array_compiler__ast__EnumMember(cap);
+compiler__ast__EnumMember* buf = std__memory__Heap_alloc_compiler__ast__EnumMember(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -38975,7 +38877,7 @@ self->len++;
 
 std__collections__List_compiler__ast__EnumMember std__collections__List_compiler__ast__EnumMember_clone(std__collections__List_compiler__ast__EnumMember* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_compiler__ast__EnumMember res = (std__collections__List_compiler__ast__EnumMember){ std__memory__Heap_create_array_compiler__ast__EnumMember(cap), 0, cap };
+std__collections__List_compiler__ast__EnumMember res = (std__collections__List_compiler__ast__EnumMember){ std__memory__Heap_alloc_compiler__ast__EnumMember(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_compiler__ast__EnumMember_count(self);
 size_t __for_i = 0;
@@ -39014,7 +38916,7 @@ right--;
 }
 
 std__collections__List_compiler__ast__EnumMember std__collections__List_compiler__ast__EnumMember_sub(std__collections__List_compiler__ast__EnumMember* self, size_t start, size_t count) {
-std__collections__List_compiler__ast__EnumMember res = (std__collections__List_compiler__ast__EnumMember){ std__memory__Heap_create_array_compiler__ast__EnumMember(count), 0, count };
+std__collections__List_compiler__ast__EnumMember res = (std__collections__List_compiler__ast__EnumMember){ std__memory__Heap_alloc_compiler__ast__EnumMember(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -39210,17 +39112,17 @@ std__collections__List_compiler__ast__EnumMember_remove_at(self, (size_t)idx);
 return true;
 }
 
-struct __lambda_env_59 {
+struct __lambda_env_61 {
     compiler__ast__EnumMember value;
 };
 
-static bool __lambda_fn_59(void* __raw_env, compiler__ast__EnumMember x) {
-    struct __lambda_env_59* __env = (struct __lambda_env_59*)__raw_env;
+static bool __lambda_fn_61(void* __raw_env, compiler__ast__EnumMember x) {
+    struct __lambda_env_61* __env = (struct __lambda_env_61*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 64);
 }
 
 size_t std__collections__List_compiler__ast__EnumMember_remove_all(std__collections__List_compiler__ast__EnumMember* self, compiler__ast__EnumMember value) {
-    return std__collections__List_compiler__ast__EnumMember_remove_where(self, (kobel_closure){ (void*)__lambda_fn_59, (void*)&(struct __lambda_env_59){ value } });
+    return std__collections__List_compiler__ast__EnumMember_remove_where(self, (kobel_closure){ (void*)__lambda_fn_61, (void*)&(struct __lambda_env_61){ value } });
 }
 
 size_t std__collections__List_compiler__ast__EnumMember_remove_where(std__collections__List_compiler__ast__EnumMember* self, kobel_closure predicate) {
@@ -39411,7 +39313,7 @@ compiler__semantic__types__Type* std__collections__List_ptr_compiler__semantic__
 
 std__collections__List_ptr_compiler__semantic__types__Type std__collections__List_ptr_compiler__semantic__types__Type_init(compiler__semantic__types__Type** items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-compiler__semantic__types__Type** buf = std__memory__Heap_create_array_ptr_compiler__semantic__types__Type(cap);
+compiler__semantic__types__Type** buf = std__memory__Heap_alloc_ptr_compiler__semantic__types__Type(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -39550,7 +39452,7 @@ self->len++;
 
 std__collections__List_ptr_compiler__semantic__types__Type std__collections__List_ptr_compiler__semantic__types__Type_clone(std__collections__List_ptr_compiler__semantic__types__Type* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_ptr_compiler__semantic__types__Type res = (std__collections__List_ptr_compiler__semantic__types__Type){ std__memory__Heap_create_array_ptr_compiler__semantic__types__Type(cap), 0, cap };
+std__collections__List_ptr_compiler__semantic__types__Type res = (std__collections__List_ptr_compiler__semantic__types__Type){ std__memory__Heap_alloc_ptr_compiler__semantic__types__Type(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_ptr_compiler__semantic__types__Type_count(self);
 size_t __for_i = 0;
@@ -39589,7 +39491,7 @@ right--;
 }
 
 std__collections__List_ptr_compiler__semantic__types__Type std__collections__List_ptr_compiler__semantic__types__Type_sub(std__collections__List_ptr_compiler__semantic__types__Type* self, size_t start, size_t count) {
-std__collections__List_ptr_compiler__semantic__types__Type res = (std__collections__List_ptr_compiler__semantic__types__Type){ std__memory__Heap_create_array_ptr_compiler__semantic__types__Type(count), 0, count };
+std__collections__List_ptr_compiler__semantic__types__Type res = (std__collections__List_ptr_compiler__semantic__types__Type){ std__memory__Heap_alloc_ptr_compiler__semantic__types__Type(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -39785,17 +39687,17 @@ std__collections__List_ptr_compiler__semantic__types__Type_remove_at(self, (size
 return true;
 }
 
-struct __lambda_env_60 {
+struct __lambda_env_62 {
     compiler__semantic__types__Type* value;
 };
 
-static bool __lambda_fn_60(void* __raw_env, compiler__semantic__types__Type* x) {
-    struct __lambda_env_60* __env = (struct __lambda_env_60*)__raw_env;
+static bool __lambda_fn_62(void* __raw_env, compiler__semantic__types__Type* x) {
+    struct __lambda_env_62* __env = (struct __lambda_env_62*)__raw_env;
     return (x == (__env->value));
 }
 
 size_t std__collections__List_ptr_compiler__semantic__types__Type_remove_all(std__collections__List_ptr_compiler__semantic__types__Type* self, compiler__semantic__types__Type* value) {
-    return std__collections__List_ptr_compiler__semantic__types__Type_remove_where(self, (kobel_closure){ (void*)__lambda_fn_60, (void*)&(struct __lambda_env_60){ value } });
+    return std__collections__List_ptr_compiler__semantic__types__Type_remove_where(self, (kobel_closure){ (void*)__lambda_fn_62, (void*)&(struct __lambda_env_62){ value } });
 }
 
 size_t std__collections__List_ptr_compiler__semantic__types__Type_remove_where(std__collections__List_ptr_compiler__semantic__types__Type* self, kobel_closure predicate) {
@@ -39991,7 +39893,7 @@ std__collections__Pair_str_str std__collections__List_std__collections__Pair_str
 
 std__collections__List_std__collections__Pair_str_str std__collections__List_std__collections__Pair_str_str_init(std__collections__Pair_str_str* items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-std__collections__Pair_str_str* buf = std__memory__Heap_create_array_std__collections__Pair_str_str(cap);
+std__collections__Pair_str_str* buf = std__memory__Heap_alloc_std__collections__Pair_str_str(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -40130,7 +40032,7 @@ self->len++;
 
 std__collections__List_std__collections__Pair_str_str std__collections__List_std__collections__Pair_str_str_clone(std__collections__List_std__collections__Pair_str_str* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_std__collections__Pair_str_str res = (std__collections__List_std__collections__Pair_str_str){ std__memory__Heap_create_array_std__collections__Pair_str_str(cap), 0, cap };
+std__collections__List_std__collections__Pair_str_str res = (std__collections__List_std__collections__Pair_str_str){ std__memory__Heap_alloc_std__collections__Pair_str_str(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_std__collections__Pair_str_str_count(self);
 size_t __for_i = 0;
@@ -40169,7 +40071,7 @@ right--;
 }
 
 std__collections__List_std__collections__Pair_str_str std__collections__List_std__collections__Pair_str_str_sub(std__collections__List_std__collections__Pair_str_str* self, size_t start, size_t count) {
-std__collections__List_std__collections__Pair_str_str res = (std__collections__List_std__collections__Pair_str_str){ std__memory__Heap_create_array_std__collections__Pair_str_str(count), 0, count };
+std__collections__List_std__collections__Pair_str_str res = (std__collections__List_std__collections__Pair_str_str){ std__memory__Heap_alloc_std__collections__Pair_str_str(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -40365,17 +40267,17 @@ std__collections__List_std__collections__Pair_str_str_remove_at(self, (size_t)id
 return true;
 }
 
-struct __lambda_env_61 {
+struct __lambda_env_63 {
     std__collections__Pair_str_str value;
 };
 
-static bool __lambda_fn_61(void* __raw_env, std__collections__Pair_str_str x) {
-    struct __lambda_env_61* __env = (struct __lambda_env_61*)__raw_env;
+static bool __lambda_fn_63(void* __raw_env, std__collections__Pair_str_str x) {
+    struct __lambda_env_63* __env = (struct __lambda_env_63*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 32);
 }
 
 size_t std__collections__List_std__collections__Pair_str_str_remove_all(std__collections__List_std__collections__Pair_str_str* self, std__collections__Pair_str_str value) {
-    return std__collections__List_std__collections__Pair_str_str_remove_where(self, (kobel_closure){ (void*)__lambda_fn_61, (void*)&(struct __lambda_env_61){ value } });
+    return std__collections__List_std__collections__Pair_str_str_remove_where(self, (kobel_closure){ (void*)__lambda_fn_63, (void*)&(struct __lambda_env_63){ value } });
 }
 
 size_t std__collections__List_std__collections__Pair_str_str_remove_where(std__collections__List_std__collections__Pair_str_str* self, kobel_closure predicate) {
@@ -40561,10 +40463,10 @@ size_t cap = init_cap;
 if (cap < 8) {
 cap = 8;
 }
-kobel_str* keys = std__memory__Heap_create_array_str(cap);
-kobel_str* values = std__memory__Heap_create_array_str(cap);
-size_t* hashes = std__memory__Heap_create_array_usz(cap);
-bool* occ = std__memory__Heap_create_array_bool(cap);
+kobel_str* keys = std__memory__Heap_alloc_str(cap);
+kobel_str* values = std__memory__Heap_alloc_str(cap);
+size_t* hashes = std__memory__Heap_alloc_usz(cap);
+bool* occ = std__memory__Heap_alloc_bool(cap);
 {
 size_t __for_e = cap;
 size_t __for_i = __for_e;
@@ -40955,10 +40857,10 @@ kobel_str* old_vals = self->values;
 size_t* old_hashes = self->hashes;
 bool* old_occ = self->occupied;
 size_t new_cap = ((old_cap < 8) ? 16 : (old_cap * 2));
-kobel_str* keys = std__memory__Heap_create_array_str(new_cap);
-kobel_str* values = std__memory__Heap_create_array_str(new_cap);
-size_t* hashes = std__memory__Heap_create_array_usz(new_cap);
-bool* new_occ = std__memory__Heap_create_array_bool(new_cap);
+kobel_str* keys = std__memory__Heap_alloc_str(new_cap);
+kobel_str* values = std__memory__Heap_alloc_str(new_cap);
+size_t* hashes = std__memory__Heap_alloc_usz(new_cap);
+bool* new_occ = std__memory__Heap_alloc_bool(new_cap);
 {
 size_t __for_e = new_cap;
 size_t __for_i = __for_e;
@@ -41149,7 +41051,7 @@ compiler__core__Diagnostic std__collections__List_compiler__core__Diagnostic_at(
 
 std__collections__List_compiler__core__Diagnostic std__collections__List_compiler__core__Diagnostic_init(compiler__core__Diagnostic* items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-compiler__core__Diagnostic* buf = std__memory__Heap_create_array_compiler__core__Diagnostic(cap);
+compiler__core__Diagnostic* buf = std__memory__Heap_alloc_compiler__core__Diagnostic(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -41288,7 +41190,7 @@ self->len++;
 
 std__collections__List_compiler__core__Diagnostic std__collections__List_compiler__core__Diagnostic_clone(std__collections__List_compiler__core__Diagnostic* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_compiler__core__Diagnostic res = (std__collections__List_compiler__core__Diagnostic){ std__memory__Heap_create_array_compiler__core__Diagnostic(cap), 0, cap };
+std__collections__List_compiler__core__Diagnostic res = (std__collections__List_compiler__core__Diagnostic){ std__memory__Heap_alloc_compiler__core__Diagnostic(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_compiler__core__Diagnostic_count(self);
 size_t __for_i = 0;
@@ -41327,7 +41229,7 @@ right--;
 }
 
 std__collections__List_compiler__core__Diagnostic std__collections__List_compiler__core__Diagnostic_sub(std__collections__List_compiler__core__Diagnostic* self, size_t start, size_t count) {
-std__collections__List_compiler__core__Diagnostic res = (std__collections__List_compiler__core__Diagnostic){ std__memory__Heap_create_array_compiler__core__Diagnostic(count), 0, count };
+std__collections__List_compiler__core__Diagnostic res = (std__collections__List_compiler__core__Diagnostic){ std__memory__Heap_alloc_compiler__core__Diagnostic(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -41523,17 +41425,17 @@ std__collections__List_compiler__core__Diagnostic_remove_at(self, (size_t)idx);
 return true;
 }
 
-struct __lambda_env_62 {
+struct __lambda_env_64 {
     compiler__core__Diagnostic value;
 };
 
-static bool __lambda_fn_62(void* __raw_env, compiler__core__Diagnostic x) {
-    struct __lambda_env_62* __env = (struct __lambda_env_62*)__raw_env;
+static bool __lambda_fn_64(void* __raw_env, compiler__core__Diagnostic x) {
+    struct __lambda_env_64* __env = (struct __lambda_env_64*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 88);
 }
 
 size_t std__collections__List_compiler__core__Diagnostic_remove_all(std__collections__List_compiler__core__Diagnostic* self, compiler__core__Diagnostic value) {
-    return std__collections__List_compiler__core__Diagnostic_remove_where(self, (kobel_closure){ (void*)__lambda_fn_62, (void*)&(struct __lambda_env_62){ value } });
+    return std__collections__List_compiler__core__Diagnostic_remove_where(self, (kobel_closure){ (void*)__lambda_fn_64, (void*)&(struct __lambda_env_64){ value } });
 }
 
 size_t std__collections__List_compiler__core__Diagnostic_remove_where(std__collections__List_compiler__core__Diagnostic* self, kobel_closure predicate) {
@@ -41719,9 +41621,9 @@ size_t cap = init_cap;
 if (cap < 8) {
 cap = 8;
 }
-kobel_str* keys = std__memory__Heap_create_array_str(cap);
-size_t* hashes = std__memory__Heap_create_array_usz(cap);
-bool* occ = std__memory__Heap_create_array_bool(cap);
+kobel_str* keys = std__memory__Heap_alloc_str(cap);
+size_t* hashes = std__memory__Heap_alloc_usz(cap);
+bool* occ = std__memory__Heap_alloc_bool(cap);
 {
 size_t __for_e = cap;
 size_t __for_i = __for_e;
@@ -41887,9 +41789,9 @@ __for_i = (__for_i - 1);
 
 std__collections__HashSet_str std__collections__HashSet_str_clone(std__collections__HashSet_str* self) {
 size_t cap = ((self->cap >= 8) ? self->cap : 16);
-kobel_str* keys = std__memory__Heap_create_array_str(cap);
-size_t* hashes = std__memory__Heap_create_array_usz(cap);
-bool* occ = std__memory__Heap_create_array_bool(cap);
+kobel_str* keys = std__memory__Heap_alloc_str(cap);
+size_t* hashes = std__memory__Heap_alloc_usz(cap);
+bool* occ = std__memory__Heap_alloc_bool(cap);
 {
 size_t __for_e = cap;
 size_t __for_i = __for_e;
@@ -42187,9 +42089,9 @@ kobel_str* old_keys = self->keys;
 size_t* old_hashes = self->hashes;
 bool* old_occ = self->occupied;
 size_t new_cap = ((old_cap < 8) ? 16 : (old_cap * 2));
-kobel_str* keys = std__memory__Heap_create_array_str(new_cap);
-size_t* hashes = std__memory__Heap_create_array_usz(new_cap);
-bool* new_occ = std__memory__Heap_create_array_bool(new_cap);
+kobel_str* keys = std__memory__Heap_alloc_str(new_cap);
+size_t* hashes = std__memory__Heap_alloc_usz(new_cap);
+bool* new_occ = std__memory__Heap_alloc_bool(new_cap);
 {
 size_t __for_e = new_cap;
 size_t __for_i = __for_e;
@@ -42345,7 +42247,7 @@ compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_at(
 
 std__collections__List_compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_init(compiler__core__SourceFile* items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-compiler__core__SourceFile* buf = std__memory__Heap_create_array_compiler__core__SourceFile(cap);
+compiler__core__SourceFile* buf = std__memory__Heap_alloc_compiler__core__SourceFile(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -42484,7 +42386,7 @@ self->len++;
 
 std__collections__List_compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_clone(std__collections__List_compiler__core__SourceFile* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_compiler__core__SourceFile res = (std__collections__List_compiler__core__SourceFile){ std__memory__Heap_create_array_compiler__core__SourceFile(cap), 0, cap };
+std__collections__List_compiler__core__SourceFile res = (std__collections__List_compiler__core__SourceFile){ std__memory__Heap_alloc_compiler__core__SourceFile(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_compiler__core__SourceFile_count(self);
 size_t __for_i = 0;
@@ -42523,7 +42425,7 @@ right--;
 }
 
 std__collections__List_compiler__core__SourceFile std__collections__List_compiler__core__SourceFile_sub(std__collections__List_compiler__core__SourceFile* self, size_t start, size_t count) {
-std__collections__List_compiler__core__SourceFile res = (std__collections__List_compiler__core__SourceFile){ std__memory__Heap_create_array_compiler__core__SourceFile(count), 0, count };
+std__collections__List_compiler__core__SourceFile res = (std__collections__List_compiler__core__SourceFile){ std__memory__Heap_alloc_compiler__core__SourceFile(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -42719,17 +42621,17 @@ std__collections__List_compiler__core__SourceFile_remove_at(self, (size_t)idx);
 return true;
 }
 
-struct __lambda_env_63 {
+struct __lambda_env_65 {
     compiler__core__SourceFile value;
 };
 
-static bool __lambda_fn_63(void* __raw_env, compiler__core__SourceFile x) {
-    struct __lambda_env_63* __env = (struct __lambda_env_63*)__raw_env;
+static bool __lambda_fn_65(void* __raw_env, compiler__core__SourceFile x) {
+    struct __lambda_env_65* __env = (struct __lambda_env_65*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 56);
 }
 
 size_t std__collections__List_compiler__core__SourceFile_remove_all(std__collections__List_compiler__core__SourceFile* self, compiler__core__SourceFile value) {
-    return std__collections__List_compiler__core__SourceFile_remove_where(self, (kobel_closure){ (void*)__lambda_fn_63, (void*)&(struct __lambda_env_63){ value } });
+    return std__collections__List_compiler__core__SourceFile_remove_where(self, (kobel_closure){ (void*)__lambda_fn_65, (void*)&(struct __lambda_env_65){ value } });
 }
 
 size_t std__collections__List_compiler__core__SourceFile_remove_where(std__collections__List_compiler__core__SourceFile* self, kobel_closure predicate) {
@@ -42920,7 +42822,7 @@ uint32_t std__collections__List_u32_at(std__collections__List_u32* self, size_t 
 
 std__collections__List_u32 std__collections__List_u32_init(uint32_t* items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-uint32_t* buf = std__memory__Heap_create_array_u32(cap);
+uint32_t* buf = std__memory__Heap_alloc_u32(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -43059,7 +42961,7 @@ self->len++;
 
 std__collections__List_u32 std__collections__List_u32_clone(std__collections__List_u32* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_u32 res = (std__collections__List_u32){ std__memory__Heap_create_array_u32(cap), 0, cap };
+std__collections__List_u32 res = (std__collections__List_u32){ std__memory__Heap_alloc_u32(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_u32_count(self);
 size_t __for_i = 0;
@@ -43098,7 +43000,7 @@ right--;
 }
 
 std__collections__List_u32 std__collections__List_u32_sub(std__collections__List_u32* self, size_t start, size_t count) {
-std__collections__List_u32 res = (std__collections__List_u32){ std__memory__Heap_create_array_u32(count), 0, count };
+std__collections__List_u32 res = (std__collections__List_u32){ std__memory__Heap_alloc_u32(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -43294,17 +43196,17 @@ std__collections__List_u32_remove_at(self, (size_t)idx);
 return true;
 }
 
-struct __lambda_env_64 {
+struct __lambda_env_66 {
     uint32_t value;
 };
 
-static bool __lambda_fn_64(void* __raw_env, uint32_t x) {
-    struct __lambda_env_64* __env = (struct __lambda_env_64*)__raw_env;
+static bool __lambda_fn_66(void* __raw_env, uint32_t x) {
+    struct __lambda_env_66* __env = (struct __lambda_env_66*)__raw_env;
     return (x == (__env->value));
 }
 
 size_t std__collections__List_u32_remove_all(std__collections__List_u32* self, uint32_t value) {
-    return std__collections__List_u32_remove_where(self, (kobel_closure){ (void*)__lambda_fn_64, (void*)&(struct __lambda_env_64){ value } });
+    return std__collections__List_u32_remove_where(self, (kobel_closure){ (void*)__lambda_fn_66, (void*)&(struct __lambda_env_66){ value } });
 }
 
 size_t std__collections__List_u32_remove_where(std__collections__List_u32* self, kobel_closure predicate) {
@@ -43500,7 +43402,7 @@ std__collections__Pair_str_u32 std__collections__List_std__collections__Pair_str
 
 std__collections__List_std__collections__Pair_str_u32 std__collections__List_std__collections__Pair_str_u32_init(std__collections__Pair_str_u32* items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-std__collections__Pair_str_u32* buf = std__memory__Heap_create_array_std__collections__Pair_str_u32(cap);
+std__collections__Pair_str_u32* buf = std__memory__Heap_alloc_std__collections__Pair_str_u32(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -43639,7 +43541,7 @@ self->len++;
 
 std__collections__List_std__collections__Pair_str_u32 std__collections__List_std__collections__Pair_str_u32_clone(std__collections__List_std__collections__Pair_str_u32* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_std__collections__Pair_str_u32 res = (std__collections__List_std__collections__Pair_str_u32){ std__memory__Heap_create_array_std__collections__Pair_str_u32(cap), 0, cap };
+std__collections__List_std__collections__Pair_str_u32 res = (std__collections__List_std__collections__Pair_str_u32){ std__memory__Heap_alloc_std__collections__Pair_str_u32(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_std__collections__Pair_str_u32_count(self);
 size_t __for_i = 0;
@@ -43678,7 +43580,7 @@ right--;
 }
 
 std__collections__List_std__collections__Pair_str_u32 std__collections__List_std__collections__Pair_str_u32_sub(std__collections__List_std__collections__Pair_str_u32* self, size_t start, size_t count) {
-std__collections__List_std__collections__Pair_str_u32 res = (std__collections__List_std__collections__Pair_str_u32){ std__memory__Heap_create_array_std__collections__Pair_str_u32(count), 0, count };
+std__collections__List_std__collections__Pair_str_u32 res = (std__collections__List_std__collections__Pair_str_u32){ std__memory__Heap_alloc_std__collections__Pair_str_u32(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -43874,17 +43776,17 @@ std__collections__List_std__collections__Pair_str_u32_remove_at(self, (size_t)id
 return true;
 }
 
-struct __lambda_env_65 {
+struct __lambda_env_67 {
     std__collections__Pair_str_u32 value;
 };
 
-static bool __lambda_fn_65(void* __raw_env, std__collections__Pair_str_u32 x) {
-    struct __lambda_env_65* __env = (struct __lambda_env_65*)__raw_env;
+static bool __lambda_fn_67(void* __raw_env, std__collections__Pair_str_u32 x) {
+    struct __lambda_env_67* __env = (struct __lambda_env_67*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 24);
 }
 
 size_t std__collections__List_std__collections__Pair_str_u32_remove_all(std__collections__List_std__collections__Pair_str_u32* self, std__collections__Pair_str_u32 value) {
-    return std__collections__List_std__collections__Pair_str_u32_remove_where(self, (kobel_closure){ (void*)__lambda_fn_65, (void*)&(struct __lambda_env_65){ value } });
+    return std__collections__List_std__collections__Pair_str_u32_remove_where(self, (kobel_closure){ (void*)__lambda_fn_67, (void*)&(struct __lambda_env_67){ value } });
 }
 
 size_t std__collections__List_std__collections__Pair_str_u32_remove_where(std__collections__List_std__collections__Pair_str_u32* self, kobel_closure predicate) {
@@ -44070,10 +43972,10 @@ size_t cap = init_cap;
 if (cap < 8) {
 cap = 8;
 }
-kobel_str* keys = std__memory__Heap_create_array_str(cap);
-uint32_t* values = std__memory__Heap_create_array_u32(cap);
-size_t* hashes = std__memory__Heap_create_array_usz(cap);
-bool* occ = std__memory__Heap_create_array_bool(cap);
+kobel_str* keys = std__memory__Heap_alloc_str(cap);
+uint32_t* values = std__memory__Heap_alloc_u32(cap);
+size_t* hashes = std__memory__Heap_alloc_usz(cap);
+bool* occ = std__memory__Heap_alloc_bool(cap);
 {
 size_t __for_e = cap;
 size_t __for_i = __for_e;
@@ -44464,10 +44366,10 @@ uint32_t* old_vals = self->values;
 size_t* old_hashes = self->hashes;
 bool* old_occ = self->occupied;
 size_t new_cap = ((old_cap < 8) ? 16 : (old_cap * 2));
-kobel_str* keys = std__memory__Heap_create_array_str(new_cap);
-uint32_t* values = std__memory__Heap_create_array_u32(new_cap);
-size_t* hashes = std__memory__Heap_create_array_usz(new_cap);
-bool* new_occ = std__memory__Heap_create_array_bool(new_cap);
+kobel_str* keys = std__memory__Heap_alloc_str(new_cap);
+uint32_t* values = std__memory__Heap_alloc_u32(new_cap);
+size_t* hashes = std__memory__Heap_alloc_usz(new_cap);
+bool* new_occ = std__memory__Heap_alloc_bool(new_cap);
 {
 size_t __for_e = new_cap;
 size_t __for_i = __for_e;
@@ -44658,7 +44560,7 @@ compiler__ast__EnumField std__collections__List_compiler__ast__EnumField_at(std_
 
 std__collections__List_compiler__ast__EnumField std__collections__List_compiler__ast__EnumField_init(compiler__ast__EnumField* items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-compiler__ast__EnumField* buf = std__memory__Heap_create_array_compiler__ast__EnumField(cap);
+compiler__ast__EnumField* buf = std__memory__Heap_alloc_compiler__ast__EnumField(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -44797,7 +44699,7 @@ self->len++;
 
 std__collections__List_compiler__ast__EnumField std__collections__List_compiler__ast__EnumField_clone(std__collections__List_compiler__ast__EnumField* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_compiler__ast__EnumField res = (std__collections__List_compiler__ast__EnumField){ std__memory__Heap_create_array_compiler__ast__EnumField(cap), 0, cap };
+std__collections__List_compiler__ast__EnumField res = (std__collections__List_compiler__ast__EnumField){ std__memory__Heap_alloc_compiler__ast__EnumField(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_compiler__ast__EnumField_count(self);
 size_t __for_i = 0;
@@ -44836,7 +44738,7 @@ right--;
 }
 
 std__collections__List_compiler__ast__EnumField std__collections__List_compiler__ast__EnumField_sub(std__collections__List_compiler__ast__EnumField* self, size_t start, size_t count) {
-std__collections__List_compiler__ast__EnumField res = (std__collections__List_compiler__ast__EnumField){ std__memory__Heap_create_array_compiler__ast__EnumField(count), 0, count };
+std__collections__List_compiler__ast__EnumField res = (std__collections__List_compiler__ast__EnumField){ std__memory__Heap_alloc_compiler__ast__EnumField(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -45032,17 +44934,17 @@ std__collections__List_compiler__ast__EnumField_remove_at(self, (size_t)idx);
 return true;
 }
 
-struct __lambda_env_66 {
+struct __lambda_env_68 {
     compiler__ast__EnumField value;
 };
 
-static bool __lambda_fn_66(void* __raw_env, compiler__ast__EnumField x) {
-    struct __lambda_env_66* __env = (struct __lambda_env_66*)__raw_env;
+static bool __lambda_fn_68(void* __raw_env, compiler__ast__EnumField x) {
+    struct __lambda_env_68* __env = (struct __lambda_env_68*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 24);
 }
 
 size_t std__collections__List_compiler__ast__EnumField_remove_all(std__collections__List_compiler__ast__EnumField* self, compiler__ast__EnumField value) {
-    return std__collections__List_compiler__ast__EnumField_remove_where(self, (kobel_closure){ (void*)__lambda_fn_66, (void*)&(struct __lambda_env_66){ value } });
+    return std__collections__List_compiler__ast__EnumField_remove_where(self, (kobel_closure){ (void*)__lambda_fn_68, (void*)&(struct __lambda_env_68){ value } });
 }
 
 size_t std__collections__List_compiler__ast__EnumField_remove_where(std__collections__List_compiler__ast__EnumField* self, kobel_closure predicate) {
@@ -45233,7 +45135,7 @@ compiler__lexer__Token std__collections__List_compiler__lexer__Token_at(std__col
 
 std__collections__List_compiler__lexer__Token std__collections__List_compiler__lexer__Token_init(compiler__lexer__Token* items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-compiler__lexer__Token* buf = std__memory__Heap_create_array_compiler__lexer__Token(cap);
+compiler__lexer__Token* buf = std__memory__Heap_alloc_compiler__lexer__Token(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -45372,7 +45274,7 @@ self->len++;
 
 std__collections__List_compiler__lexer__Token std__collections__List_compiler__lexer__Token_clone(std__collections__List_compiler__lexer__Token* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_compiler__lexer__Token res = (std__collections__List_compiler__lexer__Token){ std__memory__Heap_create_array_compiler__lexer__Token(cap), 0, cap };
+std__collections__List_compiler__lexer__Token res = (std__collections__List_compiler__lexer__Token){ std__memory__Heap_alloc_compiler__lexer__Token(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_compiler__lexer__Token_count(self);
 size_t __for_i = 0;
@@ -45411,7 +45313,7 @@ right--;
 }
 
 std__collections__List_compiler__lexer__Token std__collections__List_compiler__lexer__Token_sub(std__collections__List_compiler__lexer__Token* self, size_t start, size_t count) {
-std__collections__List_compiler__lexer__Token res = (std__collections__List_compiler__lexer__Token){ std__memory__Heap_create_array_compiler__lexer__Token(count), 0, count };
+std__collections__List_compiler__lexer__Token res = (std__collections__List_compiler__lexer__Token){ std__memory__Heap_alloc_compiler__lexer__Token(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -45607,17 +45509,17 @@ std__collections__List_compiler__lexer__Token_remove_at(self, (size_t)idx);
 return true;
 }
 
-struct __lambda_env_67 {
+struct __lambda_env_69 {
     compiler__lexer__Token value;
 };
 
-static bool __lambda_fn_67(void* __raw_env, compiler__lexer__Token x) {
-    struct __lambda_env_67* __env = (struct __lambda_env_67*)__raw_env;
+static bool __lambda_fn_69(void* __raw_env, compiler__lexer__Token x) {
+    struct __lambda_env_69* __env = (struct __lambda_env_69*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 72);
 }
 
 size_t std__collections__List_compiler__lexer__Token_remove_all(std__collections__List_compiler__lexer__Token* self, compiler__lexer__Token value) {
-    return std__collections__List_compiler__lexer__Token_remove_where(self, (kobel_closure){ (void*)__lambda_fn_67, (void*)&(struct __lambda_env_67){ value } });
+    return std__collections__List_compiler__lexer__Token_remove_where(self, (kobel_closure){ (void*)__lambda_fn_69, (void*)&(struct __lambda_env_69){ value } });
 }
 
 size_t std__collections__List_compiler__lexer__Token_remove_where(std__collections__List_compiler__lexer__Token* self, kobel_closure predicate) {
@@ -45808,7 +45710,7 @@ compiler__loader__LoadedModule std__collections__List_compiler__loader__LoadedMo
 
 std__collections__List_compiler__loader__LoadedModule std__collections__List_compiler__loader__LoadedModule_init(compiler__loader__LoadedModule* items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-compiler__loader__LoadedModule* buf = std__memory__Heap_create_array_compiler__loader__LoadedModule(cap);
+compiler__loader__LoadedModule* buf = std__memory__Heap_alloc_compiler__loader__LoadedModule(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -45947,7 +45849,7 @@ self->len++;
 
 std__collections__List_compiler__loader__LoadedModule std__collections__List_compiler__loader__LoadedModule_clone(std__collections__List_compiler__loader__LoadedModule* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_compiler__loader__LoadedModule res = (std__collections__List_compiler__loader__LoadedModule){ std__memory__Heap_create_array_compiler__loader__LoadedModule(cap), 0, cap };
+std__collections__List_compiler__loader__LoadedModule res = (std__collections__List_compiler__loader__LoadedModule){ std__memory__Heap_alloc_compiler__loader__LoadedModule(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_compiler__loader__LoadedModule_count(self);
 size_t __for_i = 0;
@@ -45986,7 +45888,7 @@ right--;
 }
 
 std__collections__List_compiler__loader__LoadedModule std__collections__List_compiler__loader__LoadedModule_sub(std__collections__List_compiler__loader__LoadedModule* self, size_t start, size_t count) {
-std__collections__List_compiler__loader__LoadedModule res = (std__collections__List_compiler__loader__LoadedModule){ std__memory__Heap_create_array_compiler__loader__LoadedModule(count), 0, count };
+std__collections__List_compiler__loader__LoadedModule res = (std__collections__List_compiler__loader__LoadedModule){ std__memory__Heap_alloc_compiler__loader__LoadedModule(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -46182,17 +46084,17 @@ std__collections__List_compiler__loader__LoadedModule_remove_at(self, (size_t)id
 return true;
 }
 
-struct __lambda_env_68 {
+struct __lambda_env_70 {
     compiler__loader__LoadedModule value;
 };
 
-static bool __lambda_fn_68(void* __raw_env, compiler__loader__LoadedModule x) {
-    struct __lambda_env_68* __env = (struct __lambda_env_68*)__raw_env;
+static bool __lambda_fn_70(void* __raw_env, compiler__loader__LoadedModule x) {
+    struct __lambda_env_70* __env = (struct __lambda_env_70*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 48);
 }
 
 size_t std__collections__List_compiler__loader__LoadedModule_remove_all(std__collections__List_compiler__loader__LoadedModule* self, compiler__loader__LoadedModule value) {
-    return std__collections__List_compiler__loader__LoadedModule_remove_where(self, (kobel_closure){ (void*)__lambda_fn_68, (void*)&(struct __lambda_env_68){ value } });
+    return std__collections__List_compiler__loader__LoadedModule_remove_where(self, (kobel_closure){ (void*)__lambda_fn_70, (void*)&(struct __lambda_env_70){ value } });
 }
 
 size_t std__collections__List_compiler__loader__LoadedModule_remove_where(std__collections__List_compiler__loader__LoadedModule* self, kobel_closure predicate) {
@@ -46383,7 +46285,7 @@ compiler__semantic__types__MethodInfo* std__collections__List_ptr_compiler__sema
 
 std__collections__List_ptr_compiler__semantic__types__MethodInfo std__collections__List_ptr_compiler__semantic__types__MethodInfo_init(compiler__semantic__types__MethodInfo** items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-compiler__semantic__types__MethodInfo** buf = std__memory__Heap_create_array_ptr_compiler__semantic__types__MethodInfo(cap);
+compiler__semantic__types__MethodInfo** buf = std__memory__Heap_alloc_ptr_compiler__semantic__types__MethodInfo(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -46522,7 +46424,7 @@ self->len++;
 
 std__collections__List_ptr_compiler__semantic__types__MethodInfo std__collections__List_ptr_compiler__semantic__types__MethodInfo_clone(std__collections__List_ptr_compiler__semantic__types__MethodInfo* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_ptr_compiler__semantic__types__MethodInfo res = (std__collections__List_ptr_compiler__semantic__types__MethodInfo){ std__memory__Heap_create_array_ptr_compiler__semantic__types__MethodInfo(cap), 0, cap };
+std__collections__List_ptr_compiler__semantic__types__MethodInfo res = (std__collections__List_ptr_compiler__semantic__types__MethodInfo){ std__memory__Heap_alloc_ptr_compiler__semantic__types__MethodInfo(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_ptr_compiler__semantic__types__MethodInfo_count(self);
 size_t __for_i = 0;
@@ -46561,7 +46463,7 @@ right--;
 }
 
 std__collections__List_ptr_compiler__semantic__types__MethodInfo std__collections__List_ptr_compiler__semantic__types__MethodInfo_sub(std__collections__List_ptr_compiler__semantic__types__MethodInfo* self, size_t start, size_t count) {
-std__collections__List_ptr_compiler__semantic__types__MethodInfo res = (std__collections__List_ptr_compiler__semantic__types__MethodInfo){ std__memory__Heap_create_array_ptr_compiler__semantic__types__MethodInfo(count), 0, count };
+std__collections__List_ptr_compiler__semantic__types__MethodInfo res = (std__collections__List_ptr_compiler__semantic__types__MethodInfo){ std__memory__Heap_alloc_ptr_compiler__semantic__types__MethodInfo(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -46757,17 +46659,17 @@ std__collections__List_ptr_compiler__semantic__types__MethodInfo_remove_at(self,
 return true;
 }
 
-struct __lambda_env_69 {
+struct __lambda_env_71 {
     compiler__semantic__types__MethodInfo* value;
 };
 
-static bool __lambda_fn_69(void* __raw_env, compiler__semantic__types__MethodInfo* x) {
-    struct __lambda_env_69* __env = (struct __lambda_env_69*)__raw_env;
+static bool __lambda_fn_71(void* __raw_env, compiler__semantic__types__MethodInfo* x) {
+    struct __lambda_env_71* __env = (struct __lambda_env_71*)__raw_env;
     return (x == (__env->value));
 }
 
 size_t std__collections__List_ptr_compiler__semantic__types__MethodInfo_remove_all(std__collections__List_ptr_compiler__semantic__types__MethodInfo* self, compiler__semantic__types__MethodInfo* value) {
-    return std__collections__List_ptr_compiler__semantic__types__MethodInfo_remove_where(self, (kobel_closure){ (void*)__lambda_fn_69, (void*)&(struct __lambda_env_69){ value } });
+    return std__collections__List_ptr_compiler__semantic__types__MethodInfo_remove_where(self, (kobel_closure){ (void*)__lambda_fn_71, (void*)&(struct __lambda_env_71){ value } });
 }
 
 size_t std__collections__List_ptr_compiler__semantic__types__MethodInfo_remove_where(std__collections__List_ptr_compiler__semantic__types__MethodInfo* self, kobel_closure predicate) {
@@ -46958,7 +46860,7 @@ compiler__semantic__types__StructField std__collections__List_compiler__semantic
 
 std__collections__List_compiler__semantic__types__StructField std__collections__List_compiler__semantic__types__StructField_init(compiler__semantic__types__StructField* items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-compiler__semantic__types__StructField* buf = std__memory__Heap_create_array_compiler__semantic__types__StructField(cap);
+compiler__semantic__types__StructField* buf = std__memory__Heap_alloc_compiler__semantic__types__StructField(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -47097,7 +46999,7 @@ self->len++;
 
 std__collections__List_compiler__semantic__types__StructField std__collections__List_compiler__semantic__types__StructField_clone(std__collections__List_compiler__semantic__types__StructField* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_compiler__semantic__types__StructField res = (std__collections__List_compiler__semantic__types__StructField){ std__memory__Heap_create_array_compiler__semantic__types__StructField(cap), 0, cap };
+std__collections__List_compiler__semantic__types__StructField res = (std__collections__List_compiler__semantic__types__StructField){ std__memory__Heap_alloc_compiler__semantic__types__StructField(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_compiler__semantic__types__StructField_count(self);
 size_t __for_i = 0;
@@ -47136,7 +47038,7 @@ right--;
 }
 
 std__collections__List_compiler__semantic__types__StructField std__collections__List_compiler__semantic__types__StructField_sub(std__collections__List_compiler__semantic__types__StructField* self, size_t start, size_t count) {
-std__collections__List_compiler__semantic__types__StructField res = (std__collections__List_compiler__semantic__types__StructField){ std__memory__Heap_create_array_compiler__semantic__types__StructField(count), 0, count };
+std__collections__List_compiler__semantic__types__StructField res = (std__collections__List_compiler__semantic__types__StructField){ std__memory__Heap_alloc_compiler__semantic__types__StructField(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -47332,17 +47234,17 @@ std__collections__List_compiler__semantic__types__StructField_remove_at(self, (s
 return true;
 }
 
-struct __lambda_env_70 {
+struct __lambda_env_72 {
     compiler__semantic__types__StructField value;
 };
 
-static bool __lambda_fn_70(void* __raw_env, compiler__semantic__types__StructField x) {
-    struct __lambda_env_70* __env = (struct __lambda_env_70*)__raw_env;
+static bool __lambda_fn_72(void* __raw_env, compiler__semantic__types__StructField x) {
+    struct __lambda_env_72* __env = (struct __lambda_env_72*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 48);
 }
 
 size_t std__collections__List_compiler__semantic__types__StructField_remove_all(std__collections__List_compiler__semantic__types__StructField* self, compiler__semantic__types__StructField value) {
-    return std__collections__List_compiler__semantic__types__StructField_remove_where(self, (kobel_closure){ (void*)__lambda_fn_70, (void*)&(struct __lambda_env_70){ value } });
+    return std__collections__List_compiler__semantic__types__StructField_remove_where(self, (kobel_closure){ (void*)__lambda_fn_72, (void*)&(struct __lambda_env_72){ value } });
 }
 
 size_t std__collections__List_compiler__semantic__types__StructField_remove_where(std__collections__List_compiler__semantic__types__StructField* self, kobel_closure predicate) {
@@ -47533,7 +47435,7 @@ compiler__semantic__types__EnumMemberInfo* std__collections__List_ptr_compiler__
 
 std__collections__List_ptr_compiler__semantic__types__EnumMemberInfo std__collections__List_ptr_compiler__semantic__types__EnumMemberInfo_init(compiler__semantic__types__EnumMemberInfo** items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-compiler__semantic__types__EnumMemberInfo** buf = std__memory__Heap_create_array_ptr_compiler__semantic__types__EnumMemberInfo(cap);
+compiler__semantic__types__EnumMemberInfo** buf = std__memory__Heap_alloc_ptr_compiler__semantic__types__EnumMemberInfo(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -47672,7 +47574,7 @@ self->len++;
 
 std__collections__List_ptr_compiler__semantic__types__EnumMemberInfo std__collections__List_ptr_compiler__semantic__types__EnumMemberInfo_clone(std__collections__List_ptr_compiler__semantic__types__EnumMemberInfo* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_ptr_compiler__semantic__types__EnumMemberInfo res = (std__collections__List_ptr_compiler__semantic__types__EnumMemberInfo){ std__memory__Heap_create_array_ptr_compiler__semantic__types__EnumMemberInfo(cap), 0, cap };
+std__collections__List_ptr_compiler__semantic__types__EnumMemberInfo res = (std__collections__List_ptr_compiler__semantic__types__EnumMemberInfo){ std__memory__Heap_alloc_ptr_compiler__semantic__types__EnumMemberInfo(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_ptr_compiler__semantic__types__EnumMemberInfo_count(self);
 size_t __for_i = 0;
@@ -47711,7 +47613,7 @@ right--;
 }
 
 std__collections__List_ptr_compiler__semantic__types__EnumMemberInfo std__collections__List_ptr_compiler__semantic__types__EnumMemberInfo_sub(std__collections__List_ptr_compiler__semantic__types__EnumMemberInfo* self, size_t start, size_t count) {
-std__collections__List_ptr_compiler__semantic__types__EnumMemberInfo res = (std__collections__List_ptr_compiler__semantic__types__EnumMemberInfo){ std__memory__Heap_create_array_ptr_compiler__semantic__types__EnumMemberInfo(count), 0, count };
+std__collections__List_ptr_compiler__semantic__types__EnumMemberInfo res = (std__collections__List_ptr_compiler__semantic__types__EnumMemberInfo){ std__memory__Heap_alloc_ptr_compiler__semantic__types__EnumMemberInfo(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -47907,17 +47809,17 @@ std__collections__List_ptr_compiler__semantic__types__EnumMemberInfo_remove_at(s
 return true;
 }
 
-struct __lambda_env_71 {
+struct __lambda_env_73 {
     compiler__semantic__types__EnumMemberInfo* value;
 };
 
-static bool __lambda_fn_71(void* __raw_env, compiler__semantic__types__EnumMemberInfo* x) {
-    struct __lambda_env_71* __env = (struct __lambda_env_71*)__raw_env;
+static bool __lambda_fn_73(void* __raw_env, compiler__semantic__types__EnumMemberInfo* x) {
+    struct __lambda_env_73* __env = (struct __lambda_env_73*)__raw_env;
     return (x == (__env->value));
 }
 
 size_t std__collections__List_ptr_compiler__semantic__types__EnumMemberInfo_remove_all(std__collections__List_ptr_compiler__semantic__types__EnumMemberInfo* self, compiler__semantic__types__EnumMemberInfo* value) {
-    return std__collections__List_ptr_compiler__semantic__types__EnumMemberInfo_remove_where(self, (kobel_closure){ (void*)__lambda_fn_71, (void*)&(struct __lambda_env_71){ value } });
+    return std__collections__List_ptr_compiler__semantic__types__EnumMemberInfo_remove_where(self, (kobel_closure){ (void*)__lambda_fn_73, (void*)&(struct __lambda_env_73){ value } });
 }
 
 size_t std__collections__List_ptr_compiler__semantic__types__EnumMemberInfo_remove_where(std__collections__List_ptr_compiler__semantic__types__EnumMemberInfo* self, kobel_closure predicate) {
@@ -48108,7 +48010,7 @@ compiler__semantic__types__TraitMethod* std__collections__List_ptr_compiler__sem
 
 std__collections__List_ptr_compiler__semantic__types__TraitMethod std__collections__List_ptr_compiler__semantic__types__TraitMethod_init(compiler__semantic__types__TraitMethod** items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-compiler__semantic__types__TraitMethod** buf = std__memory__Heap_create_array_ptr_compiler__semantic__types__TraitMethod(cap);
+compiler__semantic__types__TraitMethod** buf = std__memory__Heap_alloc_ptr_compiler__semantic__types__TraitMethod(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -48247,7 +48149,7 @@ self->len++;
 
 std__collections__List_ptr_compiler__semantic__types__TraitMethod std__collections__List_ptr_compiler__semantic__types__TraitMethod_clone(std__collections__List_ptr_compiler__semantic__types__TraitMethod* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_ptr_compiler__semantic__types__TraitMethod res = (std__collections__List_ptr_compiler__semantic__types__TraitMethod){ std__memory__Heap_create_array_ptr_compiler__semantic__types__TraitMethod(cap), 0, cap };
+std__collections__List_ptr_compiler__semantic__types__TraitMethod res = (std__collections__List_ptr_compiler__semantic__types__TraitMethod){ std__memory__Heap_alloc_ptr_compiler__semantic__types__TraitMethod(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_ptr_compiler__semantic__types__TraitMethod_count(self);
 size_t __for_i = 0;
@@ -48286,7 +48188,7 @@ right--;
 }
 
 std__collections__List_ptr_compiler__semantic__types__TraitMethod std__collections__List_ptr_compiler__semantic__types__TraitMethod_sub(std__collections__List_ptr_compiler__semantic__types__TraitMethod* self, size_t start, size_t count) {
-std__collections__List_ptr_compiler__semantic__types__TraitMethod res = (std__collections__List_ptr_compiler__semantic__types__TraitMethod){ std__memory__Heap_create_array_ptr_compiler__semantic__types__TraitMethod(count), 0, count };
+std__collections__List_ptr_compiler__semantic__types__TraitMethod res = (std__collections__List_ptr_compiler__semantic__types__TraitMethod){ std__memory__Heap_alloc_ptr_compiler__semantic__types__TraitMethod(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -48482,17 +48384,17 @@ std__collections__List_ptr_compiler__semantic__types__TraitMethod_remove_at(self
 return true;
 }
 
-struct __lambda_env_72 {
+struct __lambda_env_74 {
     compiler__semantic__types__TraitMethod* value;
 };
 
-static bool __lambda_fn_72(void* __raw_env, compiler__semantic__types__TraitMethod* x) {
-    struct __lambda_env_72* __env = (struct __lambda_env_72*)__raw_env;
+static bool __lambda_fn_74(void* __raw_env, compiler__semantic__types__TraitMethod* x) {
+    struct __lambda_env_74* __env = (struct __lambda_env_74*)__raw_env;
     return (x == (__env->value));
 }
 
 size_t std__collections__List_ptr_compiler__semantic__types__TraitMethod_remove_all(std__collections__List_ptr_compiler__semantic__types__TraitMethod* self, compiler__semantic__types__TraitMethod* value) {
-    return std__collections__List_ptr_compiler__semantic__types__TraitMethod_remove_where(self, (kobel_closure){ (void*)__lambda_fn_72, (void*)&(struct __lambda_env_72){ value } });
+    return std__collections__List_ptr_compiler__semantic__types__TraitMethod_remove_where(self, (kobel_closure){ (void*)__lambda_fn_74, (void*)&(struct __lambda_env_74){ value } });
 }
 
 size_t std__collections__List_ptr_compiler__semantic__types__TraitMethod_remove_where(std__collections__List_ptr_compiler__semantic__types__TraitMethod* self, kobel_closure predicate) {
@@ -48683,7 +48585,7 @@ compiler__semantic__symbols__LambdaCapture std__collections__List_compiler__sema
 
 std__collections__List_compiler__semantic__symbols__LambdaCapture std__collections__List_compiler__semantic__symbols__LambdaCapture_init(compiler__semantic__symbols__LambdaCapture* items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-compiler__semantic__symbols__LambdaCapture* buf = std__memory__Heap_create_array_compiler__semantic__symbols__LambdaCapture(cap);
+compiler__semantic__symbols__LambdaCapture* buf = std__memory__Heap_alloc_compiler__semantic__symbols__LambdaCapture(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -48822,7 +48724,7 @@ self->len++;
 
 std__collections__List_compiler__semantic__symbols__LambdaCapture std__collections__List_compiler__semantic__symbols__LambdaCapture_clone(std__collections__List_compiler__semantic__symbols__LambdaCapture* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_compiler__semantic__symbols__LambdaCapture res = (std__collections__List_compiler__semantic__symbols__LambdaCapture){ std__memory__Heap_create_array_compiler__semantic__symbols__LambdaCapture(cap), 0, cap };
+std__collections__List_compiler__semantic__symbols__LambdaCapture res = (std__collections__List_compiler__semantic__symbols__LambdaCapture){ std__memory__Heap_alloc_compiler__semantic__symbols__LambdaCapture(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_compiler__semantic__symbols__LambdaCapture_count(self);
 size_t __for_i = 0;
@@ -48861,7 +48763,7 @@ right--;
 }
 
 std__collections__List_compiler__semantic__symbols__LambdaCapture std__collections__List_compiler__semantic__symbols__LambdaCapture_sub(std__collections__List_compiler__semantic__symbols__LambdaCapture* self, size_t start, size_t count) {
-std__collections__List_compiler__semantic__symbols__LambdaCapture res = (std__collections__List_compiler__semantic__symbols__LambdaCapture){ std__memory__Heap_create_array_compiler__semantic__symbols__LambdaCapture(count), 0, count };
+std__collections__List_compiler__semantic__symbols__LambdaCapture res = (std__collections__List_compiler__semantic__symbols__LambdaCapture){ std__memory__Heap_alloc_compiler__semantic__symbols__LambdaCapture(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -49057,17 +48959,17 @@ std__collections__List_compiler__semantic__symbols__LambdaCapture_remove_at(self
 return true;
 }
 
-struct __lambda_env_73 {
+struct __lambda_env_75 {
     compiler__semantic__symbols__LambdaCapture value;
 };
 
-static bool __lambda_fn_73(void* __raw_env, compiler__semantic__symbols__LambdaCapture x) {
-    struct __lambda_env_73* __env = (struct __lambda_env_73*)__raw_env;
+static bool __lambda_fn_75(void* __raw_env, compiler__semantic__symbols__LambdaCapture x) {
+    struct __lambda_env_75* __env = (struct __lambda_env_75*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 32);
 }
 
 size_t std__collections__List_compiler__semantic__symbols__LambdaCapture_remove_all(std__collections__List_compiler__semantic__symbols__LambdaCapture* self, compiler__semantic__symbols__LambdaCapture value) {
-    return std__collections__List_compiler__semantic__symbols__LambdaCapture_remove_where(self, (kobel_closure){ (void*)__lambda_fn_73, (void*)&(struct __lambda_env_73){ value } });
+    return std__collections__List_compiler__semantic__symbols__LambdaCapture_remove_where(self, (kobel_closure){ (void*)__lambda_fn_75, (void*)&(struct __lambda_env_75){ value } });
 }
 
 size_t std__collections__List_compiler__semantic__symbols__LambdaCapture_remove_where(std__collections__List_compiler__semantic__symbols__LambdaCapture* self, kobel_closure predicate) {
@@ -49258,7 +49160,7 @@ size_t std__collections__List_usz_at(std__collections__List_usz* self, size_t i)
 
 std__collections__List_usz std__collections__List_usz_init(size_t* items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-size_t* buf = std__memory__Heap_create_array_usz(cap);
+size_t* buf = std__memory__Heap_alloc_usz(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -49397,7 +49299,7 @@ self->len++;
 
 std__collections__List_usz std__collections__List_usz_clone(std__collections__List_usz* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_usz res = (std__collections__List_usz){ std__memory__Heap_create_array_usz(cap), 0, cap };
+std__collections__List_usz res = (std__collections__List_usz){ std__memory__Heap_alloc_usz(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_usz_count(self);
 size_t __for_i = 0;
@@ -49436,7 +49338,7 @@ right--;
 }
 
 std__collections__List_usz std__collections__List_usz_sub(std__collections__List_usz* self, size_t start, size_t count) {
-std__collections__List_usz res = (std__collections__List_usz){ std__memory__Heap_create_array_usz(count), 0, count };
+std__collections__List_usz res = (std__collections__List_usz){ std__memory__Heap_alloc_usz(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -49632,17 +49534,17 @@ std__collections__List_usz_remove_at(self, (size_t)idx);
 return true;
 }
 
-struct __lambda_env_74 {
+struct __lambda_env_76 {
     size_t value;
 };
 
-static bool __lambda_fn_74(void* __raw_env, size_t x) {
-    struct __lambda_env_74* __env = (struct __lambda_env_74*)__raw_env;
+static bool __lambda_fn_76(void* __raw_env, size_t x) {
+    struct __lambda_env_76* __env = (struct __lambda_env_76*)__raw_env;
     return (x == (__env->value));
 }
 
 size_t std__collections__List_usz_remove_all(std__collections__List_usz* self, size_t value) {
-    return std__collections__List_usz_remove_where(self, (kobel_closure){ (void*)__lambda_fn_74, (void*)&(struct __lambda_env_74){ value } });
+    return std__collections__List_usz_remove_where(self, (kobel_closure){ (void*)__lambda_fn_76, (void*)&(struct __lambda_env_76){ value } });
 }
 
 size_t std__collections__List_usz_remove_where(std__collections__List_usz* self, kobel_closure predicate) {
@@ -49838,7 +49740,7 @@ std__collections__Pair_usz_ptr_compiler__semantic__types__Type std__collections_
 
 std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__types__Type std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__types__Type_init(std__collections__Pair_usz_ptr_compiler__semantic__types__Type* items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-std__collections__Pair_usz_ptr_compiler__semantic__types__Type* buf = std__memory__Heap_create_array_std__collections__Pair_usz_ptr_compiler__semantic__types__Type(cap);
+std__collections__Pair_usz_ptr_compiler__semantic__types__Type* buf = std__memory__Heap_alloc_std__collections__Pair_usz_ptr_compiler__semantic__types__Type(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -49977,7 +49879,7 @@ self->len++;
 
 std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__types__Type std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__types__Type_clone(std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__types__Type* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__types__Type res = (std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__types__Type){ std__memory__Heap_create_array_std__collections__Pair_usz_ptr_compiler__semantic__types__Type(cap), 0, cap };
+std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__types__Type res = (std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__types__Type){ std__memory__Heap_alloc_std__collections__Pair_usz_ptr_compiler__semantic__types__Type(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__types__Type_count(self);
 size_t __for_i = 0;
@@ -50016,7 +49918,7 @@ right--;
 }
 
 std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__types__Type std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__types__Type_sub(std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__types__Type* self, size_t start, size_t count) {
-std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__types__Type res = (std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__types__Type){ std__memory__Heap_create_array_std__collections__Pair_usz_ptr_compiler__semantic__types__Type(count), 0, count };
+std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__types__Type res = (std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__types__Type){ std__memory__Heap_alloc_std__collections__Pair_usz_ptr_compiler__semantic__types__Type(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -50212,17 +50114,17 @@ std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__types_
 return true;
 }
 
-struct __lambda_env_75 {
+struct __lambda_env_77 {
     std__collections__Pair_usz_ptr_compiler__semantic__types__Type value;
 };
 
-static bool __lambda_fn_75(void* __raw_env, std__collections__Pair_usz_ptr_compiler__semantic__types__Type x) {
-    struct __lambda_env_75* __env = (struct __lambda_env_75*)__raw_env;
+static bool __lambda_fn_77(void* __raw_env, std__collections__Pair_usz_ptr_compiler__semantic__types__Type x) {
+    struct __lambda_env_77* __env = (struct __lambda_env_77*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 16);
 }
 
 size_t std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__types__Type_remove_all(std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__types__Type* self, std__collections__Pair_usz_ptr_compiler__semantic__types__Type value) {
-    return std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__types__Type_remove_where(self, (kobel_closure){ (void*)__lambda_fn_75, (void*)&(struct __lambda_env_75){ value } });
+    return std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__types__Type_remove_where(self, (kobel_closure){ (void*)__lambda_fn_77, (void*)&(struct __lambda_env_77){ value } });
 }
 
 size_t std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__types__Type_remove_where(std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__types__Type* self, kobel_closure predicate) {
@@ -50408,10 +50310,10 @@ size_t cap = init_cap;
 if (cap < 8) {
 cap = 8;
 }
-size_t* keys = std__memory__Heap_create_array_usz(cap);
-compiler__semantic__types__Type** values = std__memory__Heap_create_array_ptr_compiler__semantic__types__Type(cap);
-size_t* hashes = std__memory__Heap_create_array_usz(cap);
-bool* occ = std__memory__Heap_create_array_bool(cap);
+size_t* keys = std__memory__Heap_alloc_usz(cap);
+compiler__semantic__types__Type** values = std__memory__Heap_alloc_ptr_compiler__semantic__types__Type(cap);
+size_t* hashes = std__memory__Heap_alloc_usz(cap);
+bool* occ = std__memory__Heap_alloc_bool(cap);
 {
 size_t __for_e = cap;
 size_t __for_i = __for_e;
@@ -50802,10 +50704,10 @@ compiler__semantic__types__Type** old_vals = self->values;
 size_t* old_hashes = self->hashes;
 bool* old_occ = self->occupied;
 size_t new_cap = ((old_cap < 8) ? 16 : (old_cap * 2));
-size_t* keys = std__memory__Heap_create_array_usz(new_cap);
-compiler__semantic__types__Type** values = std__memory__Heap_create_array_ptr_compiler__semantic__types__Type(new_cap);
-size_t* hashes = std__memory__Heap_create_array_usz(new_cap);
-bool* new_occ = std__memory__Heap_create_array_bool(new_cap);
+size_t* keys = std__memory__Heap_alloc_usz(new_cap);
+compiler__semantic__types__Type** values = std__memory__Heap_alloc_ptr_compiler__semantic__types__Type(new_cap);
+size_t* hashes = std__memory__Heap_alloc_usz(new_cap);
+bool* new_occ = std__memory__Heap_alloc_bool(new_cap);
 {
 size_t __for_e = new_cap;
 size_t __for_i = __for_e;
@@ -51001,7 +50903,7 @@ std__collections__Pair_usz_ptr_compiler__semantic__types__MethodInfo std__collec
 
 std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__types__MethodInfo std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__types__MethodInfo_init(std__collections__Pair_usz_ptr_compiler__semantic__types__MethodInfo* items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-std__collections__Pair_usz_ptr_compiler__semantic__types__MethodInfo* buf = std__memory__Heap_create_array_std__collections__Pair_usz_ptr_compiler__semantic__types__MethodInfo(cap);
+std__collections__Pair_usz_ptr_compiler__semantic__types__MethodInfo* buf = std__memory__Heap_alloc_std__collections__Pair_usz_ptr_compiler__semantic__types__MethodInfo(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -51140,7 +51042,7 @@ self->len++;
 
 std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__types__MethodInfo std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__types__MethodInfo_clone(std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__types__MethodInfo* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__types__MethodInfo res = (std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__types__MethodInfo){ std__memory__Heap_create_array_std__collections__Pair_usz_ptr_compiler__semantic__types__MethodInfo(cap), 0, cap };
+std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__types__MethodInfo res = (std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__types__MethodInfo){ std__memory__Heap_alloc_std__collections__Pair_usz_ptr_compiler__semantic__types__MethodInfo(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__types__MethodInfo_count(self);
 size_t __for_i = 0;
@@ -51179,7 +51081,7 @@ right--;
 }
 
 std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__types__MethodInfo std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__types__MethodInfo_sub(std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__types__MethodInfo* self, size_t start, size_t count) {
-std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__types__MethodInfo res = (std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__types__MethodInfo){ std__memory__Heap_create_array_std__collections__Pair_usz_ptr_compiler__semantic__types__MethodInfo(count), 0, count };
+std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__types__MethodInfo res = (std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__types__MethodInfo){ std__memory__Heap_alloc_std__collections__Pair_usz_ptr_compiler__semantic__types__MethodInfo(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -51375,17 +51277,17 @@ std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__types_
 return true;
 }
 
-struct __lambda_env_76 {
+struct __lambda_env_78 {
     std__collections__Pair_usz_ptr_compiler__semantic__types__MethodInfo value;
 };
 
-static bool __lambda_fn_76(void* __raw_env, std__collections__Pair_usz_ptr_compiler__semantic__types__MethodInfo x) {
-    struct __lambda_env_76* __env = (struct __lambda_env_76*)__raw_env;
+static bool __lambda_fn_78(void* __raw_env, std__collections__Pair_usz_ptr_compiler__semantic__types__MethodInfo x) {
+    struct __lambda_env_78* __env = (struct __lambda_env_78*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 16);
 }
 
 size_t std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__types__MethodInfo_remove_all(std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__types__MethodInfo* self, std__collections__Pair_usz_ptr_compiler__semantic__types__MethodInfo value) {
-    return std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__types__MethodInfo_remove_where(self, (kobel_closure){ (void*)__lambda_fn_76, (void*)&(struct __lambda_env_76){ value } });
+    return std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__types__MethodInfo_remove_where(self, (kobel_closure){ (void*)__lambda_fn_78, (void*)&(struct __lambda_env_78){ value } });
 }
 
 size_t std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__types__MethodInfo_remove_where(std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__types__MethodInfo* self, kobel_closure predicate) {
@@ -51571,10 +51473,10 @@ size_t cap = init_cap;
 if (cap < 8) {
 cap = 8;
 }
-size_t* keys = std__memory__Heap_create_array_usz(cap);
-compiler__semantic__types__MethodInfo** values = std__memory__Heap_create_array_ptr_compiler__semantic__types__MethodInfo(cap);
-size_t* hashes = std__memory__Heap_create_array_usz(cap);
-bool* occ = std__memory__Heap_create_array_bool(cap);
+size_t* keys = std__memory__Heap_alloc_usz(cap);
+compiler__semantic__types__MethodInfo** values = std__memory__Heap_alloc_ptr_compiler__semantic__types__MethodInfo(cap);
+size_t* hashes = std__memory__Heap_alloc_usz(cap);
+bool* occ = std__memory__Heap_alloc_bool(cap);
 {
 size_t __for_e = cap;
 size_t __for_i = __for_e;
@@ -51965,10 +51867,10 @@ compiler__semantic__types__MethodInfo** old_vals = self->values;
 size_t* old_hashes = self->hashes;
 bool* old_occ = self->occupied;
 size_t new_cap = ((old_cap < 8) ? 16 : (old_cap * 2));
-size_t* keys = std__memory__Heap_create_array_usz(new_cap);
-compiler__semantic__types__MethodInfo** values = std__memory__Heap_create_array_ptr_compiler__semantic__types__MethodInfo(new_cap);
-size_t* hashes = std__memory__Heap_create_array_usz(new_cap);
-bool* new_occ = std__memory__Heap_create_array_bool(new_cap);
+size_t* keys = std__memory__Heap_alloc_usz(new_cap);
+compiler__semantic__types__MethodInfo** values = std__memory__Heap_alloc_ptr_compiler__semantic__types__MethodInfo(new_cap);
+size_t* hashes = std__memory__Heap_alloc_usz(new_cap);
+bool* new_occ = std__memory__Heap_alloc_bool(new_cap);
 {
 size_t __for_e = new_cap;
 size_t __for_i = __for_e;
@@ -52164,7 +52066,7 @@ std__collections__Pair_usz_ptr_compiler__ast__AstNode std__collections__List_std
 
 std__collections__List_std__collections__Pair_usz_ptr_compiler__ast__AstNode std__collections__List_std__collections__Pair_usz_ptr_compiler__ast__AstNode_init(std__collections__Pair_usz_ptr_compiler__ast__AstNode* items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-std__collections__Pair_usz_ptr_compiler__ast__AstNode* buf = std__memory__Heap_create_array_std__collections__Pair_usz_ptr_compiler__ast__AstNode(cap);
+std__collections__Pair_usz_ptr_compiler__ast__AstNode* buf = std__memory__Heap_alloc_std__collections__Pair_usz_ptr_compiler__ast__AstNode(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -52303,7 +52205,7 @@ self->len++;
 
 std__collections__List_std__collections__Pair_usz_ptr_compiler__ast__AstNode std__collections__List_std__collections__Pair_usz_ptr_compiler__ast__AstNode_clone(std__collections__List_std__collections__Pair_usz_ptr_compiler__ast__AstNode* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_std__collections__Pair_usz_ptr_compiler__ast__AstNode res = (std__collections__List_std__collections__Pair_usz_ptr_compiler__ast__AstNode){ std__memory__Heap_create_array_std__collections__Pair_usz_ptr_compiler__ast__AstNode(cap), 0, cap };
+std__collections__List_std__collections__Pair_usz_ptr_compiler__ast__AstNode res = (std__collections__List_std__collections__Pair_usz_ptr_compiler__ast__AstNode){ std__memory__Heap_alloc_std__collections__Pair_usz_ptr_compiler__ast__AstNode(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_std__collections__Pair_usz_ptr_compiler__ast__AstNode_count(self);
 size_t __for_i = 0;
@@ -52342,7 +52244,7 @@ right--;
 }
 
 std__collections__List_std__collections__Pair_usz_ptr_compiler__ast__AstNode std__collections__List_std__collections__Pair_usz_ptr_compiler__ast__AstNode_sub(std__collections__List_std__collections__Pair_usz_ptr_compiler__ast__AstNode* self, size_t start, size_t count) {
-std__collections__List_std__collections__Pair_usz_ptr_compiler__ast__AstNode res = (std__collections__List_std__collections__Pair_usz_ptr_compiler__ast__AstNode){ std__memory__Heap_create_array_std__collections__Pair_usz_ptr_compiler__ast__AstNode(count), 0, count };
+std__collections__List_std__collections__Pair_usz_ptr_compiler__ast__AstNode res = (std__collections__List_std__collections__Pair_usz_ptr_compiler__ast__AstNode){ std__memory__Heap_alloc_std__collections__Pair_usz_ptr_compiler__ast__AstNode(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -52538,17 +52440,17 @@ std__collections__List_std__collections__Pair_usz_ptr_compiler__ast__AstNode_rem
 return true;
 }
 
-struct __lambda_env_77 {
+struct __lambda_env_79 {
     std__collections__Pair_usz_ptr_compiler__ast__AstNode value;
 };
 
-static bool __lambda_fn_77(void* __raw_env, std__collections__Pair_usz_ptr_compiler__ast__AstNode x) {
-    struct __lambda_env_77* __env = (struct __lambda_env_77*)__raw_env;
+static bool __lambda_fn_79(void* __raw_env, std__collections__Pair_usz_ptr_compiler__ast__AstNode x) {
+    struct __lambda_env_79* __env = (struct __lambda_env_79*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 16);
 }
 
 size_t std__collections__List_std__collections__Pair_usz_ptr_compiler__ast__AstNode_remove_all(std__collections__List_std__collections__Pair_usz_ptr_compiler__ast__AstNode* self, std__collections__Pair_usz_ptr_compiler__ast__AstNode value) {
-    return std__collections__List_std__collections__Pair_usz_ptr_compiler__ast__AstNode_remove_where(self, (kobel_closure){ (void*)__lambda_fn_77, (void*)&(struct __lambda_env_77){ value } });
+    return std__collections__List_std__collections__Pair_usz_ptr_compiler__ast__AstNode_remove_where(self, (kobel_closure){ (void*)__lambda_fn_79, (void*)&(struct __lambda_env_79){ value } });
 }
 
 size_t std__collections__List_std__collections__Pair_usz_ptr_compiler__ast__AstNode_remove_where(std__collections__List_std__collections__Pair_usz_ptr_compiler__ast__AstNode* self, kobel_closure predicate) {
@@ -52734,10 +52636,10 @@ size_t cap = init_cap;
 if (cap < 8) {
 cap = 8;
 }
-size_t* keys = std__memory__Heap_create_array_usz(cap);
-compiler__ast__AstNode** values = std__memory__Heap_create_array_ptr_compiler__ast__AstNode(cap);
-size_t* hashes = std__memory__Heap_create_array_usz(cap);
-bool* occ = std__memory__Heap_create_array_bool(cap);
+size_t* keys = std__memory__Heap_alloc_usz(cap);
+compiler__ast__AstNode** values = std__memory__Heap_alloc_ptr_compiler__ast__AstNode(cap);
+size_t* hashes = std__memory__Heap_alloc_usz(cap);
+bool* occ = std__memory__Heap_alloc_bool(cap);
 {
 size_t __for_e = cap;
 size_t __for_i = __for_e;
@@ -53128,10 +53030,10 @@ compiler__ast__AstNode** old_vals = self->values;
 size_t* old_hashes = self->hashes;
 bool* old_occ = self->occupied;
 size_t new_cap = ((old_cap < 8) ? 16 : (old_cap * 2));
-size_t* keys = std__memory__Heap_create_array_usz(new_cap);
-compiler__ast__AstNode** values = std__memory__Heap_create_array_ptr_compiler__ast__AstNode(new_cap);
-size_t* hashes = std__memory__Heap_create_array_usz(new_cap);
-bool* new_occ = std__memory__Heap_create_array_bool(new_cap);
+size_t* keys = std__memory__Heap_alloc_usz(new_cap);
+compiler__ast__AstNode** values = std__memory__Heap_alloc_ptr_compiler__ast__AstNode(new_cap);
+size_t* hashes = std__memory__Heap_alloc_usz(new_cap);
+bool* new_occ = std__memory__Heap_alloc_bool(new_cap);
 {
 size_t __for_e = new_cap;
 size_t __for_i = __for_e;
@@ -53322,7 +53224,7 @@ compiler__semantic__symbols__InstanceRecord* std__collections__List_ptr_compiler
 
 std__collections__List_ptr_compiler__semantic__symbols__InstanceRecord std__collections__List_ptr_compiler__semantic__symbols__InstanceRecord_init(compiler__semantic__symbols__InstanceRecord** items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-compiler__semantic__symbols__InstanceRecord** buf = std__memory__Heap_create_array_ptr_compiler__semantic__symbols__InstanceRecord(cap);
+compiler__semantic__symbols__InstanceRecord** buf = std__memory__Heap_alloc_ptr_compiler__semantic__symbols__InstanceRecord(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -53461,7 +53363,7 @@ self->len++;
 
 std__collections__List_ptr_compiler__semantic__symbols__InstanceRecord std__collections__List_ptr_compiler__semantic__symbols__InstanceRecord_clone(std__collections__List_ptr_compiler__semantic__symbols__InstanceRecord* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_ptr_compiler__semantic__symbols__InstanceRecord res = (std__collections__List_ptr_compiler__semantic__symbols__InstanceRecord){ std__memory__Heap_create_array_ptr_compiler__semantic__symbols__InstanceRecord(cap), 0, cap };
+std__collections__List_ptr_compiler__semantic__symbols__InstanceRecord res = (std__collections__List_ptr_compiler__semantic__symbols__InstanceRecord){ std__memory__Heap_alloc_ptr_compiler__semantic__symbols__InstanceRecord(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_ptr_compiler__semantic__symbols__InstanceRecord_count(self);
 size_t __for_i = 0;
@@ -53500,7 +53402,7 @@ right--;
 }
 
 std__collections__List_ptr_compiler__semantic__symbols__InstanceRecord std__collections__List_ptr_compiler__semantic__symbols__InstanceRecord_sub(std__collections__List_ptr_compiler__semantic__symbols__InstanceRecord* self, size_t start, size_t count) {
-std__collections__List_ptr_compiler__semantic__symbols__InstanceRecord res = (std__collections__List_ptr_compiler__semantic__symbols__InstanceRecord){ std__memory__Heap_create_array_ptr_compiler__semantic__symbols__InstanceRecord(count), 0, count };
+std__collections__List_ptr_compiler__semantic__symbols__InstanceRecord res = (std__collections__List_ptr_compiler__semantic__symbols__InstanceRecord){ std__memory__Heap_alloc_ptr_compiler__semantic__symbols__InstanceRecord(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -53696,17 +53598,17 @@ std__collections__List_ptr_compiler__semantic__symbols__InstanceRecord_remove_at
 return true;
 }
 
-struct __lambda_env_78 {
+struct __lambda_env_80 {
     compiler__semantic__symbols__InstanceRecord* value;
 };
 
-static bool __lambda_fn_78(void* __raw_env, compiler__semantic__symbols__InstanceRecord* x) {
-    struct __lambda_env_78* __env = (struct __lambda_env_78*)__raw_env;
+static bool __lambda_fn_80(void* __raw_env, compiler__semantic__symbols__InstanceRecord* x) {
+    struct __lambda_env_80* __env = (struct __lambda_env_80*)__raw_env;
     return (x == (__env->value));
 }
 
 size_t std__collections__List_ptr_compiler__semantic__symbols__InstanceRecord_remove_all(std__collections__List_ptr_compiler__semantic__symbols__InstanceRecord* self, compiler__semantic__symbols__InstanceRecord* value) {
-    return std__collections__List_ptr_compiler__semantic__symbols__InstanceRecord_remove_where(self, (kobel_closure){ (void*)__lambda_fn_78, (void*)&(struct __lambda_env_78){ value } });
+    return std__collections__List_ptr_compiler__semantic__symbols__InstanceRecord_remove_where(self, (kobel_closure){ (void*)__lambda_fn_80, (void*)&(struct __lambda_env_80){ value } });
 }
 
 size_t std__collections__List_ptr_compiler__semantic__symbols__InstanceRecord_remove_where(std__collections__List_ptr_compiler__semantic__symbols__InstanceRecord* self, kobel_closure predicate) {
@@ -53902,7 +53804,7 @@ std__collections__Pair_usz_ptr_compiler__semantic__symbols__InstanceRecord std__
 
 std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__symbols__InstanceRecord std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__symbols__InstanceRecord_init(std__collections__Pair_usz_ptr_compiler__semantic__symbols__InstanceRecord* items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-std__collections__Pair_usz_ptr_compiler__semantic__symbols__InstanceRecord* buf = std__memory__Heap_create_array_std__collections__Pair_usz_ptr_compiler__semantic__symbols__InstanceRecord(cap);
+std__collections__Pair_usz_ptr_compiler__semantic__symbols__InstanceRecord* buf = std__memory__Heap_alloc_std__collections__Pair_usz_ptr_compiler__semantic__symbols__InstanceRecord(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -54041,7 +53943,7 @@ self->len++;
 
 std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__symbols__InstanceRecord std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__symbols__InstanceRecord_clone(std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__symbols__InstanceRecord* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__symbols__InstanceRecord res = (std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__symbols__InstanceRecord){ std__memory__Heap_create_array_std__collections__Pair_usz_ptr_compiler__semantic__symbols__InstanceRecord(cap), 0, cap };
+std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__symbols__InstanceRecord res = (std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__symbols__InstanceRecord){ std__memory__Heap_alloc_std__collections__Pair_usz_ptr_compiler__semantic__symbols__InstanceRecord(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__symbols__InstanceRecord_count(self);
 size_t __for_i = 0;
@@ -54080,7 +53982,7 @@ right--;
 }
 
 std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__symbols__InstanceRecord std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__symbols__InstanceRecord_sub(std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__symbols__InstanceRecord* self, size_t start, size_t count) {
-std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__symbols__InstanceRecord res = (std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__symbols__InstanceRecord){ std__memory__Heap_create_array_std__collections__Pair_usz_ptr_compiler__semantic__symbols__InstanceRecord(count), 0, count };
+std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__symbols__InstanceRecord res = (std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__symbols__InstanceRecord){ std__memory__Heap_alloc_std__collections__Pair_usz_ptr_compiler__semantic__symbols__InstanceRecord(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -54276,17 +54178,17 @@ std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__symbol
 return true;
 }
 
-struct __lambda_env_79 {
+struct __lambda_env_81 {
     std__collections__Pair_usz_ptr_compiler__semantic__symbols__InstanceRecord value;
 };
 
-static bool __lambda_fn_79(void* __raw_env, std__collections__Pair_usz_ptr_compiler__semantic__symbols__InstanceRecord x) {
-    struct __lambda_env_79* __env = (struct __lambda_env_79*)__raw_env;
+static bool __lambda_fn_81(void* __raw_env, std__collections__Pair_usz_ptr_compiler__semantic__symbols__InstanceRecord x) {
+    struct __lambda_env_81* __env = (struct __lambda_env_81*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 16);
 }
 
 size_t std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__symbols__InstanceRecord_remove_all(std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__symbols__InstanceRecord* self, std__collections__Pair_usz_ptr_compiler__semantic__symbols__InstanceRecord value) {
-    return std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__symbols__InstanceRecord_remove_where(self, (kobel_closure){ (void*)__lambda_fn_79, (void*)&(struct __lambda_env_79){ value } });
+    return std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__symbols__InstanceRecord_remove_where(self, (kobel_closure){ (void*)__lambda_fn_81, (void*)&(struct __lambda_env_81){ value } });
 }
 
 size_t std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__symbols__InstanceRecord_remove_where(std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__symbols__InstanceRecord* self, kobel_closure predicate) {
@@ -54472,10 +54374,10 @@ size_t cap = init_cap;
 if (cap < 8) {
 cap = 8;
 }
-size_t* keys = std__memory__Heap_create_array_usz(cap);
-compiler__semantic__symbols__InstanceRecord** values = std__memory__Heap_create_array_ptr_compiler__semantic__symbols__InstanceRecord(cap);
-size_t* hashes = std__memory__Heap_create_array_usz(cap);
-bool* occ = std__memory__Heap_create_array_bool(cap);
+size_t* keys = std__memory__Heap_alloc_usz(cap);
+compiler__semantic__symbols__InstanceRecord** values = std__memory__Heap_alloc_ptr_compiler__semantic__symbols__InstanceRecord(cap);
+size_t* hashes = std__memory__Heap_alloc_usz(cap);
+bool* occ = std__memory__Heap_alloc_bool(cap);
 {
 size_t __for_e = cap;
 size_t __for_i = __for_e;
@@ -54866,10 +54768,10 @@ compiler__semantic__symbols__InstanceRecord** old_vals = self->values;
 size_t* old_hashes = self->hashes;
 bool* old_occ = self->occupied;
 size_t new_cap = ((old_cap < 8) ? 16 : (old_cap * 2));
-size_t* keys = std__memory__Heap_create_array_usz(new_cap);
-compiler__semantic__symbols__InstanceRecord** values = std__memory__Heap_create_array_ptr_compiler__semantic__symbols__InstanceRecord(new_cap);
-size_t* hashes = std__memory__Heap_create_array_usz(new_cap);
-bool* new_occ = std__memory__Heap_create_array_bool(new_cap);
+size_t* keys = std__memory__Heap_alloc_usz(new_cap);
+compiler__semantic__symbols__InstanceRecord** values = std__memory__Heap_alloc_ptr_compiler__semantic__symbols__InstanceRecord(new_cap);
+size_t* hashes = std__memory__Heap_alloc_usz(new_cap);
+bool* new_occ = std__memory__Heap_alloc_bool(new_cap);
 {
 size_t __for_e = new_cap;
 size_t __for_i = __for_e;
@@ -55060,7 +54962,7 @@ compiler__semantic__symbols__IsPatternInfo std__collections__List_compiler__sema
 
 std__collections__List_compiler__semantic__symbols__IsPatternInfo std__collections__List_compiler__semantic__symbols__IsPatternInfo_init(compiler__semantic__symbols__IsPatternInfo* items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-compiler__semantic__symbols__IsPatternInfo* buf = std__memory__Heap_create_array_compiler__semantic__symbols__IsPatternInfo(cap);
+compiler__semantic__symbols__IsPatternInfo* buf = std__memory__Heap_alloc_compiler__semantic__symbols__IsPatternInfo(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -55199,7 +55101,7 @@ self->len++;
 
 std__collections__List_compiler__semantic__symbols__IsPatternInfo std__collections__List_compiler__semantic__symbols__IsPatternInfo_clone(std__collections__List_compiler__semantic__symbols__IsPatternInfo* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_compiler__semantic__symbols__IsPatternInfo res = (std__collections__List_compiler__semantic__symbols__IsPatternInfo){ std__memory__Heap_create_array_compiler__semantic__symbols__IsPatternInfo(cap), 0, cap };
+std__collections__List_compiler__semantic__symbols__IsPatternInfo res = (std__collections__List_compiler__semantic__symbols__IsPatternInfo){ std__memory__Heap_alloc_compiler__semantic__symbols__IsPatternInfo(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_compiler__semantic__symbols__IsPatternInfo_count(self);
 size_t __for_i = 0;
@@ -55238,7 +55140,7 @@ right--;
 }
 
 std__collections__List_compiler__semantic__symbols__IsPatternInfo std__collections__List_compiler__semantic__symbols__IsPatternInfo_sub(std__collections__List_compiler__semantic__symbols__IsPatternInfo* self, size_t start, size_t count) {
-std__collections__List_compiler__semantic__symbols__IsPatternInfo res = (std__collections__List_compiler__semantic__symbols__IsPatternInfo){ std__memory__Heap_create_array_compiler__semantic__symbols__IsPatternInfo(count), 0, count };
+std__collections__List_compiler__semantic__symbols__IsPatternInfo res = (std__collections__List_compiler__semantic__symbols__IsPatternInfo){ std__memory__Heap_alloc_compiler__semantic__symbols__IsPatternInfo(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -55434,17 +55336,17 @@ std__collections__List_compiler__semantic__symbols__IsPatternInfo_remove_at(self
 return true;
 }
 
-struct __lambda_env_80 {
+struct __lambda_env_82 {
     compiler__semantic__symbols__IsPatternInfo value;
 };
 
-static bool __lambda_fn_80(void* __raw_env, compiler__semantic__symbols__IsPatternInfo x) {
-    struct __lambda_env_80* __env = (struct __lambda_env_80*)__raw_env;
+static bool __lambda_fn_82(void* __raw_env, compiler__semantic__symbols__IsPatternInfo x) {
+    struct __lambda_env_82* __env = (struct __lambda_env_82*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 80);
 }
 
 size_t std__collections__List_compiler__semantic__symbols__IsPatternInfo_remove_all(std__collections__List_compiler__semantic__symbols__IsPatternInfo* self, compiler__semantic__symbols__IsPatternInfo value) {
-    return std__collections__List_compiler__semantic__symbols__IsPatternInfo_remove_where(self, (kobel_closure){ (void*)__lambda_fn_80, (void*)&(struct __lambda_env_80){ value } });
+    return std__collections__List_compiler__semantic__symbols__IsPatternInfo_remove_where(self, (kobel_closure){ (void*)__lambda_fn_82, (void*)&(struct __lambda_env_82){ value } });
 }
 
 size_t std__collections__List_compiler__semantic__symbols__IsPatternInfo_remove_where(std__collections__List_compiler__semantic__symbols__IsPatternInfo* self, kobel_closure predicate) {
@@ -55640,7 +55542,7 @@ std__collections__Pair_usz_compiler__semantic__symbols__IsPatternInfo std__colle
 
 std__collections__List_std__collections__Pair_usz_compiler__semantic__symbols__IsPatternInfo std__collections__List_std__collections__Pair_usz_compiler__semantic__symbols__IsPatternInfo_init(std__collections__Pair_usz_compiler__semantic__symbols__IsPatternInfo* items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-std__collections__Pair_usz_compiler__semantic__symbols__IsPatternInfo* buf = std__memory__Heap_create_array_std__collections__Pair_usz_compiler__semantic__symbols__IsPatternInfo(cap);
+std__collections__Pair_usz_compiler__semantic__symbols__IsPatternInfo* buf = std__memory__Heap_alloc_std__collections__Pair_usz_compiler__semantic__symbols__IsPatternInfo(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -55779,7 +55681,7 @@ self->len++;
 
 std__collections__List_std__collections__Pair_usz_compiler__semantic__symbols__IsPatternInfo std__collections__List_std__collections__Pair_usz_compiler__semantic__symbols__IsPatternInfo_clone(std__collections__List_std__collections__Pair_usz_compiler__semantic__symbols__IsPatternInfo* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_std__collections__Pair_usz_compiler__semantic__symbols__IsPatternInfo res = (std__collections__List_std__collections__Pair_usz_compiler__semantic__symbols__IsPatternInfo){ std__memory__Heap_create_array_std__collections__Pair_usz_compiler__semantic__symbols__IsPatternInfo(cap), 0, cap };
+std__collections__List_std__collections__Pair_usz_compiler__semantic__symbols__IsPatternInfo res = (std__collections__List_std__collections__Pair_usz_compiler__semantic__symbols__IsPatternInfo){ std__memory__Heap_alloc_std__collections__Pair_usz_compiler__semantic__symbols__IsPatternInfo(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_std__collections__Pair_usz_compiler__semantic__symbols__IsPatternInfo_count(self);
 size_t __for_i = 0;
@@ -55818,7 +55720,7 @@ right--;
 }
 
 std__collections__List_std__collections__Pair_usz_compiler__semantic__symbols__IsPatternInfo std__collections__List_std__collections__Pair_usz_compiler__semantic__symbols__IsPatternInfo_sub(std__collections__List_std__collections__Pair_usz_compiler__semantic__symbols__IsPatternInfo* self, size_t start, size_t count) {
-std__collections__List_std__collections__Pair_usz_compiler__semantic__symbols__IsPatternInfo res = (std__collections__List_std__collections__Pair_usz_compiler__semantic__symbols__IsPatternInfo){ std__memory__Heap_create_array_std__collections__Pair_usz_compiler__semantic__symbols__IsPatternInfo(count), 0, count };
+std__collections__List_std__collections__Pair_usz_compiler__semantic__symbols__IsPatternInfo res = (std__collections__List_std__collections__Pair_usz_compiler__semantic__symbols__IsPatternInfo){ std__memory__Heap_alloc_std__collections__Pair_usz_compiler__semantic__symbols__IsPatternInfo(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -56014,17 +55916,17 @@ std__collections__List_std__collections__Pair_usz_compiler__semantic__symbols__I
 return true;
 }
 
-struct __lambda_env_81 {
+struct __lambda_env_83 {
     std__collections__Pair_usz_compiler__semantic__symbols__IsPatternInfo value;
 };
 
-static bool __lambda_fn_81(void* __raw_env, std__collections__Pair_usz_compiler__semantic__symbols__IsPatternInfo x) {
-    struct __lambda_env_81* __env = (struct __lambda_env_81*)__raw_env;
+static bool __lambda_fn_83(void* __raw_env, std__collections__Pair_usz_compiler__semantic__symbols__IsPatternInfo x) {
+    struct __lambda_env_83* __env = (struct __lambda_env_83*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 88);
 }
 
 size_t std__collections__List_std__collections__Pair_usz_compiler__semantic__symbols__IsPatternInfo_remove_all(std__collections__List_std__collections__Pair_usz_compiler__semantic__symbols__IsPatternInfo* self, std__collections__Pair_usz_compiler__semantic__symbols__IsPatternInfo value) {
-    return std__collections__List_std__collections__Pair_usz_compiler__semantic__symbols__IsPatternInfo_remove_where(self, (kobel_closure){ (void*)__lambda_fn_81, (void*)&(struct __lambda_env_81){ value } });
+    return std__collections__List_std__collections__Pair_usz_compiler__semantic__symbols__IsPatternInfo_remove_where(self, (kobel_closure){ (void*)__lambda_fn_83, (void*)&(struct __lambda_env_83){ value } });
 }
 
 size_t std__collections__List_std__collections__Pair_usz_compiler__semantic__symbols__IsPatternInfo_remove_where(std__collections__List_std__collections__Pair_usz_compiler__semantic__symbols__IsPatternInfo* self, kobel_closure predicate) {
@@ -56210,10 +56112,10 @@ size_t cap = init_cap;
 if (cap < 8) {
 cap = 8;
 }
-size_t* keys = std__memory__Heap_create_array_usz(cap);
-compiler__semantic__symbols__IsPatternInfo* values = std__memory__Heap_create_array_compiler__semantic__symbols__IsPatternInfo(cap);
-size_t* hashes = std__memory__Heap_create_array_usz(cap);
-bool* occ = std__memory__Heap_create_array_bool(cap);
+size_t* keys = std__memory__Heap_alloc_usz(cap);
+compiler__semantic__symbols__IsPatternInfo* values = std__memory__Heap_alloc_compiler__semantic__symbols__IsPatternInfo(cap);
+size_t* hashes = std__memory__Heap_alloc_usz(cap);
+bool* occ = std__memory__Heap_alloc_bool(cap);
 {
 size_t __for_e = cap;
 size_t __for_i = __for_e;
@@ -56604,10 +56506,10 @@ compiler__semantic__symbols__IsPatternInfo* old_vals = self->values;
 size_t* old_hashes = self->hashes;
 bool* old_occ = self->occupied;
 size_t new_cap = ((old_cap < 8) ? 16 : (old_cap * 2));
-size_t* keys = std__memory__Heap_create_array_usz(new_cap);
-compiler__semantic__symbols__IsPatternInfo* values = std__memory__Heap_create_array_compiler__semantic__symbols__IsPatternInfo(new_cap);
-size_t* hashes = std__memory__Heap_create_array_usz(new_cap);
-bool* new_occ = std__memory__Heap_create_array_bool(new_cap);
+size_t* keys = std__memory__Heap_alloc_usz(new_cap);
+compiler__semantic__symbols__IsPatternInfo* values = std__memory__Heap_alloc_compiler__semantic__symbols__IsPatternInfo(new_cap);
+size_t* hashes = std__memory__Heap_alloc_usz(new_cap);
+bool* new_occ = std__memory__Heap_alloc_bool(new_cap);
 {
 size_t __for_e = new_cap;
 size_t __for_i = __for_e;
@@ -56798,7 +56700,7 @@ bool std__collections__List_bool_at(std__collections__List_bool* self, size_t i)
 
 std__collections__List_bool std__collections__List_bool_init(bool* items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-bool* buf = std__memory__Heap_create_array_bool(cap);
+bool* buf = std__memory__Heap_alloc_bool(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -56937,7 +56839,7 @@ self->len++;
 
 std__collections__List_bool std__collections__List_bool_clone(std__collections__List_bool* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_bool res = (std__collections__List_bool){ std__memory__Heap_create_array_bool(cap), 0, cap };
+std__collections__List_bool res = (std__collections__List_bool){ std__memory__Heap_alloc_bool(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_bool_count(self);
 size_t __for_i = 0;
@@ -56976,7 +56878,7 @@ right--;
 }
 
 std__collections__List_bool std__collections__List_bool_sub(std__collections__List_bool* self, size_t start, size_t count) {
-std__collections__List_bool res = (std__collections__List_bool){ std__memory__Heap_create_array_bool(count), 0, count };
+std__collections__List_bool res = (std__collections__List_bool){ std__memory__Heap_alloc_bool(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -57172,17 +57074,17 @@ std__collections__List_bool_remove_at(self, (size_t)idx);
 return true;
 }
 
-struct __lambda_env_82 {
+struct __lambda_env_84 {
     bool value;
 };
 
-static bool __lambda_fn_82(void* __raw_env, bool x) {
-    struct __lambda_env_82* __env = (struct __lambda_env_82*)__raw_env;
+static bool __lambda_fn_84(void* __raw_env, bool x) {
+    struct __lambda_env_84* __env = (struct __lambda_env_84*)__raw_env;
     return (x == (__env->value));
 }
 
 size_t std__collections__List_bool_remove_all(std__collections__List_bool* self, bool value) {
-    return std__collections__List_bool_remove_where(self, (kobel_closure){ (void*)__lambda_fn_82, (void*)&(struct __lambda_env_82){ value } });
+    return std__collections__List_bool_remove_where(self, (kobel_closure){ (void*)__lambda_fn_84, (void*)&(struct __lambda_env_84){ value } });
 }
 
 size_t std__collections__List_bool_remove_where(std__collections__List_bool* self, kobel_closure predicate) {
@@ -57378,7 +57280,7 @@ std__collections__Pair_usz_bool std__collections__List_std__collections__Pair_us
 
 std__collections__List_std__collections__Pair_usz_bool std__collections__List_std__collections__Pair_usz_bool_init(std__collections__Pair_usz_bool* items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-std__collections__Pair_usz_bool* buf = std__memory__Heap_create_array_std__collections__Pair_usz_bool(cap);
+std__collections__Pair_usz_bool* buf = std__memory__Heap_alloc_std__collections__Pair_usz_bool(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -57517,7 +57419,7 @@ self->len++;
 
 std__collections__List_std__collections__Pair_usz_bool std__collections__List_std__collections__Pair_usz_bool_clone(std__collections__List_std__collections__Pair_usz_bool* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_std__collections__Pair_usz_bool res = (std__collections__List_std__collections__Pair_usz_bool){ std__memory__Heap_create_array_std__collections__Pair_usz_bool(cap), 0, cap };
+std__collections__List_std__collections__Pair_usz_bool res = (std__collections__List_std__collections__Pair_usz_bool){ std__memory__Heap_alloc_std__collections__Pair_usz_bool(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_std__collections__Pair_usz_bool_count(self);
 size_t __for_i = 0;
@@ -57556,7 +57458,7 @@ right--;
 }
 
 std__collections__List_std__collections__Pair_usz_bool std__collections__List_std__collections__Pair_usz_bool_sub(std__collections__List_std__collections__Pair_usz_bool* self, size_t start, size_t count) {
-std__collections__List_std__collections__Pair_usz_bool res = (std__collections__List_std__collections__Pair_usz_bool){ std__memory__Heap_create_array_std__collections__Pair_usz_bool(count), 0, count };
+std__collections__List_std__collections__Pair_usz_bool res = (std__collections__List_std__collections__Pair_usz_bool){ std__memory__Heap_alloc_std__collections__Pair_usz_bool(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -57752,17 +57654,17 @@ std__collections__List_std__collections__Pair_usz_bool_remove_at(self, (size_t)i
 return true;
 }
 
-struct __lambda_env_83 {
+struct __lambda_env_85 {
     std__collections__Pair_usz_bool value;
 };
 
-static bool __lambda_fn_83(void* __raw_env, std__collections__Pair_usz_bool x) {
-    struct __lambda_env_83* __env = (struct __lambda_env_83*)__raw_env;
+static bool __lambda_fn_85(void* __raw_env, std__collections__Pair_usz_bool x) {
+    struct __lambda_env_85* __env = (struct __lambda_env_85*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 16);
 }
 
 size_t std__collections__List_std__collections__Pair_usz_bool_remove_all(std__collections__List_std__collections__Pair_usz_bool* self, std__collections__Pair_usz_bool value) {
-    return std__collections__List_std__collections__Pair_usz_bool_remove_where(self, (kobel_closure){ (void*)__lambda_fn_83, (void*)&(struct __lambda_env_83){ value } });
+    return std__collections__List_std__collections__Pair_usz_bool_remove_where(self, (kobel_closure){ (void*)__lambda_fn_85, (void*)&(struct __lambda_env_85){ value } });
 }
 
 size_t std__collections__List_std__collections__Pair_usz_bool_remove_where(std__collections__List_std__collections__Pair_usz_bool* self, kobel_closure predicate) {
@@ -57948,10 +57850,10 @@ size_t cap = init_cap;
 if (cap < 8) {
 cap = 8;
 }
-size_t* keys = std__memory__Heap_create_array_usz(cap);
-bool* values = std__memory__Heap_create_array_bool(cap);
-size_t* hashes = std__memory__Heap_create_array_usz(cap);
-bool* occ = std__memory__Heap_create_array_bool(cap);
+size_t* keys = std__memory__Heap_alloc_usz(cap);
+bool* values = std__memory__Heap_alloc_bool(cap);
+size_t* hashes = std__memory__Heap_alloc_usz(cap);
+bool* occ = std__memory__Heap_alloc_bool(cap);
 {
 size_t __for_e = cap;
 size_t __for_i = __for_e;
@@ -58342,10 +58244,10 @@ bool* old_vals = self->values;
 size_t* old_hashes = self->hashes;
 bool* old_occ = self->occupied;
 size_t new_cap = ((old_cap < 8) ? 16 : (old_cap * 2));
-size_t* keys = std__memory__Heap_create_array_usz(new_cap);
-bool* values = std__memory__Heap_create_array_bool(new_cap);
-size_t* hashes = std__memory__Heap_create_array_usz(new_cap);
-bool* new_occ = std__memory__Heap_create_array_bool(new_cap);
+size_t* keys = std__memory__Heap_alloc_usz(new_cap);
+bool* values = std__memory__Heap_alloc_bool(new_cap);
+size_t* hashes = std__memory__Heap_alloc_usz(new_cap);
+bool* new_occ = std__memory__Heap_alloc_bool(new_cap);
 {
 size_t __for_e = new_cap;
 size_t __for_i = __for_e;
@@ -58536,7 +58438,7 @@ compiler__semantic__symbols__LambdaInfo std__collections__List_compiler__semanti
 
 std__collections__List_compiler__semantic__symbols__LambdaInfo std__collections__List_compiler__semantic__symbols__LambdaInfo_init(compiler__semantic__symbols__LambdaInfo* items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-compiler__semantic__symbols__LambdaInfo* buf = std__memory__Heap_create_array_compiler__semantic__symbols__LambdaInfo(cap);
+compiler__semantic__symbols__LambdaInfo* buf = std__memory__Heap_alloc_compiler__semantic__symbols__LambdaInfo(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -58675,7 +58577,7 @@ self->len++;
 
 std__collections__List_compiler__semantic__symbols__LambdaInfo std__collections__List_compiler__semantic__symbols__LambdaInfo_clone(std__collections__List_compiler__semantic__symbols__LambdaInfo* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_compiler__semantic__symbols__LambdaInfo res = (std__collections__List_compiler__semantic__symbols__LambdaInfo){ std__memory__Heap_create_array_compiler__semantic__symbols__LambdaInfo(cap), 0, cap };
+std__collections__List_compiler__semantic__symbols__LambdaInfo res = (std__collections__List_compiler__semantic__symbols__LambdaInfo){ std__memory__Heap_alloc_compiler__semantic__symbols__LambdaInfo(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_compiler__semantic__symbols__LambdaInfo_count(self);
 size_t __for_i = 0;
@@ -58714,7 +58616,7 @@ right--;
 }
 
 std__collections__List_compiler__semantic__symbols__LambdaInfo std__collections__List_compiler__semantic__symbols__LambdaInfo_sub(std__collections__List_compiler__semantic__symbols__LambdaInfo* self, size_t start, size_t count) {
-std__collections__List_compiler__semantic__symbols__LambdaInfo res = (std__collections__List_compiler__semantic__symbols__LambdaInfo){ std__memory__Heap_create_array_compiler__semantic__symbols__LambdaInfo(count), 0, count };
+std__collections__List_compiler__semantic__symbols__LambdaInfo res = (std__collections__List_compiler__semantic__symbols__LambdaInfo){ std__memory__Heap_alloc_compiler__semantic__symbols__LambdaInfo(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -58910,17 +58812,17 @@ std__collections__List_compiler__semantic__symbols__LambdaInfo_remove_at(self, (
 return true;
 }
 
-struct __lambda_env_84 {
+struct __lambda_env_86 {
     compiler__semantic__symbols__LambdaInfo value;
 };
 
-static bool __lambda_fn_84(void* __raw_env, compiler__semantic__symbols__LambdaInfo x) {
-    struct __lambda_env_84* __env = (struct __lambda_env_84*)__raw_env;
+static bool __lambda_fn_86(void* __raw_env, compiler__semantic__symbols__LambdaInfo x) {
+    struct __lambda_env_86* __env = (struct __lambda_env_86*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 40);
 }
 
 size_t std__collections__List_compiler__semantic__symbols__LambdaInfo_remove_all(std__collections__List_compiler__semantic__symbols__LambdaInfo* self, compiler__semantic__symbols__LambdaInfo value) {
-    return std__collections__List_compiler__semantic__symbols__LambdaInfo_remove_where(self, (kobel_closure){ (void*)__lambda_fn_84, (void*)&(struct __lambda_env_84){ value } });
+    return std__collections__List_compiler__semantic__symbols__LambdaInfo_remove_where(self, (kobel_closure){ (void*)__lambda_fn_86, (void*)&(struct __lambda_env_86){ value } });
 }
 
 size_t std__collections__List_compiler__semantic__symbols__LambdaInfo_remove_where(std__collections__List_compiler__semantic__symbols__LambdaInfo* self, kobel_closure predicate) {
@@ -59116,7 +59018,7 @@ std__collections__Pair_usz_compiler__semantic__symbols__LambdaInfo std__collecti
 
 std__collections__List_std__collections__Pair_usz_compiler__semantic__symbols__LambdaInfo std__collections__List_std__collections__Pair_usz_compiler__semantic__symbols__LambdaInfo_init(std__collections__Pair_usz_compiler__semantic__symbols__LambdaInfo* items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-std__collections__Pair_usz_compiler__semantic__symbols__LambdaInfo* buf = std__memory__Heap_create_array_std__collections__Pair_usz_compiler__semantic__symbols__LambdaInfo(cap);
+std__collections__Pair_usz_compiler__semantic__symbols__LambdaInfo* buf = std__memory__Heap_alloc_std__collections__Pair_usz_compiler__semantic__symbols__LambdaInfo(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -59255,7 +59157,7 @@ self->len++;
 
 std__collections__List_std__collections__Pair_usz_compiler__semantic__symbols__LambdaInfo std__collections__List_std__collections__Pair_usz_compiler__semantic__symbols__LambdaInfo_clone(std__collections__List_std__collections__Pair_usz_compiler__semantic__symbols__LambdaInfo* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_std__collections__Pair_usz_compiler__semantic__symbols__LambdaInfo res = (std__collections__List_std__collections__Pair_usz_compiler__semantic__symbols__LambdaInfo){ std__memory__Heap_create_array_std__collections__Pair_usz_compiler__semantic__symbols__LambdaInfo(cap), 0, cap };
+std__collections__List_std__collections__Pair_usz_compiler__semantic__symbols__LambdaInfo res = (std__collections__List_std__collections__Pair_usz_compiler__semantic__symbols__LambdaInfo){ std__memory__Heap_alloc_std__collections__Pair_usz_compiler__semantic__symbols__LambdaInfo(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_std__collections__Pair_usz_compiler__semantic__symbols__LambdaInfo_count(self);
 size_t __for_i = 0;
@@ -59294,7 +59196,7 @@ right--;
 }
 
 std__collections__List_std__collections__Pair_usz_compiler__semantic__symbols__LambdaInfo std__collections__List_std__collections__Pair_usz_compiler__semantic__symbols__LambdaInfo_sub(std__collections__List_std__collections__Pair_usz_compiler__semantic__symbols__LambdaInfo* self, size_t start, size_t count) {
-std__collections__List_std__collections__Pair_usz_compiler__semantic__symbols__LambdaInfo res = (std__collections__List_std__collections__Pair_usz_compiler__semantic__symbols__LambdaInfo){ std__memory__Heap_create_array_std__collections__Pair_usz_compiler__semantic__symbols__LambdaInfo(count), 0, count };
+std__collections__List_std__collections__Pair_usz_compiler__semantic__symbols__LambdaInfo res = (std__collections__List_std__collections__Pair_usz_compiler__semantic__symbols__LambdaInfo){ std__memory__Heap_alloc_std__collections__Pair_usz_compiler__semantic__symbols__LambdaInfo(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -59490,17 +59392,17 @@ std__collections__List_std__collections__Pair_usz_compiler__semantic__symbols__L
 return true;
 }
 
-struct __lambda_env_85 {
+struct __lambda_env_87 {
     std__collections__Pair_usz_compiler__semantic__symbols__LambdaInfo value;
 };
 
-static bool __lambda_fn_85(void* __raw_env, std__collections__Pair_usz_compiler__semantic__symbols__LambdaInfo x) {
-    struct __lambda_env_85* __env = (struct __lambda_env_85*)__raw_env;
+static bool __lambda_fn_87(void* __raw_env, std__collections__Pair_usz_compiler__semantic__symbols__LambdaInfo x) {
+    struct __lambda_env_87* __env = (struct __lambda_env_87*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 48);
 }
 
 size_t std__collections__List_std__collections__Pair_usz_compiler__semantic__symbols__LambdaInfo_remove_all(std__collections__List_std__collections__Pair_usz_compiler__semantic__symbols__LambdaInfo* self, std__collections__Pair_usz_compiler__semantic__symbols__LambdaInfo value) {
-    return std__collections__List_std__collections__Pair_usz_compiler__semantic__symbols__LambdaInfo_remove_where(self, (kobel_closure){ (void*)__lambda_fn_85, (void*)&(struct __lambda_env_85){ value } });
+    return std__collections__List_std__collections__Pair_usz_compiler__semantic__symbols__LambdaInfo_remove_where(self, (kobel_closure){ (void*)__lambda_fn_87, (void*)&(struct __lambda_env_87){ value } });
 }
 
 size_t std__collections__List_std__collections__Pair_usz_compiler__semantic__symbols__LambdaInfo_remove_where(std__collections__List_std__collections__Pair_usz_compiler__semantic__symbols__LambdaInfo* self, kobel_closure predicate) {
@@ -59686,10 +59588,10 @@ size_t cap = init_cap;
 if (cap < 8) {
 cap = 8;
 }
-size_t* keys = std__memory__Heap_create_array_usz(cap);
-compiler__semantic__symbols__LambdaInfo* values = std__memory__Heap_create_array_compiler__semantic__symbols__LambdaInfo(cap);
-size_t* hashes = std__memory__Heap_create_array_usz(cap);
-bool* occ = std__memory__Heap_create_array_bool(cap);
+size_t* keys = std__memory__Heap_alloc_usz(cap);
+compiler__semantic__symbols__LambdaInfo* values = std__memory__Heap_alloc_compiler__semantic__symbols__LambdaInfo(cap);
+size_t* hashes = std__memory__Heap_alloc_usz(cap);
+bool* occ = std__memory__Heap_alloc_bool(cap);
 {
 size_t __for_e = cap;
 size_t __for_i = __for_e;
@@ -60080,10 +59982,10 @@ compiler__semantic__symbols__LambdaInfo* old_vals = self->values;
 size_t* old_hashes = self->hashes;
 bool* old_occ = self->occupied;
 size_t new_cap = ((old_cap < 8) ? 16 : (old_cap * 2));
-size_t* keys = std__memory__Heap_create_array_usz(new_cap);
-compiler__semantic__symbols__LambdaInfo* values = std__memory__Heap_create_array_compiler__semantic__symbols__LambdaInfo(new_cap);
-size_t* hashes = std__memory__Heap_create_array_usz(new_cap);
-bool* new_occ = std__memory__Heap_create_array_bool(new_cap);
+size_t* keys = std__memory__Heap_alloc_usz(new_cap);
+compiler__semantic__symbols__LambdaInfo* values = std__memory__Heap_alloc_compiler__semantic__symbols__LambdaInfo(new_cap);
+size_t* hashes = std__memory__Heap_alloc_usz(new_cap);
+bool* new_occ = std__memory__Heap_alloc_bool(new_cap);
 {
 size_t __for_e = new_cap;
 size_t __for_i = __for_e;
@@ -60274,7 +60176,7 @@ compiler__semantic__symbols__AnnotationEntry* std__collections__List_ptr_compile
 
 std__collections__List_ptr_compiler__semantic__symbols__AnnotationEntry std__collections__List_ptr_compiler__semantic__symbols__AnnotationEntry_init(compiler__semantic__symbols__AnnotationEntry** items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-compiler__semantic__symbols__AnnotationEntry** buf = std__memory__Heap_create_array_ptr_compiler__semantic__symbols__AnnotationEntry(cap);
+compiler__semantic__symbols__AnnotationEntry** buf = std__memory__Heap_alloc_ptr_compiler__semantic__symbols__AnnotationEntry(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -60413,7 +60315,7 @@ self->len++;
 
 std__collections__List_ptr_compiler__semantic__symbols__AnnotationEntry std__collections__List_ptr_compiler__semantic__symbols__AnnotationEntry_clone(std__collections__List_ptr_compiler__semantic__symbols__AnnotationEntry* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_ptr_compiler__semantic__symbols__AnnotationEntry res = (std__collections__List_ptr_compiler__semantic__symbols__AnnotationEntry){ std__memory__Heap_create_array_ptr_compiler__semantic__symbols__AnnotationEntry(cap), 0, cap };
+std__collections__List_ptr_compiler__semantic__symbols__AnnotationEntry res = (std__collections__List_ptr_compiler__semantic__symbols__AnnotationEntry){ std__memory__Heap_alloc_ptr_compiler__semantic__symbols__AnnotationEntry(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_ptr_compiler__semantic__symbols__AnnotationEntry_count(self);
 size_t __for_i = 0;
@@ -60452,7 +60354,7 @@ right--;
 }
 
 std__collections__List_ptr_compiler__semantic__symbols__AnnotationEntry std__collections__List_ptr_compiler__semantic__symbols__AnnotationEntry_sub(std__collections__List_ptr_compiler__semantic__symbols__AnnotationEntry* self, size_t start, size_t count) {
-std__collections__List_ptr_compiler__semantic__symbols__AnnotationEntry res = (std__collections__List_ptr_compiler__semantic__symbols__AnnotationEntry){ std__memory__Heap_create_array_ptr_compiler__semantic__symbols__AnnotationEntry(count), 0, count };
+std__collections__List_ptr_compiler__semantic__symbols__AnnotationEntry res = (std__collections__List_ptr_compiler__semantic__symbols__AnnotationEntry){ std__memory__Heap_alloc_ptr_compiler__semantic__symbols__AnnotationEntry(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -60648,17 +60550,17 @@ std__collections__List_ptr_compiler__semantic__symbols__AnnotationEntry_remove_a
 return true;
 }
 
-struct __lambda_env_86 {
+struct __lambda_env_88 {
     compiler__semantic__symbols__AnnotationEntry* value;
 };
 
-static bool __lambda_fn_86(void* __raw_env, compiler__semantic__symbols__AnnotationEntry* x) {
-    struct __lambda_env_86* __env = (struct __lambda_env_86*)__raw_env;
+static bool __lambda_fn_88(void* __raw_env, compiler__semantic__symbols__AnnotationEntry* x) {
+    struct __lambda_env_88* __env = (struct __lambda_env_88*)__raw_env;
     return (x == (__env->value));
 }
 
 size_t std__collections__List_ptr_compiler__semantic__symbols__AnnotationEntry_remove_all(std__collections__List_ptr_compiler__semantic__symbols__AnnotationEntry* self, compiler__semantic__symbols__AnnotationEntry* value) {
-    return std__collections__List_ptr_compiler__semantic__symbols__AnnotationEntry_remove_where(self, (kobel_closure){ (void*)__lambda_fn_86, (void*)&(struct __lambda_env_86){ value } });
+    return std__collections__List_ptr_compiler__semantic__symbols__AnnotationEntry_remove_where(self, (kobel_closure){ (void*)__lambda_fn_88, (void*)&(struct __lambda_env_88){ value } });
 }
 
 size_t std__collections__List_ptr_compiler__semantic__symbols__AnnotationEntry_remove_where(std__collections__List_ptr_compiler__semantic__symbols__AnnotationEntry* self, kobel_closure predicate) {
@@ -60854,7 +60756,7 @@ std__collections__Pair_usz_ptr_compiler__semantic__symbols__AnnotationEntry std_
 
 std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__symbols__AnnotationEntry std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__symbols__AnnotationEntry_init(std__collections__Pair_usz_ptr_compiler__semantic__symbols__AnnotationEntry* items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-std__collections__Pair_usz_ptr_compiler__semantic__symbols__AnnotationEntry* buf = std__memory__Heap_create_array_std__collections__Pair_usz_ptr_compiler__semantic__symbols__AnnotationEntry(cap);
+std__collections__Pair_usz_ptr_compiler__semantic__symbols__AnnotationEntry* buf = std__memory__Heap_alloc_std__collections__Pair_usz_ptr_compiler__semantic__symbols__AnnotationEntry(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -60993,7 +60895,7 @@ self->len++;
 
 std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__symbols__AnnotationEntry std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__symbols__AnnotationEntry_clone(std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__symbols__AnnotationEntry* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__symbols__AnnotationEntry res = (std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__symbols__AnnotationEntry){ std__memory__Heap_create_array_std__collections__Pair_usz_ptr_compiler__semantic__symbols__AnnotationEntry(cap), 0, cap };
+std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__symbols__AnnotationEntry res = (std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__symbols__AnnotationEntry){ std__memory__Heap_alloc_std__collections__Pair_usz_ptr_compiler__semantic__symbols__AnnotationEntry(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__symbols__AnnotationEntry_count(self);
 size_t __for_i = 0;
@@ -61032,7 +60934,7 @@ right--;
 }
 
 std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__symbols__AnnotationEntry std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__symbols__AnnotationEntry_sub(std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__symbols__AnnotationEntry* self, size_t start, size_t count) {
-std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__symbols__AnnotationEntry res = (std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__symbols__AnnotationEntry){ std__memory__Heap_create_array_std__collections__Pair_usz_ptr_compiler__semantic__symbols__AnnotationEntry(count), 0, count };
+std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__symbols__AnnotationEntry res = (std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__symbols__AnnotationEntry){ std__memory__Heap_alloc_std__collections__Pair_usz_ptr_compiler__semantic__symbols__AnnotationEntry(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -61228,17 +61130,17 @@ std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__symbol
 return true;
 }
 
-struct __lambda_env_87 {
+struct __lambda_env_89 {
     std__collections__Pair_usz_ptr_compiler__semantic__symbols__AnnotationEntry value;
 };
 
-static bool __lambda_fn_87(void* __raw_env, std__collections__Pair_usz_ptr_compiler__semantic__symbols__AnnotationEntry x) {
-    struct __lambda_env_87* __env = (struct __lambda_env_87*)__raw_env;
+static bool __lambda_fn_89(void* __raw_env, std__collections__Pair_usz_ptr_compiler__semantic__symbols__AnnotationEntry x) {
+    struct __lambda_env_89* __env = (struct __lambda_env_89*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 16);
 }
 
 size_t std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__symbols__AnnotationEntry_remove_all(std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__symbols__AnnotationEntry* self, std__collections__Pair_usz_ptr_compiler__semantic__symbols__AnnotationEntry value) {
-    return std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__symbols__AnnotationEntry_remove_where(self, (kobel_closure){ (void*)__lambda_fn_87, (void*)&(struct __lambda_env_87){ value } });
+    return std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__symbols__AnnotationEntry_remove_where(self, (kobel_closure){ (void*)__lambda_fn_89, (void*)&(struct __lambda_env_89){ value } });
 }
 
 size_t std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__symbols__AnnotationEntry_remove_where(std__collections__List_std__collections__Pair_usz_ptr_compiler__semantic__symbols__AnnotationEntry* self, kobel_closure predicate) {
@@ -61424,10 +61326,10 @@ size_t cap = init_cap;
 if (cap < 8) {
 cap = 8;
 }
-size_t* keys = std__memory__Heap_create_array_usz(cap);
-compiler__semantic__symbols__AnnotationEntry** values = std__memory__Heap_create_array_ptr_compiler__semantic__symbols__AnnotationEntry(cap);
-size_t* hashes = std__memory__Heap_create_array_usz(cap);
-bool* occ = std__memory__Heap_create_array_bool(cap);
+size_t* keys = std__memory__Heap_alloc_usz(cap);
+compiler__semantic__symbols__AnnotationEntry** values = std__memory__Heap_alloc_ptr_compiler__semantic__symbols__AnnotationEntry(cap);
+size_t* hashes = std__memory__Heap_alloc_usz(cap);
+bool* occ = std__memory__Heap_alloc_bool(cap);
 {
 size_t __for_e = cap;
 size_t __for_i = __for_e;
@@ -61818,10 +61720,10 @@ compiler__semantic__symbols__AnnotationEntry** old_vals = self->values;
 size_t* old_hashes = self->hashes;
 bool* old_occ = self->occupied;
 size_t new_cap = ((old_cap < 8) ? 16 : (old_cap * 2));
-size_t* keys = std__memory__Heap_create_array_usz(new_cap);
-compiler__semantic__symbols__AnnotationEntry** values = std__memory__Heap_create_array_ptr_compiler__semantic__symbols__AnnotationEntry(new_cap);
-size_t* hashes = std__memory__Heap_create_array_usz(new_cap);
-bool* new_occ = std__memory__Heap_create_array_bool(new_cap);
+size_t* keys = std__memory__Heap_alloc_usz(new_cap);
+compiler__semantic__symbols__AnnotationEntry** values = std__memory__Heap_alloc_ptr_compiler__semantic__symbols__AnnotationEntry(new_cap);
+size_t* hashes = std__memory__Heap_alloc_usz(new_cap);
+bool* new_occ = std__memory__Heap_alloc_bool(new_cap);
 {
 size_t __for_e = new_cap;
 size_t __for_i = __for_e;
@@ -62012,7 +61914,7 @@ compiler__semantic__symbols__GenericTemplate* std__collections__List_ptr_compile
 
 std__collections__List_ptr_compiler__semantic__symbols__GenericTemplate std__collections__List_ptr_compiler__semantic__symbols__GenericTemplate_init(compiler__semantic__symbols__GenericTemplate** items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-compiler__semantic__symbols__GenericTemplate** buf = std__memory__Heap_create_array_ptr_compiler__semantic__symbols__GenericTemplate(cap);
+compiler__semantic__symbols__GenericTemplate** buf = std__memory__Heap_alloc_ptr_compiler__semantic__symbols__GenericTemplate(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -62151,7 +62053,7 @@ self->len++;
 
 std__collections__List_ptr_compiler__semantic__symbols__GenericTemplate std__collections__List_ptr_compiler__semantic__symbols__GenericTemplate_clone(std__collections__List_ptr_compiler__semantic__symbols__GenericTemplate* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_ptr_compiler__semantic__symbols__GenericTemplate res = (std__collections__List_ptr_compiler__semantic__symbols__GenericTemplate){ std__memory__Heap_create_array_ptr_compiler__semantic__symbols__GenericTemplate(cap), 0, cap };
+std__collections__List_ptr_compiler__semantic__symbols__GenericTemplate res = (std__collections__List_ptr_compiler__semantic__symbols__GenericTemplate){ std__memory__Heap_alloc_ptr_compiler__semantic__symbols__GenericTemplate(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_ptr_compiler__semantic__symbols__GenericTemplate_count(self);
 size_t __for_i = 0;
@@ -62190,7 +62092,7 @@ right--;
 }
 
 std__collections__List_ptr_compiler__semantic__symbols__GenericTemplate std__collections__List_ptr_compiler__semantic__symbols__GenericTemplate_sub(std__collections__List_ptr_compiler__semantic__symbols__GenericTemplate* self, size_t start, size_t count) {
-std__collections__List_ptr_compiler__semantic__symbols__GenericTemplate res = (std__collections__List_ptr_compiler__semantic__symbols__GenericTemplate){ std__memory__Heap_create_array_ptr_compiler__semantic__symbols__GenericTemplate(count), 0, count };
+std__collections__List_ptr_compiler__semantic__symbols__GenericTemplate res = (std__collections__List_ptr_compiler__semantic__symbols__GenericTemplate){ std__memory__Heap_alloc_ptr_compiler__semantic__symbols__GenericTemplate(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -62386,17 +62288,17 @@ std__collections__List_ptr_compiler__semantic__symbols__GenericTemplate_remove_a
 return true;
 }
 
-struct __lambda_env_88 {
+struct __lambda_env_90 {
     compiler__semantic__symbols__GenericTemplate* value;
 };
 
-static bool __lambda_fn_88(void* __raw_env, compiler__semantic__symbols__GenericTemplate* x) {
-    struct __lambda_env_88* __env = (struct __lambda_env_88*)__raw_env;
+static bool __lambda_fn_90(void* __raw_env, compiler__semantic__symbols__GenericTemplate* x) {
+    struct __lambda_env_90* __env = (struct __lambda_env_90*)__raw_env;
     return (x == (__env->value));
 }
 
 size_t std__collections__List_ptr_compiler__semantic__symbols__GenericTemplate_remove_all(std__collections__List_ptr_compiler__semantic__symbols__GenericTemplate* self, compiler__semantic__symbols__GenericTemplate* value) {
-    return std__collections__List_ptr_compiler__semantic__symbols__GenericTemplate_remove_where(self, (kobel_closure){ (void*)__lambda_fn_88, (void*)&(struct __lambda_env_88){ value } });
+    return std__collections__List_ptr_compiler__semantic__symbols__GenericTemplate_remove_where(self, (kobel_closure){ (void*)__lambda_fn_90, (void*)&(struct __lambda_env_90){ value } });
 }
 
 size_t std__collections__List_ptr_compiler__semantic__symbols__GenericTemplate_remove_where(std__collections__List_ptr_compiler__semantic__symbols__GenericTemplate* self, kobel_closure predicate) {
@@ -62587,7 +62489,7 @@ compiler__semantic__symbols__Symbol* std__collections__List_ptr_compiler__semant
 
 std__collections__List_ptr_compiler__semantic__symbols__Symbol std__collections__List_ptr_compiler__semantic__symbols__Symbol_init(compiler__semantic__symbols__Symbol** items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-compiler__semantic__symbols__Symbol** buf = std__memory__Heap_create_array_ptr_compiler__semantic__symbols__Symbol(cap);
+compiler__semantic__symbols__Symbol** buf = std__memory__Heap_alloc_ptr_compiler__semantic__symbols__Symbol(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -62726,7 +62628,7 @@ self->len++;
 
 std__collections__List_ptr_compiler__semantic__symbols__Symbol std__collections__List_ptr_compiler__semantic__symbols__Symbol_clone(std__collections__List_ptr_compiler__semantic__symbols__Symbol* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_ptr_compiler__semantic__symbols__Symbol res = (std__collections__List_ptr_compiler__semantic__symbols__Symbol){ std__memory__Heap_create_array_ptr_compiler__semantic__symbols__Symbol(cap), 0, cap };
+std__collections__List_ptr_compiler__semantic__symbols__Symbol res = (std__collections__List_ptr_compiler__semantic__symbols__Symbol){ std__memory__Heap_alloc_ptr_compiler__semantic__symbols__Symbol(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_ptr_compiler__semantic__symbols__Symbol_count(self);
 size_t __for_i = 0;
@@ -62765,7 +62667,7 @@ right--;
 }
 
 std__collections__List_ptr_compiler__semantic__symbols__Symbol std__collections__List_ptr_compiler__semantic__symbols__Symbol_sub(std__collections__List_ptr_compiler__semantic__symbols__Symbol* self, size_t start, size_t count) {
-std__collections__List_ptr_compiler__semantic__symbols__Symbol res = (std__collections__List_ptr_compiler__semantic__symbols__Symbol){ std__memory__Heap_create_array_ptr_compiler__semantic__symbols__Symbol(count), 0, count };
+std__collections__List_ptr_compiler__semantic__symbols__Symbol res = (std__collections__List_ptr_compiler__semantic__symbols__Symbol){ std__memory__Heap_alloc_ptr_compiler__semantic__symbols__Symbol(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -62961,17 +62863,17 @@ std__collections__List_ptr_compiler__semantic__symbols__Symbol_remove_at(self, (
 return true;
 }
 
-struct __lambda_env_89 {
+struct __lambda_env_91 {
     compiler__semantic__symbols__Symbol* value;
 };
 
-static bool __lambda_fn_89(void* __raw_env, compiler__semantic__symbols__Symbol* x) {
-    struct __lambda_env_89* __env = (struct __lambda_env_89*)__raw_env;
+static bool __lambda_fn_91(void* __raw_env, compiler__semantic__symbols__Symbol* x) {
+    struct __lambda_env_91* __env = (struct __lambda_env_91*)__raw_env;
     return (x == (__env->value));
 }
 
 size_t std__collections__List_ptr_compiler__semantic__symbols__Symbol_remove_all(std__collections__List_ptr_compiler__semantic__symbols__Symbol* self, compiler__semantic__symbols__Symbol* value) {
-    return std__collections__List_ptr_compiler__semantic__symbols__Symbol_remove_where(self, (kobel_closure){ (void*)__lambda_fn_89, (void*)&(struct __lambda_env_89){ value } });
+    return std__collections__List_ptr_compiler__semantic__symbols__Symbol_remove_where(self, (kobel_closure){ (void*)__lambda_fn_91, (void*)&(struct __lambda_env_91){ value } });
 }
 
 size_t std__collections__List_ptr_compiler__semantic__symbols__Symbol_remove_where(std__collections__List_ptr_compiler__semantic__symbols__Symbol* self, kobel_closure predicate) {
@@ -63167,7 +63069,7 @@ std__collections__Pair_str_ptr_compiler__semantic__symbols__Symbol std__collecti
 
 std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__Symbol std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__Symbol_init(std__collections__Pair_str_ptr_compiler__semantic__symbols__Symbol* items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-std__collections__Pair_str_ptr_compiler__semantic__symbols__Symbol* buf = std__memory__Heap_create_array_std__collections__Pair_str_ptr_compiler__semantic__symbols__Symbol(cap);
+std__collections__Pair_str_ptr_compiler__semantic__symbols__Symbol* buf = std__memory__Heap_alloc_std__collections__Pair_str_ptr_compiler__semantic__symbols__Symbol(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -63306,7 +63208,7 @@ self->len++;
 
 std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__Symbol std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__Symbol_clone(std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__Symbol* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__Symbol res = (std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__Symbol){ std__memory__Heap_create_array_std__collections__Pair_str_ptr_compiler__semantic__symbols__Symbol(cap), 0, cap };
+std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__Symbol res = (std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__Symbol){ std__memory__Heap_alloc_std__collections__Pair_str_ptr_compiler__semantic__symbols__Symbol(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__Symbol_count(self);
 size_t __for_i = 0;
@@ -63345,7 +63247,7 @@ right--;
 }
 
 std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__Symbol std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__Symbol_sub(std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__Symbol* self, size_t start, size_t count) {
-std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__Symbol res = (std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__Symbol){ std__memory__Heap_create_array_std__collections__Pair_str_ptr_compiler__semantic__symbols__Symbol(count), 0, count };
+std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__Symbol res = (std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__Symbol){ std__memory__Heap_alloc_std__collections__Pair_str_ptr_compiler__semantic__symbols__Symbol(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -63541,17 +63443,17 @@ std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbol
 return true;
 }
 
-struct __lambda_env_90 {
+struct __lambda_env_92 {
     std__collections__Pair_str_ptr_compiler__semantic__symbols__Symbol value;
 };
 
-static bool __lambda_fn_90(void* __raw_env, std__collections__Pair_str_ptr_compiler__semantic__symbols__Symbol x) {
-    struct __lambda_env_90* __env = (struct __lambda_env_90*)__raw_env;
+static bool __lambda_fn_92(void* __raw_env, std__collections__Pair_str_ptr_compiler__semantic__symbols__Symbol x) {
+    struct __lambda_env_92* __env = (struct __lambda_env_92*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 24);
 }
 
 size_t std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__Symbol_remove_all(std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__Symbol* self, std__collections__Pair_str_ptr_compiler__semantic__symbols__Symbol value) {
-    return std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__Symbol_remove_where(self, (kobel_closure){ (void*)__lambda_fn_90, (void*)&(struct __lambda_env_90){ value } });
+    return std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__Symbol_remove_where(self, (kobel_closure){ (void*)__lambda_fn_92, (void*)&(struct __lambda_env_92){ value } });
 }
 
 size_t std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__Symbol_remove_where(std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__Symbol* self, kobel_closure predicate) {
@@ -63737,10 +63639,10 @@ size_t cap = init_cap;
 if (cap < 8) {
 cap = 8;
 }
-kobel_str* keys = std__memory__Heap_create_array_str(cap);
-compiler__semantic__symbols__Symbol** values = std__memory__Heap_create_array_ptr_compiler__semantic__symbols__Symbol(cap);
-size_t* hashes = std__memory__Heap_create_array_usz(cap);
-bool* occ = std__memory__Heap_create_array_bool(cap);
+kobel_str* keys = std__memory__Heap_alloc_str(cap);
+compiler__semantic__symbols__Symbol** values = std__memory__Heap_alloc_ptr_compiler__semantic__symbols__Symbol(cap);
+size_t* hashes = std__memory__Heap_alloc_usz(cap);
+bool* occ = std__memory__Heap_alloc_bool(cap);
 {
 size_t __for_e = cap;
 size_t __for_i = __for_e;
@@ -64131,10 +64033,10 @@ compiler__semantic__symbols__Symbol** old_vals = self->values;
 size_t* old_hashes = self->hashes;
 bool* old_occ = self->occupied;
 size_t new_cap = ((old_cap < 8) ? 16 : (old_cap * 2));
-kobel_str* keys = std__memory__Heap_create_array_str(new_cap);
-compiler__semantic__symbols__Symbol** values = std__memory__Heap_create_array_ptr_compiler__semantic__symbols__Symbol(new_cap);
-size_t* hashes = std__memory__Heap_create_array_usz(new_cap);
-bool* new_occ = std__memory__Heap_create_array_bool(new_cap);
+kobel_str* keys = std__memory__Heap_alloc_str(new_cap);
+compiler__semantic__symbols__Symbol** values = std__memory__Heap_alloc_ptr_compiler__semantic__symbols__Symbol(new_cap);
+size_t* hashes = std__memory__Heap_alloc_usz(new_cap);
+bool* new_occ = std__memory__Heap_alloc_bool(new_cap);
 {
 size_t __for_e = new_cap;
 size_t __for_i = __for_e;
@@ -64330,7 +64232,7 @@ std__collections__Pair_str_ptr_compiler__semantic__symbols__InstanceRecord std__
 
 std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__InstanceRecord std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__InstanceRecord_init(std__collections__Pair_str_ptr_compiler__semantic__symbols__InstanceRecord* items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-std__collections__Pair_str_ptr_compiler__semantic__symbols__InstanceRecord* buf = std__memory__Heap_create_array_std__collections__Pair_str_ptr_compiler__semantic__symbols__InstanceRecord(cap);
+std__collections__Pair_str_ptr_compiler__semantic__symbols__InstanceRecord* buf = std__memory__Heap_alloc_std__collections__Pair_str_ptr_compiler__semantic__symbols__InstanceRecord(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -64469,7 +64371,7 @@ self->len++;
 
 std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__InstanceRecord std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__InstanceRecord_clone(std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__InstanceRecord* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__InstanceRecord res = (std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__InstanceRecord){ std__memory__Heap_create_array_std__collections__Pair_str_ptr_compiler__semantic__symbols__InstanceRecord(cap), 0, cap };
+std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__InstanceRecord res = (std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__InstanceRecord){ std__memory__Heap_alloc_std__collections__Pair_str_ptr_compiler__semantic__symbols__InstanceRecord(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__InstanceRecord_count(self);
 size_t __for_i = 0;
@@ -64508,7 +64410,7 @@ right--;
 }
 
 std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__InstanceRecord std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__InstanceRecord_sub(std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__InstanceRecord* self, size_t start, size_t count) {
-std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__InstanceRecord res = (std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__InstanceRecord){ std__memory__Heap_create_array_std__collections__Pair_str_ptr_compiler__semantic__symbols__InstanceRecord(count), 0, count };
+std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__InstanceRecord res = (std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__InstanceRecord){ std__memory__Heap_alloc_std__collections__Pair_str_ptr_compiler__semantic__symbols__InstanceRecord(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -64704,17 +64606,17 @@ std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbol
 return true;
 }
 
-struct __lambda_env_91 {
+struct __lambda_env_93 {
     std__collections__Pair_str_ptr_compiler__semantic__symbols__InstanceRecord value;
 };
 
-static bool __lambda_fn_91(void* __raw_env, std__collections__Pair_str_ptr_compiler__semantic__symbols__InstanceRecord x) {
-    struct __lambda_env_91* __env = (struct __lambda_env_91*)__raw_env;
+static bool __lambda_fn_93(void* __raw_env, std__collections__Pair_str_ptr_compiler__semantic__symbols__InstanceRecord x) {
+    struct __lambda_env_93* __env = (struct __lambda_env_93*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 24);
 }
 
 size_t std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__InstanceRecord_remove_all(std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__InstanceRecord* self, std__collections__Pair_str_ptr_compiler__semantic__symbols__InstanceRecord value) {
-    return std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__InstanceRecord_remove_where(self, (kobel_closure){ (void*)__lambda_fn_91, (void*)&(struct __lambda_env_91){ value } });
+    return std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__InstanceRecord_remove_where(self, (kobel_closure){ (void*)__lambda_fn_93, (void*)&(struct __lambda_env_93){ value } });
 }
 
 size_t std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__InstanceRecord_remove_where(std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__InstanceRecord* self, kobel_closure predicate) {
@@ -64900,10 +64802,10 @@ size_t cap = init_cap;
 if (cap < 8) {
 cap = 8;
 }
-kobel_str* keys = std__memory__Heap_create_array_str(cap);
-compiler__semantic__symbols__InstanceRecord** values = std__memory__Heap_create_array_ptr_compiler__semantic__symbols__InstanceRecord(cap);
-size_t* hashes = std__memory__Heap_create_array_usz(cap);
-bool* occ = std__memory__Heap_create_array_bool(cap);
+kobel_str* keys = std__memory__Heap_alloc_str(cap);
+compiler__semantic__symbols__InstanceRecord** values = std__memory__Heap_alloc_ptr_compiler__semantic__symbols__InstanceRecord(cap);
+size_t* hashes = std__memory__Heap_alloc_usz(cap);
+bool* occ = std__memory__Heap_alloc_bool(cap);
 {
 size_t __for_e = cap;
 size_t __for_i = __for_e;
@@ -65294,10 +65196,10 @@ compiler__semantic__symbols__InstanceRecord** old_vals = self->values;
 size_t* old_hashes = self->hashes;
 bool* old_occ = self->occupied;
 size_t new_cap = ((old_cap < 8) ? 16 : (old_cap * 2));
-kobel_str* keys = std__memory__Heap_create_array_str(new_cap);
-compiler__semantic__symbols__InstanceRecord** values = std__memory__Heap_create_array_ptr_compiler__semantic__symbols__InstanceRecord(new_cap);
-size_t* hashes = std__memory__Heap_create_array_usz(new_cap);
-bool* new_occ = std__memory__Heap_create_array_bool(new_cap);
+kobel_str* keys = std__memory__Heap_alloc_str(new_cap);
+compiler__semantic__symbols__InstanceRecord** values = std__memory__Heap_alloc_ptr_compiler__semantic__symbols__InstanceRecord(new_cap);
+size_t* hashes = std__memory__Heap_alloc_usz(new_cap);
+bool* new_occ = std__memory__Heap_alloc_bool(new_cap);
 {
 size_t __for_e = new_cap;
 size_t __for_i = __for_e;
@@ -65488,7 +65390,7 @@ compiler__semantic__symbols__ModuleScope* std__collections__List_ptr_compiler__s
 
 std__collections__List_ptr_compiler__semantic__symbols__ModuleScope std__collections__List_ptr_compiler__semantic__symbols__ModuleScope_init(compiler__semantic__symbols__ModuleScope** items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-compiler__semantic__symbols__ModuleScope** buf = std__memory__Heap_create_array_ptr_compiler__semantic__symbols__ModuleScope(cap);
+compiler__semantic__symbols__ModuleScope** buf = std__memory__Heap_alloc_ptr_compiler__semantic__symbols__ModuleScope(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -65627,7 +65529,7 @@ self->len++;
 
 std__collections__List_ptr_compiler__semantic__symbols__ModuleScope std__collections__List_ptr_compiler__semantic__symbols__ModuleScope_clone(std__collections__List_ptr_compiler__semantic__symbols__ModuleScope* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_ptr_compiler__semantic__symbols__ModuleScope res = (std__collections__List_ptr_compiler__semantic__symbols__ModuleScope){ std__memory__Heap_create_array_ptr_compiler__semantic__symbols__ModuleScope(cap), 0, cap };
+std__collections__List_ptr_compiler__semantic__symbols__ModuleScope res = (std__collections__List_ptr_compiler__semantic__symbols__ModuleScope){ std__memory__Heap_alloc_ptr_compiler__semantic__symbols__ModuleScope(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_ptr_compiler__semantic__symbols__ModuleScope_count(self);
 size_t __for_i = 0;
@@ -65666,7 +65568,7 @@ right--;
 }
 
 std__collections__List_ptr_compiler__semantic__symbols__ModuleScope std__collections__List_ptr_compiler__semantic__symbols__ModuleScope_sub(std__collections__List_ptr_compiler__semantic__symbols__ModuleScope* self, size_t start, size_t count) {
-std__collections__List_ptr_compiler__semantic__symbols__ModuleScope res = (std__collections__List_ptr_compiler__semantic__symbols__ModuleScope){ std__memory__Heap_create_array_ptr_compiler__semantic__symbols__ModuleScope(count), 0, count };
+std__collections__List_ptr_compiler__semantic__symbols__ModuleScope res = (std__collections__List_ptr_compiler__semantic__symbols__ModuleScope){ std__memory__Heap_alloc_ptr_compiler__semantic__symbols__ModuleScope(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -65862,17 +65764,17 @@ std__collections__List_ptr_compiler__semantic__symbols__ModuleScope_remove_at(se
 return true;
 }
 
-struct __lambda_env_92 {
+struct __lambda_env_94 {
     compiler__semantic__symbols__ModuleScope* value;
 };
 
-static bool __lambda_fn_92(void* __raw_env, compiler__semantic__symbols__ModuleScope* x) {
-    struct __lambda_env_92* __env = (struct __lambda_env_92*)__raw_env;
+static bool __lambda_fn_94(void* __raw_env, compiler__semantic__symbols__ModuleScope* x) {
+    struct __lambda_env_94* __env = (struct __lambda_env_94*)__raw_env;
     return (x == (__env->value));
 }
 
 size_t std__collections__List_ptr_compiler__semantic__symbols__ModuleScope_remove_all(std__collections__List_ptr_compiler__semantic__symbols__ModuleScope* self, compiler__semantic__symbols__ModuleScope* value) {
-    return std__collections__List_ptr_compiler__semantic__symbols__ModuleScope_remove_where(self, (kobel_closure){ (void*)__lambda_fn_92, (void*)&(struct __lambda_env_92){ value } });
+    return std__collections__List_ptr_compiler__semantic__symbols__ModuleScope_remove_where(self, (kobel_closure){ (void*)__lambda_fn_94, (void*)&(struct __lambda_env_94){ value } });
 }
 
 size_t std__collections__List_ptr_compiler__semantic__symbols__ModuleScope_remove_where(std__collections__List_ptr_compiler__semantic__symbols__ModuleScope* self, kobel_closure predicate) {
@@ -66068,7 +65970,7 @@ std__collections__Pair_str_ptr_compiler__semantic__symbols__ModuleScope std__col
 
 std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__ModuleScope std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__ModuleScope_init(std__collections__Pair_str_ptr_compiler__semantic__symbols__ModuleScope* items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-std__collections__Pair_str_ptr_compiler__semantic__symbols__ModuleScope* buf = std__memory__Heap_create_array_std__collections__Pair_str_ptr_compiler__semantic__symbols__ModuleScope(cap);
+std__collections__Pair_str_ptr_compiler__semantic__symbols__ModuleScope* buf = std__memory__Heap_alloc_std__collections__Pair_str_ptr_compiler__semantic__symbols__ModuleScope(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -66207,7 +66109,7 @@ self->len++;
 
 std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__ModuleScope std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__ModuleScope_clone(std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__ModuleScope* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__ModuleScope res = (std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__ModuleScope){ std__memory__Heap_create_array_std__collections__Pair_str_ptr_compiler__semantic__symbols__ModuleScope(cap), 0, cap };
+std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__ModuleScope res = (std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__ModuleScope){ std__memory__Heap_alloc_std__collections__Pair_str_ptr_compiler__semantic__symbols__ModuleScope(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__ModuleScope_count(self);
 size_t __for_i = 0;
@@ -66246,7 +66148,7 @@ right--;
 }
 
 std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__ModuleScope std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__ModuleScope_sub(std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__ModuleScope* self, size_t start, size_t count) {
-std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__ModuleScope res = (std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__ModuleScope){ std__memory__Heap_create_array_std__collections__Pair_str_ptr_compiler__semantic__symbols__ModuleScope(count), 0, count };
+std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__ModuleScope res = (std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__ModuleScope){ std__memory__Heap_alloc_std__collections__Pair_str_ptr_compiler__semantic__symbols__ModuleScope(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -66442,17 +66344,17 @@ std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbol
 return true;
 }
 
-struct __lambda_env_93 {
+struct __lambda_env_95 {
     std__collections__Pair_str_ptr_compiler__semantic__symbols__ModuleScope value;
 };
 
-static bool __lambda_fn_93(void* __raw_env, std__collections__Pair_str_ptr_compiler__semantic__symbols__ModuleScope x) {
-    struct __lambda_env_93* __env = (struct __lambda_env_93*)__raw_env;
+static bool __lambda_fn_95(void* __raw_env, std__collections__Pair_str_ptr_compiler__semantic__symbols__ModuleScope x) {
+    struct __lambda_env_95* __env = (struct __lambda_env_95*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 24);
 }
 
 size_t std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__ModuleScope_remove_all(std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__ModuleScope* self, std__collections__Pair_str_ptr_compiler__semantic__symbols__ModuleScope value) {
-    return std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__ModuleScope_remove_where(self, (kobel_closure){ (void*)__lambda_fn_93, (void*)&(struct __lambda_env_93){ value } });
+    return std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__ModuleScope_remove_where(self, (kobel_closure){ (void*)__lambda_fn_95, (void*)&(struct __lambda_env_95){ value } });
 }
 
 size_t std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__ModuleScope_remove_where(std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__symbols__ModuleScope* self, kobel_closure predicate) {
@@ -66638,10 +66540,10 @@ size_t cap = init_cap;
 if (cap < 8) {
 cap = 8;
 }
-kobel_str* keys = std__memory__Heap_create_array_str(cap);
-compiler__semantic__symbols__ModuleScope** values = std__memory__Heap_create_array_ptr_compiler__semantic__symbols__ModuleScope(cap);
-size_t* hashes = std__memory__Heap_create_array_usz(cap);
-bool* occ = std__memory__Heap_create_array_bool(cap);
+kobel_str* keys = std__memory__Heap_alloc_str(cap);
+compiler__semantic__symbols__ModuleScope** values = std__memory__Heap_alloc_ptr_compiler__semantic__symbols__ModuleScope(cap);
+size_t* hashes = std__memory__Heap_alloc_usz(cap);
+bool* occ = std__memory__Heap_alloc_bool(cap);
 {
 size_t __for_e = cap;
 size_t __for_i = __for_e;
@@ -67032,10 +66934,10 @@ compiler__semantic__symbols__ModuleScope** old_vals = self->values;
 size_t* old_hashes = self->hashes;
 bool* old_occ = self->occupied;
 size_t new_cap = ((old_cap < 8) ? 16 : (old_cap * 2));
-kobel_str* keys = std__memory__Heap_create_array_str(new_cap);
-compiler__semantic__symbols__ModuleScope** values = std__memory__Heap_create_array_ptr_compiler__semantic__symbols__ModuleScope(new_cap);
-size_t* hashes = std__memory__Heap_create_array_usz(new_cap);
-bool* new_occ = std__memory__Heap_create_array_bool(new_cap);
+kobel_str* keys = std__memory__Heap_alloc_str(new_cap);
+compiler__semantic__symbols__ModuleScope** values = std__memory__Heap_alloc_ptr_compiler__semantic__symbols__ModuleScope(new_cap);
+size_t* hashes = std__memory__Heap_alloc_usz(new_cap);
+bool* new_occ = std__memory__Heap_alloc_bool(new_cap);
 {
 size_t __for_e = new_cap;
 size_t __for_i = __for_e;
@@ -67226,7 +67128,7 @@ compiler__semantic__symbols__ImportBinding std__collections__List_compiler__sema
 
 std__collections__List_compiler__semantic__symbols__ImportBinding std__collections__List_compiler__semantic__symbols__ImportBinding_init(compiler__semantic__symbols__ImportBinding* items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-compiler__semantic__symbols__ImportBinding* buf = std__memory__Heap_create_array_compiler__semantic__symbols__ImportBinding(cap);
+compiler__semantic__symbols__ImportBinding* buf = std__memory__Heap_alloc_compiler__semantic__symbols__ImportBinding(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -67365,7 +67267,7 @@ self->len++;
 
 std__collections__List_compiler__semantic__symbols__ImportBinding std__collections__List_compiler__semantic__symbols__ImportBinding_clone(std__collections__List_compiler__semantic__symbols__ImportBinding* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_compiler__semantic__symbols__ImportBinding res = (std__collections__List_compiler__semantic__symbols__ImportBinding){ std__memory__Heap_create_array_compiler__semantic__symbols__ImportBinding(cap), 0, cap };
+std__collections__List_compiler__semantic__symbols__ImportBinding res = (std__collections__List_compiler__semantic__symbols__ImportBinding){ std__memory__Heap_alloc_compiler__semantic__symbols__ImportBinding(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_compiler__semantic__symbols__ImportBinding_count(self);
 size_t __for_i = 0;
@@ -67404,7 +67306,7 @@ right--;
 }
 
 std__collections__List_compiler__semantic__symbols__ImportBinding std__collections__List_compiler__semantic__symbols__ImportBinding_sub(std__collections__List_compiler__semantic__symbols__ImportBinding* self, size_t start, size_t count) {
-std__collections__List_compiler__semantic__symbols__ImportBinding res = (std__collections__List_compiler__semantic__symbols__ImportBinding){ std__memory__Heap_create_array_compiler__semantic__symbols__ImportBinding(count), 0, count };
+std__collections__List_compiler__semantic__symbols__ImportBinding res = (std__collections__List_compiler__semantic__symbols__ImportBinding){ std__memory__Heap_alloc_compiler__semantic__symbols__ImportBinding(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -67600,17 +67502,17 @@ std__collections__List_compiler__semantic__symbols__ImportBinding_remove_at(self
 return true;
 }
 
-struct __lambda_env_94 {
+struct __lambda_env_96 {
     compiler__semantic__symbols__ImportBinding value;
 };
 
-static bool __lambda_fn_94(void* __raw_env, compiler__semantic__symbols__ImportBinding x) {
-    struct __lambda_env_94* __env = (struct __lambda_env_94*)__raw_env;
+static bool __lambda_fn_96(void* __raw_env, compiler__semantic__symbols__ImportBinding x) {
+    struct __lambda_env_96* __env = (struct __lambda_env_96*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 72);
 }
 
 size_t std__collections__List_compiler__semantic__symbols__ImportBinding_remove_all(std__collections__List_compiler__semantic__symbols__ImportBinding* self, compiler__semantic__symbols__ImportBinding value) {
-    return std__collections__List_compiler__semantic__symbols__ImportBinding_remove_where(self, (kobel_closure){ (void*)__lambda_fn_94, (void*)&(struct __lambda_env_94){ value } });
+    return std__collections__List_compiler__semantic__symbols__ImportBinding_remove_where(self, (kobel_closure){ (void*)__lambda_fn_96, (void*)&(struct __lambda_env_96){ value } });
 }
 
 size_t std__collections__List_compiler__semantic__symbols__ImportBinding_remove_where(std__collections__List_compiler__semantic__symbols__ImportBinding* self, kobel_closure predicate) {
@@ -67801,7 +67703,7 @@ compiler__semantic__types__EnumInfo* std__collections__List_ptr_compiler__semant
 
 std__collections__List_ptr_compiler__semantic__types__EnumInfo std__collections__List_ptr_compiler__semantic__types__EnumInfo_init(compiler__semantic__types__EnumInfo** items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-compiler__semantic__types__EnumInfo** buf = std__memory__Heap_create_array_ptr_compiler__semantic__types__EnumInfo(cap);
+compiler__semantic__types__EnumInfo** buf = std__memory__Heap_alloc_ptr_compiler__semantic__types__EnumInfo(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -67940,7 +67842,7 @@ self->len++;
 
 std__collections__List_ptr_compiler__semantic__types__EnumInfo std__collections__List_ptr_compiler__semantic__types__EnumInfo_clone(std__collections__List_ptr_compiler__semantic__types__EnumInfo* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_ptr_compiler__semantic__types__EnumInfo res = (std__collections__List_ptr_compiler__semantic__types__EnumInfo){ std__memory__Heap_create_array_ptr_compiler__semantic__types__EnumInfo(cap), 0, cap };
+std__collections__List_ptr_compiler__semantic__types__EnumInfo res = (std__collections__List_ptr_compiler__semantic__types__EnumInfo){ std__memory__Heap_alloc_ptr_compiler__semantic__types__EnumInfo(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_ptr_compiler__semantic__types__EnumInfo_count(self);
 size_t __for_i = 0;
@@ -67979,7 +67881,7 @@ right--;
 }
 
 std__collections__List_ptr_compiler__semantic__types__EnumInfo std__collections__List_ptr_compiler__semantic__types__EnumInfo_sub(std__collections__List_ptr_compiler__semantic__types__EnumInfo* self, size_t start, size_t count) {
-std__collections__List_ptr_compiler__semantic__types__EnumInfo res = (std__collections__List_ptr_compiler__semantic__types__EnumInfo){ std__memory__Heap_create_array_ptr_compiler__semantic__types__EnumInfo(count), 0, count };
+std__collections__List_ptr_compiler__semantic__types__EnumInfo res = (std__collections__List_ptr_compiler__semantic__types__EnumInfo){ std__memory__Heap_alloc_ptr_compiler__semantic__types__EnumInfo(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -68175,17 +68077,17 @@ std__collections__List_ptr_compiler__semantic__types__EnumInfo_remove_at(self, (
 return true;
 }
 
-struct __lambda_env_95 {
+struct __lambda_env_97 {
     compiler__semantic__types__EnumInfo* value;
 };
 
-static bool __lambda_fn_95(void* __raw_env, compiler__semantic__types__EnumInfo* x) {
-    struct __lambda_env_95* __env = (struct __lambda_env_95*)__raw_env;
+static bool __lambda_fn_97(void* __raw_env, compiler__semantic__types__EnumInfo* x) {
+    struct __lambda_env_97* __env = (struct __lambda_env_97*)__raw_env;
     return (x == (__env->value));
 }
 
 size_t std__collections__List_ptr_compiler__semantic__types__EnumInfo_remove_all(std__collections__List_ptr_compiler__semantic__types__EnumInfo* self, compiler__semantic__types__EnumInfo* value) {
-    return std__collections__List_ptr_compiler__semantic__types__EnumInfo_remove_where(self, (kobel_closure){ (void*)__lambda_fn_95, (void*)&(struct __lambda_env_95){ value } });
+    return std__collections__List_ptr_compiler__semantic__types__EnumInfo_remove_where(self, (kobel_closure){ (void*)__lambda_fn_97, (void*)&(struct __lambda_env_97){ value } });
 }
 
 size_t std__collections__List_ptr_compiler__semantic__types__EnumInfo_remove_where(std__collections__List_ptr_compiler__semantic__types__EnumInfo* self, kobel_closure predicate) {
@@ -68381,7 +68283,7 @@ std__collections__Pair_str_ptr_compiler__semantic__types__EnumInfo std__collecti
 
 std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__EnumInfo std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__EnumInfo_init(std__collections__Pair_str_ptr_compiler__semantic__types__EnumInfo* items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-std__collections__Pair_str_ptr_compiler__semantic__types__EnumInfo* buf = std__memory__Heap_create_array_std__collections__Pair_str_ptr_compiler__semantic__types__EnumInfo(cap);
+std__collections__Pair_str_ptr_compiler__semantic__types__EnumInfo* buf = std__memory__Heap_alloc_std__collections__Pair_str_ptr_compiler__semantic__types__EnumInfo(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -68520,7 +68422,7 @@ self->len++;
 
 std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__EnumInfo std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__EnumInfo_clone(std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__EnumInfo* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__EnumInfo res = (std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__EnumInfo){ std__memory__Heap_create_array_std__collections__Pair_str_ptr_compiler__semantic__types__EnumInfo(cap), 0, cap };
+std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__EnumInfo res = (std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__EnumInfo){ std__memory__Heap_alloc_std__collections__Pair_str_ptr_compiler__semantic__types__EnumInfo(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__EnumInfo_count(self);
 size_t __for_i = 0;
@@ -68559,7 +68461,7 @@ right--;
 }
 
 std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__EnumInfo std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__EnumInfo_sub(std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__EnumInfo* self, size_t start, size_t count) {
-std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__EnumInfo res = (std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__EnumInfo){ std__memory__Heap_create_array_std__collections__Pair_str_ptr_compiler__semantic__types__EnumInfo(count), 0, count };
+std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__EnumInfo res = (std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__EnumInfo){ std__memory__Heap_alloc_std__collections__Pair_str_ptr_compiler__semantic__types__EnumInfo(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -68755,17 +68657,17 @@ std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types_
 return true;
 }
 
-struct __lambda_env_96 {
+struct __lambda_env_98 {
     std__collections__Pair_str_ptr_compiler__semantic__types__EnumInfo value;
 };
 
-static bool __lambda_fn_96(void* __raw_env, std__collections__Pair_str_ptr_compiler__semantic__types__EnumInfo x) {
-    struct __lambda_env_96* __env = (struct __lambda_env_96*)__raw_env;
+static bool __lambda_fn_98(void* __raw_env, std__collections__Pair_str_ptr_compiler__semantic__types__EnumInfo x) {
+    struct __lambda_env_98* __env = (struct __lambda_env_98*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 24);
 }
 
 size_t std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__EnumInfo_remove_all(std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__EnumInfo* self, std__collections__Pair_str_ptr_compiler__semantic__types__EnumInfo value) {
-    return std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__EnumInfo_remove_where(self, (kobel_closure){ (void*)__lambda_fn_96, (void*)&(struct __lambda_env_96){ value } });
+    return std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__EnumInfo_remove_where(self, (kobel_closure){ (void*)__lambda_fn_98, (void*)&(struct __lambda_env_98){ value } });
 }
 
 size_t std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__EnumInfo_remove_where(std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__EnumInfo* self, kobel_closure predicate) {
@@ -68951,10 +68853,10 @@ size_t cap = init_cap;
 if (cap < 8) {
 cap = 8;
 }
-kobel_str* keys = std__memory__Heap_create_array_str(cap);
-compiler__semantic__types__EnumInfo** values = std__memory__Heap_create_array_ptr_compiler__semantic__types__EnumInfo(cap);
-size_t* hashes = std__memory__Heap_create_array_usz(cap);
-bool* occ = std__memory__Heap_create_array_bool(cap);
+kobel_str* keys = std__memory__Heap_alloc_str(cap);
+compiler__semantic__types__EnumInfo** values = std__memory__Heap_alloc_ptr_compiler__semantic__types__EnumInfo(cap);
+size_t* hashes = std__memory__Heap_alloc_usz(cap);
+bool* occ = std__memory__Heap_alloc_bool(cap);
 {
 size_t __for_e = cap;
 size_t __for_i = __for_e;
@@ -69345,10 +69247,10 @@ compiler__semantic__types__EnumInfo** old_vals = self->values;
 size_t* old_hashes = self->hashes;
 bool* old_occ = self->occupied;
 size_t new_cap = ((old_cap < 8) ? 16 : (old_cap * 2));
-kobel_str* keys = std__memory__Heap_create_array_str(new_cap);
-compiler__semantic__types__EnumInfo** values = std__memory__Heap_create_array_ptr_compiler__semantic__types__EnumInfo(new_cap);
-size_t* hashes = std__memory__Heap_create_array_usz(new_cap);
-bool* new_occ = std__memory__Heap_create_array_bool(new_cap);
+kobel_str* keys = std__memory__Heap_alloc_str(new_cap);
+compiler__semantic__types__EnumInfo** values = std__memory__Heap_alloc_ptr_compiler__semantic__types__EnumInfo(new_cap);
+size_t* hashes = std__memory__Heap_alloc_usz(new_cap);
+bool* new_occ = std__memory__Heap_alloc_bool(new_cap);
 {
 size_t __for_e = new_cap;
 size_t __for_i = __for_e;
@@ -69539,7 +69441,7 @@ compiler__semantic__types__TraitInfo* std__collections__List_ptr_compiler__seman
 
 std__collections__List_ptr_compiler__semantic__types__TraitInfo std__collections__List_ptr_compiler__semantic__types__TraitInfo_init(compiler__semantic__types__TraitInfo** items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-compiler__semantic__types__TraitInfo** buf = std__memory__Heap_create_array_ptr_compiler__semantic__types__TraitInfo(cap);
+compiler__semantic__types__TraitInfo** buf = std__memory__Heap_alloc_ptr_compiler__semantic__types__TraitInfo(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -69678,7 +69580,7 @@ self->len++;
 
 std__collections__List_ptr_compiler__semantic__types__TraitInfo std__collections__List_ptr_compiler__semantic__types__TraitInfo_clone(std__collections__List_ptr_compiler__semantic__types__TraitInfo* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_ptr_compiler__semantic__types__TraitInfo res = (std__collections__List_ptr_compiler__semantic__types__TraitInfo){ std__memory__Heap_create_array_ptr_compiler__semantic__types__TraitInfo(cap), 0, cap };
+std__collections__List_ptr_compiler__semantic__types__TraitInfo res = (std__collections__List_ptr_compiler__semantic__types__TraitInfo){ std__memory__Heap_alloc_ptr_compiler__semantic__types__TraitInfo(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_ptr_compiler__semantic__types__TraitInfo_count(self);
 size_t __for_i = 0;
@@ -69717,7 +69619,7 @@ right--;
 }
 
 std__collections__List_ptr_compiler__semantic__types__TraitInfo std__collections__List_ptr_compiler__semantic__types__TraitInfo_sub(std__collections__List_ptr_compiler__semantic__types__TraitInfo* self, size_t start, size_t count) {
-std__collections__List_ptr_compiler__semantic__types__TraitInfo res = (std__collections__List_ptr_compiler__semantic__types__TraitInfo){ std__memory__Heap_create_array_ptr_compiler__semantic__types__TraitInfo(count), 0, count };
+std__collections__List_ptr_compiler__semantic__types__TraitInfo res = (std__collections__List_ptr_compiler__semantic__types__TraitInfo){ std__memory__Heap_alloc_ptr_compiler__semantic__types__TraitInfo(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -69913,17 +69815,17 @@ std__collections__List_ptr_compiler__semantic__types__TraitInfo_remove_at(self, 
 return true;
 }
 
-struct __lambda_env_97 {
+struct __lambda_env_99 {
     compiler__semantic__types__TraitInfo* value;
 };
 
-static bool __lambda_fn_97(void* __raw_env, compiler__semantic__types__TraitInfo* x) {
-    struct __lambda_env_97* __env = (struct __lambda_env_97*)__raw_env;
+static bool __lambda_fn_99(void* __raw_env, compiler__semantic__types__TraitInfo* x) {
+    struct __lambda_env_99* __env = (struct __lambda_env_99*)__raw_env;
     return (x == (__env->value));
 }
 
 size_t std__collections__List_ptr_compiler__semantic__types__TraitInfo_remove_all(std__collections__List_ptr_compiler__semantic__types__TraitInfo* self, compiler__semantic__types__TraitInfo* value) {
-    return std__collections__List_ptr_compiler__semantic__types__TraitInfo_remove_where(self, (kobel_closure){ (void*)__lambda_fn_97, (void*)&(struct __lambda_env_97){ value } });
+    return std__collections__List_ptr_compiler__semantic__types__TraitInfo_remove_where(self, (kobel_closure){ (void*)__lambda_fn_99, (void*)&(struct __lambda_env_99){ value } });
 }
 
 size_t std__collections__List_ptr_compiler__semantic__types__TraitInfo_remove_where(std__collections__List_ptr_compiler__semantic__types__TraitInfo* self, kobel_closure predicate) {
@@ -70119,7 +70021,7 @@ std__collections__Pair_str_ptr_compiler__semantic__types__TraitInfo std__collect
 
 std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__TraitInfo std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__TraitInfo_init(std__collections__Pair_str_ptr_compiler__semantic__types__TraitInfo* items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-std__collections__Pair_str_ptr_compiler__semantic__types__TraitInfo* buf = std__memory__Heap_create_array_std__collections__Pair_str_ptr_compiler__semantic__types__TraitInfo(cap);
+std__collections__Pair_str_ptr_compiler__semantic__types__TraitInfo* buf = std__memory__Heap_alloc_std__collections__Pair_str_ptr_compiler__semantic__types__TraitInfo(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -70258,7 +70160,7 @@ self->len++;
 
 std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__TraitInfo std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__TraitInfo_clone(std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__TraitInfo* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__TraitInfo res = (std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__TraitInfo){ std__memory__Heap_create_array_std__collections__Pair_str_ptr_compiler__semantic__types__TraitInfo(cap), 0, cap };
+std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__TraitInfo res = (std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__TraitInfo){ std__memory__Heap_alloc_std__collections__Pair_str_ptr_compiler__semantic__types__TraitInfo(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__TraitInfo_count(self);
 size_t __for_i = 0;
@@ -70297,7 +70199,7 @@ right--;
 }
 
 std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__TraitInfo std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__TraitInfo_sub(std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__TraitInfo* self, size_t start, size_t count) {
-std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__TraitInfo res = (std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__TraitInfo){ std__memory__Heap_create_array_std__collections__Pair_str_ptr_compiler__semantic__types__TraitInfo(count), 0, count };
+std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__TraitInfo res = (std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__TraitInfo){ std__memory__Heap_alloc_std__collections__Pair_str_ptr_compiler__semantic__types__TraitInfo(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -70493,17 +70395,17 @@ std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types_
 return true;
 }
 
-struct __lambda_env_98 {
+struct __lambda_env_100 {
     std__collections__Pair_str_ptr_compiler__semantic__types__TraitInfo value;
 };
 
-static bool __lambda_fn_98(void* __raw_env, std__collections__Pair_str_ptr_compiler__semantic__types__TraitInfo x) {
-    struct __lambda_env_98* __env = (struct __lambda_env_98*)__raw_env;
+static bool __lambda_fn_100(void* __raw_env, std__collections__Pair_str_ptr_compiler__semantic__types__TraitInfo x) {
+    struct __lambda_env_100* __env = (struct __lambda_env_100*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 24);
 }
 
 size_t std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__TraitInfo_remove_all(std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__TraitInfo* self, std__collections__Pair_str_ptr_compiler__semantic__types__TraitInfo value) {
-    return std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__TraitInfo_remove_where(self, (kobel_closure){ (void*)__lambda_fn_98, (void*)&(struct __lambda_env_98){ value } });
+    return std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__TraitInfo_remove_where(self, (kobel_closure){ (void*)__lambda_fn_100, (void*)&(struct __lambda_env_100){ value } });
 }
 
 size_t std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__TraitInfo_remove_where(std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__TraitInfo* self, kobel_closure predicate) {
@@ -70689,10 +70591,10 @@ size_t cap = init_cap;
 if (cap < 8) {
 cap = 8;
 }
-kobel_str* keys = std__memory__Heap_create_array_str(cap);
-compiler__semantic__types__TraitInfo** values = std__memory__Heap_create_array_ptr_compiler__semantic__types__TraitInfo(cap);
-size_t* hashes = std__memory__Heap_create_array_usz(cap);
-bool* occ = std__memory__Heap_create_array_bool(cap);
+kobel_str* keys = std__memory__Heap_alloc_str(cap);
+compiler__semantic__types__TraitInfo** values = std__memory__Heap_alloc_ptr_compiler__semantic__types__TraitInfo(cap);
+size_t* hashes = std__memory__Heap_alloc_usz(cap);
+bool* occ = std__memory__Heap_alloc_bool(cap);
 {
 size_t __for_e = cap;
 size_t __for_i = __for_e;
@@ -71083,10 +70985,10 @@ compiler__semantic__types__TraitInfo** old_vals = self->values;
 size_t* old_hashes = self->hashes;
 bool* old_occ = self->occupied;
 size_t new_cap = ((old_cap < 8) ? 16 : (old_cap * 2));
-kobel_str* keys = std__memory__Heap_create_array_str(new_cap);
-compiler__semantic__types__TraitInfo** values = std__memory__Heap_create_array_ptr_compiler__semantic__types__TraitInfo(new_cap);
-size_t* hashes = std__memory__Heap_create_array_usz(new_cap);
-bool* new_occ = std__memory__Heap_create_array_bool(new_cap);
+kobel_str* keys = std__memory__Heap_alloc_str(new_cap);
+compiler__semantic__types__TraitInfo** values = std__memory__Heap_alloc_ptr_compiler__semantic__types__TraitInfo(new_cap);
+size_t* hashes = std__memory__Heap_alloc_usz(new_cap);
+bool* new_occ = std__memory__Heap_alloc_bool(new_cap);
 {
 size_t __for_e = new_cap;
 size_t __for_i = __for_e;
@@ -71282,7 +71184,7 @@ std__collections__Pair_str_compiler__semantic__symbols__ImportBinding std__colle
 
 std__collections__List_std__collections__Pair_str_compiler__semantic__symbols__ImportBinding std__collections__List_std__collections__Pair_str_compiler__semantic__symbols__ImportBinding_init(std__collections__Pair_str_compiler__semantic__symbols__ImportBinding* items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-std__collections__Pair_str_compiler__semantic__symbols__ImportBinding* buf = std__memory__Heap_create_array_std__collections__Pair_str_compiler__semantic__symbols__ImportBinding(cap);
+std__collections__Pair_str_compiler__semantic__symbols__ImportBinding* buf = std__memory__Heap_alloc_std__collections__Pair_str_compiler__semantic__symbols__ImportBinding(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -71421,7 +71323,7 @@ self->len++;
 
 std__collections__List_std__collections__Pair_str_compiler__semantic__symbols__ImportBinding std__collections__List_std__collections__Pair_str_compiler__semantic__symbols__ImportBinding_clone(std__collections__List_std__collections__Pair_str_compiler__semantic__symbols__ImportBinding* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_std__collections__Pair_str_compiler__semantic__symbols__ImportBinding res = (std__collections__List_std__collections__Pair_str_compiler__semantic__symbols__ImportBinding){ std__memory__Heap_create_array_std__collections__Pair_str_compiler__semantic__symbols__ImportBinding(cap), 0, cap };
+std__collections__List_std__collections__Pair_str_compiler__semantic__symbols__ImportBinding res = (std__collections__List_std__collections__Pair_str_compiler__semantic__symbols__ImportBinding){ std__memory__Heap_alloc_std__collections__Pair_str_compiler__semantic__symbols__ImportBinding(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_std__collections__Pair_str_compiler__semantic__symbols__ImportBinding_count(self);
 size_t __for_i = 0;
@@ -71460,7 +71362,7 @@ right--;
 }
 
 std__collections__List_std__collections__Pair_str_compiler__semantic__symbols__ImportBinding std__collections__List_std__collections__Pair_str_compiler__semantic__symbols__ImportBinding_sub(std__collections__List_std__collections__Pair_str_compiler__semantic__symbols__ImportBinding* self, size_t start, size_t count) {
-std__collections__List_std__collections__Pair_str_compiler__semantic__symbols__ImportBinding res = (std__collections__List_std__collections__Pair_str_compiler__semantic__symbols__ImportBinding){ std__memory__Heap_create_array_std__collections__Pair_str_compiler__semantic__symbols__ImportBinding(count), 0, count };
+std__collections__List_std__collections__Pair_str_compiler__semantic__symbols__ImportBinding res = (std__collections__List_std__collections__Pair_str_compiler__semantic__symbols__ImportBinding){ std__memory__Heap_alloc_std__collections__Pair_str_compiler__semantic__symbols__ImportBinding(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -71656,17 +71558,17 @@ std__collections__List_std__collections__Pair_str_compiler__semantic__symbols__I
 return true;
 }
 
-struct __lambda_env_99 {
+struct __lambda_env_101 {
     std__collections__Pair_str_compiler__semantic__symbols__ImportBinding value;
 };
 
-static bool __lambda_fn_99(void* __raw_env, std__collections__Pair_str_compiler__semantic__symbols__ImportBinding x) {
-    struct __lambda_env_99* __env = (struct __lambda_env_99*)__raw_env;
+static bool __lambda_fn_101(void* __raw_env, std__collections__Pair_str_compiler__semantic__symbols__ImportBinding x) {
+    struct __lambda_env_101* __env = (struct __lambda_env_101*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 88);
 }
 
 size_t std__collections__List_std__collections__Pair_str_compiler__semantic__symbols__ImportBinding_remove_all(std__collections__List_std__collections__Pair_str_compiler__semantic__symbols__ImportBinding* self, std__collections__Pair_str_compiler__semantic__symbols__ImportBinding value) {
-    return std__collections__List_std__collections__Pair_str_compiler__semantic__symbols__ImportBinding_remove_where(self, (kobel_closure){ (void*)__lambda_fn_99, (void*)&(struct __lambda_env_99){ value } });
+    return std__collections__List_std__collections__Pair_str_compiler__semantic__symbols__ImportBinding_remove_where(self, (kobel_closure){ (void*)__lambda_fn_101, (void*)&(struct __lambda_env_101){ value } });
 }
 
 size_t std__collections__List_std__collections__Pair_str_compiler__semantic__symbols__ImportBinding_remove_where(std__collections__List_std__collections__Pair_str_compiler__semantic__symbols__ImportBinding* self, kobel_closure predicate) {
@@ -71852,10 +71754,10 @@ size_t cap = init_cap;
 if (cap < 8) {
 cap = 8;
 }
-kobel_str* keys = std__memory__Heap_create_array_str(cap);
-compiler__semantic__symbols__ImportBinding* values = std__memory__Heap_create_array_compiler__semantic__symbols__ImportBinding(cap);
-size_t* hashes = std__memory__Heap_create_array_usz(cap);
-bool* occ = std__memory__Heap_create_array_bool(cap);
+kobel_str* keys = std__memory__Heap_alloc_str(cap);
+compiler__semantic__symbols__ImportBinding* values = std__memory__Heap_alloc_compiler__semantic__symbols__ImportBinding(cap);
+size_t* hashes = std__memory__Heap_alloc_usz(cap);
+bool* occ = std__memory__Heap_alloc_bool(cap);
 {
 size_t __for_e = cap;
 size_t __for_i = __for_e;
@@ -72246,10 +72148,10 @@ compiler__semantic__symbols__ImportBinding* old_vals = self->values;
 size_t* old_hashes = self->hashes;
 bool* old_occ = self->occupied;
 size_t new_cap = ((old_cap < 8) ? 16 : (old_cap * 2));
-kobel_str* keys = std__memory__Heap_create_array_str(new_cap);
-compiler__semantic__symbols__ImportBinding* values = std__memory__Heap_create_array_compiler__semantic__symbols__ImportBinding(new_cap);
-size_t* hashes = std__memory__Heap_create_array_usz(new_cap);
-bool* new_occ = std__memory__Heap_create_array_bool(new_cap);
+kobel_str* keys = std__memory__Heap_alloc_str(new_cap);
+compiler__semantic__symbols__ImportBinding* values = std__memory__Heap_alloc_compiler__semantic__symbols__ImportBinding(new_cap);
+size_t* hashes = std__memory__Heap_alloc_usz(new_cap);
+bool* new_occ = std__memory__Heap_alloc_bool(new_cap);
 {
 size_t __for_e = new_cap;
 size_t __for_i = __for_e;
@@ -72445,7 +72347,7 @@ std__collections__Pair_str_ptr_compiler__semantic__types__Type std__collections_
 
 std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__Type std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__Type_init(std__collections__Pair_str_ptr_compiler__semantic__types__Type* items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-std__collections__Pair_str_ptr_compiler__semantic__types__Type* buf = std__memory__Heap_create_array_std__collections__Pair_str_ptr_compiler__semantic__types__Type(cap);
+std__collections__Pair_str_ptr_compiler__semantic__types__Type* buf = std__memory__Heap_alloc_std__collections__Pair_str_ptr_compiler__semantic__types__Type(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -72584,7 +72486,7 @@ self->len++;
 
 std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__Type std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__Type_clone(std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__Type* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__Type res = (std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__Type){ std__memory__Heap_create_array_std__collections__Pair_str_ptr_compiler__semantic__types__Type(cap), 0, cap };
+std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__Type res = (std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__Type){ std__memory__Heap_alloc_std__collections__Pair_str_ptr_compiler__semantic__types__Type(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__Type_count(self);
 size_t __for_i = 0;
@@ -72623,7 +72525,7 @@ right--;
 }
 
 std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__Type std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__Type_sub(std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__Type* self, size_t start, size_t count) {
-std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__Type res = (std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__Type){ std__memory__Heap_create_array_std__collections__Pair_str_ptr_compiler__semantic__types__Type(count), 0, count };
+std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__Type res = (std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__Type){ std__memory__Heap_alloc_std__collections__Pair_str_ptr_compiler__semantic__types__Type(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -72819,17 +72721,17 @@ std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types_
 return true;
 }
 
-struct __lambda_env_100 {
+struct __lambda_env_102 {
     std__collections__Pair_str_ptr_compiler__semantic__types__Type value;
 };
 
-static bool __lambda_fn_100(void* __raw_env, std__collections__Pair_str_ptr_compiler__semantic__types__Type x) {
-    struct __lambda_env_100* __env = (struct __lambda_env_100*)__raw_env;
+static bool __lambda_fn_102(void* __raw_env, std__collections__Pair_str_ptr_compiler__semantic__types__Type x) {
+    struct __lambda_env_102* __env = (struct __lambda_env_102*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 24);
 }
 
 size_t std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__Type_remove_all(std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__Type* self, std__collections__Pair_str_ptr_compiler__semantic__types__Type value) {
-    return std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__Type_remove_where(self, (kobel_closure){ (void*)__lambda_fn_100, (void*)&(struct __lambda_env_100){ value } });
+    return std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__Type_remove_where(self, (kobel_closure){ (void*)__lambda_fn_102, (void*)&(struct __lambda_env_102){ value } });
 }
 
 size_t std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__Type_remove_where(std__collections__List_std__collections__Pair_str_ptr_compiler__semantic__types__Type* self, kobel_closure predicate) {
@@ -73015,10 +72917,10 @@ size_t cap = init_cap;
 if (cap < 8) {
 cap = 8;
 }
-kobel_str* keys = std__memory__Heap_create_array_str(cap);
-compiler__semantic__types__Type** values = std__memory__Heap_create_array_ptr_compiler__semantic__types__Type(cap);
-size_t* hashes = std__memory__Heap_create_array_usz(cap);
-bool* occ = std__memory__Heap_create_array_bool(cap);
+kobel_str* keys = std__memory__Heap_alloc_str(cap);
+compiler__semantic__types__Type** values = std__memory__Heap_alloc_ptr_compiler__semantic__types__Type(cap);
+size_t* hashes = std__memory__Heap_alloc_usz(cap);
+bool* occ = std__memory__Heap_alloc_bool(cap);
 {
 size_t __for_e = cap;
 size_t __for_i = __for_e;
@@ -73409,10 +73311,10 @@ compiler__semantic__types__Type** old_vals = self->values;
 size_t* old_hashes = self->hashes;
 bool* old_occ = self->occupied;
 size_t new_cap = ((old_cap < 8) ? 16 : (old_cap * 2));
-kobel_str* keys = std__memory__Heap_create_array_str(new_cap);
-compiler__semantic__types__Type** values = std__memory__Heap_create_array_ptr_compiler__semantic__types__Type(new_cap);
-size_t* hashes = std__memory__Heap_create_array_usz(new_cap);
-bool* new_occ = std__memory__Heap_create_array_bool(new_cap);
+kobel_str* keys = std__memory__Heap_alloc_str(new_cap);
+compiler__semantic__types__Type** values = std__memory__Heap_alloc_ptr_compiler__semantic__types__Type(new_cap);
+size_t* hashes = std__memory__Heap_alloc_usz(new_cap);
+bool* new_occ = std__memory__Heap_alloc_bool(new_cap);
 {
 size_t __for_e = new_cap;
 size_t __for_i = __for_e;
@@ -73603,7 +73505,7 @@ fmt__Comment std__collections__List_fmt__Comment_at(std__collections__List_fmt__
 
 std__collections__List_fmt__Comment std__collections__List_fmt__Comment_init(fmt__Comment* items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-fmt__Comment* buf = std__memory__Heap_create_array_fmt__Comment(cap);
+fmt__Comment* buf = std__memory__Heap_alloc_fmt__Comment(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -73742,7 +73644,7 @@ self->len++;
 
 std__collections__List_fmt__Comment std__collections__List_fmt__Comment_clone(std__collections__List_fmt__Comment* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_fmt__Comment res = (std__collections__List_fmt__Comment){ std__memory__Heap_create_array_fmt__Comment(cap), 0, cap };
+std__collections__List_fmt__Comment res = (std__collections__List_fmt__Comment){ std__memory__Heap_alloc_fmt__Comment(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_fmt__Comment_count(self);
 size_t __for_i = 0;
@@ -73781,7 +73683,7 @@ right--;
 }
 
 std__collections__List_fmt__Comment std__collections__List_fmt__Comment_sub(std__collections__List_fmt__Comment* self, size_t start, size_t count) {
-std__collections__List_fmt__Comment res = (std__collections__List_fmt__Comment){ std__memory__Heap_create_array_fmt__Comment(count), 0, count };
+std__collections__List_fmt__Comment res = (std__collections__List_fmt__Comment){ std__memory__Heap_alloc_fmt__Comment(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -73977,17 +73879,17 @@ std__collections__List_fmt__Comment_remove_at(self, (size_t)idx);
 return true;
 }
 
-struct __lambda_env_101 {
+struct __lambda_env_103 {
     fmt__Comment value;
 };
 
-static bool __lambda_fn_101(void* __raw_env, fmt__Comment x) {
-    struct __lambda_env_101* __env = (struct __lambda_env_101*)__raw_env;
+static bool __lambda_fn_103(void* __raw_env, fmt__Comment x) {
+    struct __lambda_env_103* __env = (struct __lambda_env_103*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 40);
 }
 
 size_t std__collections__List_fmt__Comment_remove_all(std__collections__List_fmt__Comment* self, fmt__Comment value) {
-    return std__collections__List_fmt__Comment_remove_where(self, (kobel_closure){ (void*)__lambda_fn_101, (void*)&(struct __lambda_env_101){ value } });
+    return std__collections__List_fmt__Comment_remove_where(self, (kobel_closure){ (void*)__lambda_fn_103, (void*)&(struct __lambda_env_103){ value } });
 }
 
 size_t std__collections__List_fmt__Comment_remove_where(std__collections__List_fmt__Comment* self, kobel_closure predicate) {
@@ -74178,7 +74080,7 @@ lsp__LspDiagnostic std__collections__List_lsp__LspDiagnostic_at(std__collections
 
 std__collections__List_lsp__LspDiagnostic std__collections__List_lsp__LspDiagnostic_init(lsp__LspDiagnostic* items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-lsp__LspDiagnostic* buf = std__memory__Heap_create_array_lsp__LspDiagnostic(cap);
+lsp__LspDiagnostic* buf = std__memory__Heap_alloc_lsp__LspDiagnostic(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -74317,7 +74219,7 @@ self->len++;
 
 std__collections__List_lsp__LspDiagnostic std__collections__List_lsp__LspDiagnostic_clone(std__collections__List_lsp__LspDiagnostic* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_lsp__LspDiagnostic res = (std__collections__List_lsp__LspDiagnostic){ std__memory__Heap_create_array_lsp__LspDiagnostic(cap), 0, cap };
+std__collections__List_lsp__LspDiagnostic res = (std__collections__List_lsp__LspDiagnostic){ std__memory__Heap_alloc_lsp__LspDiagnostic(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_lsp__LspDiagnostic_count(self);
 size_t __for_i = 0;
@@ -74356,7 +74258,7 @@ right--;
 }
 
 std__collections__List_lsp__LspDiagnostic std__collections__List_lsp__LspDiagnostic_sub(std__collections__List_lsp__LspDiagnostic* self, size_t start, size_t count) {
-std__collections__List_lsp__LspDiagnostic res = (std__collections__List_lsp__LspDiagnostic){ std__memory__Heap_create_array_lsp__LspDiagnostic(count), 0, count };
+std__collections__List_lsp__LspDiagnostic res = (std__collections__List_lsp__LspDiagnostic){ std__memory__Heap_alloc_lsp__LspDiagnostic(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -74552,17 +74454,17 @@ std__collections__List_lsp__LspDiagnostic_remove_at(self, (size_t)idx);
 return true;
 }
 
-struct __lambda_env_102 {
+struct __lambda_env_104 {
     lsp__LspDiagnostic value;
 };
 
-static bool __lambda_fn_102(void* __raw_env, lsp__LspDiagnostic x) {
-    struct __lambda_env_102* __env = (struct __lambda_env_102*)__raw_env;
+static bool __lambda_fn_104(void* __raw_env, lsp__LspDiagnostic x) {
+    struct __lambda_env_104* __env = (struct __lambda_env_104*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 56);
 }
 
 size_t std__collections__List_lsp__LspDiagnostic_remove_all(std__collections__List_lsp__LspDiagnostic* self, lsp__LspDiagnostic value) {
-    return std__collections__List_lsp__LspDiagnostic_remove_where(self, (kobel_closure){ (void*)__lambda_fn_102, (void*)&(struct __lambda_env_102){ value } });
+    return std__collections__List_lsp__LspDiagnostic_remove_where(self, (kobel_closure){ (void*)__lambda_fn_104, (void*)&(struct __lambda_env_104){ value } });
 }
 
 size_t std__collections__List_lsp__LspDiagnostic_remove_where(std__collections__List_lsp__LspDiagnostic* self, kobel_closure predicate) {
@@ -74753,7 +74655,7 @@ lsp__Document std__collections__List_lsp__Document_at(std__collections__List_lsp
 
 std__collections__List_lsp__Document std__collections__List_lsp__Document_init(lsp__Document* items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-lsp__Document* buf = std__memory__Heap_create_array_lsp__Document(cap);
+lsp__Document* buf = std__memory__Heap_alloc_lsp__Document(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -74892,7 +74794,7 @@ self->len++;
 
 std__collections__List_lsp__Document std__collections__List_lsp__Document_clone(std__collections__List_lsp__Document* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_lsp__Document res = (std__collections__List_lsp__Document){ std__memory__Heap_create_array_lsp__Document(cap), 0, cap };
+std__collections__List_lsp__Document res = (std__collections__List_lsp__Document){ std__memory__Heap_alloc_lsp__Document(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_lsp__Document_count(self);
 size_t __for_i = 0;
@@ -74931,7 +74833,7 @@ right--;
 }
 
 std__collections__List_lsp__Document std__collections__List_lsp__Document_sub(std__collections__List_lsp__Document* self, size_t start, size_t count) {
-std__collections__List_lsp__Document res = (std__collections__List_lsp__Document){ std__memory__Heap_create_array_lsp__Document(count), 0, count };
+std__collections__List_lsp__Document res = (std__collections__List_lsp__Document){ std__memory__Heap_alloc_lsp__Document(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -75127,17 +75029,17 @@ std__collections__List_lsp__Document_remove_at(self, (size_t)idx);
 return true;
 }
 
-struct __lambda_env_103 {
+struct __lambda_env_105 {
     lsp__Document value;
 };
 
-static bool __lambda_fn_103(void* __raw_env, lsp__Document x) {
-    struct __lambda_env_103* __env = (struct __lambda_env_103*)__raw_env;
+static bool __lambda_fn_105(void* __raw_env, lsp__Document x) {
+    struct __lambda_env_105* __env = (struct __lambda_env_105*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 56);
 }
 
 size_t std__collections__List_lsp__Document_remove_all(std__collections__List_lsp__Document* self, lsp__Document value) {
-    return std__collections__List_lsp__Document_remove_where(self, (kobel_closure){ (void*)__lambda_fn_103, (void*)&(struct __lambda_env_103){ value } });
+    return std__collections__List_lsp__Document_remove_where(self, (kobel_closure){ (void*)__lambda_fn_105, (void*)&(struct __lambda_env_105){ value } });
 }
 
 size_t std__collections__List_lsp__Document_remove_where(std__collections__List_lsp__Document* self, kobel_closure predicate) {
@@ -75333,7 +75235,7 @@ std__collections__Pair_str_lsp__Document std__collections__List_std__collections
 
 std__collections__List_std__collections__Pair_str_lsp__Document std__collections__List_std__collections__Pair_str_lsp__Document_init(std__collections__Pair_str_lsp__Document* items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-std__collections__Pair_str_lsp__Document* buf = std__memory__Heap_create_array_std__collections__Pair_str_lsp__Document(cap);
+std__collections__Pair_str_lsp__Document* buf = std__memory__Heap_alloc_std__collections__Pair_str_lsp__Document(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -75472,7 +75374,7 @@ self->len++;
 
 std__collections__List_std__collections__Pair_str_lsp__Document std__collections__List_std__collections__Pair_str_lsp__Document_clone(std__collections__List_std__collections__Pair_str_lsp__Document* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_std__collections__Pair_str_lsp__Document res = (std__collections__List_std__collections__Pair_str_lsp__Document){ std__memory__Heap_create_array_std__collections__Pair_str_lsp__Document(cap), 0, cap };
+std__collections__List_std__collections__Pair_str_lsp__Document res = (std__collections__List_std__collections__Pair_str_lsp__Document){ std__memory__Heap_alloc_std__collections__Pair_str_lsp__Document(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_std__collections__Pair_str_lsp__Document_count(self);
 size_t __for_i = 0;
@@ -75511,7 +75413,7 @@ right--;
 }
 
 std__collections__List_std__collections__Pair_str_lsp__Document std__collections__List_std__collections__Pair_str_lsp__Document_sub(std__collections__List_std__collections__Pair_str_lsp__Document* self, size_t start, size_t count) {
-std__collections__List_std__collections__Pair_str_lsp__Document res = (std__collections__List_std__collections__Pair_str_lsp__Document){ std__memory__Heap_create_array_std__collections__Pair_str_lsp__Document(count), 0, count };
+std__collections__List_std__collections__Pair_str_lsp__Document res = (std__collections__List_std__collections__Pair_str_lsp__Document){ std__memory__Heap_alloc_std__collections__Pair_str_lsp__Document(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -75707,17 +75609,17 @@ std__collections__List_std__collections__Pair_str_lsp__Document_remove_at(self, 
 return true;
 }
 
-struct __lambda_env_104 {
+struct __lambda_env_106 {
     std__collections__Pair_str_lsp__Document value;
 };
 
-static bool __lambda_fn_104(void* __raw_env, std__collections__Pair_str_lsp__Document x) {
-    struct __lambda_env_104* __env = (struct __lambda_env_104*)__raw_env;
+static bool __lambda_fn_106(void* __raw_env, std__collections__Pair_str_lsp__Document x) {
+    struct __lambda_env_106* __env = (struct __lambda_env_106*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 72);
 }
 
 size_t std__collections__List_std__collections__Pair_str_lsp__Document_remove_all(std__collections__List_std__collections__Pair_str_lsp__Document* self, std__collections__Pair_str_lsp__Document value) {
-    return std__collections__List_std__collections__Pair_str_lsp__Document_remove_where(self, (kobel_closure){ (void*)__lambda_fn_104, (void*)&(struct __lambda_env_104){ value } });
+    return std__collections__List_std__collections__Pair_str_lsp__Document_remove_where(self, (kobel_closure){ (void*)__lambda_fn_106, (void*)&(struct __lambda_env_106){ value } });
 }
 
 size_t std__collections__List_std__collections__Pair_str_lsp__Document_remove_where(std__collections__List_std__collections__Pair_str_lsp__Document* self, kobel_closure predicate) {
@@ -75903,10 +75805,10 @@ size_t cap = init_cap;
 if (cap < 8) {
 cap = 8;
 }
-kobel_str* keys = std__memory__Heap_create_array_str(cap);
-lsp__Document* values = std__memory__Heap_create_array_lsp__Document(cap);
-size_t* hashes = std__memory__Heap_create_array_usz(cap);
-bool* occ = std__memory__Heap_create_array_bool(cap);
+kobel_str* keys = std__memory__Heap_alloc_str(cap);
+lsp__Document* values = std__memory__Heap_alloc_lsp__Document(cap);
+size_t* hashes = std__memory__Heap_alloc_usz(cap);
+bool* occ = std__memory__Heap_alloc_bool(cap);
 {
 size_t __for_e = cap;
 size_t __for_i = __for_e;
@@ -76297,10 +76199,10 @@ lsp__Document* old_vals = self->values;
 size_t* old_hashes = self->hashes;
 bool* old_occ = self->occupied;
 size_t new_cap = ((old_cap < 8) ? 16 : (old_cap * 2));
-kobel_str* keys = std__memory__Heap_create_array_str(new_cap);
-lsp__Document* values = std__memory__Heap_create_array_lsp__Document(new_cap);
-size_t* hashes = std__memory__Heap_create_array_usz(new_cap);
-bool* new_occ = std__memory__Heap_create_array_bool(new_cap);
+kobel_str* keys = std__memory__Heap_alloc_str(new_cap);
+lsp__Document* values = std__memory__Heap_alloc_lsp__Document(new_cap);
+size_t* hashes = std__memory__Heap_alloc_usz(new_cap);
+bool* new_occ = std__memory__Heap_alloc_bool(new_cap);
 {
 size_t __for_e = new_cap;
 size_t __for_i = __for_e;
@@ -76491,7 +76393,7 @@ lsp__JsonValue* std__collections__List_ptr_lsp__JsonValue_at(std__collections__L
 
 std__collections__List_ptr_lsp__JsonValue std__collections__List_ptr_lsp__JsonValue_init(lsp__JsonValue** items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-lsp__JsonValue** buf = std__memory__Heap_create_array_ptr_lsp__JsonValue(cap);
+lsp__JsonValue** buf = std__memory__Heap_alloc_ptr_lsp__JsonValue(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -76630,7 +76532,7 @@ self->len++;
 
 std__collections__List_ptr_lsp__JsonValue std__collections__List_ptr_lsp__JsonValue_clone(std__collections__List_ptr_lsp__JsonValue* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_ptr_lsp__JsonValue res = (std__collections__List_ptr_lsp__JsonValue){ std__memory__Heap_create_array_ptr_lsp__JsonValue(cap), 0, cap };
+std__collections__List_ptr_lsp__JsonValue res = (std__collections__List_ptr_lsp__JsonValue){ std__memory__Heap_alloc_ptr_lsp__JsonValue(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_ptr_lsp__JsonValue_count(self);
 size_t __for_i = 0;
@@ -76669,7 +76571,7 @@ right--;
 }
 
 std__collections__List_ptr_lsp__JsonValue std__collections__List_ptr_lsp__JsonValue_sub(std__collections__List_ptr_lsp__JsonValue* self, size_t start, size_t count) {
-std__collections__List_ptr_lsp__JsonValue res = (std__collections__List_ptr_lsp__JsonValue){ std__memory__Heap_create_array_ptr_lsp__JsonValue(count), 0, count };
+std__collections__List_ptr_lsp__JsonValue res = (std__collections__List_ptr_lsp__JsonValue){ std__memory__Heap_alloc_ptr_lsp__JsonValue(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -76865,17 +76767,17 @@ std__collections__List_ptr_lsp__JsonValue_remove_at(self, (size_t)idx);
 return true;
 }
 
-struct __lambda_env_105 {
+struct __lambda_env_107 {
     lsp__JsonValue* value;
 };
 
-static bool __lambda_fn_105(void* __raw_env, lsp__JsonValue* x) {
-    struct __lambda_env_105* __env = (struct __lambda_env_105*)__raw_env;
+static bool __lambda_fn_107(void* __raw_env, lsp__JsonValue* x) {
+    struct __lambda_env_107* __env = (struct __lambda_env_107*)__raw_env;
     return (x == (__env->value));
 }
 
 size_t std__collections__List_ptr_lsp__JsonValue_remove_all(std__collections__List_ptr_lsp__JsonValue* self, lsp__JsonValue* value) {
-    return std__collections__List_ptr_lsp__JsonValue_remove_where(self, (kobel_closure){ (void*)__lambda_fn_105, (void*)&(struct __lambda_env_105){ value } });
+    return std__collections__List_ptr_lsp__JsonValue_remove_where(self, (kobel_closure){ (void*)__lambda_fn_107, (void*)&(struct __lambda_env_107){ value } });
 }
 
 size_t std__collections__List_ptr_lsp__JsonValue_remove_where(std__collections__List_ptr_lsp__JsonValue* self, kobel_closure predicate) {
@@ -77066,7 +76968,7 @@ std__filesystem__Path std__collections__List_std__filesystem__Path_at(std__colle
 
 std__collections__List_std__filesystem__Path std__collections__List_std__filesystem__Path_init(std__filesystem__Path* items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-std__filesystem__Path* buf = std__memory__Heap_create_array_std__filesystem__Path(cap);
+std__filesystem__Path* buf = std__memory__Heap_alloc_std__filesystem__Path(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -77205,7 +77107,7 @@ self->len++;
 
 std__collections__List_std__filesystem__Path std__collections__List_std__filesystem__Path_clone(std__collections__List_std__filesystem__Path* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_std__filesystem__Path res = (std__collections__List_std__filesystem__Path){ std__memory__Heap_create_array_std__filesystem__Path(cap), 0, cap };
+std__collections__List_std__filesystem__Path res = (std__collections__List_std__filesystem__Path){ std__memory__Heap_alloc_std__filesystem__Path(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_std__filesystem__Path_count(self);
 size_t __for_i = 0;
@@ -77244,7 +77146,7 @@ right--;
 }
 
 std__collections__List_std__filesystem__Path std__collections__List_std__filesystem__Path_sub(std__collections__List_std__filesystem__Path* self, size_t start, size_t count) {
-std__collections__List_std__filesystem__Path res = (std__collections__List_std__filesystem__Path){ std__memory__Heap_create_array_std__filesystem__Path(count), 0, count };
+std__collections__List_std__filesystem__Path res = (std__collections__List_std__filesystem__Path){ std__memory__Heap_alloc_std__filesystem__Path(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -77440,17 +77342,17 @@ std__collections__List_std__filesystem__Path_remove_at(self, (size_t)idx);
 return true;
 }
 
-struct __lambda_env_106 {
+struct __lambda_env_108 {
     std__filesystem__Path value;
 };
 
-static bool __lambda_fn_106(void* __raw_env, std__filesystem__Path x) {
-    struct __lambda_env_106* __env = (struct __lambda_env_106*)__raw_env;
+static bool __lambda_fn_108(void* __raw_env, std__filesystem__Path x) {
+    struct __lambda_env_108* __env = (struct __lambda_env_108*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 16);
 }
 
 size_t std__collections__List_std__filesystem__Path_remove_all(std__collections__List_std__filesystem__Path* self, std__filesystem__Path value) {
-    return std__collections__List_std__filesystem__Path_remove_where(self, (kobel_closure){ (void*)__lambda_fn_106, (void*)&(struct __lambda_env_106){ value } });
+    return std__collections__List_std__filesystem__Path_remove_where(self, (kobel_closure){ (void*)__lambda_fn_108, (void*)&(struct __lambda_env_108){ value } });
 }
 
 size_t std__collections__List_std__filesystem__Path_remove_where(std__collections__List_std__filesystem__Path* self, kobel_closure predicate) {
@@ -77641,7 +77543,7 @@ compiler__loader__ModuleFile std__collections__List_compiler__loader__ModuleFile
 
 std__collections__List_compiler__loader__ModuleFile std__collections__List_compiler__loader__ModuleFile_init(compiler__loader__ModuleFile* items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-compiler__loader__ModuleFile* buf = std__memory__Heap_create_array_compiler__loader__ModuleFile(cap);
+compiler__loader__ModuleFile* buf = std__memory__Heap_alloc_compiler__loader__ModuleFile(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -77780,7 +77682,7 @@ self->len++;
 
 std__collections__List_compiler__loader__ModuleFile std__collections__List_compiler__loader__ModuleFile_clone(std__collections__List_compiler__loader__ModuleFile* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_compiler__loader__ModuleFile res = (std__collections__List_compiler__loader__ModuleFile){ std__memory__Heap_create_array_compiler__loader__ModuleFile(cap), 0, cap };
+std__collections__List_compiler__loader__ModuleFile res = (std__collections__List_compiler__loader__ModuleFile){ std__memory__Heap_alloc_compiler__loader__ModuleFile(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_compiler__loader__ModuleFile_count(self);
 size_t __for_i = 0;
@@ -77819,7 +77721,7 @@ right--;
 }
 
 std__collections__List_compiler__loader__ModuleFile std__collections__List_compiler__loader__ModuleFile_sub(std__collections__List_compiler__loader__ModuleFile* self, size_t start, size_t count) {
-std__collections__List_compiler__loader__ModuleFile res = (std__collections__List_compiler__loader__ModuleFile){ std__memory__Heap_create_array_compiler__loader__ModuleFile(count), 0, count };
+std__collections__List_compiler__loader__ModuleFile res = (std__collections__List_compiler__loader__ModuleFile){ std__memory__Heap_alloc_compiler__loader__ModuleFile(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -78015,17 +77917,17 @@ std__collections__List_compiler__loader__ModuleFile_remove_at(self, (size_t)idx)
 return true;
 }
 
-struct __lambda_env_107 {
+struct __lambda_env_109 {
     compiler__loader__ModuleFile value;
 };
 
-static bool __lambda_fn_107(void* __raw_env, compiler__loader__ModuleFile x) {
-    struct __lambda_env_107* __env = (struct __lambda_env_107*)__raw_env;
+static bool __lambda_fn_109(void* __raw_env, compiler__loader__ModuleFile x) {
+    struct __lambda_env_109* __env = (struct __lambda_env_109*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 40);
 }
 
 size_t std__collections__List_compiler__loader__ModuleFile_remove_all(std__collections__List_compiler__loader__ModuleFile* self, compiler__loader__ModuleFile value) {
-    return std__collections__List_compiler__loader__ModuleFile_remove_where(self, (kobel_closure){ (void*)__lambda_fn_107, (void*)&(struct __lambda_env_107){ value } });
+    return std__collections__List_compiler__loader__ModuleFile_remove_where(self, (kobel_closure){ (void*)__lambda_fn_109, (void*)&(struct __lambda_env_109){ value } });
 }
 
 size_t std__collections__List_compiler__loader__ModuleFile_remove_where(std__collections__List_compiler__loader__ModuleFile* self, kobel_closure predicate) {
@@ -78216,7 +78118,7 @@ compiler__semantic__lowering__PendingResolve std__collections__List_compiler__se
 
 std__collections__List_compiler__semantic__lowering__PendingResolve std__collections__List_compiler__semantic__lowering__PendingResolve_init(compiler__semantic__lowering__PendingResolve* items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-compiler__semantic__lowering__PendingResolve* buf = std__memory__Heap_create_array_compiler__semantic__lowering__PendingResolve(cap);
+compiler__semantic__lowering__PendingResolve* buf = std__memory__Heap_alloc_compiler__semantic__lowering__PendingResolve(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -78355,7 +78257,7 @@ self->len++;
 
 std__collections__List_compiler__semantic__lowering__PendingResolve std__collections__List_compiler__semantic__lowering__PendingResolve_clone(std__collections__List_compiler__semantic__lowering__PendingResolve* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_compiler__semantic__lowering__PendingResolve res = (std__collections__List_compiler__semantic__lowering__PendingResolve){ std__memory__Heap_create_array_compiler__semantic__lowering__PendingResolve(cap), 0, cap };
+std__collections__List_compiler__semantic__lowering__PendingResolve res = (std__collections__List_compiler__semantic__lowering__PendingResolve){ std__memory__Heap_alloc_compiler__semantic__lowering__PendingResolve(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_compiler__semantic__lowering__PendingResolve_count(self);
 size_t __for_i = 0;
@@ -78394,7 +78296,7 @@ right--;
 }
 
 std__collections__List_compiler__semantic__lowering__PendingResolve std__collections__List_compiler__semantic__lowering__PendingResolve_sub(std__collections__List_compiler__semantic__lowering__PendingResolve* self, size_t start, size_t count) {
-std__collections__List_compiler__semantic__lowering__PendingResolve res = (std__collections__List_compiler__semantic__lowering__PendingResolve){ std__memory__Heap_create_array_compiler__semantic__lowering__PendingResolve(count), 0, count };
+std__collections__List_compiler__semantic__lowering__PendingResolve res = (std__collections__List_compiler__semantic__lowering__PendingResolve){ std__memory__Heap_alloc_compiler__semantic__lowering__PendingResolve(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -78590,17 +78492,17 @@ std__collections__List_compiler__semantic__lowering__PendingResolve_remove_at(se
 return true;
 }
 
-struct __lambda_env_108 {
+struct __lambda_env_110 {
     compiler__semantic__lowering__PendingResolve value;
 };
 
-static bool __lambda_fn_108(void* __raw_env, compiler__semantic__lowering__PendingResolve x) {
-    struct __lambda_env_108* __env = (struct __lambda_env_108*)__raw_env;
+static bool __lambda_fn_110(void* __raw_env, compiler__semantic__lowering__PendingResolve x) {
+    struct __lambda_env_110* __env = (struct __lambda_env_110*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 16);
 }
 
 size_t std__collections__List_compiler__semantic__lowering__PendingResolve_remove_all(std__collections__List_compiler__semantic__lowering__PendingResolve* self, compiler__semantic__lowering__PendingResolve value) {
-    return std__collections__List_compiler__semantic__lowering__PendingResolve_remove_where(self, (kobel_closure){ (void*)__lambda_fn_108, (void*)&(struct __lambda_env_108){ value } });
+    return std__collections__List_compiler__semantic__lowering__PendingResolve_remove_where(self, (kobel_closure){ (void*)__lambda_fn_110, (void*)&(struct __lambda_env_110){ value } });
 }
 
 size_t std__collections__List_compiler__semantic__lowering__PendingResolve_remove_where(std__collections__List_compiler__semantic__lowering__PendingResolve* self, kobel_closure predicate) {
@@ -78791,7 +78693,7 @@ compiler__semantic__checker__ArrowCandidate* std__collections__List_ptr_compiler
 
 std__collections__List_ptr_compiler__semantic__checker__ArrowCandidate std__collections__List_ptr_compiler__semantic__checker__ArrowCandidate_init(compiler__semantic__checker__ArrowCandidate** items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-compiler__semantic__checker__ArrowCandidate** buf = std__memory__Heap_create_array_ptr_compiler__semantic__checker__ArrowCandidate(cap);
+compiler__semantic__checker__ArrowCandidate** buf = std__memory__Heap_alloc_ptr_compiler__semantic__checker__ArrowCandidate(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -78930,7 +78832,7 @@ self->len++;
 
 std__collections__List_ptr_compiler__semantic__checker__ArrowCandidate std__collections__List_ptr_compiler__semantic__checker__ArrowCandidate_clone(std__collections__List_ptr_compiler__semantic__checker__ArrowCandidate* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_ptr_compiler__semantic__checker__ArrowCandidate res = (std__collections__List_ptr_compiler__semantic__checker__ArrowCandidate){ std__memory__Heap_create_array_ptr_compiler__semantic__checker__ArrowCandidate(cap), 0, cap };
+std__collections__List_ptr_compiler__semantic__checker__ArrowCandidate res = (std__collections__List_ptr_compiler__semantic__checker__ArrowCandidate){ std__memory__Heap_alloc_ptr_compiler__semantic__checker__ArrowCandidate(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_ptr_compiler__semantic__checker__ArrowCandidate_count(self);
 size_t __for_i = 0;
@@ -78969,7 +78871,7 @@ right--;
 }
 
 std__collections__List_ptr_compiler__semantic__checker__ArrowCandidate std__collections__List_ptr_compiler__semantic__checker__ArrowCandidate_sub(std__collections__List_ptr_compiler__semantic__checker__ArrowCandidate* self, size_t start, size_t count) {
-std__collections__List_ptr_compiler__semantic__checker__ArrowCandidate res = (std__collections__List_ptr_compiler__semantic__checker__ArrowCandidate){ std__memory__Heap_create_array_ptr_compiler__semantic__checker__ArrowCandidate(count), 0, count };
+std__collections__List_ptr_compiler__semantic__checker__ArrowCandidate res = (std__collections__List_ptr_compiler__semantic__checker__ArrowCandidate){ std__memory__Heap_alloc_ptr_compiler__semantic__checker__ArrowCandidate(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -79165,17 +79067,17 @@ std__collections__List_ptr_compiler__semantic__checker__ArrowCandidate_remove_at
 return true;
 }
 
-struct __lambda_env_109 {
+struct __lambda_env_111 {
     compiler__semantic__checker__ArrowCandidate* value;
 };
 
-static bool __lambda_fn_109(void* __raw_env, compiler__semantic__checker__ArrowCandidate* x) {
-    struct __lambda_env_109* __env = (struct __lambda_env_109*)__raw_env;
+static bool __lambda_fn_111(void* __raw_env, compiler__semantic__checker__ArrowCandidate* x) {
+    struct __lambda_env_111* __env = (struct __lambda_env_111*)__raw_env;
     return (x == (__env->value));
 }
 
 size_t std__collections__List_ptr_compiler__semantic__checker__ArrowCandidate_remove_all(std__collections__List_ptr_compiler__semantic__checker__ArrowCandidate* self, compiler__semantic__checker__ArrowCandidate* value) {
-    return std__collections__List_ptr_compiler__semantic__checker__ArrowCandidate_remove_where(self, (kobel_closure){ (void*)__lambda_fn_109, (void*)&(struct __lambda_env_109){ value } });
+    return std__collections__List_ptr_compiler__semantic__checker__ArrowCandidate_remove_where(self, (kobel_closure){ (void*)__lambda_fn_111, (void*)&(struct __lambda_env_111){ value } });
 }
 
 size_t std__collections__List_ptr_compiler__semantic__checker__ArrowCandidate_remove_where(std__collections__List_ptr_compiler__semantic__checker__ArrowCandidate* self, kobel_closure predicate) {
@@ -79366,7 +79268,7 @@ compiler__codegen__ConditionAlias std__collections__List_compiler__codegen__Cond
 
 std__collections__List_compiler__codegen__ConditionAlias std__collections__List_compiler__codegen__ConditionAlias_init(compiler__codegen__ConditionAlias* items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-compiler__codegen__ConditionAlias* buf = std__memory__Heap_create_array_compiler__codegen__ConditionAlias(cap);
+compiler__codegen__ConditionAlias* buf = std__memory__Heap_alloc_compiler__codegen__ConditionAlias(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -79505,7 +79407,7 @@ self->len++;
 
 std__collections__List_compiler__codegen__ConditionAlias std__collections__List_compiler__codegen__ConditionAlias_clone(std__collections__List_compiler__codegen__ConditionAlias* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_compiler__codegen__ConditionAlias res = (std__collections__List_compiler__codegen__ConditionAlias){ std__memory__Heap_create_array_compiler__codegen__ConditionAlias(cap), 0, cap };
+std__collections__List_compiler__codegen__ConditionAlias res = (std__collections__List_compiler__codegen__ConditionAlias){ std__memory__Heap_alloc_compiler__codegen__ConditionAlias(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_compiler__codegen__ConditionAlias_count(self);
 size_t __for_i = 0;
@@ -79544,7 +79446,7 @@ right--;
 }
 
 std__collections__List_compiler__codegen__ConditionAlias std__collections__List_compiler__codegen__ConditionAlias_sub(std__collections__List_compiler__codegen__ConditionAlias* self, size_t start, size_t count) {
-std__collections__List_compiler__codegen__ConditionAlias res = (std__collections__List_compiler__codegen__ConditionAlias){ std__memory__Heap_create_array_compiler__codegen__ConditionAlias(count), 0, count };
+std__collections__List_compiler__codegen__ConditionAlias res = (std__collections__List_compiler__codegen__ConditionAlias){ std__memory__Heap_alloc_compiler__codegen__ConditionAlias(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -79740,17 +79642,17 @@ std__collections__List_compiler__codegen__ConditionAlias_remove_at(self, (size_t
 return true;
 }
 
-struct __lambda_env_110 {
+struct __lambda_env_112 {
     compiler__codegen__ConditionAlias value;
 };
 
-static bool __lambda_fn_110(void* __raw_env, compiler__codegen__ConditionAlias x) {
-    struct __lambda_env_110* __env = (struct __lambda_env_110*)__raw_env;
+static bool __lambda_fn_112(void* __raw_env, compiler__codegen__ConditionAlias x) {
+    struct __lambda_env_112* __env = (struct __lambda_env_112*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 48);
 }
 
 size_t std__collections__List_compiler__codegen__ConditionAlias_remove_all(std__collections__List_compiler__codegen__ConditionAlias* self, compiler__codegen__ConditionAlias value) {
-    return std__collections__List_compiler__codegen__ConditionAlias_remove_where(self, (kobel_closure){ (void*)__lambda_fn_110, (void*)&(struct __lambda_env_110){ value } });
+    return std__collections__List_compiler__codegen__ConditionAlias_remove_where(self, (kobel_closure){ (void*)__lambda_fn_112, (void*)&(struct __lambda_env_112){ value } });
 }
 
 size_t std__collections__List_compiler__codegen__ConditionAlias_remove_where(std__collections__List_compiler__codegen__ConditionAlias* self, kobel_closure predicate) {
@@ -80230,7 +80132,7 @@ void std__memory__Heap_free_compiler__codegen__ConditionAlias(compiler__codegen_
     free((uint8_t*)ptr);
 }
 
-uint8_t* std__memory__Heap_create_array_u8(size_t count) {
+uint8_t* std__memory__Heap_alloc_u8(size_t count) {
     return (uint8_t*)malloc((count * 1));
 }
 
@@ -80557,7 +80459,7 @@ lsp__JsonValue* std__memory__Heap_create_lsp__JsonValue(void) {
     return (lsp__JsonValue*)malloc(104);
 }
 
-compiler__ast__AstNode** std__memory__Heap_create_array_ptr_compiler__ast__AstNode(size_t count) {
+compiler__ast__AstNode** std__memory__Heap_alloc_ptr_compiler__ast__AstNode(size_t count) {
     return (compiler__ast__AstNode**)malloc((count * 8));
 }
 
@@ -80565,7 +80467,7 @@ compiler__ast__AstNode** std__memory__Heap_resize_ptr_compiler__ast__AstNode(com
     return (compiler__ast__AstNode**)realloc((uint8_t*)ptr, (count * 8));
 }
 
-compiler__ast__WhenArm* std__memory__Heap_create_array_compiler__ast__WhenArm(size_t count) {
+compiler__ast__WhenArm* std__memory__Heap_alloc_compiler__ast__WhenArm(size_t count) {
     return (compiler__ast__WhenArm*)malloc((count * 56));
 }
 
@@ -80573,7 +80475,7 @@ compiler__ast__WhenArm* std__memory__Heap_resize_compiler__ast__WhenArm(compiler
     return (compiler__ast__WhenArm*)realloc((uint8_t*)ptr, (count * 56));
 }
 
-compiler__ast__InterpPart* std__memory__Heap_create_array_compiler__ast__InterpPart(size_t count) {
+compiler__ast__InterpPart* std__memory__Heap_alloc_compiler__ast__InterpPart(size_t count) {
     return (compiler__ast__InterpPart*)malloc((count * 16));
 }
 
@@ -80581,7 +80483,7 @@ compiler__ast__InterpPart* std__memory__Heap_resize_compiler__ast__InterpPart(co
     return (compiler__ast__InterpPart*)realloc((uint8_t*)ptr, (count * 16));
 }
 
-compiler__ast__Param* std__memory__Heap_create_array_compiler__ast__Param(size_t count) {
+compiler__ast__Param* std__memory__Heap_alloc_compiler__ast__Param(size_t count) {
     return (compiler__ast__Param*)malloc((count * 40));
 }
 
@@ -80589,7 +80491,7 @@ compiler__ast__Param* std__memory__Heap_resize_compiler__ast__Param(compiler__as
     return (compiler__ast__Param*)realloc((uint8_t*)ptr, (count * 40));
 }
 
-kobel_str* std__memory__Heap_create_array_str(size_t count) {
+kobel_str* std__memory__Heap_alloc_str(size_t count) {
     return (kobel_str*)malloc((count * 16));
 }
 
@@ -80597,7 +80499,7 @@ kobel_str* std__memory__Heap_resize_str(kobel_str* ptr, size_t count) {
     return (kobel_str*)realloc((uint8_t*)ptr, (count * 16));
 }
 
-compiler__ast__GenericParam* std__memory__Heap_create_array_compiler__ast__GenericParam(size_t count) {
+compiler__ast__GenericParam* std__memory__Heap_alloc_compiler__ast__GenericParam(size_t count) {
     return (compiler__ast__GenericParam*)malloc((count * 40));
 }
 
@@ -80605,7 +80507,7 @@ compiler__ast__GenericParam* std__memory__Heap_resize_compiler__ast__GenericPara
     return (compiler__ast__GenericParam*)realloc((uint8_t*)ptr, (count * 40));
 }
 
-compiler__ast__StructField* std__memory__Heap_create_array_compiler__ast__StructField(size_t count) {
+compiler__ast__StructField* std__memory__Heap_alloc_compiler__ast__StructField(size_t count) {
     return (compiler__ast__StructField*)malloc((count * 40));
 }
 
@@ -80613,7 +80515,7 @@ compiler__ast__StructField* std__memory__Heap_resize_compiler__ast__StructField(
     return (compiler__ast__StructField*)realloc((uint8_t*)ptr, (count * 40));
 }
 
-compiler__ast__AssocBinding* std__memory__Heap_create_array_compiler__ast__AssocBinding(size_t count) {
+compiler__ast__AssocBinding* std__memory__Heap_alloc_compiler__ast__AssocBinding(size_t count) {
     return (compiler__ast__AssocBinding*)malloc((count * 24));
 }
 
@@ -80621,7 +80523,7 @@ compiler__ast__AssocBinding* std__memory__Heap_resize_compiler__ast__AssocBindin
     return (compiler__ast__AssocBinding*)realloc((uint8_t*)ptr, (count * 24));
 }
 
-compiler__ast__EnumMember* std__memory__Heap_create_array_compiler__ast__EnumMember(size_t count) {
+compiler__ast__EnumMember* std__memory__Heap_alloc_compiler__ast__EnumMember(size_t count) {
     return (compiler__ast__EnumMember*)malloc((count * 64));
 }
 
@@ -80629,7 +80531,7 @@ compiler__ast__EnumMember* std__memory__Heap_resize_compiler__ast__EnumMember(co
     return (compiler__ast__EnumMember*)realloc((uint8_t*)ptr, (count * 64));
 }
 
-compiler__semantic__types__Type** std__memory__Heap_create_array_ptr_compiler__semantic__types__Type(size_t count) {
+compiler__semantic__types__Type** std__memory__Heap_alloc_ptr_compiler__semantic__types__Type(size_t count) {
     return (compiler__semantic__types__Type**)malloc((count * 8));
 }
 
@@ -80637,7 +80539,7 @@ compiler__semantic__types__Type** std__memory__Heap_resize_ptr_compiler__semanti
     return (compiler__semantic__types__Type**)realloc((uint8_t*)ptr, (count * 8));
 }
 
-std__collections__Pair_str_str* std__memory__Heap_create_array_std__collections__Pair_str_str(size_t count) {
+std__collections__Pair_str_str* std__memory__Heap_alloc_std__collections__Pair_str_str(size_t count) {
     return (std__collections__Pair_str_str*)malloc((count * 32));
 }
 
@@ -80645,15 +80547,15 @@ std__collections__Pair_str_str* std__memory__Heap_resize_std__collections__Pair_
     return (std__collections__Pair_str_str*)realloc((uint8_t*)ptr, (count * 32));
 }
 
-size_t* std__memory__Heap_create_array_usz(size_t count) {
+size_t* std__memory__Heap_alloc_usz(size_t count) {
     return (size_t*)malloc((count * 8));
 }
 
-bool* std__memory__Heap_create_array_bool(size_t count) {
+bool* std__memory__Heap_alloc_bool(size_t count) {
     return (bool*)malloc((count * 1));
 }
 
-compiler__core__Diagnostic* std__memory__Heap_create_array_compiler__core__Diagnostic(size_t count) {
+compiler__core__Diagnostic* std__memory__Heap_alloc_compiler__core__Diagnostic(size_t count) {
     return (compiler__core__Diagnostic*)malloc((count * 88));
 }
 
@@ -80661,7 +80563,7 @@ compiler__core__Diagnostic* std__memory__Heap_resize_compiler__core__Diagnostic(
     return (compiler__core__Diagnostic*)realloc((uint8_t*)ptr, (count * 88));
 }
 
-compiler__core__SourceFile* std__memory__Heap_create_array_compiler__core__SourceFile(size_t count) {
+compiler__core__SourceFile* std__memory__Heap_alloc_compiler__core__SourceFile(size_t count) {
     return (compiler__core__SourceFile*)malloc((count * 56));
 }
 
@@ -80669,7 +80571,7 @@ compiler__core__SourceFile* std__memory__Heap_resize_compiler__core__SourceFile(
     return (compiler__core__SourceFile*)realloc((uint8_t*)ptr, (count * 56));
 }
 
-uint32_t* std__memory__Heap_create_array_u32(size_t count) {
+uint32_t* std__memory__Heap_alloc_u32(size_t count) {
     return (uint32_t*)malloc((count * 4));
 }
 
@@ -80677,7 +80579,7 @@ uint32_t* std__memory__Heap_resize_u32(uint32_t* ptr, size_t count) {
     return (uint32_t*)realloc((uint8_t*)ptr, (count * 4));
 }
 
-std__collections__Pair_str_u32* std__memory__Heap_create_array_std__collections__Pair_str_u32(size_t count) {
+std__collections__Pair_str_u32* std__memory__Heap_alloc_std__collections__Pair_str_u32(size_t count) {
     return (std__collections__Pair_str_u32*)malloc((count * 24));
 }
 
@@ -80685,7 +80587,7 @@ std__collections__Pair_str_u32* std__memory__Heap_resize_std__collections__Pair_
     return (std__collections__Pair_str_u32*)realloc((uint8_t*)ptr, (count * 24));
 }
 
-compiler__ast__EnumField* std__memory__Heap_create_array_compiler__ast__EnumField(size_t count) {
+compiler__ast__EnumField* std__memory__Heap_alloc_compiler__ast__EnumField(size_t count) {
     return (compiler__ast__EnumField*)malloc((count * 24));
 }
 
@@ -80693,7 +80595,7 @@ compiler__ast__EnumField* std__memory__Heap_resize_compiler__ast__EnumField(comp
     return (compiler__ast__EnumField*)realloc((uint8_t*)ptr, (count * 24));
 }
 
-compiler__lexer__Token* std__memory__Heap_create_array_compiler__lexer__Token(size_t count) {
+compiler__lexer__Token* std__memory__Heap_alloc_compiler__lexer__Token(size_t count) {
     return (compiler__lexer__Token*)malloc((count * 72));
 }
 
@@ -80701,7 +80603,7 @@ compiler__lexer__Token* std__memory__Heap_resize_compiler__lexer__Token(compiler
     return (compiler__lexer__Token*)realloc((uint8_t*)ptr, (count * 72));
 }
 
-compiler__loader__LoadedModule* std__memory__Heap_create_array_compiler__loader__LoadedModule(size_t count) {
+compiler__loader__LoadedModule* std__memory__Heap_alloc_compiler__loader__LoadedModule(size_t count) {
     return (compiler__loader__LoadedModule*)malloc((count * 48));
 }
 
@@ -80709,7 +80611,7 @@ compiler__loader__LoadedModule* std__memory__Heap_resize_compiler__loader__Loade
     return (compiler__loader__LoadedModule*)realloc((uint8_t*)ptr, (count * 48));
 }
 
-compiler__semantic__types__MethodInfo** std__memory__Heap_create_array_ptr_compiler__semantic__types__MethodInfo(size_t count) {
+compiler__semantic__types__MethodInfo** std__memory__Heap_alloc_ptr_compiler__semantic__types__MethodInfo(size_t count) {
     return (compiler__semantic__types__MethodInfo**)malloc((count * 8));
 }
 
@@ -80717,7 +80619,7 @@ compiler__semantic__types__MethodInfo** std__memory__Heap_resize_ptr_compiler__s
     return (compiler__semantic__types__MethodInfo**)realloc((uint8_t*)ptr, (count * 8));
 }
 
-compiler__semantic__types__StructField* std__memory__Heap_create_array_compiler__semantic__types__StructField(size_t count) {
+compiler__semantic__types__StructField* std__memory__Heap_alloc_compiler__semantic__types__StructField(size_t count) {
     return (compiler__semantic__types__StructField*)malloc((count * 48));
 }
 
@@ -80725,7 +80627,7 @@ compiler__semantic__types__StructField* std__memory__Heap_resize_compiler__seman
     return (compiler__semantic__types__StructField*)realloc((uint8_t*)ptr, (count * 48));
 }
 
-compiler__semantic__types__EnumMemberInfo** std__memory__Heap_create_array_ptr_compiler__semantic__types__EnumMemberInfo(size_t count) {
+compiler__semantic__types__EnumMemberInfo** std__memory__Heap_alloc_ptr_compiler__semantic__types__EnumMemberInfo(size_t count) {
     return (compiler__semantic__types__EnumMemberInfo**)malloc((count * 8));
 }
 
@@ -80733,7 +80635,7 @@ compiler__semantic__types__EnumMemberInfo** std__memory__Heap_resize_ptr_compile
     return (compiler__semantic__types__EnumMemberInfo**)realloc((uint8_t*)ptr, (count * 8));
 }
 
-compiler__semantic__types__TraitMethod** std__memory__Heap_create_array_ptr_compiler__semantic__types__TraitMethod(size_t count) {
+compiler__semantic__types__TraitMethod** std__memory__Heap_alloc_ptr_compiler__semantic__types__TraitMethod(size_t count) {
     return (compiler__semantic__types__TraitMethod**)malloc((count * 8));
 }
 
@@ -80741,7 +80643,7 @@ compiler__semantic__types__TraitMethod** std__memory__Heap_resize_ptr_compiler__
     return (compiler__semantic__types__TraitMethod**)realloc((uint8_t*)ptr, (count * 8));
 }
 
-compiler__semantic__symbols__LambdaCapture* std__memory__Heap_create_array_compiler__semantic__symbols__LambdaCapture(size_t count) {
+compiler__semantic__symbols__LambdaCapture* std__memory__Heap_alloc_compiler__semantic__symbols__LambdaCapture(size_t count) {
     return (compiler__semantic__symbols__LambdaCapture*)malloc((count * 32));
 }
 
@@ -80753,7 +80655,7 @@ size_t* std__memory__Heap_resize_usz(size_t* ptr, size_t count) {
     return (size_t*)realloc((uint8_t*)ptr, (count * 8));
 }
 
-std__collections__Pair_usz_ptr_compiler__semantic__types__Type* std__memory__Heap_create_array_std__collections__Pair_usz_ptr_compiler__semantic__types__Type(size_t count) {
+std__collections__Pair_usz_ptr_compiler__semantic__types__Type* std__memory__Heap_alloc_std__collections__Pair_usz_ptr_compiler__semantic__types__Type(size_t count) {
     return (std__collections__Pair_usz_ptr_compiler__semantic__types__Type*)malloc((count * 16));
 }
 
@@ -80761,7 +80663,7 @@ std__collections__Pair_usz_ptr_compiler__semantic__types__Type* std__memory__Hea
     return (std__collections__Pair_usz_ptr_compiler__semantic__types__Type*)realloc((uint8_t*)ptr, (count * 16));
 }
 
-std__collections__Pair_usz_ptr_compiler__semantic__types__MethodInfo* std__memory__Heap_create_array_std__collections__Pair_usz_ptr_compiler__semantic__types__MethodInfo(size_t count) {
+std__collections__Pair_usz_ptr_compiler__semantic__types__MethodInfo* std__memory__Heap_alloc_std__collections__Pair_usz_ptr_compiler__semantic__types__MethodInfo(size_t count) {
     return (std__collections__Pair_usz_ptr_compiler__semantic__types__MethodInfo*)malloc((count * 16));
 }
 
@@ -80769,7 +80671,7 @@ std__collections__Pair_usz_ptr_compiler__semantic__types__MethodInfo* std__memor
     return (std__collections__Pair_usz_ptr_compiler__semantic__types__MethodInfo*)realloc((uint8_t*)ptr, (count * 16));
 }
 
-std__collections__Pair_usz_ptr_compiler__ast__AstNode* std__memory__Heap_create_array_std__collections__Pair_usz_ptr_compiler__ast__AstNode(size_t count) {
+std__collections__Pair_usz_ptr_compiler__ast__AstNode* std__memory__Heap_alloc_std__collections__Pair_usz_ptr_compiler__ast__AstNode(size_t count) {
     return (std__collections__Pair_usz_ptr_compiler__ast__AstNode*)malloc((count * 16));
 }
 
@@ -80777,7 +80679,7 @@ std__collections__Pair_usz_ptr_compiler__ast__AstNode* std__memory__Heap_resize_
     return (std__collections__Pair_usz_ptr_compiler__ast__AstNode*)realloc((uint8_t*)ptr, (count * 16));
 }
 
-compiler__semantic__symbols__InstanceRecord** std__memory__Heap_create_array_ptr_compiler__semantic__symbols__InstanceRecord(size_t count) {
+compiler__semantic__symbols__InstanceRecord** std__memory__Heap_alloc_ptr_compiler__semantic__symbols__InstanceRecord(size_t count) {
     return (compiler__semantic__symbols__InstanceRecord**)malloc((count * 8));
 }
 
@@ -80785,7 +80687,7 @@ compiler__semantic__symbols__InstanceRecord** std__memory__Heap_resize_ptr_compi
     return (compiler__semantic__symbols__InstanceRecord**)realloc((uint8_t*)ptr, (count * 8));
 }
 
-std__collections__Pair_usz_ptr_compiler__semantic__symbols__InstanceRecord* std__memory__Heap_create_array_std__collections__Pair_usz_ptr_compiler__semantic__symbols__InstanceRecord(size_t count) {
+std__collections__Pair_usz_ptr_compiler__semantic__symbols__InstanceRecord* std__memory__Heap_alloc_std__collections__Pair_usz_ptr_compiler__semantic__symbols__InstanceRecord(size_t count) {
     return (std__collections__Pair_usz_ptr_compiler__semantic__symbols__InstanceRecord*)malloc((count * 16));
 }
 
@@ -80793,7 +80695,7 @@ std__collections__Pair_usz_ptr_compiler__semantic__symbols__InstanceRecord* std_
     return (std__collections__Pair_usz_ptr_compiler__semantic__symbols__InstanceRecord*)realloc((uint8_t*)ptr, (count * 16));
 }
 
-compiler__semantic__symbols__IsPatternInfo* std__memory__Heap_create_array_compiler__semantic__symbols__IsPatternInfo(size_t count) {
+compiler__semantic__symbols__IsPatternInfo* std__memory__Heap_alloc_compiler__semantic__symbols__IsPatternInfo(size_t count) {
     return (compiler__semantic__symbols__IsPatternInfo*)malloc((count * 80));
 }
 
@@ -80801,7 +80703,7 @@ compiler__semantic__symbols__IsPatternInfo* std__memory__Heap_resize_compiler__s
     return (compiler__semantic__symbols__IsPatternInfo*)realloc((uint8_t*)ptr, (count * 80));
 }
 
-std__collections__Pair_usz_compiler__semantic__symbols__IsPatternInfo* std__memory__Heap_create_array_std__collections__Pair_usz_compiler__semantic__symbols__IsPatternInfo(size_t count) {
+std__collections__Pair_usz_compiler__semantic__symbols__IsPatternInfo* std__memory__Heap_alloc_std__collections__Pair_usz_compiler__semantic__symbols__IsPatternInfo(size_t count) {
     return (std__collections__Pair_usz_compiler__semantic__symbols__IsPatternInfo*)malloc((count * 88));
 }
 
@@ -80813,7 +80715,7 @@ bool* std__memory__Heap_resize_bool(bool* ptr, size_t count) {
     return (bool*)realloc((uint8_t*)ptr, (count * 1));
 }
 
-std__collections__Pair_usz_bool* std__memory__Heap_create_array_std__collections__Pair_usz_bool(size_t count) {
+std__collections__Pair_usz_bool* std__memory__Heap_alloc_std__collections__Pair_usz_bool(size_t count) {
     return (std__collections__Pair_usz_bool*)malloc((count * 16));
 }
 
@@ -80821,7 +80723,7 @@ std__collections__Pair_usz_bool* std__memory__Heap_resize_std__collections__Pair
     return (std__collections__Pair_usz_bool*)realloc((uint8_t*)ptr, (count * 16));
 }
 
-compiler__semantic__symbols__LambdaInfo* std__memory__Heap_create_array_compiler__semantic__symbols__LambdaInfo(size_t count) {
+compiler__semantic__symbols__LambdaInfo* std__memory__Heap_alloc_compiler__semantic__symbols__LambdaInfo(size_t count) {
     return (compiler__semantic__symbols__LambdaInfo*)malloc((count * 40));
 }
 
@@ -80829,7 +80731,7 @@ compiler__semantic__symbols__LambdaInfo* std__memory__Heap_resize_compiler__sema
     return (compiler__semantic__symbols__LambdaInfo*)realloc((uint8_t*)ptr, (count * 40));
 }
 
-std__collections__Pair_usz_compiler__semantic__symbols__LambdaInfo* std__memory__Heap_create_array_std__collections__Pair_usz_compiler__semantic__symbols__LambdaInfo(size_t count) {
+std__collections__Pair_usz_compiler__semantic__symbols__LambdaInfo* std__memory__Heap_alloc_std__collections__Pair_usz_compiler__semantic__symbols__LambdaInfo(size_t count) {
     return (std__collections__Pair_usz_compiler__semantic__symbols__LambdaInfo*)malloc((count * 48));
 }
 
@@ -80837,7 +80739,7 @@ std__collections__Pair_usz_compiler__semantic__symbols__LambdaInfo* std__memory_
     return (std__collections__Pair_usz_compiler__semantic__symbols__LambdaInfo*)realloc((uint8_t*)ptr, (count * 48));
 }
 
-compiler__semantic__symbols__AnnotationEntry** std__memory__Heap_create_array_ptr_compiler__semantic__symbols__AnnotationEntry(size_t count) {
+compiler__semantic__symbols__AnnotationEntry** std__memory__Heap_alloc_ptr_compiler__semantic__symbols__AnnotationEntry(size_t count) {
     return (compiler__semantic__symbols__AnnotationEntry**)malloc((count * 8));
 }
 
@@ -80845,7 +80747,7 @@ compiler__semantic__symbols__AnnotationEntry** std__memory__Heap_resize_ptr_comp
     return (compiler__semantic__symbols__AnnotationEntry**)realloc((uint8_t*)ptr, (count * 8));
 }
 
-std__collections__Pair_usz_ptr_compiler__semantic__symbols__AnnotationEntry* std__memory__Heap_create_array_std__collections__Pair_usz_ptr_compiler__semantic__symbols__AnnotationEntry(size_t count) {
+std__collections__Pair_usz_ptr_compiler__semantic__symbols__AnnotationEntry* std__memory__Heap_alloc_std__collections__Pair_usz_ptr_compiler__semantic__symbols__AnnotationEntry(size_t count) {
     return (std__collections__Pair_usz_ptr_compiler__semantic__symbols__AnnotationEntry*)malloc((count * 16));
 }
 
@@ -80853,7 +80755,7 @@ std__collections__Pair_usz_ptr_compiler__semantic__symbols__AnnotationEntry* std
     return (std__collections__Pair_usz_ptr_compiler__semantic__symbols__AnnotationEntry*)realloc((uint8_t*)ptr, (count * 16));
 }
 
-compiler__semantic__symbols__GenericTemplate** std__memory__Heap_create_array_ptr_compiler__semantic__symbols__GenericTemplate(size_t count) {
+compiler__semantic__symbols__GenericTemplate** std__memory__Heap_alloc_ptr_compiler__semantic__symbols__GenericTemplate(size_t count) {
     return (compiler__semantic__symbols__GenericTemplate**)malloc((count * 8));
 }
 
@@ -80861,7 +80763,7 @@ compiler__semantic__symbols__GenericTemplate** std__memory__Heap_resize_ptr_comp
     return (compiler__semantic__symbols__GenericTemplate**)realloc((uint8_t*)ptr, (count * 8));
 }
 
-compiler__semantic__symbols__Symbol** std__memory__Heap_create_array_ptr_compiler__semantic__symbols__Symbol(size_t count) {
+compiler__semantic__symbols__Symbol** std__memory__Heap_alloc_ptr_compiler__semantic__symbols__Symbol(size_t count) {
     return (compiler__semantic__symbols__Symbol**)malloc((count * 8));
 }
 
@@ -80869,7 +80771,7 @@ compiler__semantic__symbols__Symbol** std__memory__Heap_resize_ptr_compiler__sem
     return (compiler__semantic__symbols__Symbol**)realloc((uint8_t*)ptr, (count * 8));
 }
 
-std__collections__Pair_str_ptr_compiler__semantic__symbols__Symbol* std__memory__Heap_create_array_std__collections__Pair_str_ptr_compiler__semantic__symbols__Symbol(size_t count) {
+std__collections__Pair_str_ptr_compiler__semantic__symbols__Symbol* std__memory__Heap_alloc_std__collections__Pair_str_ptr_compiler__semantic__symbols__Symbol(size_t count) {
     return (std__collections__Pair_str_ptr_compiler__semantic__symbols__Symbol*)malloc((count * 24));
 }
 
@@ -80877,7 +80779,7 @@ std__collections__Pair_str_ptr_compiler__semantic__symbols__Symbol* std__memory_
     return (std__collections__Pair_str_ptr_compiler__semantic__symbols__Symbol*)realloc((uint8_t*)ptr, (count * 24));
 }
 
-std__collections__Pair_str_ptr_compiler__semantic__symbols__InstanceRecord* std__memory__Heap_create_array_std__collections__Pair_str_ptr_compiler__semantic__symbols__InstanceRecord(size_t count) {
+std__collections__Pair_str_ptr_compiler__semantic__symbols__InstanceRecord* std__memory__Heap_alloc_std__collections__Pair_str_ptr_compiler__semantic__symbols__InstanceRecord(size_t count) {
     return (std__collections__Pair_str_ptr_compiler__semantic__symbols__InstanceRecord*)malloc((count * 24));
 }
 
@@ -80885,7 +80787,7 @@ std__collections__Pair_str_ptr_compiler__semantic__symbols__InstanceRecord* std_
     return (std__collections__Pair_str_ptr_compiler__semantic__symbols__InstanceRecord*)realloc((uint8_t*)ptr, (count * 24));
 }
 
-compiler__semantic__symbols__ModuleScope** std__memory__Heap_create_array_ptr_compiler__semantic__symbols__ModuleScope(size_t count) {
+compiler__semantic__symbols__ModuleScope** std__memory__Heap_alloc_ptr_compiler__semantic__symbols__ModuleScope(size_t count) {
     return (compiler__semantic__symbols__ModuleScope**)malloc((count * 8));
 }
 
@@ -80893,7 +80795,7 @@ compiler__semantic__symbols__ModuleScope** std__memory__Heap_resize_ptr_compiler
     return (compiler__semantic__symbols__ModuleScope**)realloc((uint8_t*)ptr, (count * 8));
 }
 
-std__collections__Pair_str_ptr_compiler__semantic__symbols__ModuleScope* std__memory__Heap_create_array_std__collections__Pair_str_ptr_compiler__semantic__symbols__ModuleScope(size_t count) {
+std__collections__Pair_str_ptr_compiler__semantic__symbols__ModuleScope* std__memory__Heap_alloc_std__collections__Pair_str_ptr_compiler__semantic__symbols__ModuleScope(size_t count) {
     return (std__collections__Pair_str_ptr_compiler__semantic__symbols__ModuleScope*)malloc((count * 24));
 }
 
@@ -80901,7 +80803,7 @@ std__collections__Pair_str_ptr_compiler__semantic__symbols__ModuleScope* std__me
     return (std__collections__Pair_str_ptr_compiler__semantic__symbols__ModuleScope*)realloc((uint8_t*)ptr, (count * 24));
 }
 
-compiler__semantic__symbols__ImportBinding* std__memory__Heap_create_array_compiler__semantic__symbols__ImportBinding(size_t count) {
+compiler__semantic__symbols__ImportBinding* std__memory__Heap_alloc_compiler__semantic__symbols__ImportBinding(size_t count) {
     return (compiler__semantic__symbols__ImportBinding*)malloc((count * 72));
 }
 
@@ -80909,7 +80811,7 @@ compiler__semantic__symbols__ImportBinding* std__memory__Heap_resize_compiler__s
     return (compiler__semantic__symbols__ImportBinding*)realloc((uint8_t*)ptr, (count * 72));
 }
 
-compiler__semantic__types__EnumInfo** std__memory__Heap_create_array_ptr_compiler__semantic__types__EnumInfo(size_t count) {
+compiler__semantic__types__EnumInfo** std__memory__Heap_alloc_ptr_compiler__semantic__types__EnumInfo(size_t count) {
     return (compiler__semantic__types__EnumInfo**)malloc((count * 8));
 }
 
@@ -80917,7 +80819,7 @@ compiler__semantic__types__EnumInfo** std__memory__Heap_resize_ptr_compiler__sem
     return (compiler__semantic__types__EnumInfo**)realloc((uint8_t*)ptr, (count * 8));
 }
 
-std__collections__Pair_str_ptr_compiler__semantic__types__EnumInfo* std__memory__Heap_create_array_std__collections__Pair_str_ptr_compiler__semantic__types__EnumInfo(size_t count) {
+std__collections__Pair_str_ptr_compiler__semantic__types__EnumInfo* std__memory__Heap_alloc_std__collections__Pair_str_ptr_compiler__semantic__types__EnumInfo(size_t count) {
     return (std__collections__Pair_str_ptr_compiler__semantic__types__EnumInfo*)malloc((count * 24));
 }
 
@@ -80925,7 +80827,7 @@ std__collections__Pair_str_ptr_compiler__semantic__types__EnumInfo* std__memory_
     return (std__collections__Pair_str_ptr_compiler__semantic__types__EnumInfo*)realloc((uint8_t*)ptr, (count * 24));
 }
 
-compiler__semantic__types__TraitInfo** std__memory__Heap_create_array_ptr_compiler__semantic__types__TraitInfo(size_t count) {
+compiler__semantic__types__TraitInfo** std__memory__Heap_alloc_ptr_compiler__semantic__types__TraitInfo(size_t count) {
     return (compiler__semantic__types__TraitInfo**)malloc((count * 8));
 }
 
@@ -80933,7 +80835,7 @@ compiler__semantic__types__TraitInfo** std__memory__Heap_resize_ptr_compiler__se
     return (compiler__semantic__types__TraitInfo**)realloc((uint8_t*)ptr, (count * 8));
 }
 
-std__collections__Pair_str_ptr_compiler__semantic__types__TraitInfo* std__memory__Heap_create_array_std__collections__Pair_str_ptr_compiler__semantic__types__TraitInfo(size_t count) {
+std__collections__Pair_str_ptr_compiler__semantic__types__TraitInfo* std__memory__Heap_alloc_std__collections__Pair_str_ptr_compiler__semantic__types__TraitInfo(size_t count) {
     return (std__collections__Pair_str_ptr_compiler__semantic__types__TraitInfo*)malloc((count * 24));
 }
 
@@ -80941,7 +80843,7 @@ std__collections__Pair_str_ptr_compiler__semantic__types__TraitInfo* std__memory
     return (std__collections__Pair_str_ptr_compiler__semantic__types__TraitInfo*)realloc((uint8_t*)ptr, (count * 24));
 }
 
-std__collections__Pair_str_compiler__semantic__symbols__ImportBinding* std__memory__Heap_create_array_std__collections__Pair_str_compiler__semantic__symbols__ImportBinding(size_t count) {
+std__collections__Pair_str_compiler__semantic__symbols__ImportBinding* std__memory__Heap_alloc_std__collections__Pair_str_compiler__semantic__symbols__ImportBinding(size_t count) {
     return (std__collections__Pair_str_compiler__semantic__symbols__ImportBinding*)malloc((count * 88));
 }
 
@@ -80949,7 +80851,7 @@ std__collections__Pair_str_compiler__semantic__symbols__ImportBinding* std__memo
     return (std__collections__Pair_str_compiler__semantic__symbols__ImportBinding*)realloc((uint8_t*)ptr, (count * 88));
 }
 
-std__collections__Pair_str_ptr_compiler__semantic__types__Type* std__memory__Heap_create_array_std__collections__Pair_str_ptr_compiler__semantic__types__Type(size_t count) {
+std__collections__Pair_str_ptr_compiler__semantic__types__Type* std__memory__Heap_alloc_std__collections__Pair_str_ptr_compiler__semantic__types__Type(size_t count) {
     return (std__collections__Pair_str_ptr_compiler__semantic__types__Type*)malloc((count * 24));
 }
 
@@ -80957,7 +80859,7 @@ std__collections__Pair_str_ptr_compiler__semantic__types__Type* std__memory__Hea
     return (std__collections__Pair_str_ptr_compiler__semantic__types__Type*)realloc((uint8_t*)ptr, (count * 24));
 }
 
-fmt__Comment* std__memory__Heap_create_array_fmt__Comment(size_t count) {
+fmt__Comment* std__memory__Heap_alloc_fmt__Comment(size_t count) {
     return (fmt__Comment*)malloc((count * 40));
 }
 
@@ -80965,7 +80867,7 @@ fmt__Comment* std__memory__Heap_resize_fmt__Comment(fmt__Comment* ptr, size_t co
     return (fmt__Comment*)realloc((uint8_t*)ptr, (count * 40));
 }
 
-lsp__LspDiagnostic* std__memory__Heap_create_array_lsp__LspDiagnostic(size_t count) {
+lsp__LspDiagnostic* std__memory__Heap_alloc_lsp__LspDiagnostic(size_t count) {
     return (lsp__LspDiagnostic*)malloc((count * 56));
 }
 
@@ -80973,7 +80875,7 @@ lsp__LspDiagnostic* std__memory__Heap_resize_lsp__LspDiagnostic(lsp__LspDiagnost
     return (lsp__LspDiagnostic*)realloc((uint8_t*)ptr, (count * 56));
 }
 
-lsp__Document* std__memory__Heap_create_array_lsp__Document(size_t count) {
+lsp__Document* std__memory__Heap_alloc_lsp__Document(size_t count) {
     return (lsp__Document*)malloc((count * 56));
 }
 
@@ -80981,7 +80883,7 @@ lsp__Document* std__memory__Heap_resize_lsp__Document(lsp__Document* ptr, size_t
     return (lsp__Document*)realloc((uint8_t*)ptr, (count * 56));
 }
 
-std__collections__Pair_str_lsp__Document* std__memory__Heap_create_array_std__collections__Pair_str_lsp__Document(size_t count) {
+std__collections__Pair_str_lsp__Document* std__memory__Heap_alloc_std__collections__Pair_str_lsp__Document(size_t count) {
     return (std__collections__Pair_str_lsp__Document*)malloc((count * 72));
 }
 
@@ -80989,7 +80891,7 @@ std__collections__Pair_str_lsp__Document* std__memory__Heap_resize_std__collecti
     return (std__collections__Pair_str_lsp__Document*)realloc((uint8_t*)ptr, (count * 72));
 }
 
-lsp__JsonValue** std__memory__Heap_create_array_ptr_lsp__JsonValue(size_t count) {
+lsp__JsonValue** std__memory__Heap_alloc_ptr_lsp__JsonValue(size_t count) {
     return (lsp__JsonValue**)malloc((count * 8));
 }
 
@@ -80997,7 +80899,7 @@ lsp__JsonValue** std__memory__Heap_resize_ptr_lsp__JsonValue(lsp__JsonValue** pt
     return (lsp__JsonValue**)realloc((uint8_t*)ptr, (count * 8));
 }
 
-std__filesystem__Path* std__memory__Heap_create_array_std__filesystem__Path(size_t count) {
+std__filesystem__Path* std__memory__Heap_alloc_std__filesystem__Path(size_t count) {
     return (std__filesystem__Path*)malloc((count * 16));
 }
 
@@ -81005,7 +80907,7 @@ std__filesystem__Path* std__memory__Heap_resize_std__filesystem__Path(std__files
     return (std__filesystem__Path*)realloc((uint8_t*)ptr, (count * 16));
 }
 
-compiler__loader__ModuleFile* std__memory__Heap_create_array_compiler__loader__ModuleFile(size_t count) {
+compiler__loader__ModuleFile* std__memory__Heap_alloc_compiler__loader__ModuleFile(size_t count) {
     return (compiler__loader__ModuleFile*)malloc((count * 40));
 }
 
@@ -81013,7 +80915,7 @@ compiler__loader__ModuleFile* std__memory__Heap_resize_compiler__loader__ModuleF
     return (compiler__loader__ModuleFile*)realloc((uint8_t*)ptr, (count * 40));
 }
 
-compiler__semantic__lowering__PendingResolve* std__memory__Heap_create_array_compiler__semantic__lowering__PendingResolve(size_t count) {
+compiler__semantic__lowering__PendingResolve* std__memory__Heap_alloc_compiler__semantic__lowering__PendingResolve(size_t count) {
     return (compiler__semantic__lowering__PendingResolve*)malloc((count * 16));
 }
 
@@ -81021,7 +80923,7 @@ compiler__semantic__lowering__PendingResolve* std__memory__Heap_resize_compiler_
     return (compiler__semantic__lowering__PendingResolve*)realloc((uint8_t*)ptr, (count * 16));
 }
 
-compiler__semantic__checker__ArrowCandidate** std__memory__Heap_create_array_ptr_compiler__semantic__checker__ArrowCandidate(size_t count) {
+compiler__semantic__checker__ArrowCandidate** std__memory__Heap_alloc_ptr_compiler__semantic__checker__ArrowCandidate(size_t count) {
     return (compiler__semantic__checker__ArrowCandidate**)malloc((count * 8));
 }
 
@@ -81029,7 +80931,7 @@ compiler__semantic__checker__ArrowCandidate** std__memory__Heap_resize_ptr_compi
     return (compiler__semantic__checker__ArrowCandidate**)realloc((uint8_t*)ptr, (count * 8));
 }
 
-compiler__codegen__ConditionAlias* std__memory__Heap_create_array_compiler__codegen__ConditionAlias(size_t count) {
+compiler__codegen__ConditionAlias* std__memory__Heap_alloc_compiler__codegen__ConditionAlias(size_t count) {
     return (compiler__codegen__ConditionAlias*)malloc((count * 48));
 }
 

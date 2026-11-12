@@ -20,20 +20,8 @@ impl str {
 	pub fn module_to_rel(*self) => self.replace_char('.', '/');
 
 	// "sub/x.kb" -> "sub.x" (relative file path -> module name)
-	pub fn path_to_module(*self): str {
-		val stem = self.strip_kb();
-		val buf = Heap.create_array<u8>(stem.len + 1);
-		for (i in 0..<stem.len) {
-			val c = stem[i];
-			if (str_is_sep(c)) {
-				buf[i] = '.'.code();
-			} else {
-				buf[i] = c.code();
-			}
-		}
-		buf[stem.len] = 0;
-		return str_from_bytes(buf, stem.len);
-	}
+	pub fn path_to_module(*self): str =>
+		self.strip_kb().map_chars { c -> if (str_is_sep(c)) '.' else c };
 
 	pub fn has_kb_suffix(*self) => self.ends_with(".kb");
 
@@ -47,40 +35,18 @@ impl str {
 	pub fn mangle_symbol(*self, name: str): str {
 		if (self.empty()) return name;
 
-		// Each '.' is written as 2 '_' characters, so allocate extra (2x the module part) to be safe.
-		val total = self.len * 2 + 2 + name.len;
-		val buf = Heap.create_array<u8>(total + 1);
-
-		var w = 0;
+		var sb = StringBuilder();
 		for (c in self) {
 			when (c) {
-				'.' -> {
-					buf[w] = '_'.code();
-					buf[w + 1] = '_'.code();
-					w += 2;
-				}
-				'_', '-' -> {
-					// keep '_' as is, map '-' to '_' to stay a valid C identifier
-					buf[w] = '_'.code();
-					w++;
-				}
-				else -> {
-					buf[w] = c.code();
-					w++;
-				}
+				'.' -> sb += "__";
+				'-' -> sb += '_';
+				else -> sb += c;
 			}
 		}
 
-		buf[w] = '_'.code();
-		buf[w + 1] = '_'.code();
-		w += 2;
-		for (c in name) {
-			buf[w] = c.code();
-			w++;
-		}
-
-		buf[w] = 0;
-		return str_from_bytes(buf, w);
+		sb += "__";
+		sb += name;
+		return sb.to_str();
 	}
 
 	pub fn hash_stamp(*self): str {
@@ -92,24 +58,13 @@ impl str {
 }
 
 pub fn str_join_dots(parts: List<str>, count: usz): str {
-	var total = 0;
-	for (i in 0..<count) total += parts[i].len;
-	if (count > 1) total += (count - 1);
+	if (count == 0) return "";
+	if (count == 1) return parts[0];
 
-	val buf = Heap.create_array<u8>(total + 1);
-	var w = 0;
+	var sb = StringBuilder();
 	for (i in 0..<count) {
-		val p = parts[i];
-		for (c in p) {
-			buf[w] = c.code();
-			w++;
-		}
-		if (i + 1 < count) {
-			buf[w] = '.'.code();
-			w++;
-		}
+		if (i > 0) sb += '.';
+		sb += parts[i];
 	}
-
-	buf[w] = 0;
-	return str_from_bytes(buf, w);
+	return sb.to_str();
 }

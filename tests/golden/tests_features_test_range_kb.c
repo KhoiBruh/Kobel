@@ -533,7 +533,7 @@ kobel_str std__collections__List_str_set(std__collections__List_str* self, size_
 void std__collections__List_str_plus_assign(std__collections__List_str* self, kobel_str value);
 void std__memory__Heap_free_u8(uint8_t* ptr);
 void std__memory__Heap_free_str(kobel_str* ptr);
-uint8_t* std__memory__Heap_create_array_u8(size_t count);
+uint8_t* std__memory__Heap_alloc_u8(size_t count);
 std__memory__ArenaBlock* std__memory__Heap_create_std__memory__ArenaBlock(void);
 void std__memory__Heap_free_std__memory__ArenaBlock(std__memory__ArenaBlock* ptr);
 int32_t std__collections__std__collections__List_str_fold_i32(std__collections__List_str* self, int32_t initial, kobel_closure operation);
@@ -558,7 +558,7 @@ bool std__range__Range_i64_equals(std__range__Range_i64* self, std__range__Range
 bool std__range__Range_i64_contains(std__range__Range_i64* self, int64_t item);
 size_t std__range__Range_i64_count(std__range__Range_i64* self);
 int64_t std__range__Range_i64_at(std__range__Range_i64* self, size_t i);
-kobel_str* std__memory__Heap_create_array_str(size_t count);
+kobel_str* std__memory__Heap_alloc_str(size_t count);
 kobel_str* std__memory__Heap_resize_str(kobel_str* ptr, size_t count);
 
 size_t std__traits__hash_int(size_t n) {
@@ -682,7 +682,7 @@ size_t sz = self->block_size;
 if (sz < min_size) {
 sz = min_size;
 }
-uint8_t* data = std__memory__Heap_create_array_u8(sz);
+uint8_t* data = std__memory__Heap_alloc_u8(sz);
 std__memory__ArenaBlock* blk = std__memory__Heap_create_std__memory__ArenaBlock();
 blk->data = data;
 blk->size = sz;
@@ -923,7 +923,7 @@ return -1;
 }
 
 kobel_str str_filter(kobel_str self, kobel_closure predicate) {
-uint8_t* buf = std__memory__Heap_create_array_u8((self.len + 1));
+uint8_t* buf = std__memory__Heap_alloc_u8((self.len + 1));
 int32_t w = 0;
 {
 size_t __for_n = self.len;
@@ -945,7 +945,7 @@ kobel_str str_map_chars(kobel_str self, kobel_closure transform) {
 if (str_empty(self)) {
 return self;
 }
-uint8_t* buf = std__memory__Heap_create_array_u8((self.len + 1));
+uint8_t* buf = std__memory__Heap_alloc_u8((self.len + 1));
 {
 size_t __for_e = self.len;
 size_t __for_i = __for_e;
@@ -1170,7 +1170,7 @@ kobel_str str_repeat(kobel_str self, size_t n) {
 if ((n == 0) || str_empty(self)) {
 return KOBEL_STR("");
 }
-uint8_t* buf = std__memory__Heap_create_array_u8(((self.len * n) + 1));
+uint8_t* buf = std__memory__Heap_alloc_u8(((self.len * n) + 1));
 int32_t w = 0;
 {
 size_t __for_e = n;
@@ -1219,7 +1219,7 @@ return list.data[0];
 }
 int32_t total = std__collections__std__collections__List_str_fold_i32(&list, 0, (kobel_closure){ (void*)__lambda_fn_5, NULL });
 total += (self.len * (list.len - 1));
-uint8_t* buf = std__memory__Heap_create_array_u8((total + 1));
+uint8_t* buf = std__memory__Heap_alloc_u8((total + 1));
 int32_t w = 0;
 {
 size_t __for_e = list.len;
@@ -1509,7 +1509,7 @@ size_t cap = init_cap;
 if (cap < 16) {
 cap = 16;
 }
-uint8_t* raw = std__memory__Heap_create_array_u8(cap);
+uint8_t* raw = std__memory__Heap_alloc_u8(cap);
 return (std__string__StringBuilder){ raw, 0, cap };
 }
 
@@ -1726,7 +1726,7 @@ char std__string__StringBuilder_at(std__string__StringBuilder* self, size_t i) {
 }
 
 kobel_str std__string__StringBuilder_to_str(std__string__StringBuilder* self) {
-uint8_t* str_data = std__memory__Heap_create_array_u8((self->len + 1));
+uint8_t* str_data = std__memory__Heap_alloc_u8((self->len + 1));
 if (self->len > 0) {
 memcpy(str_data, self->buf, self->len);
 }
@@ -1735,6 +1735,9 @@ return std__string__str_from_bytes(str_data, self->len);
 }
 
 kobel_str std__traits__fmt_u64(uint64_t n0) {
+if (n0 < 10) {
+return ((uint8_t)n0 == 0 ? KOBEL_STR("0") : ((uint8_t)n0 == 1 ? KOBEL_STR("1") : ((uint8_t)n0 == 2 ? KOBEL_STR("2") : ((uint8_t)n0 == 3 ? KOBEL_STR("3") : ((uint8_t)n0 == 4 ? KOBEL_STR("4") : ((uint8_t)n0 == 5 ? KOBEL_STR("5") : ((uint8_t)n0 == 6 ? KOBEL_STR("6") : ((uint8_t)n0 == 7 ? KOBEL_STR("7") : ((uint8_t)n0 == 8 ? KOBEL_STR("8") : KOBEL_STR("9"))))))))));
+}
 uint64_t n = n0;
 size_t digits = 1;
 uint64_t probe = n;
@@ -1742,7 +1745,7 @@ while (probe >= 10) {
 probe /= 10;
 digits++;
 }
-uint8_t* buf = std__memory__Heap_create_array_u8((digits + 1));
+uint8_t* buf = std__memory__Heap_alloc_u8((digits + 1));
 buf[digits] = 0;
 size_t i = digits;
 while (i > 0) {
@@ -1762,8 +1765,12 @@ return std__traits__fmt_u64((uint64_t)v);
 }
 
 kobel_str std__traits__fmt_char(char c) {
-uint8_t* buf = std__memory__Heap_create_array_u8(2);
-buf[0] = ((int32_t)(uint8_t)(c));
+int32_t code = ((int32_t)(uint8_t)(c));
+if ((code >= 48) && (code <= 57)) {
+return (c == '0' ? KOBEL_STR("0") : (c == '1' ? KOBEL_STR("1") : (c == '2' ? KOBEL_STR("2") : (c == '3' ? KOBEL_STR("3") : (c == '4' ? KOBEL_STR("4") : (c == '5' ? KOBEL_STR("5") : (c == '6' ? KOBEL_STR("6") : (c == '7' ? KOBEL_STR("7") : (c == '8' ? KOBEL_STR("8") : KOBEL_STR("9"))))))))));
+}
+uint8_t* buf = std__memory__Heap_alloc_u8(2);
+buf[0] = code;
 buf[1] = 0;
 return std__string__str_from_bytes(buf, 1);
 }
@@ -1776,7 +1783,10 @@ kobel_str std__traits__fmt_zeros(size_t n) {
 if (n == 0) {
 return KOBEL_STR("");
 }
-uint8_t* buf = std__memory__Heap_create_array_u8((n + 1));
+if (n <= 6) {
+return kobel_slice(KOBEL_STR("000000"), 0, n);
+}
+uint8_t* buf = std__memory__Heap_alloc_u8((n + 1));
 {
 size_t __for_e = n;
 size_t __for_i = __for_e;
@@ -2711,7 +2721,7 @@ kobel_str std__collections__List_str_at(std__collections__List_str* self, size_t
 
 std__collections__List_str std__collections__List_str_init(kobel_str* items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-kobel_str* buf = std__memory__Heap_create_array_str(cap);
+kobel_str* buf = std__memory__Heap_alloc_str(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -2850,7 +2860,7 @@ self->len++;
 
 std__collections__List_str std__collections__List_str_clone(std__collections__List_str* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_str res = (std__collections__List_str){ std__memory__Heap_create_array_str(cap), 0, cap };
+std__collections__List_str res = (std__collections__List_str){ std__memory__Heap_alloc_str(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_str_count(self);
 size_t __for_i = 0;
@@ -2889,7 +2899,7 @@ right--;
 }
 
 std__collections__List_str std__collections__List_str_sub(std__collections__List_str* self, size_t start, size_t count) {
-std__collections__List_str res = (std__collections__List_str){ std__memory__Heap_create_array_str(count), 0, count };
+std__collections__List_str res = (std__collections__List_str){ std__memory__Heap_alloc_str(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -3284,7 +3294,7 @@ void std__memory__Heap_free_str(kobel_str* ptr) {
     free((uint8_t*)ptr);
 }
 
-uint8_t* std__memory__Heap_create_array_u8(size_t count) {
+uint8_t* std__memory__Heap_alloc_u8(size_t count) {
     return (uint8_t*)malloc((count * 1));
 }
 
@@ -3462,7 +3472,7 @@ return (int64_t)(self->start + ((intptr_t)i));
 return (int64_t)(self->start - ((intptr_t)i));
 }
 
-kobel_str* std__memory__Heap_create_array_str(size_t count) {
+kobel_str* std__memory__Heap_alloc_str(size_t count) {
     return (kobel_str*)malloc((count * 16));
 }
 

@@ -620,7 +620,7 @@ void std__collections__List_std__filesystem__Path_plus_assign(std__collections__
 void std__memory__Heap_free_u8(uint8_t* ptr);
 void std__memory__Heap_free_str(kobel_str* ptr);
 void std__memory__Heap_free_std__filesystem__Path(std__filesystem__Path* ptr);
-uint8_t* std__memory__Heap_create_array_u8(size_t count);
+uint8_t* std__memory__Heap_alloc_u8(size_t count);
 std__memory__ArenaBlock* std__memory__Heap_create_std__memory__ArenaBlock(void);
 void std__memory__Heap_free_std__memory__ArenaBlock(std__memory__ArenaBlock* ptr);
 int32_t std__collections__std__collections__List_str_fold_i32(std__collections__List_str* self, int32_t initial, kobel_closure operation);
@@ -631,9 +631,9 @@ bool std__range__Range_char_contains(std__range__Range_char* self, char item);
 size_t std__range__Range_char_count(std__range__Range_char* self);
 char std__range__Range_char_at(std__range__Range_char* self, size_t i);
 std__collections__List_std__filesystem__Path std__collections__std__collections__List_str_map_std__filesystem__Path(std__collections__List_str* self, kobel_closure transform);
-kobel_str* std__memory__Heap_create_array_str(size_t count);
+kobel_str* std__memory__Heap_alloc_str(size_t count);
 kobel_str* std__memory__Heap_resize_str(kobel_str* ptr, size_t count);
-std__filesystem__Path* std__memory__Heap_create_array_std__filesystem__Path(size_t count);
+std__filesystem__Path* std__memory__Heap_alloc_std__filesystem__Path(size_t count);
 std__filesystem__Path* std__memory__Heap_resize_std__filesystem__Path(std__filesystem__Path* ptr, size_t count);
 
 size_t std__traits__hash_int(size_t n) {
@@ -757,7 +757,7 @@ size_t sz = self->block_size;
 if (sz < min_size) {
 sz = min_size;
 }
-uint8_t* data = std__memory__Heap_create_array_u8(sz);
+uint8_t* data = std__memory__Heap_alloc_u8(sz);
 std__memory__ArenaBlock* blk = std__memory__Heap_create_std__memory__ArenaBlock();
 blk->data = data;
 blk->size = sz;
@@ -998,7 +998,7 @@ return -1;
 }
 
 kobel_str str_filter(kobel_str self, kobel_closure predicate) {
-uint8_t* buf = std__memory__Heap_create_array_u8((self.len + 1));
+uint8_t* buf = std__memory__Heap_alloc_u8((self.len + 1));
 int32_t w = 0;
 {
 size_t __for_n = self.len;
@@ -1020,7 +1020,7 @@ kobel_str str_map_chars(kobel_str self, kobel_closure transform) {
 if (str_empty(self)) {
 return self;
 }
-uint8_t* buf = std__memory__Heap_create_array_u8((self.len + 1));
+uint8_t* buf = std__memory__Heap_alloc_u8((self.len + 1));
 {
 size_t __for_e = self.len;
 size_t __for_i = __for_e;
@@ -1245,7 +1245,7 @@ kobel_str str_repeat(kobel_str self, size_t n) {
 if ((n == 0) || str_empty(self)) {
 return KOBEL_STR("");
 }
-uint8_t* buf = std__memory__Heap_create_array_u8(((self.len * n) + 1));
+uint8_t* buf = std__memory__Heap_alloc_u8(((self.len * n) + 1));
 int32_t w = 0;
 {
 size_t __for_e = n;
@@ -1294,7 +1294,7 @@ return list.data[0];
 }
 int32_t total = std__collections__std__collections__List_str_fold_i32(&list, 0, (kobel_closure){ (void*)__lambda_fn_5, NULL });
 total += (self.len * (list.len - 1));
-uint8_t* buf = std__memory__Heap_create_array_u8((total + 1));
+uint8_t* buf = std__memory__Heap_alloc_u8((total + 1));
 int32_t w = 0;
 {
 size_t __for_e = list.len;
@@ -1584,7 +1584,7 @@ size_t cap = init_cap;
 if (cap < 16) {
 cap = 16;
 }
-uint8_t* raw = std__memory__Heap_create_array_u8(cap);
+uint8_t* raw = std__memory__Heap_alloc_u8(cap);
 return (std__string__StringBuilder){ raw, 0, cap };
 }
 
@@ -1801,7 +1801,7 @@ char std__string__StringBuilder_at(std__string__StringBuilder* self, size_t i) {
 }
 
 kobel_str std__string__StringBuilder_to_str(std__string__StringBuilder* self) {
-uint8_t* str_data = std__memory__Heap_create_array_u8((self->len + 1));
+uint8_t* str_data = std__memory__Heap_alloc_u8((self->len + 1));
 if (self->len > 0) {
 memcpy(str_data, self->buf, self->len);
 }
@@ -1810,6 +1810,9 @@ return std__string__str_from_bytes(str_data, self->len);
 }
 
 kobel_str std__traits__fmt_u64(uint64_t n0) {
+if (n0 < 10) {
+return ((uint8_t)n0 == 0 ? KOBEL_STR("0") : ((uint8_t)n0 == 1 ? KOBEL_STR("1") : ((uint8_t)n0 == 2 ? KOBEL_STR("2") : ((uint8_t)n0 == 3 ? KOBEL_STR("3") : ((uint8_t)n0 == 4 ? KOBEL_STR("4") : ((uint8_t)n0 == 5 ? KOBEL_STR("5") : ((uint8_t)n0 == 6 ? KOBEL_STR("6") : ((uint8_t)n0 == 7 ? KOBEL_STR("7") : ((uint8_t)n0 == 8 ? KOBEL_STR("8") : KOBEL_STR("9"))))))))));
+}
 uint64_t n = n0;
 size_t digits = 1;
 uint64_t probe = n;
@@ -1817,7 +1820,7 @@ while (probe >= 10) {
 probe /= 10;
 digits++;
 }
-uint8_t* buf = std__memory__Heap_create_array_u8((digits + 1));
+uint8_t* buf = std__memory__Heap_alloc_u8((digits + 1));
 buf[digits] = 0;
 size_t i = digits;
 while (i > 0) {
@@ -1837,8 +1840,12 @@ return std__traits__fmt_u64((uint64_t)v);
 }
 
 kobel_str std__traits__fmt_char(char c) {
-uint8_t* buf = std__memory__Heap_create_array_u8(2);
-buf[0] = ((int32_t)(uint8_t)(c));
+int32_t code = ((int32_t)(uint8_t)(c));
+if ((code >= 48) && (code <= 57)) {
+return (c == '0' ? KOBEL_STR("0") : (c == '1' ? KOBEL_STR("1") : (c == '2' ? KOBEL_STR("2") : (c == '3' ? KOBEL_STR("3") : (c == '4' ? KOBEL_STR("4") : (c == '5' ? KOBEL_STR("5") : (c == '6' ? KOBEL_STR("6") : (c == '7' ? KOBEL_STR("7") : (c == '8' ? KOBEL_STR("8") : KOBEL_STR("9"))))))))));
+}
+uint8_t* buf = std__memory__Heap_alloc_u8(2);
+buf[0] = code;
 buf[1] = 0;
 return std__string__str_from_bytes(buf, 1);
 }
@@ -1851,7 +1858,10 @@ kobel_str std__traits__fmt_zeros(size_t n) {
 if (n == 0) {
 return KOBEL_STR("");
 }
-uint8_t* buf = std__memory__Heap_create_array_u8((n + 1));
+if (n <= 6) {
+return kobel_slice(KOBEL_STR("000000"), 0, n);
+}
+uint8_t* buf = std__memory__Heap_alloc_u8((n + 1));
 {
 size_t __for_e = n;
 size_t __for_i = __for_e;
@@ -2080,7 +2090,7 @@ return KOBEL_STR("");
 }
 fseek(self->handle, cur, 0);
 int64_t size = (end_pos - cur);
-uint8_t* buf = std__memory__Heap_create_array_u8((size + 1));
+uint8_t* buf = std__memory__Heap_alloc_u8((size + 1));
 if (buf == NULL) {
 return KOBEL_STR("");
 }
@@ -2093,52 +2103,19 @@ bool std__filesystem__str_is_sep(char c) {
     return (c == '/' || c == '\\' ? true : false);
 }
 
+struct __lambda_env_6 {
+    char from;
+    char to;
+    bool fold_case;
+};
+
+static char __lambda_fn_6(void* __raw_env, char c) {
+    struct __lambda_env_6* __env = (struct __lambda_env_6*)__raw_env;
+return (c == (__env->from) ? (__env->to) : ((__env->fold_case) && std__range__Range_char_contains(&(std__range__Range_char){ 'A', 'Z', true }, c) ? ((char)((((int32_t)(uint8_t)(c)) + 32))) : c));
+}
+
 kobel_str std__filesystem__remap_path_bytes(kobel_str s, char from, char to, bool fold_case) {
-uint8_t* buf = std__memory__Heap_create_array_u8((s.len + 1));
-{
-size_t __for_e = s.len;
-size_t __for_i = __for_e;
-__for_i = 0;
-bool __for_up = (__for_i <= __for_e);
-bool __for_go = false;
-if (__for_up) {
-__for_go = (__for_i < __for_e);
-} else {
-__for_go = (__for_i > __for_e);
-}
-while (__for_go) {
-size_t i = __for_i;
-char c = s.data[i];
-buf[i] = (c == from ? ((int32_t)(uint8_t)(to)) : (fold_case && std__range__Range_char_contains(&(std__range__Range_char){ 'A', 'Z', true }, c) ? (((int32_t)(uint8_t)(c)) + 32) : ((int32_t)(uint8_t)(c))));
-if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
-} else {
-__for_go = ((__for_i - 1) > __for_e);
-}
-if (__for_go) {
-if (__for_up) {
-__for_i = (__for_i + 1);
-} else {
-__for_i = (__for_i - 1);
-}
-}
-}
-}
-buf[s.len] = 0;
-return std__string__str_from_bytes(buf, s.len);
-}
-
-static bool __lambda_fn_6(void* __raw_env, char c) {
-    (void)__raw_env;
-    return std__filesystem__str_is_sep(c);
-}
-
-kobel_str str_dir_of(kobel_str self) {
-intptr_t last = str_last_index_where(self, (kobel_closure){ (void*)__lambda_fn_6, NULL });
-if (last < 0) {
-return KOBEL_STR("");
-}
-return kobel_slice(self, 0, (size_t)last);
+    return str_map_chars(s, (kobel_closure){ (void*)__lambda_fn_6, (void*)&(struct __lambda_env_6){ from, to, fold_case } });
 }
 
 static bool __lambda_fn_7(void* __raw_env, char c) {
@@ -2146,8 +2123,21 @@ static bool __lambda_fn_7(void* __raw_env, char c) {
     return std__filesystem__str_is_sep(c);
 }
 
-kobel_str str_base_name(kobel_str self) {
+kobel_str str_dir_of(kobel_str self) {
 intptr_t last = str_last_index_where(self, (kobel_closure){ (void*)__lambda_fn_7, NULL });
+if (last < 0) {
+return KOBEL_STR("");
+}
+return kobel_slice(self, 0, (size_t)last);
+}
+
+static bool __lambda_fn_8(void* __raw_env, char c) {
+    (void)__raw_env;
+    return std__filesystem__str_is_sep(c);
+}
+
+kobel_str str_base_name(kobel_str self) {
+intptr_t last = str_last_index_where(self, (kobel_closure){ (void*)__lambda_fn_8, NULL });
 if (last < 0) {
 return self;
 }
@@ -2200,28 +2190,28 @@ kobel_str std__filesystem__Path_file_name(std__filesystem__Path* self) {
     return str_base_name(self->raw);
 }
 
-static bool __lambda_fn_8(void* __raw_env, char c) {
+static bool __lambda_fn_9(void* __raw_env, char c) {
     (void)__raw_env;
     return (c == '.');
 }
 
 kobel_str std__filesystem__Path_extension(std__filesystem__Path* self) {
 kobel_str fname = std__filesystem__Path_file_name(self);
-intptr_t last_dot = str_last_index_where(fname, (kobel_closure){ (void*)__lambda_fn_8, NULL });
+intptr_t last_dot = str_last_index_where(fname, (kobel_closure){ (void*)__lambda_fn_9, NULL });
 if ((last_dot <= 0) || (((size_t)last_dot) == (fname.len - 1))) {
 return KOBEL_STR("");
 }
 return kobel_slice1(fname, (size_t)(last_dot + 1));
 }
 
-static bool __lambda_fn_9(void* __raw_env, char c) {
+static bool __lambda_fn_10(void* __raw_env, char c) {
     (void)__raw_env;
     return (c == '.');
 }
 
 kobel_str std__filesystem__Path_stem(std__filesystem__Path* self) {
 kobel_str fname = std__filesystem__Path_file_name(self);
-intptr_t last_dot = str_last_index_where(fname, (kobel_closure){ (void*)__lambda_fn_9, NULL });
+intptr_t last_dot = str_last_index_where(fname, (kobel_closure){ (void*)__lambda_fn_10, NULL });
 if (last_dot <= 0) {
 return fname;
 }
@@ -2337,19 +2327,19 @@ std__collections__List_str_plus_assign(&res, kobel_slice(raw, start, raw.len));
 return res;
 }
 
-struct __lambda_env_10 {
+struct __lambda_env_11 {
     std__filesystem__Path* self;
 };
 
-static std__filesystem__Path __lambda_fn_10(void* __raw_env, kobel_str name) {
-    struct __lambda_env_10* __env = (struct __lambda_env_10*)__raw_env;
+static std__filesystem__Path __lambda_fn_11(void* __raw_env, kobel_str name) {
+    struct __lambda_env_11* __env = (struct __lambda_env_11*)__raw_env;
     return std__filesystem__Path_join((__env->self), name);
 }
 
 std__collections__List_std__filesystem__Path std__filesystem__Path_entries(std__filesystem__Path* self) {
 std__collections__List_str names = std__filesystem__Path_list_dir(self);
 {
-std__collections__List_std__filesystem__Path __ret_tmp = std__collections__std__collections__List_str_map_std__filesystem__Path(&names, (kobel_closure){ (void*)__lambda_fn_10, (void*)&(struct __lambda_env_10){ self } });
+std__collections__List_std__filesystem__Path __ret_tmp = std__collections__std__collections__List_str_map_std__filesystem__Path(&names, (kobel_closure){ (void*)__lambda_fn_11, (void*)&(struct __lambda_env_11){ self } });
 std__collections__List_str_free(names);
 return __ret_tmp;
 }
@@ -2368,7 +2358,7 @@ return KOBEL_STR("");
 }
 fseek(f, 0, 0);
 size_t sz = (size_t)size_i64;
-uint8_t* buf = std__memory__Heap_create_array_u8((sz + 1));
+uint8_t* buf = std__memory__Heap_alloc_u8((sz + 1));
 if (buf == NULL) {
 fclose(f);
 return KOBEL_STR("");
@@ -2507,7 +2497,7 @@ kobel_str std__collections__List_str_at(std__collections__List_str* self, size_t
 
 std__collections__List_str std__collections__List_str_init(kobel_str* items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-kobel_str* buf = std__memory__Heap_create_array_str(cap);
+kobel_str* buf = std__memory__Heap_alloc_str(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -2646,7 +2636,7 @@ self->len++;
 
 std__collections__List_str std__collections__List_str_clone(std__collections__List_str* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_str res = (std__collections__List_str){ std__memory__Heap_create_array_str(cap), 0, cap };
+std__collections__List_str res = (std__collections__List_str){ std__memory__Heap_alloc_str(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_str_count(self);
 size_t __for_i = 0;
@@ -2685,7 +2675,7 @@ right--;
 }
 
 std__collections__List_str std__collections__List_str_sub(std__collections__List_str* self, size_t start, size_t count) {
-std__collections__List_str res = (std__collections__List_str){ std__memory__Heap_create_array_str(count), 0, count };
+std__collections__List_str res = (std__collections__List_str){ std__memory__Heap_alloc_str(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -2881,17 +2871,17 @@ std__collections__List_str_remove_at(self, (size_t)idx);
 return true;
 }
 
-struct __lambda_env_11 {
+struct __lambda_env_12 {
     kobel_str value;
 };
 
-static bool __lambda_fn_11(void* __raw_env, kobel_str x) {
-    struct __lambda_env_11* __env = (struct __lambda_env_11*)__raw_env;
+static bool __lambda_fn_12(void* __raw_env, kobel_str x) {
+    struct __lambda_env_12* __env = (struct __lambda_env_12*)__raw_env;
     return kobel_streq(x, (__env->value));
 }
 
 size_t std__collections__List_str_remove_all(std__collections__List_str* self, kobel_str value) {
-    return std__collections__List_str_remove_where(self, (kobel_closure){ (void*)__lambda_fn_11, (void*)&(struct __lambda_env_11){ value } });
+    return std__collections__List_str_remove_where(self, (kobel_closure){ (void*)__lambda_fn_12, (void*)&(struct __lambda_env_12){ value } });
 }
 
 size_t std__collections__List_str_remove_where(std__collections__List_str* self, kobel_closure predicate) {
@@ -3082,7 +3072,7 @@ std__filesystem__Path std__collections__List_std__filesystem__Path_at(std__colle
 
 std__collections__List_std__filesystem__Path std__collections__List_std__filesystem__Path_init(std__filesystem__Path* items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-std__filesystem__Path* buf = std__memory__Heap_create_array_std__filesystem__Path(cap);
+std__filesystem__Path* buf = std__memory__Heap_alloc_std__filesystem__Path(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -3221,7 +3211,7 @@ self->len++;
 
 std__collections__List_std__filesystem__Path std__collections__List_std__filesystem__Path_clone(std__collections__List_std__filesystem__Path* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_std__filesystem__Path res = (std__collections__List_std__filesystem__Path){ std__memory__Heap_create_array_std__filesystem__Path(cap), 0, cap };
+std__collections__List_std__filesystem__Path res = (std__collections__List_std__filesystem__Path){ std__memory__Heap_alloc_std__filesystem__Path(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_std__filesystem__Path_count(self);
 size_t __for_i = 0;
@@ -3260,7 +3250,7 @@ right--;
 }
 
 std__collections__List_std__filesystem__Path std__collections__List_std__filesystem__Path_sub(std__collections__List_std__filesystem__Path* self, size_t start, size_t count) {
-std__collections__List_std__filesystem__Path res = (std__collections__List_std__filesystem__Path){ std__memory__Heap_create_array_std__filesystem__Path(count), 0, count };
+std__collections__List_std__filesystem__Path res = (std__collections__List_std__filesystem__Path){ std__memory__Heap_alloc_std__filesystem__Path(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -3456,17 +3446,17 @@ std__collections__List_std__filesystem__Path_remove_at(self, (size_t)idx);
 return true;
 }
 
-struct __lambda_env_12 {
+struct __lambda_env_13 {
     std__filesystem__Path value;
 };
 
-static bool __lambda_fn_12(void* __raw_env, std__filesystem__Path x) {
-    struct __lambda_env_12* __env = (struct __lambda_env_12*)__raw_env;
+static bool __lambda_fn_13(void* __raw_env, std__filesystem__Path x) {
+    struct __lambda_env_13* __env = (struct __lambda_env_13*)__raw_env;
     return kobel_memeq(&x, &(__env->value), 16);
 }
 
 size_t std__collections__List_std__filesystem__Path_remove_all(std__collections__List_std__filesystem__Path* self, std__filesystem__Path value) {
-    return std__collections__List_std__filesystem__Path_remove_where(self, (kobel_closure){ (void*)__lambda_fn_12, (void*)&(struct __lambda_env_12){ value } });
+    return std__collections__List_std__filesystem__Path_remove_where(self, (kobel_closure){ (void*)__lambda_fn_13, (void*)&(struct __lambda_env_13){ value } });
 }
 
 size_t std__collections__List_std__filesystem__Path_remove_where(std__collections__List_std__filesystem__Path* self, kobel_closure predicate) {
@@ -3659,7 +3649,7 @@ void std__memory__Heap_free_std__filesystem__Path(std__filesystem__Path* ptr) {
     free((uint8_t*)ptr);
 }
 
-uint8_t* std__memory__Heap_create_array_u8(size_t count) {
+uint8_t* std__memory__Heap_alloc_u8(size_t count) {
     return (uint8_t*)malloc((count * 1));
 }
 
@@ -3740,7 +3730,7 @@ __for_i = (__for_i + 1);
 return res;
 }
 
-kobel_str* std__memory__Heap_create_array_str(size_t count) {
+kobel_str* std__memory__Heap_alloc_str(size_t count) {
     return (kobel_str*)malloc((count * 16));
 }
 
@@ -3748,7 +3738,7 @@ kobel_str* std__memory__Heap_resize_str(kobel_str* ptr, size_t count) {
     return (kobel_str*)realloc((uint8_t*)ptr, (count * 16));
 }
 
-std__filesystem__Path* std__memory__Heap_create_array_std__filesystem__Path(size_t count) {
+std__filesystem__Path* std__memory__Heap_alloc_std__filesystem__Path(size_t count) {
     return (std__filesystem__Path*)malloc((count * 16));
 }
 

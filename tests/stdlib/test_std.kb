@@ -55,7 +55,7 @@ fn test_arena(): bool {
 	if (h_val.read() != 100) return false;
 	Heap.free(h_val);
 
-	val arr = Heap.create_array<i32>(5);
+	val arr = Heap.alloc<i32>(5);
 	arr[0] = 10;
 	arr[4] = 50;
 	if (arr[0] != 10 || arr[4] != 50) return false;

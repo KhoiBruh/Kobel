@@ -23,6 +23,21 @@ pub trait Stringer {
 // Decimal string of an unsigned 64-bit value. The digit count is computed
 // first so the digits can be written forward into an exactly sized buffer.
 fn fmt_u64(n0: u64): str {
+	if (n0 < 10) {
+		return when (n0 as u8) {
+			0 -> "0";
+			1 -> "1";
+			2 -> "2";
+			3 -> "3";
+			4 -> "4";
+			5 -> "5";
+			6 -> "6";
+			7 -> "7";
+			8 -> "8";
+			else -> "9";
+		};
+	}
+
 	var n = n0;
 	var digits: usz = 1;
 	var probe = n;
@@ -31,7 +46,7 @@ fn fmt_u64(n0: u64): str {
 		digits++;
 	}
 
-	val buf = Heap.create_array<u8>(digits + 1);
+	val buf = Heap.alloc<u8>(digits + 1);
 	buf[digits] = 0;
 	var i = digits;
 	while (i > 0) {
@@ -53,8 +68,24 @@ fn fmt_i64(v: i64): str {
 }
 
 fn fmt_char(c: char): str {
-	val buf = Heap.create_array<u8>(2);
-	buf[0] = c.code();
+	val code = c.code();
+	if (code >= 48 && code <= 57) {
+		return when (c) {
+			'0' -> "0";
+			'1' -> "1";
+			'2' -> "2";
+			'3' -> "3";
+			'4' -> "4";
+			'5' -> "5";
+			'6' -> "6";
+			'7' -> "7";
+			'8' -> "8";
+			else -> "9";
+		};
+	}
+
+	val buf = Heap.alloc<u8>(2);
+	buf[0] = code;
 	buf[1] = 0;
 	return str_from_bytes(buf, 1);
 }
@@ -64,8 +95,9 @@ fn fmt_bool(b: bool) => if (b) "true" else "false";
 // `n` copies of the character '0'.
 fn fmt_zeros(n: usz): str {
 	if (n == 0) return "";
+	if (n <= 6) return "000000".slice(0, n);
 
-	val buf = Heap.create_array<u8>(n + 1);
+	val buf = Heap.alloc<u8>(n + 1);
 	for (i in 0..<n) buf[i] = '0'.code();
 	buf[n] = 0;
 

@@ -105,7 +105,7 @@ impl str {
 	}
 
 	pub fn filter(*self, predicate: (char) -> bool): str {
-		val buf = Heap.create_array<u8>(self.len + 1);
+		val buf = Heap.alloc<u8>(self.len + 1);
 		var w = 0;
 		for (ch in self) {
 			if (predicate(ch)) {
@@ -121,7 +121,7 @@ impl str {
 	pub fn map_chars(*self, transform: (char) -> char): str {
 		if (self.empty()) return self;
 
-		val buf = Heap.create_array<u8>(self.len + 1);
+		val buf = Heap.alloc<u8>(self.len + 1);
 		for (i in 0..<self.len) buf[i] = transform(self[i]).code();
 
 		buf[self.len] = 0;
@@ -189,7 +189,7 @@ impl str {
 	pub fn repeat(*self, n: usz): str {
 		if (n == 0 || self.empty()) return "";
 
-		val buf = Heap.create_array<u8>(self.len * n + 1);
+		val buf = Heap.alloc<u8>(self.len * n + 1);
 		var w = 0;
 
 		for (k in 0..<n) {
@@ -208,7 +208,7 @@ impl str {
 		var total = list.fold(0) { acc, item -> acc + item.len };
 		total += self.len * (list.len - 1);
 
-		val buf = Heap.create_array<u8>(total + 1);
+		val buf = Heap.alloc<u8>(total + 1);
 		var w = 0;
 		for (i in 0..<list.len) {
 			val item = list.data[i];

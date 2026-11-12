@@ -31,20 +31,14 @@ pub fn str_is_sep(c: char) => when (c) {
 
 // Path-byte remap: every `from` byte becomes `to`, and A-Z lowercases when
 // `fold_case` (only `normalize_path` needs that).
-fn remap_path_bytes(s: str, from: char, to: char, fold_case: bool): str {
-	val buf = Heap.create_array<u8>(s.len + 1);
-	for (i in 0..<s.len) {
-		val c = s[i];
-		buf[i] = when {
-			c == from -> to.code();
-			fold_case && c in 'A'..'Z' -> c.code() + 32;
-			else -> c.code();
+fn remap_path_bytes(s: str, from: char, to: char, fold_case: bool): str =>
+	s.map_chars { c ->
+		yield when {
+			c == from -> to;
+			fold_case && c in 'A'..'Z' -> char(c.code() + 32);
+			else -> c;
 		};
-	}
-
-	buf[s.len] = 0;
-	return str_from_bytes(buf, s.len);
-}
+	};
 
 impl str {
 
@@ -209,7 +203,7 @@ impl Path {
 
 		fseek(f, 0, 0);
 		val sz = size_i64 as usz;
-		val buf = Heap.create_array<u8>(sz + 1);
+		val buf = Heap.alloc<u8>(sz + 1);
 		if (buf == null) {
 			fclose(f);
 			return "";

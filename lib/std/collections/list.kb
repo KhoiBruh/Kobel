@@ -41,7 +41,7 @@ impl List<T> {
 
 	pub init(items: ..T) {
 		val cap = if (items.len < 4) 4 else items.len;
-		val buf = Heap.create_array<T>(cap);
+		val buf = Heap.alloc<T>(cap);
 		for (i in 0..<items.len) {
 			buf[i] = items[i];
 		}
@@ -108,7 +108,7 @@ impl List<T> {
 
 	pub fn clone(*self): Self {
 		val cap = if (self.cap > 0) self.cap else 4;
-		var res = Self(Heap.create_array<T>(cap), 0, cap);
+		var res = Self(Heap.alloc<T>(cap), 0, cap);
 		for (data in self) res += data;
 		return res;
 	}
@@ -135,7 +135,7 @@ impl List<T> {
 	}
 
 	pub fn sub(*self, start: usz, count: usz): Self {
-		var res = Self(Heap.create_array<T>(count), 0, count);
+		var res = Self(Heap.alloc<T>(count), 0, count);
 		if (start >= self.len) return res;
 		val end = if (start + count > self.len) self.len else start + count;
 		for (i in start..<end) res += self.data[i];

@@ -29,8 +29,11 @@ impl Heap {
 		return ptr;
 	}
 
+	// Allocate contiguous uninitialized `T`s on the heap (defaults to 1 element).
+	pub fn alloc<T>(count: usz = 1) => malloc(count * T.size()) as &T;
+
 	// `count` uninitialized `T`s on the heap (contiguous).
-	pub fn create_array<T>(count: usz) => malloc(count * T.size()) as &T;
+	pub fn create_array<T>(count: usz) => Heap.alloc<T>(count);
 
 	// Grow/shrink `ptr` to hold `count` elements of `T`.
 	pub fn resize<T>(ptr: *T, count: usz) => realloc(ptr as &u8, count * T.size()) as &T;

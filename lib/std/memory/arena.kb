@@ -48,7 +48,7 @@ impl Arena {
 		var sz = self.block_size;
 		if (sz < min_size) sz = min_size;
 
-		val data = Heap.create_array<u8>(sz);
+		val data = Heap.alloc<u8>(sz);
 		val blk = Heap.create<ArenaBlock>();
 
 		blk.data = data;

@@ -112,7 +112,7 @@ pub fn read_message(): str {
 	if (content_length == 0) return "";
 
 	// 2. Read exactly content_length bytes
-	val buf = Heap.create_array<u8>(content_length + 1);
+	val buf = Heap.alloc<u8>(content_length + 1);
 	for (i in 0..<content_length) {
 		val ch = getchar();
 		if (ch < 0) {
