@@ -20,11 +20,11 @@ impl Allocator for Heap {
 
 impl Heap {
 	// One uninitialized `T` on the heap.
-	pub fn create<T>() => malloc(T.size()) as &T;
+	pub fn create<T>() => Heap.alloc<T>(1);
 
 	// One initialized `T` on the heap with the given value.
 	pub fn create_val<T>(value: T): &T {
-		val ptr = Heap.create<T>();
+		val ptr = Heap.alloc<T>(1);
 		ptr.write(value);
 		return ptr;
 	}
@@ -32,13 +32,10 @@ impl Heap {
 	// Allocate contiguous uninitialized `T`s on the heap (defaults to 1 element).
 	pub fn alloc<T>(count: usz = 1) => malloc(count * T.size()) as &T;
 
-	// `count` uninitialized `T`s on the heap (contiguous).
-	pub fn create_array<T>(count: usz) => Heap.alloc<T>(count);
-
 	// Grow/shrink `ptr` to hold `count` elements of `T`.
 	pub fn resize<T>(ptr: *T, count: usz) => realloc(ptr as &u8, count * T.size()) as &T;
 
-	// Free a block obtained from create/create_array/resize.
+	// Free a block obtained from create/alloc/resize.
 	pub fn free(ptr: *none) => free(ptr as &u8);
 	pub fn free<T>(ptr: *T) => free(ptr as &u8);
 }

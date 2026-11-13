@@ -6689,6 +6689,7 @@ void std__memory__Heap_free_ptr_compiler__semantic__checker__ArrowCandidate(comp
 void std__memory__Heap_free_compiler__codegen__ConditionAlias(compiler__codegen__ConditionAlias* ptr);
 uint8_t* std__memory__Heap_alloc_u8(size_t count);
 std__memory__ArenaBlock* std__memory__Heap_create_std__memory__ArenaBlock(void);
+std__memory__ArenaBlock* std__memory__Heap_alloc_std__memory__ArenaBlock(size_t count);
 void std__memory__Heap_free_std__memory__ArenaBlock(std__memory__ArenaBlock* ptr);
 int32_t std__collections__std__collections__List_str_fold_i32(std__collections__List_str* self, int32_t initial, kobel_closure operation);
 uint8_t* std__memory__Heap_resize_u8(uint8_t* ptr, size_t count);
@@ -6726,6 +6727,7 @@ compiler__semantic__checker__ArrowCandidate* std__memory__Arena_create_val_compi
 std__collections__List_str std__collections__std__collections__List_ptr_compiler__ast__AstNode_map_str(std__collections__List_ptr_compiler__ast__AstNode* self, kobel_closure transform);
 std__collections__List_str std__collections__std__collections__List_compiler__semantic__symbols__LambdaCapture_map_str(std__collections__List_compiler__semantic__symbols__LambdaCapture* self, kobel_closure transform);
 lsp__JsonValue* std__memory__Heap_create_lsp__JsonValue(void);
+lsp__JsonValue* std__memory__Heap_alloc_lsp__JsonValue(size_t count);
 compiler__ast__AstNode** std__memory__Heap_alloc_ptr_compiler__ast__AstNode(size_t count);
 compiler__ast__AstNode** std__memory__Heap_resize_ptr_compiler__ast__AstNode(compiler__ast__AstNode** ptr, size_t count);
 compiler__ast__WhenArm* std__memory__Heap_alloc_compiler__ast__WhenArm(size_t count);
@@ -80137,7 +80139,11 @@ uint8_t* std__memory__Heap_alloc_u8(size_t count) {
 }
 
 std__memory__ArenaBlock* std__memory__Heap_create_std__memory__ArenaBlock(void) {
-    return (std__memory__ArenaBlock*)malloc(32);
+    return std__memory__Heap_alloc_std__memory__ArenaBlock(1);
+}
+
+std__memory__ArenaBlock* std__memory__Heap_alloc_std__memory__ArenaBlock(size_t count) {
+    return (std__memory__ArenaBlock*)malloc((count * 32));
 }
 
 void std__memory__Heap_free_std__memory__ArenaBlock(std__memory__ArenaBlock* ptr) {
@@ -80456,7 +80462,11 @@ return res;
 }
 
 lsp__JsonValue* std__memory__Heap_create_lsp__JsonValue(void) {
-    return (lsp__JsonValue*)malloc(104);
+    return std__memory__Heap_alloc_lsp__JsonValue(1);
+}
+
+lsp__JsonValue* std__memory__Heap_alloc_lsp__JsonValue(size_t count) {
+    return (lsp__JsonValue*)malloc((count * 104));
 }
 
 compiler__ast__AstNode** std__memory__Heap_alloc_ptr_compiler__ast__AstNode(size_t count) {

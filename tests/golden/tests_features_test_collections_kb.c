@@ -968,6 +968,7 @@ void std__memory__Heap_free_tests__features__test_collections__Point2D(tests__fe
 void std__memory__Heap_free_std__collections__Pair_tests__features__test_collections__Point2D_i32(std__collections__Pair_tests__features__test_collections__Point2D_i32* ptr);
 uint8_t* std__memory__Heap_alloc_u8(size_t count);
 std__memory__ArenaBlock* std__memory__Heap_create_std__memory__ArenaBlock(void);
+std__memory__ArenaBlock* std__memory__Heap_alloc_std__memory__ArenaBlock(size_t count);
 void std__memory__Heap_free_std__memory__ArenaBlock(std__memory__ArenaBlock* ptr);
 int32_t std__collections__std__collections__List_str_fold_i32(std__collections__List_str* self, int32_t initial, kobel_closure operation);
 uint8_t* std__memory__Heap_resize_u8(uint8_t* ptr, size_t count);
@@ -8844,7 +8845,11 @@ uint8_t* std__memory__Heap_alloc_u8(size_t count) {
 }
 
 std__memory__ArenaBlock* std__memory__Heap_create_std__memory__ArenaBlock(void) {
-    return (std__memory__ArenaBlock*)malloc(32);
+    return std__memory__Heap_alloc_std__memory__ArenaBlock(1);
+}
+
+std__memory__ArenaBlock* std__memory__Heap_alloc_std__memory__ArenaBlock(size_t count) {
+    return (std__memory__ArenaBlock*)malloc((count * 32));
 }
 
 void std__memory__Heap_free_std__memory__ArenaBlock(std__memory__ArenaBlock* ptr) {

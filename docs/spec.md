@@ -473,7 +473,7 @@ Standard library modules live in `lib/std/`:
   - `HashSet<T: Hash>`: Set collection.
   - `StringBuilder`: Efficient string assembly.
 - `std.memory`: Memory allocation interfaces and implementations (`Allocator` trait, `Heap`, `Arena`).
-  - `create<T>`, `create_val<T>`, `create_array<T>`, `resize<T>`, `free<T>`.
+  - `create<T>`, `create_val<T>`, `alloc<T>`, `resize<T>`, `free<T>`.
   - Bump allocator (`Arena`) for single-point bulk deallocation.
 - `std.traits`: Core traits (`Iterable`, `Hash`, `Stringer`).
 - `std.sys`: System helpers (`exec`, `sys_exit`, `is_windows`, `has_env`).
