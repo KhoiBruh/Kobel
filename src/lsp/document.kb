@@ -61,8 +61,10 @@ impl DocumentStore {
 
 pub fn paths_equal(a: str, b: str): bool {
 	if (a.empty() || b.empty()) return false;
-	val na = a.normalize_path();
-	val nb = b.normalize_path();
+	var na = a.normalize_path();
+	var nb = b.normalize_path();
+	while (na.starts_with(".\\") || na.starts_with("./")) na = na.slice(2, na.len);
+	while (nb.starts_with(".\\") || nb.starts_with("./")) nb = nb.slice(2, nb.len);
 	if (na == nb) return true;
 	// Case-insensitive drive letter comparison on Windows (e.g. C:/ vs c:/)
 	if (na.len == nb.len && na.len >= 2 && na[1] == ':' && nb[1] == ':') {

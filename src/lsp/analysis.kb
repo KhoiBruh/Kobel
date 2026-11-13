@@ -419,24 +419,66 @@ impl AnalysisResult {
 		if (loader.find_module("std.string").found) loader.ensure_module("std.string");
 		if (loader.find_module("std.range").found) loader.ensure_module("std.range");
 
-		val doc_prog = loader.load_program(path, source);
-
-		// Load sibling files belonging to the same folder-as-package module
+		var full_prog: *AstNode? = null;
+		val was_known = loader.is_known(doc_mod);
+		var use_in_place = was_known;
 		val pkg_files = loader.find_module_files(doc_mod);
-		var pkg_dirty = false;
-		for ((f_path, f_src) in pkg_files) {
-			if (paths_equal(f_path, path)) continue;
-			val sib_prog = loader.parse_source(f_path, f_src, doc_mod) ?: continue;
-			var declared = "";
-			if (sib_prog is Program as sp) declared = sp.declared_module_name();
-			if (!declared.empty() && declared != doc_mod) continue;
-			loader.process_uses(sib_prog, doc_mod);
-			loader.ordered += LoadedModule(doc_mod, f_path, sib_prog, sib_prog.span.file_id);
-			pkg_dirty = true;
+		if (!was_known) {
+			for ((f_path, _) in pkg_files) {
+				if (paths_equal(f_path, path)) {
+					loader.ensure_module(doc_mod);
+					use_in_place = true;
+					break;
+				}
+			}
+		}
+
+		if (use_in_place) {
+			// Module already loaded in canonical file order: substitute live editor buffer for `path`
+			val override_prog = loader.parse_source(path, source, doc_mod);
+			if (override_prog != null) {
+				loader.process_uses(override_prog, doc_mod);
+				var replaced = false;
+				for (i in 0..<loader.ordered.len) {
+					if (paths_equal(loader.ordered[i].path, path)) {
+						loader.ordered[i] = LoadedModule(doc_mod, path, override_prog, override_prog.span.file_id);
+						replaced = true;
+						break;
+					}
+				}
+				if (!replaced) {
+					loader.ordered += LoadedModule(doc_mod, path, override_prog, override_prog.span.file_id);
+				}
+			}
+			full_prog = loader.build_merged_program();
+		} else {
+			val doc_prog = loader.load_program(path, source);
+
+			// Load any sibling files belonging to the same module if not already loaded
+			var pkg_dirty = false;
+			for ((f_path, f_src) in pkg_files) {
+				if (paths_equal(f_path, path)) continue;
+				var seen_path = false;
+				for (existing in loader.ordered) {
+					if (paths_equal(existing.path, f_path)) {
+						seen_path = true;
+						break;
+					}
+				}
+				if (seen_path) continue;
+				val sib_prog = loader.parse_source(f_path, f_src, doc_mod) ?: continue;
+				var declared = "";
+				if (sib_prog is Program as sp) declared = sp.declared_module_name();
+				if (!declared.empty() && declared != doc_mod) continue;
+				loader.process_uses(sib_prog, doc_mod);
+				loader.ordered += LoadedModule(doc_mod, f_path, sib_prog, sib_prog.span.file_id);
+				pkg_dirty = true;
+			}
+
+			full_prog = if (pkg_dirty) loader.build_merged_program() else doc_prog;
 		}
 
 		// Optionally load project entry so reverse-dependencies on this file are indexed
-		var full_prog = if (pkg_dirty) loader.build_merged_program() else doc_prog;
 		if (include_workspace && !proj_root.empty()) {
 			val proj_entry = resolve_project_entry(proj_root);
 			if (!proj_entry.empty() && !paths_equal(proj_entry, path)) {
@@ -481,10 +523,18 @@ impl AnalysisResult {
 				}
 			}
 
-			finish_semantic_index(&index, &loader, body_p.symtab, true);
+			finish_semantic_index(&index, &loader, body_p.symtab, true, path, include_workspace);
+			loader.arena.free();
+			loader.sources.free();
+			loader.errors.free();
+			decl_p.errors.free();
+			body_p.errors.free();
 			return Self(diagnostics, body_p.symtab, true, tokens, index, path, source);
 		}
 
+		loader.arena.free();
+		loader.sources.free();
+		loader.errors.free();
 		var empty_symtab = SymbolTable();
 		return Self(diagnostics, empty_symtab, false, tokens, SemanticIndex(), path, source);
 	}

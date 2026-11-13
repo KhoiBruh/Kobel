@@ -4421,7 +4421,7 @@ void lsp__IndexWalker_walk_when(lsp__IndexWalker* self, compiler__ast__AstNode* 
 void lsp__IndexWalker_walk_expr(lsp__IndexWalker* self, compiler__ast__AstNode* node);
 void lsp__register_c_name_mapping(lsp__SemanticIndex* index, compiler__ast__AstNode* prog);
 lsp__SemanticIndex lsp__prepare_semantic_index(compiler__loader__ModuleLoader* loader, kobel_str doc_path, kobel_str doc_source);
-void lsp__finish_semantic_index(lsp__SemanticIndex* index, compiler__loader__ModuleLoader* loader, compiler__semantic__symbols__SymbolTable symtab, bool has_symtab);
+void lsp__finish_semantic_index(lsp__SemanticIndex* index, compiler__loader__ModuleLoader* loader, compiler__semantic__symbols__SymbolTable symtab, bool has_symtab, kobel_str target_path, bool include_workspace);
 lsp__SemanticIndex lsp__build_semantic_index(compiler__loader__ModuleLoader* loader, compiler__semantic__symbols__SymbolTable symtab, bool has_symtab);
 void lsp__Document_unpack_3(lsp__Document* self, kobel_str* path, kobel_str* text);
 void lsp__Document_unpack_4(lsp__Document* self, kobel_str* uri, kobel_str* path, kobel_str* text);
@@ -34408,18 +34408,99 @@ compiler__loader__ModuleLoader_ensure_module(&loader, KOBEL_STR("std.string"), 0
 if (compiler__loader__ModuleLoader_find_module(&loader, KOBEL_STR("std.range")).found) {
 compiler__loader__ModuleLoader_ensure_module(&loader, KOBEL_STR("std.range"), 0, 0, KOBEL_STR(""));
 }
-compiler__ast__AstNode* doc_prog = compiler__loader__ModuleLoader_load_program(&loader, path, source);
+compiler__ast__AstNode* full_prog = NULL;
+bool was_known = compiler__loader__ModuleLoader_is_known(&loader, doc_mod);
+bool use_in_place = was_known;
 std__collections__List_compiler__loader__ModuleFile pkg_files = compiler__loader__ModuleLoader_find_module_files(&loader, doc_mod);
-bool pkg_dirty = false;
+if (!was_known) {
 {
 size_t __for_n = std__collections__List_compiler__loader__ModuleFile_count(&pkg_files);
 size_t __for_i = 0;
 while (__for_i < __for_n) {
 compiler__loader__ModuleFile __destruct_tmp_22 = std__collections__List_compiler__loader__ModuleFile_at(&pkg_files, __for_i);
 kobel_str f_path;
-kobel_str f_src;
-compiler__loader__ModuleFile_unpack_3(&__destruct_tmp_22, &f_path, &f_src);
+kobel_str __destruct_unused_22_1;
+compiler__loader__ModuleFile_unpack_3(&__destruct_tmp_22, &f_path, &__destruct_unused_22_1);
 if (lsp__paths_equal(f_path, path)) {
+compiler__loader__ModuleLoader_ensure_module(&loader, doc_mod, 0, 0, KOBEL_STR(""));
+use_in_place = true;
+break;
+}
+__for_i = (__for_i + 1);
+}
+}
+}
+if (use_in_place) {
+compiler__ast__AstNode* override_prog = compiler__loader__ModuleLoader_parse_source(&loader, path, source, doc_mod);
+if (override_prog != NULL) {
+compiler__loader__ModuleLoader_process_uses(&loader, override_prog, doc_mod);
+bool replaced = false;
+{
+size_t __for_e = loader.ordered.len;
+size_t __for_i = __for_e;
+__for_i = 0;
+bool __for_up = (__for_i <= __for_e);
+bool __for_go = false;
+if (__for_up) {
+__for_go = (__for_i < __for_e);
+} else {
+__for_go = (__for_i > __for_e);
+}
+while (__for_go) {
+size_t i = __for_i;
+if (lsp__paths_equal(std__collections__List_compiler__loader__LoadedModule_get(&loader.ordered, i).path, path)) {
+std__collections__List_compiler__loader__LoadedModule_set(&loader.ordered, i, (compiler__loader__LoadedModule){ doc_mod, path, override_prog, override_prog->span.file_id });
+replaced = true;
+break;
+}
+if (__for_up) {
+__for_go = ((__for_i + 1) < __for_e);
+} else {
+__for_go = ((__for_i - 1) > __for_e);
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = (__for_i + 1);
+} else {
+__for_i = (__for_i - 1);
+}
+}
+}
+}
+if (!replaced) {
+std__collections__List_compiler__loader__LoadedModule_plus_assign(&loader.ordered, (compiler__loader__LoadedModule){ doc_mod, path, override_prog, override_prog->span.file_id });
+}
+}
+full_prog = compiler__loader__ModuleLoader_build_merged_program(&loader);
+} else {
+compiler__ast__AstNode* doc_prog = compiler__loader__ModuleLoader_load_program(&loader, path, source);
+bool pkg_dirty = false;
+{
+size_t __for_n = std__collections__List_compiler__loader__ModuleFile_count(&pkg_files);
+size_t __for_i = 0;
+while (__for_i < __for_n) {
+compiler__loader__ModuleFile __destruct_tmp_23 = std__collections__List_compiler__loader__ModuleFile_at(&pkg_files, __for_i);
+kobel_str f_path;
+kobel_str f_src;
+compiler__loader__ModuleFile_unpack_3(&__destruct_tmp_23, &f_path, &f_src);
+if (lsp__paths_equal(f_path, path)) {
+__for_i = (__for_i + 1);
+continue;
+}
+bool seen_path = false;
+{
+size_t __for_n = std__collections__List_compiler__loader__LoadedModule_count(&loader.ordered);
+size_t __for_i = 0;
+while (__for_i < __for_n) {
+compiler__loader__LoadedModule existing = std__collections__List_compiler__loader__LoadedModule_at(&loader.ordered, __for_i);
+if (lsp__paths_equal(existing.path, f_path)) {
+seen_path = true;
+break;
+}
+__for_i = (__for_i + 1);
+}
+}
+if (seen_path) {
 __for_i = (__for_i + 1);
 continue;
 }
@@ -34447,7 +34528,8 @@ pkg_dirty = true;
 __for_i = (__for_i + 1);
 }
 }
-compiler__ast__AstNode* full_prog = (pkg_dirty ? compiler__loader__ModuleLoader_build_merged_program(&loader) : doc_prog);
+full_prog = (pkg_dirty ? compiler__loader__ModuleLoader_build_merged_program(&loader) : doc_prog);
+}
 if (include_workspace && !str_empty(proj_root)) {
 kobel_str proj_entry = lsp__resolve_project_entry(proj_root);
 if (!str_empty(proj_entry) && !lsp__paths_equal(proj_entry, path)) {
@@ -34515,9 +34597,17 @@ __for_i = (__for_i + 1);
 }
 }
 }
-lsp__finish_semantic_index(&index, &loader, body_p.symtab, true);
+lsp__finish_semantic_index(&index, &loader, body_p.symtab, true, path, include_workspace);
+std__memory__Arena_free(&loader.arena);
+compiler__core__SourceMap_free(loader.sources);
+std__collections__List_compiler__core__Diagnostic_free(loader.errors);
+std__collections__List_compiler__core__Diagnostic_free(decl_p.errors);
+std__collections__List_compiler__core__Diagnostic_free(body_p.errors);
 return (lsp__AnalysisResult){ diagnostics, body_p.symtab, true, tokens, index, path, source };
 }
+std__memory__Arena_free(&loader.arena);
+compiler__core__SourceMap_free(loader.sources);
+std__collections__List_compiler__core__Diagnostic_free(loader.errors);
 compiler__semantic__symbols__SymbolTable empty_symtab = compiler__semantic__symbols__SymbolTable_init();
 return (lsp__AnalysisResult){ diagnostics, empty_symtab, false, tokens, (lsp__SemanticIndex){ std__collections__List_lsp__DefInfo_init(NULL, 0), std__collections__HashMap_str_usz_init(16), std__collections__List_lsp__RefInfo_init(NULL, 0), std__collections__HashMap_str_std__collections__List_usz_init(16), std__collections__HashMap_str_std__collections__List_usz_init(16), std__collections__HashSet_str_init(16), std__collections__HashMap_str_std__collections__List_lsp__ImportInfo_init(16), std__collections__HashMap_str_std__collections__List_lsp__ImplMissingInfo_init(16), (lsp__DepGraph){ std__collections__HashMap_str_std__collections__List_str_init(16), std__collections__HashMap_str_std__collections__List_str_init(16), std__collections__HashMap_str_std__collections__List_str_init(16) }, compiler__semantic__symbols__SymbolTable_init(), false, std__collections__HashMap_str_std__collections__List_compiler__lexer__Token_init(16), std__collections__HashMap_str_str_init(16), std__collections__HashMap_usz_str_init(16), std__collections__HashMap_usz_str_init(16), std__collections__HashMap_str_str_init(16), std__collections__HashMap_str_str_init(16), std__collections__HashMap_str_str_init(16), std__collections__HashMap_str_str_init(16), std__collections__HashMap_str_str_init(16) }, path, source };
 }
@@ -36793,10 +36883,11 @@ lsp__IndexWalker_walk_decl_pass(&walker, prog);
 __for_i = (__for_i + 1);
 }
 }
+std__collections__HashMap_str_str_free(src_by_path);
 return index;
 }
 
-void lsp__finish_semantic_index(lsp__SemanticIndex* index, compiler__loader__ModuleLoader* loader, compiler__semantic__symbols__SymbolTable symtab, bool has_symtab) {
+void lsp__finish_semantic_index(lsp__SemanticIndex* index, compiler__loader__ModuleLoader* loader, compiler__semantic__symbols__SymbolTable symtab, bool has_symtab, kobel_str target_path, bool include_workspace) {
 index->symtab = symtab;
 index->has_symtab = has_symtab;
 {
@@ -36841,6 +36932,10 @@ size_t __for_n = std__collections__List_compiler__loader__LoadedModule_count(&lo
 size_t __for_i = 0;
 while (__for_i < __for_n) {
 compiler__loader__LoadedModule lm = std__collections__List_compiler__loader__LoadedModule_at(&loader->ordered, __for_i);
+if ((!include_workspace && !str_empty(target_path)) && !lsp__paths_equal(lm.path, target_path)) {
+__for_i = (__for_i + 1);
+continue;
+}
 compiler__ast__AstNode* prog = lm.program;
 if (prog == NULL) {
 {
@@ -36855,11 +36950,24 @@ lsp__IndexWalker_walk_body_pass(&walker, prog);
 __for_i = (__for_i + 1);
 }
 }
+{
+size_t __for_n = std__collections__HashMap_str_std__collections__List_compiler__lexer__Token_count(&index->file_tokens);
+size_t __for_i = 0;
+while (__for_i < __for_n) {
+std__collections__Pair_str_std__collections__List_compiler__lexer__Token __destruct_tmp_24 = std__collections__HashMap_str_std__collections__List_compiler__lexer__Token_at(&index->file_tokens, __for_i);
+kobel_str __destruct_unused_24_0;
+std__collections__List_compiler__lexer__Token tok_list;
+std__collections__Pair_str_std__collections__List_compiler__lexer__Token_unpack(&__destruct_tmp_24, &__destruct_unused_24_0, &tok_list);
+std__collections__List_compiler__lexer__Token_free(tok_list);
+__for_i = (__for_i + 1);
+}
+}
+std__collections__HashMap_str_std__collections__List_compiler__lexer__Token_free(index->file_tokens);
 }
 
 lsp__SemanticIndex lsp__build_semantic_index(compiler__loader__ModuleLoader* loader, compiler__semantic__symbols__SymbolTable symtab, bool has_symtab) {
 lsp__SemanticIndex index = lsp__prepare_semantic_index(loader, KOBEL_STR(""), KOBEL_STR(""));
-lsp__finish_semantic_index(&index, loader, symtab, has_symtab);
+lsp__finish_semantic_index(&index, loader, symtab, has_symtab, KOBEL_STR(""), true);
 return index;
 }
 
@@ -36897,10 +37005,10 @@ std__collections__List_lsp__Document res = std__collections__List_lsp__Document_
 size_t __for_n = std__collections__HashMap_str_lsp__Document_count(&self->doc_map);
 size_t __for_i = 0;
 while (__for_i < __for_n) {
-std__collections__Pair_str_lsp__Document __destruct_tmp_23 = std__collections__HashMap_str_lsp__Document_at(&self->doc_map, __for_i);
-kobel_str __destruct_unused_23_0;
+std__collections__Pair_str_lsp__Document __destruct_tmp_25 = std__collections__HashMap_str_lsp__Document_at(&self->doc_map, __for_i);
+kobel_str __destruct_unused_25_0;
 lsp__Document doc;
-std__collections__Pair_str_lsp__Document_unpack(&__destruct_tmp_23, &__destruct_unused_23_0, &doc);
+std__collections__Pair_str_lsp__Document_unpack(&__destruct_tmp_25, &__destruct_unused_25_0, &doc);
 std__collections__List_lsp__Document_plus_assign(&res, doc);
 __for_i = (__for_i + 1);
 }
@@ -36914,6 +37022,12 @@ return false;
 }
 kobel_str na = str_normalize_path(a);
 kobel_str nb = str_normalize_path(b);
+while (str_starts_with(na, KOBEL_STR(".\\")) || str_starts_with(na, KOBEL_STR("./"))) {
+na = kobel_slice(na, 2, na.len);
+}
+while (str_starts_with(nb, KOBEL_STR(".\\")) || str_starts_with(nb, KOBEL_STR("./"))) {
+nb = kobel_slice(nb, 2, nb.len);
+}
 if (kobel_streq(na, nb)) {
 return true;
 }
@@ -38308,6 +38422,7 @@ void lsp__LanguageServer_invalidate_cache(lsp__LanguageServer* self) {
 self->cached_uri = KOBEL_STR("");
 self->cached_version = -1;
 self->cached_ws = false;
+self->cached_analysis = lsp__AnalysisResult_init_0();
 }
 
 int32_t lsp__LanguageServer_run(lsp__LanguageServer* self) {
@@ -38419,10 +38534,10 @@ lsp__publish_diagnostics_for(uri, analysis);
 lsp__JsonValue* text_doc = lsp__JsonValue_get_obj(params, KOBEL_STR("textDocument"));
 kobel_str uri = lsp__JsonValue_get_str(text_doc, KOBEL_STR("uri"), KOBEL_STR(""));
 lsp__LanguageServer_invalidate_cache(self);
-lsp__Document __destruct_tmp_24 = lsp__DocumentStore_get(&self->docs, uri);
+lsp__Document __destruct_tmp_26 = lsp__DocumentStore_get(&self->docs, uri);
 kobel_str doc_path;
 kobel_str doc_text;
-lsp__Document_unpack_3(&__destruct_tmp_24, &doc_path, &doc_text);
+lsp__Document_unpack_3(&__destruct_tmp_26, &doc_path, &doc_text);
 if (!str_empty(doc_text)) {
 lsp__AnalysisResult* analysis = lsp__LanguageServer_get_analysis(self, uri, doc_path, doc_text, false);
 lsp__publish_diagnostics_for(uri, analysis);
@@ -38444,10 +38559,10 @@ kobel_str uri = lsp__JsonValue_get_str(text_doc, KOBEL_STR("uri"), KOBEL_STR("")
 lsp__JsonValue* pos = lsp__JsonValue_get_obj(params, KOBEL_STR("position"));
 size_t line = (size_t)lsp__JsonValue_get_num(pos, KOBEL_STR("line"), 0);
 size_t char_col = (size_t)lsp__JsonValue_get_num(pos, KOBEL_STR("character"), 0);
-lsp__Document __destruct_tmp_25 = lsp__DocumentStore_get(&self->docs, uri);
+lsp__Document __destruct_tmp_27 = lsp__DocumentStore_get(&self->docs, uri);
 kobel_str doc_path;
 kobel_str doc_text;
-lsp__Document_unpack_3(&__destruct_tmp_25, &doc_path, &doc_text);
+lsp__Document_unpack_3(&__destruct_tmp_27, &doc_path, &doc_text);
 if (!str_empty(doc_text)) {
 lsp__AnalysisResult* analysis = lsp__LanguageServer_get_analysis(self, uri, doc_path, doc_text, false);
 lsp__send_response(id, lsp__AnalysisResult_hover_at(analysis, line, char_col));
@@ -38460,10 +38575,10 @@ kobel_str uri = lsp__JsonValue_get_str(text_doc, KOBEL_STR("uri"), KOBEL_STR("")
 lsp__JsonValue* pos = lsp__JsonValue_get_obj(params, KOBEL_STR("position"));
 size_t line = (size_t)lsp__JsonValue_get_num(pos, KOBEL_STR("line"), 0);
 size_t char_col = (size_t)lsp__JsonValue_get_num(pos, KOBEL_STR("character"), 0);
-lsp__Document __destruct_tmp_26 = lsp__DocumentStore_get(&self->docs, uri);
+lsp__Document __destruct_tmp_28 = lsp__DocumentStore_get(&self->docs, uri);
 kobel_str doc_path;
 kobel_str doc_text;
-lsp__Document_unpack_3(&__destruct_tmp_26, &doc_path, &doc_text);
+lsp__Document_unpack_3(&__destruct_tmp_28, &doc_path, &doc_text);
 if (!str_empty(doc_text)) {
 lsp__AnalysisResult* analysis = lsp__LanguageServer_get_analysis(self, uri, doc_path, doc_text, false);
 lsp__send_response(id, lsp__AnalysisResult_definition_at(analysis, uri, line, char_col));
@@ -38478,10 +38593,10 @@ size_t line = (size_t)lsp__JsonValue_get_num(pos, KOBEL_STR("line"), 0);
 size_t char_col = (size_t)lsp__JsonValue_get_num(pos, KOBEL_STR("character"), 0);
 lsp__JsonValue* ctx = lsp__JsonValue_get_obj(params, KOBEL_STR("context"));
 bool include_decl = (lsp__JsonValue_get(ctx, KOBEL_STR("includeDeclaration")) != NULL ? lsp__JsonValue_get(ctx, KOBEL_STR("includeDeclaration"))->bool_val : true);
-lsp__Document __destruct_tmp_27 = lsp__DocumentStore_get(&self->docs, uri);
+lsp__Document __destruct_tmp_29 = lsp__DocumentStore_get(&self->docs, uri);
 kobel_str doc_path;
 kobel_str doc_text;
-lsp__Document_unpack_3(&__destruct_tmp_27, &doc_path, &doc_text);
+lsp__Document_unpack_3(&__destruct_tmp_29, &doc_path, &doc_text);
 if (!str_empty(doc_text)) {
 lsp__AnalysisResult* analysis = lsp__LanguageServer_get_analysis(self, uri, doc_path, doc_text, true);
 lsp__send_response(id, lsp__find_references_json(&analysis->index, doc_path, line, char_col, include_decl));
@@ -38494,10 +38609,10 @@ kobel_str uri = lsp__JsonValue_get_str(text_doc, KOBEL_STR("uri"), KOBEL_STR("")
 lsp__JsonValue* pos = lsp__JsonValue_get_obj(params, KOBEL_STR("position"));
 size_t line = (size_t)lsp__JsonValue_get_num(pos, KOBEL_STR("line"), 0);
 size_t char_col = (size_t)lsp__JsonValue_get_num(pos, KOBEL_STR("character"), 0);
-lsp__Document __destruct_tmp_28 = lsp__DocumentStore_get(&self->docs, uri);
+lsp__Document __destruct_tmp_30 = lsp__DocumentStore_get(&self->docs, uri);
 kobel_str doc_path;
 kobel_str doc_text;
-lsp__Document_unpack_3(&__destruct_tmp_28, &doc_path, &doc_text);
+lsp__Document_unpack_3(&__destruct_tmp_30, &doc_path, &doc_text);
 if (!str_empty(doc_text)) {
 lsp__AnalysisResult* analysis = lsp__LanguageServer_get_analysis(self, uri, doc_path, doc_text, false);
 lsp__send_response(id, lsp__AnalysisResult_document_highlights(analysis, line, char_col));
@@ -38510,10 +38625,10 @@ kobel_str uri = lsp__JsonValue_get_str(text_doc, KOBEL_STR("uri"), KOBEL_STR("")
 lsp__JsonValue* pos = lsp__JsonValue_get_obj(params, KOBEL_STR("position"));
 size_t line = (size_t)lsp__JsonValue_get_num(pos, KOBEL_STR("line"), 0);
 size_t char_col = (size_t)lsp__JsonValue_get_num(pos, KOBEL_STR("character"), 0);
-lsp__Document __destruct_tmp_29 = lsp__DocumentStore_get(&self->docs, uri);
+lsp__Document __destruct_tmp_31 = lsp__DocumentStore_get(&self->docs, uri);
 kobel_str doc_path;
 kobel_str doc_text;
-lsp__Document_unpack_3(&__destruct_tmp_29, &doc_path, &doc_text);
+lsp__Document_unpack_3(&__destruct_tmp_31, &doc_path, &doc_text);
 if (!str_empty(doc_text)) {
 lsp__AnalysisResult* analysis = lsp__LanguageServer_get_analysis(self, uri, doc_path, doc_text, true);
 lsp__send_response(id, lsp__prepare_rename_json(&analysis->index, doc_path, line, char_col));
@@ -38527,10 +38642,10 @@ lsp__JsonValue* pos = lsp__JsonValue_get_obj(params, KOBEL_STR("position"));
 size_t line = (size_t)lsp__JsonValue_get_num(pos, KOBEL_STR("line"), 0);
 size_t char_col = (size_t)lsp__JsonValue_get_num(pos, KOBEL_STR("character"), 0);
 kobel_str new_name = lsp__JsonValue_get_str(params, KOBEL_STR("newName"), KOBEL_STR(""));
-lsp__Document __destruct_tmp_30 = lsp__DocumentStore_get(&self->docs, uri);
+lsp__Document __destruct_tmp_32 = lsp__DocumentStore_get(&self->docs, uri);
 kobel_str doc_path;
 kobel_str doc_text;
-lsp__Document_unpack_3(&__destruct_tmp_30, &doc_path, &doc_text);
+lsp__Document_unpack_3(&__destruct_tmp_32, &doc_path, &doc_text);
 if (!str_empty(doc_text) && !str_empty(new_name)) {
 lsp__AnalysisResult* analysis = lsp__LanguageServer_get_analysis(self, uri, doc_path, doc_text, true);
 lsp__send_response(id, lsp__rename_symbol_json(&analysis->index, doc_path, line, char_col, new_name));
@@ -38549,10 +38664,10 @@ size_t e_line = (size_t)lsp__JsonValue_get_num(e_pos, KOBEL_STR("line"), 0);
 size_t e_col = (size_t)lsp__JsonValue_get_num(e_pos, KOBEL_STR("character"), 0);
 lsp__JsonValue* ctx = lsp__JsonValue_get_obj(params, KOBEL_STR("context"));
 lsp__JsonValue* diags = lsp__JsonValue_get_arr(ctx, KOBEL_STR("diagnostics"));
-lsp__Document __destruct_tmp_31 = lsp__DocumentStore_get(&self->docs, uri);
+lsp__Document __destruct_tmp_33 = lsp__DocumentStore_get(&self->docs, uri);
 kobel_str doc_path;
 kobel_str doc_text;
-lsp__Document_unpack_3(&__destruct_tmp_31, &doc_path, &doc_text);
+lsp__Document_unpack_3(&__destruct_tmp_33, &doc_path, &doc_text);
 if (!str_empty(doc_text)) {
 lsp__AnalysisResult* analysis = lsp__LanguageServer_get_analysis(self, uri, doc_path, doc_text, false);
 lsp__send_response(id, lsp__code_actions_json(&analysis->index, analysis->tokens, doc_path, doc_text, s_line, s_col, e_line, e_col, diags));
@@ -38565,10 +38680,10 @@ kobel_str uri = lsp__JsonValue_get_str(text_doc, KOBEL_STR("uri"), KOBEL_STR("")
 lsp__JsonValue* pos = lsp__JsonValue_get_obj(params, KOBEL_STR("position"));
 size_t line = (size_t)lsp__JsonValue_get_num(pos, KOBEL_STR("line"), 0);
 size_t char_col = (size_t)lsp__JsonValue_get_num(pos, KOBEL_STR("character"), 0);
-lsp__Document __destruct_tmp_32 = lsp__DocumentStore_get(&self->docs, uri);
+lsp__Document __destruct_tmp_34 = lsp__DocumentStore_get(&self->docs, uri);
 kobel_str doc_path;
 kobel_str doc_text;
-lsp__Document_unpack_3(&__destruct_tmp_32, &doc_path, &doc_text);
+lsp__Document_unpack_3(&__destruct_tmp_34, &doc_path, &doc_text);
 if (!str_empty(doc_text)) {
 lsp__AnalysisResult* analysis = lsp__LanguageServer_get_analysis(self, uri, doc_path, doc_text, false);
 lsp__send_response(id, lsp__AnalysisResult_signature_help_at(analysis, line, char_col));
@@ -38578,10 +38693,10 @@ lsp__send_response(id, lsp__JsonValue_null_val());
 } else if (kobel_streq(method, KOBEL_STR("textDocument/formatting"))) {
 lsp__JsonValue* text_doc = lsp__JsonValue_get_obj(params, KOBEL_STR("textDocument"));
 kobel_str uri = lsp__JsonValue_get_str(text_doc, KOBEL_STR("uri"), KOBEL_STR(""));
-lsp__Document __destruct_tmp_33 = lsp__DocumentStore_get(&self->docs, uri);
-kobel_str __destruct_unused_33_0;
+lsp__Document __destruct_tmp_35 = lsp__DocumentStore_get(&self->docs, uri);
+kobel_str __destruct_unused_35_0;
 kobel_str doc_text;
-lsp__Document_unpack_3(&__destruct_tmp_33, &__destruct_unused_33_0, &doc_text);
+lsp__Document_unpack_3(&__destruct_tmp_35, &__destruct_unused_35_0, &doc_text);
 if (!str_empty(doc_text)) {
 lsp__send_response(id, lsp__AnalysisResult_format_document(doc_text));
 } else {
@@ -38590,10 +38705,10 @@ lsp__send_response(id, lsp__JsonValue_arr());
 } else if (kobel_streq(method, KOBEL_STR("textDocument/documentSymbol"))) {
 lsp__JsonValue* text_doc = lsp__JsonValue_get_obj(params, KOBEL_STR("textDocument"));
 kobel_str uri = lsp__JsonValue_get_str(text_doc, KOBEL_STR("uri"), KOBEL_STR(""));
-lsp__Document __destruct_tmp_34 = lsp__DocumentStore_get(&self->docs, uri);
-kobel_str __destruct_unused_34_0;
+lsp__Document __destruct_tmp_36 = lsp__DocumentStore_get(&self->docs, uri);
+kobel_str __destruct_unused_36_0;
 kobel_str doc_text;
-lsp__Document_unpack_3(&__destruct_tmp_34, &__destruct_unused_34_0, &doc_text);
+lsp__Document_unpack_3(&__destruct_tmp_36, &__destruct_unused_36_0, &doc_text);
 if (!str_empty(doc_text)) {
 lsp__send_response(id, lsp__AnalysisResult_document_symbols(doc_text));
 } else {
@@ -38623,10 +38738,10 @@ kobel_str uri = lsp__JsonValue_get_str(text_doc, KOBEL_STR("uri"), KOBEL_STR("")
 lsp__JsonValue* pos = lsp__JsonValue_get_obj(params, KOBEL_STR("position"));
 size_t line = (size_t)lsp__JsonValue_get_num(pos, KOBEL_STR("line"), 0);
 size_t char_col = (size_t)lsp__JsonValue_get_num(pos, KOBEL_STR("character"), 0);
-lsp__Document __destruct_tmp_35 = lsp__DocumentStore_get(&self->docs, uri);
+lsp__Document __destruct_tmp_37 = lsp__DocumentStore_get(&self->docs, uri);
 kobel_str doc_path;
 kobel_str doc_text;
-lsp__Document_unpack_3(&__destruct_tmp_35, &doc_path, &doc_text);
+lsp__Document_unpack_3(&__destruct_tmp_37, &doc_path, &doc_text);
 if (!str_empty(doc_text)) {
 lsp__AnalysisResult* analysis = lsp__LanguageServer_get_analysis(self, uri, doc_path, doc_text, false);
 lsp__send_response(id, lsp__AnalysisResult_complete_at(analysis, line, char_col));

@@ -153,47 +153,180 @@ function mapCodeActionKind(kindStr) {
     }
 }
 
+function isSupportedKobelDoc(doc) {
+    if (!doc || doc.languageId !== 'kobel' || !doc.uri) return false;
+    const scheme = doc.uri.scheme;
+    return scheme === 'file' || scheme === 'untitled';
+}
+
+function sameUriString(a, b) {
+    return a && b && a.toString() === b.toString();
+}
+
 /**
  * Lightweight, zero-dependency Language Server Protocol Client for Kobel.
+ *
+ * Manages worker lifetime cleanly so long-lived editor sessions never leak
+ * unbounded heap:
+ * - Launches on demand and shuts down when all .kb files are closed.
+ * - Recycles the worker process after a small budget of uncached analyses,
+ *   returning leaked C99 heap allocations to the OS while keeping active tabs synced.
+ * - On Windows, runs a shadow copy inside build/ so `kobel build` never hits EBUSY.
  */
 class KobelLanguageClient {
-    constructor(compilerPath, outputChannel) {
+    constructor(compilerPath, outputChannel, options = {}) {
         this.compilerPath = compilerPath;
         this.output = outputChannel;
+        this.idleShutdownMs = typeof options.idleShutdownMs === 'number' ? options.idleShutdownMs : 1500;
+        this.recycleThreshold = typeof options.recycleThreshold === 'number' ? options.recycleThreshold : 3;
         this.nextId = 1;
         this.pendingRequests = new Map();
         this.pendingSyncTimers = new Map();
+        this.openDocs = new Map();
+        this.syncedUris = new Set();
+        this.distinctAnalyzedUris = new Set();
+        this.analysisOpsCount = 0;
         this.diagnosticsCollection = vscode.languages.createDiagnosticCollection('kobel');
         this.buffer = Buffer.alloc(0);
         this.process = null;
         this.isReady = false;
+        this.startPromise = null;
+        this.stopPromise = null;
+        this.idleTimer = null;
+        this.pendingRecycle = false;
+        this.recyclePromise = null;
+        this.tempHostBinary = null;
         this.disposed = false;
-        this.start();
+
+        this.collectInitialOpenDocs();
+        if (this.openDocs.size > 0) {
+            this.ensureStarted().catch(() => {});
+        }
     }
 
     log(msg) {
         this.output.appendLine(msg);
     }
 
-    start() {
-        if (this.disposed) return;
+    collectInitialOpenDocs() {
+        for (const doc of vscode.workspace.textDocuments || []) {
+            if (isSupportedKobelDoc(doc)) {
+                this.openDocs.set(doc.uri.toString(), doc);
+            }
+        }
+    }
+
+    prepareLaunchPath() {
+        const target = this.compilerPath;
+        if (process.platform !== 'win32' || !target) return target;
+        if (!/(^|[\\/])build[\\/][^\\/]+\.exe$/i.test(target) || !fs.existsSync(target)) {
+            return target;
+        }
+
+        const dir = path.dirname(target);
+        const sharedHost = path.join(dir, 'kobel_lsp_host.exe');
+        try {
+            const srcStat = fs.statSync(target);
+            let needCopy = true;
+            if (fs.existsSync(sharedHost)) {
+                const dstStat = fs.statSync(sharedHost);
+                if (dstStat.size === srcStat.size && Math.abs(dstStat.mtimeMs - srcStat.mtimeMs) < 5) {
+                    needCopy = false;
+                }
+            }
+            if (needCopy) {
+                fs.copyFileSync(target, sharedHost);
+            }
+            return sharedHost;
+        } catch (err) {
+            // Fall back to a per-PID shadow copy if another window holds kobel_lsp_host.exe.
+            const pidHost = path.join(dir, `kobel_lsp_host_${process.pid}.exe`);
+            try {
+                fs.copyFileSync(target, pidHost);
+                this.tempHostBinary = pidHost;
+                return pidHost;
+            } catch (pidErr) {
+                this.log(`[Kobel LSP] Shadow copy skipped (${err.code || err.message}); launching direct binary`);
+                return target;
+            }
+        }
+    }
+
+    cleanupTempHostBinary() {
+        if (!this.tempHostBinary) return;
+        try {
+            if (fs.existsSync(this.tempHostBinary)) {
+                fs.unlinkSync(this.tempHostBinary);
+            }
+        } catch (_) {}
+        this.tempHostBinary = null;
+    }
+
+    cancelIdleTimer() {
+        if (this.idleTimer) {
+            clearTimeout(this.idleTimer);
+            this.idleTimer = null;
+        }
+    }
+
+    scheduleIdleShutdown() {
+        this.cancelIdleTimer();
+        if (this.disposed || this.openDocs.size > 0 || !this.process) return;
+        this.idleTimer = setTimeout(() => {
+            this.idleTimer = null;
+            if (!this.disposed && this.openDocs.size === 0 && this.pendingRequests.size === 0 && this.process) {
+                this.log('[Kobel LSP] No Kobel files open; stopping idle server to release memory');
+                this.stopProcess(false).catch(() => {});
+            }
+        }, this.idleShutdownMs);
+    }
+
+    ensureStarted() {
+        if (this.disposed) {
+            return Promise.reject(new Error('Client disposed'));
+        }
+        if (this.isReady && this.process) {
+            return Promise.resolve();
+        }
+        if (this.startPromise) {
+            return this.startPromise;
+        }
+        this.startPromise = this.startInternal().finally(() => {
+            this.startPromise = null;
+        });
+        return this.startPromise;
+    }
+
+    async startInternal() {
+        if (this.stopPromise) {
+            await this.stopPromise;
+        }
+        if (this.disposed) throw new Error('Client disposed');
+        if (this.isReady && this.process) return;
 
         const workspaceFolders = vscode.workspace.workspaceFolders;
         const cwd = (workspaceFolders && workspaceFolders.length > 0)
             ? workspaceFolders[0].uri.fsPath
             : undefined;
+        const launchPath = this.prepareLaunchPath();
 
-        this.log(`[Kobel LSP] Starting: "${this.compilerPath}" lsp (cwd=${cwd || '<none>'})`);
+        this.buffer = Buffer.alloc(0);
+        this.syncedUris.clear();
+        this.distinctAnalyzedUris.clear();
+        this.analysisOpsCount = 0;
+        this.pendingRecycle = false;
+
+        this.log(`[Kobel LSP] Starting: "${launchPath}" lsp (cwd=${cwd || '<none>'})`);
 
         try {
-            this.process = spawn(this.compilerPath, ['lsp'], {
+            this.process = spawn(launchPath, ['lsp'], {
                 cwd: cwd,
                 stdio: ['pipe', 'pipe', 'pipe']
             });
         } catch (err) {
             this.log(`[Kobel LSP] Failed to spawn: ${err.message}`);
             vscode.window.showErrorMessage(`Failed to start Kobel Language Server: ${err.message}`);
-            return;
+            throw err;
         }
 
         const proc = this.process;
@@ -206,7 +339,7 @@ class KobelLanguageClient {
 
         proc.on('error', err => {
             this.log(`[Kobel LSP] Process error: ${err.message}`);
-            vscode.window.showErrorMessage(`Kobel Language Server error (${this.compilerPath}): ${err.message}`);
+            vscode.window.showErrorMessage(`Kobel Language Server error (${launchPath}): ${err.message}`);
         });
 
         proc.on('exit', code => {
@@ -214,67 +347,160 @@ class KobelLanguageClient {
             if (this.process === proc) {
                 this.process = null;
                 this.isReady = false;
+                this.syncedUris.clear();
                 this.rejectAllPending(new Error(`Kobel LSP exited with code ${code}`));
             }
         });
 
-        this.sendRequest('initialize', {
-            processId: process.pid,
-            rootUri: (workspaceFolders && workspaceFolders.length > 0) ? workspaceFolders[0].uri.toString() : null,
-            rootPath: cwd || null,
-            workspaceFolders: workspaceFolders
-                ? workspaceFolders.map(f => ({ uri: f.uri.toString(), name: f.name }))
-                : null,
-            capabilities: {
-                workspace: {
-                    symbol: { dynamicRegistration: true },
-                    workspaceEdit: { documentChanges: false }
-                },
-                textDocument: {
-                    hover: { contentFormat: ['markdown', 'plaintext'] },
-                    definition: { dynamicRegistration: true },
-                    references: { dynamicRegistration: true },
-                    documentHighlight: { dynamicRegistration: true },
-                    formatting: { dynamicRegistration: true },
-                    documentSymbol: { hierarchicalDocumentSymbolSupport: true },
-                    completion: { completionItem: { snippetSupport: false } },
-                    signatureHelp: { signatureInformation: { parameterInformation: { labelOffsetSupport: true } } },
-                    rename: { prepareSupport: true },
-                    codeAction: { codeActionLiteralSupport: { codeActionKind: { valueSet: ['quickfix', 'refactor', 'refactor.rewrite', 'source.organizeImports'] } } }
+        try {
+            const result = await this.sendRequestRaw('initialize', {
+                processId: process.pid,
+                rootUri: (workspaceFolders && workspaceFolders.length > 0) ? workspaceFolders[0].uri.toString() : null,
+                rootPath: cwd || null,
+                workspaceFolders: workspaceFolders
+                    ? workspaceFolders.map(f => ({ uri: f.uri.toString(), name: f.name }))
+                    : null,
+                capabilities: {
+                    workspace: {
+                        symbol: { dynamicRegistration: true },
+                        workspaceEdit: { documentChanges: false }
+                    },
+                    textDocument: {
+                        hover: { contentFormat: ['markdown', 'plaintext'] },
+                        definition: { dynamicRegistration: true },
+                        references: { dynamicRegistration: true },
+                        documentHighlight: { dynamicRegistration: true },
+                        formatting: { dynamicRegistration: true },
+                        documentSymbol: { hierarchicalDocumentSymbolSupport: true },
+                        completion: { completionItem: { snippetSupport: false } },
+                        signatureHelp: { signatureInformation: { parameterInformation: { labelOffsetSupport: true } } },
+                        rename: { prepareSupport: true },
+                        codeAction: { codeActionLiteralSupport: { codeActionKind: { valueSet: ['quickfix', 'refactor', 'refactor.rewrite', 'source.organizeImports'] } } }
+                    }
                 }
-            }
-        }).then(result => {
+            });
+            if (this.process !== proc || this.disposed) return;
             this.isReady = true;
             this.sendNotification('initialized', {});
             const info = result?.serverInfo ? `${result.serverInfo.name} ${result.serverInfo.version}` : 'ok';
             this.log(`[Kobel LSP] Server initialized (${info})`);
 
-            vscode.workspace.textDocuments.forEach(doc => {
-                if (doc.languageId === 'kobel') {
-                    this.notifyDidOpen(doc);
-                }
-            });
-        }).catch(err => {
+            this.syncPriorityOpenDocs();
+        } catch (err) {
             this.log(`[Kobel LSP] Initialization failed: ${err.message}`);
-        });
+            throw err;
+        }
     }
 
-    restart(newCompilerPath) {
+    syncPriorityOpenDocs() {
+        const visibleUris = new Set();
+        const visibleEditors = (vscode.window && Array.isArray(vscode.window.visibleTextEditors))
+            ? vscode.window.visibleTextEditors
+            : [];
+        for (const ed of visibleEditors) {
+            if (ed && ed.document && isSupportedKobelDoc(ed.document)) {
+                visibleUris.add(ed.document.uri.toString());
+            }
+        }
+        const activeDoc = vscode.window?.activeTextEditor?.document;
+        if (isSupportedKobelDoc(activeDoc)) {
+            visibleUris.add(activeDoc.uri.toString());
+        }
+
+        // Prefer currently visible editors so background tabs do not spike RAM on startup/recycle.
+        let syncedAny = false;
+        for (const key of visibleUris) {
+            const doc = this.openDocs.get(key);
+            if (doc && !this.syncedUris.has(key)) {
+                this.sendDidOpenImmediate(doc);
+                syncedAny = true;
+            }
+        }
+        if (!syncedAny && this.openDocs.size > 0 && visibleUris.size === 0) {
+            const first = this.openDocs.values().next().value;
+            if (first && !this.syncedUris.has(first.uri.toString())) {
+                this.sendDidOpenImmediate(first);
+            }
+        }
+    }
+
+    stopProcess(clearDiagnostics) {
+        if (this.stopPromise) return this.stopPromise;
+        this.cancelIdleTimer();
+        this.clearSyncTimers();
+        this.rejectAllPending(new Error('Kobel LSP stopping'));
+        if (clearDiagnostics) {
+            this.diagnosticsCollection.clear();
+        }
+        this.buffer = Buffer.alloc(0);
+        this.isReady = false;
+        this.syncedUris.clear();
+        this.distinctAnalyzedUris.clear();
+        this.analysisOpsCount = 0;
+        this.pendingRecycle = false;
+
+        const proc = this.process;
+        if (!proc) {
+            this.cleanupTempHostBinary();
+            return Promise.resolve();
+        }
+        this.process = null;
+
+        this.stopPromise = new Promise(resolve => {
+            let done = false;
+            const finish = () => {
+                if (done) return;
+                done = true;
+                clearTimeout(forceTimer);
+                this.cleanupTempHostBinary();
+                this.stopPromise = null;
+                resolve();
+            };
+
+            proc.once('exit', finish);
+            try {
+                if (proc.stdin && proc.stdin.writable) {
+                    const id = this.nextId++;
+                    const shutdownMsg = JSON.stringify({ jsonrpc: '2.0', id, method: 'shutdown', params: null });
+                    const len = Buffer.byteLength(shutdownMsg, 'utf8');
+                    proc.stdin.write(`Content-Length: ${len}\r\n\r\n${shutdownMsg}`);
+                    const exitMsg = JSON.stringify({ jsonrpc: '2.0', method: 'exit', params: null });
+                    const exitLen = Buffer.byteLength(exitMsg, 'utf8');
+                    proc.stdin.write(`Content-Length: ${exitLen}\r\n\r\n${exitMsg}`);
+                }
+            } catch (_) {}
+
+            const forceTimer = setTimeout(() => {
+                try { proc.kill(); } catch (_) {}
+                finish();
+            }, 350);
+        });
+        return this.stopPromise;
+    }
+
+    recycle(reason) {
+        if (this.disposed) return Promise.resolve();
+        if (this.recyclePromise) return this.recyclePromise;
+        this.log(`[Kobel LSP] Recycling worker (${reason}) to keep memory bounded`);
+        this.recyclePromise = (async () => {
+            await this.stopProcess(false);
+            if (!this.disposed && this.openDocs.size > 0) {
+                await this.ensureStarted().catch(() => {});
+            }
+        })().finally(() => {
+            this.recyclePromise = null;
+        });
+        return this.recyclePromise;
+    }
+
+    async restart(newCompilerPath) {
         if (newCompilerPath) {
             this.compilerPath = newCompilerPath;
         }
-        this.clearSyncTimers();
-        this.rejectAllPending(new Error('Kobel LSP restarting'));
-        this.diagnosticsCollection.clear();
-        this.buffer = Buffer.alloc(0);
-        this.isReady = false;
-
-        if (this.process) {
-            const old = this.process;
-            this.process = null;
-            try { old.kill(); } catch (_) {}
+        await this.stopProcess(true);
+        if (!this.disposed && this.openDocs.size > 0) {
+            await this.ensureStarted().catch(() => {});
         }
-        this.start();
     }
 
     clearSyncTimers() {
@@ -349,6 +575,19 @@ class KobelLanguageClient {
             } else {
                 entry.resolve(msg.result);
             }
+            this.maybeTriggerDeferredMaintenance();
+        }
+    }
+
+    maybeTriggerDeferredMaintenance() {
+        if (this.disposed || this.pendingRequests.size > 0) return;
+        if (this.openDocs.size === 0 && this.process) {
+            this.scheduleIdleShutdown();
+            return;
+        }
+        if (this.pendingRecycle && this.process) {
+            this.pendingRecycle = false;
+            this.recycle('deferred threshold').catch(() => {});
         }
     }
 
@@ -359,13 +598,14 @@ class KobelLanguageClient {
         return true;
     }
 
-    sendRequest(method, params) {
+    sendRequestRaw(method, params) {
         const id = this.nextId++;
         return new Promise((resolve, reject) => {
             const timer = setTimeout(() => {
                 if (this.pendingRequests.has(id)) {
                     this.pendingRequests.delete(id);
                     reject(new Error(`LSP request '${method}' timed out`));
+                    this.maybeTriggerDeferredMaintenance();
                 }
             }, 15000);
 
@@ -384,6 +624,33 @@ class KobelLanguageClient {
         });
     }
 
+    async sendRequest(method, params) {
+        await this.ensureStarted();
+        const docUri = params && params.textDocument && params.textDocument.uri;
+        if (docUri) {
+            const doc = this.openDocs.get(docUri)
+                || (vscode.workspace.textDocuments || []).find(d => isSupportedKobelDoc(d) && sameUriString(d.uri, docUri));
+            if (doc) {
+                this.openDocs.set(docUri, doc);
+                if (!this.syncedUris.has(docUri)) {
+                    this.sendDidOpenImmediate(doc);
+                } else {
+                    this.flushDidChange(doc);
+                }
+            }
+        }
+        if (method === 'workspace/symbol'
+            || method === 'textDocument/references'
+            || method === 'textDocument/rename'
+            || method === 'textDocument/prepareRename') {
+            this.analysisOpsCount += 1;
+            if (this.analysisOpsCount >= this.recycleThreshold) {
+                this.pendingRecycle = true;
+            }
+        }
+        return this.sendRequestRaw(method, params);
+    }
+
     sendNotification(method, params) {
         this.sendRaw(JSON.stringify({
             jsonrpc: '2.0',
@@ -392,12 +659,13 @@ class KobelLanguageClient {
         }));
     }
 
-    notifyDidOpen(doc) {
+    sendDidOpenImmediate(doc) {
         const key = doc.uri.toString();
-        if (this.pendingSyncTimers.has(key)) {
-            clearTimeout(this.pendingSyncTimers.get(key));
-            this.pendingSyncTimers.delete(key);
+        if (!this.distinctAnalyzedUris.has(key)) {
+            this.distinctAnalyzedUris.add(key);
+            this.analysisOpsCount += 1;
         }
+        this.syncedUris.add(key);
         this.sendNotification('textDocument/didOpen', {
             textDocument: {
                 uri: key,
@@ -408,20 +676,58 @@ class KobelLanguageClient {
         });
     }
 
-    scheduleDidChange(doc) {
+    async notifyDidOpen(doc) {
+        if (!isSupportedKobelDoc(doc) || this.disposed) return;
         const key = doc.uri.toString();
+        this.cancelIdleTimer();
+        this.openDocs.set(key, doc);
+        if (this.pendingSyncTimers.has(key)) {
+            clearTimeout(this.pendingSyncTimers.get(key));
+            this.pendingSyncTimers.delete(key);
+        }
+
+        // Recycle before analyzing yet another distinct file if the worker budget is full.
+        if (this.process && this.isReady && !this.syncedUris.has(key)
+            && this.analysisOpsCount >= this.recycleThreshold && this.pendingRequests.size === 0) {
+            await this.recycle(`opening ${path.basename(doc.uri.fsPath || key)} after ${this.analysisOpsCount} analyses`);
+        }
+
+        try {
+            await this.ensureStarted();
+        } catch (_) {
+            return;
+        }
+        if (this.disposed || !this.openDocs.has(key)) return;
+        if (!this.syncedUris.has(key)) {
+            this.sendDidOpenImmediate(doc);
+        }
+    }
+
+    async notifyActiveEditorChanged(editor) {
+        if (!editor || !isSupportedKobelDoc(editor.document) || this.disposed) return;
+        const doc = editor.document;
+        const key = doc.uri.toString();
+        this.openDocs.set(key, doc);
+        if (this.syncedUris.has(key)) return;
+        await this.notifyDidOpen(doc);
+    }
+
+    scheduleDidChange(doc) {
+        if (!isSupportedKobelDoc(doc) || this.disposed) return;
+        const key = doc.uri.toString();
+        this.openDocs.set(key, doc);
         if (this.pendingSyncTimers.has(key)) {
             clearTimeout(this.pendingSyncTimers.get(key));
         }
         const timer = setTimeout(() => {
             this.pendingSyncTimers.delete(key);
             this.notifyDidChange(doc);
-        }, 120);
+        }, 180);
         this.pendingSyncTimers.set(key, timer);
     }
 
     flushDidChange(doc) {
-        if (!doc) return;
+        if (!isSupportedKobelDoc(doc)) return;
         const key = doc.uri.toString();
         if (this.pendingSyncTimers.has(key)) {
             clearTimeout(this.pendingSyncTimers.get(key));
@@ -431,29 +737,59 @@ class KobelLanguageClient {
     }
 
     notifyDidChange(doc) {
+        if (!isSupportedKobelDoc(doc) || this.disposed || !this.isReady || !this.process) return;
+        const key = doc.uri.toString();
+        this.openDocs.set(key, doc);
+        if (!this.syncedUris.has(key)) {
+            this.sendDidOpenImmediate(doc);
+            return;
+        }
+        this.analysisOpsCount += 1;
         this.sendNotification('textDocument/didChange', {
             textDocument: {
-                uri: doc.uri.toString(),
+                uri: key,
                 version: doc.version
             },
             contentChanges: [{ text: doc.getText() }]
         });
+        if (this.analysisOpsCount >= this.recycleThreshold + 2 && this.pendingRequests.size === 0) {
+            this.recycle(`after ${this.analysisOpsCount} incremental analyses`).catch(() => {});
+        }
     }
 
     notifyDidClose(doc) {
+        if (!doc || !doc.uri) return;
         const key = doc.uri.toString();
+        this.openDocs.delete(key);
+        this.syncedUris.delete(key);
         if (this.pendingSyncTimers.has(key)) {
             clearTimeout(this.pendingSyncTimers.get(key));
             this.pendingSyncTimers.delete(key);
         }
-        this.sendNotification('textDocument/didClose', {
-            textDocument: { uri: key }
-        });
+        if (this.process && this.isReady) {
+            this.sendNotification('textDocument/didClose', {
+                textDocument: { uri: key }
+            });
+        }
         this.diagnosticsCollection.delete(doc.uri);
+
+        if (this.openDocs.size === 0) {
+            this.scheduleIdleShutdown();
+            return;
+        }
+
+        if (this.process && this.analysisOpsCount >= this.recycleThreshold) {
+            if (this.pendingRequests.size === 0) {
+                this.recycle(`closed ${path.basename(doc.uri.fsPath || key)}`).catch(() => {});
+            } else {
+                this.pendingRecycle = true;
+            }
+        }
     }
 
     dispose() {
         this.disposed = true;
+        this.cancelIdleTimer();
         this.clearSyncTimers();
         this.rejectAllPending(new Error('Client disposed'));
         if (this.process) {
@@ -462,8 +798,11 @@ class KobelLanguageClient {
             this.sendNotification('exit', null);
             setTimeout(() => {
                 try { proc.kill(); } catch (_) {}
+                this.cleanupTempHostBinary();
             }, 300);
             this.process = null;
+        } else {
+            this.cleanupTempHostBinary();
         }
         this.diagnosticsCollection.dispose();
     }
@@ -481,16 +820,19 @@ function activate(context) {
     context.subscriptions.push(
         outputChannel,
         vscode.workspace.onDidOpenTextDocument(doc => {
-            if (doc.languageId === 'kobel') client.notifyDidOpen(doc);
+            if (isSupportedKobelDoc(doc)) client.notifyDidOpen(doc);
+        }),
+        vscode.window.onDidChangeActiveTextEditor(editor => {
+            if (editor) client.notifyActiveEditorChanged(editor);
         }),
         vscode.workspace.onDidChangeTextDocument(event => {
-            if (event.document.languageId === 'kobel') client.scheduleDidChange(event.document);
+            if (isSupportedKobelDoc(event.document)) client.scheduleDidChange(event.document);
         }),
         vscode.workspace.onDidSaveTextDocument(doc => {
-            if (doc.languageId === 'kobel') client.flushDidChange(doc);
+            if (isSupportedKobelDoc(doc)) client.flushDidChange(doc);
         }),
         vscode.workspace.onDidCloseTextDocument(doc => {
-            if (doc.languageId === 'kobel') client.notifyDidClose(doc);
+            if (isSupportedKobelDoc(doc)) client.notifyDidClose(doc);
         }),
         vscode.workspace.onDidChangeConfiguration(event => {
             if (event.affectsConfiguration('kobel.compilerPath')) {
@@ -838,5 +1180,6 @@ function deactivate() {}
 
 module.exports = {
     activate,
-    deactivate
+    deactivate,
+    KobelLanguageClient
 };

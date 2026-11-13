@@ -25,10 +25,6 @@ pub struct NodeId {
 
 impl NodeId {
 
-	pub fn invalid() => NodeId(0);
-
-	pub fn is_valid(*self) => self.id != 0;
-
 	pub op equals(*self, other: NodeId) => self.id == other.id;
 
 }

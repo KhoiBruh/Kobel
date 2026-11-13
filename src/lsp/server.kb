@@ -77,6 +77,7 @@ impl LanguageServer {
 		self.cached_uri = "";
 		self.cached_version = -1;
 		self.cached_ws = false;
+		self.cached_analysis = AnalysisResult();
 	}
 
 	pub fn run(&self): i32 {

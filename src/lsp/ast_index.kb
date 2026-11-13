@@ -1268,6 +1268,7 @@ pub fn prepare_semantic_index(
 		walker.walk_decl_pass(prog);
 	}
 
+	src_by_path.free();
 	return index;
 }
 
@@ -1275,7 +1276,9 @@ pub fn finish_semantic_index(
 	index: *SemanticIndex,
 	loader: *ModuleLoader,
 	symtab: SymbolTable,
-	has_symtab: bool
+	has_symtab: bool,
+	target_path: str = "",
+	include_workspace: bool = true
 ) {
 	index.symtab = symtab;
 	index.has_symtab = has_symtab;
@@ -1298,14 +1301,21 @@ pub fn finish_semantic_index(
 		}
 	}
 
-	// Pass 2: walk all bodies, imports, types, and expressions using typed SemanticTable
+	// Pass 2: walk bodies for refs & type resolution (single doc unless full workspace requested)
 	for (lm in loader.ordered) {
+		if (!include_workspace && !target_path.empty() && !paths_equal(lm.path, target_path)) continue;
 		val prog = lm.program ?: continue;
 		val norm = lm.path.normalize_path();
 		val toks = index.file_tokens.get_or(norm, List<Token>());
 		var walker = IndexWalker(index, lm.path, lm.name, toks);
 		walker.walk_body_pass(prog);
 	}
+
+	// Reclaim temporary per-file token buffers after Pass 2 completes
+	for ((_, tok_list) in index.file_tokens) {
+		tok_list.free();
+	}
+	index.file_tokens.free();
 }
 
 pub fn build_semantic_index(

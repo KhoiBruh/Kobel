@@ -1,6 +1,7 @@
 mod test_lsp;
 
 use std.io.println;
+use std.filesystem.*;
 
 use lsp.*;
 use testsupport.assert.*;
@@ -199,11 +200,38 @@ pub fn helper(): i64 {
 	println("  [PASS] test_code_actions");
 }
 
+fn test_preloaded_stdlib_no_duplicate_diagnostics() {
+	val list_rel = "lib/std/collections/list.kb";
+	if (!Path(list_rel).exists()) {
+		println("  [SKIP] test_preloaded_stdlib_no_duplicate_diagnostics");
+		return;
+	}
+	val list_src = Path(list_rel).read_text();
+	val list_analysis = AnalysisResult(list_rel, list_src, ".", false);
+	assert_eq_usz(
+		list_analysis.diagnostics.len,
+		0,
+		"opening preloaded stdlib file (lib/std/collections/list.kb) should not duplicate declarations"
+	);
+	val node_rel = "src/compiler/ast/node.kb";
+	if (Path(node_rel).exists()) {
+		val node_src = Path(node_rel).read_text();
+		val node_analysis = AnalysisResult(node_rel, node_src, ".", false);
+		assert_eq_usz(
+			node_analysis.diagnostics.len,
+			0,
+			"opening multi-file module file (src/compiler/ast/node.kb) should keep canonical file order"
+		);
+	}
+	println("  [PASS] test_preloaded_stdlib_no_duplicate_diagnostics");
+}
+
 pub fn main(): i32 {
 	println("Running LSP unit tests...");
 	test_json_and_uri();
 	test_new_features_and_semantics();
 	test_code_actions();
+	test_preloaded_stdlib_no_duplicate_diagnostics();
 	println("All LSP unit tests passed.");
 	return 0;
 }
