@@ -1,11 +1,11 @@
 {
   "name": "kobel",
   "displayName": "Kobel Language Support",
-  "description": "Rich language support for Kobel: Language Server Protocol (LSP), diagnostics, hover, go-to-definition, formatting, and autocompletion",
-  "version": "0.1.0",
+  "description": "Rich Kobel language support: LSP diagnostics, hover, go-to-definition, cross-file references & rename, code actions, signature help, highlights, workspace symbols, formatting, and autocompletion",
+  "version": "0.2.0",
   "publisher": "kobel-lang",
   "engines": {
-    "vscode": "^1.60.0"
+    "vscode": "^1.70.0"
   },
   "main": "./extension.js",
   "activationEvents": [
@@ -41,6 +41,10 @@
       {
         "command": "kobel.format",
         "title": "Kobel: Format Document"
+      },
+      {
+        "command": "kobel.restartServer",
+        "title": "Kobel: Restart Language Server"
       }
     ],
     "keybindings": [
@@ -56,7 +60,7 @@
         "kobel.compilerPath": {
           "type": "string",
           "default": "",
-          "description": "Absolute path to kobel compiler executable (e.g. C:\\Users\\Admin\\CLionProjects\\Kobel\\kobel_v1.exe). If left empty, detects kobel_v1.exe in workspace or 'kobel' in PATH."
+          "description": "Absolute or workspace-relative path to the Kobel compiler executable (e.g. build/kobel.exe). When empty, auto-detects build/kobel.exe, build/seed/kobel_seed.exe, kobel_v1.exe, kobel.exe, or 'kobel' on PATH."
         }
       }
     }

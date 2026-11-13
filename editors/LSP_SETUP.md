@@ -7,22 +7,27 @@ kobel lsp
 
 ## Features Supported
 - **Real-time Diagnostics (`textDocument/publishDiagnostics`)**: Instant syntax & semantic error feedback with exact line and column ranges.
-- **Hover Information (`textDocument/hover`)**: Type signatures, struct definitions, functions, and keyword documentation.
-- **Go to Definition (`textDocument/definition`)**: Jumps to symbol definition (F12 or Ctrl+Click).
-- **Document Outline & Breadcrumbs (`textDocument/documentSymbol`)**: Functions, structs, enums, traits, impls, constants.
+- **Hover Information (`textDocument/hover`)**: Unmangled type signatures, struct/enum definitions, modules, and Kobel 2.0 keyword documentation.
+- **Go to Definition (`textDocument/definition`)**: Cross-file jump to symbol definition (F12 or Ctrl+Click), including module imports and enum variants.
+- **Find All References (`textDocument/references`)**: Dependency-aware cross-file reference search (Shift+F12).
+- **Global Semantic Rename (`textDocument/prepareRename`, `textDocument/rename`)**: Dependency- and scope-safe symbol rename across files (F2).
+- **Code Actions (`textDocument/codeAction`)**: Quick fixes for missing `use` imports, unused import removal (`source.organizeImports`), unmutated `var` -> `val` rewrites, and missing trait method stubs (`Ctrl+.`).
+- **Signature Help (`textDocument/signatureHelp`)**: Active parameter highlighting inside function/method calls.
+- **Document Highlights (`textDocument/documentHighlight`)**: Read and write occurrence highlighting within a file.
+- **Document & Workspace Symbols (`textDocument/documentSymbol`, `workspace/symbol`)**: Hierarchical file outline, breadcrumbs, and workspace-wide symbol search (`Ctrl+T`).
 - **Smart Formatting (`textDocument/formatting`)**: Formats using Kobel Smart Tabs (tabs for indentation, spaces for alignment) and K&R brace conventions.
-- **Autocompletion (`textDocument/completion`)**: Autocompletion for keywords, built-in primitive types, and workspace symbols.
+- **Autocompletion (`textDocument/completion`)**: Keywords, built-in types, member/method completion (including generic containers like `HashMap`/`List`), and workspace symbols.
 
 ---
 
 ## 1. Visual Studio Code / VSCodium
 
-The extension in `editors/kobel.tmbundle` connects to `kobel lsp` out of the box with zero external dependencies.
+The extension in `editors/kobel.tmbundle` connects to `kobel lsp` out of the box with zero external dependencies and auto-detects `build/kobel.exe` in the workspace.
 
 ### Installation / Linking
 Link the bundle folder to your VS Code extensions folder:
 ```powershell
-cmd /c mklink /J "%USERPROFILE%\.vscode\extensions\kobel-lang.kobel-0.1.0" "C:\Users\Admin\CLionProjects\Kobel\editors\kobel.tmbundle"
+cmd /c mklink /J "%USERPROFILE%\.vscode\extensions\kobel-lang.kobel-0.2.0" "C:\Users\Admin\CLionProjects\Kobel\editors\kobel.tmbundle"
 ```
 Or set `kobel.compilerPath` in `.vscode/settings.json`:
 ```json

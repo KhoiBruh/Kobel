@@ -24,11 +24,11 @@
     "comments": {
       "patterns": [
         {
-          "name": "comment.line",
+          "name": "comment.line.double-slash.kobel",
           "match": "//.*$"
         },
         {
-          "name": "comment.block",
+          "name": "comment.block.kobel",
           "begin": "/\\*",
           "end": "\\*/"
         }
@@ -37,28 +37,47 @@
     "strings": {
       "patterns": [
         {
-          "name": "string",
+          "name": "string.quoted.triple.kobel",
+          "begin": "\"\"\"",
+          "end": "\"\"\"",
+          "patterns": [
+            { "include": "#string-escapes" },
+            { "include": "#string-interpolation" }
+          ]
+        },
+        {
+          "name": "string.quoted.double.kobel",
           "begin": "\"",
           "end": "\"",
           "patterns": [
-            {
-              "name": "constant.character.escape",
-              "match": "\\\\(?:[\\\\\"'nrt0$]|x[0-9a-fA-F]{2}|u[0-9a-fA-F]{4})"
-            },
-            {
-              "name": "meta.template.expression",
-              "begin": "\\$\\{",
-              "beginCaptures": {
-                "0": { "name": "punctuation" }
-              },
-              "end": "\\}",
-              "endCaptures": {
-                "0": { "name": "punctuation" }
-              },
-              "patterns": [
-                { "include": "$self" }
-              ]
-            }
+            { "include": "#string-escapes" },
+            { "include": "#string-interpolation" }
+          ]
+        }
+      ]
+    },
+    "string-escapes": {
+      "patterns": [
+        {
+          "name": "constant.character.escape.kobel",
+          "match": "\\\\(?:[\\\\\"'nrt0$]|x[0-9a-fA-F]{2}|u[0-9a-fA-F]{4})"
+        }
+      ]
+    },
+    "string-interpolation": {
+      "patterns": [
+        {
+          "name": "meta.template.expression.kobel",
+          "begin": "\\$\\{",
+          "beginCaptures": {
+            "0": { "name": "punctuation.definition.template-expression.begin.kobel" }
+          },
+          "end": "\\}",
+          "endCaptures": {
+            "0": { "name": "punctuation.definition.template-expression.end.kobel" }
+          },
+          "patterns": [
+            { "include": "$self" }
           ]
         }
       ]
@@ -66,15 +85,15 @@
     "characters": {
       "patterns": [
         {
-          "name": "string",
-          "match": "'(?:\\\\[\\\\\"'nrt0]|[^'\\\\])'"
+          "name": "string.quoted.single.kobel",
+          "match": "'(?:\\\\[\\\\\"'nrt0]|\\\\x[0-9a-fA-F]{2}|[^'\\\\])'"
         }
       ]
     },
     "attributes": {
       "patterns": [
         {
-          "name": "entity.other.attribute-name",
+          "name": "entity.other.attribute-name.kobel",
           "match": "@(?:operator|infix|[a-zA-Z_][a-zA-Z0-9_]*)"
         }
       ]
@@ -82,26 +101,26 @@
     "enums": {
       "patterns": [
         {
-          "name": "meta.enum",
+          "name": "meta.enum.kobel",
           "begin": "(?:\\b(pub)\\s+)?\\b(enum)\\s+([a-zA-Z_][a-zA-Z0-9_]*)(?:\\s*(:)\\s*([a-zA-Z_][a-zA-Z0-9_]*))?\\s*(\\{)",
           "beginCaptures": {
-            "1": { "name": "keyword" },
-            "2": { "name": "keyword" },
-            "3": { "name": "entity.name.class" },
-            "4": { "name": "punctuation" },
-            "5": { "name": "support.type entity.name.class" },
-            "6": { "name": "punctuation" }
+            "1": { "name": "keyword.modifier.kobel" },
+            "2": { "name": "keyword.declaration.enum.kobel" },
+            "3": { "name": "entity.name.type.enum.kobel" },
+            "4": { "name": "punctuation.separator.kobel" },
+            "5": { "name": "support.type.kobel entity.name.class.kobel" },
+            "6": { "name": "punctuation.section.block.begin.kobel" }
           },
           "end": "\\}",
           "endCaptures": {
-            "0": { "name": "punctuation" }
+            "0": { "name": "punctuation.section.block.end.kobel" }
           },
           "patterns": [
             { "include": "#comments" },
             { "include": "#numbers" },
             {
-              "name": "constant",
-              "match": "\\b[a-zA-Z_][a-zA-Z0-9_]*\\b(?=\\s*(?:=|,|\\}|//|/\\*|$))"
+              "name": "constant.other.enum.kobel",
+              "match": "\\b[a-zA-Z_][a-zA-Z0-9_]*\\b(?=\\s*(?:\\(|=|,|\\}|//|/\\*|$))"
             },
             { "include": "$self" }
           ]
@@ -111,15 +130,15 @@
     "enum-access": {
       "patterns": [
         {
-          "match": "\\b([A-Z][a-zA-Z0-9_]*)\\s*(\\.)\\s*([a-zA-Z_][a-zA-Z0-9_]*)\\b(?=\\s*[^\\(\\w]|$)",
+          "match": "\\b([A-Z][a-zA-Z0-9_]*)\\s*(\\.)\\s*([A-Z][A-Z0-9_]*)\\b",
           "captures": {
-            "1": { "name": "entity.name.class" },
-            "2": { "name": "punctuation" },
-            "3": { "name": "constant" }
+            "1": { "name": "entity.name.type.kobel" },
+            "2": { "name": "punctuation.accessor.kobel" },
+            "3": { "name": "constant.other.enum.kobel" }
           }
         },
         {
-          "name": "constant",
+          "name": "constant.other.caps.kobel",
           "match": "\\b[A-Z][A-Z0-9_]{1,}\\b"
         }
       ]
@@ -127,18 +146,18 @@
     "member-access": {
       "patterns": [
         {
-          "match": "\\b(self)\\s*(\\.)\\s*([a-zA-Z_][a-zA-Z0-9_]*)\\s*(?=\\()",
+          "match": "\\b(self)\\s*(\\??\\.)\\s*([a-zA-Z_][a-zA-Z0-9_]*)\\s*(?=\\()",
           "captures": {
-            "1": { "name": "keyword" },
-            "2": { "name": "punctuation" },
-            "3": { "name": "entity.name.function" }
+            "1": { "name": "variable.language.self.kobel" },
+            "2": { "name": "punctuation.accessor.kobel" },
+            "3": { "name": "entity.name.function.member.kobel" }
           }
         },
         {
-          "match": "\\b(self)\\s*(\\.)\\s*([a-zA-Z_][a-zA-Z0-9_]*)",
+          "match": "\\b(self)\\s*(\\??\\.)\\s*([a-zA-Z_][a-zA-Z0-9_]*)",
           "captures": {
-            "1": { "name": "keyword" },
-            "2": { "name": "punctuation" },
+            "1": { "name": "variable.language.self.kobel" },
+            "2": { "name": "punctuation.accessor.kobel" },
             "3": { "name": "variable.other.property.kobel" }
           }
         }
@@ -147,24 +166,37 @@
     "declarations": {
       "patterns": [
         {
-          "match": "\\b(fn)\\s+([a-zA-Z_][a-zA-Z0-9_]*)",
+          "match": "\\b(fn|op)\\s+([a-zA-Z_][a-zA-Z0-9_]*)",
           "captures": {
-            "1": { "name": "keyword" },
-            "2": { "name": "entity.name.function" }
+            "1": { "name": "keyword.declaration.function.kobel" },
+            "2": { "name": "entity.name.function.kobel" }
+          }
+        },
+        {
+          "match": "\\b(init)\\b(?=\\s*\\()",
+          "captures": {
+            "1": { "name": "keyword.declaration.init.kobel" }
+          }
+        },
+        {
+          "match": "\\b(struct|trait)\\s+([a-zA-Z_][a-zA-Z0-9_]*)",
+          "captures": {
+            "1": { "name": "keyword.declaration.type.kobel" },
+            "2": { "name": "entity.name.type.kobel" }
           }
         },
         {
           "match": "\\b(mod)\\s+([a-zA-Z_][a-zA-Z0-9_]*(?:\\.[a-zA-Z_][a-zA-Z0-9_]*)*)",
           "captures": {
-            "1": { "name": "keyword" },
-            "2": { "name": "entity.name" }
+            "1": { "name": "keyword.control.module.kobel" },
+            "2": { "name": "entity.name.namespace.kobel" }
           }
         },
         {
           "match": "\\b(use)\\s+([a-zA-Z_][a-zA-Z0-9_]*(?:\\.[a-zA-Z_][a-zA-Z0-9_]*)*(?:\\.\\*)?)",
           "captures": {
-            "1": { "name": "keyword" },
-            "2": { "name": "entity.name" }
+            "1": { "name": "keyword.control.import.kobel" },
+            "2": { "name": "entity.name.namespace.kobel" }
           }
         }
       ]
@@ -172,29 +204,45 @@
     "keywords": {
       "patterns": [
         {
-          "name": "keyword",
-          "match": "\\b(val|var|const|pub|extern|if|else|when|for|in|while|loop|break|continue|return|yield|defer|as\\?|as|null|true|false|self|impl|struct|trait|fault|alias|fn)\\b"
+          "name": "keyword.control.kobel",
+          "match": "\\b(if|else|when|for|in|while|loop|break|continue|return|yield|defer)\\b"
+        },
+        {
+          "name": "keyword.declaration.kobel",
+          "match": "\\b(val|var|const|pub|extern|fn|op|init|impl|struct|enum|trait|mod|use|type|fault|alias)\\b"
+        },
+        {
+          "name": "keyword.operator.word.kobel",
+          "match": "\\b(as\\?|as|is)\\b"
+        },
+        {
+          "name": "constant.language.kobel",
+          "match": "\\b(null|true|false)\\b"
+        },
+        {
+          "name": "variable.language.self.kobel",
+          "match": "\\b(self)\\b"
         }
       ]
     },
     "special-types": {
       "patterns": [
         {
-          "name": "entity.name.function",
-          "match": "\\b(List|Iterable|Self)\\b"
+          "name": "support.type.builtin.kobel",
+          "match": "\\b(Self|List|Iterable|Stringer|Iterator|Range|StringBuilder|Arena)\\b"
         }
       ]
     },
     "generics": {
       "patterns": [
         {
-          "begin": "(?<=[a-zA-Z0-9_])<(?=[a-zA-Z0-9_&*,\\s<>]+>)",
+          "begin": "(?<=[a-zA-Z0-9_])<(?=[a-zA-Z0-9_&*,\\s<>\\[\\]]+>)",
           "beginCaptures": {
-            "0": { "name": "punctuation" }
+            "0": { "name": "punctuation.definition.typeparameters.begin.kobel" }
           },
           "end": ">",
           "endCaptures": {
-            "0": { "name": "punctuation" }
+            "0": { "name": "punctuation.definition.typeparameters.end.kobel" }
           },
           "patterns": [
             { "include": "#primitive-types" },
@@ -205,8 +253,8 @@
               "match": "\\b[a-zA-Z_][a-zA-Z0-9_]*\\b"
             },
             {
-              "name": "punctuation",
-              "match": "[,&*]"
+              "name": "punctuation.separator.kobel",
+              "match": "[,&*?]"
             }
           ]
         },
@@ -219,7 +267,7 @@
     "primitive-types": {
       "patterns": [
         {
-          "name": "support.type",
+          "name": "support.type.primitive.kobel",
           "match": "\\b(i8|i16|i32|i64|isz|u8|u16|u32|u64|usz|f16|f32|f64|bool|char|str|none)\\b"
         }
       ]
@@ -228,11 +276,11 @@
       "patterns": [
         { "include": "#primitive-types" },
         {
-          "name": "entity.name.class",
-          "match": "\\b(Array|Slice|Map|HashMap|Pair)\\b"
+          "name": "support.class.kobel",
+          "match": "\\b(Array|Slice|Map|HashMap|HashSet|Pair|Option|Result)\\b"
         },
         {
-          "name": "entity.name.class",
+          "name": "entity.name.type.kobel",
           "match": "\\b[A-Z][a-zA-Z0-9_]*\\b"
         }
       ]
@@ -240,23 +288,23 @@
     "numbers": {
       "patterns": [
         {
-          "name": "constant.numeric",
+          "name": "constant.numeric.hex.kobel",
           "match": "\\b0[xX][0-9a-fA-F_]+(?:_?(?:US|UL|UB|UZ|U|S|L|B|Z))?\\b"
         },
         {
-          "name": "constant.numeric",
+          "name": "constant.numeric.binary.kobel",
           "match": "\\b0[bB][01_]+(?:_?(?:US|UL|UB|UZ|U|S|L|B|Z))?\\b"
         },
         {
-          "name": "constant.numeric",
+          "name": "constant.numeric.octal.kobel",
           "match": "\\b0[oO][0-7_]+(?:_?(?:US|UL|UB|UZ|U|S|L|B|Z))?\\b"
         },
         {
-          "name": "constant.numeric",
+          "name": "constant.numeric.float.kobel",
           "match": "\\b[0-9][0-9_]*\\.[0-9][0-9_]*(?:[eE][+-]?[0-9_]+)?(?:[FD])?\\b"
         },
         {
-          "name": "constant.numeric",
+          "name": "constant.numeric.integer.kobel",
           "match": "\\b[0-9][0-9_]*(?:_?(?:US|UL|UB|UZ|U|S|L|B|Z|F|D))?\\b"
         }
       ]
@@ -264,43 +312,43 @@
     "operators": {
       "patterns": [
         {
-          "name": "keyword.operator",
+          "name": "keyword.operator.arrow.kobel",
           "match": "(=>|->)"
         },
         {
-          "name": "keyword.operator",
-          "match": "(\\.\\.<|>\\.\\.<|\\.\\.)"
+          "name": "keyword.operator.range.kobel",
+          "match": "(\\.\\.<|\\.\\.)"
         },
         {
-          "name": "keyword.operator",
-          "match": "(\\?:|!:)"
+          "name": "keyword.operator.null-safety.kobel",
+          "match": "(\\?\\.|\\?:|!:)"
         },
         {
-          "name": "keyword.operator",
+          "name": "keyword.operator.comparison.kobel",
           "match": "(==|!=|<=|>=|<|>)"
         },
         {
-          "name": "keyword.operator",
+          "name": "keyword.operator.logical.kobel",
           "match": "(&&|\\|\\||!)"
         },
         {
-          "name": "keyword.operator",
+          "name": "keyword.operator.assignment.kobel",
           "match": "(\\+=|-=|\\*=|/=|%=|=)"
         },
         {
-          "name": "keyword.operator",
+          "name": "keyword.operator.arithmetic.kobel",
           "match": "(\\+\\+|--|\\+|-|\\*|/|%)"
         },
         {
-          "name": "keyword.operator",
-          "match": "(&|\\|\\|?|\\^|~|<<|>>)"
+          "name": "keyword.operator.bitwise.kobel",
+          "match": "(&|\\||\\^|~|<<|>>|\\?)"
         }
       ]
     },
     "function-calls": {
       "patterns": [
         {
-          "name": "entity.name.function",
+          "name": "entity.name.function.kobel",
           "match": "\\b([a-zA-Z_][a-zA-Z0-9_]*)(?=\\s*(?:<[^>]+>)?\\s*\\()"
         }
       ]
