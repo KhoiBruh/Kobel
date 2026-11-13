@@ -15,27 +15,27 @@ extern "libc" {
 pub struct Heap;
 
 impl Allocator for Heap {
-	pub fn alloc_bytes(&self, size: usz, align: usz): &u8 => malloc(size);
+	pub fn alloc_bytes(&self, size: usz, align: usz) => malloc(size);
 }
 
 impl Heap {
+
 	// One uninitialized `T` on the heap.
-	pub fn create<T>() => Heap.alloc<T>(1);
+	pub fn create<T>(count: usz = 1) => malloc(count * T.size()) as &T;
 
 	// One initialized `T` on the heap with the given value.
 	pub fn create_val<T>(value: T): &T {
-		val ptr = Heap.alloc<T>(1);
+		val ptr = Heap.create<T>(1);
 		ptr.write(value);
 		return ptr;
 	}
-
-	// Allocate contiguous uninitialized `T`s on the heap (defaults to 1 element).
-	pub fn alloc<T>(count: usz = 1) => malloc(count * T.size()) as &T;
 
 	// Grow/shrink `ptr` to hold `count` elements of `T`.
 	pub fn resize<T>(ptr: *T, count: usz) => realloc(ptr as &u8, count * T.size()) as &T;
 
 	// Free a block obtained from create/alloc/resize.
 	pub fn free(ptr: *none) => free(ptr as &u8);
+
 	pub fn free<T>(ptr: *T) => free(ptr as &u8);
+
 }

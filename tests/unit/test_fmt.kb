@@ -126,6 +126,54 @@ fn test_lambda_formatting() {
 	println("  [PASS] test_lambda_formatting");
 }
 
+fn test_generic_impl_assoc_and_payload_enum() {
+	val code = """pub struct Opaque;
+
+trait Container {
+	type Item;
+	fn get(*self): Self.Item;
+}
+
+struct HashMap<K: Hash, V> {
+	pub len: usz
+}
+
+impl HashMap<K: Hash, V> {
+	pub fn empty(*self) => self.len == 0;
+}
+
+impl Container for HashMap<K: Hash, V> {
+	type Item = V;
+	fn get(*self): Self.Item => self.len as Self.Item;
+}
+
+enum Shape {
+	Circle(radius: f64),
+	Point
+}
+""";
+	val once = format_source(code, FormatOptions());
+	val twice = format_source(once, FormatOptions());
+	assert_eq_str(twice, once, "generic impl, assoc types, and payload enum formatting must be idempotent");
+	assert_true(("pub struct Opaque;" in once), "forward struct must keep semicolon");
+	assert_true(("impl HashMap<K: Hash, V> {" in once), "generic params on impl belong on target struct, not after impl");
+	assert_true(("impl Container for HashMap<K: Hash, V> {" in once), "trait generic impl must put type params after target struct");
+	assert_true(("type Item;" in once), "trait associated type must be preserved");
+	assert_true(("type Item = V;" in once), "impl associated type binding must be preserved");
+	assert_true(("Circle(radius: f64)," in once), "payload enum fields must be preserved");
+
+	val in_code = "fn has(x: i32, list: List<i32>): bool {\n\tif (x !in list) return false;\n\treturn x in list;\n}\n";
+	val in_once = format_source(in_code, FormatOptions());
+	val in_twice = format_source(in_once, FormatOptions());
+	assert_eq_str(in_twice, in_once, "in and !in formatting must be idempotent");
+	assert_true(("!(x in list)" in in_once), "!in must format with parens around BinaryExpr");
+	assert_true(("return x in list;" in in_once), "in operator must be preserved");
+
+	val broken = "fn broken( { x = ";
+	assert_true(!is_parseable(broken), "broken syntax must fail parseability check");
+	println("  [PASS] test_generic_impl_assoc_and_payload_enum");
+}
+
 fn main(): i32 {
 	println("[RUNNING] Kobel Formatter tests...");
 	test_basic_formatting();
@@ -137,6 +185,7 @@ fn main(): i32 {
 	test_wraps_long_lines();
 	test_lambda_formatting();
 	test_idempotent();
+	test_generic_impl_assoc_and_payload_enum();
 	println("[ALL PASSED] Kobel Formatter tests passed successfully!");
 	return 0;
 }

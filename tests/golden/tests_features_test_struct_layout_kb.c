@@ -642,20 +642,19 @@ void std__memory__Heap_free_str(kobel_str* ptr);
 void std__memory__Heap_free_i32(int32_t* ptr);
 void std__memory__Heap_free_tests__features__test_struct_layout__Outer(tests__features__test_struct_layout__Outer* ptr);
 std__memory__ArenaState* std__memory__Heap_create_val_std__memory__ArenaState(std__memory__ArenaState value);
-uint8_t* std__memory__Heap_alloc_u8(size_t count);
-std__memory__ArenaBlock* std__memory__Heap_create_std__memory__ArenaBlock(void);
-std__memory__ArenaBlock* std__memory__Heap_alloc_std__memory__ArenaBlock(size_t count);
+uint8_t* std__memory__Heap_create_u8(size_t count);
+std__memory__ArenaBlock* std__memory__Heap_create_std__memory__ArenaBlock(size_t count);
 void std__memory__Heap_free_std__memory__ArenaBlock(std__memory__ArenaBlock* ptr);
 void std__memory__Heap_free_std__memory__ArenaState(std__memory__ArenaState* ptr);
 int32_t std__collections__std__collections__List_str_fold_i32(std__collections__List_str* self, int32_t initial, kobel_closure operation);
 uint8_t* std__memory__Heap_resize_u8(uint8_t* ptr, size_t count);
-kobel_str* std__memory__Heap_alloc_str(size_t count);
+kobel_str* std__memory__Heap_create_str(size_t count);
 kobel_str* std__memory__Heap_resize_str(kobel_str* ptr, size_t count);
-int32_t* std__memory__Heap_alloc_i32(size_t count);
+int32_t* std__memory__Heap_create_i32(size_t count);
 int32_t* std__memory__Heap_resize_i32(int32_t* ptr, size_t count);
-tests__features__test_struct_layout__Outer* std__memory__Heap_alloc_tests__features__test_struct_layout__Outer(size_t count);
+tests__features__test_struct_layout__Outer* std__memory__Heap_create_tests__features__test_struct_layout__Outer(size_t count);
 tests__features__test_struct_layout__Outer* std__memory__Heap_resize_tests__features__test_struct_layout__Outer(tests__features__test_struct_layout__Outer* ptr, size_t count);
-std__memory__ArenaState* std__memory__Heap_alloc_std__memory__ArenaState(size_t count);
+std__memory__ArenaState* std__memory__Heap_create_std__memory__ArenaState(size_t count);
 
 size_t std__traits__hash_int(size_t n) {
 size_t x = ((n + (n / 8)) * 2654435761);
@@ -794,8 +793,8 @@ size_t sz = st->block_size;
 if (sz < min_size) {
 sz = min_size;
 }
-uint8_t* data = std__memory__Heap_alloc_u8(sz);
-std__memory__ArenaBlock* blk = std__memory__Heap_create_std__memory__ArenaBlock();
+uint8_t* data = std__memory__Heap_create_u8(sz);
+std__memory__ArenaBlock* blk = std__memory__Heap_create_std__memory__ArenaBlock(1);
 blk->data = data;
 blk->size = sz;
 blk->used = 0;
@@ -1047,7 +1046,7 @@ return -1;
 }
 
 kobel_str str_filter(kobel_str self, kobel_closure predicate) {
-uint8_t* buf = std__memory__Heap_alloc_u8((self.len + 1));
+uint8_t* buf = std__memory__Heap_create_u8((self.len + 1));
 int32_t w = 0;
 {
 size_t __for_n = self.len;
@@ -1069,7 +1068,7 @@ kobel_str str_map_chars(kobel_str self, kobel_closure transform) {
 if (str_empty(self)) {
 return self;
 }
-uint8_t* buf = std__memory__Heap_alloc_u8((self.len + 1));
+uint8_t* buf = std__memory__Heap_create_u8((self.len + 1));
 {
 size_t __for_e = self.len;
 size_t __for_i = __for_e;
@@ -1294,7 +1293,7 @@ kobel_str str_repeat(kobel_str self, size_t n) {
 if ((n == 0) || str_empty(self)) {
 return KOBEL_STR("");
 }
-uint8_t* buf = std__memory__Heap_alloc_u8(((self.len * n) + 1));
+uint8_t* buf = std__memory__Heap_create_u8(((self.len * n) + 1));
 int32_t w = 0;
 {
 size_t __for_e = n;
@@ -1343,7 +1342,7 @@ return list.data[0];
 }
 int32_t total = std__collections__std__collections__List_str_fold_i32(&list, 0, (kobel_closure){ (void*)__lambda_fn_5, NULL });
 total += (self.len * (list.len - 1));
-uint8_t* buf = std__memory__Heap_alloc_u8((total + 1));
+uint8_t* buf = std__memory__Heap_create_u8((total + 1));
 int32_t w = 0;
 {
 size_t __for_e = list.len;
@@ -1633,7 +1632,7 @@ size_t cap = init_cap;
 if (cap < 16) {
 cap = 16;
 }
-uint8_t* raw = std__memory__Heap_alloc_u8(cap);
+uint8_t* raw = std__memory__Heap_create_u8(cap);
 return (std__string__StringBuilder){ raw, 0, cap };
 }
 
@@ -1850,7 +1849,7 @@ char std__string__StringBuilder_at(std__string__StringBuilder* self, size_t i) {
 }
 
 kobel_str std__string__StringBuilder_to_str(std__string__StringBuilder* self) {
-uint8_t* str_data = std__memory__Heap_alloc_u8((self->len + 1));
+uint8_t* str_data = std__memory__Heap_create_u8((self->len + 1));
 if (self->len > 0) {
 memcpy(str_data, self->buf, self->len);
 }
@@ -1869,7 +1868,7 @@ while (probe >= 10) {
 probe /= 10;
 digits++;
 }
-uint8_t* buf = std__memory__Heap_alloc_u8((digits + 1));
+uint8_t* buf = std__memory__Heap_create_u8((digits + 1));
 buf[digits] = 0;
 size_t i = digits;
 while (i > 0) {
@@ -1893,7 +1892,7 @@ int32_t code = ((int32_t)(uint8_t)(c));
 if ((code >= 48) && (code <= 57)) {
 return (c == '0' ? KOBEL_STR("0") : (c == '1' ? KOBEL_STR("1") : (c == '2' ? KOBEL_STR("2") : (c == '3' ? KOBEL_STR("3") : (c == '4' ? KOBEL_STR("4") : (c == '5' ? KOBEL_STR("5") : (c == '6' ? KOBEL_STR("6") : (c == '7' ? KOBEL_STR("7") : (c == '8' ? KOBEL_STR("8") : KOBEL_STR("9"))))))))));
 }
-uint8_t* buf = std__memory__Heap_alloc_u8(2);
+uint8_t* buf = std__memory__Heap_create_u8(2);
 buf[0] = code;
 buf[1] = 0;
 return std__string__str_from_bytes(buf, 1);
@@ -1910,7 +1909,7 @@ return KOBEL_STR("");
 if (n <= 6) {
 return kobel_slice(KOBEL_STR("000000"), 0, n);
 }
-uint8_t* buf = std__memory__Heap_alloc_u8((n + 1));
+uint8_t* buf = std__memory__Heap_create_u8((n + 1));
 {
 size_t __for_e = n;
 size_t __for_i = __for_e;
@@ -2184,7 +2183,7 @@ kobel_str std__collections__List_str_at(std__collections__List_str* self, size_t
 
 std__collections__List_str std__collections__List_str_init(kobel_str* items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-kobel_str* buf = std__memory__Heap_alloc_str(cap);
+kobel_str* buf = std__memory__Heap_create_str(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -2323,7 +2322,7 @@ self->len++;
 
 std__collections__List_str std__collections__List_str_clone(std__collections__List_str* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_str res = (std__collections__List_str){ std__memory__Heap_alloc_str(cap), 0, cap };
+std__collections__List_str res = (std__collections__List_str){ std__memory__Heap_create_str(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_str_count(self);
 size_t __for_i = 0;
@@ -2362,7 +2361,7 @@ right--;
 }
 
 std__collections__List_str std__collections__List_str_sub(std__collections__List_str* self, size_t start, size_t count) {
-std__collections__List_str res = (std__collections__List_str){ std__memory__Heap_alloc_str(count), 0, count };
+std__collections__List_str res = (std__collections__List_str){ std__memory__Heap_create_str(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -2759,7 +2758,7 @@ int32_t std__collections__List_i32_at(std__collections__List_i32* self, size_t i
 
 std__collections__List_i32 std__collections__List_i32_init(int32_t* items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-int32_t* buf = std__memory__Heap_alloc_i32(cap);
+int32_t* buf = std__memory__Heap_create_i32(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -2898,7 +2897,7 @@ self->len++;
 
 std__collections__List_i32 std__collections__List_i32_clone(std__collections__List_i32* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_i32 res = (std__collections__List_i32){ std__memory__Heap_alloc_i32(cap), 0, cap };
+std__collections__List_i32 res = (std__collections__List_i32){ std__memory__Heap_create_i32(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_i32_count(self);
 size_t __for_i = 0;
@@ -2937,7 +2936,7 @@ right--;
 }
 
 std__collections__List_i32 std__collections__List_i32_sub(std__collections__List_i32* self, size_t start, size_t count) {
-std__collections__List_i32 res = (std__collections__List_i32){ std__memory__Heap_alloc_i32(count), 0, count };
+std__collections__List_i32 res = (std__collections__List_i32){ std__memory__Heap_create_i32(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -3334,7 +3333,7 @@ tests__features__test_struct_layout__Outer std__collections__List_tests__feature
 
 std__collections__List_tests__features__test_struct_layout__Outer std__collections__List_tests__features__test_struct_layout__Outer_init(tests__features__test_struct_layout__Outer* items_data, size_t items_len) {
 size_t cap = ((items_len < 4) ? 4 : items_len);
-tests__features__test_struct_layout__Outer* buf = std__memory__Heap_alloc_tests__features__test_struct_layout__Outer(cap);
+tests__features__test_struct_layout__Outer* buf = std__memory__Heap_create_tests__features__test_struct_layout__Outer(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
@@ -3473,7 +3472,7 @@ self->len++;
 
 std__collections__List_tests__features__test_struct_layout__Outer std__collections__List_tests__features__test_struct_layout__Outer_clone(std__collections__List_tests__features__test_struct_layout__Outer* self) {
 size_t cap = ((self->cap > 0) ? self->cap : 4);
-std__collections__List_tests__features__test_struct_layout__Outer res = (std__collections__List_tests__features__test_struct_layout__Outer){ std__memory__Heap_alloc_tests__features__test_struct_layout__Outer(cap), 0, cap };
+std__collections__List_tests__features__test_struct_layout__Outer res = (std__collections__List_tests__features__test_struct_layout__Outer){ std__memory__Heap_create_tests__features__test_struct_layout__Outer(cap), 0, cap };
 {
 size_t __for_n = std__collections__List_tests__features__test_struct_layout__Outer_count(self);
 size_t __for_i = 0;
@@ -3512,7 +3511,7 @@ right--;
 }
 
 std__collections__List_tests__features__test_struct_layout__Outer std__collections__List_tests__features__test_struct_layout__Outer_sub(std__collections__List_tests__features__test_struct_layout__Outer* self, size_t start, size_t count) {
-std__collections__List_tests__features__test_struct_layout__Outer res = (std__collections__List_tests__features__test_struct_layout__Outer){ std__memory__Heap_alloc_tests__features__test_struct_layout__Outer(count), 0, count };
+std__collections__List_tests__features__test_struct_layout__Outer res = (std__collections__List_tests__features__test_struct_layout__Outer){ std__memory__Heap_create_tests__features__test_struct_layout__Outer(count), 0, count };
 if (start >= self->len) {
 return res;
 }
@@ -3916,20 +3915,16 @@ void std__memory__Heap_free_tests__features__test_struct_layout__Outer(tests__fe
 }
 
 std__memory__ArenaState* std__memory__Heap_create_val_std__memory__ArenaState(std__memory__ArenaState value) {
-std__memory__ArenaState* ptr = std__memory__Heap_alloc_std__memory__ArenaState(1);
+std__memory__ArenaState* ptr = std__memory__Heap_create_std__memory__ArenaState(1);
 (*(ptr) = value);
 return ptr;
 }
 
-uint8_t* std__memory__Heap_alloc_u8(size_t count) {
+uint8_t* std__memory__Heap_create_u8(size_t count) {
     return (uint8_t*)malloc((count * 1));
 }
 
-std__memory__ArenaBlock* std__memory__Heap_create_std__memory__ArenaBlock(void) {
-    return std__memory__Heap_alloc_std__memory__ArenaBlock(1);
-}
-
-std__memory__ArenaBlock* std__memory__Heap_alloc_std__memory__ArenaBlock(size_t count) {
+std__memory__ArenaBlock* std__memory__Heap_create_std__memory__ArenaBlock(size_t count) {
     return (std__memory__ArenaBlock*)malloc((count * 32));
 }
 
@@ -3959,7 +3954,7 @@ uint8_t* std__memory__Heap_resize_u8(uint8_t* ptr, size_t count) {
     return (uint8_t*)realloc((uint8_t*)ptr, (count * 1));
 }
 
-kobel_str* std__memory__Heap_alloc_str(size_t count) {
+kobel_str* std__memory__Heap_create_str(size_t count) {
     return (kobel_str*)malloc((count * 16));
 }
 
@@ -3967,7 +3962,7 @@ kobel_str* std__memory__Heap_resize_str(kobel_str* ptr, size_t count) {
     return (kobel_str*)realloc((uint8_t*)ptr, (count * 16));
 }
 
-int32_t* std__memory__Heap_alloc_i32(size_t count) {
+int32_t* std__memory__Heap_create_i32(size_t count) {
     return (int32_t*)malloc((count * 4));
 }
 
@@ -3975,7 +3970,7 @@ int32_t* std__memory__Heap_resize_i32(int32_t* ptr, size_t count) {
     return (int32_t*)realloc((uint8_t*)ptr, (count * 4));
 }
 
-tests__features__test_struct_layout__Outer* std__memory__Heap_alloc_tests__features__test_struct_layout__Outer(size_t count) {
+tests__features__test_struct_layout__Outer* std__memory__Heap_create_tests__features__test_struct_layout__Outer(size_t count) {
     return (tests__features__test_struct_layout__Outer*)malloc((count * 40));
 }
 
@@ -3983,7 +3978,7 @@ tests__features__test_struct_layout__Outer* std__memory__Heap_resize_tests__feat
     return (tests__features__test_struct_layout__Outer*)realloc((uint8_t*)ptr, (count * 40));
 }
 
-std__memory__ArenaState* std__memory__Heap_alloc_std__memory__ArenaState(size_t count) {
+std__memory__ArenaState* std__memory__Heap_create_std__memory__ArenaState(size_t count) {
     return (std__memory__ArenaState*)malloc((count * 16));
 }
 

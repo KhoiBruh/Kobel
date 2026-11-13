@@ -153,7 +153,7 @@ pub fn is_error_for_doc(diag: Diagnostic, doc_mod: str, doc_path: str): bool {
 
 pub struct AnalysisResult {
 	pub diagnostics: List<LspDiagnostic> = List(),
-	pub symtab: SymbolTable = SymbolTable(),
+	pub symtab: SymbolTable = SymbolTable(Arena.empty()),
 	pub has_symtab: bool = false,
 	pub tokens: List<Token> = List(),
 	pub index: SemanticIndex = SemanticIndex(),
@@ -361,7 +361,7 @@ impl AnalysisResult {
 
 	pub init() => Self(
 		List<LspDiagnostic>(),
-		SymbolTable(),
+		SymbolTable(Arena.empty()),
 		false,
 		List<Token>(),
 		SemanticIndex(),
@@ -391,8 +391,9 @@ impl AnalysisResult {
 
 		if (parser.errors.len > 0) {
 			for (d in parser.errors) diagnostics += LspDiagnostic(d, source);
+			parser.errors.free();
 			arena.free();
-			var empty_symtab = SymbolTable();
+			var empty_symtab = SymbolTable(Arena.empty());
 			return Self(
 				diagnostics, empty_symtab, false, tokens, SemanticIndex(),
 				path, source, Arena.empty(), "", List<str>()
@@ -554,7 +555,7 @@ impl AnalysisResult {
 		arena.free();
 		loader.sources.free();
 		loader.errors.free();
-		var empty_symtab = SymbolTable();
+		var empty_symtab = SymbolTable(Arena.empty());
 		return Self(
 			diagnostics, empty_symtab, false, tokens, SemanticIndex(),
 			path, source, Arena.empty(), doc_mod, dep_paths
@@ -563,6 +564,7 @@ impl AnalysisResult {
 
 	pub fn free(&self) {
 		self.arena.free();
+		self.tokens.free();
 		self.dep_paths.free();
 		self.diagnostics.free();
 	}
@@ -949,12 +951,17 @@ fn make_doc_symbol(name: str, kind: i64, line1: usz, col1: usz, children: *JsonV
 
 impl AnalysisResult {
 
-	pub fn document_symbols(source: str): *JsonValue {
+	pub fn document_symbols_with_arena(source: str, arena: Arena): *JsonValue {
 		var lexer = Lexer(source);
 		val tokens = lexer.tokenize();
-		var parser = Parser(tokens);
+		var parser = Parser(tokens, arena);
 		val arr = JsonValue.arr();
-		val prog_node = parser.parse_program() ?: return arr;
+		val prog_node = parser.parse_program();
+		if (prog_node == null) {
+			parser.tokens.free();
+			parser.errors.free();
+			return arr;
+		}
 
 		if (prog_node is Program as prog) {
 			for (decl in prog) {
@@ -1013,14 +1020,24 @@ impl AnalysisResult {
 			}
 		}
 
+		parser.tokens.free();
+		parser.errors.free();
 		return arr;
 	}
 
-	pub fn format_document(text: str): *JsonValue {
-		val options = FormatOptions();
-		val formatted = format_source(text, options);
+	pub fn document_symbols(source: str): *JsonValue {
+		var arena = Arena(65536);
+		defer arena.free();
+		return Self.document_symbols_with_arena(source, arena);
+	}
 
+	pub fn format_document_with_arena(text: str, arena: Arena): *JsonValue {
+		val options = FormatOptions();
+		val formatted_res = format_source_checked_with_arena(text, options, arena);
 		val edits = JsonValue.arr();
+		if (!formatted_res.first) return edits;
+		val formatted = formatted_res.second;
+
 		val edit = JsonValue.obj();
 
 		val range = JsonValue.obj();
@@ -1039,6 +1056,12 @@ impl AnalysisResult {
 		edits += edit;
 
 		return edits;
+	}
+
+	pub fn format_document(text: str): *JsonValue {
+		var arena = Arena(65536);
+		defer arena.free();
+		return Self.format_document_with_arena(text, arena);
 	}
 
 }

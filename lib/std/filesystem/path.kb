@@ -203,7 +203,7 @@ impl Path {
 
 		fseek(f, 0, 0);
 		val sz = size_i64 as usz;
-		val buf = Heap.alloc<u8>(sz + 1);
+		val buf = Heap.create<u8>(sz + 1);
 		if (buf == null) {
 			fclose(f);
 			return "";

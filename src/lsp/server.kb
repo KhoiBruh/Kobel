@@ -1,6 +1,7 @@
 mod lsp;
 
 use std.io.*;
+use std.memory.Arena;
 use std.process.*;
 use std.filesystem.*;
 use std.collections.*;
@@ -65,13 +66,18 @@ pub struct AnalysisCacheEntry {
 }
 
 pub struct LanguageServer {
-	pub docs: DocumentStore = DocumentStore(),
-	pub is_shutdown: bool = false,
-	pub workspace_root: str = "",
-	pub cache: List<AnalysisCacheEntry> = List<AnalysisCacheEntry>()
+	pub docs: DocumentStore,
+	pub is_shutdown: bool,
+	pub workspace_root: str,
+	pub cache: List<AnalysisCacheEntry>,
+	pub arena: Arena
 }
 
 impl LanguageServer {
+
+	pub init() => Self(
+		DocumentStore(), false, "", List<AnalysisCacheEntry>(), Arena(262144)
+	);
 
 	fn get_analysis(&self, uri: str, doc_path: str, doc_text: str, need_ws: bool = false): *AnalysisResult {
 		val doc = self.docs[uri];
@@ -212,10 +218,14 @@ impl LanguageServer {
 
 				Method.SHUTDOWN.value -> {
 					self.is_shutdown = true;
+					self.invalidate_cache();
+					self.arena.reset();
 					send_response(id, JsonValue.null_val());
 				}
 
 				Method.EXIT.value -> {
+					self.invalidate_cache();
+					self.arena.free();
 					if (self.is_shutdown) Process.exit(0);
 					else Process.exit(1);
 				}
@@ -419,7 +429,8 @@ impl LanguageServer {
 					val uri = text_doc.get_str("uri", "");
 					val (_, doc_text) = self.docs[uri];
 					if (!doc_text.empty()) {
-						send_response(id, AnalysisResult.format_document(doc_text));
+						send_response(id, AnalysisResult.format_document_with_arena(doc_text, self.arena));
+						self.arena.reset();
 					} else {
 						send_response(id, JsonValue.arr());
 					}
@@ -430,7 +441,8 @@ impl LanguageServer {
 					val uri = text_doc.get_str("uri", "");
 					val (_, doc_text) = self.docs[uri];
 					if (!doc_text.empty()) {
-						send_response(id, AnalysisResult.document_symbols(doc_text));
+						send_response(id, AnalysisResult.document_symbols_with_arena(doc_text, self.arena));
+						self.arena.reset();
 					} else {
 						send_response(id, JsonValue.arr());
 					}
@@ -446,7 +458,8 @@ impl LanguageServer {
 						if (!entry.empty()) {
 							val src = Path(entry).read_text();
 							if (!src.empty()) {
-								val a = AnalysisResult(entry, src, self.workspace_root, true);
+								var a = AnalysisResult(entry, src, self.workspace_root, true);
+								defer a.free();
 								send_response(id, a.workspace_symbols(query));
 							} else {
 								send_response(id, JsonValue.arr());
@@ -468,7 +481,8 @@ impl LanguageServer {
 						val analysis = self.get_analysis(uri, doc_path, doc_text);
 						send_response(id, analysis.complete_at(line, char_col));
 					} else {
-						val empty_analysis = AnalysisResult("", "", self.workspace_root);
+						var empty_analysis = AnalysisResult("", "", self.workspace_root);
+						defer empty_analysis.free();
 						send_response(id, empty_analysis.complete_at(0, 0));
 					}
 				}
@@ -481,6 +495,8 @@ impl LanguageServer {
 			}
 		}
 
+		self.invalidate_cache();
+		self.arena.free();
 		return 0;
 	}
 

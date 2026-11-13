@@ -1,6 +1,7 @@
 mod lsp;
 
 use std.ascii.*;
+use std.memory.Arena;
 use std.collections.*;
 use std.string.*;
 
@@ -171,7 +172,7 @@ pub struct SemanticIndex {
 	pub imports_by_file: HashMap<str, List<ImportInfo>> = HashMap(),
 	pub missing_impls_by_file: HashMap<str, List<ImplMissingInfo>> = HashMap(),
 	pub dep_graph: DepGraph = DepGraph(),
-	pub symtab: SymbolTable = SymbolTable(),
+	pub symtab: SymbolTable = SymbolTable(Arena.empty()),
 	pub has_symtab: bool = false,
 	pub file_tokens: HashMap<str, List<Token>> = HashMap(),
 	pub file_modules: HashMap<str, str> = HashMap(),

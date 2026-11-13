@@ -21,10 +21,10 @@ impl HashMap<K: Hash, V> {
 	pub init(init_cap: usz = 16) {
 		var cap = init_cap;
 		if (cap < 8) cap = 8;
-		val keys = Heap.alloc<K>(cap);
-		val values = Heap.alloc<V>(cap);
-		val hashes = Heap.alloc<usz>(cap);
-		val occ = Heap.alloc<bool>(cap);
+		val keys = Heap.create<K>(cap);
+		val values = Heap.create<V>(cap);
+		val hashes = Heap.create<usz>(cap);
+		val occ = Heap.create<bool>(cap);
 
 		for (i in 0..<cap) occ[i] = false;
 		return Self(keys, values, hashes, occ, 0, cap);
@@ -151,10 +151,10 @@ impl HashMap<K: Hash, V> {
 		val old_occ = self.occupied;
 
 		val new_cap = if (old_cap < 8) 16 else old_cap * 2;
-		val keys = Heap.alloc<K>(new_cap);
-		val values = Heap.alloc<V>(new_cap);
-		val hashes = Heap.alloc<usz>(new_cap);
-		val new_occ = Heap.alloc<bool>(new_cap);
+		val keys = Heap.create<K>(new_cap);
+		val values = Heap.create<V>(new_cap);
+		val hashes = Heap.create<usz>(new_cap);
+		val new_occ = Heap.create<bool>(new_cap);
 
 		for (j in 0..<new_cap) new_occ[j] = false;
 
@@ -261,4 +261,3 @@ impl Iterable for HashMap<K: Hash, V> {
 	}
 
 }
-

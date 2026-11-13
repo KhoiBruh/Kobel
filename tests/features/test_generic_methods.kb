@@ -5,12 +5,14 @@ mod test.generic_methods;
 // generic method may call another one.
 
 use std.memory.Arena;
+use std.memory.Heap;
 
 struct A { pub v: i32 }
 struct B { pub v: i32 }
 
 impl A {
 	pub fn pick<T>(*self): i32 => self.v + 1;
+	pub fn pick_or<T>(*self, bonus: i32 = 5): i32 => self.v + bonus;
 }
 
 impl B {
@@ -49,6 +51,14 @@ fn main(): i32 {
 
 	val q_str = arena.create_val("hello");
 	if (*q_str != "hello") return 7;
+
+	// Generic instance and static methods preserve default arguments when omitted.
+	if (a.pick_or<i32>() != 15) return 8;
+	if (a.pick_or<i32>(2) != 12) return 9;
+	val hp = Heap.create<i32>();
+	defer Heap.free(hp);
+	hp.write(77);
+	if (hp.read() != 77) return 10;
 
 	return 0;
 }

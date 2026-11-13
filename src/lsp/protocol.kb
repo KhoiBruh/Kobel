@@ -3,13 +3,12 @@ mod lsp;
 use std.io.*;
 use std.string.*;
 use std.ascii.*;
-use std.memory.*;
+use std.memory.Heap;
 use std.collections.*;
 
 // ============================================================================
 // Libc Stdio & Mode Bindings
 // ============================================================================
-
 extern "libc" {
 	fn getchar(): i32;
 	fn fflush(stream: *none?): i32;
@@ -25,7 +24,6 @@ pub fn init_stdio() {
 // ============================================================================
 // Sending LSP Frames
 // ============================================================================
-
 pub fn send_raw(payload: str) {
 	print("Content-Length: ${payload.len}\r\n\r\n${payload}");
 	fflush(null);
@@ -61,10 +59,8 @@ pub fn send_notification(method: str, params: *JsonValue) {
 // ============================================================================
 // Receiving LSP Frames
 // ============================================================================
-
 pub fn read_message(): str {
 	var content_length = 0;
-
 	// 1. Read HTTP-like headers line-by-line
 	while (true) {
 		var header_line = StringBuilder();
@@ -82,7 +78,6 @@ pub fn read_message(): str {
 		if (!has_any) return "";
 
 		val line = header_line.to_str();
-
 		// Blank line marks the end of headers
 		if (line.empty()) break;
 
@@ -112,7 +107,7 @@ pub fn read_message(): str {
 	if (content_length == 0 || content_length > 16777216) return "";
 
 	// 2. Read exactly content_length bytes
-	val buf = Heap.alloc<u8>(content_length + 1);
+	val buf = Heap.create<u8>(content_length + 1);
 	for (i in 0..<content_length) {
 		val ch = getchar();
 		if (ch < 0) {
@@ -122,6 +117,5 @@ pub fn read_message(): str {
 		buf[i] = ch as u8;
 	}
 	buf[content_length] = 0;
-
 	return str_from_bytes(buf, content_length);
 }

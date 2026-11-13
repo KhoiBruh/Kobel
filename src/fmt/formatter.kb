@@ -1,6 +1,7 @@
 mod fmt;
 
 use std.io.*;
+use std.memory.Arena;
 use std.filesystem.*;
 use std.collections.*;
 use std.string.StringBuilder;
@@ -62,6 +63,7 @@ pub fn op_to_str(op: TokenType) => when (op) {
 	TokenType.MINUS_MINUS -> "--";
 	TokenType.AMPERSAND -> "&";
 	TokenType.QUESTION -> "?";
+	TokenType.KW_IN -> "in";
 	else -> "";
 };
 
@@ -228,7 +230,10 @@ impl Formatter {
 					self.buf += op_to_str(u.op);
 				} else {
 					self.buf += op_to_str(u.op);
+					val needs_parens = u.operand is BinaryExpr || u.operand is AssignExpr;
+					if (needs_parens) self.buf += "(";
 					self.format_expr(u.operand);
+					if (needs_parens) self.buf += ")";
 				}
 			}
 			is CallExpr as c -> {
@@ -696,27 +701,31 @@ impl Formatter {
 				self.buf += "struct ";
 				self.buf += s.name;
 				self.format_type_params(s.type_params);
-				self.buf += " {";
+				if (s.forward) {
+					self.buf += ";";
+				} else {
+					self.buf += " {";
 
-				if (s.fields.len > 0) {
-					self.buf.indent();
-					for (i in 0..<s.fields.len) {
-						self.buf.newline();
-						val f = s.fields[i];
-						if (f.public) self.buf += "pub ";
-						self.buf += f.name;
-						self.buf += ": ";
-						self.format_type(f.type_node);
-						if (f.default_val != null) {
-							self.buf += " = ";
-							self.format_expr(f.default_val!);
+					if (s.fields.len > 0) {
+						self.buf.indent();
+						for (i in 0..<s.fields.len) {
+							self.buf.newline();
+							val f = s.fields[i];
+							if (f.public) self.buf += "pub ";
+							self.buf += f.name;
+							self.buf += ": ";
+							self.format_type(f.type_node);
+							if (f.default_val != null) {
+								self.buf += " = ";
+								self.format_expr(f.default_val!);
+							}
+							if (i + 1 < s.fields.len) self.buf += ",";
 						}
-						if (i + 1 < s.fields.len) self.buf += ",";
+						self.buf.dedent();
+						self.buf.newline();
 					}
-					self.buf.dedent();
-					self.buf.newline();
+					self.buf += "}";
 				}
-				self.buf += "}";
 				self.comments.emit_trailing_on_line(&self.buf, node.line);
 			}
 			is FnDecl as f -> {
@@ -777,23 +786,28 @@ impl Formatter {
 				self.comments.emit_trailing_on_line(&self.buf, node.line);
 			}
 			is ImplDecl as im -> {
-				self.buf += "impl";
-				if (im.type_params.len > 0) {
-					self.buf.space();
-					self.format_type_params(im.type_params);
-				}
-				self.buf.space();
+				self.buf += "impl ";
 				if (im.trait_name.len > 0) {
 					self.buf += im.trait_name;
 					self.buf += " for ";
 				}
 				self.buf += im.struct_name;
+				self.format_type_params(im.type_params);
 				self.buf += " {";
 
-				if (im.methods.len > 0) {
+				if (im.assoc_bindings.len > 0 || im.methods.len > 0) {
 					self.buf.indent();
+					for (i in 0..<im.assoc_bindings.len) {
+						val b = im.assoc_bindings[i];
+						self.buf.newline();
+						self.buf += "type ";
+						self.buf += b.name;
+						self.buf += " = ";
+						self.format_type(b.type_node);
+						self.buf += ";";
+					}
 					for (i in 0..<im.methods.len) {
-						if (i > 0) self.buf.double_newline();
+						if (i > 0 || im.assoc_bindings.len > 0) self.buf.double_newline();
 						else self.buf.newline();
 						self.format_decl(im.methods[i]);
 					}
@@ -817,8 +831,14 @@ impl Formatter {
 				}
 				self.buf += " {";
 
-				if (tr.methods.len > 0) {
+				if (tr.assoc_types.len > 0 || tr.methods.len > 0) {
 					self.buf.indent();
+					for (a_name in tr.assoc_types) {
+						self.buf.newline();
+						self.buf += "type ";
+						self.buf += a_name;
+						self.buf += ";";
+					}
 					for (m in tr.methods) {
 						self.buf.newline();
 						self.format_decl(m);
@@ -845,6 +865,17 @@ impl Formatter {
 						self.buf.newline();
 						val mem = en.members[i];
 						self.buf += mem.name;
+						if (mem.payload.len > 0) {
+							self.buf += "(";
+							for (j in 0..<mem.payload.len) {
+								if (j > 0) self.buf += ", ";
+								val pf = mem.payload[j];
+								self.buf += pf.name;
+								self.buf += ": ";
+								self.format_type(pf.type_node);
+							}
+							self.buf += ")";
+						}
 						if (mem.value != null) {
 							self.buf += " = ";
 							self.format_expr(mem.value!);
@@ -920,10 +951,11 @@ impl Formatter {
 		}
 	}
 
-	pub fn format_file(
+	pub fn format_file_with_arena(
 		path: str,
-		write_in_place: bool = false,
-		options: FormatOptions = FormatOptions()
+		write_in_place: bool,
+		options: FormatOptions,
+		arena: Arena
 	): bool {
 		val fp = Path(path);
 		val src = fp.read_text();
@@ -931,12 +963,14 @@ impl Formatter {
 			println("Error: cannot format '${path}': file is empty or unreadable");
 			return false;
 		}
-		if (!is_parseable(src)) {
+
+		val res = format_source_checked_with_arena(src, options, arena);
+		if (!res.first) {
 			println("Error: cannot format '${path}': source has syntax errors");
 			return false;
 		}
+		val formatted = res.second;
 
-		val formatted = format_source(src, options);
 		if (write_in_place) {
 			val ok = fp.write_text(formatted);
 			if (!ok) {
@@ -950,6 +984,16 @@ impl Formatter {
 		return true;
 	}
 
+	pub fn format_file(
+		path: str,
+		write_in_place: bool = false,
+		options: FormatOptions = FormatOptions()
+	): bool {
+		var arena = Arena(262144);
+		defer arena.free();
+		return Self.format_file_with_arena(path, write_in_place, options, arena);
+	}
+
 	pub fn format_files(
 		files: List<str>,
 		write_in_place: bool = false,
@@ -960,9 +1004,12 @@ impl Formatter {
 			return 1;
 		}
 
+		var arena = Arena(262144);
+		defer arena.free();
 		var all_ok = true;
 		for (fpath in files) {
-			if (!Self.format_file(fpath, write_in_place, options)) all_ok = false;
+			if (!Self.format_file_with_arena(fpath, write_in_place, options, arena)) all_ok = false;
+			arena.reset();
 		}
 		return if (all_ok) 0 else 1;
 	}
@@ -973,15 +1020,62 @@ impl Formatter {
  * Parses the source first so the formatter never rewrites a file it could not
  * fully understand; `format_file` failing loudly beats emitting garbage.
  */
-pub fn is_parseable(src: str): bool {
+pub fn is_parseable_with_arena(src: str, arena: Arena): bool {
 	val normalized = strip_cr(src);
 	var lex = Lexer(normalized);
-	var parser = Parser(lex.tokenize());
+	val tokens = lex.tokenize();
+	var has_unknown = false;
+	for (tok in tokens) {
+		if (tok.type == TokenType.UNKNOWN) {
+			has_unknown = true;
+			break;
+		}
+	}
+	var parser = Parser(tokens, arena);
 	parser.parse_program();
-	return parser.errors.empty();
+	val ok = !has_unknown && parser.errors.empty();
+	parser.tokens.free();
+	parser.errors.free();
+	return ok;
 }
 
-pub fn format_source(src: str, options: FormatOptions): str {
+pub fn is_parseable(src: str): bool {
+	var arena = Arena(65536);
+	defer arena.free();
+	return is_parseable_with_arena(src, arena);
+}
+
+pub fn format_source_checked_with_arena(src: str, options: FormatOptions, arena: Arena): Pair<bool, str> {
+	val normalized = strip_cr(src);
+	var lex = Lexer(normalized);
+	val tokens = lex.tokenize();
+	var parser = Parser(tokens, arena);
+
+	for (tok in tokens) {
+		if (tok.type == TokenType.UNKNOWN) {
+			tokens.free();
+			return Pair(false, src);
+		}
+	}
+
+	val program = parser.parse_program();
+	if (!parser.errors.empty()) {
+		parser.tokens.free();
+		parser.errors.free();
+		return Pair(false, src);
+	}
+
+	val comments = Comment.extract(normalized);
+	val comment_table = CommentTable(comments);
+	var fmt = Formatter(options, comment_table, normalized);
+	fmt.format_program(program);
+	parser.tokens.free();
+	parser.errors.free();
+
+	return Pair(true, fmt.to_str());
+}
+
+pub fn format_source_with_arena(src: str, options: FormatOptions, arena: Arena): str {
 	val normalized = strip_cr(src);
 	val comments = Comment.extract(normalized);
 	val comment_table = CommentTable(comments);
@@ -989,11 +1083,19 @@ pub fn format_source(src: str, options: FormatOptions): str {
 	var lex = Lexer(normalized);
 	val tokens = lex.tokenize();
 
-	var parser = Parser(tokens);
+	var parser = Parser(tokens, arena);
 	val program = parser.parse_program();
 
 	var fmt = Formatter(options, comment_table, normalized);
 	fmt.format_program(program);
+	parser.tokens.free();
+	parser.errors.free();
 
 	return fmt.to_str();
+}
+
+pub fn format_source(src: str, options: FormatOptions): str {
+	var arena = Arena(65536);
+	defer arena.free();
+	return format_source_with_arena(src, options, arena);
 }

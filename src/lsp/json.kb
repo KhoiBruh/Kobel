@@ -46,7 +46,7 @@ fn append_json_escaped_str(var sb: &StringBuilder, s: str) {
 impl JsonValue {
 
 	pub fn box(v: JsonValue): *JsonValue {
-		val p = Heap.create<JsonValue>();
+		val p = Heap.create<JsonValue>(1);
 		p.write(v);
 		return p as *JsonValue;
 	}

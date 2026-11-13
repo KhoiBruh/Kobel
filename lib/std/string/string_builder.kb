@@ -30,7 +30,7 @@ impl StringBuilder {
 		if (cap < 16) {
 			cap = 16;
 		}
-		val raw = Heap.alloc<u8>(cap);
+		val raw = Heap.create<u8>(cap);
 		return Self(raw, 0, cap);
 	}
 
@@ -200,7 +200,7 @@ impl Iterable for StringBuilder {
 
 impl Stringer for StringBuilder {
 	pub fn to_str(*self): str {
-		val str_data = Heap.alloc<u8>(self.len + 1);
+		val str_data = Heap.create<u8>(self.len + 1);
 		if (self.len > 0) {
 			memcpy(str_data, self.buf, self.len);
 		}

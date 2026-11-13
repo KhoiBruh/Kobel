@@ -2,12 +2,9 @@ mod test.bootstrap_lexer;
 
 use std.io.print;
 use std.io.println;
-
 use compiler.lexer.TokenType;
 use compiler.lexer.Token;
-
 use compiler.lexer.Lexer;
-
 use std.collections.List;
 use std.string.str_from_bytes;
 use std.memory.*;
@@ -17,12 +14,10 @@ fn test_keywords(): bool {
 	var lex: Lexer = Lexer(code);
 	var tokens: List<Token> = lex.tokenize();
 	defer tokens.free();
-
 	if (tokens.len != 25) {
 		println("  [ERR] Keyword token count mismatch");
 		return false;
 	}
-
 	if (tokens[0].type != TokenType.KW_EXTERN) return false;
 	if (tokens[1].type != TokenType.KW_STRUCT) return false;
 	if (tokens[2].type != TokenType.KW_FN) return false;
@@ -48,7 +43,6 @@ fn test_keywords(): bool {
 	if (tokens[22].type != TokenType.KW_FOR) return false;
 	if (tokens[23].type != TokenType.KW_DEFER) return false;
 	if (tokens[24].type != TokenType.END_OF_FILE) return false;
-
 	return true;
 }
 
@@ -57,7 +51,6 @@ fn test_operators(): bool {
 	var lex: Lexer = Lexer(code);
 	var tokens: List<Token> = lex.tokenize();
 	defer tokens.free();
-
 	if (tokens[0].type != TokenType.EQUAL) return false;
 	if (tokens[1].type != TokenType.EQUAL_EQUAL) return false;
 	if (tokens[2].type != TokenType.FAT_ARROW) return false;
@@ -87,7 +80,6 @@ fn test_operators(): bool {
 	if (tokens[26].type != TokenType.CLOSE_BRACE) return false;
 	if (tokens[27].type != TokenType.AMPERSAND) return false;
 	if (tokens[28].type != TokenType.END_OF_FILE) return false;
-
 	return true;
 }
 
@@ -96,27 +88,19 @@ fn test_literals(): bool {
 	var lex: Lexer = Lexer(code);
 	var tokens: List<Token> = lex.tokenize();
 	defer tokens.free();
-
 	if (tokens.len != 6) return false;
-
 	val t0: Token = tokens[0];
 	if (t0.type != TokenType.NUMBER || t0.text != "123") return false;
-
 	val t1: Token = tokens[1];
 	if (t1.type != TokenType.NUMBER || t1.text != "45.67") return false;
-
 	val t2: Token = tokens[2];
 	if (t2.type != TokenType.STRING || t2.text != "\"hello world\"") return false;
-
 	val t3: Token = tokens[3];
 	if (t3.type != TokenType.CHAR || t3.text != "'a'") return false;
-
 	val t4: Token = tokens[4];
 	if (t4.type != TokenType.CHAR || t4.text != "'\\n'") return false;
-
 	val t5: Token = tokens[5];
 	if (t5.type != TokenType.END_OF_FILE) return false;
-
 	return true;
 }
 
@@ -125,19 +109,14 @@ fn test_multiline_string_lexer(): bool {
 	var lex: Lexer = Lexer(code);
 	var tokens: List<Token> = lex.tokenize();
 	defer tokens.free();
-
 	if (tokens.len != 4) return false;
 	if (tokens[0].type != TokenType.STRING) return false;
 	if (tokens[0].text != "\"\"\"\nhello\nworld\n\"\"\"") return false;
-
 	if (tokens[1].type != TokenType.STRING) return false;
 	if (tokens[1].text != "\"\"\"single\"\"\"") return false;
-
 	if (tokens[2].type != TokenType.STRING) return false;
 	if (tokens[2].text != "\"\"\"\"\"\"") return false;
-
 	if (tokens[3].type != TokenType.END_OF_FILE) return false;
-
 	return true;
 }
 
@@ -146,9 +125,7 @@ fn test_numeric_prefixes_and_suffixes(): bool {
 	var lex: Lexer = Lexer(code);
 	var tokens: List<Token> = lex.tokenize();
 	defer tokens.free();
-
 	if (tokens.len != 10) return false;
-
 	if (tokens[0].type != TokenType.NUMBER || tokens[0].text != "0xFF") return false;
 	if (tokens[1].type != TokenType.NUMBER || tokens[1].text != "0b1010") return false;
 	if (tokens[2].type != TokenType.NUMBER || tokens[2].text != "0o77") return false;
@@ -159,7 +136,6 @@ fn test_numeric_prefixes_and_suffixes(): bool {
 	if (tokens[7].type != TokenType.NUMBER || tokens[7].text != "3.14F") return false;
 	if (tokens[8].type != TokenType.NUMBER || tokens[8].text != "2.5D") return false;
 	if (tokens[9].type != TokenType.END_OF_FILE) return false;
-
 	return true;
 }
 
@@ -168,29 +144,23 @@ fn test_comments_and_whitespace(): bool {
 	var lex: Lexer = Lexer(code);
 	var tokens: List<Token> = lex.tokenize();
 	defer tokens.free();
-
 	if (tokens.len != 16) return false;
-
 	if (tokens[0].text != "val") return false;
 	if (tokens[1].text != "a") return false;
 	if (tokens[2].text != "=") return false;
 	if (tokens[3].text != "1") return false;
 	if (tokens[4].text != ";") return false;
-
 	if (tokens[5].text != "val") return false;
 	if (tokens[6].text != "b") return false;
 	if (tokens[7].text != "=") return false;
 	if (tokens[8].text != "2") return false;
 	if (tokens[9].text != ";") return false;
-
 	if (tokens[10].text != "val") return false;
 	if (tokens[11].text != "c") return false;
 	if (tokens[12].text != "=") return false;
 	if (tokens[13].text != "3") return false;
 	if (tokens[14].text != ";") return false;
-
 	if (tokens[15].type != TokenType.END_OF_FILE) return false;
-
 	return true;
 }
 
@@ -199,30 +169,25 @@ fn test_line_col_tracking(): bool {
 	var lex: Lexer = Lexer(code);
 	var tokens: List<Token> = lex.tokenize();
 	defer tokens.free();
-
 	val t0: Token = tokens[0];
 	if (t0.text != "val" || t0.line != 1 || t0.col != 1) return false;
-
 	val t5: Token = tokens[5];
 	if (t5.text != "val" || t5.line != 2 || t5.col != 1) return false;
-
 	return true;
 }
 
 // A UTF-8 BOM at the start of a file must be dropped before the first token. The
 // bytes are built here so the test file itself stays plain ASCII.
 fn test_bom_prefix(): bool {
-	val buf = Heap.alloc<u8>(4);
+	val buf = Heap.create<u8>(4);
 	buf[0] = 239;
 	buf[1] = 187;
 	buf[2] = 191;
 	buf[3] = 0;
 	val code = str_from_bytes(buf, 3) + "val x = 1;";
-
 	var lex: Lexer = Lexer(code);
 	var tokens: List<Token> = lex.tokenize();
 	defer tokens.free();
-
 	if (tokens.len != 6) {
 		println("  [ERR] BOM-prefixed source: wrong token count");
 		return false;
@@ -231,7 +196,6 @@ fn test_bom_prefix(): bool {
 		println("  [ERR] BOM-prefixed source: BOM leaked into the first token");
 		return false;
 	}
-
 	return true;
 }
 
@@ -240,13 +204,11 @@ fn test_question_operators(): bool {
 	var lex: Lexer = Lexer(code);
 	var tokens: List<Token> = lex.tokenize();
 	defer tokens.free();
-
 	if (tokens.len != 4) return false;
 	if (tokens[0].type != TokenType.QUESTION) return false;
 	if (tokens[1].type != TokenType.QUESTION_COLON) return false;
 	if (tokens[2].type != TokenType.QUESTION_DOT) return false;
 	if (tokens[3].type != TokenType.END_OF_FILE) return false;
-
 	return true;
 }
 
@@ -255,37 +217,21 @@ fn test_token_spans_and_helpers(): bool {
 	var lex = Lexer(code, 7);
 	val tokens = lex.tokenize();
 	defer tokens.free();
-
 	if (!lex.errors.empty()) return false;
-
 	// `val` at file 7, line 1, col 1, length 3
 	val t_val = tokens[0];
 	if (!t_val.is_keyword() || t_val.is_literal()) return false;
-	if (
-		t_val.span.file_id != 7
-		|| t_val.span.line != 1
-		|| t_val.span.col != 1
-		|| t_val.span.length != 3
-	) return false;
-
+	if (t_val.span.file_id != 7 || t_val.span.line != 1 || t_val.span.col != 1 || t_val.span.length != 3) return false;
 	// `=` at line 1, col 9, length 1
 	val t_eq = tokens[2];
 	if (!t_eq.is_assignment_op()) return false;
-
 	// Multiline string starts at line 1, col 11 (not line 4!)
 	val t_str = tokens[3];
 	if (!t_str.is_literal()) return false;
-	if (
-		t_str.line != 1
-		|| t_str.col != 11
-		|| t_str.span.line != 1
-		|| t_str.span.col != 11
-	) return false;
-
+	if (t_str.line != 1 || t_str.col != 11 || t_str.span.line != 1 || t_str.span.col != 11) return false;
 	// `var` after multiline string is on line 5, col 1
 	val t_var = tokens[5];
 	if (t_var.line != 5 || t_var.col != 1 || t_var.span.line != 5) return false;
-
 	return true;
 }
 
@@ -295,78 +241,65 @@ fn test_lexical_diagnostics(): bool {
 	defer t1.free();
 	val tok1 = t1[0];
 	if (lex1.errors.len != 1 || !tok1.is_unknown()) return false;
-
 	var lex2 = Lexer("/* unclosed comment");
 	val t2 = lex2.tokenize();
 	defer t2.free();
 	if (lex2.errors.len != 1) return false;
-
 	var lex3 = Lexer("''");
 	val t3 = lex3.tokenize();
 	defer t3.free();
 	val tok3 = t3[0];
 	if (lex3.errors.len != 1 || !tok3.is_unknown()) return false;
-
 	var lex4 = Lexer("@");
 	val t4 = lex4.tokenize();
 	defer t4.free();
 	val tok4 = t4[0];
 	if (lex4.errors.len != 1 || !tok4.is_unknown()) return false;
-
 	return true;
 }
 
 fn main(): i32 {
 	println("[RUNNING] Bootstrap Lexer tests...");
-
 	if (!test_keywords()) {
 		println("  [FAIL] test_keywords");
 		return 1;
 	}
 	println("  [PASS] test_keywords");
-
 	if (!test_operators()) {
 		println("  [FAIL] test_operators");
 		return 1;
 	}
 	println("  [PASS] test_operators");
-
 	if (!test_question_operators()) {
 		println("  [FAIL] test_question_operators");
 		return 1;
 	}
 	println("  [PASS] test_question_operators");
-
 	if (!test_literals()) {
 		println("  [FAIL] test_literals");
 		return 1;
 	}
 	println("  [PASS] test_literals");
-
 	if (!test_multiline_string_lexer()) {
 		println("  [FAIL] test_multiline_string_lexer");
 		return 1;
 	}
 	println("  [PASS] test_multiline_string_lexer");
-
 	if (!test_numeric_prefixes_and_suffixes()) {
 		println("  [FAIL] test_numeric_prefixes_and_suffixes");
 		return 1;
 	}
 	println("  [PASS] test_numeric_prefixes_and_suffixes");
-
 	if (!test_comments_and_whitespace()) {
 		println("  [FAIL] test_comments_and_whitespace");
 		return 1;
 	}
 	println("  [PASS] test_comments_and_whitespace");
-
 	if (!test_line_col_tracking()) {
 		println("  [FAIL] test_line_col_tracking");
 		return 1;
 	}
 	println("  [PASS] test_line_col_tracking");
-
 	if (!test_bom_prefix()) {
 		println("  [FAIL] test_bom_prefix");
 		return 1;
@@ -382,7 +315,6 @@ fn main(): i32 {
 		return 1;
 	}
 	println("  [PASS] test_lexical_diagnostics");
-
 	println("[ALL PASSED] Bootstrap Lexer passed all tests successfully!");
 	return 0;
 }

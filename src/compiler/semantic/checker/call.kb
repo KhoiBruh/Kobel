@@ -566,6 +566,7 @@ impl BodyChecker {
 				val sym = self.symtab.lookup(cname);
 				if (sym == null || sym.type_ptr.kind != DataType.FN) return null;
 
+				if (sym.ast_node != null) self.append_defaults(sym.ast_node!, call.args.len, call);
 				self.ensure_callee_ready(sym);
 				val fn_info = sym.type_ptr.as_fn();
 
@@ -869,30 +870,33 @@ impl BodyChecker {
 			node.line, node.col
 		);
 
-		if (args.len != fn_info.param_types.len) {
-			self.report_error(node, "Argument count mismatch in method call '${mem.member}'");
-		} else {
-			for (i in 1..<args.len) {
-				val param_ty = fn_info.param_types[i];
-				val arg_n = args[i];
-				if (param_ty?.kind == DataType.POINTER && param_ty.as_pointer().mutable) {
-					self.mark_node_mutated(arg_n);
+		if (new_call is CallExpr as new_cc) {
+			if (sym.ast_node != null) self.append_defaults(sym.ast_node!, new_cc.args.len, new_cc);
+			if (new_cc.args.len != fn_info.param_types.len) {
+				self.report_error(node, "Argument count mismatch in method call '${mem.member}'");
+			} else {
+				for (i in 1..<new_cc.args.len) {
+					val param_ty = fn_info.param_types[i];
+					val arg_n = new_cc.args[i];
+					if (param_ty?.kind == DataType.POINTER && param_ty.as_pointer().mutable) {
+						self.mark_node_mutated(arg_n);
+					}
+					if (param_ty?.is_list()) self.coerce_to_list(arg_n, param_ty);
+					val is_fn_forward = (
+						param_ty?.kind == DataType.FN
+						&& i == new_cc.args.len - 1
+						&& arg_n is IdentifierExpr
+					);
+					val prev_allow = self.allowing_fn_param_ref;
+					if (is_fn_forward) self.allowing_fn_param_ref = true;
+					val arg_ty = self.check_expr(arg_n, param_ty);
+					self.allowing_fn_param_ref = prev_allow;
+					self.ensure(
+						param_ty.can_assign(arg_ty),
+						node,
+						"Argument type mismatch in method call '${mem.member}'"
+					);
 				}
-				if (param_ty?.is_list()) self.coerce_to_list(arg_n, param_ty);
-				val is_fn_forward = (
-					param_ty?.kind == DataType.FN
-					&& i == args.len - 1
-					&& arg_n is IdentifierExpr
-				);
-				val prev_allow = self.allowing_fn_param_ref;
-				if (is_fn_forward) self.allowing_fn_param_ref = true;
-				val arg_ty = self.check_expr(arg_n, param_ty);
-				self.allowing_fn_param_ref = prev_allow;
-				self.ensure(
-					param_ty.can_assign(arg_ty),
-					node,
-					"Argument type mismatch in method call '${mem.member}'"
-				);
 			}
 		}
 
