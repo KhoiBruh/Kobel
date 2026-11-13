@@ -109,7 +109,7 @@ pub fn read_message(): str {
 		}
 	}
 
-	if (content_length == 0) return "";
+	if (content_length == 0 || content_length > 16777216) return "";
 
 	// 2. Read exactly content_length bytes
 	val buf = Heap.alloc<u8>(content_length + 1);

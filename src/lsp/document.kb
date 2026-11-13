@@ -51,6 +51,43 @@ impl DocumentStore {
 
 	pub op contains(*self, uri: str) => uri in self.doc_map;
 
+	pub fn all_docs(*self): List<Document> {
+		var res = List<Document>();
+		for ((_, doc) in self.doc_map) res += doc;
+		return res;
+	}
+
+}
+
+pub fn paths_equal(a: str, b: str): bool {
+	if (a.empty() || b.empty()) return false;
+	val na = a.normalize_path();
+	val nb = b.normalize_path();
+	if (na == nb) return true;
+	// Case-insensitive drive letter comparison on Windows (e.g. C:/ vs c:/)
+	if (na.len == nb.len && na.len >= 2 && na[1] == ':' && nb[1] == ':') {
+		if (na[0].to_lower() == nb[0].to_lower()) {
+			return na.slice(1, na.len) == nb.slice(1, nb.len);
+		}
+	}
+	return false;
+}
+
+pub fn path_to_uri(path: str): str {
+	if (path.empty()) return "";
+	val norm = path.to_posix_path();
+	var sb = StringBuilder();
+	defer sb.free();
+	sb += "file://";
+	if (norm.len > 0 && norm[0] != '/') sb += '/';
+
+	for (i in 0..<norm.len) {
+		val c = norm[i];
+		if (c == ' ') sb += "%20";
+		else if (c == ':' && i == 1) sb += "%3A";
+		else sb += c;
+	}
+	return sb.to_str();
 }
 
 pub fn uri_to_path(uri: str): str {

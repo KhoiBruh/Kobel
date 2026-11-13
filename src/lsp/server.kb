@@ -2,11 +2,18 @@ mod lsp;
 
 use std.io.*;
 use std.process.*;
+use std.filesystem.*;
 use std.collections.*;
 
-// ============================================================================
-// Diagnostics Publisher Helper
-// ============================================================================
+/*
+ * ============================================================================
+ * lsp.server — Main LSP Server Event Loop & Capability Dispatcher
+ *
+ * Handles JSON-RPC 2.0 requests/notifications over stdio, caches semantic
+ * analysis per document version, and dispatches navigation, completion,
+ * diagnostics, and global dependency/semantic refactoring requests.
+ * ============================================================================
+ */
 
 pub enum Method: str {
 	INITIALIZE = "initialize",
@@ -15,19 +22,24 @@ pub enum Method: str {
 	EXIT = "exit",
 	DID_OPEN = "textDocument/didOpen",
 	DID_CHANGE = "textDocument/didChange",
+	DID_SAVE = "textDocument/didSave",
 	DID_CLOSE = "textDocument/didClose",
 	HOVER = "textDocument/hover",
 	DEFINITION = "textDocument/definition",
+	REFERENCES = "textDocument/references",
+	DOCUMENT_HIGHLIGHT = "textDocument/documentHighlight",
+	PREPARE_RENAME = "textDocument/prepareRename",
+	RENAME = "textDocument/rename",
+	CODE_ACTION = "textDocument/codeAction",
+	SIGNATURE_HELP = "textDocument/signatureHelp",
 	FORMATTING = "textDocument/formatting",
 	DOCUMENT_SYMBOL = "textDocument/documentSymbol",
+	WORKSPACE_SYMBOL = "workspace/symbol",
 	COMPLETION = "textDocument/completion",
 	PUBLISH_DIAGNOSTICS = "textDocument/publishDiagnostics"
 }
 
-fn publish_doc_diagnostics(uri: str, text: str, workspace_root: str) {
-	val p = uri_to_path(uri);
-	val analysis = AnalysisResult(p, text, workspace_root);
-
+fn publish_diagnostics_for(uri: str, analysis: *AnalysisResult) {
 	val diags_arr = JsonValue.arr();
 	for (d in analysis.diagnostics) diags_arr += d.to_json();
 
@@ -37,17 +49,35 @@ fn publish_doc_diagnostics(uri: str, text: str, workspace_root: str) {
 	send_notification(Method.PUBLISH_DIAGNOSTICS.value, notif_params);
 }
 
-// ============================================================================
-// Main LSP Server Event Loop
-// ============================================================================
-
 pub struct LanguageServer {
 	pub docs: DocumentStore = DocumentStore(),
 	pub is_shutdown: bool = false,
-	pub workspace_root: str = ""
+	pub workspace_root: str = "",
+	pub cached_uri: str = "",
+	pub cached_version: i64 = -1,
+	pub cached_ws: bool = false,
+	pub cached_analysis: AnalysisResult = AnalysisResult()
 }
 
 impl LanguageServer {
+
+	fn get_analysis(&self, uri: str, doc_path: str, doc_text: str, need_ws: bool = false): *AnalysisResult {
+		val doc = self.docs[uri];
+		if (self.cached_uri == uri && self.cached_version == doc.version && (!need_ws || self.cached_ws)) {
+			return &self.cached_analysis;
+		}
+		self.cached_analysis = AnalysisResult(doc_path, doc_text, self.workspace_root, need_ws);
+		self.cached_uri = uri;
+		self.cached_version = doc.version;
+		self.cached_ws = need_ws;
+		return &self.cached_analysis;
+	}
+
+	fn invalidate_cache(&self) {
+		self.cached_uri = "";
+		self.cached_version = -1;
+		self.cached_ws = false;
+	}
 
 	pub fn run(&self): i32 {
 		init_stdio();
@@ -82,38 +112,53 @@ impl LanguageServer {
 					val res = JsonValue.obj();
 					val caps = JsonValue.obj();
 
-					// Capabilities:
-					// - textDocumentSync: 1 (Full sync)
-					// - hoverProvider: true
-					// - definitionProvider: true
-					// - documentFormattingProvider: true
-					// - documentSymbolProvider: true
-					// - completionProvider: triggers on '.' and ':'
 					caps["textDocumentSync"] = JsonValue.num(1);
 					caps["hoverProvider"] = JsonValue.bool(true);
 					caps["definitionProvider"] = JsonValue.bool(true);
+					caps["referencesProvider"] = JsonValue.bool(true);
+					caps["documentHighlightProvider"] = JsonValue.bool(true);
 					caps["documentFormattingProvider"] = JsonValue.bool(true);
 					caps["documentSymbolProvider"] = JsonValue.bool(true);
+					caps["workspaceSymbolProvider"] = JsonValue.bool(true);
+
+					val rename_opts = JsonValue.obj();
+					rename_opts["prepareProvider"] = JsonValue.bool(true);
+					caps["renameProvider"] = rename_opts;
+
+					val ca_opts = JsonValue.obj();
+					val ca_kinds = JsonValue.arr();
+					ca_kinds += JsonValue.str("quickfix");
+					ca_kinds += JsonValue.str("refactor");
+					ca_kinds += JsonValue.str("refactor.rewrite");
+					ca_kinds += JsonValue.str("source.organizeImports");
+					ca_opts["codeActionKinds"] = ca_kinds;
+					caps["codeActionProvider"] = ca_opts;
+
+					val sig_opts = JsonValue.obj();
+					val sig_triggers = JsonValue.arr();
+					sig_triggers += JsonValue.str("(");
+					sig_triggers += JsonValue.str(",");
+					sig_opts["triggerCharacters"] = sig_triggers;
+					caps["signatureHelpProvider"] = sig_opts;
 
 					val comp = JsonValue.obj();
 					val triggers = JsonValue.arr();
 					triggers += JsonValue.str(".");
 					triggers += JsonValue.str(":");
+					triggers += JsonValue.str("(");
 					comp["triggerCharacters"] = triggers;
 					caps["completionProvider"] = comp;
 
 					val server_info = JsonValue.obj();
 					server_info["name"] = JsonValue.str("kobel-lsp");
-					server_info["version"] = JsonValue.str("1.0.0");
+					server_info["version"] = JsonValue.str("2.0.0");
 
 					res["capabilities"] = caps;
 					res["serverInfo"] = server_info;
 					send_response(id, res);
 				}
 
-				Method.INITIALIZED.value -> {
-					// Notification from client confirming initialization
-				}
+				Method.INITIALIZED.value -> {}
 
 				Method.SHUTDOWN.value -> {
 					self.is_shutdown = true;
@@ -132,7 +177,10 @@ impl LanguageServer {
 					val version = text_doc.get_num("version", 0);
 
 					self.docs.set(uri, text, version);
-					publish_doc_diagnostics(uri, text, self.workspace_root);
+					self.invalidate_cache();
+					val doc = self.docs[uri];
+					val analysis = self.get_analysis(uri, doc.path, text);
+					publish_diagnostics_for(uri, analysis);
 				}
 
 				Method.DID_CHANGE.value -> {
@@ -140,10 +188,24 @@ impl LanguageServer {
 					val uri = text_doc.get_str("uri", "");
 					val version = text_doc.get_num("version", 0);
 					val changes = params.get_arr("contentChanges");
-					val new_text = changes.at(0)?.get_str("text", "") ?: "";
-					if (!new_text.empty()) {
+					if (changes.arr_val.len > 0) {
+						val new_text = changes.at(0)?.get_str("text", "") ?: "";
 						self.docs.set(uri, new_text, version);
-						publish_doc_diagnostics(uri, new_text, self.workspace_root);
+						self.invalidate_cache();
+						val doc = self.docs[uri];
+						val analysis = self.get_analysis(uri, doc.path, new_text);
+						publish_diagnostics_for(uri, analysis);
+					}
+				}
+
+				Method.DID_SAVE.value -> {
+					val text_doc = params.get_obj("textDocument");
+					val uri = text_doc.get_str("uri", "");
+					self.invalidate_cache();
+					val (doc_path, doc_text) = self.docs[uri];
+					if (!doc_text.empty()) {
+						val analysis = self.get_analysis(uri, doc_path, doc_text);
+						publish_diagnostics_for(uri, analysis);
 					}
 				}
 
@@ -151,8 +213,8 @@ impl LanguageServer {
 					val text_doc = params.get_obj("textDocument");
 					val uri = text_doc.get_str("uri", "");
 					self.docs.remove(uri);
+					if (self.cached_uri == uri) self.invalidate_cache();
 
-					// Clear diagnostics when file is closed
 					val p = JsonValue.obj();
 					p["uri"] = JsonValue.str(uri);
 					p["diagnostics"] = JsonValue.arr();
@@ -168,9 +230,8 @@ impl LanguageServer {
 
 					val (doc_path, doc_text) = self.docs[uri];
 					if (!doc_text.empty()) {
-						val analysis = AnalysisResult(doc_path, doc_text, self.workspace_root);
-						val h = analysis.hover_at(line, char_col);
-						send_response(id, h);
+						val analysis = self.get_analysis(uri, doc_path, doc_text);
+						send_response(id, analysis.hover_at(line, char_col));
 					} else {
 						send_response(id, JsonValue.null_val());
 					}
@@ -185,9 +246,119 @@ impl LanguageServer {
 
 					val (doc_path, doc_text) = self.docs[uri];
 					if (!doc_text.empty()) {
-						val analysis = AnalysisResult(doc_path, doc_text, self.workspace_root);
-						val def_res = analysis.definition_at(uri, line, char_col);
-						send_response(id, def_res);
+						val analysis = self.get_analysis(uri, doc_path, doc_text);
+						send_response(id, analysis.definition_at(uri, line, char_col));
+					} else {
+						send_response(id, JsonValue.null_val());
+					}
+				}
+
+				Method.REFERENCES.value -> {
+					val text_doc = params.get_obj("textDocument");
+					val uri = text_doc.get_str("uri", "");
+					val pos = params.get_obj("position");
+					val line = pos.get_num("line", 0) as usz;
+					val char_col = pos.get_num("character", 0) as usz;
+					val ctx = params.get_obj("context");
+					val include_decl = ctx["includeDeclaration"]?.bool_val ?: true;
+
+					val (doc_path, doc_text) = self.docs[uri];
+					if (!doc_text.empty()) {
+						val analysis = self.get_analysis(uri, doc_path, doc_text, true);
+						send_response(id, find_references_json(&analysis.index, doc_path, line, char_col, include_decl));
+					} else {
+						send_response(id, JsonValue.arr());
+					}
+				}
+
+				Method.DOCUMENT_HIGHLIGHT.value -> {
+					val text_doc = params.get_obj("textDocument");
+					val uri = text_doc.get_str("uri", "");
+					val pos = params.get_obj("position");
+					val line = pos.get_num("line", 0) as usz;
+					val char_col = pos.get_num("character", 0) as usz;
+
+					val (doc_path, doc_text) = self.docs[uri];
+					if (!doc_text.empty()) {
+						val analysis = self.get_analysis(uri, doc_path, doc_text);
+						send_response(id, analysis.document_highlights(line, char_col));
+					} else {
+						send_response(id, JsonValue.arr());
+					}
+				}
+
+				Method.PREPARE_RENAME.value -> {
+					val text_doc = params.get_obj("textDocument");
+					val uri = text_doc.get_str("uri", "");
+					val pos = params.get_obj("position");
+					val line = pos.get_num("line", 0) as usz;
+					val char_col = pos.get_num("character", 0) as usz;
+
+					val (doc_path, doc_text) = self.docs[uri];
+					if (!doc_text.empty()) {
+						val analysis = self.get_analysis(uri, doc_path, doc_text, true);
+						send_response(id, prepare_rename_json(&analysis.index, doc_path, line, char_col));
+					} else {
+						send_response(id, JsonValue.null_val());
+					}
+				}
+
+				Method.RENAME.value -> {
+					val text_doc = params.get_obj("textDocument");
+					val uri = text_doc.get_str("uri", "");
+					val pos = params.get_obj("position");
+					val line = pos.get_num("line", 0) as usz;
+					val char_col = pos.get_num("character", 0) as usz;
+					val new_name = params.get_str("newName", "");
+
+					val (doc_path, doc_text) = self.docs[uri];
+					if (!doc_text.empty() && !new_name.empty()) {
+						val analysis = self.get_analysis(uri, doc_path, doc_text, true);
+						send_response(id, rename_symbol_json(&analysis.index, doc_path, line, char_col, new_name));
+					} else {
+						send_response(id, JsonValue.null_val());
+					}
+				}
+
+				Method.CODE_ACTION.value -> {
+					val text_doc = params.get_obj("textDocument");
+					val uri = text_doc.get_str("uri", "");
+					val range = params.get_obj("range");
+					val s_pos = range.get_obj("start");
+					val e_pos = range.get_obj("end");
+					val s_line = s_pos.get_num("line", 0) as usz;
+					val s_col = s_pos.get_num("character", 0) as usz;
+					val e_line = e_pos.get_num("line", 0) as usz;
+					val e_col = e_pos.get_num("character", 0) as usz;
+					val ctx = params.get_obj("context");
+					val diags = ctx.get_arr("diagnostics");
+
+					val (doc_path, doc_text) = self.docs[uri];
+					if (!doc_text.empty()) {
+						val analysis = self.get_analysis(uri, doc_path, doc_text);
+						send_response(
+							id,
+							code_actions_json(
+								&analysis.index, analysis.tokens, doc_path, doc_text,
+								s_line, s_col, e_line, e_col, diags
+							)
+						);
+					} else {
+						send_response(id, JsonValue.arr());
+					}
+				}
+
+				Method.SIGNATURE_HELP.value -> {
+					val text_doc = params.get_obj("textDocument");
+					val uri = text_doc.get_str("uri", "");
+					val pos = params.get_obj("position");
+					val line = pos.get_num("line", 0) as usz;
+					val char_col = pos.get_num("character", 0) as usz;
+
+					val (doc_path, doc_text) = self.docs[uri];
+					if (!doc_text.empty()) {
+						val analysis = self.get_analysis(uri, doc_path, doc_text);
+						send_response(id, analysis.signature_help_at(line, char_col));
 					} else {
 						send_response(id, JsonValue.null_val());
 					}
@@ -198,8 +369,7 @@ impl LanguageServer {
 					val uri = text_doc.get_str("uri", "");
 					val (_, doc_text) = self.docs[uri];
 					if (!doc_text.empty()) {
-						val edits = AnalysisResult.format_document(doc_text);
-						send_response(id, edits);
+						send_response(id, AnalysisResult.format_document(doc_text));
 					} else {
 						send_response(id, JsonValue.arr());
 					}
@@ -210,25 +380,45 @@ impl LanguageServer {
 					val uri = text_doc.get_str("uri", "");
 					val (_, doc_text) = self.docs[uri];
 					if (!doc_text.empty()) {
-						val syms = AnalysisResult.document_symbols(doc_text);
-						send_response(id, syms);
+						send_response(id, AnalysisResult.document_symbols(doc_text));
 					} else {
 						send_response(id, JsonValue.arr());
+					}
+				}
+
+				Method.WORKSPACE_SYMBOL.value -> {
+					val query = params.get_str("query", "");
+					if (!self.cached_uri.empty()) {
+						send_response(id, self.cached_analysis.workspace_symbols(query));
+					} else {
+						val entry = resolve_project_entry(self.workspace_root);
+						if (!entry.empty()) {
+							val src = Path(entry).read_text();
+							if (!src.empty()) {
+								val a = AnalysisResult(entry, src, self.workspace_root, true);
+								send_response(id, a.workspace_symbols(query));
+							} else {
+								send_response(id, JsonValue.arr());
+							}
+						} else {
+							send_response(id, JsonValue.arr());
+						}
 					}
 				}
 
 				Method.COMPLETION.value -> {
 					val text_doc = params.get_obj("textDocument");
 					val uri = text_doc.get_str("uri", "");
+					val pos = params.get_obj("position");
+					val line = pos.get_num("line", 0) as usz;
+					val char_col = pos.get_num("character", 0) as usz;
 					val (doc_path, doc_text) = self.docs[uri];
 					if (!doc_text.empty()) {
-						val analysis = AnalysisResult(doc_path, doc_text, self.workspace_root);
-						val items = analysis.complete_at();
-						send_response(id, items);
+						val analysis = self.get_analysis(uri, doc_path, doc_text);
+						send_response(id, analysis.complete_at(line, char_col));
 					} else {
 						val empty_analysis = AnalysisResult("", "", self.workspace_root);
-						val items = empty_analysis.complete_at();
-						send_response(id, items);
+						send_response(id, empty_analysis.complete_at(0, 0));
 					}
 				}
 

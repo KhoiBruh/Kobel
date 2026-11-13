@@ -1,0 +1,348 @@
+mod lsp;
+
+use std.ascii.*;
+use std.collections.*;
+use std.string.*;
+
+use compiler.lexer.*;
+
+/*
+ * ============================================================================
+ * lsp.refactor — Global Dependency & Semantic Refactoring Engine
+ *
+ * Implements workspace-wide, dependency-aware `textDocument/references`,
+ * `textDocument/prepareRename`, `textDocument/rename`, and semantic
+ * `textDocument/codeAction` (missing imports, unused import cleanup,
+ * `var` -> `val` conversion, and missing trait method stub generation).
+ * ============================================================================
+ */
+
+fn make_lsp_range(line1: usz, col1: usz, end_line1: usz, end_col1: usz): *JsonValue {
+	val range = JsonValue.obj();
+	val s_pos = JsonValue.obj();
+	s_pos["line"] = JsonValue.num((if (line1 > 0) line1 - 1 else 0) as i64);
+	s_pos["character"] = JsonValue.num((if (col1 > 0) col1 - 1 else 0) as i64);
+
+	val e_pos = JsonValue.obj();
+	e_pos["line"] = JsonValue.num((if (end_line1 > 0) end_line1 - 1 else 0) as i64);
+	e_pos["character"] = JsonValue.num((if (end_col1 > 0) end_col1 - 1 else 0) as i64);
+
+	range["start"] = s_pos;
+	range["end"] = e_pos;
+	return range;
+}
+
+fn make_text_edit(line1: usz, col1: usz, end_line1: usz, end_col1: usz, new_text: str): *JsonValue {
+	val edit = JsonValue.obj();
+	edit["range"] = make_lsp_range(line1, col1, end_line1, end_col1);
+	edit["newText"] = JsonValue.str(new_text);
+	return edit;
+}
+
+fn is_valid_ident_name(name: str): bool {
+	if (name.empty()) return false;
+	val c0 = name[0];
+	if (!c0.is_alpha() && c0 != '_') return false;
+	for (i in 1..<name.len) {
+		val c = name[i];
+		if (!c.is_alpha() && !c.is_digit() && c != '_') return false;
+	}
+	return when (name) {
+		"fn", "val", "var", "const", "struct", "enum", "trait", "impl",
+		"when", "if", "else", "while", "for", "in", "return", "pub",
+		"use", "mod", "extern", "true", "false", "null", "as", "break",
+		"continue", "is", "op", "init", "defer", "yield" -> false;
+		else -> true;
+	};
+}
+
+fn is_renameable_def(def: DefInfo): bool {
+	if (def.role == SymRole.MODULE) return false;
+	if (def.name == "self" || def.name == "init" || def.name == "main") return false;
+	return true;
+}
+
+pub fn collect_semantic_refs(
+	index: *SemanticIndex,
+	file_path: str,
+	line0: usz,
+	col0: usz,
+	include_decl: bool
+): List<RefInfo> {
+	val line1 = line0 + 1;
+	val col1 = col0 + 1;
+	val hit = index.find_ref_at(file_path, line1, col1);
+	if (hit.target_key.empty()) return List<RefInfo>();
+	val all_refs = index.find_refs_for_key(hit.target_key, include_decl);
+
+	val def = index.get_def(hit.target_key);
+	if (def.key.empty()) return all_refs;
+
+	// For non-local symbols, filter by dependency graph (defining module + dependents)
+	if (def.role == SymRole.LOCAL || def.role == SymRole.PARAM) {
+		return all_refs;
+	}
+
+	val related = index.dep_graph.related_modules(def.module_name);
+	if (related.empty()) return all_refs;
+
+	var filtered = List<RefInfo>();
+	for (r in all_refs) {
+		if (r.module_name.empty() || (r.module_name in related) || paths_equal(r.file_path, def.file_path)) {
+			filtered += r;
+		}
+	}
+	return filtered;
+}
+
+pub fn find_references_json(
+	index: *SemanticIndex,
+	file_path: str,
+	line0: usz,
+	col0: usz,
+	include_decl: bool
+): *JsonValue {
+	val arr = JsonValue.arr();
+	val refs = collect_semantic_refs(index, file_path, line0, col0, include_decl);
+	for (r in refs) {
+		val loc = JsonValue.obj();
+		loc["uri"] = JsonValue.str(path_to_uri(r.file_path));
+		loc["range"] = make_lsp_range(r.line, r.col, r.line, r.col + r.len);
+		arr += loc;
+	}
+	return arr;
+}
+
+pub fn prepare_rename_json(
+	index: *SemanticIndex,
+	file_path: str,
+	line0: usz,
+	col0: usz
+): *JsonValue {
+	val hit = index.find_ref_at(file_path, line0 + 1, col0 + 1);
+	if (hit.target_key.empty()) return JsonValue.null_val();
+	val def = index.get_def(hit.target_key);
+	if (def.key.empty()) return JsonValue.null_val();
+	if (!is_renameable_def(def)) return JsonValue.null_val();
+
+	val res = JsonValue.obj();
+	res["range"] = make_lsp_range(hit.line, hit.col, hit.line, hit.col + hit.len);
+	res["placeholder"] = JsonValue.str(def.name);
+	return res;
+}
+
+pub fn rename_symbol_json(
+	index: *SemanticIndex,
+	file_path: str,
+	line0: usz,
+	col0: usz,
+	new_name: str
+): *JsonValue {
+	if (!is_valid_ident_name(new_name)) return JsonValue.null_val();
+
+	val hit = index.find_ref_at(file_path, line0 + 1, col0 + 1);
+	if (hit.target_key.empty()) return JsonValue.null_val();
+	val def = index.get_def(hit.target_key);
+	if (def.key.empty()) return JsonValue.null_val();
+	if (!is_renameable_def(def)) return JsonValue.null_val();
+
+	val refs = collect_semantic_refs(index, file_path, line0, col0, true);
+	if (refs.empty()) return JsonValue.null_val();
+
+	val changes = JsonValue.obj();
+	var by_uri = HashMap<str, *JsonValue>();
+
+	for (r in refs) {
+		val u = path_to_uri(r.file_path);
+		val edit = make_text_edit(r.line, r.col, r.line, r.col + r.len, new_name);
+		val existing = by_uri.get(u);
+		if (existing != null) {
+			val arr = existing.read();
+			arr += edit;
+		} else {
+			val arr = JsonValue.arr();
+			arr += edit;
+			by_uri[u] = arr;
+			changes[u] = arr;
+		}
+	}
+
+	val ws_edit = JsonValue.obj();
+	ws_edit["changes"] = changes;
+	return ws_edit;
+}
+
+// ============================================================================
+// Code Actions (Quick Fixes & Refactorings)
+// ============================================================================
+
+fn find_use_insert_line1(source: str): usz {
+	val lines = source.split('\n');
+	var last_use: usz = 0;
+	var mod_line: usz = 0;
+	for (i in 0..<lines.len) {
+		val trimmed = lines[i].trim();
+		if (trimmed.starts_with("mod ")) mod_line = i + 1;
+		else if (trimmed.starts_with("use ")) last_use = i + 1;
+	}
+	if (last_use > 0) return last_use + 1;
+	if (mod_line > 0) return mod_line + 1;
+	return 1;
+}
+
+fn find_closing_brace_line1(source: str, start_line1: usz): usz {
+	val lines = source.split('\n');
+	var depth: i32 = 0;
+	var seen_open = false;
+	for (i in (if (start_line1 > 0) start_line1 - 1 else 0)..<lines.len) {
+		val ln = lines[i];
+		for (j in 0..<ln.len) {
+			if (ln[j] == '{') {
+				depth++;
+				seen_open = true;
+			} else if (ln[j] == '}') {
+				depth--;
+				if (seen_open && depth <= 0) return i + 1;
+			}
+		}
+	}
+	return start_line1;
+}
+
+fn extract_ident_from_diag(msg: str): str {
+	// Matches patterns like "Undefined identifier 'foo'" or "Unknown type 'Bar'"
+	var q1: isz = -1;
+	for (i in 0..<msg.len) {
+		if (msg[i] == '\'') {
+			if (q1 < 0) q1 = i as isz;
+			else {
+				val cand = msg.slice((q1 + 1) as usz, i);
+				if (is_valid_ident_name(cand)) return cand;
+				q1 = -1;
+			}
+		}
+	}
+	return "";
+}
+
+fn make_code_action(title: str, kind: str, uri: str, edits: *JsonValue, is_preferred: bool = false): *JsonValue {
+	val act = JsonValue.obj();
+	act["title"] = JsonValue.str(title);
+	act["kind"] = JsonValue.str(kind);
+	if (is_preferred) act["isPreferred"] = JsonValue.bool(true);
+
+	val ws_edit = JsonValue.obj();
+	val changes = JsonValue.obj();
+	changes[uri] = edits;
+	ws_edit["changes"] = changes;
+	act["edit"] = ws_edit;
+	return act;
+}
+
+pub fn code_actions_json(
+	index: *SemanticIndex,
+	tokens: List<Token>,
+	file_path: str,
+	source: str,
+	start_line0: usz,
+	start_col0: usz,
+	end_line0: usz,
+	end_col0: usz,
+	diags: *JsonValue
+): *JsonValue {
+	val actions = JsonValue.arr();
+	val uri = path_to_uri(file_path);
+	val norm = file_path.normalize_path();
+	val cur_mod = index.file_modules.get_or(norm, "");
+
+	// 1. QuickFix: Add missing `use` import for unresolved identifiers in diagnostics
+	if (diags.is_arr()) {
+		var seen_names = HashSet<str>();
+		val insert_line = find_use_insert_line1(source);
+		for (d in diags.arr_val) {
+			val msg = d.get_str("message", "");
+			val sym_name = extract_ident_from_diag(msg);
+			if (sym_name.empty() || (sym_name in seen_names)) continue;
+			seen_names += sym_name;
+
+			var offered_mods = HashSet<str>();
+			for (def in index.defs) {
+				if (!def.is_public || def.name != sym_name) continue;
+				if (def.module_name.empty() || def.module_name == cur_mod) continue;
+				if (def.role != SymRole.FN && def.role != SymRole.STRUCT &&
+					def.role != SymRole.ENUM && def.role != SymRole.TRAIT &&
+					def.role != SymRole.CONST) continue;
+				if (def.module_name in offered_mods) continue;
+				offered_mods += def.module_name;
+
+				val edits = JsonValue.arr();
+				edits += make_text_edit(insert_line, 1, insert_line, 1, "use ${def.module_name}.${sym_name};\n");
+				actions += make_code_action(
+					"Add 'use ${def.module_name}.${sym_name};'",
+					"quickfix", uri, edits, true
+				);
+			}
+		}
+	}
+
+	// 2. Source / Organize: Remove unused explicit `use` imports in current file
+	val imps = index.imports_by_file.get_or(norm, List<ImportInfo>());
+	val unused_edits = JsonValue.arr();
+	var unused_count: usz = 0;
+	for (imp in imps) {
+		if (!imp.wildcard && !imp.used) {
+			unused_edits += make_text_edit(imp.line, 1, imp.line + 1, 1, "");
+			unused_count++;
+		}
+	}
+	if (unused_count > 0) {
+		actions += make_code_action(
+			"Remove ${unused_count} unused import(s)",
+			"source.organizeImports", uri, unused_edits
+		);
+	}
+
+	// 3. Refactor: Convert unmutated `var` to `val` near cursor/selection
+	val req_start1 = start_line0 + 1;
+	val req_end1 = end_line0 + 1;
+	for (def in index.defs) {
+		if (def.role != SymRole.LOCAL || !def.is_mutable || def.is_mutated) continue;
+		if (!paths_equal(def.file_path, file_path)) continue;
+		if (def.line < req_start1 || def.line > req_end1) continue;
+
+		// Find `var` token on def.line before def.col
+		for (tok in tokens) {
+			if (tok.line == def.line && tok.type == TokenType.KW_VAR && tok.col < def.col) {
+				val edits = JsonValue.arr();
+				edits += make_text_edit(tok.line, tok.col, tok.line, tok.col + 3, "val");
+				actions += make_code_action(
+					"Convert 'var ${def.name}' to 'val ${def.name}'",
+					"refactor.rewrite", uri, edits
+				);
+				break;
+			}
+		}
+	}
+
+	// 4. QuickFix: Generate missing trait method stubs in `impl Trait for Struct`
+	val missing_list = index.missing_impls_by_file.get_or(norm, List<ImplMissingInfo>());
+	for (mi in missing_list) {
+		val close_line = find_closing_brace_line1(source, mi.line);
+		if (req_end1 < mi.line || req_start1 > close_line) continue;
+
+		var sb = StringBuilder();
+		defer sb.free();
+		for (stub in mi.missing_stubs) {
+			sb += stub;
+			sb += "\n";
+		}
+		val edits = JsonValue.arr();
+		edits += make_text_edit(close_line, 1, close_line, 1, sb.to_str());
+		actions += make_code_action(
+			"Implement missing methods for trait '${mi.trait_name}'",
+			"quickfix", uri, edits, true
+		);
+	}
+
+	return actions;
+}

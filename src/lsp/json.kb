@@ -242,12 +242,21 @@ impl JsonParser {
 						'r' -> sb += '\r';
 						't' -> sb += '\t';
 						'u' -> {
+							var u_val: i32 = 0;
 							var u_count: usz = 0;
 							while (u_count < 4 && !self.is_end()) {
-								self.advance();
+								val hc = self.advance();
+								val d: i32 = when (hc) {
+									'0'..'9' -> (hc.code() as i32) - 48;
+									'a'..'f' -> (hc.code() as i32) - 87;
+									'A'..'F' -> (hc.code() as i32) - 55;
+									else -> 0;
+								};
+								u_val = u_val * 16 + d;
 								u_count++;
 							}
-							sb += '?';
+							if (u_val > 0 && u_val < 128) sb += char(u_val);
+							else sb += '?';
 						}
 						else -> sb += esc;
 					}

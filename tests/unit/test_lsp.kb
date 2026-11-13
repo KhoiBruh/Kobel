@@ -1,0 +1,209 @@
+mod test_lsp;
+
+use std.io.println;
+
+use lsp.*;
+use testsupport.assert.*;
+
+fn test_json_and_uri() {
+	val doc = JsonValue.parse("{\"name\":\"Kobel\",\"ver\":2,\"arr\":[true,\"\\u0041\"]}");
+	assert_true(doc.is_obj(), "parsed JSON should be object");
+	assert_eq_str(doc.get_str("name", ""), "Kobel", "JSON string field");
+	assert_true(doc.get_num("ver", 0) == 2, "JSON num field");
+	assert_true("arr" in doc, "JSON has key");
+	val arr = doc["arr"];
+	assert_true(arr.is_arr(), "JSON arr field");
+	assert_eq_usz(arr.arr_val.len, 2, "JSON arr length");
+	assert_eq_str(arr.at(1).str_val, "A", "JSON unicode escape \\u0041");
+
+	val raw_path = "C:/Users/Admin/CLionProjects/Kobel/src/main.kb";
+	val uri = path_to_uri(raw_path);
+	assert_true("Kobel" in uri, "path_to_uri preserves directory case");
+	val back = uri_to_path(uri);
+	assert_true(paths_equal(raw_path, back), "uri_to_path round-trips path");
+
+	println("  [PASS] test_json_and_uri");
+}
+
+fn find_line_col(text: str, needle: str): Pair<usz, usz> {
+	val lines = text.split('\n');
+	for (i in 0..<lines.len) {
+		val idx = lines[i].index_of(needle);
+		if (idx >= 0) return Pair(i, idx as usz);
+	}
+	return Pair(0, 0);
+}
+
+fn test_new_features_and_semantics() {
+	val kws = ["is", "op", "init", "yield", "defer", "when", "trait", "impl"];
+	for (kw in kws) {
+		assert_true(!keyword_hover(kw).empty(), "keyword_hover should document keyword");
+	}
+
+	val src = """mod sample;
+
+enum Mode {
+	FAST,
+	SAFE
+}
+
+struct Counter {
+	pub value: i64
+}
+
+impl Counter {
+	pub init(start: i64) => Self(start);
+
+	pub fn bump(&self, delta: i64): i64 {
+		self.value += delta;
+		return self.value;
+	}
+
+	pub op plus(*self, other: Counter): Counter {
+		return Counter(self.value + other.value);
+	}
+}
+
+fn step_sum(m: Mode, a: i64, b: i64): i64 {
+	var total = a;
+	var c = Counter(b);
+	defer c.bump(0);
+	val bonus = when (m) {
+		Mode.FAST -> 10;
+		Mode.SAFE -> 1;
+	};
+	total += c.bump(bonus);
+	for (i in 0..<2) total += i as i64;
+	return total;
+}
+
+pub fn entry(): i64 {
+	var out = step_sum(Mode.FAST, 2, 3);
+	out += step_sum(Mode.SAFE, 1, 1);
+	return out;
+}
+""";
+
+	val sample_path = "C:/Users/Admin/CLionProjects/Kobel/tests/unit/sample_lsp_virtual.kb";
+	val sample_uri = path_to_uri(sample_path);
+	val analysis = AnalysisResult(sample_path, src, "", false);
+
+	assert_eq_usz(analysis.diagnostics.len, 0, "clean Kobel 2.0 snippet should have zero diagnostics");
+
+	// Hover on `step_sum` call resolves unmangled signature
+	val call_pos = find_line_col(src, "step_sum(Mode.FAST");
+	val hov = analysis.hover_at(call_pos.first, call_pos.second);
+	assert_true(!hov.is_null(), "hover_at call should succeed");
+	val hov_md = hov["contents"].get_str("value", "");
+	assert_true("fn step_sum(m: Mode, a: i64, b: i64): i64" in hov_md, "hover shows unmangled signature");
+
+	// Definition & hover on enum variant `Mode.FAST` in when-arm
+	val dot_fast = find_line_col(src, "Mode.FAST ->");
+	val fast_hov = analysis.hover_at(dot_fast.first, dot_fast.second + 5);
+	assert_true(!fast_hov.is_null(), "hover on Mode.FAST should resolve");
+	val fast_def = analysis.definition_at(sample_uri, dot_fast.first, dot_fast.second + 5);
+	assert_true(!fast_def.is_null(), "definition on Mode.FAST should resolve");
+
+	// Member completion after `c.` should include Counter field & methods
+	val bump_call = find_line_col(src, "c.bump(0)");
+	val comp_items = analysis.complete_at(bump_call.first, bump_call.second + 2);
+	assert_true(comp_items.is_arr() && comp_items.arr_val.len > 0, "member completion returns items");
+	var saw_value = false;
+	var saw_bump = false;
+	for (item in comp_items.arr_val) {
+		val lbl = item.get_str("label", "");
+		if (lbl == "value") saw_value = true;
+		if (lbl == "bump") saw_bump = true;
+	}
+	assert_true(saw_value && saw_bump, "Counter completion includes `value` and `bump`");
+
+	// Signature help inside `step_sum(Mode.FAST, 2, 3)` at 2nd arg
+	val arg2_pos = find_line_col(src, ", 2, 3");
+	val sig_help = analysis.signature_help_at(arg2_pos.first, arg2_pos.second + 2);
+	assert_true(!sig_help.is_null(), "signature_help should resolve inside call");
+	assert_true(sig_help.get_num("activeParameter", -1) == 1, "activeParameter should be 1 at 2nd argument");
+
+	// Document highlights on `total`
+	val total_decl = find_line_col(src, "var total");
+	val hls = analysis.document_highlights(total_decl.first, total_decl.second + 4);
+	assert_true(hls.is_arr() && hls.arr_val.len >= 3, "document_highlights should find decl + writes/reads of total");
+
+	// Document symbols
+	val syms = AnalysisResult.document_symbols(src);
+	assert_true(syms.is_arr() && syms.arr_val.len >= 4, "document_symbols lists enum/struct/fns");
+
+	// Semantic references, prepareRename & rename on `step_sum`
+	val fn_pos = find_line_col(src, "fn step_sum");
+	val refs = find_references_json(analysis.index, sample_path, fn_pos.first, fn_pos.second + 3, true);
+	assert_true(refs.is_arr() && refs.arr_val.len == 3, "references should find def + 2 calls for step_sum");
+
+	val prep = prepare_rename_json(analysis.index, sample_path, fn_pos.first, fn_pos.second + 3);
+	assert_eq_str(prep.get_str("placeholder", ""), "step_sum", "prepareRename returns unmangled name");
+
+	val edit = rename_symbol_json(analysis.index, sample_path, fn_pos.first, fn_pos.second + 3, "calc_step");
+	assert_true(edit.is_obj() && "changes" in edit, "rename produces WorkspaceEdit changes");
+	val file_edits = edit["changes"][sample_uri];
+	assert_true(file_edits.is_arr() && file_edits.arr_val.len == 3, "rename produces 3 edits for step_sum");
+
+	println("  [PASS] test_new_features_and_semantics");
+}
+
+fn test_code_actions() {
+	val src = """mod actions_sample;
+
+use std.collections.List;
+
+trait Greeter {
+	fn greet(*self): str;
+}
+
+struct Bot {
+	pub id: i64
+}
+
+impl Greeter for Bot {}
+
+pub fn helper(): i64 {
+	var never_mutated = 42;
+	return never_mutated;
+}
+""";
+	val p = "C:/Users/Admin/CLionProjects/Kobel/tests/unit/actions_sample_virtual.kb";
+	val analysis = AnalysisResult(p, src, "", false);
+	val actions = code_actions_json(
+		analysis.index,
+		analysis.tokens,
+		p,
+		src,
+		0,
+		0,
+		20,
+		0,
+		JsonValue.arr()
+	);
+	assert_true(actions.is_arr(), "code_actions returns array");
+
+	var saw_var_to_val = false;
+	var saw_unused_use = false;
+	var saw_trait_stub = false;
+	for (act in actions.arr_val) {
+		val title = act.get_str("title", "");
+		if ("val" in title) saw_var_to_val = true;
+		if ("unused import" in title || "Unused" in title || "Remove" in title) saw_unused_use = true;
+		if ("trait" in title || "Implement" in title) saw_trait_stub = true;
+	}
+	assert_true(saw_var_to_val, "codeAction offers var -> val for unmutated variable");
+	assert_true(saw_unused_use, "codeAction offers removing unused use import");
+	assert_true(saw_trait_stub, "codeAction offers trait method stub for Bot");
+
+	println("  [PASS] test_code_actions");
+}
+
+pub fn main(): i32 {
+	println("Running LSP unit tests...");
+	test_json_and_uri();
+	test_new_features_and_semantics();
+	test_code_actions();
+	println("All LSP unit tests passed.");
+	return 0;
+}
