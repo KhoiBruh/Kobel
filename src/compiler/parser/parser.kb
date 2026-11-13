@@ -16,7 +16,7 @@ use compiler.ast.*;
 pub struct Parser {
 	pub tokens: List<Token>,
 	pub current: usz = 0,
-	pub arena: Arena = Arena(),
+	pub arena: Arena = Arena.empty(),
 	pub errors: List<Diagnostic> = List(),
 	pub struct_consts: List<*AstNode> = List(),
 	pub file_id: u32 = 0
@@ -25,7 +25,16 @@ pub struct Parser {
 impl Parser {
 
 	pub init(tokens: List<Token>) {
-		var p = Self(tokens);
+		var p = Self(tokens, 0, Arena());
+		if (!tokens.empty()) {
+			val first_tok = tokens[0];
+			p.file_id = first_tok.span.file_id;
+		}
+		return p;
+	}
+
+	pub init(tokens: List<Token>, arena: Arena) {
+		var p = Self(tokens, 0, arena);
 		if (!tokens.empty()) {
 			val first_tok = tokens[0];
 			p.file_id = first_tok.span.file_id;

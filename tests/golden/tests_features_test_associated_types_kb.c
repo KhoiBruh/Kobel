@@ -293,6 +293,7 @@ static int kobel_create_dir_all(kobel_str dir_path) {
 	return kobel_path_is_dir(dir_path);
 }
 typedef struct std__memory__ArenaBlock std__memory__ArenaBlock;
+typedef struct std__memory__ArenaState std__memory__ArenaState;
 typedef struct std__memory__Arena std__memory__Arena;
 typedef struct std__memory__Heap std__memory__Heap;
 typedef struct std__string__StrRaw std__string__StrRaw;
@@ -309,8 +310,13 @@ struct std__memory__ArenaBlock {
     std__memory__ArenaBlock* next;
 };
 
-struct std__memory__Arena {
+struct std__memory__ArenaState {
     std__memory__ArenaBlock* current;
+    size_t block_size;
+};
+
+struct std__memory__Arena {
+    std__memory__ArenaState* state;
     size_t block_size;
 };
 
@@ -366,6 +372,8 @@ size_t u64_hash(uint64_t self);
 size_t usz_hash(size_t self);
 uint8_t* std__memory__Arena_alloc_bytes(std__memory__Arena* self, size_t size, size_t align);
 std__memory__Arena std__memory__Arena_init(size_t block_size);
+std__memory__Arena std__memory__Arena_empty(void);
+std__memory__ArenaState* std__memory__Arena_ensure_state(std__memory__Arena* self);
 void std__memory__Arena_new_block(std__memory__Arena* self, size_t min_size);
 void std__memory__Arena_reset(std__memory__Arena* self);
 size_t std__memory__Arena_total_allocated(std__memory__Arena* self);
@@ -505,14 +513,17 @@ kobel_str std__collections__List_str_set(std__collections__List_str* self, size_
 void std__collections__List_str_plus_assign(std__collections__List_str* self, kobel_str value);
 void std__memory__Heap_free_u8(uint8_t* ptr);
 void std__memory__Heap_free_str(kobel_str* ptr);
+std__memory__ArenaState* std__memory__Heap_create_val_std__memory__ArenaState(std__memory__ArenaState value);
 uint8_t* std__memory__Heap_alloc_u8(size_t count);
 std__memory__ArenaBlock* std__memory__Heap_create_std__memory__ArenaBlock(void);
 std__memory__ArenaBlock* std__memory__Heap_alloc_std__memory__ArenaBlock(size_t count);
 void std__memory__Heap_free_std__memory__ArenaBlock(std__memory__ArenaBlock* ptr);
+void std__memory__Heap_free_std__memory__ArenaState(std__memory__ArenaState* ptr);
 int32_t std__collections__std__collections__List_str_fold_i32(std__collections__List_str* self, int32_t initial, kobel_closure operation);
 uint8_t* std__memory__Heap_resize_u8(uint8_t* ptr, size_t count);
 kobel_str* std__memory__Heap_alloc_str(size_t count);
 kobel_str* std__memory__Heap_resize_str(kobel_str* ptr, size_t count);
+std__memory__ArenaState* std__memory__Heap_alloc_std__memory__ArenaState(size_t count);
 
 size_t std__traits__hash_int(size_t n) {
 size_t x = ((n + (n / 8)) * 2654435761);
@@ -607,10 +618,11 @@ size_t usz_hash(size_t self) {
 }
 
 uint8_t* std__memory__Arena_alloc_bytes(std__memory__Arena* self, size_t size, size_t align) {
-if (self->current == NULL) {
+std__memory__ArenaState* st = std__memory__Arena_ensure_state(self);
+if (st->current == NULL) {
 std__memory__Arena_new_block(self, size);
 }
-std__memory__ArenaBlock* blk = self->current;
+std__memory__ArenaBlock* blk = st->current;
 size_t rem = (blk->used % align);
 size_t aligned_used = blk->used;
 if (rem != 0) {
@@ -620,18 +632,33 @@ if ((aligned_used + size) > blk->size) {
 std__memory__Arena_new_block(self, size);
 aligned_used = 0;
 }
-std__memory__ArenaBlock* cur_blk = self->current;
+std__memory__ArenaBlock* cur_blk = st->current;
 uint8_t* ptr = &cur_blk->data[aligned_used];
 cur_blk->used = (aligned_used + size);
 return ptr;
 }
 
 std__memory__Arena std__memory__Arena_init(size_t block_size) {
-    return (std__memory__Arena){ NULL, block_size };
+std__memory__ArenaState* st = std__memory__Heap_create_val_std__memory__ArenaState((std__memory__ArenaState){ NULL, block_size });
+return (std__memory__Arena){ st, block_size };
+}
+
+std__memory__Arena std__memory__Arena_empty(void) {
+    return (std__memory__Arena){ NULL, 65536 };
+}
+
+std__memory__ArenaState* std__memory__Arena_ensure_state(std__memory__Arena* self) {
+if (self->state != NULL) {
+return self->state;
+}
+std__memory__ArenaState* st = std__memory__Heap_create_val_std__memory__ArenaState((std__memory__ArenaState){ NULL, self->block_size });
+self->state = st;
+return st;
 }
 
 void std__memory__Arena_new_block(std__memory__Arena* self, size_t min_size) {
-size_t sz = self->block_size;
+std__memory__ArenaState* st = std__memory__Arena_ensure_state(self);
+size_t sz = st->block_size;
 if (sz < min_size) {
 sz = min_size;
 }
@@ -640,12 +667,15 @@ std__memory__ArenaBlock* blk = std__memory__Heap_create_std__memory__ArenaBlock(
 blk->data = data;
 blk->size = sz;
 blk->used = 0;
-blk->next = self->current;
-self->current = blk;
+blk->next = st->current;
+st->current = blk;
 }
 
 void std__memory__Arena_reset(std__memory__Arena* self) {
-std__memory__ArenaBlock* curr = self->current;
+if (self->state == NULL) {
+return;
+}
+std__memory__ArenaBlock* curr = (*self->state).current;
 while (curr != NULL) {
 curr->used = 0;
 curr = curr->next;
@@ -653,8 +683,11 @@ curr = curr->next;
 }
 
 size_t std__memory__Arena_total_allocated(std__memory__Arena* self) {
+if (self->state == NULL) {
+return 0;
+}
 size_t total = 0;
-std__memory__ArenaBlock* curr = self->current;
+std__memory__ArenaBlock* curr = (*self->state).current;
 while (curr != NULL) {
 total += curr->size;
 curr = curr->next;
@@ -663,14 +696,20 @@ return total;
 }
 
 void std__memory__Arena_free(std__memory__Arena* self) {
-std__memory__ArenaBlock* curr = self->current;
+if (self->state == NULL) {
+return;
+}
+std__memory__ArenaState* st = self->state;
+std__memory__ArenaBlock* curr = st->current;
 while (curr != NULL) {
 std__memory__ArenaBlock* next_blk = curr->next;
 std__memory__Heap_free_u8(curr->data);
 std__memory__Heap_free_std__memory__ArenaBlock(curr);
 curr = next_blk;
 }
-self->current = NULL;
+st->current = NULL;
+std__memory__Heap_free_std__memory__ArenaState(st);
+self->state = NULL;
 }
 
 uint8_t* std__memory__Heap_alloc_bytes(std__memory__Heap* self, size_t size, size_t align) {
@@ -2546,6 +2585,12 @@ void std__memory__Heap_free_str(kobel_str* ptr) {
     free((uint8_t*)ptr);
 }
 
+std__memory__ArenaState* std__memory__Heap_create_val_std__memory__ArenaState(std__memory__ArenaState value) {
+std__memory__ArenaState* ptr = std__memory__Heap_alloc_std__memory__ArenaState(1);
+(*(ptr) = value);
+return ptr;
+}
+
 uint8_t* std__memory__Heap_alloc_u8(size_t count) {
     return (uint8_t*)malloc((count * 1));
 }
@@ -2559,6 +2604,10 @@ std__memory__ArenaBlock* std__memory__Heap_alloc_std__memory__ArenaBlock(size_t 
 }
 
 void std__memory__Heap_free_std__memory__ArenaBlock(std__memory__ArenaBlock* ptr) {
+    free((uint8_t*)ptr);
+}
+
+void std__memory__Heap_free_std__memory__ArenaState(std__memory__ArenaState* ptr) {
     free((uint8_t*)ptr);
 }
 
@@ -2586,5 +2635,9 @@ kobel_str* std__memory__Heap_alloc_str(size_t count) {
 
 kobel_str* std__memory__Heap_resize_str(kobel_str* ptr, size_t count) {
     return (kobel_str*)realloc((uint8_t*)ptr, (count * 16));
+}
+
+std__memory__ArenaState* std__memory__Heap_alloc_std__memory__ArenaState(size_t count) {
+    return (std__memory__ArenaState*)malloc((count * 16));
 }
 

@@ -110,6 +110,10 @@ fn sort_strings(var items: List<str>) {
 impl ModuleLoader {
 
 	pub init(entry_dir: str, extra_roots: List<str>) {
+		return ModuleLoader(entry_dir, extra_roots, Arena(524288));
+	}
+
+	pub init(entry_dir: str, extra_roots: List<str>, arena: Arena) {
 		var roots = List<str>();
 		if (!entry_dir.empty()) roots += entry_dir;
 
@@ -133,7 +137,7 @@ impl ModuleLoader {
 			List<LoadedModule>(),
 			List<LoadedModule>(),
 			List<Diagnostic>(),
-			Arena(524288),
+			arena,
 			HashSet<str>(),
 			SourceMap()
 		);
@@ -169,7 +173,7 @@ impl ModuleLoader {
 			return null;
 		}
 
-		var parser = Parser(tokens);
+		var parser = Parser(tokens, self.arena);
 		val prog = parser.parse_program();
 
 		if (!parser.errors.empty()) {

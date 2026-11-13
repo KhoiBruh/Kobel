@@ -68,22 +68,19 @@ pub struct BodyChecker {
 impl BodyChecker {
 
 	pub init() {
-		var arena = Arena();
 		var decl_p = DeclarationCollector();
 		val none_ty = decl_p.symtab.prims.t_none();
-		return Self(decl_p.symtab, arena, none_ty, 0, List<Diagnostic>(), null, false);
+		return Self(decl_p.symtab, decl_p.arena, none_ty, 0, List<Diagnostic>(), null, false);
 	}
 
 	pub init(symtab: SymbolTable) {
-		var arena = Arena();
 		val none_ty = symtab.prims.t_none();
-		return Self(symtab, arena, none_ty, 0, List<Diagnostic>(), null, true);
+		return Self(symtab, symtab.arena, none_ty, 0, List<Diagnostic>(), null, true);
 	}
 
 	pub init(symtab: SymbolTable, decl: DeclarationCollector) {
-		var arena = Arena();
 		val none_ty = symtab.prims.t_none();
-		var bc = Self(symtab, arena, none_ty, 0, List<Diagnostic>(), null, true);
+		var bc = Self(symtab, decl.arena, none_ty, 0, List<Diagnostic>(), null, true);
 		bc.decl = decl;
 		bc.has_decl = true;
 		bc.symtab.prims = decl.symtab.prims;

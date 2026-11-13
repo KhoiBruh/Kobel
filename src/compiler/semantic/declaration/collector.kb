@@ -56,7 +56,12 @@ pub struct DeclarationCollector {
 
 impl DeclarationCollector {
 
-	pub init() => Self(SymbolTable(), Arena(), "", List<Diagnostic>());
+	pub init() {
+		val arena = Arena();
+		return Self(SymbolTable(arena), arena, "", List<Diagnostic>());
+	}
+
+	pub init(arena: Arena) => Self(SymbolTable(arena), arena, "", List<Diagnostic>());
 
 	pub fn prims(*self) => self.symtab.prims;
 

@@ -40,11 +40,15 @@ pub struct SymbolTable {
 impl SymbolTable {
 
 	pub init() {
-		var arena = Arena();
-		val root_scope = arena.create_val(Scope());
-		var st = Self(root_scope, arena);
-		st.prims = arena.create_val(PrimTypes(&arena));
-		st.sem = arena.create_val(SemanticTable());
+		return SymbolTable(Arena());
+	}
+
+	pub init(arena: Arena) {
+		var shared = arena;
+		val root_scope = shared.create_val(Scope());
+		var st = Self(root_scope, shared);
+		st.prims = shared.create_val(PrimTypes(&shared));
+		st.sem = shared.create_val(SemanticTable());
 		return st;
 	}
 

@@ -1,6 +1,7 @@
 mod compiler.driver;
 
 use std.io.*;
+use std.memory.Arena;
 use std.filesystem.*;
 use std.process.*;
 use std.system.*;
@@ -61,6 +62,13 @@ pub struct CompileOptions {
 impl CompileOptions {
 
 	pub fn compile(*self): i32 {
+		var arena = Arena(524288);
+		defer arena.free();
+		return self.compile_with_arena(arena);
+	}
+
+	// Run all compilation passes using a single shared arena owned by the caller.
+	pub fn compile_with_arena(*self, arena: Arena): i32 {
 		val input_path = self.input_path;
 		val in_p = Path(input_path);
 		val src = in_p.read_text();
@@ -70,7 +78,7 @@ impl CompileOptions {
 		}
 
 		if (!self.quiet) println("[1/4] Loading modules (lex + parse)...");
-		var loader = ModuleLoader(input_path.dir_of(), self.extra_roots);
+		var loader = ModuleLoader(input_path.dir_of(), self.extra_roots, arena);
 
 		/*
 		 * String interpolation lowers to the `Stringer` trait, whose built-in
@@ -97,7 +105,7 @@ impl CompileOptions {
 		loader.cleanup();
 
 		if (!self.quiet) println("[2/4] Semantic analysis (declarations)...");
-		var decl_p = DeclarationCollector();
+		var decl_p = DeclarationCollector(arena);
 		decl_p.collect_program(prog);
 		if (!decl_p.errors.empty()) {
 			print_diagnostics(decl_p.errors, input_path, &loader);
@@ -117,7 +125,7 @@ impl CompileOptions {
 
 		// Sugar that needs no further checking is lowered in a separate pass, so
 		// the checker never rewrites a node's kind in place.
-		var lower_p = LoweringPass(body_p.symtab, body_p.arena, decl_p);
+		var lower_p = LoweringPass(body_p.symtab, arena, decl_p);
 		lower_p.lower_program(prog);
 
 		if (!self.quiet) println("[4/4] Generating C99 code...");

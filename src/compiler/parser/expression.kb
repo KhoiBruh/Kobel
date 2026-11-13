@@ -866,11 +866,8 @@ impl Parser {
 				var sub_lexer = Lexer(src);
 				val sub_tokens = sub_lexer.tokenize();
 				defer sub_tokens.free();
-				var sub = Parser(sub_tokens);
-				// Share the parent arena: a fresh one per hole costs a mostly empty 64KB block.
-				sub.arena = self.arena;
+				var sub = Parser(sub_tokens, self.arena);
 				val hole = sub.parse_expression(Precedence.NONE);
-				self.arena = sub.arena;
 				if (!sub.errors.empty()) {
 					for (d in sub.errors) self.errors += Diagnostic.error(d.span(), d.file_path, "in interpolation hole: ${d.message}");
 				}
@@ -939,11 +936,8 @@ impl Parser {
 				var sub_lexer = Lexer(src);
 				val sub_tokens = sub_lexer.tokenize();
 				defer sub_tokens.free();
-				var sub = Parser(sub_tokens);
-				// Share the parent arena: a fresh one per hole costs a mostly empty 64KB block.
-				sub.arena = self.arena;
+				var sub = Parser(sub_tokens, self.arena);
 				val hole = sub.parse_expression(Precedence.NONE);
-				self.arena = sub.arena;
 				if (sub.errors.len > 0) {
 					for (d in sub.errors) self.errors += Diagnostic.error(d.span(), d.file_path, "in interpolation hole: ${d.message}");
 				}

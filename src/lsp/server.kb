@@ -47,37 +47,86 @@ fn publish_diagnostics_for(uri: str, analysis: *AnalysisResult) {
 	notif_params["uri"] = JsonValue.str(uri);
 	notif_params["diagnostics"] = diags_arr;
 	send_notification(Method.PUBLISH_DIAGNOSTICS.value, notif_params);
+
+	val deps_arr = JsonValue.arr();
+	for (dep in analysis.dep_paths) deps_arr += JsonValue.str(dep);
+	val dep_params = JsonValue.obj();
+	dep_params["uri"] = JsonValue.str(uri);
+	dep_params["module"] = JsonValue.str(analysis.module_name);
+	dep_params["dependencies"] = deps_arr;
+	send_notification("kobel/fileDependencies", dep_params);
+}
+
+pub struct AnalysisCacheEntry {
+	pub uri: str = "",
+	pub version: i64 = -1,
+	pub is_ws: bool = false,
+	pub analysis: AnalysisResult = AnalysisResult()
 }
 
 pub struct LanguageServer {
 	pub docs: DocumentStore = DocumentStore(),
 	pub is_shutdown: bool = false,
 	pub workspace_root: str = "",
-	pub cached_uri: str = "",
-	pub cached_version: i64 = -1,
-	pub cached_ws: bool = false,
-	pub cached_analysis: AnalysisResult = AnalysisResult()
+	pub cache: List<AnalysisCacheEntry> = List<AnalysisCacheEntry>()
 }
 
 impl LanguageServer {
 
 	fn get_analysis(&self, uri: str, doc_path: str, doc_text: str, need_ws: bool = false): *AnalysisResult {
 		val doc = self.docs[uri];
-		if (self.cached_uri == uri && self.cached_version == doc.version && (!need_ws || self.cached_ws)) {
-			return &self.cached_analysis;
+		var hit_idx: isz = -1;
+		for (i in 0..<self.cache.len) {
+			val entry = &self.cache.data[i];
+			if (entry.uri == uri && entry.version == doc.version && (!need_ws || entry.is_ws)) {
+				hit_idx = i as isz;
+				break;
+			}
 		}
-		self.cached_analysis = AnalysisResult(doc_path, doc_text, self.workspace_root, need_ws);
-		self.cached_uri = uri;
-		self.cached_version = doc.version;
-		self.cached_ws = need_ws;
-		return &self.cached_analysis;
+		if (hit_idx >= 0) {
+			val idx = hit_idx as usz;
+			if (idx + 1 < self.cache.len) {
+				val item = self.cache.data[idx];
+				self.cache.remove_at(idx);
+				self.cache.add(item);
+			}
+			return &self.cache.data[self.cache.len - 1].analysis;
+		}
+
+		self.invalidate_uri(uri);
+		// Keep at most 4 recent analyses resident so tab switching stays hot without unbounded growth.
+		while (self.cache.len >= 4) {
+			self.cache.data[0].analysis.free();
+			self.cache.remove_at(0);
+		}
+		val created = AnalysisResult(doc_path, doc_text, self.workspace_root, need_ws);
+		var entry = AnalysisCacheEntry();
+		entry.uri = uri;
+		entry.version = doc.version;
+		entry.is_ws = need_ws;
+		entry.analysis = created;
+		self.cache.add(entry);
+		return &self.cache.data[self.cache.len - 1].analysis;
+	}
+
+	fn invalidate_uri(&self, uri: str) {
+		var i: usz = 0;
+		while (i < self.cache.len) {
+			if (self.cache.data[i].uri == uri) {
+				self.cache.data[i].analysis.free();
+				self.cache.remove_at(i);
+			} else {
+				i++;
+			}
+		}
 	}
 
 	fn invalidate_cache(&self) {
-		self.cached_uri = "";
-		self.cached_version = -1;
-		self.cached_ws = false;
-		self.cached_analysis = AnalysisResult();
+		for (i in 0..<self.cache.len) {
+			self.cache.data[i].analysis.free();
+		}
+		self.cache.free();
+		self.cache = List<AnalysisCacheEntry>();
 	}
 
 	pub fn run(&self): i32 {
@@ -178,7 +227,7 @@ impl LanguageServer {
 					val version = text_doc.get_num("version", 0);
 
 					self.docs.set(uri, text, version);
-					self.invalidate_cache();
+					self.invalidate_uri(uri);
 					val doc = self.docs[uri];
 					val analysis = self.get_analysis(uri, doc.path, text);
 					publish_diagnostics_for(uri, analysis);
@@ -214,7 +263,7 @@ impl LanguageServer {
 					val text_doc = params.get_obj("textDocument");
 					val uri = text_doc.get_str("uri", "");
 					self.docs.remove(uri);
-					if (self.cached_uri == uri) self.invalidate_cache();
+					self.invalidate_uri(uri);
 
 					val p = JsonValue.obj();
 					p["uri"] = JsonValue.str(uri);
@@ -389,8 +438,9 @@ impl LanguageServer {
 
 				Method.WORKSPACE_SYMBOL.value -> {
 					val query = params.get_str("query", "");
-					if (!self.cached_uri.empty()) {
-						send_response(id, self.cached_analysis.workspace_symbols(query));
+					if (!self.cache.empty()) {
+						val last_idx = self.cache.len - 1;
+						send_response(id, self.cache.data[last_idx].analysis.workspace_symbols(query));
 					} else {
 						val entry = resolve_project_entry(self.workspace_root);
 						if (!entry.empty()) {

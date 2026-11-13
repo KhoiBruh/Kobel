@@ -1,6 +1,7 @@
 mod lsp;
 
 use std.ascii.*;
+use std.memory.Arena;
 use std.filesystem.*;
 use std.collections.*;
 use std.string.*;
@@ -157,7 +158,10 @@ pub struct AnalysisResult {
 	pub tokens: List<Token> = List(),
 	pub index: SemanticIndex = SemanticIndex(),
 	pub file_path: str = "",
-	pub source: str = ""
+	pub source: str = "",
+	pub arena: Arena = Arena.empty(),
+	pub module_name: str = "",
+	pub dep_paths: List<str> = List()
 }
 
 pub fn find_token_at(tokens: List<Token>, target_line: usz, target_col: usz): Token {
@@ -367,6 +371,7 @@ impl AnalysisResult {
 
 	pub init(path: str, source: str, workspace_root: str, include_workspace: bool = false) {
 		var diagnostics = List<LspDiagnostic>();
+		var arena = Arena(524288);
 
 		// 1. Lexical analysis
 		var lexer = Lexer(source);
@@ -381,13 +386,17 @@ impl AnalysisResult {
 		}
 
 		// 2. Syntax analysis (Parser)
-		var parser = Parser(tokens);
+		var parser = Parser(tokens, arena);
 		val prog = parser.parse_program();
 
 		if (parser.errors.len > 0) {
 			for (d in parser.errors) diagnostics += LspDiagnostic(d, source);
+			arena.free();
 			var empty_symtab = SymbolTable();
-			return Self(diagnostics, empty_symtab, false, tokens, SemanticIndex(), path, source);
+			return Self(
+				diagnostics, empty_symtab, false, tokens, SemanticIndex(),
+				path, source, Arena.empty(), "", List<str>()
+			);
 		}
 
 		var doc_mod = "";
@@ -414,7 +423,7 @@ impl AnalysisResult {
 			}
 		}
 
-		var loader = ModuleLoader(entry_dir, extra_roots);
+		var loader = ModuleLoader(entry_dir, extra_roots, arena);
 		if (loader.find_module("std.traits").found) loader.ensure_module("std.traits");
 		if (loader.find_module("std.string").found) loader.ensure_module("std.string");
 		if (loader.find_module("std.range").found) loader.ensure_module("std.range");
@@ -503,11 +512,19 @@ impl AnalysisResult {
 			}
 		}
 
+		var dep_paths = List<str>();
+		var seen_deps = HashSet<str>();
+		for (lm in loader.ordered) {
+			if (lm.path.empty() || paths_equal(lm.path, path)) continue;
+			if (seen_deps.add(lm.path)) dep_paths += lm.path;
+		}
+		seen_deps.free();
+
 		if (full_prog != null) {
 			// Pre-index declarations and original unmangled names BEFORE DeclarationCollector mangles AST nodes in-place
 			var index = prepare_semantic_index(&loader, path, source);
 
-			var decl_p = DeclarationCollector();
+			var decl_p = DeclarationCollector(arena);
 			decl_p.collect_program(full_prog);
 			if (decl_p.errors.len > 0) {
 				for (d in decl_p.errors) {
@@ -524,19 +541,30 @@ impl AnalysisResult {
 			}
 
 			finish_semantic_index(&index, &loader, body_p.symtab, true, path, include_workspace);
-			loader.arena.free();
 			loader.sources.free();
 			loader.errors.free();
 			decl_p.errors.free();
 			body_p.errors.free();
-			return Self(diagnostics, body_p.symtab, true, tokens, index, path, source);
+			return Self(
+				diagnostics, body_p.symtab, true, tokens, index,
+				path, source, arena, doc_mod, dep_paths
+			);
 		}
 
-		loader.arena.free();
+		arena.free();
 		loader.sources.free();
 		loader.errors.free();
 		var empty_symtab = SymbolTable();
-		return Self(diagnostics, empty_symtab, false, tokens, SemanticIndex(), path, source);
+		return Self(
+			diagnostics, empty_symtab, false, tokens, SemanticIndex(),
+			path, source, Arena.empty(), doc_mod, dep_paths
+		);
+	}
+
+	pub fn free(&self) {
+		self.arena.free();
+		self.dep_paths.free();
+		self.diagnostics.free();
 	}
 
 	pub fn hover_at(*self, line0: usz, col0: usz): *JsonValue {

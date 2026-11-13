@@ -14,16 +14,23 @@ struct ArenaBlock {
 	next: &ArenaBlock? = null
 }
 
-pub struct Arena {
+// Shared state handle so multiple compiler subsystems can allocate into one arena.
+struct ArenaState {
 	current: &ArenaBlock? = null,
 	block_size: usz
 }
 
+pub struct Arena {
+	state: &ArenaState? = null,
+	block_size: usz = 65536
+}
+
 impl Allocator for Arena {
 	pub fn alloc_bytes(&self, size: usz, align: usz): &u8 {
-		if (self.current == null) self.new_block(size);
+		val st = self.ensure_state();
+		if (st.current == null) self.new_block(size);
 
-		val blk = self.current!;
+		val blk = st.current!;
 		val rem = blk.used % align;
 		var aligned_used = blk.used;
 		if (rem != 0) aligned_used = blk.used + (align - rem);
@@ -33,7 +40,7 @@ impl Allocator for Arena {
 			aligned_used = 0;
 		}
 
-		val cur_blk = self.current!;
+		val cur_blk = st.current!;
 		val ptr = &cur_blk.data[aligned_used];
 		cur_blk.used = aligned_used + size;
 		return ptr;
@@ -42,10 +49,23 @@ impl Allocator for Arena {
 
 impl Arena {
 
-	pub init(block_size: usz = 65536) => Self(null, block_size);
+	pub init(block_size: usz = 65536) {
+		val st = Heap.create_val<ArenaState>(ArenaState(null, block_size));
+		return Self(st, block_size);
+	}
+
+	pub fn empty(): Self => Self(null, 65536);
+
+	fn ensure_state(&self): &ArenaState {
+		if (self.state != null) return self.state!;
+		val st = Heap.create_val<ArenaState>(ArenaState(null, self.block_size));
+		self.state = st;
+		return st;
+	}
 
 	fn new_block(&self, min_size: usz) {
-		var sz = self.block_size;
+		val st = self.ensure_state();
+		var sz = st.block_size;
 		if (sz < min_size) sz = min_size;
 
 		val data = Heap.alloc<u8>(sz);
@@ -54,12 +74,13 @@ impl Arena {
 		blk.data = data;
 		blk.size = sz;
 		blk.used = 0;
-		blk.next = self.current;
-		self.current = blk;
+		blk.next = st.current;
+		st.current = blk;
 	}
 
 	pub fn reset(*self) {
-		var curr = self.current;
+		if (self.state == null) return;
+		var curr = self.state!.current;
 		while (curr != null) {
 			curr.used = 0;
 			curr = curr.next;
@@ -67,8 +88,9 @@ impl Arena {
 	}
 
 	pub fn total_allocated(*self): usz {
+		if (self.state == null) return 0;
 		var total: usz = 0;
-		var curr = self.current;
+		var curr = self.state!.current;
 		while (curr != null) {
 			total += curr.size;
 			curr = curr.next;
@@ -77,14 +99,18 @@ impl Arena {
 	}
 
 	pub fn free(&self) {
-		var curr = self.current;
+		if (self.state == null) return;
+		val st = self.state!;
+		var curr = st.current;
 		while (curr != null) {
 			val next_blk = curr.next;
 			Heap.free(curr.data);
 			Heap.free(curr);
 			curr = next_blk;
 		}
-		self.current = null;
+		st.current = null;
+		Heap.free(st);
+		self.state = null;
 	}
 
 	pub fn create<T>(&self): &T => self.alloc_bytes(T.size(), 8) as &T;

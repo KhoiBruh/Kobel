@@ -38,13 +38,7 @@ impl LoweringPass {
 		return lp;
 	}
 
-	pub init(symtab: SymbolTable, arena: Arena, decl: DeclarationCollector) {
-		var lp = Self();
-		lp.symtab = symtab;
-		lp.arena = arena;
-		lp.decl = decl;
-		return lp;
-	}
+	pub init(symtab: SymbolTable, arena: Arena, decl: DeclarationCollector) => Self(symtab, arena, decl);
 
 	pub fn lower_program(&self, program_node: *AstNode) {
 		if (program_node is Program as prog) {

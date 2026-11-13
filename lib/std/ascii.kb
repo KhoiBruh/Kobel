@@ -24,12 +24,12 @@ impl char {
 		else -> false;
 	};
 
-	pub fn to_lower(*self): char => when (self) {
+	pub fn to_lower(*self) => when (self) {
 		'A'..'Z' -> char(self.code() + 32);
 		else -> self;
 	};
 
-	pub fn to_upper(*self): char => when (self) {
+	pub fn to_upper(*self) => when (self) {
 		'a'..'z' -> char(self.code() - 32);
 		else -> self;
 	};

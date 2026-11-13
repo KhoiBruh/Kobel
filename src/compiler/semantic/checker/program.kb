@@ -217,7 +217,7 @@ impl BodyChecker {
 
 	pub fn check_program(&self, program_node: *AstNode) {
 		if (!self.has_symtab) {
-			var decl_p = DeclarationCollector();
+			var decl_p = DeclarationCollector(self.arena);
 			decl_p.collect_program(program_node);
 
 			self.symtab = decl_p.symtab;
