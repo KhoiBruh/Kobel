@@ -33,8 +33,8 @@ fn test_ascii(): bool {
 	if (!'9'.is_alphanumeric()) return false;
 	if (!' '.is_whitespace()) return false;
 	if (!'f'.is_hex_digit()) return false;
-	if ('G'.to_lower() != 'g') return false;
-	if ('m'.to_upper() != 'M') return false;
+	if ('G'.lower() != 'g') return false;
+	if ('m'.upper() != 'M') return false;
 	return true;
 }
 
@@ -357,7 +357,7 @@ fn test_str(): bool {
 	// test str higher-order methods
 	val digits = "a1b2c3".filter { c -> c.is_digit() };
 	if (digits != "123") return false;
-	if ("abc".map_chars { c -> c.to_upper() } != "ABC") return false;
+	if ("abc".map_chars { c -> c.upper() } != "ABC") return false;
 	if (!"a1b".any { c -> c.is_digit() } || "abc".any { c -> c.is_digit() }) return false;
 	if (!"123".all { c -> c.is_digit() } || "12a".all { c -> c.is_digit() }) return false;
 	if ("a1b2c3".count_where { c -> c.is_digit() } != 3) return false;

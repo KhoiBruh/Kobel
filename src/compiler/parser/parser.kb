@@ -97,7 +97,7 @@ impl Parser {
 	// Record a parse error at the token's span; the loader fills in the file path.
 	pub fn error(&self, tok: Token, msg: str) {
 		val span = Span(
-			self.file_id, tok.line as u32, tok.col as u32,
+			self.file_id, tok.line, tok.col,
 			if (tok.span.length > 0) tok.span.length else 1
 		);
 		self.errors += Diagnostic(Severity.ERROR, span, "", msg, "");
@@ -119,17 +119,19 @@ impl Parser {
 			if (prev.type == TokenType.SEMI_COLON) return;
 
 			val cur = self.peek();
-			when (cur.type) {
-				TokenType.KW_FN, TokenType.KW_STRUCT,
-				TokenType.KW_VAL, TokenType.KW_VAR,
-				TokenType.KW_IF, TokenType.KW_WHEN,
-				TokenType.KW_WHILE, TokenType.KW_FOR,
-				TokenType.KW_RETURN, TokenType.KW_PUB,
-				TokenType.KW_MOD, TokenType.KW_USE,
-				TokenType.KW_ENUM, TokenType.KW_TRAIT,
-				TokenType.KW_IMPL, TokenType.KW_EXTERN -> return;
-				else -> self.advance();
-			}
+			if (
+				cur.type in [
+					TokenType.KW_FN, TokenType.KW_STRUCT,
+					TokenType.KW_VAL, TokenType.KW_VAR,
+					TokenType.KW_IF, TokenType.KW_WHEN,
+					TokenType.KW_WHILE, TokenType.KW_FOR,
+					TokenType.KW_RETURN, TokenType.KW_PUB,
+					TokenType.KW_MOD, TokenType.KW_USE,
+					TokenType.KW_ENUM, TokenType.KW_TRAIT,
+					TokenType.KW_IMPL, TokenType.KW_EXTERN
+				]
+			) return;
+			self.advance();
 		}
 	}
 
@@ -146,11 +148,9 @@ impl Parser {
 
 		while (cur < self.tokens.len) {
 			val p_tok = self.tokens[cur];
-			if (
-				p_tok.type == TokenType.KW_VAR
-				|| p_tok.type == TokenType.KW_VAL
-			) cur++;
+			if (p_tok.type in [TokenType.KW_VAR, TokenType.KW_VAL]) cur++;
 			if (cur >= self.tokens.len) return false;
+
 			val id_tok = self.tokens[cur];
 			if (id_tok.type != TokenType.IDENTIFIER) return false;
 			cur++;
@@ -160,18 +160,18 @@ impl Parser {
 				var depth = 0;
 				while (cur < self.tokens.len) {
 					val t_tok = self.tokens[cur];
-					if (
-						depth == 0
-						&& (t_tok.type == TokenType.COMMA || t_tok.type == TokenType.ARROW)
-					) break;
+					if (depth == 0 && t_tok.type in [TokenType.COMMA, TokenType.ARROW]) break;
+
 					when (t_tok.type) {
 						TokenType.LESS, TokenType.OPEN_PAREN,
 						TokenType.OPEN_BRACKET -> depth++;
+
 						TokenType.GREATER, TokenType.CLOSE_PAREN,
 						TokenType.CLOSE_BRACKET -> {
 							if (depth == 0) return false;
 							depth--;
 						}
+
 						TokenType.SEMI_COLON, TokenType.OPEN_BRACE,
 						TokenType.CLOSE_BRACE, TokenType.END_OF_FILE -> return false;
 					}
@@ -180,18 +180,22 @@ impl Parser {
 			}
 
 			if (cur >= self.tokens.len) return false;
+
 			val sep_tok = self.tokens[cur];
 			if (sep_tok.type == TokenType.ARROW) return true;
+
 			if (sep_tok.type == TokenType.COMMA) {
 				cur++;
 				continue;
 			}
+
 			return false;
 		}
+
 		return false;
 	}
 
-	pub fn is_lambda_brace_ahead(*self): bool => self.is_lambda_brace_at(self.current);
+	pub fn is_lambda_brace_ahead(*self) => self.is_lambda_brace_at(self.current);
 
 	// Check whether the position after '<' looks like type arguments ending with '>(' or '> {'
 	pub fn is_generic_args_ahead(*self): bool {
@@ -216,6 +220,7 @@ impl Parser {
 				TokenType.CLOSE_BRACE, TokenType.END_OF_FILE -> return false;
 			}
 		}
+
 		return false;
 	}
 

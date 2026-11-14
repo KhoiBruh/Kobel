@@ -36,14 +36,12 @@ pub enum Precedence {
 // into the same token, so a '.' in the text marks a float literal. Hex/binary
 // literals and suffixes never contain one.
 pub fn num_literal_is_float(text: str): bool {
-	for (c in text) if (c == '.') return true;
+	//for (c in text) if (c == '.') return true;
+	return text.any { c -> yield c == '.'; };
 	// A trailing F/D is only a float suffix when the literal really carries one:
 	// `0xEF` ends in F but is the integer 239.
 	val suffix = text.num_suffix();
-	return when (suffix) {
-		"F", "D" -> true;
-		else -> false;
-	};
+	return suffix in ["F", "D"];
 }
 
 // True when the raw token text (quotes included) contains an unescaped `${`.
@@ -97,6 +95,7 @@ pub fn normalize_esc_dollar(text: str): str {
 pub fn multiline_escape_for_c(text: str): str {
 	var out = StringBuilder();
 	defer out.free();
+
 	out += '"';
 	var i: usz = 0;
 	while (i < text.len) {
@@ -160,11 +159,13 @@ pub fn interp_skip_char_lit(text: str, start: usz): usz {
 	var i = start + 1;
 	while (i < text.len) {
 		val c = text[i];
-		if (c == '\\') {
-			i += 2;
-			continue;
+		when (c) {
+			'\\' -> {
+				i += 2;
+				continue;
+			}
+			'\'' -> return i + 1;
 		}
-		if (c == '\'') return i + 1;
 		i++;
 	}
 	return text.len;
@@ -176,19 +177,26 @@ pub fn interp_skip_quoted(text: str, start: usz): usz {
 		var i = start + 3;
 		while (i < text.len) {
 			val c = text[i];
-			if (c == '\\') {
-				i += 2;
-				continue;
+			when (c) {
+				'\\' -> {
+					i += 2;
+					continue;
+				}
+
+				'"' -> if (
+					i + 2 < text.len &&
+					text[i + 1] == '"' &&
+					text[i + 2] == '"'
+				) return i + 3;
+
+				'$' -> if (i + 1 < text.len && text[i + 1] == '{') {
+					val e = interp_find_close(text, i + 2);
+					if (e < 0) return text.len;
+					i = (e as usz) + 1;
+					continue;
+				}
 			}
-			if (c == '"' && i + 2 < text.len && text[i + 1] == '"' && text[i + 2] == '"') {
-				return i + 3;
-			}
-			if (c == '$' && i + 1 < text.len && text[i + 1] == '{') {
-				val e = interp_find_close(text, i + 2);
-				if (e < 0) return text.len;
-				i = (e as usz) + 1;
-				continue;
-			}
+
 			i++;
 		}
 		return text.len;
@@ -197,17 +205,20 @@ pub fn interp_skip_quoted(text: str, start: usz): usz {
 	var i = start + 1;
 	while (i < text.len) {
 		val c = text[i];
-		if (c == '\\') {
-			i += 2;
-			continue;
+		when (c) {
+			'\\' -> {
+				i += 2;
+				continue;
+			}
+			'"' -> return i + 1;
+			'$' -> if (i + 1 < text.len && text[i + 1] == '{') {
+				val e = interp_find_close(text, i + 2);
+				if (e < 0) return text.len;
+				i = (e as usz) + 1;
+				continue;
+			}
 		}
-		if (c == '"') return i + 1;
-		if (c == '$' && i + 1 < text.len && text[i + 1] == '{') {
-			val e = interp_find_close(text, i + 2);
-			if (e < 0) return text.len;
-			i = (e as usz) + 1;
-			continue;
-		}
+
 		i++;
 	}
 	return text.len;
@@ -219,25 +230,28 @@ pub fn interp_find_close(text: str, start: usz): isz {
 	var i = start;
 	while (i < text.len) {
 		val c = text[i];
-		if (c == '{') {
-			depth++;
-			i++;
-			continue;
+		when (c) {
+			'{' -> {
+				depth++;
+				i++;
+				continue;
+			}
+			'}' -> {
+				depth--;
+				if (depth == 0) return i;
+				i++;
+				continue;
+			}
+			'"' -> {
+				i = interp_skip_quoted(text, i);
+				continue;
+			}
+			'\'' -> {
+				i = interp_skip_char_lit(text, i);
+				continue;
+			}
 		}
-		if (c == '}') {
-			depth--;
-			if (depth == 0) return i;
-			i++;
-			continue;
-		}
-		if (c == '"') {
-			i = interp_skip_quoted(text, i);
-			continue;
-		}
-		if (c == '\'') {
-			i = interp_skip_char_lit(text, i);
-			continue;
-		}
+
 		i++;
 	}
 	return -1;
@@ -331,13 +345,16 @@ impl Parser {
 	// multi-statement block rather than a single expression.
 	fn is_lambda_body_block(*self): bool {
 		if (self.is_end()) return false;
+
 		val first = self.peek();
-		when (first.type) {
-			TokenType.KW_VAL, TokenType.KW_VAR, TokenType.KW_YIELD,
-			TokenType.KW_RETURN, TokenType.KW_DEFER, TokenType.KW_WHILE,
-			TokenType.KW_FOR, TokenType.KW_BREAK, TokenType.KW_CONTINUE,
-			TokenType.CLOSE_BRACE -> return true;
-		}
+		if (
+			first.type in [
+				TokenType.KW_VAL, TokenType.KW_VAR, TokenType.KW_YIELD,
+				TokenType.KW_RETURN, TokenType.KW_DEFER, TokenType.KW_WHILE,
+				TokenType.KW_FOR, TokenType.KW_BREAK, TokenType.KW_CONTINUE,
+				TokenType.CLOSE_BRACE
+			]
+		) return true;
 
 		var brace_depth = 0;
 		var when_brace_depth = 0;
@@ -798,6 +815,7 @@ impl Parser {
 		var i: usz = 0;
 		var lit = StringBuilder();
 		defer lit.free();
+
 		var has_lit = false;
 
 		while (i < end) {

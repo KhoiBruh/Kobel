@@ -129,21 +129,25 @@ pub fn resolve_primitive_name(prims: *PrimTypes, name: str): *Type? => when (nam
 // Determines the canonical integer type of an integer literal from its suffix.
 pub fn int_literal_type(prims: *PrimTypes, raw: str): *Type {
 	val sfx = raw.num_suffix();
-	if (sfx == "UB") return prims.get(DataType.U8);
-	if (sfx == "US") return prims.get(DataType.U16);
-	if (sfx == "UL") return prims.get(DataType.U64);
-	if (sfx == "UZ") return prims.get(DataType.USZ);
 
-	if (sfx == "U") return prims.get(DataType.U32);
-	if (sfx == "L") return prims.get(DataType.I64);
-	if (sfx == "S") return prims.get(DataType.I16);
-	if (sfx == "Z") return prims.get(DataType.ISZ);
-	if (sfx == "B") return prims.get(DataType.I8);
+	return when (sfx) {
+		"UB" -> prims.get(DataType.U8);
+		"US" -> prims.get(DataType.U16);
+		"UL" -> prims.get(DataType.U64);
+		"UZ" -> prims.get(DataType.USZ);
 
-	return prims.get(DataType.I32);
+		"U" -> prims.get(DataType.U32);
+		"L" -> prims.get(DataType.I64);
+		"S" -> prims.get(DataType.I16);
+		"Z" -> prims.get(DataType.ISZ);
+		"B" -> prims.get(DataType.I8);
+
+		else -> prims.get(DataType.I32);
+	};
+
 }
 
-pub fn primitive_type_name(ty: *Type): str => when (ty.kind) {
+pub fn primitive_type_name(ty: *Type) => when (ty.kind) {
 	DataType.BOOL -> "bool";
 	DataType.CHAR -> "char";
 	DataType.I8 -> "i8";
@@ -163,7 +167,7 @@ pub fn primitive_type_name(ty: *Type): str => when (ty.kind) {
 };
 
 // Returns the C size in bytes of a primitive type name, or 0 if not primitive.
-pub fn prim_c_size(name: str): usz => when (name) {
+pub fn prim_c_size(name: str) => when (name) {
 	"bool", "char", "i8", "u8" -> 1;
 	"i16", "u16" -> 2;
 	"i32", "u32", "f32" -> 4;

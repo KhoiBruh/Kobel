@@ -141,7 +141,7 @@ impl Token {
 
 	pub fn is_unknown(*self) => self.type == TokenType.UNKNOWN;
 
-	pub fn is_keyword(*self) => when (self.type) {
+	pub fn is_keyword(*self) => self.type in [
 		TokenType.KW_EXTERN, TokenType.KW_STRUCT, TokenType.KW_ENUM,
 		TokenType.KW_FN, TokenType.KW_RETURN, TokenType.KW_CONST,
 		TokenType.KW_NULL, TokenType.KW_TRUE, TokenType.KW_FALSE,
@@ -151,21 +151,18 @@ impl Token {
 		TokenType.KW_MOD, TokenType.KW_USE, TokenType.KW_PUB,
 		TokenType.KW_TRAIT, TokenType.KW_IMPL, TokenType.KW_FOR,
 		TokenType.KW_IN, TokenType.KW_YIELD, TokenType.KW_OP,
-		TokenType.KW_DEFER, TokenType.KW_IS, TokenType.KW_INIT -> true;
-		else -> false;
-	};
+		TokenType.KW_DEFER, TokenType.KW_IS, TokenType.KW_INIT
+	];
 
-	pub fn is_literal(*self) => when (self.type) {
+	pub fn is_literal(*self) => self.type in [
 		TokenType.CHAR, TokenType.NUMBER, TokenType.STRING,
-		TokenType.KW_TRUE, TokenType.KW_FALSE, TokenType.KW_NULL -> true;
-		else -> false;
-	};
+		TokenType.KW_TRUE, TokenType.KW_FALSE, TokenType.KW_NULL
+	];
 
-	pub fn is_assignment_op(*self) => when (self.type) {
+	pub fn is_assignment_op(*self) => self.type in [
 		TokenType.EQUAL, TokenType.PLUS_EQUAL, TokenType.MINUS_EQUAL,
-		TokenType.STAR_EQUAL, TokenType.SLASH_EQUAL, TokenType.PERCENT_EQUAL -> true;
-		else -> false;
-	};
+		TokenType.STAR_EQUAL, TokenType.SLASH_EQUAL, TokenType.PERCENT_EQUAL
+	];
 
 }
 

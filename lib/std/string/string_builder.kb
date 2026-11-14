@@ -27,36 +27,27 @@ impl StringBuilder {
 
 	pub init(init_cap: usz = 32) {
 		var cap = init_cap;
-		if (cap < 16) {
-			cap = 16;
-		}
+		if (cap < 16) cap = 16;
 		val raw = Heap.create<u8>(cap);
 		return Self(raw, 0, cap);
 	}
 
 	pub fn reserve(&self, additional: usz) {
 		val needed = self.len + additional + 1;
-		if (needed >= self.cap) {
-			self.grow(needed);
-		}
+		if (needed >= self.cap) self.grow(needed);
 	}
 
 	pub fn append_char(&self, c: char) {
-		if (self.len + 2 >= self.cap) {
-			self.grow(self.len + 2);
-		}
+		if (self.len + 2 >= self.cap) self.grow(self.len + 2);
 		self.buf[self.len] = c.code();
 		self.len++;
 	}
 
 	pub fn append_str(&self, s: str) {
 		val s_len = s.len;
-		if (s_len == 0) {
-			return;
-		}
-		if (self.len + s_len + 1 >= self.cap) {
-			self.grow(self.len + s_len + 1);
-		}
+		if (s_len == 0) return;
+
+		if (self.len + s_len + 1 >= self.cap) self.grow(self.len + s_len + 1);
 		memcpy(&self.buf[self.len], s.data, s_len);
 		self.len += s_len;
 	}
@@ -103,7 +94,7 @@ impl StringBuilder {
 
 	pub fn append_i32(&self, n: i32) => self.append_i64(n);
 
-	pub fn append_bool(&self, b: bool) => if (b) self += "true" else self += "false";
+	pub fn append_bool(&self, b: bool) => self += if (b) "true" else "false";
 
 	pub fn append_line(&self, s: str) {
 		self += s;
@@ -112,12 +103,9 @@ impl StringBuilder {
 
 	// `n` copies of `c` (indentation, padding) in one pass.
 	pub fn append_repeat(&self, c: char, n: usz) {
-		if (n == 0) {
-			return;
-		}
-		if (self.len + n + 1 >= self.cap) {
-			self.grow(self.len + n + 1);
-		}
+		if (n == 0) return;
+
+		if (self.len + n + 1 >= self.cap) self.grow(self.len + n + 1);
 		memset(&self.buf[self.len], c.code() as i32, n);
 		self.len += n;
 	}
@@ -199,12 +187,12 @@ impl Iterable for StringBuilder {
 }
 
 impl Stringer for StringBuilder {
+
 	pub fn to_str(*self): str {
 		val str_data = Heap.create<u8>(self.len + 1);
-		if (self.len > 0) {
-			memcpy(str_data, self.buf, self.len);
-		}
+		if (self.len > 0) memcpy(str_data, self.buf, self.len);
 		str_data[self.len] = 0;
 		return str_from_bytes(str_data, self.len);
 	}
+
 }

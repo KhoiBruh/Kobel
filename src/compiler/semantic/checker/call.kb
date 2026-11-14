@@ -79,7 +79,7 @@ impl BodyChecker {
 			if (callee_ty.kind == DataType.FN) {
 				if (call.callee is IdentifierExpr as cid) {
 					val c_sym = self.symtab.lookup(cid.name);
-					if (c_sym != null && (c_sym.kind == SymbolKind.PARAM || c_sym.kind == SymbolKind.VAR)) {
+					if (c_sym != null && c_sym.kind in [SymbolKind.PARAM, SymbolKind.VAR]) {
 						self.set_closure_call(call.callee);
 					}
 				}
@@ -152,13 +152,14 @@ impl BodyChecker {
 		cid: *IdentifierExpr
 	): *Type? {
 		val local_sym = self.symtab.lookup(cid.name);
-		val is_local_var = local_sym?.kind == SymbolKind.VAR || local_sym?.kind == SymbolKind.PARAM;
-		val is_fn_or_struct = local_sym != null && (
-			local_sym.kind == SymbolKind.FN || local_sym.kind == SymbolKind.STRUCT
-		);
-		if (is_local_var || is_fn_or_struct) {
-			return null;
-		}
+		//val is_local_var = local_sym?.kind in [SymbolKind.VAR, SymbolKind.PARAM];
+		//val is_fn_or_struct = local_sym?.kind in [SymbolKind.FN, SymbolKind.STRUCT];
+		if (
+			local_sym?.kind in [
+				SymbolKind.VAR, SymbolKind.PARAM,
+				SymbolKind.FN, SymbolKind.STRUCT
+			]
+		) return null;
 
 		val ft = self.find_fn_template_for(cid.name);
 		if (ft != null && ft.node is FnDecl as f_tmpl) {
@@ -259,9 +260,7 @@ impl BodyChecker {
 		var valid = false;
 		if (arg_ty.kind == DataType.POINTER) {
 			val pt = arg_ty.as_pointer().pointee;
-			if (pt.kind == DataType.CHAR || pt.kind == DataType.U8 || pt.kind == DataType.I8) {
-				valid = true;
-			}
+			valid = pt.kind in [DataType.CHAR, DataType.U8, DataType.I8];
 		}
 		if (!valid) {
 			self.report_error(

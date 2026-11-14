@@ -74,6 +74,7 @@ impl Parser {
 		while (self.match_token(TokenType.QUESTION)) {
 			type = self.node(NodeData.NullableType(type), type.line, type.col);
 		}
+
 		return type;
 	}
 

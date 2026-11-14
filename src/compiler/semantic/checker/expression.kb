@@ -151,14 +151,13 @@ impl BodyChecker {
 
 			val num_expected = if (expected?.is_numeric()) expected else null;
 
-			val is_cmp = when (bin.op) {
+			val is_cmp = bin.op in [
 				TokenType.EQUAL_EQUAL, TokenType.BANG_EQUAL,
 				TokenType.LESS, TokenType.LESS_EQUAL,
 				TokenType.GREATER, TokenType.GREATER_EQUAL,
 				TokenType.AND_AND, TokenType.OR_OR,
-				TokenType.KW_IN -> true;
-				else -> false;
-			};
+				TokenType.KW_IN
+			];
 
 			val prev_sn = self.in_safe_nav_context;
 			if (is_cmp) self.in_safe_nav_context = true;
@@ -194,6 +193,7 @@ impl BodyChecker {
 				else -> lt;
 			};
 		}
+
 		return self.prims().t_none();
 	}
 
@@ -214,7 +214,7 @@ impl BodyChecker {
 		var lt = lt_num;
 		val is_safe_nav = self.is_safe_nav_expr(bin.left);
 		self.ensure(
-			lt.kind == DataType.POINTER || lt.kind == DataType.STR || is_safe_nav,
+			lt.kind in [DataType.POINTER, DataType.STR] || is_safe_nav,
 			bin.left,
 			"Left-hand side of Elvis operator '?:' must be a pointer, string, or safe navigation '?'"
 		);
@@ -247,7 +247,7 @@ impl BodyChecker {
 			);
 		}
 
-		if (is_safe_nav && lt.kind != DataType.POINTER && lt.kind != DataType.STR) {
+		if (is_safe_nav && lt.kind !in [DataType.POINTER, DataType.STR]) {
 			return lt;
 		}
 
@@ -426,10 +426,8 @@ impl BodyChecker {
 		for (el in al.elements) {
 			val unwrapped_el = self.unwrap_group(el);
 			if (
-				unwrapped_el is BinaryExpr as rbin && (
-					rbin.op == TokenType.DOT_DOT ||
-					rbin.op == TokenType.DOT_DOT_LESS
-				)
+				unwrapped_el is BinaryExpr as rbin &&
+				rbin.op in [TokenType.DOT_DOT, TokenType.DOT_DOT_LESS]
 			) {
 				self.check_in_list_elem(rbin.left, bin, subj_ty, base_ty, is_ptr, enum_info);
 				self.check_in_list_elem(rbin.right, bin, subj_ty, base_ty, is_ptr, enum_info);
@@ -470,7 +468,7 @@ impl BodyChecker {
 			var vname = "";
 			var is_explicit_enum_mem = false;
 			if (unwrapped_el is MemberExpr as mem && mem.object is IdentifierExpr as oid) {
-				if (oid.name.empty() || oid.name == ei.name || oid.name == ei.c_name) {
+				if (oid.name.empty() || oid.name in [ei.name, ei.c_name]) {
 					vname = mem.member;
 					is_explicit_enum_mem = true;
 				}

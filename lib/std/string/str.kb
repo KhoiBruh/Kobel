@@ -37,10 +37,8 @@ fn common_whitespace_prefix(lines: List<str>, start_idx: usz, end_idx: usz): str
 
 		var ws_end = 0;
 		for (c in line) {
-			when (c) {
-				' ', '\t' -> ws_end++;
-				else -> break;
-			}
+			if (c !in [' ', '\t']) break;
+			ws_end++;
 		}
 		val ws = line.slice(0, ws_end);
 
@@ -129,10 +127,7 @@ impl str {
 	}
 
 	pub fn blank(*self) => self.all { c ->
-		yield when (c) {
-			' ', '\t', '\r', '\n' -> true;
-			else -> false;
-		};
+		yield c.is_whitespace();
 	};
 
 	pub fn starts_with(*self, prefix: str): bool {
@@ -236,15 +231,12 @@ impl str {
 
 		if (self.len >= 2) {
 			val two = self.slice(self.len - 2, self.len);
-			when (two) {
-				"UZ", "UL", "UB", "US" -> return two;
-			}
+			if (two in ["UZ", "UL", "UB", "US"]) return two;
 		}
 
-		val last = self.slice(self.len - 1, self.len);
-		when (self[self.len - 1]) {
-			'U', 'L', 'S', 'B', 'Z', 'D', 'F' -> return last;
-		}
+		val end = self.len - 1;
+		val last = self.slice(end, self.len);
+		if (self[end] in ['U', 'L', 'S', 'B', 'Z', 'D', 'F']) return last;
 
 		return "";
 	}
@@ -264,15 +256,11 @@ impl str {
 		var radix = false;
 		if (self.len > 2 && self[0] == '0') {
 			val r = self[1];
-			when (r) {
-				'x', 'X', 'b', 'B', 'o', 'O' -> {
-					radix = true;
-					zone = "";
-					for (i in 2..<self.len) {
-						if (self[i] == '_') {
-							zone = self.slice(i + 1, self.len);
-						}
-					}
+			if (r in ['x', 'X', 'b', 'B', 'o', 'O']) {
+				radix = true;
+				zone = "";
+				for (i in 2..<self.len) {
+					if (self[i] == '_') zone = self.slice(i + 1, self.len);
 				}
 			}
 		}
@@ -294,10 +282,8 @@ impl str {
 		var start = 0;
 		while (start < self.len) {
 			val c = self[start];
-			when (c) {
-				' ', '\t', '\r', '\n' -> start++;
-				else -> break;
-			}
+			if (!c.is_whitespace()) break;
+			start++;
 		}
 
 		if (start == self.len) return "";
@@ -305,10 +291,8 @@ impl str {
 		var end = self.len;
 		while (end > start) {
 			val c = self[end - 1];
-			when (c) {
-				' ', '\t', '\r', '\n' -> end--;
-				else -> break;
-			}
+			if (!c.is_whitespace()) break;
+			end--;
 		}
 
 		return self.slice(start, end);
@@ -376,9 +360,11 @@ impl str {
 		var first = true;
 		for (i in start_idx..<end_idx) {
 			val line = lines[i];
-			val trimmed_line = if (line.blank()) ""
-				else if (line.starts_with(prefix)) line.slice(prefix.len, line.len)
-				else line;
+			val trimmed_line = when (line) {
+				.blank() -> "";
+				.starts_with(prefix) -> line.slice(prefix.len, line.len);
+				else -> line;
+			};
 
 			if (first) {
 				sb += trimmed_line;

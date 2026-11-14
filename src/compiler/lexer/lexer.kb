@@ -163,10 +163,8 @@ impl Lexer {
 	pub fn scan_identifier(&self, start_cursor: usz, start_col: usz): Token {
 		while (!self.is_end()) {
 			val c = self.peek();
-			when (c) {
-				'a'..'z', 'A'..'Z', '0'..'9', '_' -> self.next();
-				else -> break;
-			}
+			if (c !in ['a'..'z', 'A'..'Z', '0'..'9', '_']) break;
+			self.next();
 		}
 
 		val text = self.sub(start_cursor);
@@ -178,24 +176,20 @@ impl Lexer {
 	pub fn scan_decimal_digits_and_fraction(&self) {
 		while (!self.is_end()) {
 			val c = self.peek();
-			when (c) {
-				'0'..'9', '_' -> self.next();
-				else -> break;
-			}
+			if (c !in ['0'..'9', '_']) break;
+			self.next();
 		}
 
 		if (
 			self.peek() == '.'
 			&& self.cursor + 1 < self.src.len
-			&& self.src[self.cursor + 1] in '0'..'9'
+			&& self.src[self.cursor + 1].is_digit()
 		) {
 			self.next(); // consume '.'
 			while (!self.is_end()) {
 				val c = self.peek();
-				when (c) {
-					'0'..'9', '_' -> self.next();
-					else -> break;
-				}
+				if (c !in ['0'..'9', '_']) break;
+				self.next();
 			}
 		}
 	}
@@ -209,30 +203,24 @@ impl Lexer {
 					self.next(); // consume 'x' or 'X'
 					while (!self.is_end()) {
 						val c = self.peek();
-						when (c) {
-							'0'..'9', 'a'..'f', 'A'..'F', '_' -> self.next();
-							else -> break;
-						}
+						if (c !in ['0'..'9', 'a'..'f', 'A'..'F', '_']) break;
+						self.next();
 					}
 				}
 				'b', 'B' -> {
 					self.next(); // consume 'b' or 'B'
 					while (!self.is_end()) {
 						val c = self.peek();
-						when (c) {
-							'0'..'1', '_' -> self.next();
-							else -> break;
-						}
+						if (c !in ['0'..'1', '_']) break;
+						self.next();
 					}
 				}
 				'o', 'O' -> {
 					self.next(); // consume 'o' or 'O'
 					while (!self.is_end()) {
 						val c = self.peek();
-						when (c) {
-							'0'..'7', '_' -> self.next();
-							else -> break;
-						}
+						if (c !in ['0'..'7', '_']) break;
+						self.next();
 					}
 				}
 				else -> self.scan_decimal_digits_and_fraction();
@@ -242,9 +230,7 @@ impl Lexer {
 		// Optional separator before suffix: e.g. 100_L or 0xFF_UL
 		if (self.peek() == '_' && self.cursor + 1 < self.src.len) {
 			val next_c = self.src[self.cursor + 1];
-			when (next_c) {
-				'S', 'L', 'B', 'Z', 'U', 'D', 'F' -> self.next();
-			}
+			if (next_c in ['S', 'L', 'B', 'Z', 'U', 'D', 'F']) self.next();
 		}
 
 		// Optional type suffixes: S, L, B, Z, U, US, UL, UB, UZ, D, F
@@ -252,16 +238,12 @@ impl Lexer {
 			val c1 = self.peek();
 			if (c1 == 'U' && self.cursor + 1 < self.src.len) {
 				val c2 = self.src[self.cursor + 1];
-				when (c2) {
-					'S', 'L', 'B', 'Z' -> {
-						self.next();
-						self.next();
-					}
-					else -> self.next();
+				if (c2 in ['S', 'L', 'B', 'Z']) {
+					self.next();
+					self.next();
 				}
-			} else when (c1) {
-				'S', 'L', 'B', 'Z', 'U', 'D', 'F' -> self.next();
-			}
+				self.next();
+			} else if (c1 in ['S', 'L', 'B', 'Z', 'U', 'D', 'F']) self.next();
 		}
 
 		return self.make_token(TokenType.NUMBER, start_cursor, start_col);

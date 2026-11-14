@@ -4,34 +4,16 @@ impl char {
 
 	pub fn is_digit(*self) => self in '0'..'9';
 
-	pub fn is_alpha(*self) => when (self) {
-		'a'..'z', 'A'..'Z' -> true;
-		else -> false;
-	};
+	pub fn is_alpha(*self) => self in ['a'..'z', 'A'..'Z'];
 
-	pub fn is_alphanumeric(*self) => when (self) {
-		'a'..'z', 'A'..'Z', '0'..'9' -> true;
-		else -> false;
-	};
+	pub fn is_alphanumeric(*self) => self in ['a'..'z', 'A'..'Z', '0'..'9'];
 
-	pub fn is_whitespace(*self) => when (self) {
-		' ', '\t', '\n', '\r' -> true;
-		else -> false;
-	};
+	pub fn is_whitespace(*self) => self in [' ', '\t', '\n', '\r'];
 
-	pub fn is_hex_digit(*self) => when (self) {
-		'0'..'9', 'a'..'f', 'A'..'F' -> true;
-		else -> false;
-	};
+	pub fn is_hex_digit(*self) => self in ['0'..'9', 'a'..'f', 'A'..'F'];
 
-	pub fn to_lower(*self) => when (self) {
-		'A'..'Z' -> char(self.code() + 32);
-		else -> self;
-	};
+	pub fn lower(*self) => if (self in 'A'..'Z') char(self.code() + 32) else self;
 
-	pub fn to_upper(*self) => when (self) {
-		'a'..'z' -> char(self.code() - 32);
-		else -> self;
-	};
+	pub fn upper(*self) => if (self in 'a'..'z') char(self.code() - 32) else self;
 
 }

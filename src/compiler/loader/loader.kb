@@ -42,8 +42,6 @@ pub struct ModuleFile {
 
 impl ModuleFile {
 
-	pub init(found: bool, path: str, source: str) => Self(found, path, source);
-
 	pub op unpack(*self, path: &str, source: &str) {
 		path.write(self.path);
 		source.write(self.source);
@@ -83,6 +81,7 @@ pub fn detect_project_root(start_dir: str): str {
 		curr = parent;
 		count++;
 	}
+
 	return "";
 }
 
@@ -233,7 +232,7 @@ impl ModuleLoader {
 		return files[0];
 	}
 
-	pub fn is_known(*self, module_name: str): bool => module_name in self.known;
+	pub fn is_known(*self, module_name: str) => module_name in self.known;
 
 	pub fn ensure_module(&self, module_name: str, line: usz = 0, col: usz = 0, parent_mod: str = "") {
 		if (self.is_known(module_name)) return;
@@ -244,7 +243,7 @@ impl ModuleLoader {
 		val files = self.find_module_files(module_name);
 		if (files.empty()) {
 			self.errors += Diagnostic.error(
-				Span(0, line as u32, col as u32, 1), parent_mod,
+				Span(0, line, col, 1), parent_mod,
 				"Module '${module_name}' not found "
 				"(searched the entry directory, -I roots, lib/, src/)"
 			);

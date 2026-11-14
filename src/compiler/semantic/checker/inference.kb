@@ -110,7 +110,7 @@ impl BodyChecker {
 					}
 				}
 			}
-			if (self_ty != null && self_ty.kind == DataType.STRUCT) {
+			if (self_ty?.kind == DataType.STRUCT) {
 				val st = self_ty.as_struct();
 				val rec = self.symtab.gen.find_record_by_cname(st.c_name);
 				if (rec != null) {

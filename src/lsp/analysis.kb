@@ -333,7 +333,7 @@ fn contains_ci(haystack: str, needle: str): bool {
 	for (i in 0..<limit) {
 		var ok = true;
 		for (j in 0..<needle.len) {
-			if (haystack[i + j].to_lower() != needle[j].to_lower()) {
+			if (haystack[i + j].lower() != needle[j].lower()) {
 				ok = false;
 				break;
 			}

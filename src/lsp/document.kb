@@ -68,7 +68,7 @@ pub fn paths_equal(a: str, b: str): bool {
 	if (na == nb) return true;
 	// Case-insensitive drive letter comparison on Windows (e.g. C:/ vs c:/)
 	if (na.len == nb.len && na.len >= 2 && na[1] == ':' && nb[1] == ':') {
-		if (na[0].to_lower() == nb[0].to_lower()) {
+		if (na[0].lower() == nb[0].lower()) {
 			return na.slice(1, na.len) == nb.slice(1, nb.len);
 		}
 	}

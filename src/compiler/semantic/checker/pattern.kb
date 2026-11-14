@@ -137,7 +137,7 @@ impl BodyChecker {
 		if (pat is MemberExpr as mem) {
 			var target_matches = true;
 			if (mem.object is IdentifierExpr as tid) {
-				target_matches = (tid.name == enum_info.name || tid.name == enum_info.c_name);
+				target_matches = tid.name in [enum_info.name, enum_info.c_name];
 			}
 			if (target_matches) {
 				val m = enum_info.find_member(mem.member);

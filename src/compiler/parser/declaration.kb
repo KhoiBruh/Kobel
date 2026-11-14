@@ -13,7 +13,7 @@ use compiler.ast.*;
 
 impl Parser {
 
-	pub fn is_valid_op_name(*self, name: str) => when (name) {
+	pub fn is_valid_op_name(*self, name: str) => name in [
 		"plus", "minus", "mul", "div", "rem",
 		"bit_and", "bit_or", "bit_xor", "shl", "shr",
 		"plus_assign", "minus_assign", "mul_assign", "div_assign", "rem_assign",
@@ -21,9 +21,8 @@ impl Parser {
 		"get", "set",
 		"equals", "compare",
 		"negate", "not",
-		"contains", "unpack" -> true;
-		else -> false;
-	};
+		"contains", "unpack"
+	];
 
 	fn parse_trait_bounds(&self): List<str> {
 		var bounds = List<str>();
@@ -300,7 +299,10 @@ impl Parser {
 		}
 
 		self.consume(TokenType.CLOSE_BRACE, "Expected '}' after trait body");
-		return self.node(NodeData.TraitDecl(name_tok.text, type_params, bases, methods, public, assoc), kw.line, kw.col);
+		return self.node(
+			NodeData.TraitDecl(name_tok.text, type_params, bases, methods, public, assoc),
+			kw.line, kw.col
+		);
 	}
 
 	pub fn parse_impl_decl(&self): *AstNode {
@@ -476,7 +478,7 @@ impl Parser {
 
 		while (!self.check(TokenType.CLOSE_BRACE) && !self.is_end()) {
 			val decl = self.parse_declaration();
-			if (decl != null) declarations.add(decl);
+			if (decl != null) declarations += decl;
 		}
 
 		self.consume(TokenType.CLOSE_BRACE, "Expected '}' after extern declarations");
@@ -517,7 +519,7 @@ impl Parser {
 
 		while (!self.is_end()) {
 			val decl = self.parse_declaration();
-			if (decl != null) declarations.add(decl);
+			if (decl != null) declarations += decl;
 		}
 		declarations.extend(self.struct_consts);
 
