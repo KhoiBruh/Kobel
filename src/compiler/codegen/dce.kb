@@ -1,0 +1,367 @@
+mod compiler.codegen;
+
+/*
+ * ============================================================================
+ * Dead-Code Elimination (Tree-Shaking) for C99 Output
+ *
+ * When a lowered Program defines `main`, computes the transitive closure of
+ * functions, structs/enums, and module constants reachable from `main` so
+ * unused stdlib declarations and unused monomorphized methods are omitted.
+ * ============================================================================
+ */
+
+use std.collections.*;
+
+use compiler.ast.*;
+use compiler.semantic.types.*;
+use compiler.semantic.symbols.*;
+
+pub struct ReachableSet {
+	pub active: bool = false,
+	pub fns: HashSet<str> = HashSet<str>(),
+	pub types: HashSet<str> = HashSet<str>(),
+	pub consts: HashSet<str> = HashSet<str>()
+}
+
+impl ReachableSet {
+
+	pub fn has_fn(*self, name: str): bool => !self.active || (name in self.fns);
+
+	pub fn has_type(*self, name: str): bool => !self.active || (name in self.types);
+
+	pub fn has_const(*self, name: str): bool => !self.active || (name in self.consts);
+
+	pub fn free(*self) {
+		self.fns.free();
+		self.types.free();
+		self.consts.free();
+	}
+
+}
+
+struct DceWalker {
+	cg: *CCodeGen,
+	fn_nodes: HashMap<str, *AstNode> = HashMap<str, *AstNode>(),
+	fn_owners: HashMap<str, str> = HashMap<str, str>(),
+	struct_map: HashMap<str, *AstNode> = HashMap<str, *AstNode>(),
+	enum_map: HashMap<str, *AstNode> = HashMap<str, *AstNode>(),
+	all_types: HashSet<str> = HashSet<str>(),
+	variant_to_enum: HashMap<str, str> = HashMap<str, str>(),
+	const_map: HashMap<str, *AstNode> = HashMap<str, *AstNode>(),
+	fns: HashSet<str> = HashSet<str>(),
+	types: HashSet<str> = HashSet<str>(),
+	consts: HashSet<str> = HashSet<str>(),
+	fn_queue: List<str> = List<str>(),
+	type_queue: List<str> = List<str>(),
+	const_queue: List<str> = List<str>()
+}
+
+impl DceWalker {
+
+	fn free(*self) {
+		self.fn_nodes.free();
+		self.fn_owners.free();
+		self.struct_map.free();
+		self.enum_map.free();
+		self.all_types.free();
+		self.variant_to_enum.free();
+		self.const_map.free();
+		self.fn_queue.free();
+		self.type_queue.free();
+		self.const_queue.free();
+	}
+
+	fn index_fn(&self, node: *AstNode, f: *FnDecl, owner: str) {
+		// Prefer keeping the definition body if a prototype and definition share a name.
+		if (!(f.name in self.fn_nodes) || f.body != null) {
+			self.fn_nodes[f.name] = node;
+		}
+		if (!owner.empty()) self.fn_owners[f.name] = owner;
+	}
+
+	fn index_program(&self, prog: *Program): bool {
+		var has_main = false;
+		for (decl in prog) {
+			if (decl_is_template(decl)) continue;
+			when (decl) {
+				is FnDecl as f -> {
+					self.index_fn(decl, f, "");
+					if (f.name == "main" && f.body != null) has_main = true;
+				}
+				is ImplDecl as im -> {
+					for (mnode in im.methods) {
+						if (mnode is FnDecl as mf && mf.type_params.empty()) {
+							self.index_fn(mnode, mf, im.struct_name);
+						}
+					}
+				}
+				is StructDecl as s -> {
+					self.all_types += s.name;
+					if (!s.forward) self.struct_map[s.name] = decl;
+				}
+				is EnumDecl as e -> {
+					self.all_types += e.name;
+					self.enum_map[e.name] = decl;
+					if (self.cg.enum_has_payload(e)) {
+						for (m in e.members) {
+							val v_name = "${e.name}__${m.name}";
+							self.variant_to_enum[v_name] = e.name;
+							self.variant_to_enum["${v_name}__TAG"] = e.name;
+						}
+					}
+				}
+				is ConstDecl as c -> self.const_map[c.name] = decl;
+			}
+		}
+		return has_main;
+	}
+
+	fn mark_fn(&self, name: str) {
+		if (name.empty() || !(name in self.fn_nodes) || (name in self.fns)) return;
+		self.fns += name;
+		self.fn_queue += name;
+		val owner = self.fn_owners.get_or(name, "");
+		if (!owner.empty()) self.mark_type(owner);
+	}
+
+	fn mark_type(&self, raw_name: str) {
+		if (raw_name.empty()) return;
+		val name = self.variant_to_enum.get_or(raw_name, raw_name);
+		if (!(name in self.all_types) || (name in self.types)) return;
+		self.types += name;
+		self.type_queue += name;
+	}
+
+	fn mark_const(&self, name: str) {
+		if (name.empty() || !(name in self.const_map) || (name in self.consts)) return;
+		self.consts += name;
+		self.const_queue += name;
+	}
+
+	fn mark_type_obj(&self, ty: ?*Type) {
+		if (ty == null) return;
+		val t = ty!;
+		if (t.is_enum()) {
+			self.mark_type(t.as_enum().c_name);
+			return;
+		}
+		when (t.kind) {
+			DataType.POINTER -> self.mark_type_obj(t.as_pointer().pointee);
+			DataType.ARRAY -> self.mark_type_obj(t.as_array().elem);
+			DataType.STRUCT -> self.mark_type(t.as_struct().c_name);
+			DataType.FN -> {
+				val fi = t.as_fn();
+				self.mark_type_obj(fi.return_type);
+				for (pt in fi.param_types) self.mark_type_obj(pt);
+			}
+		}
+	}
+
+	fn mark_type_ast(&self, node: ?*AstNode) {
+		if (node == null) return;
+		when (node!) {
+			is NamedType as nt -> self.mark_type(nt.name);
+			is PointerType as pt -> self.mark_type_ast(pt.pointee);
+			is ArrayType as at -> self.mark_type_ast(at.element_type);
+			is VariadicType as vt -> self.mark_type_ast(vt.element_type);
+			is FnType as ft -> {
+				for (pt in ft.param_types) self.mark_type_ast(pt);
+				self.mark_type_ast(ft.return_type);
+			}
+		}
+	}
+
+	fn walk_node(&self, node: ?*AstNode) {
+		if (node == null) return;
+		val cur = node!;
+		self.mark_type_obj(self.cg.node_type(cur));
+		val mi = self.cg.symtab?.get_resolved_method(cur);
+		if (mi != null) {
+			self.mark_fn(mi.c_name);
+			self.mark_type_obj(mi.fn_type);
+		}
+		when (cur) {
+			is IdentifierExpr as id -> {
+				self.mark_fn(id.name);
+				self.mark_const(id.name);
+				self.mark_type(id.name);
+			}
+			is NamedType, PointerType, ArrayType, VariadicType, FnType -> self.mark_type_ast(cur);
+			is StructCtorExpr as sc -> {
+				self.mark_type(sc.c_name);
+				for (a in sc.args) self.walk_node(a);
+			}
+			is EnumCtorExpr as ec -> {
+				self.mark_type(ec.c_name);
+				for (a in ec.args) self.walk_node(a);
+			}
+			is IsExpr as is_e -> {
+				val pi = self.cg.is_pattern_info(cur);
+				self.mark_type(pi.base_c_name);
+				self.walk_node(is_e.expr);
+				val tt = is_e.target_type;
+				if (tt is ArrayLiteralExpr as al) {
+					for (el in al.elements) {
+						val epi = self.cg.is_pattern_info(el);
+						self.mark_type(epi.base_c_name);
+						self.walk_node(el);
+					}
+				} else {
+					self.walk_node(tt);
+				}
+			}
+			is LambdaExpr as lam -> {
+				val li = self.cg.lambda_info_of(cur);
+				self.mark_type_obj(li.fn_type);
+				for (cap in li.captures) self.mark_type_obj(cap.ty);
+				for (p in lam.params) self.mark_type_ast(p.type_node);
+				self.walk_node(lam.body);
+			}
+			is BlockStmt as b -> {
+				for (s in b.statements) self.walk_node(s);
+			}
+			is ExprStmt as es -> self.walk_node(es.expr);
+			is VarDeclStmt as vd -> {
+				self.mark_type_ast(vd.type_annotation);
+				self.walk_node(vd.initializer);
+			}
+			is DestructDeclStmt as ds -> self.walk_node(ds.initializer);
+			is IfStmt as ifs -> {
+				self.walk_node(ifs.condition);
+				self.walk_node(ifs.then_branch);
+				self.walk_node(ifs.else_branch);
+			}
+			is WhileStmt as ws -> {
+				self.walk_node(ws.condition);
+				self.walk_node(ws.body);
+			}
+			is ForStmt as fs -> {
+				self.walk_node(fs.iterable);
+				self.walk_node(fs.range_start);
+				self.walk_node(fs.range_end);
+				self.walk_node(fs.body);
+			}
+			is ReturnStmt as rs -> self.walk_node(rs.value);
+			is YieldStmt as ys -> self.walk_node(ys.value);
+			is DeferStmt as ds -> self.walk_node(ds.body);
+			is WhenStmt as ws -> {
+				self.walk_node(ws.condition);
+				for (arm in ws.arms) {
+					for (p in arm.patterns) self.walk_node(p);
+					self.walk_node(arm.body);
+				}
+			}
+			is CallExpr as call -> {
+				self.walk_node(call.callee);
+				for (a in call.args) self.walk_node(a);
+				for (ta in call.type_args) self.mark_type_ast(ta);
+			}
+			is BinaryExpr as bin -> {
+				self.walk_node(bin.left);
+				self.walk_node(bin.right);
+			}
+			is UnaryExpr as un -> self.walk_node(un.operand);
+			is MemberExpr as mem -> self.walk_node(mem.object);
+			is IndexExpr as ix -> {
+				self.walk_node(ix.target);
+				self.walk_node(ix.index);
+			}
+			is AssignExpr as asgn -> {
+				self.walk_node(asgn.target);
+				self.walk_node(asgn.value);
+			}
+			is UpdateExpr as upd -> self.walk_node(upd.target);
+			is CastExpr as cst -> {
+				self.mark_type_ast(cst.target_type);
+				self.walk_node(cst.expr);
+			}
+			is GroupExpr as g -> self.walk_node(g.expr);
+			is ArrayLiteralExpr as al -> {
+				for (el in al.elements) self.walk_node(el);
+			}
+			is IfExpr as ie -> {
+				self.walk_node(ie.condition);
+				self.walk_node(ie.then_branch);
+				self.walk_node(ie.else_branch);
+			}
+			is WhenExpr as we -> {
+				self.walk_node(we.condition);
+				for (arm in we.arms) {
+					for (p in arm.patterns) self.walk_node(p);
+					self.walk_node(arm.body);
+				}
+			}
+			is InterpExpr as interp -> {
+				for (pt in interp.parts) {
+					if (pt is InterpPart.Hole as h) self.walk_node(h.node);
+				}
+			}
+		}
+	}
+
+	fn drain(&self) {
+		while (!self.fn_queue.empty() || !self.type_queue.empty() || !self.const_queue.empty()) {
+			while (!self.fn_queue.empty()) {
+				val fname = self.fn_queue.pop();
+				val fptr = self.fn_nodes[fname];
+				if (fptr != null && (*fptr) is FnDecl as f) {
+					self.mark_type_ast(f.return_type);
+					for (p in f.params) self.mark_type_ast(p.type_node);
+					val fbody = f.body;
+					if (f.return_type == null && fbody is ExprStmt as es) {
+						self.mark_type_obj(self.cg.node_type(es.expr));
+					}
+					self.walk_node(fbody);
+				}
+			}
+			while (!self.type_queue.empty()) {
+				val tname = self.type_queue.pop();
+				val sptr = self.struct_map[tname];
+				if (sptr != null && (*sptr) is StructDecl as s) {
+					for (f in s.fields) self.mark_type_ast(f.type_node);
+				}
+				val eptr = self.enum_map[tname];
+				if (eptr != null && (*eptr) is EnumDecl as e) {
+					if (self.cg.enum_has_payload(e)) {
+						for (m in e.members) {
+							for (f in m.payload) self.mark_type_ast(f.type_node);
+						}
+					} else {
+						self.mark_type_ast(e.underlying_type);
+					}
+				}
+			}
+			while (!self.const_queue.empty()) {
+				val cname = self.const_queue.pop();
+				val cptr = self.const_map[cname];
+				if (cptr != null && (*cptr) is ConstDecl as c) {
+					self.mark_type_ast(c.type_node);
+					self.walk_node(c.value);
+				}
+			}
+		}
+	}
+
+}
+
+impl CCodeGen {
+
+	pub fn compute_reachable(*self, prog: *Program): ReachableSet {
+		var w = DceWalker(self);
+		if (!w.index_program(prog)) {
+			w.fns.free();
+			w.types.free();
+			w.consts.free();
+			w.free();
+			return ReachableSet();
+		}
+		w.mark_fn("main");
+		w.drain();
+		val fns = w.fns;
+		val types = w.types;
+		val consts = w.consts;
+		w.free();
+		return ReachableSet(true, fns, types, consts);
+	}
+
+}

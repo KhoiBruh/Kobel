@@ -21,14 +21,17 @@ impl CCodeGen {
 			self.out.clear();
 			defer self.out.free();
 
-			// 1. C Standard Headers & Runtime Helpers
+			// 1. C Standard Headers & Runtime Helpers & Reachability Analysis
 			self.out += C_PRELUDE;
+			val live = self.compute_reachable(prog);
+			defer live.free();
 
 			// 2. First collect struct names, function names and return types
 			for (decl in prog) {
 				if (decl_is_template(decl)) continue;
 				when (decl) {
 					is StructDecl as s -> {
+						if (!live.has_type(s.name)) continue;
 						// A forward declaration and its definition are two AST nodes for
 						// one C type; the declaration pass marks which one emits it.
 						if (s.forward || s.emit_typedef) {
@@ -40,6 +43,7 @@ impl CCodeGen {
 						}
 					}
 					is EnumDecl as e -> {
+						if (!live.has_type(e.name)) continue;
 						if (self.enum_has_payload(e)) {
 							// A payload enum is a struct: tag + union of variant payloads.
 							self.out += "typedef struct ";
@@ -80,6 +84,7 @@ impl CCodeGen {
 						}
 					}
 					is ConstDecl as c -> {
+						if (!live.has_const(c.name)) continue;
 						// Module-level constants become preprocessor macros.
 						val c_val_str = if (c.value != null) self.gen_expr(c.value!) else "0";
 						self.out += "#define ";
@@ -102,12 +107,12 @@ impl CCodeGen {
 			for (decl in prog) {
 				if (decl_is_template(decl)) continue;
 				if (decl is StructDecl as s) {
-					if (!s.forward) {
+					if (!s.forward && live.has_type(s.name)) {
 						items += decl;
 						pending += s.name;
 					}
 				} else if (decl is EnumDecl as e) {
-					if (self.enum_has_payload(e)) {
+					if (self.enum_has_payload(e) && live.has_type(e.name)) {
 						items += decl;
 						pending += e.name;
 					}
@@ -156,10 +161,12 @@ impl CCodeGen {
 			for (decl in prog) {
 				if (decl_is_template(decl)) continue;
 				when (decl) {
-					is FnDecl -> self.gen_fn_decl(decl, true, "");
+					is FnDecl -> {
+						if (live.has_fn(decl.name)) self.gen_fn_decl(decl, true, "");
+					}
 					is ImplDecl as im -> {
 						for (mnode in im.methods) {
-							if (mnode is FnDecl as f && f.type_params.empty()) {
+							if (mnode is FnDecl as f && f.type_params.empty() && live.has_fn(f.name)) {
 								self.gen_fn_decl(f, true, im.struct_name);
 							}
 						}
@@ -172,10 +179,12 @@ impl CCodeGen {
 			for (decl in prog) {
 				if (decl_is_template(decl)) continue;
 				when (decl) {
-					is FnDecl -> self.gen_fn_decl(decl, false, "");
+					is FnDecl -> {
+						if (live.has_fn(decl.name)) self.gen_fn_decl(decl, false, "");
+					}
 					is ImplDecl as im -> {
 						for (mnode in im.methods) {
-							if (mnode is FnDecl as f && f.type_params.empty()) {
+							if (mnode is FnDecl as f && f.type_params.empty() && live.has_fn(f.name)) {
 								self.gen_fn_decl(f, false, im.struct_name);
 							}
 						}

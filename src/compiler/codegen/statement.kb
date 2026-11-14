@@ -31,7 +31,7 @@ impl CCodeGen {
 
 	pub fn gen_cond(&self, cond: *AstNode): str {
 		val s = self.gen_expr(cond);
-		if (cond != null && cond is [BinaryExpr, GroupExpr]) return s;
+		if (cond != null && cond is [BinaryExpr, GroupExpr, IsExpr, IfExpr]) return s;
 		return "(${s})";
 	}
 
@@ -939,23 +939,24 @@ impl CCodeGen {
 		val target_name = c_type_from_ast(target_node);
 		val bound_name = if (!is_e.alias.empty()) is_e.alias else var_name;
 		val is_ptr = if (pat_info.is_ptr) true else self.is_pointer_value(subject);
+		val subj = if (expr_needs_parens_for_member(subject)) "(${var_name})" else var_name;
 		if (!is_e.alias.empty()) {
 			if (is_ptr) {
 				if (!pat_info.payload_path.empty()) {
 					if (pat_info.payload_ptr) {
-						return "${target_name}* ${bound_name} = (${var_name})->${pat_info.payload_path};";
+						return "${target_name}* ${bound_name} = ${subj}->${pat_info.payload_path};";
 					}
 					return "${target_name}* ${bound_name} = (${target_name}*)"
-							"(&(${var_name})->${pat_info.payload_path});";
+							"(&${subj}->${pat_info.payload_path});";
 				}
 				return "${target_name}* ${bound_name} = (${target_name}*)${var_name};";
 			} else {
 				if (!pat_info.payload_path.empty()) {
 					if (pat_info.payload_ptr) {
-						return "${target_name}* ${bound_name} = (${var_name}).${pat_info.payload_path};";
+						return "${target_name}* ${bound_name} = ${subj}.${pat_info.payload_path};";
 					}
 					return "${target_name}* ${bound_name} = (${target_name}*)"
-							"(&(${var_name}).${pat_info.payload_path});";
+							"(&${subj}.${pat_info.payload_path});";
 				}
 				return "${target_name}* ${bound_name} = (${target_name}*)&${var_name};";
 			}

@@ -3,11 +3,14 @@ mod test.bootstrap_codegen;
 use std.io.print;
 use std.io.println;
 use std.filesystem.Path;
+use std.memory.Arena;
 
 use compiler.lexer.Lexer;
 use compiler.parser.*;
 
+use compiler.semantic.declaration.DeclarationCollector;
 use compiler.semantic.checker.BodyChecker;
+use compiler.semantic.lowering.LoweringPass;
 
 use compiler.codegen.*;
 use testsupport.assert.*;
@@ -58,9 +61,117 @@ fn test_end_to_end_codegen() {
 	println("  [PASS] test_end_to_end_codegen");
 }
 
+fn test_dce_prunes_unused_and_keeps_reachable() {
+	val src = """
+		const USED_CONST = 7;
+		const UNUSED_CONST = 999;
+
+		struct UsedStruct {
+		    pub a: i32
+		}
+
+		struct UnusedStruct {
+		    pub z: i32
+		}
+
+		enum UsedEnum {
+		    Pair(x: i32, y: i32),
+		    Empty
+		}
+
+		struct Box<T> {
+		    pub item: T
+		}
+
+		impl Box<T> {
+		    pub fn get(*self): T => self.item;
+		    pub fn unused_method(*self): T => self.item;
+		}
+
+		fn used_fn(b: *Box<i32>): i32 => b.get() + USED_CONST;
+		fn unused_helper(): i32 => UNUSED_CONST;
+
+		fn main(): i32 {
+		    val u = UsedStruct(1);
+		    val b = Box<i32>(u.a);
+		    val e = UsedEnum.Pair(2, 3);
+		    if (e is UsedEnum.Pair as p) {
+		        if (b.get() > 0 && u.a == 1 && u.a != 2) {
+		            return used_fn(&b) + p.x;
+		        }
+		    }
+		    return 0;
+		}
+	""";
+
+	var arena = Arena(65536);
+	defer arena.free();
+
+	var lexer = Lexer(src);
+	var parser = Parser(lexer.tokenize());
+	val prog = parser.parse_program();
+	assert_eq_usz(parser.errors.len, 0, "DCE test source must parse cleanly");
+
+	var dp = DeclarationCollector(arena);
+	dp.collect_program(prog);
+	assert_eq_usz(dp.errors.len, 0, "DCE test source must pass decl pass cleanly");
+
+	var bp = BodyChecker(dp.symtab, dp);
+	bp.check_program(prog);
+	assert_eq_usz(bp.errors.len, 0, "DCE test source must typecheck cleanly");
+
+	var lp = LoweringPass(bp.symtab, arena, dp);
+	lp.lower_program(prog);
+
+	var codegen = CCodeGen(&lp.symtab);
+	val c_code = codegen.gen_program(prog);
+
+	assert_true(c_code.contains("used_fn("), "Live function used_fn must be kept");
+	assert_true(c_code.contains("USED_CONST"), "Live constant USED_CONST must be kept");
+	assert_true(c_code.contains("UsedStruct"), "Live struct UsedStruct must be kept");
+	assert_true(c_code.contains("UsedEnum"), "Live enum UsedEnum must be kept");
+	assert_true(!c_code.contains("unused_helper"), "Dead function unused_helper must be pruned");
+	assert_true(!c_code.contains("UnusedStruct"), "Dead struct UnusedStruct must be pruned");
+	assert_true(!c_code.contains("UNUSED_CONST"), "Dead constant UNUSED_CONST must be pruned");
+	assert_true(!c_code.contains("unused_method"), "Unused generic method must be pruned");
+	assert_true(!c_code.contains("if ((e."), "is-check condition must not emit double outer parens");
+	assert_true(!c_code.contains("if (((Box_i32_get"), "Chained && conditions must flatten without nested parens");
+	assert_true(!c_code.contains("(&("), "Payload is-cast must not double-wrap already wrapped subject");
+
+	println("  [PASS] test_dce_prunes_unused_and_keeps_reachable");
+}
+
+fn test_dce_keeps_all_without_main() {
+	val src = """
+		struct LibStruct {
+		    pub v: i32
+		}
+		fn library_fn(): i32 => 42;
+	""";
+
+	var lexer = Lexer(src);
+	var parser = Parser(lexer.tokenize());
+	val prog = parser.parse_program();
+	assert_eq_usz(parser.errors.len, 0, "Library snippet must parse cleanly");
+
+	var bp = BodyChecker();
+	bp.check_program(prog);
+	assert_eq_usz(bp.errors.len, 0, "Library snippet must typecheck cleanly");
+
+	var codegen = CCodeGen(&bp.symtab);
+	val c_code = codegen.gen_program(prog);
+
+	assert_true(c_code.contains("LibStruct"), "Library snippet without main keeps structs");
+	assert_true(c_code.contains("library_fn"), "Library snippet without main keeps functions");
+
+	println("  [PASS] test_dce_keeps_all_without_main");
+}
+
 fn main(): i32 {
 	println("[RUNNING] Bootstrap C CodeGen tests...");
 	test_end_to_end_codegen();
+	test_dce_prunes_unused_and_keeps_reachable();
+	test_dce_keeps_all_without_main();
 	println("[ALL PASSED] Bootstrap C CodeGen passed all tests successfully!");
 	return 0;
 }

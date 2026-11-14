@@ -305,8 +305,6 @@ impl CCodeGen {
 			}
 		}
 
-		val l = self.gen_expr(bin.left);
-		val r = self.gen_expr(bin.right);
 		val op_str = when (bin.op) {
 			TokenType.MINUS -> "-";
 			TokenType.STAR -> "*";
@@ -323,7 +321,25 @@ impl CCodeGen {
 			else -> "+";
 		};
 
+		if (bin.op in [TokenType.AND_AND, TokenType.OR_OR]) {
+			val l = self.gen_assoc_bin_part(bin.left, bin.op, op_str);
+			val r = self.gen_assoc_bin_part(bin.right, bin.op, op_str);
+			return "(${l} ${op_str} ${r})";
+		}
+
+		val l = self.gen_expr(bin.left);
+		val r = self.gen_expr(bin.right);
 		return "(${l} ${op_str} ${r})";
+	}
+
+	fn gen_assoc_bin_part(&self, node: *AstNode, op: TokenType, op_str: str): str {
+		val cur = unwrap_group_expr(node);
+		if (cur != null && cur is BinaryExpr as sub && sub.op == op) {
+			val sl = self.gen_assoc_bin_part(sub.left, op, op_str);
+			val sr = self.gen_assoc_bin_part(sub.right, op, op_str);
+			return "${sl} ${op_str} ${sr}";
+		}
+		return self.gen_expr(node);
 	}
 
 	// Unary operators lower to a C prefix operator (- guards a negative operand).
@@ -627,14 +643,14 @@ impl CCodeGen {
 			val cast_val = if (pat_info.is_ptr) {
 				if (!pat_info.payload_path.empty()) {
 					if (pat_info.payload_ptr) "${obj_str}->${pat_info.payload_path}"
-					else "(${target_name}*)(&(${obj_str})->${pat_info.payload_path})"
+					else "(${target_name}*)(&${obj_str}->${pat_info.payload_path})"
 				} else {
 					"(${target_name}*)${obj_str}"
 				}
 			} else {
 				if (!pat_info.payload_path.empty()) {
 					if (pat_info.payload_ptr) "${obj_str}.${pat_info.payload_path}"
-					else "(${target_name}*)(&(${obj_str}).${pat_info.payload_path})"
+					else "(${target_name}*)(&${obj_str}.${pat_info.payload_path})"
 				} else {
 					"(${target_name}*)&${obj_str}"
 				}
