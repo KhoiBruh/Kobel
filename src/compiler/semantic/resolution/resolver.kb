@@ -28,10 +28,10 @@ pub struct TypeResolver {
 	pub current_module: str = "",
 	pub errors: List<Diagnostic> = List(),
 	pub is_extern: bool = false,
-	pub current_self_type: *Type? = null,
+	pub current_self_type: ?*Type = null,
 	pub subst: TypeSubst = TypeSubst(),
-	pub current_fn_return_type: *AstNode? = null,
-	pub mat_rec: *InstanceRecord? = null
+	pub current_fn_return_type: ?*AstNode = null,
+	pub mat_rec: ?*InstanceRecord = null
 }
 
 impl TypeResolver {
@@ -130,6 +130,7 @@ impl TypeResolver {
 				if (pointee.kind == DataType.FN) {
 					self.report_error(node, "Pointer to a lambda/closure type is not allowed");
 				}
+				if (ptr_ast.nullable) yield self.arena.nullable_pointer_type(pointee, ptr_ast.mutable);
 				yield self.arena.pointer_type(pointee, ptr_ast.mutable);
 			}
 
@@ -159,18 +160,6 @@ impl TypeResolver {
 
 			is VariadicType as var_ast -> {
 				yield self.resolve_ast_type(var_ast.element_type);
-			}
-
-			is NullableType as null_ast -> {
-				val inner_ty = self.resolve_ast_type(null_ast.inner_type);
-				var res_ty = inner_ty;
-				if (inner_ty.kind == DataType.POINTER) {
-					val pt = inner_ty.as_pointer();
-					res_ty = self.arena.nullable_pointer_type(pt.pointee, pt.mutable);
-				} else {
-					self.report_error(node, "Nullable modifier '?' is only supported on pointer types");
-				}
-				yield res_ty;
 			}
 
 			else -> self.prims().t_none();

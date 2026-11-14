@@ -20,7 +20,7 @@ use compiler.semantic.symbols.*;
 // Expression Code Generation
 // ============================================================================
 
-pub fn unwrap_group_expr(node: *AstNode?): *AstNode? {
+pub fn unwrap_group_expr(node: ?*AstNode): ?*AstNode {
 	var cur = node;
 	while (cur != null) {
 		if (cur is GroupExpr as g) cur = g.expr;
@@ -40,7 +40,7 @@ pub fn expr_needs_parens_for_member(node: *AstNode) => when (node) {
 
 impl CCodeGen {
 
-	pub fn gen_expr(&self, node: *AstNode?): str {
+	pub fn gen_expr(&self, node: ?*AstNode): str {
 		if (node == null) return "";
 		val ast_node = node!;
 
@@ -390,7 +390,7 @@ impl CCodeGen {
 		var varg_fixed_count: usz = 0;
 		var varg_elem_c = "";
 
-		var fn_info: *TypePayload.Fn? = null;
+		var fn_info: ?*TypePayload.Fn = null;
 		val mi = self.symtab?.get_resolved_method(ast_node);
 		val callee_ty = self.node_type(call.callee);
 		if (mi != null && mi.fn_type.kind == DataType.FN) {

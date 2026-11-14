@@ -25,7 +25,7 @@ fn strip_cr(src: str): str {
 
 // A single-line body keeps `if (cond) stmt;` on one line; block-like bodies
 // (blocks, nested ifs, when) are always emitted on their own indented line.
-fn is_inline_stmt(node: *AstNode?): bool {
+fn is_inline_stmt(node: ?*AstNode): bool {
 	if (node == null) return false;
 	val n = node!;
 	return when (n) {
@@ -168,6 +168,7 @@ impl Formatter {
 				}
 			}
 			is PointerType as pt -> {
+				if (pt.nullable) self.buf += "?";
 				if (pt.mutable) self.buf += "&";
 				else self.buf += "*";
 				self.format_type(pt.pointee);
@@ -178,10 +179,6 @@ impl Formatter {
 				self.buf += "; ";
 				self.buf += "${at.size}";
 				self.buf += "]";
-			}
-			is NullableType as nt -> {
-				self.format_type(nt.inner_type);
-				self.buf += "?";
 			}
 			is VariadicType as vt -> {
 				self.buf += "..";

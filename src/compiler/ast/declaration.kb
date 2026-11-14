@@ -13,10 +13,10 @@ use compiler.core.Span;
 
 pub struct Param {
 	pub name: str,
-	pub type_node: *AstNode? = null,
+	pub type_node: ?*AstNode = null,
 	pub mutable: bool,
 	pub has_val: bool,
-	pub default_val: *AstNode? = null
+	pub default_val: ?*AstNode = null
 }
 
 pub struct GenericParam {
@@ -28,7 +28,7 @@ pub struct StructField {
 	pub name: str,
 	pub type_node: *AstNode,
 	pub public: bool,
-	pub default_val: *AstNode? = null
+	pub default_val: ?*AstNode = null
 }
 
 // One `type Name = Type;` binding in an impl of a trait with associated types.
@@ -45,7 +45,7 @@ pub struct EnumField {
 
 pub struct EnumMember {
 	pub name: str,
-	pub value: *AstNode? = null,
+	pub value: ?*AstNode = null,
 	pub line: usz,
 	pub col: usz,
 	/*

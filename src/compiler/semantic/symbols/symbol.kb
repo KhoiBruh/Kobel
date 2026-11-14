@@ -43,8 +43,8 @@ pub struct Symbol {
 	pub public: bool,
 	pub line: usz,
 	pub col: usz,
-	pub ast_node: *AstNode? = null,
-	pub orig_type: *Type? = null,
+	pub ast_node: ?*AstNode = null,
+	pub orig_type: ?*Type = null,
 	pub mutated: bool = false,
 	pub is_moved: bool = false,
 	pub is_vararg: bool = false
@@ -70,14 +70,14 @@ impl Symbol {
 // ============================================================================
 
 pub struct Scope {
-	pub parent: *Scope? = null,
+	pub parent: ?*Scope = null,
 	pub symbols: List<*Symbol> = List(),
 	pub is_fn_boundary: bool = false
 }
 
 impl Scope {
 
-	pub fn lookup(*self, name: str): *Symbol? {
+	pub fn lookup(*self, name: str): ?*Symbol {
 		for (sym in self.symbols) if (sym.name == name) return sym;
 		return null;
 	}
@@ -122,7 +122,7 @@ pub struct ModuleScope {
 
 impl ModuleScope {
 
-	pub fn lookup(*self, name: str): *Symbol? {
+	pub fn lookup(*self, name: str): ?*Symbol {
 		val p = self.sym_map.get(name) ?: return null;
 		return p.read();
 	}

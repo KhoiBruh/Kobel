@@ -34,7 +34,7 @@ use compiler.ast.StructField as AstStructField;
 use compiler.semantic.types.StructField;
 
 // A trait may declare overloads, so a method is identified by name + arity.
-fn trait_method_in(list: List<*TraitMethod>, name: str, arity: usz): *TraitMethod? {
+fn trait_method_in(list: List<*TraitMethod>, name: str, arity: usz): ?*TraitMethod {
 	for (m in list) {
 		if (m.name == name && m.arity == arity) return m;
 	}
@@ -47,11 +47,11 @@ pub struct DeclarationCollector {
 	pub current_module: str = "",
 	pub errors: List<Diagnostic> = List(),
 	pub is_extern: bool = false,
-	pub current_self_type: *Type? = null,
+	pub current_self_type: ?*Type = null,
 	pub subst_names: List<str> = List(),
 	pub subst_types: List<*Type> = List(),
-	pub current_fn_return_type: *AstNode? = null,
-	pub mat_rec: *InstanceRecord? = null
+	pub current_fn_return_type: ?*AstNode = null,
+	pub mat_rec: ?*InstanceRecord = null
 }
 
 impl DeclarationCollector {
@@ -138,21 +138,21 @@ impl DeclarationCollector {
 		return res;
 	}
 
-	pub fn find_fn_template(&self, name: str): *GenericTemplate? {
+	pub fn find_fn_template(&self, name: str): ?*GenericTemplate {
 		var r = self.to_resolver();
 		val res = r.find_fn_template(name);
 		self.apply_resolver(r);
 		return res;
 	}
 
-	pub fn find_struct_template(&self, name: str): *GenericTemplate? {
+	pub fn find_struct_template(&self, name: str): ?*GenericTemplate {
 		var r = self.to_resolver();
 		val res = r.find_struct_template(name);
 		self.apply_resolver(r);
 		return res;
 	}
 
-	pub fn find_method_template(&self, name: str, self_type: str = ""): *GenericTemplate? {
+	pub fn find_method_template(&self, name: str, self_type: str = ""): ?*GenericTemplate {
 		var r = self.to_resolver();
 		val res = r.find_method_template(name, self_type);
 		self.apply_resolver(r);
@@ -178,7 +178,7 @@ impl DeclarationCollector {
 		return res;
 	}
 
-	pub fn find_instance_symbol(*self, name: str): *Symbol? {
+	pub fn find_instance_symbol(*self, name: str): ?*Symbol {
 		val r = self.to_resolver();
 		return r.find_instance_symbol(name);
 	}
@@ -189,13 +189,13 @@ impl DeclarationCollector {
 		self.apply_resolver(r);
 	}
 
-	pub fn rewrite_generics(&self, node: *AstNode?) {
+	pub fn rewrite_generics(&self, node: ?*AstNode) {
 		var r = self.to_resolver();
 		r.rewrite_generics(node);
 		self.apply_resolver(r);
 	}
 
-	pub fn propagate_target_type(&self, target_type_node: *AstNode?, init_node: *AstNode?) {
+	pub fn propagate_target_type(&self, target_type_node: ?*AstNode, init_node: ?*AstNode) {
 		var r = self.to_resolver();
 		r.propagate_target_type(target_type_node, init_node);
 		self.apply_resolver(r);
@@ -208,28 +208,28 @@ impl DeclarationCollector {
 		return res;
 	}
 
-	pub fn clone_expr(&self, node: *AstNode, subst: *GenericSubst? = null): *AstNode {
+	pub fn clone_expr(&self, node: *AstNode, subst: ?*GenericSubst = null): *AstNode {
 		var r = self.to_resolver();
 		val res = r.clone_expr(node, subst);
 		self.apply_resolver(r);
 		return res;
 	}
 
-	pub fn clone_fn(&self, node: *AstNode, subst: *GenericSubst? = null, new_name: str = ""): *AstNode {
+	pub fn clone_fn(&self, node: *AstNode, subst: ?*GenericSubst = null, new_name: str = ""): *AstNode {
 		var r = self.to_resolver();
 		val res = r.clone_fn(node, subst, new_name);
 		self.apply_resolver(r);
 		return res;
 	}
 
-	pub fn clone_stmt(&self, node: *AstNode, subst: *GenericSubst? = null): *AstNode {
+	pub fn clone_stmt(&self, node: *AstNode, subst: ?*GenericSubst = null): *AstNode {
 		var r = self.to_resolver();
 		val res = r.clone_stmt(node, subst);
 		self.apply_resolver(r);
 		return res;
 	}
 
-	pub fn clone_type(&self, node: *AstNode, subst: *GenericSubst? = null): *AstNode {
+	pub fn clone_type(&self, node: *AstNode, subst: ?*GenericSubst = null): *AstNode {
 		var r = self.to_resolver();
 		val res = r.clone_type(node, subst);
 		self.apply_resolver(r);

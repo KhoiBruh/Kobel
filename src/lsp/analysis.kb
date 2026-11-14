@@ -429,7 +429,7 @@ impl AnalysisResult {
 		if (loader.find_module("std.string").found) loader.ensure_module("std.string");
 		if (loader.find_module("std.range").found) loader.ensure_module("std.range");
 
-		var full_prog: *AstNode? = null;
+		var full_prog: ?*AstNode = null;
 		val was_known = loader.is_known(doc_mod);
 		var use_in_place = was_known;
 		val pkg_files = loader.find_module_files(doc_mod);
@@ -926,7 +926,7 @@ impl AnalysisResult {
 // Hierarchical Document Symbol Outline & Formatting Providers
 // ============================================================================
 
-fn make_doc_symbol(name: str, kind: i64, line1: usz, col1: usz, children: *JsonValue? = null): *JsonValue {
+fn make_doc_symbol(name: str, kind: i64, line1: usz, col1: usz, children: ?*JsonValue = null): *JsonValue {
 	val item = JsonValue.obj();
 	item["name"] = JsonValue.str(name);
 	item["kind"] = JsonValue.num(kind);

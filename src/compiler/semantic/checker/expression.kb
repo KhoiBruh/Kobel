@@ -41,7 +41,7 @@ impl BodyChecker {
 		return false;
 	}
 
-	pub fn check_literal_expr(&self, node: *AstNode, expected: *Type? = null): *Type {
+	pub fn check_literal_expr(&self, node: *AstNode, expected: ?*Type = null): *Type {
 		if (node is LiteralExpr as lit) {
 			return when (lit.literal_kind) {
 				Literal.INTEGER -> {
@@ -137,7 +137,7 @@ impl BodyChecker {
 		return self.prims().t_none();
 	}
 
-	pub fn check_binary_expr(&self, node: *AstNode, expected: *Type? = null): *Type {
+	pub fn check_binary_expr(&self, node: *AstNode, expected: ?*Type = null): *Type {
 		if (node is BinaryExpr as bin) {
 			val was_stmt = self.is_stmt_level;
 			self.is_stmt_level = false;
@@ -165,7 +165,7 @@ impl BodyChecker {
 				self.in_safe_nav_context = prev_sn;
 				return self.check_in_list_op(node, bin, lt, al);
 			}
-			var r_expected: *Type? = num_expected;
+			var r_expected: ?*Type = num_expected;
 			if (lt.is_numeric()) r_expected = lt;
 			var rt = self.check_expr(bin.right, r_expected);
 
@@ -194,7 +194,7 @@ impl BodyChecker {
 		return self.prims().t_none();
 	}
 
-	fn is_safe_nav_expr(*self, expr: *AstNode?): bool {
+	fn is_safe_nav_expr(*self, expr: ?*AstNode): bool {
 		if (expr == null) return false;
 		val cur = self.unwrap_group(expr!);
 		if (cur is MemberExpr as mem) return mem.is_safe;
@@ -203,7 +203,7 @@ impl BodyChecker {
 	}
 
 	fn check_elvis_expr(&self, node: *AstNode, bin: *BinaryExpr, was_stmt: bool): *Type {
-		val num_expected: *Type? = null;
+		val num_expected: ?*Type = null;
 		val prev_sn = self.in_safe_nav_context;
 		self.in_safe_nav_context = true;
 		var lt_num = self.check_expr(bin.left, num_expected);
@@ -218,7 +218,7 @@ impl BodyChecker {
 
 		val is_jump = bin.right is [ReturnStmt, BreakStmt, ContinueStmt, YieldStmt, BlockStmt];
 
-		var rt: *Type? = null;
+		var rt: ?*Type = null;
 		if (is_jump) {
 			self.ensure(
 				was_stmt,
@@ -409,7 +409,7 @@ impl BodyChecker {
 			base_ty = base_ty.as_pointer().pointee;
 		}
 
-		var enum_info: *EnumInfo? = null;
+		var enum_info: ?*EnumInfo = null;
 		if (base_ty.is_enum()) {
 			enum_info = base_ty.as_enum();
 		} else if (base_ty.kind == DataType.STRUCT) {
@@ -453,7 +453,7 @@ impl BodyChecker {
 		subj_ty: *Type,
 		base_ty: *Type,
 		is_ptr: bool,
-		enum_info: *EnumInfo?
+		enum_info: ?*EnumInfo
 	): *Type {
 		val unwrapped_el = self.unwrap_group(el);
 		if (enum_info != null) {
@@ -564,7 +564,7 @@ impl BodyChecker {
 		return self.prims().t_none();
 	}
 
-	pub fn check_unary_expr(&self, node: *AstNode, expected: *Type? = null): *Type {
+	pub fn check_unary_expr(&self, node: *AstNode, expected: ?*Type = null): *Type {
 		if (node is UnaryExpr as un) {
 			val op_ty = self.check_expr(un.operand, expected);
 
@@ -620,7 +620,7 @@ impl BodyChecker {
 		return self.prims().t_none();
 	}
 
-	pub fn check_if_expr(&self, node: *AstNode, expected: *Type? = null): *Type {
+	pub fn check_if_expr(&self, node: *AstNode, expected: ?*Type = null): *Type {
 		if (node is IfExpr as if_e) {
 			val prev_sn = self.in_safe_nav_context;
 			self.in_safe_nav_context = true;

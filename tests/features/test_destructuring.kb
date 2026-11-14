@@ -213,7 +213,7 @@ fn test_hashmap_entries_destructuring() {
 
 fn test_nullable_destructuring() {
 	val pt = Point2D(50, 60);
-	val pt_ptr: *Point2D? = &pt;
+	val pt_ptr: ?*Point2D = &pt;
 	val (nx, ny) = pt_ptr!;
 	assert_eq_i32(nx, 50, "nx == 50");
 	assert_eq_i32(ny, 60, "ny == 60");

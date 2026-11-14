@@ -30,7 +30,7 @@ use compiler.parser.Parser;
 pub struct LoadedModule {
 	pub name: str,
 	pub path: str,
-	pub program: *AstNode? = null,
+	pub program: ?*AstNode = null,
 	pub file_id: u32 = 0
 }
 
@@ -150,14 +150,14 @@ impl ModuleLoader {
 
 	pub fn count(*self) => self.ordered.len;
 
-	pub fn find_source_file(*self, file_id: u32): *SourceFile?
+	pub fn find_source_file(*self, file_id: u32): ?*SourceFile
 		=> self.sources.get_file(file_id);
 
 	// ============================================================================
 	// Parsing
 	// ============================================================================
 
-	pub fn parse_source(&self, path: str, source: str, module_name: str = ""): *AstNode? {
+	pub fn parse_source(&self, path: str, source: str, module_name: str = ""): ?*AstNode {
 		val file_id = self.sources.add_file(path, source, module_name);
 		var lexer = Lexer(source, file_id);
 		val tokens = lexer.tokenize();
@@ -288,7 +288,7 @@ impl ModuleLoader {
 	// Entry Point
 	// ============================================================================
 
-	pub fn load_program(&self, entry_path: str, entry_source: str): *AstNode? {
+	pub fn load_program(&self, entry_path: str, entry_source: str): ?*AstNode {
 		val prog = self.parse_source(entry_path, entry_source) ?: return null;
 
 		var entry_name = "";

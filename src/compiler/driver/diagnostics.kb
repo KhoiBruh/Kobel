@@ -18,7 +18,7 @@ use compiler.loader.ModuleLoader;
  * ============================================================================
  */
 
-fn resolve_file_path(target: str, default_file: str, loader: *ModuleLoader?): str {
+fn resolve_file_path(target: str, default_file: str, loader: ?*ModuleLoader): str {
 	if (target.empty()) return default_file;
 
 	if (
@@ -45,7 +45,7 @@ fn resolve_file_path(target: str, default_file: str, loader: *ModuleLoader?): st
 	return target;
 }
 
-pub fn print_diagnostics(diags: List<Diagnostic>, default_file: str, loader: *ModuleLoader? = null) {
+pub fn print_diagnostics(diags: List<Diagnostic>, default_file: str, loader: ?*ModuleLoader = null) {
 	var seen = HashSet<str>();
 	defer seen.free();
 
@@ -73,7 +73,7 @@ pub fn print_diagnostics(diags: List<Diagnostic>, default_file: str, loader: *Mo
 	println(summary);
 }
 
-pub fn print_warnings(warnings: List<Diagnostic>, default_file: str, loader: *ModuleLoader? = null) {
+pub fn print_warnings(warnings: List<Diagnostic>, default_file: str, loader: ?*ModuleLoader = null) {
 	var seen = HashSet<str>();
 	defer seen.free();
 

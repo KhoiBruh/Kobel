@@ -11,18 +11,18 @@ use std.memory.*;
 
 extern "libc" {
 	fn fopen(filename: *char, mode: *char): *none;
-	fn fclose(stream: *none?): i32;
-	fn fread(ptr: &u8, size: usz, count: usz, stream: *none?): usz;
-	fn fwrite(ptr: *char, size: usz, count: usz, stream: *none?): usz;
-	fn fseek(stream: *none?, offset: i64, origin: i32): i32;
-	fn ftell(stream: *none?): i64;
-	fn fflush(stream: *none?): i32;
+	fn fclose(stream: ?*none): i32;
+	fn fread(ptr: &u8, size: usz, count: usz, stream: ?*none): usz;
+	fn fwrite(ptr: *char, size: usz, count: usz, stream: ?*none): usz;
+	fn fseek(stream: ?*none, offset: i64, origin: i32): i32;
+	fn ftell(stream: ?*none): i64;
+	fn fflush(stream: ?*none): i32;
 	fn remove(filename: *char): i32;
 	fn rename(old_filename: *char, new_filename: *char): i32;
 }
 
 pub struct File {
-	pub handle: *none?
+	pub handle: ?*none
 }
 
 impl File {

@@ -218,7 +218,7 @@ impl HashMap<K: Hash, V> {
 		self.len++;
 	}
 
-	pub op get(*self, key: K): *V? {
+	pub op get(*self, key: K): ?*V {
 		if (self.len == 0 || self.cap == 0) return null;
 		val h = key.hash();
 		var idx = h % self.cap;

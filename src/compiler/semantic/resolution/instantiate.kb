@@ -154,11 +154,11 @@ impl TypeResolver {
 								val impl_subst = self.alloc_subst(impl_tmpl.param_names(), canon_arg_asts);
 								var m_params = List<Param>();
 								for (p in mf.params) {
-									var pt: *AstNode? = null;
+									var pt: ?*AstNode = null;
 									if (p.name == "self" && p.type_node == null) {
 										val named = self.arena.node(NodeData.NamedType(cname, List<*AstNode>()), m.line, m.col);
-										pt = if (p.mutable) self.arena.node(NodeData.PointerType(true, named), m.line, m.col)
-											else if (p.has_val) self.arena.node(NodeData.PointerType(false, named), m.line, m.col)
+										pt = if (p.mutable) self.arena.node(NodeData.PointerType(true, false, named), m.line, m.col)
+											else if (p.has_val) self.arena.node(NodeData.PointerType(false, false, named), m.line, m.col)
 											else named;
 									} else if (p.type_node != null) {
 										pt = self.clone_type(p.type_node!, impl_subst);
@@ -239,7 +239,7 @@ impl TypeResolver {
 
 			var params = List<Param>();
 			for (p in f.params) {
-				var pt: *AstNode? = null;
+				var pt: ?*AstNode = null;
 				if (p.type_node != null) {
 					if (p.type_node is VariadicType as vt) {
 						val ty = self.resolve_ast_type(vt.element_type);
@@ -260,7 +260,7 @@ impl TypeResolver {
 				params += Param(p.name, pt, p.mutable, p.has_val, dflt);
 			}
 
-			var rt: *AstNode? = null;
+			var rt: ?*AstNode = null;
 			if (f.return_type != null) {
 				val rty = self.resolve_ast_type(f.return_type!);
 				rt = self.arena.ast_type_from_type(rty);
@@ -283,7 +283,7 @@ impl TypeResolver {
 
 	fn make_fn_sig(
 		&self, fn_node: *AstNode, tmpl: *GenericTemplate,
-		args: List<*Type>, receiver: *Type?
+		args: List<*Type>, receiver: ?*Type
 	): *Type {
 		if (fn_node is FnDecl as t) {
 			val mark = self.subst.push(tmpl.param_names(), args, self.prims().t_none());
@@ -318,7 +318,7 @@ impl TypeResolver {
 		return self.symtab.prims.t_none();
 	}
 
-	fn instance_receiver_type(*self, tmpl: *GenericTemplate, args: List<*Type>): *Type? {
+	fn instance_receiver_type(*self, tmpl: *GenericTemplate, args: List<*Type>): ?*Type {
 		if (!tmpl.is_method || tmpl.self_type.empty()) return null;
 		val sym = self.symtab.lookup(tmpl.self_type);
 		if (sym != null) return sym.type_ptr;
@@ -407,7 +407,7 @@ impl TypeResolver {
 		return cname;
 	}
 
-	pub fn collect_fn_as(&self, node: *AstNode, final_name: str, sig: *Type? = null) {
+	pub fn collect_fn_as(&self, node: *AstNode, final_name: str, sig: ?*Type = null) {
 		if (node is FnDecl as f) {
 			var is_vararg = false;
 			var param_types = List<*Type>();
@@ -434,7 +434,7 @@ impl TypeResolver {
 		}
 	}
 
-	pub fn trait_record_impl(&self, t: *TraitInfo?, struct_name: str) {
+	pub fn trait_record_impl(&self, t: ?*TraitInfo, struct_name: str) {
 		if (t == null) return;
 		if (t.has_impl(struct_name)) return;
 
@@ -442,7 +442,7 @@ impl TypeResolver {
 		for (bname in t.bases) self.trait_record_impl(self.symtab.find_trait(bname), struct_name);
 	}
 
-	pub fn trait_effective(&self, t: *TraitInfo?, out: &List<*TraitMethod>, seen: &HashSet<str>) {
+	pub fn trait_effective(&self, t: ?*TraitInfo, out: &List<*TraitMethod>, seen: &HashSet<str>) {
 		if (t == null) return;
 		if (t.name in seen) return;
 
@@ -452,7 +452,7 @@ impl TypeResolver {
 	}
 
 	fn register_assoc_bindings(&self, node: *AstNode, im: *ImplDecl, st_type: *Type, struct_name: str) {
-		var trait_info: *TraitInfo? = null;
+		var trait_info: ?*TraitInfo = null;
 		if (!im.trait_name.empty()) trait_info = self.symtab.find_trait(im.trait_name);
 		if (trait_info == null) {
 			if (!im.assoc_bindings.empty()) {

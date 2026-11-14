@@ -110,7 +110,7 @@ impl BodyChecker {
 			if (struct_ty.kind != DataType.STRUCT) return;
 
 			val s_info = struct_ty.as_struct()!;
-			var found_mi: *MethodInfo? = null;
+			var found_mi: ?*MethodInfo = null;
 			var is_indexed = false;
 
 			// Check Form A: unpack(self, p1, p2, ... pn) where n == ds.names.len
@@ -248,7 +248,7 @@ impl BodyChecker {
 		}
 	}
 
-	fn promote_expr_receiver(&self, obj: *AstNode?) {
+	fn promote_expr_receiver(&self, obj: ?*AstNode) {
 		if (obj == null) return;
 		val un = self.unwrap_group(obj!);
 		if (un is IdentifierExpr as id) {
@@ -256,7 +256,7 @@ impl BodyChecker {
 		}
 	}
 
-	fn extract_safe_receivers(&self, expr: *AstNode?) {
+	fn extract_safe_receivers(&self, expr: ?*AstNode) {
 		if (expr == null) return;
 		val cur = self.unwrap_group(expr!);
 		if (cur == null) return;
@@ -521,7 +521,7 @@ impl BodyChecker {
 		}
 	}
 
-	fn for_iterable_type(&self, node: *AstNode?): *Type? {
+	fn for_iterable_type(&self, node: ?*AstNode): ?*Type {
 		if (node == null) return null;
 		val target = node!;
 		if (target is GroupExpr as g) return self.for_iterable_type(g.expr);
@@ -548,7 +548,7 @@ impl BodyChecker {
 		return null;
 	}
 
-	fn propagate_instance_init(&self, init_node: *AstNode, var_ty: *Type): *AstNode? {
+	fn propagate_instance_init(&self, init_node: *AstNode, var_ty: *Type): ?*AstNode {
 		if (var_ty == null || var_ty.kind != DataType.STRUCT) return null;
 		var cur = init_node;
 		while (cur != null) {
@@ -572,7 +572,7 @@ impl BodyChecker {
 		return null;
 	}
 
-	fn struct_implements_iterable(*self, ty: *Type?): bool {
+	fn struct_implements_iterable(*self, ty: ?*Type): bool {
 		var cur = ty;
 		if (cur?.kind == DataType.POINTER) cur = cur.as_pointer().pointee;
 		if (cur == null || cur.kind != DataType.STRUCT) return false;

@@ -101,6 +101,69 @@ fn test_type_parsing() {
 	println("  [PASS] test_type_parsing");
 }
 
+fn check_valid_ptr_type(src: str) {
+	var l = Lexer(src);
+	var p = Parser(l.tokenize());
+	val ty = p.parse_type();
+	assert_true(p.errors.empty(), "Valid nullable pointer syntax must parse without errors");
+	assert_true(ty is PointerType, "Outer parsed type must be PointerType");
+}
+
+fn check_valid_ptr_expr(src: str) {
+	var l = Lexer(src);
+	var p = Parser(l.tokenize());
+	val ex = p.parse_expression(Precedence.NONE);
+	assert_true(p.errors.empty(), "Nullable pointer in cast/type-test expression must parse cleanly");
+	assert_true(ex != null, "Parsed expression must not be null");
+}
+
+fn check_bad_type_syntax(src: str) {
+	var l = Lexer(src);
+	var p = Parser(l.tokenize());
+	p.parse_type();
+	assert_true(!p.errors.empty(), "Legacy or non-pointer nullable syntax must be rejected");
+}
+
+fn test_nullable_pointer_parsing() {
+	// 1. Prefix nullable pointers (?*T, ?&T) and nested combinations (*?*T, &?*T, ?*?*T, ?**T)
+	check_valid_ptr_type("?*i32");
+	check_valid_ptr_type("?&Node");
+	check_valid_ptr_type("*?*i32");
+	check_valid_ptr_type("&?*i32");
+	check_valid_ptr_type("?*?*i32");
+	check_valid_ptr_type("?**i32");
+
+	var l_nested = Lexer("&?*i32");
+	var p_nested = Parser(l_nested.tokenize());
+	val nested_ty = p_nested.parse_type();
+	assert_true(nested_ty is PointerType, "&?*i32 must be PointerType");
+	if (nested_ty is PointerType as outer) {
+		assert_true(outer.mutable && !outer.nullable, "Outer & in &?*i32 must be mutable non-null");
+		assert_true(outer.pointee is PointerType, "Pointee of &?*i32 must be PointerType");
+		if (outer.pointee is PointerType as inner) {
+			assert_true(!inner.mutable && inner.nullable, "Inner ?* in &?*i32 must be read-only nullable");
+		}
+	}
+
+	// 2. Expression contexts: `as ?*T`, `is ?*T`, `!is [?*A, ?&B]`
+	check_valid_ptr_expr("x as ?*Node");
+	check_valid_ptr_expr("x is ?*Node");
+	check_valid_ptr_expr("x !is [?*Node, ?&Expr]");
+
+	// 3. Legacy postfix '?' and non-pointer nullable syntax must be rejected
+	check_bad_type_syntax("i32?");
+	check_bad_type_syntax("*Node?");
+	check_bad_type_syntax("&Node?");
+	check_bad_type_syntax("?i32");
+
+	var l_as_q = Lexer("x as? Node");
+	var p_as_q = Parser(l_as_q.tokenize());
+	p_as_q.parse_expression(Precedence.NONE);
+	assert_true(!p_as_q.errors.empty(), "Removed as? operator must still be rejected");
+
+	println("  [PASS] test_nullable_pointer_parsing");
+}
+
 // ============================================================================
 // Test 4: Statement Parsing
 // ============================================================================
@@ -346,6 +409,7 @@ fn main(): i32 {
 	test_call_and_member_parsing();
 	test_safe_member_and_elvis_parsing();
 	test_type_parsing();
+	test_nullable_pointer_parsing();
 	test_statement_parsing();
 	test_full_program_parsing();
 	test_adjacent_strings_parsing();

@@ -2953,6 +2953,25 @@ __for_i = (__for_i - 1);
 if (cont_count != 1) {
 return false;
 }
+tests__features__test_syntax__SafeNode* p_holder = &root;
+tests__features__test_syntax__SafeNode** p_nested = &p_holder;
+if (*p_nested == NULL) {
+return false;
+}
+tests__features__test_syntax__SafeNode* mut_slot = NULL;
+tests__features__test_syntax__SafeNode** mut_ref = &mut_slot;
+mut_ref[0] = &leaf;
+if (!kobel_streq((((mut_ref[0]) != NULL && (mut_ref[0])->name.data != NULL) ? (mut_ref[0])->name : KOBEL_STR("")), KOBEL_STR("leaf"))) {
+return false;
+}
+tests__features__test_syntax__SafeNode* mut_ptr = &leaf;
+if (!kobel_streq(((mut_ptr != NULL && mut_ptr->name.data != NULL) ? mut_ptr->name : KOBEL_STR("")), KOBEL_STR("leaf"))) {
+return false;
+}
+tests__features__test_syntax__SafeNode* casted_null = (tests__features__test_syntax__SafeNode*)mut_ptr;
+if (!kobel_streq(((casted_null != NULL && casted_null->name.data != NULL) ? casted_null->name : KOBEL_STR("")), KOBEL_STR("leaf"))) {
+return false;
+}
 return true;
 }
 

@@ -50,7 +50,7 @@ impl PrimTypes {
 	}
 
 	// Resolves a built-in primitive type name to its canonical `*Type` instance.
-	pub fn resolve_name(*self, name: str): *Type? => when (name) {
+	pub fn resolve_name(*self, name: str): ?*Type => when (name) {
 		"none" -> self.get(DataType.NONE);
 		"bool" -> self.get(DataType.BOOL);
 		"char" -> self.get(DataType.CHAR);
@@ -106,7 +106,7 @@ impl PrimTypes {
 }
 
 // Resolves a built-in primitive type name to its canonical `*Type` instance.
-pub fn resolve_primitive_name(prims: *PrimTypes, name: str): *Type? => when (name) {
+pub fn resolve_primitive_name(prims: *PrimTypes, name: str): ?*Type => when (name) {
 	"none" -> prims.get(DataType.NONE);
 	"bool" -> prims.get(DataType.BOOL);
 	"char" -> prims.get(DataType.CHAR);

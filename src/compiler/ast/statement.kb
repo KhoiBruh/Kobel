@@ -31,7 +31,7 @@ impl AstNode {
 	};
 
 	pub fn is_type_node(*self) => when (self) {
-		is NamedType, PointerType, ArrayType, NullableType, VariadicType, FnType -> true;
+		is NamedType, PointerType, ArrayType, VariadicType, FnType -> true;
 		else -> false;
 	};
 

@@ -49,7 +49,7 @@ pub struct Type {
 	pub data: TypePayload,
 	// Methods registered on a built-in primitive type (`impl i32 { ... }`).
 	// Null for non-primitive types and non-canonical primitive values.
-	pub methods: *PrimMethods? = null
+	pub methods: ?*PrimMethods = null
 }
 
 // ============================================================================
@@ -134,21 +134,21 @@ impl Arena {
 
 impl Type {
 
-	pub fn as_pointer(*self): *TypePayload.Pointer? {
+	pub fn as_pointer(*self): ?*TypePayload.Pointer {
 		return when (self.data) {
 			is TypePayload.Pointer as p -> p;
 			else -> null;
 		};
 	}
 
-	pub fn as_array(*self): *TypePayload.Array? {
+	pub fn as_array(*self): ?*TypePayload.Array {
 		return when (self.data) {
 			is TypePayload.Array as p -> p;
 			else -> null;
 		};
 	}
 
-	pub fn as_struct(*self): *StructType? {
+	pub fn as_struct(*self): ?*StructType {
 		val data = self.data;
 		return when (data) {
 			is TypePayload.Struct as p -> p.inner;
@@ -156,14 +156,14 @@ impl Type {
 		};
 	}
 
-	pub fn as_fn(*self): *TypePayload.Fn? {
+	pub fn as_fn(*self): ?*TypePayload.Fn {
 		return when (self.data) {
 			is TypePayload.Fn as p -> p;
 			else -> null;
 		};
 	}
 
-	pub fn as_enum(*self): *EnumInfo? {
+	pub fn as_enum(*self): ?*EnumInfo {
 		val data = self.data;
 		return when (data) {
 			is TypePayload.Enum as p -> p.inner;
@@ -182,13 +182,13 @@ impl Type {
 		return self.methods.list;
 	}
 
-	pub fn method_named(*self, name: str): *MethodInfo? {
+	pub fn method_named(*self, name: str): ?*MethodInfo {
 		val list = self.method_list();
 		for (m in list) if (m.name == name) return m;
 		return null;
 	}
 
-	pub fn method_arity(*self, name: str, argc: usz): *MethodInfo? {
+	pub fn method_arity(*self, name: str, argc: usz): ?*MethodInfo {
 		val list = self.method_list();
 		for (m in list) {
 			if (
@@ -199,7 +199,7 @@ impl Type {
 		return null;
 	}
 
-	pub fn method_by_c_name(*self, c_name: str): *MethodInfo? {
+	pub fn method_by_c_name(*self, c_name: str): ?*MethodInfo {
 		val list = self.method_list();
 		for (m in list) if (m.c_name == c_name) return m;
 		return null;
@@ -343,7 +343,7 @@ impl Type {
 			if (s_ptr.pointee.kind in [DataType.CHAR, DataType.U8]) return true;
 		}
 
-		// 5. Pointer mutability (&T -> *T), nullability (*T -> *T?), and raw byte pointers
+		// 5. Pointer mutability (&T -> *T), nullability (*T -> ?*T), and raw byte pointers
 		if (self.kind == DataType.POINTER && source.kind == DataType.POINTER) {
 			val t_ptr = self.as_pointer();
 			val s_ptr = source.as_pointer();
@@ -387,8 +387,8 @@ impl Stringer for Type {
 		DataType.POINTER -> {
 			val ptr = self.as_pointer();
 			val q = if (ptr.nullable) "?" else "";
-			if (ptr.mutable) yield "&${ptr.pointee.to_str()}${q}";
-			yield "*${ptr.pointee.to_str()}${q}";
+			if (ptr.mutable) yield "${q}&${ptr.pointee.to_str()}";
+			yield "${q}*${ptr.pointee.to_str()}";
 		}
 		DataType.ARRAY -> {
 			val arr = self.as_array();

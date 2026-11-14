@@ -28,7 +28,7 @@ impl TypeResolver {
 	 * Propagates generic type arguments from a target type annotation (e.g. `List<i32>`)
 	 * to a call expression initializer without type arguments (e.g. `List()`).
 	 */
-	pub fn propagate_target_type(&self, node: *AstNode?, init_node: *AstNode?) {
+	pub fn propagate_target_type(&self, node: ?*AstNode, init_node: ?*AstNode) {
 		if (node == null || init_node == null) return;
 
 		if (node is NamedType as nt) {
@@ -81,7 +81,7 @@ impl TypeResolver {
 	 * ----------------------------------------------------------------------------
 	 */
 
-	pub fn rewrite_generics(&self, node: *AstNode?) {
+	pub fn rewrite_generics(&self, node: ?*AstNode) {
 		if (node == null) return;
 		if (self.rewrite_type_generics(node!)) return;
 		if (self.rewrite_expr_generics(node!)) return;
@@ -90,7 +90,7 @@ impl TypeResolver {
 	}
 
 	// Rewrite a child node and report the parent as handled.
-	fn rewrite_child(&self, child: *AstNode?): bool {
+	fn rewrite_child(&self, child: ?*AstNode): bool {
 		self.rewrite_generics(child);
 		return true;
 	}
@@ -106,7 +106,6 @@ impl TypeResolver {
 			is NamedType -> self.rewrite_named_type(node);
 			is PointerType -> self.rewrite_child(target.pointee);
 			is ArrayType -> self.rewrite_child(target.element_type);
-			is NullableType -> self.rewrite_child(target.inner_type);
 			is VariadicType -> self.rewrite_child(target.element_type);
 			is FnType as ft -> {
 				for (pt in ft.param_types) self.rewrite_generics(pt);

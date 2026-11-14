@@ -36,7 +36,7 @@ impl Arena {
 	}
 
 	// Joins `pieces` in a single variadic call: `kobel_concat(count, p0, p1, ...)`.
-	pub fn interp_concat_many(&self, pieces: List<*AstNode>, line: usz, col: usz): *AstNode? {
+	pub fn interp_concat_many(&self, pieces: List<*AstNode>, line: usz, col: usz): ?*AstNode {
 		if (pieces.empty()) return null;
 		if (pieces.len == 1) return pieces[0];
 

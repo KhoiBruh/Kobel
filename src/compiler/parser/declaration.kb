@@ -83,7 +83,7 @@ impl Parser {
 				self.error(pname, "Prefix '*' and '&' are only supported for the 'self' receiver parameter");
 			}
 			if (pname.text == "self" && !is_prefix_ptr && (mutable || has_val)) {
-				self.error(pname, "'*self' and '&self' are no longer supported; use '*self', '&self', or bare 'self'");
+				self.error(pname, "'val self' and 'var self' are no longer supported; use '*self', '&self', or bare 'self'");
 			}
 			val ptype = when {
 				self.match_token(TokenType.COLON) -> self.parse_type();
@@ -125,7 +125,7 @@ impl Parser {
 		return params;
 	}
 
-	fn parse_callable_body(&self, body_msg: str): *AstNode? => when (self) {
+	fn parse_callable_body(&self, body_msg: str): ?*AstNode => when (self) {
 		.match_token(TokenType.FAT_ARROW) -> {
 			val expr = self.parse_expression(Precedence.NONE);
 			self.consume(TokenType.SEMI_COLON, "Expected ';' after expression body");
@@ -385,7 +385,7 @@ impl Parser {
 				self.consume(TokenType.CLOSE_PAREN, "Expected ')' after enum variant fields");
 			}
 
-			var m_val: *AstNode? = null;
+			var m_val: ?*AstNode = null;
 			if (self.match_token(TokenType.EQUAL)) {
 				if (!payload.empty()) {
 					self.error(m_tok, "A payload enum variant cannot have an explicit value");
@@ -485,7 +485,7 @@ impl Parser {
 		return self.node(NodeData.ExternBlock(abi, declarations), kw.line, kw.col);
 	}
 
-	pub fn parse_declaration(&self): *AstNode? {
+	pub fn parse_declaration(&self): ?*AstNode {
 		var public = false;
 		if (self.match_token(TokenType.KW_PUB)) public = true;
 

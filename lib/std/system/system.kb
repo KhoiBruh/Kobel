@@ -7,7 +7,7 @@ mod std.system;
  */
 
 extern "libc" {
-	fn getenv(name: *char): *char?;
+	fn getenv(name: *char): ?*char;
 }
 
 pub struct System;

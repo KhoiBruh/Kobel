@@ -71,16 +71,19 @@
 
 ### Nullable Types and Pointers
 
-- **Nullable:** `T?` marks a type as nullable (e.g., `*Node?`, `i32?`).
+- **Raw pointers:**
+  - `*T`: Non-null read-only pointer (dereferenced via `*p` or `p.field`).
+  - `&T`: Non-null mutable pointer.
+- **Nullable pointers:**
+  - `?*T`: Nullable read-only pointer (e.g., `?*Node`, `?*?*Node`, `*?*Node`).
+  - `?&T`: Nullable mutable pointer (e.g., `?&Node`, `&?*Node`).
+  - Only pointer types may be nullable; non-pointer value types cannot hold `null`.
 - **Safe navigation (`?.`):** Accesses a field or calls a method only if the pointer is not null; evaluates to `null` or a default if null.
 - **Elvis operator (`?:`):** Provides a fallback value or early return on null:
   ```kobel
   val name = node?.name ?: "anonymous";
   val next = node?.next ?: return false;
   ```
-- **Raw pointers:**
-  - `*T`: Read-only pointer (dereferenced via `*p` or `p.field`).
-  - `&T`: Mutable pointer.
 - **Casts:**
   - `x as T`: Casts `x` to type `T`. Type checking and downcasting are performed via pattern matching and smart casting with `is` / `!is` (`if (x is T)`, `if (x is [A, B])`, `if (x !is T) ... else ...`, or `when (x) { is T -> ...; is [A, B] -> ...; !is U -> ... }`).
 
@@ -138,7 +141,7 @@ struct B {
 }
 
 struct A {
-    pub b: *B? = null
+    pub b: ?*B = null
 }
 ```
 

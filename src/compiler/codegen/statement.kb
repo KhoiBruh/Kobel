@@ -881,7 +881,7 @@ impl CCodeGen {
 
 	// Name an arm binds: its alias, or the subject's own name for a plain
 	// identifier subject. Empty when the arm binds nothing.
-	fn when_arm_binding(*self, patterns: List<*AstNode>, cond: *AstNode?): str {
+	fn when_arm_binding(*self, patterns: List<*AstNode>, cond: ?*AstNode): str {
 		if (cond == null || patterns.len != 1) return "";
 		val pat = patterns.first();
 		if (pat is IsExpr as is_e) {
@@ -1065,6 +1065,6 @@ impl CCodeGen {
 
 }
 
-fn is_jump_or_block(node: *AstNode?) => node != null && node is [
+fn is_jump_or_block(node: ?*AstNode) => node != null && node is [
 	ReturnStmt, BreakStmt, ContinueStmt, YieldStmt, BlockStmt
 ];

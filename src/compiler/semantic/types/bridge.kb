@@ -26,9 +26,7 @@ impl Arena {
 		return when (ty.kind) {
 			DataType.POINTER -> {
 				val pt = ty.as_pointer();
-				val base_ptr = self.node(NodeData.PointerType(pt.mutable, self.ast_type_from_type(pt.pointee)), 0, 0);
-				if (pt.nullable) yield self.node(NodeData.NullableType(base_ptr), 0, 0);
-				yield base_ptr;
+				yield self.node(NodeData.PointerType(pt.mutable, pt.nullable, self.ast_type_from_type(pt.pointee)), 0, 0);
 			}
 			DataType.ARRAY -> {
 				val at = ty.as_array();

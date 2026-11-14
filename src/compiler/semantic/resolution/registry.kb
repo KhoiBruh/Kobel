@@ -94,8 +94,8 @@ impl TypeResolver {
 			val prim = resolve_primitive_name(self.symtab.prims!, struct_name);
 			val named = self.arena.node(NodeData.NamedType(struct_name, List<*AstNode>()), line, col);
 			val self_ty_node = if (prim != null) named
-				else if (p.mutable) self.arena.node(NodeData.PointerType(true, named), line, col)
-				else if (p.has_val) self.arena.node(NodeData.PointerType(false, named), line, col)
+				else if (p.mutable) self.arena.node(NodeData.PointerType(true, false, named), line, col)
+				else if (p.has_val) self.arena.node(NodeData.PointerType(false, false, named), line, col)
 				else named;
 			f.params[i] = Param(p.name, self_ty_node, p.mutable, p.has_val, p.default_val);
 		}
@@ -124,7 +124,7 @@ impl TypeResolver {
 		return t.self_type == self_type;
 	}
 
-	fn find_template(*self, kind: TemplateKind, name: str, self_type: str = ""): *GenericTemplate? {
+	fn find_template(*self, kind: TemplateKind, name: str, self_type: str = ""): ?*GenericTemplate {
 		val list = self.templates_of(kind);
 		for (t in list) if (
 			self.template_fits(kind, t, name, self_type)

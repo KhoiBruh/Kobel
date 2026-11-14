@@ -24,18 +24,18 @@ impl Inner {
 }
 
 struct Middle {
-	pub inner: *Inner? = null
+	pub inner: ?*Inner = null
 }
 
 struct Outer {
-	pub middle: *Middle? = null
+	pub middle: ?*Middle = null
 }
 
 fn takes_non_null(item: *Inner): bool {
 	return item.kind == ItemKind.SECOND;
 }
 
-fn test_elvis_jump_on_null(p: *Inner?): bool {
+fn test_elvis_jump_on_null(p: ?*Inner): bool {
 	val k = p?.kind ?: return true;
 	return false;
 }
@@ -45,14 +45,14 @@ fn main(): i32 {
 	var mid1 = Middle(&in1);
 	var out1 = Outer(&mid1);
 
-	var p_null_in: *Inner? = null;
-	var p_null_out: *Outer? = null;
+	var p_null_in: ?*Inner = null;
+	var p_null_out: ?*Outer = null;
 
 	// 1. Safe method call on null pointer returning bool: must short-circuit to false
 	if (p_null_in?.check_ok()) return 1;
 
 	// 2. Safe method call on non-null pointer returning bool: must evaluate to true
-	val p_real_in: *Inner? = &in1;
+	val p_real_in: ?*Inner = &in1;
 	if (!p_real_in?.check_ok()) return 2;
 
 	// 3. Safe field access on null pointer: must short-circuit to false
@@ -62,7 +62,7 @@ fn main(): i32 {
 	if (!p_real_in?.is_active) return 4;
 
 	// 5. Chained safe method calls: out?.middle?.inner?.check_ok()
-	val p_out: *Outer? = &out1;
+	val p_out: ?*Outer = &out1;
 	if (!p_out?.middle?.inner?.check_ok()) return 5;
 
 	// 6. Broken chain at root: must short-circuit to false
@@ -71,7 +71,7 @@ fn main(): i32 {
 	// 7. Broken chain in middle: must short-circuit to false
 	var mid_empty = Middle(null);
 	var out_mid_empty = Outer(&mid_empty);
-	val p_broken: *Outer? = &out_mid_empty;
+	val p_broken: ?*Outer = &out_mid_empty;
 	if (p_broken?.middle?.inner?.check_ok()) return 7;
 
 	// 8. Safe comparison on null pointer in conditions: MUST be false, never match
@@ -86,7 +86,7 @@ fn main(): i32 {
 	if (!(p_real_in?.count < 100)) return 13;
 
 	// 10. Smart cast: p_test is promoted to non-null *Inner inside `if (p_test?.kind == ItemKind.SECOND)`
-	val p_test: *Inner? = &in1;
+	val p_test: ?*Inner = &in1;
 	if (p_test?.kind == ItemKind.SECOND) {
 		// p_test is now *Inner, can pass to takes_non_null without `!` or `!!`
 		if (!takes_non_null(p_test)) return 14;

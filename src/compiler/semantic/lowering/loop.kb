@@ -40,7 +40,7 @@ impl PendingResolve {
 
 // The iterated expression is re-evaluated on every iteration, so only lvalues
 // are accepted: a temporary would dangle and a call would run once per element.
-pub fn for_is_lvalue(node: *AstNode?): bool {
+pub fn for_is_lvalue(node: ?*AstNode): bool {
 	if (node == null) return false;
 	val target = node!;
 	return when (target) {
@@ -97,8 +97,8 @@ impl LoopLowerer {
 		&self,
 		mutable: bool,
 		name: str,
-		ty: *AstNode?,
-		initializer: *AstNode?,
+		ty: ?*AstNode,
+		initializer: ?*AstNode,
 		line: usz,
 		col: usz
 	): *AstNode => self.arena.node(NodeData.VarDeclStmt(mutable, name, ty, initializer), line, col);
@@ -127,7 +127,7 @@ impl LoopLowerer {
 		&self,
 		cond: *AstNode,
 		then_b: *AstNode,
-		else_b: *AstNode?,
+		else_b: ?*AstNode,
 		line: usz,
 		col: usz
 	): *AstNode => self.arena.node(NodeData.IfStmt(cond, then_b, else_b), line, col);
@@ -192,7 +192,7 @@ impl LoopLowerer {
 	// so `continue` cannot skip the counter update.
 	pub fn for_inject_step(
 		&self,
-		node: *AstNode?,
+		node: ?*AstNode,
 		step: &List<*AstNode>,
 		pending: &List<PendingResolve>
 	) {
@@ -221,7 +221,7 @@ impl LoopLowerer {
 
 	fn for_inject_step_expr(
 		&self,
-		expr: *AstNode?,
+		expr: ?*AstNode,
 		step: &List<*AstNode>,
 		pending: &List<PendingResolve>
 	) {

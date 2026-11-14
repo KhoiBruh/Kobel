@@ -26,7 +26,7 @@ use compiler.semantic.lowering.*;
 struct ArrowCandidate {
 	pub node: *AstNode,
 	pub fn_type: *Type,
-	pub self_ty: *Type? = null,
+	pub self_ty: ?*Type = null,
 	pub module: str
 }
 
@@ -40,7 +40,7 @@ impl BodyChecker {
 			val saved_mod = self.symtab.current_module;
 			if (!f.module.empty()) self.symtab.set_current_module(f.module);
 
-			var self_ty: *Type? = null;
+			var self_ty: ?*Type = null;
 			val fn_info = sym.type_ptr.as_fn();
 			if (
 				f.params.len > 0 &&
@@ -234,7 +234,7 @@ impl BodyChecker {
 					is FnDecl as f -> self.check_fn(decl);
 					is ImplDecl as im -> self.check_impl(decl);
 					is ConstDecl as c -> {
-						var c_expected: *Type? = null;
+						var c_expected: ?*Type = null;
 						if (c.type_node != null) c_expected = self.resolve_type(c.type_node!);
 						if (c.value != null) self.check_expr(c.value!, c_expected);
 					}
@@ -344,7 +344,7 @@ impl BodyChecker {
 		&self,
 		node: *AstNode,
 		fn_type: *Type,
-		self_ty: *Type? = null,
+		self_ty: ?*Type = null,
 		module: str
 	): *ArrowCandidate => self.arena.create_val(ArrowCandidate(node, fn_type, self_ty, module));
 
@@ -428,7 +428,7 @@ impl BodyChecker {
 			}
 			val rec = self.symtab.get_node_instance(c.node);
 			val saved_rec = self.push_instance(rec);
-			var body_expr: *AstNode? = null;
+			var body_expr: ?*AstNode = null;
 			if (f.body is ExprStmt as es) {
 				body_expr = es.expr;
 			}

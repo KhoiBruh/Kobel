@@ -255,7 +255,7 @@ fn find_line_end_col(tokens: List<Token>, line: usz): usz {
 	return max_col;
 }
 
-pub fn format_type_node(node: *AstNode?): str {
+pub fn format_type_node(node: ?*AstNode): str {
 	if (node == null) return "none";
 	when (node) {
 		is NamedType -> {
@@ -271,8 +271,10 @@ pub fn format_type_node(node: *AstNode?): str {
 			sb += ">";
 			return sb.to_str();
 		}
-		is PointerType -> return (if (node.mutable) "&" else "*") + format_type_node(node.pointee);
-		is NullableType -> return format_type_node(node.inner_type) + "?";
+		is PointerType -> {
+			val prefix = (if (node.nullable) "?" else "") + (if (node.mutable) "&" else "*");
+			return prefix + format_type_node(node.pointee);
+		}
 		is VariadicType -> return ".." + format_type_node(node.element_type);
 		is ArrayType -> return "[${format_type_node(node.element_type)}; ${node.size}]";
 		is ArrayLiteralExpr -> {
@@ -306,7 +308,7 @@ pub fn format_fn_signature(
 	name: str,
 	type_params: List<GenericParam>,
 	params: List<Param>,
-	return_type: *AstNode?,
+	return_type: ?*AstNode,
 	is_op: bool = false,
 	is_init: bool = false
 ): str {
@@ -345,7 +347,7 @@ pub fn format_fn_signature(
 	return sb.to_str();
 }
 
-pub fn unwrap_base_type(ty: *Type?): *Type? {
+pub fn unwrap_base_type(ty: ?*Type): ?*Type {
 	var cur = ty;
 	var depth = 0;
 	while (cur != null && depth < 4) {
@@ -591,7 +593,7 @@ impl IndexWalker {
 		return LocalBinding("", "", 0);
 	}
 
-	fn mark_mutated(&self, node: *AstNode?) {
+	fn mark_mutated(&self, node: ?*AstNode) {
 		if (node == null) return;
 		if (node is IdentifierExpr as id) {
 			val lb = self.lookup_local(id.name);
@@ -603,13 +605,13 @@ impl IndexWalker {
 		}
 	}
 
-	fn node_type_str(*self, node: *AstNode?): str {
+	fn node_type_str(*self, node: ?*AstNode): str {
 		if (node == null || !self.index.has_symtab) return "";
 		val ty = self.index.symtab.get_node_type(node) ?: return "";
 		return ty.to_str();
 	}
 
-	fn walk_type_node(&self, node: *AstNode?) {
+	fn walk_type_node(&self, node: ?*AstNode) {
 		if (node == null) return;
 		val nl = node.line;
 		val nc = node.col;
@@ -636,7 +638,6 @@ impl IndexWalker {
 				for (ta in node.type_args) self.walk_type_node(ta);
 			}
 			is PointerType -> self.walk_type_node(node.pointee);
-			is NullableType -> self.walk_type_node(node.inner_type);
 			is VariadicType -> self.walk_type_node(node.element_type);
 			is ArrayType -> self.walk_type_node(node.element_type);
 			is ArrayLiteralExpr -> for (el in node.elements) self.walk_type_node(el);
@@ -966,7 +967,7 @@ impl IndexWalker {
 		}
 	}
 
-	fn walk_stmt(&self, node: *AstNode?) {
+	fn walk_stmt(&self, node: ?*AstNode) {
 		if (node == null) return;
 		val nl = node.line;
 		val nc = node.col;
@@ -1017,7 +1018,7 @@ impl IndexWalker {
 		}
 	}
 
-	fn walk_when(&self, cond: *AstNode?, arms: List<WhenArm>) {
+	fn walk_when(&self, cond: ?*AstNode, arms: List<WhenArm>) {
 		val prev_enum = self.cur_when_enum;
 		val prev_mod = self.cur_when_enum_mod;
 		if (cond != null) {
@@ -1043,7 +1044,7 @@ impl IndexWalker {
 		self.cur_when_enum_mod = prev_mod;
 	}
 
-	fn walk_expr(&self, node: *AstNode?) {
+	fn walk_expr(&self, node: ?*AstNode) {
 		if (node == null) return;
 		val raw_node = node;
 		val nl = node.line;

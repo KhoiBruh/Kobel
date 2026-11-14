@@ -299,7 +299,7 @@ impl LoweringPass {
 				arg_types += lt;
 				arg_types += lt;
 				val eq_mi = s_info.find_operator("equals", arg_types);
-				var acc: *AstNode? = null;
+				var acc: ?*AstNode = null;
 				for (el in al.elements) {
 					var eq_bin = BinaryExpr(bin.left, TokenType.EQUAL_EQUAL, el);
 					val eq_node = self.arena.node(
@@ -440,7 +440,7 @@ impl LoweringPass {
 		return self.lowered(node, acc!);
 	}
 
-	fn to_str_expr(&self, expr: *AstNode, line: usz, col: usz): *AstNode? {
+	fn to_str_expr(&self, expr: *AstNode, line: usz, col: usz): ?*AstNode {
 		val ty = self.type_of(expr);
 		if (ty == null) return null;
 		if (ty.kind == DataType.STR) return expr;
@@ -735,7 +735,7 @@ impl LoweringPass {
 	// Type predicates over the checked annotations
 	// ============================================================================
 
-	fn type_of(*self, node: *AstNode): *Type? {
+	fn type_of(*self, node: *AstNode): ?*Type {
 		var cur = node;
 		while (cur != null) {
 			if (cur is GroupExpr as g) cur = g.expr;

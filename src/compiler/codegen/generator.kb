@@ -51,34 +51,34 @@ pub struct CCodeGen {
 	pub scope_starts: List<usz> = List(),
 	pub scope_jumped: List<bool> = List(),
 	pub loop_defer_depths: List<usz> = List(),
-	pub symtab: *SymbolTable? = null,
+	pub symtab: ?*SymbolTable = null,
 	pub active_lambda_captures: List<LambdaCapture> = List()
 }
 
 impl CCodeGen {
 
-	pub init(symtab: *SymbolTable? = null) {
+	pub init(symtab: ?*SymbolTable = null) {
 		var cg = Self(StringBuilder());
 		cg.symtab = symtab;
 		return cg;
 	}
 
-	pub fn node_type(*self, node: *AstNode?): *Type? {
+	pub fn node_type(*self, node: ?*AstNode): ?*Type {
 		if (node == null || self.symtab == null) return null;
 		return self.symtab!.get_node_type(node);
 	}
 
-	pub fn is_pattern_info(*self, node: *AstNode?): IsPatternInfo {
+	pub fn is_pattern_info(*self, node: ?*AstNode): IsPatternInfo {
 		if (node == null || self.symtab == null) return IsPatternInfo();
 		return self.symtab!.get_is_pattern(node);
 	}
 
-	pub fn is_predicate_pattern(*self, node: *AstNode?): bool {
+	pub fn is_predicate_pattern(*self, node: ?*AstNode): bool {
 		if (node == null || self.symtab == null) return false;
 		return self.symtab!.is_predicate_pattern(node);
 	}
 
-	pub fn lambda_info_of(*self, node: *AstNode?): LambdaInfo {
+	pub fn lambda_info_of(*self, node: ?*AstNode): LambdaInfo {
 		if (node == null || self.symtab == null) return LambdaInfo();
 		return self.symtab!.get_lambda_info(node);
 	}

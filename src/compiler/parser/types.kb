@@ -22,15 +22,28 @@ impl Parser {
 			return self.node(NodeData.VariadicType(elem_type), line, col);
 		}
 
-		// 2. Pointer type: *T (read-only) or &T (read-write)
+		// 2. Pointer type: *T (read-only), &T (read-write), ?*T / ?&T (nullable)
+		if (self.match_token(TokenType.QUESTION)) {
+			if (self.match_token(TokenType.STAR)) {
+				val pointee = self.parse_single_type();
+				return self.node(NodeData.PointerType(false, true, pointee), line, col);
+			}
+			if (self.match_token(TokenType.AMPERSAND)) {
+				val pointee = self.parse_single_type();
+				return self.node(NodeData.PointerType(true, true, pointee), line, col);
+			}
+			self.error(self.peek(), "Expected '*' or '&' after '?' (only pointer types can be nullable: ?*T / ?&T)");
+			return self.parse_single_type();
+		}
+
 		if (self.match_token(TokenType.STAR)) {
 			val pointee = self.parse_single_type();
-			return self.node(NodeData.PointerType(false, pointee), line, col);
+			return self.node(NodeData.PointerType(false, false, pointee), line, col);
 		}
 
 		if (self.match_token(TokenType.AMPERSAND)) {
 			val pointee = self.parse_single_type();
-			return self.node(NodeData.PointerType(true, pointee), line, col);
+			return self.node(NodeData.PointerType(true, false, pointee), line, col);
 		}
 
 		// 3. Function type: (T1, T2) -> R
@@ -70,12 +83,12 @@ impl Parser {
 	}
 
 	pub fn parse_type(&self): *AstNode {
-		var type = self.parse_single_type();
-		while (self.match_token(TokenType.QUESTION)) {
-			type = self.node(NodeData.NullableType(type), type.line, type.col);
+		val ty = self.parse_single_type();
+		if (self.match_token(TokenType.QUESTION)) {
+			self.error(self.previous(), "Trailing '?' in types is not supported; use prefix '?*T' or '?&T' for nullable pointers");
 		}
 
-		return type;
+		return ty;
 	}
 
 }

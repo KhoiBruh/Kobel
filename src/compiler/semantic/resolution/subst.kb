@@ -25,8 +25,8 @@ impl TypeSubst {
 	pub fn len(*self) => self.names.len;
 
 	// Looks up a type parameter name; innermost (latest) binding wins.
-	pub fn lookup(*self, name: str): *Type? {
-		var res: *Type? = null;
+	pub fn lookup(*self, name: str): ?*Type {
+		var res: ?*Type = null;
 		for (i in 0..<self.names.len) {
 			if (self.names[i] == name) res = self.types[i];
 		}

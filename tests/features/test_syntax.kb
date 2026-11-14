@@ -15,7 +15,7 @@ use std.collections.HashSet;
 //   - When / Yield expressions
 //   - Struct constants (pub const TAG)
 //   - Default arguments (functions, methods, struct fields)
-//   - Null safety & Elvis operator (*T?, ?:)
+//   - Null safety & Elvis operator (?*T, ?:)
 // ============================================================================
 
 struct Counter {
@@ -56,13 +56,13 @@ impl PointWithDefaults {
 
 struct SafeNode {
 	pub name: str,
-	pub next: *SafeNode? = null,
-	pub child: *SafeNode? = null
+	pub next: ?*SafeNode = null,
+	pub child: ?*SafeNode = null
 }
 
 impl SafeNode {
 	pub fn get_name(*self): str => self.name;
-	pub fn get_child(*self): *SafeNode? => self.child;
+	pub fn get_child(*self): ?*SafeNode => self.child;
 }
 
 fn greet_default(name: str, greeting: str = "Hello", punctuation: str = "!"): str {
@@ -236,37 +236,37 @@ fn test_default_arguments(): bool {
 	return true;
 }
 
-fn elvis_helper_ret(val ptr: *i32?): i32 {
+fn elvis_helper_ret(val ptr: ?*i32): i32 {
 	val unwrapped = ptr ?: return 42;
 	return *unwrapped;
 }
 
-fn elvis_chained_ret(val p1: *i32?, val p2: *i32?): i32 {
+fn elvis_chained_ret(val p1: ?*i32, val p2: ?*i32): i32 {
 	val unwrapped = p1 ?: p2 ?: return 99;
 	return *unwrapped;
 }
 
-fn track_ptr(p: *i32?, c: *Counter): *i32? {
+fn track_ptr(p: ?*i32, c: *Counter): ?*i32 {
 	c.count++;
 	return p;
 }
 
-fn ret_elvis(p: *i32?, fallback: *i32, c: *Counter): *i32 {
+fn ret_elvis(p: ?*i32, fallback: *i32, c: *Counter): *i32 {
 	return track_ptr(p, c) ?: fallback;
 }
 
-fn arrow_elvis(p: *i32?, fallback: *i32, c: *Counter): *i32 => track_ptr(p, c) ?: fallback;
+fn arrow_elvis(p: ?*i32, fallback: *i32, c: *Counter): *i32 => track_ptr(p, c) ?: fallback;
 
 fn test_null_safety(): bool {
-	val p_null: *i32? = null;
+	val p_null: ?*i32 = null;
 	if (p_null != null) return false;
 
 	val x: i32 = 10;
-	val p_val: *i32? = &x;
+	val p_val: ?*i32 = &x;
 	if (p_val == null) return false;
 
 	val p_nn: *i32 = &x;
-	val p_widened: *i32? = p_nn;
+	val p_widened: ?*i32 = p_nn;
 	if (p_widened == null) return false;
 
 	val fb1: *i32 = p_null ?: &x;
@@ -282,7 +282,7 @@ fn test_null_safety(): bool {
 
 	var break_count: i32 = 0;
 	for (i in 0..5) {
-		val p: *i32? = if (i == 3) null else &x;
+		val p: ?*i32 = if (i == 3) null else &x;
 		val unwrapped = p ?: break;
 		break_count = break_count + 1;
 	}
@@ -338,7 +338,7 @@ fn test_null_safety(): bool {
 	c.count = 0;
 
 	// 6. String Elvis
-	val p_null_char: *char? = null;
+	val p_null_char: ?*char = null;
 	val s_null: str = p_null_char as str;
 	val s1: str = s_null ?: "fallback";
 	if (s1 != "fallback") return false;
@@ -354,7 +354,7 @@ fn test_null_safety(): bool {
 	// 8. Elvis continue jump
 	var cont_count: i32 = 0;
 	for (i in 0..<5) {
-		val p: *i32? = if (i % 2 == 0) null else &x;
+		val p: ?*i32 = if (i % 2 == 0) null else &x;
 		val unwrapped = p ?: continue;
 		cont_count = cont_count + 1;
 	}
@@ -368,7 +368,7 @@ fn test_null_safety(): bool {
 	// 10. Elvis yield jump in when expression
 	val when_test1 = when (1) {
 		1 -> {
-			val p: *i32? = null;
+			val p: ?*i32 = null;
 			val unwrapped = p ?: yield 404;
 			yield *unwrapped;
 		}
@@ -378,7 +378,7 @@ fn test_null_safety(): bool {
 
 	val when_test2 = when (1) {
 		1 -> {
-			val p: *i32? = &x;
+			val p: ?*i32 = &x;
 			val unwrapped = p ?: yield 404;
 			yield *unwrapped;
 		}
@@ -387,7 +387,7 @@ fn test_null_safety(): bool {
 	if (when_test2 != 10) return false;
 
 	// 11. Smart cast on != null and == null
-	val opt_p: *i32? = &x;
+	val opt_p: ?*i32 = &x;
 	var smart_cast_ok = false;
 	if (opt_p != null) {
 		val nn_p: *i32 = opt_p;
@@ -413,7 +413,7 @@ fn test_null_safety(): bool {
 	if (!else_ok) return false;
 
 	// while loop != null smart cast
-	var while_p: *i32? = &x;
+	var while_p: ?*i32 = &x;
 	var while_count = 0;
 	while (while_p != null) {
 		val nn_p3: *i32 = while_p;
@@ -425,18 +425,18 @@ fn test_null_safety(): bool {
 	return true;
 }
 
-fn safe_call_chain_ret(node: *SafeNode?): str {
+fn safe_call_chain_ret(node: ?*SafeNode): str {
 	return node?.child?.name ?: "none";
 }
 
-fn safe_call_jump_ret(node: *SafeNode?): str {
+fn safe_call_jump_ret(node: ?*SafeNode): str {
 	val name = node?.child?.name ?: return "escaped";
 	return name;
 }
 
 fn test_safe_calls(): bool {
 	// 1. Safe access on null pointer
-	val null_node: *SafeNode? = null;
+	val null_node: ?*SafeNode = null;
 	val s1: str = null_node?.name ?: "fallback";
 	if (s1 != "fallback") return false;
 
@@ -474,7 +474,7 @@ fn test_safe_calls(): bool {
 	val m2: str = (&leaf)?.get_name() ?: "no-name";
 	if (m2 != "leaf") return false;
 
-	val m3: *SafeNode? = (&root)?.get_child() ?: null;
+	val m3: ?*SafeNode = (&root)?.get_child() ?: null;
 	if (m3 == null) return false;
 	val m3_name: str = m3?.name ?: "";
 	if (m3_name != "leaf") return false;
@@ -482,11 +482,26 @@ fn test_safe_calls(): bool {
 	// 7. Chained safe call with continue
 	var cont_count: i32 = 0;
 	for (i in 0..<4) {
-		val node_opt: *SafeNode? = if (i == 2) &root else null;
+		val node_opt: ?*SafeNode = if (i == 2) &root else null;
 		val child_name = node_opt?.child?.name ?: continue;
 		if (child_name == "leaf") cont_count = cont_count + 1;
 	}
 	if (cont_count != 1) return false;
+
+	val p_holder: ?*SafeNode = &root;
+	val p_nested: *?*SafeNode = &p_holder;
+	if (*p_nested == null) return false;
+
+	var mut_slot: ?*SafeNode = null;
+	val mut_ref: &?*SafeNode = &mut_slot;
+	mut_ref[0] = &leaf;
+	if (((mut_ref[0])?.name ?: "") != "leaf") return false;
+
+	val mut_ptr: ?&SafeNode = &leaf;
+	if ((mut_ptr?.name ?: "") != "leaf") return false;
+
+	val casted_null = mut_ptr as ?*SafeNode;
+	if ((casted_null?.name ?: "") != "leaf") return false;
 
 	return true;
 }

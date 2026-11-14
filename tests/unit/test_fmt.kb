@@ -184,6 +184,13 @@ enum Shape {
 	assert_true(("is [.Literal, .Binary] -> return true;" in type_list_once), "when arm is [...] with leading dots must preserve syntax");
 	assert_true(("return x is [BinaryExpr, AssignExpr];" in type_list_once), "is [...] must preserve syntax");
 
+	val nullable_ptr_code = "fn ptr_ops(a: ?*i32, b: ?&Node, c: *?*i32, d: &?*i32, e: ?*?*Node): ?*i32 {\n\tval casted = a as ?*i32;\n\treturn casted;\n}\n";
+	val np_once = format_source(nullable_ptr_code, FormatOptions());
+	val np_twice = format_source(np_once, FormatOptions());
+	assert_eq_str(np_twice, np_once, "prefix nullable pointer formatting must be idempotent");
+	assert_true(("fn ptr_ops(a: ?*i32, b: ?&Node, c: *?*i32, d: &?*i32, e: ?*?*Node): ?*i32 {" in np_once), "prefix nullable pointers must format cleanly");
+	assert_true(("val casted = a as ?*i32;" in np_once), "as ?*T must format cleanly");
+
 	val broken = "fn broken( { x = ";
 	assert_true(!is_parseable(broken), "broken syntax must fail parseability check");
 	println("  [PASS] test_generic_impl_assoc_and_payload_enum");

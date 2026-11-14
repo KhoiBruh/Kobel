@@ -46,7 +46,7 @@ pub struct StructField {
 	pub type_ptr: *Type,
 	pub offset: usz,
 	pub public: bool,
-	pub default_val: *AstNode? = null
+	pub default_val: ?*AstNode = null
 }
 
 pub struct StructType {
@@ -61,19 +61,19 @@ pub struct StructType {
 
 impl StructType {
 
-	pub fn find_method(*self, name: str): *MethodInfo? {
+	pub fn find_method(*self, name: str): ?*MethodInfo {
 		for (m in self.methods) if (!m.operator && m.name == name) return m;
 		for (m in self.methods) if (m.name == name) return m;
 		return null;
 	}
 
-	pub fn find_static_method(*self, name: str): *MethodInfo? {
+	pub fn find_static_method(*self, name: str): ?*MethodInfo {
 		for (m in self.methods) if (!m.operator && m.is_static && m.name == name) return m;
 		for (m in self.methods) if (m.is_static && m.name == name) return m;
 		return null;
 	}
 
-	pub fn find_static_method_arity(*self, name: str, argc: usz): *MethodInfo? {
+	pub fn find_static_method_arity(*self, name: str, argc: usz): ?*MethodInfo {
 		for (m in self.methods) {
 			if (
 				!m.operator
@@ -115,7 +115,7 @@ impl StructType {
 			yield !m.operator && m.is_static && m.name == name && arity_ok;
 		};
 
-	pub fn find_method_arity(*self, name: str, argc: usz): *MethodInfo? {
+	pub fn find_method_arity(*self, name: str, argc: usz): ?*MethodInfo {
 		for (m in self.methods) {
 			if (
 				!m.operator
@@ -157,13 +157,13 @@ impl StructType {
 			yield !m.operator && !m.is_static && m.name == name && arity_ok;
 		};
 
-	pub fn find_method_c(*self, c_name: str): *MethodInfo? {
+	pub fn find_method_c(*self, c_name: str): ?*MethodInfo {
 		for (m in self.methods) if (m.c_name == c_name) return m;
 		return null;
 	}
 
-	pub fn find_operator(*self, op_name: str, arg_types: List<*Type>): *MethodInfo? {
-		var assignable_match: *MethodInfo? = null;
+	pub fn find_operator(*self, op_name: str, arg_types: List<*Type>): ?*MethodInfo {
+		var assignable_match: ?*MethodInfo = null;
 
 		for (m in self.methods) {
 			if (!m.operator || m.name != op_name) continue;
@@ -234,7 +234,7 @@ impl Arena {
 pub struct EnumMemberInfo {
 	pub name: str,
 	pub value: i64,
-	pub payload_ty: *Type? = null,
+	pub payload_ty: ?*Type = null,
 	pub payload_path: str = "",
 	pub raw_text: str = "",
 	pub lit_kind: Literal = Literal.INTEGER
@@ -251,7 +251,7 @@ pub struct EnumInfo {
 
 impl EnumInfo {
 
-	pub fn find_member(*self, name: str): *EnumMemberInfo? {
+	pub fn find_member(*self, name: str): ?*EnumMemberInfo {
 		for (m in self.members) if (m.name == name) return m;
 		return null;
 	}
@@ -279,7 +279,7 @@ pub struct TraitInfo {
 
 impl TraitInfo {
 
-	pub fn find_method(*self, name: str): *TraitMethod? {
+	pub fn find_method(*self, name: str): ?*TraitMethod {
 		for (m in self.methods) if (m.name == name) return m;
 		return null;
 	}

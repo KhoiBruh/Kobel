@@ -32,14 +32,14 @@ pub struct IsPatternInfo {
 // Captured outer local variable or parameter in a non-escaping stack lambda.
 pub struct LambdaCapture {
 	pub name: str = "",
-	pub ty: *Type? = null,
+	pub ty: ?*Type = null,
 	pub is_mutable: bool = false
 }
 
 // Synthesized metadata for a checked lambda closure expression.
 pub struct LambdaInfo {
 	pub id: usz = 0,
-	pub fn_type: *Type? = null,
+	pub fn_type: ?*Type = null,
 	pub captures: List<LambdaCapture> = List()
 }
 
@@ -49,14 +49,14 @@ pub struct LambdaInfo {
  */
 pub struct AnnotationEntry {
 	pub node: *AstNode,
-	pub ty: *Type? = null,
-	pub method: *MethodInfo? = null,
-	pub resolved: *AstNode? = null,
+	pub ty: ?*Type = null,
+	pub method: ?*MethodInfo = null,
+	pub resolved: ?*AstNode = null,
 	pub is_info: IsPatternInfo = IsPatternInfo(),
 	pub has_is_info: bool = false,
-	pub obj_replace: *AstNode? = null,
-	pub var_ty: *Type? = null,
-	pub init_override: *AstNode? = null,
+	pub obj_replace: ?*AstNode = null,
+	pub var_ty: ?*Type = null,
+	pub init_override: ?*AstNode = null,
 	pub ident_name: str = "",
 	pub has_ident_name: bool = false,
 	pub is_predicate: bool = false,

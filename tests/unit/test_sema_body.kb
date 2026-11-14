@@ -336,7 +336,7 @@ fn test_val_immutability() {
 fn test_elvis_jump_restriction() {
 	// 1. Allowed in variable declaration: val x = p ?: return;
 	val src1 = """
-		fn test(p: *i32?): i32 {
+		fn test(p: ?*i32): i32 {
 		    val x = p ?: return 0;
 		    return *x;
 		}
@@ -349,9 +349,10 @@ fn test_elvis_jump_restriction() {
 
 	// 2. Allowed in assignment: x = p ?: return;
 	val src2 = """
-		fn test(p: *i32?, var x: *i32): i32 {
+		fn test(p: ?*i32): i32 {
+		    var x: ?*i32 = null;
 		    x = p ?: return 0;
-		    return *x;
+		    return *x!;
 		}
 	""";
 	var l2 = Lexer(src2);
@@ -362,7 +363,7 @@ fn test_elvis_jump_restriction() {
 
 	// 3. Allowed in statement expression: p ?: return;
 	val src3 = """
-		fn test(p: *i32?): i32 {
+		fn test(p: ?*i32): i32 {
 		    p ?: return 0;
 		    return 1;
 		}
@@ -376,7 +377,7 @@ fn test_elvis_jump_restriction() {
 	// 4. Disallowed in call argument: foo(p ?: return)
 	val src4 = """
 		fn foo(x: *i32): none {}
-		fn test(p: *i32?): none {
+		fn test(p: ?*i32): none {
 		    foo(p ?: return);
 		}
 	""";
@@ -388,7 +389,7 @@ fn test_elvis_jump_restriction() {
 
 	// 5. Disallowed in binary expression: 1 + (p ?: return)
 	val src5 = """
-		fn test(p: *i32?): i32 {
+		fn test(p: ?*i32): i32 {
 		    val x = 1 + *(p ?: return 0);
 		    return x;
 		}
@@ -401,7 +402,7 @@ fn test_elvis_jump_restriction() {
 
 	// 6. Disallowed in condition: if (p ?: return)
 	val src6 = """
-		fn test(p: *bool?): none {
+		fn test(p: ?*bool): none {
 		    if (p ?: return) {}
 		}
 	""";
@@ -515,7 +516,7 @@ fn test_cast_null_to_non_null_pointer_rejected() {
 		struct Node {
 		    pub id: i32
 		}
-		fn test_cast(p: *Node?) {
+		fn test_cast(p: ?*Node) {
 		    val a = null as *Node;
 		    val b = p as *Node;
 		}
@@ -561,7 +562,7 @@ fn test_destructure_nullable_pointer_error() {
 		        y.write(self.y);
 		    }
 		}
-		fn test(p: *Point?) {
+		fn test(p: ?*Point) {
 		    val (x, y) = p;
 		}
 	""";

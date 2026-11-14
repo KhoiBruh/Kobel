@@ -21,7 +21,7 @@ use compiler.semantic.lowering.*;
 
 impl BodyChecker {
 
-	pub fn check_when_expr(&self, node: *AstNode, expected: *Type? = null): *Type {
+	pub fn check_when_expr(&self, node: *AstNode, expected: ?*Type = null): *Type {
 		if (node is WhenExpr as we) {
 			if (we.condition != null && self.expr_has_call(we.condition)) {
 				self.report_error(
@@ -32,7 +32,7 @@ impl BodyChecker {
 			val cond_ty = if (we.condition != null) self.check_expr(we.condition!) else null;
 
 			self.when_depth++;
-			var result_ty: *Type? = expected;
+			var result_ty: ?*Type = expected;
 			var has_else = false;
 			for (arm in we.arms) {
 				if (arm.is_else) has_else = true;
@@ -80,7 +80,7 @@ impl BodyChecker {
 		return self.prims().t_none();
 	}
 
-	fn check_when_exhaustiveness(&self, node: *AstNode, we: *WhenExpr, cond_ty: *Type?): bool {
+	fn check_when_exhaustiveness(&self, node: *AstNode, we: *WhenExpr, cond_ty: ?*Type): bool {
 		if (cond_ty == null) return false;
 
 		var base_ty = cond_ty;
@@ -106,7 +106,7 @@ impl BodyChecker {
 			return has_true && has_false;
 		}
 
-		var enum_info: *EnumInfo? = null;
+		var enum_info: ?*EnumInfo = null;
 		if (base_ty.is_enum()) {
 			enum_info = base_ty.as_enum();
 		} else if (base_ty.kind == DataType.STRUCT) {
@@ -134,7 +134,7 @@ impl BodyChecker {
 		return covered.len == enum_info.members.len;
 	}
 
-	fn match_enum_variant_type(&self, type_node: *AstNode?, enum_info: *EnumInfo): str {
+	fn match_enum_variant_type(&self, type_node: ?*AstNode, enum_info: *EnumInfo): str {
 		if (type_node == null) return "";
 		if (type_node is NamedType as nt && nt.name.starts_with(".")) {
 			val m = enum_info.find_member(nt.name.slice(1, nt.name.len));
@@ -177,7 +177,7 @@ impl BodyChecker {
 		return false;
 	}
 
-	pub fn arm_smart_cast_sym(*self, patterns: List<*AstNode>, cond: *AstNode?): str {
+	pub fn arm_smart_cast_sym(*self, patterns: List<*AstNode>, cond: ?*AstNode): str {
 		if (cond == null || patterns.len != 1) return "";
 		val pat = patterns.first();
 		if (pat is IsExpr as is_e) {
@@ -188,7 +188,7 @@ impl BodyChecker {
 		return "";
 	}
 
-	pub fn arm_smart_cast_mutable(*self, patterns: List<*AstNode>, cond: *AstNode?): bool {
+	pub fn arm_smart_cast_mutable(*self, patterns: List<*AstNode>, cond: ?*AstNode): bool {
 		if (cond == null || patterns.len != 1) return false;
 		val pat = patterns.first();
 		if (pat is IsExpr as is_e) {
@@ -205,9 +205,9 @@ impl BodyChecker {
 	pub fn resolve_arm_patterns(
 		&self,
 		patterns: List<*AstNode>,
-		cond: *AstNode?,
-		cond_ty: *Type?
-	): *Type? {
+		cond: ?*AstNode,
+		cond_ty: ?*Type
+	): ?*Type {
 		if (!self.arm_smart_cast_sym(patterns, cond).empty()) {
 			val pat = patterns.first();
 			if (pat is IsExpr as var is_e) {
@@ -226,7 +226,7 @@ impl BodyChecker {
 		return null;
 	}
 
-	pub fn expr_has_call(*self, node: *AstNode?): bool {
+	pub fn expr_has_call(*self, node: ?*AstNode): bool {
 		if (node == null) return false;
 		val cur = node!;
 		return when (cur) {
@@ -244,7 +244,7 @@ impl BodyChecker {
 		};
 	}
 
-	pub fn expr_has_implicit_subject(*self, node: *AstNode?): bool {
+	pub fn expr_has_implicit_subject(*self, node: ?*AstNode): bool {
 		if (node == null) return false;
 		val cur = node!;
 		return when (cur) {
@@ -262,7 +262,7 @@ impl BodyChecker {
 		};
 	}
 
-	fn check_arm_pattern(&self, pat: *AstNode, cond: *AstNode?, cond_ty: *Type?): *Type {
+	fn check_arm_pattern(&self, pat: *AstNode, cond: ?*AstNode, cond_ty: ?*Type): *Type {
 		if (cond == null) return self.check_expr(pat);
 
 		if (pat is IsExpr as var is_e) {
@@ -332,9 +332,9 @@ impl BodyChecker {
 		&self,
 		body: *AstNode,
 		sym: str,
-		smart_cast_ty: *Type?,
+		smart_cast_ty: ?*Type,
 		mutable: bool,
-		expected: *Type? = null
+		expected: ?*Type = null
 	): *Type {
 		if (sym.empty() || smart_cast_ty == null) return self.check_when_arm_body(body, expected);
 
@@ -344,9 +344,9 @@ impl BodyChecker {
 		return self.check_when_arm_body(body, expected);
 	}
 
-	pub fn check_when_arm_body(&self, body: *AstNode, expected: *Type? = null): *Type {
+	pub fn check_when_arm_body(&self, body: *AstNode, expected: ?*Type = null): *Type {
 		if (body is BlockStmt as blk) {
-			var yield_ty: *Type? = null;
+			var yield_ty: ?*Type = null;
 			self.symtab.enter_scope(false);
 			defer self.symtab.exit_scope();
 
@@ -375,14 +375,14 @@ impl BodyChecker {
 	fn check_single_is_target(
 		&self,
 		info_node: *AstNode,
-		extra_info_node: *AstNode?,
+		extra_info_node: ?*AstNode,
 		err_node: *AstNode,
 		target_node: *AstNode,
 		is_e: *IsExpr,
 		base_s: *StructType,
 		is_ptr: bool,
 		subj_mutable: bool
-	): *Type? {
+	): ?*Type {
 		val data_ty = self.field_type_of(base_s, "data");
 		val data_enum = if (data_ty?.kind == DataType.STRUCT)
 			self.symtab.find_enum_info(data_ty.as_struct()!.name)
@@ -409,7 +409,7 @@ impl BodyChecker {
 		var tag_field_name = "";
 		var tag_const_c_name = "";
 
-		var matched_data_member: *EnumMemberInfo? = null;
+		var matched_data_member: ?*EnumMemberInfo = null;
 		if (data_enum?.is_payload) {
 			for (m in data_enum.members) {
 				if (target_s.name in [m.name, "${data_enum.name}.${m.name}"]) {
@@ -506,7 +506,7 @@ impl BodyChecker {
 		return target_ty;
 	}
 
-	pub fn check_is_pattern(&self, subject: *AstNode?, subj_ty: *Type?, is_node: *AstNode): *Type? {
+	pub fn check_is_pattern(&self, subject: ?*AstNode, subj_ty: ?*Type, is_node: *AstNode): ?*Type {
 		if (is_node == null) return null;
 
 		if (is_node is IsExpr as is_e) {
@@ -530,7 +530,7 @@ impl BodyChecker {
 					self.report_error(is_e.target_type, "Type list in 'is' operator cannot be empty");
 					return null;
 				}
-				var single_cast: *Type? = null;
+				var single_cast: ?*Type = null;
 				for (i in 0..<al.elements.len) {
 					val t_node = al.elements[i];
 					val extra = if (al.elements.len == 1) is_node else null;
@@ -550,7 +550,7 @@ impl BodyChecker {
 		return null;
 	}
 
-	fn find_tag_const(*self, struct_name: str): *Symbol? {
+	fn find_tag_const(*self, struct_name: str): ?*Symbol {
 		return self.symtab.lookup("${struct_name}__TAG")
 			?: self.symtab.lookup_struct_const(struct_name, "TAG")
 			?: self.symtab.lookup("${struct_name}__KIND")
@@ -562,7 +562,7 @@ impl BodyChecker {
 		return base_s.fields[0].name;
 	}
 
-	fn field_type_of(*self, base_s: *StructType, name: str): *Type? {
+	fn field_type_of(*self, base_s: *StructType, name: str): ?*Type {
 		for (f in base_s.fields) {
 			if (f.name == name) return f.type_ptr;
 		}

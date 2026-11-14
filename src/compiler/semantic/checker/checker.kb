@@ -33,10 +33,10 @@ use compiler.semantic.lowering.*;
 pub struct BodyChecker {
 	pub symtab: SymbolTable = SymbolTable(),
 	pub arena: Arena = Arena(),
-	pub current_fn_return_type: *Type? = null,
+	pub current_fn_return_type: ?*Type = null,
 	pub loop_depth: usz = 0,
 	pub errors: List<Diagnostic> = List(),
-	pub current_self_type: *Type? = null,
+	pub current_self_type: ?*Type = null,
 	pub has_symtab: bool = false,
 	pub when_depth: usz = 0,
 	pub checked_fns: List<*AstNode> = List(),
@@ -49,16 +49,16 @@ pub struct BodyChecker {
 	pub infer_blocked: bool = false,
 	pub inferring: bool = false,
 	pub inferring_fn_return: bool = false,
-	pub current_rec: *InstanceRecord? = null,
+	pub current_rec: ?*InstanceRecord = null,
 	pub env_saved_names: List<str> = List(),
 	pub env_saved_types: List<*Type> = List(),
 	pub has_env_saved: bool = false,
 	pub warnings: List<Diagnostic> = List(),
 	pub current_trait_name: str = "",
-	pub when_subject: *AstNode? = null,
+	pub when_subject: ?*AstNode = null,
 	pub in_lambda: bool = false,
-	pub lambda_scope: *Scope? = null,
-	pub lambda_return_type: *Type? = null,
+	pub lambda_scope: ?*Scope = null,
+	pub lambda_return_type: ?*Type = null,
 	pub lambda_has_yield: bool = false,
 	pub lambda_inferring_return: bool = false,
 	pub lambda_captures: List<LambdaCapture> = List(),
@@ -91,7 +91,12 @@ impl BodyChecker {
 	pub fn type_display(*self, ty: *Type): str {
 		if (ty == null) return "null";
 		if (ty.kind == DataType.STRUCT) return ty.as_struct().c_name;
-		if (ty.kind == DataType.POINTER) return "*${self.type_display(ty.as_pointer().pointee)}";
+		if (ty.kind == DataType.POINTER) {
+			val ptr = ty.as_pointer();
+			val q = if (ptr.nullable) "?" else "";
+			val sym = if (ptr.mutable) "&" else "*";
+			return "${q}${sym}${self.type_display(ptr.pointee)}";
+		}
 		if (ty.kind == DataType.ARRAY) return "[${self.type_display(ty.as_array().elem)}]";
 		if (ty.is_enum()) return ty.as_enum().c_name;
 		return primitive_type_name(ty);
@@ -115,7 +120,7 @@ impl BodyChecker {
 		self.symtab.set_current_module(prev);
 	}
 
-	pub fn check_expr_stmt(&self, expr: *AstNode, expected: *Type? = null): *Type {
+	pub fn check_expr_stmt(&self, expr: *AstNode, expected: ?*Type = null): *Type {
 		val prev = self.is_stmt_level;
 		self.is_stmt_level = true;
 		val ty = self.check_expr(expr, expected);
@@ -123,7 +128,7 @@ impl BodyChecker {
 		return ty;
 	}
 
-	pub fn report_warning(&self, node: *AstNode?, msg: str) {
+	pub fn report_warning(&self, node: ?*AstNode, msg: str) {
 		val span = if (node != null) node!.span else Span();
 		self.warnings += Diagnostic.warning(span, self.symtab.current_module, msg);
 	}
@@ -162,7 +167,7 @@ impl BodyChecker {
 		return ty;
 	}
 
-	pub fn find_method_template_for(&self, name: str, self_type: str): *GenericTemplate? {
+	pub fn find_method_template_for(&self, name: str, self_type: str): ?*GenericTemplate {
 		if (self.has_decl) return self.decl.find_method_template(name, self_type);
 
 		var decl_p = DeclarationCollector(
@@ -203,7 +208,7 @@ impl BodyChecker {
 		return cname;
 	}
 
-	pub fn check_expr(&self, node: *AstNode, expected: *Type? = null): *Type {
+	pub fn check_expr(&self, node: *AstNode, expected: ?*Type = null): *Type {
 		if (node == null) return self.prims().t_none();
 		if (node is GroupExpr as g) return self.check_expr(g.expr, expected);
 
@@ -330,7 +335,7 @@ impl BodyChecker {
 		self.has_env_saved = false;
 	}
 
-	pub fn push_instance(&self, rec: *InstanceRecord?): *InstanceRecord? {
+	pub fn push_instance(&self, rec: ?*InstanceRecord): ?*InstanceRecord {
 		val saved = self.current_rec;
 		if (rec == null) return saved;
 		self.current_rec = rec;
@@ -338,7 +343,7 @@ impl BodyChecker {
 		return saved;
 	}
 
-	pub fn pop_instance(&self, saved: *InstanceRecord?, rec: *InstanceRecord?) {
+	pub fn pop_instance(&self, saved: ?*InstanceRecord, rec: ?*InstanceRecord) {
 		if (rec == null) return;
 		self.pop_instance_env();
 		self.current_rec = saved;
@@ -368,7 +373,7 @@ impl BodyChecker {
 		};
 	}
 
-	fn type_c_size_text(&self, ty: *Type?): str {
+	fn type_c_size_text(&self, ty: ?*Type): str {
 		if (ty == null) return "0";
 		val n = self.type_c_size_num(ty!);
 		return "${n}";
@@ -382,7 +387,7 @@ impl BodyChecker {
 		return false;
 	}
 
-	fn check_expr_node(&self, node: *AstNode, expected: *Type? = null): *Type {
+	fn check_expr_node(&self, node: *AstNode, expected: ?*Type = null): *Type {
 		val target = node;
 		return when (target) {
 			is LiteralExpr -> self.check_literal_expr(node, expected);

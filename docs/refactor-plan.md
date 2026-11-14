@@ -181,7 +181,7 @@ Any agent working on this codebase MUST keep these language/compiler mechanics i
    - If a struct is constructed in a module that does not import the types or generic instantiations used by that default expression, compilation or runtime initialization will fail.
    - **Rule**: Initialize complex or generic struct fields inside `pub init(...)` rather than in struct field default expressions.
 3. **Nullable Pointer Smart-Casting**:
-   - Inside `if (ptr != null)`, Kobel automatically smart-casts `ptr` from `*T?` to non-null `*T`.
+   - Inside `if (ptr != null)`, Kobel automatically smart-casts `ptr` from `?*T` to non-null `*T`.
    - Do **not** write `ptr!` inside an `if (ptr != null)` branch; the compiler will reject `!` on an already smart-cast non-null pointer.
 4. **Indexing `List<T>` Parameters**:
    - Subscript indexing `items[i]` requires `items` to be a `List<T>` value (or `var items: List<T>`), not a reference `&List<T>`. Since `List<T>` is a small header containing a heap buffer pointer (`data: *T`), passing `var items: List<T>` by value still mutates the underlying elements in-place if needed.

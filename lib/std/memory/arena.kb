@@ -10,17 +10,17 @@ struct ArenaBlock {
 	data: &u8,
 	size: usz,
 	used: usz,
-	next: &ArenaBlock? = null
+	next: ?&ArenaBlock = null
 }
 
 // Shared state handle so multiple compiler subsystems can allocate into one arena.
 struct ArenaState {
-	current: &ArenaBlock? = null,
+	current: ?&ArenaBlock = null,
 	block_size: usz
 }
 
 pub struct Arena {
-	state: &ArenaState? = null,
+	state: ?&ArenaState = null,
 	block_size: usz = 65536
 }
 

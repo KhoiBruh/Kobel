@@ -107,7 +107,7 @@ impl BodyChecker {
 		node: *AstNode,
 		call: *CallExpr,
 		cid: *IdentifierExpr
-	): *Type? {
+	): ?*Type {
 		val ft = self.find_fn_template_for(cid.name);
 		if (ft != null) {
 			val cname = self.instantiate_template_fn(ft, call.type_args);
@@ -150,7 +150,7 @@ impl BodyChecker {
 		node: *AstNode,
 		call: *CallExpr,
 		cid: *IdentifierExpr
-	): *Type? {
+	): ?*Type {
 		val local_sym = self.symtab.lookup(cid.name);
 		if (
 			local_sym?.kind in [
@@ -334,8 +334,8 @@ impl BodyChecker {
 		argc: usz,
 		cands: List<*MethodInfo>,
 		call: *CallExpr,
-		found: *MethodInfo?
-	): *MethodInfo? {
+		found: ?*MethodInfo
+	): ?*MethodInfo {
 		if (found != null) return found;
 		for (m in cands) {
 			if (m.name != name || m.ast_node == null) continue;
@@ -517,9 +517,9 @@ impl BodyChecker {
 		node: *AstNode,
 		mem: *MemberExpr,
 		call: *CallExpr
-	): *Type? {
-		var s_info: *StructType? = null;
-		var struct_ty: *Type? = null;
+	): ?*Type {
+		var s_info: ?*StructType = null;
+		var struct_ty: ?*Type = null;
 
 		if (mem.object is IdentifierExpr as id) {
 			if (id.name == "Self" && self.current_self_type != null) {
@@ -693,7 +693,7 @@ impl BodyChecker {
 		return fn_info.return_type;
 	}
 
-	pub fn check_method_call(&self, node: *AstNode, mem: *MemberExpr, call: *CallExpr): *Type? {
+	pub fn check_method_call(&self, node: *AstNode, mem: *MemberExpr, call: *CallExpr): ?*Type {
 		val obj_raw_ty = self.check_expr(mem.object);
 		var obj_ty = obj_raw_ty;
 		var obj_is_ptr = false;
@@ -813,7 +813,7 @@ impl BodyChecker {
 		obj_ty: *Type,
 		obj_is_ptr: bool,
 		obj_raw_ty: *Type
-	): *Type? {
+	): ?*Type {
 		val recv_name = if (obj_ty.kind == DataType.STRUCT) obj_ty.as_struct().name
 			else primitive_type_name(obj_ty);
 		if (recv_name.empty()) return null;
@@ -893,7 +893,7 @@ impl BodyChecker {
 		return fn_info.return_type;
 	}
 
-	fn find_fn_template_for(&self, name: str): *GenericTemplate? {
+	fn find_fn_template_for(&self, name: str): ?*GenericTemplate {
 		if (self.has_decl) return self.decl.find_fn_template(name);
 		var decl_p = DeclarationCollector(
 			self.symtab, self.arena, self.symtab.current_module,
@@ -905,7 +905,7 @@ impl BodyChecker {
 		return tmpl;
 	}
 
-	fn find_struct_template_for(&self, name: str): *GenericTemplate? {
+	fn find_struct_template_for(&self, name: str): ?*GenericTemplate {
 		if (self.has_decl) return self.decl.find_struct_template(name);
 		var decl_p = DeclarationCollector(
 			self.symtab, self.arena, self.symtab.current_module,
@@ -939,7 +939,7 @@ impl BodyChecker {
 		return ty;
 	}
 
-	fn ensure_callee_ready(&self, sym: *Symbol?) {
+	fn ensure_callee_ready(&self, sym: ?*Symbol) {
 		val ast = sym?.ast_node ?: return;
 		if (!self.arrow_pending(ast)) return;
 
@@ -950,7 +950,7 @@ impl BodyChecker {
 		if (self.arrow_pending(ast)) self.infer_blocked = true;
 	}
 
-	fn check_enum_ctor_call(&self, node: *AstNode, mem: *MemberExpr, call: *CallExpr): *Type? {
+	fn check_enum_ctor_call(&self, node: *AstNode, mem: *MemberExpr, call: *CallExpr): ?*Type {
 		val obj = mem.object;
 		if (obj is IdentifierExpr as enum_id) {
 			val ei = self.symtab.find_enum_info(enum_id.name);
@@ -1083,7 +1083,7 @@ impl BodyChecker {
 		return fn_info.return_type;
 	}
 
-	pub fn check_lambda_expr(&self, node: *AstNode, expected: *Type? = null): *Type {
+	pub fn check_lambda_expr(&self, node: *AstNode, expected: ?*Type = null): *Type {
 		if (node is LambdaExpr as lam) {
 			if (!lam.is_trailing) {
 				self.report_error(

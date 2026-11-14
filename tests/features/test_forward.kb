@@ -6,7 +6,7 @@ mod test.forward;
 
 struct A;
 struct B { pub a: *A }
-struct A { pub v: i32, pub b: *B? = null }
+struct A { pub v: i32, pub b: ?*B = null }
 
 fn main(): i32 {
 	var a = A(5, null);

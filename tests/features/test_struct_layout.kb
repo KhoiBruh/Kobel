@@ -25,7 +25,7 @@ struct Inner {
 }
 
 struct Node {
-	pub next: *Node?,
+	pub next: ?*Node,
 	pub value: i32
 }
 

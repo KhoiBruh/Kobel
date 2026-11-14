@@ -57,7 +57,7 @@ pub struct GenericSubst {
 
 impl GenericSubst {
 
-	pub fn lookup(*self, name: str): *AstNode? {
+	pub fn lookup(*self, name: str): ?*AstNode {
 		val idx = self.names.index_of(name);
 		if (idx >= 0) return self.args[idx as usz];
 		return null;
@@ -82,13 +82,13 @@ pub struct InstanceRecord {
 	pub args: List<*Type>,
 	pub c_name: str,
 	pub decl: *AstNode,
-	pub ann_map: *HashMap<usz, *AnnotationEntry>? = null,
-	pub sig: *Type? = null
+	pub ann_map: ?*HashMap<usz, *AnnotationEntry> = null,
+	pub sig: ?*Type = null
 }
 
 impl InstanceRecord {
 
-	pub fn find_ann(*self, node: *AstNode): *AnnotationEntry? {
+	pub fn find_ann(*self, node: *AstNode): ?*AnnotationEntry {
 		if (self.ann_map == null) return null;
 		val p = self.ann_map!.get(node.addr()) ?: return null;
 		return p.read();
@@ -116,7 +116,7 @@ impl GenericRegistry {
 		self.inst_map[sym.name] = sym;
 	}
 
-	pub fn find_instance_symbol(*self, name: str): *Symbol? {
+	pub fn find_instance_symbol(*self, name: str): ?*Symbol {
 		val p = self.inst_map.get(name) ?: return null;
 		return p.read();
 	}
@@ -129,7 +129,7 @@ impl GenericRegistry {
 	pub fn find_instance_record(
 		*self, template: *GenericTemplate,
 		args: List<*Type>, kind: InstanceKind
-	): *InstanceRecord? {
+	): ?*InstanceRecord {
 		for (record in self.records) {
 			if (record.template != template || record.kind != kind) continue;
 			if (record.args.len != args.len) continue;
@@ -143,7 +143,7 @@ impl GenericRegistry {
 		return null;
 	}
 
-	pub fn find_record_by_cname(*self, cname: str): *InstanceRecord? {
+	pub fn find_record_by_cname(*self, cname: str): ?*InstanceRecord {
 		val p = self.record_map.get(cname) ?: return null;
 		return p.read();
 	}

@@ -178,7 +178,7 @@ impl List<T> {
 		return -1;
 	}
 
-	pub fn find_ptr(*self, predicate: (T) -> bool): *T? {
+	pub fn find_ptr(*self, predicate: (T) -> bool): ?*T {
 		for (i in 0..<self.len) if (predicate(self.data[i])) return &self.data[i];
 		return null;
 	}

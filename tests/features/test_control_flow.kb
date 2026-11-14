@@ -402,8 +402,8 @@ fn test_in_candidate_list(var t: &Tally) {
 
 	// 7. Safe navigation on LHS
 	val holder = CfHolder(20, CfShape.Empty);
-	val p_holder: *CfHolder? = &holder;
-	val null_holder: *CfHolder? = null;
+	val p_holder: ?*CfHolder = &holder;
+	val null_holder: ?*CfHolder = null;
 	check(p_holder?.code in [10, 20, 30], "safe nav field in candidate list", t);
 	check(!(null_holder?.code in [10, 20, 30]), "null safe nav in candidate list is false", t);
 	check(null_holder?.shape !in [.Circle, .Empty], "null safe nav payload enum !in list", t);

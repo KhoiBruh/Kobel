@@ -95,7 +95,7 @@ impl BodyChecker {
 		return self.prims().t_none();
 	}
 
-	fn check_const_member(&self, node: *AstNode, mem: *MemberExpr): *Type? {
+	fn check_const_member(&self, node: *AstNode, mem: *MemberExpr): ?*Type {
 		val obj = mem.object;
 		if (obj is IdentifierExpr as enum_id) {
 			val ei = self.symtab.find_enum_info(enum_id.name);
@@ -248,7 +248,7 @@ impl BodyChecker {
 		if (sym != null) sym.mutated = true;
 	}
 
-	pub fn mark_node_mutated(&self, node: *AstNode?) {
+	pub fn mark_node_mutated(&self, node: ?*AstNode) {
 		if (node == null) return;
 		val cur = self.unwrap_group(node!);
 		when (cur) {
@@ -344,7 +344,7 @@ impl BodyChecker {
 		return false;
 	}
 
-	fn check_ident_assignable(&self, op_node: *AstNode, name: str, sym: *Symbol?, is_update: bool) {
+	fn check_ident_assignable(&self, op_node: *AstNode, name: str, sym: ?*Symbol, is_update: bool) {
 		if (sym == null) return;
 		val act = if (is_update) "update" else "assign to";
 		when (sym.kind) {
@@ -379,7 +379,7 @@ impl BodyChecker {
 			if (asgn.op == TokenType.EQUAL) self.is_assign_target = true;
 			var target_ty = self.check_expr(asgn.target);
 			self.is_assign_target = prev_asgn_target;
-			var sym_to_update: *Symbol? = null;
+			var sym_to_update: ?*Symbol = null;
 			if (target_expr is IdentifierExpr as id) {
 				val sym = self.symtab.lookup(id.name);
 				if (sym != null) {
@@ -448,7 +448,7 @@ impl BodyChecker {
 		return self.prims().t_none();
 	}
 
-	fn lower_index_assign(&self, node: *AstNode, asgn: *AssignExpr, idx: *IndexExpr): *Type? {
+	fn lower_index_assign(&self, node: *AstNode, asgn: *AssignExpr, idx: *IndexExpr): ?*Type {
 		val bin_op = when (asgn.op) {
 			TokenType.PLUS_EQUAL -> TokenType.PLUS;
 			TokenType.MINUS_EQUAL -> TokenType.MINUS;
@@ -465,9 +465,9 @@ impl BodyChecker {
 		node: *AstNode,
 		idx: *IndexExpr,
 		op: TokenType,
-		rhs: *AstNode?,
+		rhs: ?*AstNode,
 		what: str
-	): *Type? {
+	): ?*Type {
 		val target_raw_ty = self.check_expr(idx.target);
 		val t_is_ptr = target_raw_ty.kind == DataType.POINTER;
 		val t_struct_ty = if (t_is_ptr) target_raw_ty.as_pointer().pointee else target_raw_ty;
@@ -598,7 +598,7 @@ impl BodyChecker {
 						node,
 						"Cannot cast nullable pointer or 'null' to non-nullable pointer " +
 						"'${self.type_display(ty)}'. Use nullable pointer type " +
-						"'${self.type_display(ty)}?' or force unwrap '!' instead"
+						"'?${self.type_display(ty)}' or force unwrap '!' instead"
 					);
 				}
 			}

@@ -268,7 +268,7 @@ impl DeclarationCollector {
 		}
 	}
 
-	pub fn infer_const_type(&self, expr: *AstNode?): *Type? {
+	pub fn infer_const_type(&self, expr: ?*AstNode): ?*Type {
 		if (expr == null) return null;
 
 		if (expr is LiteralExpr as lit) {
@@ -318,7 +318,7 @@ impl DeclarationCollector {
 		return null;
 	}
 
-	fn infer_expr_type_quick(&self, f: *FnDecl, expr: *AstNode): *Type? {
+	fn infer_expr_type_quick(&self, f: *FnDecl, expr: *AstNode): ?*Type {
 		if (expr == null) return null;
 
 		val const_ty = self.infer_const_type(expr);
@@ -355,7 +355,7 @@ impl DeclarationCollector {
 		return null;
 	}
 
-	fn collect_return_exprs(*self, stmt: *AstNode?, var out_returns: &List<*AstNode>) {
+	fn collect_return_exprs(*self, stmt: ?*AstNode, var out_returns: &List<*AstNode>) {
 		if (stmt == null) return;
 
 		when (stmt) {
@@ -370,7 +370,7 @@ impl DeclarationCollector {
 		}
 	}
 
-	pub fn infer_decl_return_type(&self, f: *FnDecl): *Type? {
+	pub fn infer_decl_return_type(&self, f: *FnDecl): ?*Type {
 		if (f.body == null) return null;
 
 		if (f.body is ExprStmt as es && es.expr != null) {
@@ -394,7 +394,7 @@ impl DeclarationCollector {
 				return self.prims().t_none();
 			}
 
-			var first_ty: *Type? = null;
+			var first_ty: ?*Type = null;
 			for (ret_expr in rets) {
 				val ty = if (ret_expr != null) self.infer_expr_type_quick(f, ret_expr)
 						else self.prims().t_none();
@@ -492,14 +492,14 @@ impl DeclarationCollector {
 		f.name = m_c_name;
 	}
 
-	pub fn trait_record_impl(&self, t: *TraitInfo?, struct_name: str) {
+	pub fn trait_record_impl(&self, t: ?*TraitInfo, struct_name: str) {
 		if (t == null) return;
 		if (t.has_impl(struct_name)) return;
 		t.impls += struct_name;
 		for (bname in t.bases) self.trait_record_impl(self.symtab.find_trait(bname), struct_name);
 	}
 
-	pub fn trait_effective(&self, t: *TraitInfo?, out: &List<*TraitMethod>, seen: &HashSet<str>) {
+	pub fn trait_effective(&self, t: ?*TraitInfo, out: &List<*TraitMethod>, seen: &HashSet<str>) {
 		if (t == null) return;
 		if (t.name in seen) return;
 		seen += t.name;
@@ -509,7 +509,7 @@ impl DeclarationCollector {
 	}
 
 	fn register_assoc_bindings(&self, node: *AstNode, im: *ImplDecl, st_type: *Type, struct_name: str) {
-		var trait_info: *TraitInfo? = null;
+		var trait_info: ?*TraitInfo = null;
 		if (!im.trait_name.empty()) trait_info = self.symtab.find_trait(im.trait_name);
 		if (trait_info == null) {
 			if (!im.assoc_bindings.empty()) {

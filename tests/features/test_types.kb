@@ -468,7 +468,7 @@ fn test_cast_standardization(var t: &Tally) {
 	val addr = p.addr();
 	check_i(if (addr > 0) 1 else 0, 1, "ptr.addr() > 0", t);
 
-	val null_p: *i32? = null;
+	val null_p: ?*i32 = null;
 	val null_addr = null_p.addr();
 	check_i(if (null_addr == 0) 1 else 0, 1, "null.addr() == 0", t);
 }
@@ -572,7 +572,7 @@ fn main(): i32 {
 	return 0;
 }// 19. Force Unwrap Operator (!)
 fn test_force_unwrap(var t: &Tally) {
-	val maybe_ptr: *char? = "hello";
+	val maybe_ptr: ?*char = "hello";
 	val forced_ptr: *char = maybe_ptr!;
 	check_i(if (forced_ptr[0] == 'h') 1 else 0, 1, "Force unwrap pointer success", t);
 }
