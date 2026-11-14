@@ -25,11 +25,11 @@ pub struct ReachableSet {
 
 impl ReachableSet {
 
-	pub fn has_fn(*self, name: str): bool => !self.active || (name in self.fns);
+	pub fn has_fn(*self, name: str) => !self.active || name in self.fns;
 
-	pub fn has_type(*self, name: str): bool => !self.active || (name in self.types);
+	pub fn has_type(*self, name: str) => !self.active || name in self.types;
 
-	pub fn has_const(*self, name: str): bool => !self.active || (name in self.consts);
+	pub fn has_const(*self, name: str) => !self.active || name in self.consts;
 
 	pub fn free(*self) {
 		self.fns.free();
@@ -117,7 +117,7 @@ impl DceWalker {
 	}
 
 	fn mark_fn(&self, name: str) {
-		if (name.empty() || !(name in self.fn_nodes) || (name in self.fns)) return;
+		if (name.empty() || name !in self.fn_nodes || name in self.fns) return;
 		self.fns += name;
 		self.fn_queue += name;
 		val owner = self.fn_owners.get_or(name, "");
@@ -127,24 +127,26 @@ impl DceWalker {
 	fn mark_type(&self, raw_name: str) {
 		if (raw_name.empty()) return;
 		val name = self.variant_to_enum.get_or(raw_name, raw_name);
-		if (!(name in self.all_types) || (name in self.types)) return;
+		if (name !in self.all_types || name in self.types) return;
 		self.types += name;
 		self.type_queue += name;
 	}
 
 	fn mark_const(&self, name: str) {
-		if (name.empty() || !(name in self.const_map) || (name in self.consts)) return;
+		if (name.empty() || name !in self.const_map || name in self.consts) return;
 		self.consts += name;
 		self.const_queue += name;
 	}
 
 	fn mark_type_obj(&self, ty: ?*Type) {
 		if (ty == null) return;
+
 		val t = ty!;
 		if (t.is_enum()) {
 			self.mark_type(t.as_enum().c_name);
 			return;
 		}
+
 		when (t.kind) {
 			DataType.POINTER -> self.mark_type_obj(t.as_pointer().pointee);
 			DataType.ARRAY -> self.mark_type_obj(t.as_array().elem);
