@@ -47,18 +47,17 @@ fn is_valid_ident_name(name: str): bool {
 		val c = name[i];
 		if (!c.is_alpha() && !c.is_digit() && c != '_') return false;
 	}
-	return when (name) {
+	return name !in [
 		"fn", "val", "var", "const", "struct", "enum", "trait", "impl",
 		"when", "if", "else", "while", "for", "in", "return", "pub",
 		"use", "mod", "extern", "true", "false", "null", "as", "break",
-		"continue", "is", "op", "init", "defer", "yield" -> false;
-		else -> true;
-	};
+		"continue", "is", "op", "init", "defer", "yield"
+	];
 }
 
 fn is_renameable_def(def: DefInfo): bool {
 	if (def.role == SymRole.MODULE) return false;
-	if (def.name == "self" || def.name == "init" || def.name == "main") return false;
+	if (def.name in ["self", "init", "main"]) return false;
 	return true;
 }
 
@@ -79,7 +78,7 @@ pub fn collect_semantic_refs(
 	if (def.key.empty()) return all_refs;
 
 	// For non-local symbols, filter by dependency graph (defining module + dependents)
-	if (def.role == SymRole.LOCAL || def.role == SymRole.PARAM) {
+	if (def.role in [SymRole.LOCAL, SymRole.PARAM]) {
 		return all_refs;
 	}
 
@@ -269,9 +268,12 @@ pub fn code_actions_json(
 			for (def in index.defs) {
 				if (!def.is_public || def.name != sym_name) continue;
 				if (def.module_name.empty() || def.module_name == cur_mod) continue;
-				if (def.role != SymRole.FN && def.role != SymRole.STRUCT &&
-					def.role != SymRole.ENUM && def.role != SymRole.TRAIT &&
-					def.role != SymRole.CONST) continue;
+				if (
+					def.role !in [
+						SymRole.FN, SymRole.STRUCT, SymRole.ENUM,
+						SymRole.TRAIT, SymRole.CONST
+					]
+				) continue;
 				if (def.module_name in offered_mods) continue;
 				offered_mods += def.module_name;
 

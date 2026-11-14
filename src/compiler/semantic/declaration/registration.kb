@@ -536,7 +536,7 @@ impl DeclarationCollector {
 				continue;
 			}
 			val bound = self.resolve_ast_type(b.type_node);
-			if (bound.kind == DataType.POINTER || bound.kind == DataType.ARRAY) {
+			if (bound.kind in [DataType.POINTER, DataType.ARRAY]) {
 				self.report_error(b.type_node,
 					"Associated type '${b.name}' must be a named type (struct, enum or primitive)"
 				);

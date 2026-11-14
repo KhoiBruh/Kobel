@@ -214,10 +214,7 @@ impl Formatter {
 			}
 			is IdentifierExpr as id -> self.buf += id.name;
 			is BinaryExpr as b -> {
-				val is_range = when (b.op) {
-					TokenType.DOT_DOT, TokenType.DOT_DOT_LESS -> true;
-					else -> false;
-				};
+				val is_range = b.op in [TokenType.DOT_DOT, TokenType.DOT_DOT_LESS];
 				self.format_expr(b.left);
 				if (!is_range) self.buf.space();
 				self.buf += op_to_str(b.op);

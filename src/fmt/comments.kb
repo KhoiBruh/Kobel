@@ -177,7 +177,7 @@ impl Comment {
 				val start_line = line;
 				i += 2;
 				col += 2;
-				while (i < len && src[i] != '\n' && src[i] != '\r') {
+				while (i < len && src[i] !in ['\n', '\r']) {
 					i++;
 					col++;
 				}

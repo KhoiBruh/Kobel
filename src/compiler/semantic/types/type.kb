@@ -205,24 +205,19 @@ impl Type {
 		return null;
 	}
 
-	pub fn is_signed_integer(*self) => when (self.kind) {
+	pub fn is_signed_integer(*self) => self.kind in [
 		DataType.I8, DataType.I16, DataType.I32,
-		DataType.I64, DataType.ISZ -> true;
-		else -> false;
-	};
+		DataType.I64, DataType.ISZ
+	];
 
-	pub fn is_unsigned_integer(*self) => when (self.kind) {
+	pub fn is_unsigned_integer(*self) => self.kind in [
 		DataType.U8, DataType.U16, DataType.U32,
-		DataType.U64, DataType.USZ -> true;
-		else -> false;
-	};
+		DataType.U64, DataType.USZ
+	];
 
 	pub fn is_integer(*self) => self.is_signed_integer() || self.is_unsigned_integer();
 
-	pub fn is_float(*self) => when (self.kind) {
-		DataType.F32, DataType.F64 -> true;
-		else -> false;
-	};
+	pub fn is_float(*self) => self.kind in [DataType.F32, DataType.F64];
 
 	pub fn is_enum(*self): bool => when (self.data) {
 		is TypePayload.Enum -> true;
@@ -234,10 +229,7 @@ impl Type {
 	pub fn is_list(*self): bool {
 		if (self.kind != DataType.STRUCT) return false;
 		val s = self.as_struct();
-		if (
-			s.module != "std.collections.list"
-			&& s.module != "std.collections"
-		) return false;
+		if (s.module !in ["std.collections.list", "std.collections"]) return false;
 
 		return s.name.starts_with("std__collections__list__List")
 			|| s.c_name.starts_with("std__collections__list__List")
@@ -341,21 +333,14 @@ impl Type {
 		// 3. Passing/assigning str to *char, &char, *u8, &u8, *none
 		if (self.kind == DataType.POINTER && source.kind == DataType.STR) {
 			val t_ptr = self.as_pointer();
-			if (
-				t_ptr.pointee.kind == DataType.CHAR
-				|| t_ptr.pointee.kind == DataType.U8
-				|| t_ptr.pointee.kind == DataType.NONE
-			) return true;
+			if (t_ptr.pointee.kind in [DataType.CHAR, DataType.U8, DataType.NONE]) return true;
 		}
 
 		// 4. Assigning a non-nullable char/u8 pointer to str
 		if (self.kind == DataType.STR && source.kind == DataType.POINTER) {
 			val s_ptr = source.as_pointer();
 			if (s_ptr.nullable) return false;
-			if (
-				s_ptr.pointee.kind == DataType.CHAR
-				|| s_ptr.pointee.kind == DataType.U8
-			) return true;
+			if (s_ptr.pointee.kind in [DataType.CHAR, DataType.U8]) return true;
 		}
 
 		// 5. Pointer mutability (&T -> *T), nullability (*T -> *T?), and raw byte pointers
@@ -372,10 +357,7 @@ impl Type {
 
 			if (s_ptr.pointee.kind == DataType.NONE) return t_ptr.nullable;
 
-			if (
-				t_ptr.pointee.kind == DataType.U8
-				|| t_ptr.pointee.kind == DataType.NONE
-			) return true;
+			if (t_ptr.pointee.kind in [DataType.U8, DataType.NONE]) return true;
 		}
 
 		return false;

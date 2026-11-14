@@ -314,6 +314,7 @@ typedef struct std__collections__Pair_str_i32 std__collections__Pair_str_i32;
 typedef struct std__collections__List_std__collections__Pair_str_i32 std__collections__List_std__collections__Pair_str_i32;
 typedef struct std__collections__HashMap_str_i32 std__collections__HashMap_str_i32;
 typedef struct std__collections__HashSet_str std__collections__HashSet_str;
+typedef struct std__range__Range_char std__range__Range_char;
 
 
 struct std__memory__ArenaBlock {
@@ -413,6 +414,12 @@ struct std__collections__HashSet_str {
     size_t cap;
 };
 
+struct std__range__Range_char {
+    char start;
+    char end;
+    bool inclusive;
+};
+
 struct tests__features__test_syntax__ConfigWithDefaults {
     kobel_str host;
     int32_t port;
@@ -445,6 +452,13 @@ size_t std__memory__Arena_total_allocated(std__memory__Arena* self);
 void std__memory__Arena_free(std__memory__Arena* self);
 uint8_t* std__memory__Heap_alloc_bytes(std__memory__Heap* self, size_t size, size_t align);
 void std__memory__Heap_free_1(void* ptr);
+bool char_is_digit(char self);
+bool char_is_alpha(char self);
+bool char_is_alphanumeric(char self);
+bool char_is_whitespace(char self);
+bool char_is_hex_digit(char self);
+char char_lower(char self);
+char char_upper(char self);
 kobel_str std__string__str_from_bytes(uint8_t* buf, size_t len);
 kobel_str std__string__common_whitespace_prefix(std__collections__List_str lines, size_t start_idx, size_t end_idx);
 bool str_empty(kobel_str self);
@@ -724,6 +738,11 @@ bool std__collections__HashSet_str_plus_assign(std__collections__HashSet_str* se
 bool std__collections__HashSet_str_contains(std__collections__HashSet_str* self, kobel_str key);
 size_t std__collections__HashSet_str_count(std__collections__HashSet_str* self);
 kobel_str std__collections__HashSet_str_at(std__collections__HashSet_str* self, size_t i);
+bool std__range__Range_char_is_ascending(std__range__Range_char* self);
+bool std__range__Range_char_equals(std__range__Range_char* self, std__range__Range_char other);
+bool std__range__Range_char_contains(std__range__Range_char* self, char item);
+size_t std__range__Range_char_count(std__range__Range_char* self);
+char std__range__Range_char_at(std__range__Range_char* self, size_t i);
 void std__memory__Heap_free_u8(uint8_t* ptr);
 void std__memory__Heap_free_str(kobel_str* ptr);
 void std__memory__Heap_free_i32(int32_t* ptr);
@@ -942,6 +961,34 @@ void std__memory__Heap_free_1(void* ptr) {
     free((uint8_t*)ptr);
 }
 
+bool char_is_digit(char self) {
+    return std__range__Range_char_contains(&(std__range__Range_char){ '0', '9', true }, self);
+}
+
+bool char_is_alpha(char self) {
+    return ((((self) >= ('a') && (self) <= ('z')) || ((self) <= ('a') && (self) >= ('z'))) || (((self) >= ('A') && (self) <= ('Z')) || ((self) <= ('A') && (self) >= ('Z'))));
+}
+
+bool char_is_alphanumeric(char self) {
+    return ((((self) >= ('a') && (self) <= ('z')) || ((self) <= ('a') && (self) >= ('z'))) || (((self) >= ('A') && (self) <= ('Z')) || ((self) <= ('A') && (self) >= ('Z'))) || (((self) >= ('0') && (self) <= ('9')) || ((self) <= ('0') && (self) >= ('9'))));
+}
+
+bool char_is_whitespace(char self) {
+    return (self == ' ' || self == '\t' || self == '\n' || self == '\r');
+}
+
+bool char_is_hex_digit(char self) {
+    return ((((self) >= ('0') && (self) <= ('9')) || ((self) <= ('0') && (self) >= ('9'))) || (((self) >= ('a') && (self) <= ('f')) || ((self) <= ('a') && (self) >= ('f'))) || (((self) >= ('A') && (self) <= ('F')) || ((self) <= ('A') && (self) >= ('F'))));
+}
+
+char char_lower(char self) {
+    return (std__range__Range_char_contains(&(std__range__Range_char){ 'A', 'Z', true }, self) ? ((char)((((int32_t)(uint8_t)(self)) + 32))) : self);
+}
+
+char char_upper(char self) {
+    return (std__range__Range_char_contains(&(std__range__Range_char){ 'a', 'z', true }, self) ? ((char)((((int32_t)(uint8_t)(self)) - 32))) : self);
+}
+
 kobel_str std__string__str_from_bytes(uint8_t* buf, size_t len) {
 std__string__StrRaw r = (std__string__StrRaw){ (const char*)buf, len };
 kobel_str* sp = (kobel_str*)&r;
@@ -986,11 +1033,10 @@ size_t __for_n = line.len;
 size_t __for_i = 0;
 while (__for_i < __for_n) {
 char c = line.data[__for_i];
-if (c == ' ' || c == '\t') {
-ws_end++;
-} else {
+if (!(c == ' ' || c == '\t')) {
 break;
 }
+ws_end++;
 __for_i = (__for_i + 1);
 }
 }
@@ -1194,7 +1240,7 @@ return std__string__str_from_bytes(buf, self.len);
 
 static bool __lambda_fn_1(void* __raw_env, char c) {
     (void)__raw_env;
-return (c == ' ' || c == '\t' || c == '\r' || c == '\n' ? true : false);
+return char_is_whitespace(c);
 }
 
 bool str_blank(kobel_str self) {
@@ -1485,8 +1531,9 @@ if (kobel_streq(two, KOBEL_STR("UZ")) || kobel_streq(two, KOBEL_STR("UL")) || ko
 return two;
 }
 }
-kobel_str last = kobel_slice(self, (self.len - 1), self.len);
-if (self.data[(self.len - 1)] == 'U' || self.data[(self.len - 1)] == 'L' || self.data[(self.len - 1)] == 'S' || self.data[(self.len - 1)] == 'B' || self.data[(self.len - 1)] == 'Z' || self.data[(self.len - 1)] == 'D' || self.data[(self.len - 1)] == 'F') {
+size_t end = (self.len - 1);
+kobel_str last = kobel_slice(self, end, self.len);
+if (self.data[end] == 'U' || self.data[end] == 'L' || self.data[end] == 'S' || self.data[end] == 'B' || self.data[end] == 'Z' || self.data[end] == 'D' || self.data[end] == 'F') {
 return last;
 }
 return KOBEL_STR("");
@@ -1552,11 +1599,10 @@ return self;
 int32_t start = 0;
 while (start < self.len) {
 char c = self.data[start];
-if (c == ' ' || c == '\t' || c == '\r' || c == '\n') {
-start++;
-} else {
+if (!char_is_whitespace(c)) {
 break;
 }
+start++;
 }
 if (start == self.len) {
 return KOBEL_STR("");
@@ -1564,11 +1610,10 @@ return KOBEL_STR("");
 size_t end = self.len;
 while (end > start) {
 char c = self.data[(end - 1)];
-if (c == ' ' || c == '\t' || c == '\r' || c == '\n') {
-end--;
-} else {
+if (!char_is_whitespace(c)) {
 break;
 }
+end--;
 }
 return kobel_slice(self, start, end);
 }
@@ -1797,7 +1842,7 @@ void std__string__StringBuilder_append_i32(std__string__StringBuilder* self, int
 }
 
 void std__string__StringBuilder_append_bool(std__string__StringBuilder* self, bool b) {
-    (b ? std__string__StringBuilder_plus_assign_2(self, KOBEL_STR("true")) : std__string__StringBuilder_plus_assign_2(self, KOBEL_STR("false")));
+    std__string__StringBuilder_plus_assign_2(self, (b ? KOBEL_STR("true") : KOBEL_STR("false")));
 }
 
 void std__string__StringBuilder_append_line(std__string__StringBuilder* self, kobel_str s) {
@@ -6105,6 +6150,43 @@ __for_i = (__for_i - 1);
 }
 }
 return self->keys[0];
+}
+
+bool std__range__Range_char_is_ascending(std__range__Range_char* self) {
+    return (self->start <= self->end);
+}
+
+bool std__range__Range_char_equals(std__range__Range_char* self, std__range__Range_char other) {
+    return (((self->start == other.start) && (self->end == other.end)) && (self->inclusive == other.inclusive));
+}
+
+bool std__range__Range_char_contains(std__range__Range_char* self, char item) {
+if (std__range__Range_char_is_ascending(self)) {
+if (self->inclusive) {
+return ((item >= self->start) && (item <= self->end));
+}
+return ((item >= self->start) && (item < self->end));
+}
+if (self->inclusive) {
+return ((item <= self->start) && (item >= self->end));
+}
+return ((item <= self->start) && (item > self->end));
+}
+
+size_t std__range__Range_char_count(std__range__Range_char* self) {
+if (std__range__Range_char_is_ascending(self)) {
+size_t diff = (size_t)(self->end - self->start);
+return (self->inclusive ? (diff + 1) : diff);
+}
+size_t diff = (size_t)(self->start - self->end);
+return (self->inclusive ? (diff + 1) : diff);
+}
+
+char std__range__Range_char_at(std__range__Range_char* self, size_t i) {
+if (std__range__Range_char_is_ascending(self)) {
+return (char)(self->start + ((intptr_t)i));
+}
+return (char)(self->start - ((intptr_t)i));
 }
 
 void std__memory__Heap_free_u8(uint8_t* ptr) {

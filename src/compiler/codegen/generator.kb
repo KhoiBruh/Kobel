@@ -184,7 +184,7 @@ pub fn c_float_literal_c_type(raw: str) => if (raw.ends_with("F")) "float" else 
 pub fn c_format_float_literal(raw: str): str {
 	// `_` digit separators are not C syntax, so they are dropped first.
 	val text = raw.strip_char('_');
-	if (text.any { c -> c == '.' || c == 'e' || c == 'E' }) return text;
+	if (text.any { c -> c in ['.', 'e', 'E'] }) return text;
 
 	val len = text.len;
 	return when (text) {

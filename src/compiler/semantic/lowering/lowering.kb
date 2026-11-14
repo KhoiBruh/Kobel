@@ -281,7 +281,7 @@ impl LoweringPass {
 			return self.lowered(node, cat);
 		}
 
-		if (bin.op == TokenType.EQUAL_EQUAL || bin.op == TokenType.BANG_EQUAL) {
+		if (bin.op in [TokenType.EQUAL_EQUAL, TokenType.BANG_EQUAL]) {
 			if (self.is_str_expr(bin.left) && self.is_str_expr(bin.right)) {
 				val is_neq = bin.op == TokenType.BANG_EQUAL;
 				val eq = self.arena.make_str_eq(
@@ -371,7 +371,7 @@ impl LoweringPass {
 			return self.lowered(node, call);
 		}
 
-		if (bin.op == TokenType.EQUAL_EQUAL || bin.op == TokenType.BANG_EQUAL) {
+		if (bin.op in [TokenType.EQUAL_EQUAL, TokenType.BANG_EQUAL]) {
 			val lt = self.type_of(bin.left);
 			if (lt?.kind == DataType.STRUCT) {
 				val is_neq = bin.op == TokenType.BANG_EQUAL;
@@ -490,7 +490,7 @@ impl LoweringPass {
 		if (self.is_array_expr(obj)) {
 			val arr = self.type_of(obj).as_array();
 			if (arr.length == 0 && obj is IdentifierExpr as id) {
-				if (mem.member == "len" || mem.member == "size") {
+				if (mem.member in ["len", "size"]) {
 					val id_node = self.arena.node(
 						NodeData.IdentifierExpr("${id.name}_len"),
 						node.line, node.col
@@ -505,7 +505,7 @@ impl LoweringPass {
 					return self.lowered(node, id_node);
 				}
 			}
-			if (mem.member == "len" || mem.member == "size") {
+			if (mem.member in ["len", "size"]) {
 				val lit = self.arena.node(
 					NodeData.LiteralExpr(Literal.INTEGER, "${arr.length}"),
 					node.line, node.col

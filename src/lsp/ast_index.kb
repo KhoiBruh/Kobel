@@ -227,7 +227,7 @@ fn find_member_token_after(
 		val tok = tokens[i];
 		if (tok.line > start_line + 3) break;
 		if (tok.line > start_line || tok.col >= start_col) {
-			if (tok.type == TokenType.DOT || tok.type == TokenType.QUESTION_DOT) {
+			if (tok.type in [TokenType.DOT, TokenType.QUESTION_DOT]) {
 				seen_dot = true;
 			} else if (seen_dot && tok.type == TokenType.IDENTIFIER && tok.text == member) {
 				return tok;
@@ -357,9 +357,12 @@ impl SemanticIndex {
 		} else if (def.role == SymRole.ENUM && !(def.name in self.enum_mod_by_name)) {
 			self.enum_mod_by_name[def.name] = def.module_name;
 		}
-		if ((def.role == SymRole.FN || def.role == SymRole.STRUCT ||
-			def.role == SymRole.ENUM || def.role == SymRole.TRAIT ||
-			def.role == SymRole.CONST) && !(def.name in self.top_key_by_name)) {
+		if (
+			def.role in [
+				SymRole.FN, SymRole.STRUCT, SymRole.ENUM,
+				SymRole.TRAIT, SymRole.CONST
+			] && !(def.name in self.top_key_by_name)
+		) {
 			self.top_key_by_name[def.name] = def.key;
 		}
 
@@ -1148,7 +1151,7 @@ impl IndexWalker {
 				self.walk_expr(node.right);
 			}
 			is UnaryExpr -> {
-				if (node.op == TokenType.AMPERSAND || node.op == TokenType.PLUS_PLUS || node.op == TokenType.MINUS_MINUS) {
+				if (node.op in [TokenType.AMPERSAND, TokenType.PLUS_PLUS, TokenType.MINUS_MINUS]) {
 					self.mark_mutated(node.operand);
 				}
 				self.walk_expr(node.operand);

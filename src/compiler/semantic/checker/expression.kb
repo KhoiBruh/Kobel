@@ -34,10 +34,7 @@ impl BodyChecker {
 
 		if (node is GroupExpr as g) return self.is_untyped_literal(g.expr);
 
-		if (node is UnaryExpr as un && when (un.op) {
-			TokenType.MINUS, TokenType.PLUS -> true;
-			else -> false;
-		}) {
+		if (node is UnaryExpr as un && un.op in [TokenType.MINUS, TokenType.PLUS]) {
 			return self.is_untyped_literal(un.operand);
 		}
 
@@ -116,7 +113,7 @@ impl BodyChecker {
 
 			if (
 				sym.type_ptr.kind == DataType.FN
-				&& (sym.kind == SymbolKind.PARAM || sym.kind == SymbolKind.VAR)
+				&& sym.kind in [SymbolKind.PARAM, SymbolKind.VAR]
 				&& !self.allowing_fn_param_ref
 			) {
 				self.report_error(

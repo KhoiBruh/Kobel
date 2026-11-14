@@ -1,5 +1,6 @@
 mod std.string;
 
+use std.ascii.*;
 use std.collections.List;
 use std.memory.*;
 

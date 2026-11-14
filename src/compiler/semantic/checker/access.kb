@@ -169,7 +169,7 @@ impl BodyChecker {
 
 	fn member_on_array(&self, node: *AstNode, mem: *MemberExpr, obj_ty: *Type): *Type {
 		val arr = obj_ty.as_array();
-		if (mem.member == "len" || mem.member == "size") return self.prims().t_usz();
+		if (mem.member in ["len", "size"]) return self.prims().t_usz();
 		if (mem.member == "data") return self.arena.pointer_type(arr.elem, true);
 		self.report_error(node, "Member access on non-struct type");
 		return self.prims().t_none();
@@ -197,8 +197,7 @@ impl BodyChecker {
 			val index_ty = self.check_expr(idx.index);
 
 			if (
-				target_ty.kind == DataType.ARRAY ||
-				target_ty.kind == DataType.STR ||
+				target_ty.kind in [DataType.ARRAY, DataType.STR] ||
 				(target_ty.kind == DataType.POINTER && index_ty.is_integer())
 			) {
 				self.ensure(index_ty.is_integer(), node, "Index must be integer");

@@ -187,7 +187,7 @@ impl CCodeGen {
 
 	// Binary expressions lower to a parenthesised C operator (?: for the elvis form).
 	fn gen_binary_expr(&self, ast_node: *AstNode, bin: *BinaryExpr): str {
-		if (bin.op == TokenType.DOT_DOT || bin.op == TokenType.DOT_DOT_LESS) {
+		if (bin.op in [TokenType.DOT_DOT, TokenType.DOT_DOT_LESS]) {
 			val c_ty = self.c_type_of(ast_node);
 			val l = self.gen_expr(bin.left);
 			val r = self.gen_expr(bin.right);
@@ -235,12 +235,11 @@ impl CCodeGen {
 			}
 		}
 
-		val is_cmp = when (bin.op) {
+		val is_cmp = bin.op in [
 			TokenType.EQUAL_EQUAL, TokenType.BANG_EQUAL,
 			TokenType.LESS, TokenType.LESS_EQUAL,
-			TokenType.GREATER, TokenType.GREATER_EQUAL -> true;
-			else -> false;
-		};
+			TokenType.GREATER, TokenType.GREATER_EQUAL
+		];
 		if (is_cmp) {
 			val unwrapped_l = unwrap_group_expr(bin.left);
 			val unwrapped_r = unwrap_group_expr(bin.right);
@@ -459,13 +458,13 @@ impl CCodeGen {
 		val obj_node = mem.object;
 		val obj_ty = self.node_type(obj_node);
 		if (obj_ty?.kind == DataType.ARRAY && obj_ty.as_array().length == 0 && obj_node is IdentifierExpr as id) {
-			if (mem.member == "len" || mem.member == "size") return "${id.name}_len";
+			if (mem.member in ["len", "size"]) return "${id.name}_len";
 			if (mem.member == "data") return "${id.name}_data";
 		}
 		if (obj_node is IdentifierExpr as id) {
 			val sym = self.symtab?.lookup(id.name);
 			if (sym != null && sym.is_vararg) {
-				if (mem.member == "len" || mem.member == "size") return "${id.name}_len";
+				if (mem.member in ["len", "size"]) return "${id.name}_len";
 				if (mem.member == "data") return "${id.name}_data";
 			}
 		}
@@ -491,7 +490,7 @@ impl CCodeGen {
 				if (mem_ty.is_integer() || mem_ty.is_enum() || mk == DataType.CHAR) {
 					return "(${obj_str} != NULL ? ${obj_str}->${mem.member} : 0)";
 				}
-				if (mk == DataType.F32 || mk == DataType.F64) {
+				if (mk in [DataType.F32, DataType.F64]) {
 					return "(${obj_str} != NULL ? ${obj_str}->${mem.member} : 0.0)";
 				}
 			}
@@ -514,7 +513,7 @@ impl CCodeGen {
 							if (f.type_ptr.is_integer() || f.type_ptr.is_enum() || fk == DataType.CHAR) {
 								return "(${obj_str} != NULL ? ${obj_str}->${mem.member} : 0)";
 							}
-							if (fk == DataType.F32 || fk == DataType.F64) {
+							if (fk in [DataType.F32, DataType.F64]) {
 								return "(${obj_str} != NULL ? ${obj_str}->${mem.member} : 0.0)";
 							}
 							return "(${obj_str} != NULL ? ${obj_str}->${mem.member} : NULL)";
@@ -635,7 +634,7 @@ impl CCodeGen {
 				if (tag_field.empty()) tag_field = "tag";
 				val tag_const = if (pat_info.tag_const.empty()) "${target_name}__TAG" else pat_info.tag_const;
 				test = self.gen_tag_test(cond, pat_info.is_ptr, tag_field, tag_const);
-			} else if (unwrapped_p is BinaryExpr as bin && (bin.op == TokenType.DOT_DOT || bin.op == TokenType.DOT_DOT_LESS)) {
+			} else if (unwrapped_p is BinaryExpr as bin && bin.op in [TokenType.DOT_DOT, TokenType.DOT_DOT_LESS]) {
 				val s = self.gen_expr(bin.left);
 				val e = self.gen_expr(bin.right);
 				val op1 = if (bin.op == TokenType.DOT_DOT) "<=" else "<";

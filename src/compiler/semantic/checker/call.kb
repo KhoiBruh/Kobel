@@ -152,8 +152,6 @@ impl BodyChecker {
 		cid: *IdentifierExpr
 	): *Type? {
 		val local_sym = self.symtab.lookup(cid.name);
-		//val is_local_var = local_sym?.kind in [SymbolKind.VAR, SymbolKind.PARAM];
-		//val is_fn_or_struct = local_sym?.kind in [SymbolKind.FN, SymbolKind.STRUCT];
 		if (
 			local_sym?.kind in [
 				SymbolKind.VAR, SymbolKind.PARAM,

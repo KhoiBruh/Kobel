@@ -92,7 +92,7 @@ impl TypeResolver {
 						self.report_error(node, "Trait associated type '${assoc}' is not bound for '${self_name}'");
 						yield self.prims().t_none();
 					}
-					if (bound.kind == DataType.POINTER || bound.kind == DataType.ARRAY) {
+					if (bound.kind in [DataType.POINTER, DataType.ARRAY]) {
 						self.report_error(node, "Associated type '${assoc}' must be a named type (struct, enum or primitive)");
 						yield self.prims().t_none();
 					}

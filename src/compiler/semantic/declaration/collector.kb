@@ -512,7 +512,7 @@ impl DeclarationCollector {
 
 	fn eval_float_enum_member(&self, node: *AstNode, m: EnumMember): str {
 		if (m.value != null) {
-			if (m.value is LiteralExpr as lit && (lit.literal_kind == Literal.FLOAT || lit.literal_kind == Literal.INTEGER)) {
+			if (m.value is LiteralExpr as lit && lit.literal_kind in [Literal.FLOAT, Literal.INTEGER]) {
 				return lit.raw_text;
 			}
 			self.report_error(m.value!, "Enum member value for float enum must be a number literal");

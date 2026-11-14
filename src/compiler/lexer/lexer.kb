@@ -241,8 +241,7 @@ impl Lexer {
 				if (c2 in ['S', 'L', 'B', 'Z']) {
 					self.next();
 					self.next();
-				}
-				self.next();
+				} else self.next();
 			} else if (c1 in ['S', 'L', 'B', 'Z', 'U', 'D', 'F']) self.next();
 		}
 
@@ -569,15 +568,14 @@ impl Lexer {
 					if (self.match('/')) {
 						while (
 							!self.is_end()
-							&& self.peek() != '\n'
-							&& self.peek() != '\r'
+							&& self.peek() !in ['\n', '\r']
 						) self.next();
 						continue;
 					}
 					if (self.match('*')) {
 						var closed_comment = false;
 						while (!self.is_end()) {
-							if (self.peek() == '\r' || self.peek() == '\n') {
+							if (self.peek() in ['\r', '\n']) {
 								self.newline();
 								continue;
 							}

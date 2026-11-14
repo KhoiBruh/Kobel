@@ -150,7 +150,7 @@ impl BodyChecker {
 					val target_s = target_ty.as_struct();
 					for (m in enum_info.members) {
 						val full_vname = "${enum_info.name}.${m.name}";
-						if (target_s.name == full_vname || target_s.name == m.name) {
+						if (target_s.name in [full_vname, m.name]) {
 							return m.name;
 						}
 					}
@@ -257,10 +257,8 @@ impl BodyChecker {
 
 		val unwrapped = self.unwrap_group(pat);
 		if (
-			unwrapped is BinaryExpr as bin && (
-				bin.op == TokenType.DOT_DOT ||
-				bin.op == TokenType.DOT_DOT_LESS
-			)
+			unwrapped is BinaryExpr as bin &&
+			bin.op in [TokenType.DOT_DOT, TokenType.DOT_DOT_LESS]
 		) {
 			val r_ty = self.check_expr(pat);
 			if (cond_ty != null && r_ty.kind == DataType.STRUCT) {
@@ -379,7 +377,7 @@ impl BodyChecker {
 			var matched_data_member: *EnumMemberInfo? = null;
 			if (data_enum?.is_payload) {
 				for (m in data_enum.members) {
-					if (m.name == target_s.name || "${data_enum.name}.${m.name}" == target_s.name) {
+					if (target_s.name in [m.name, "${data_enum.name}.${m.name}"]) {
 						is_payload_data = true;
 						matched_data_member = m;
 						tag_field_name = "data.tag";

@@ -36,8 +36,7 @@ pub enum Precedence {
 // into the same token, so a '.' in the text marks a float literal. Hex/binary
 // literals and suffixes never contain one.
 pub fn num_literal_is_float(text: str): bool {
-	//for (c in text) if (c == '.') return true;
-	return text.any { c -> yield c == '.'; };
+	if (text.any { c -> yield c == '.'; }) return true;
 	// A trailing F/D is only a float suffix when the literal really carries one:
 	// `0xEF` ends in F but is the integer 239.
 	val suffix = text.num_suffix();
@@ -402,7 +401,7 @@ impl Parser {
 		if (!self.check(TokenType.ARROW)) {
 			while (!self.is_end()) {
 				val p_peek = self.peek();
-				if (p_peek.type == TokenType.KW_VAR || p_peek.type == TokenType.KW_VAL) {
+				if (p_peek.type in [TokenType.KW_VAR, TokenType.KW_VAL]) {
 					self.error(p_peek, "Lambda parameters are always immutable ('val') and cannot specify 'val' or 'var'");
 					self.advance();
 				}

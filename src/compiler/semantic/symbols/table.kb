@@ -176,7 +176,7 @@ impl SymbolTable {
 				if (sym.name == name) {
 					if (
 						reached_boundary
-						&& (sym.kind == SymbolKind.VAR || sym.kind == SymbolKind.PARAM)
+						&& sym.kind in [SymbolKind.VAR, SymbolKind.PARAM]
 					) return sym;
 					return null;
 				}
@@ -193,7 +193,7 @@ impl SymbolTable {
 			for (sym in curr) {
 				if (
 					sym.name == name
-					&& (sym.kind == SymbolKind.VAR || sym.kind == SymbolKind.PARAM)
+					&& sym.kind in [SymbolKind.VAR, SymbolKind.PARAM]
 				) return sym;
 			}
 			curr = curr.parent;
