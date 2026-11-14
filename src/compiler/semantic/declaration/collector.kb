@@ -783,7 +783,7 @@ impl DeclarationCollector {
 
 	fn pass1_declarations(&self, prog: *Program) {
 		for (d in prog) {
-			if (!(d is ImplDecl) && !(d is EnumDecl)) self.collect_declaration(d);
+			if (d !is ImplDecl && d !is EnumDecl) self.collect_declaration(d);
 		}
 	}
 

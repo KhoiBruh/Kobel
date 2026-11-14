@@ -2920,6 +2920,7 @@ kobel_str compiler__parser__multiline_escape_for_c(kobel_str text);
 size_t compiler__parser__interp_skip_char_lit(kobel_str text, size_t start);
 size_t compiler__parser__interp_skip_quoted(kobel_str text, size_t start);
 intptr_t compiler__parser__interp_find_close(kobel_str text, size_t start);
+bool compiler__parser__Parser_is_adjacent_negated_op(compiler__parser__Parser* self);
 compiler__parser__Precedence compiler__parser__Parser_get_infix_precedence(compiler__parser__Parser* self, compiler__lexer__TokenType t);
 compiler__ast__AstNode* compiler__parser__Parser_parse_is_pattern(compiler__parser__Parser* self, compiler__ast__AstNode* left, size_t line, size_t col);
 std__collections__List_ptr_compiler__ast__AstNode compiler__parser__Parser_parse_when_patterns(compiler__parser__Parser* self);
@@ -12210,6 +12211,12 @@ i++;
 return -1;
 }
 
+bool compiler__parser__Parser_is_adjacent_negated_op(compiler__parser__Parser* self) {
+compiler__lexer__Token bang = compiler__parser__Parser_peek(self);
+compiler__lexer__Token next = compiler__parser__Parser_peek_at(self, 1);
+return ((((bang.type == 4) && (next.type == 68 || next.type == 72)) && (bang.line == next.line)) && ((bang.col + 1) == next.col));
+}
+
 compiler__parser__Precedence compiler__parser__Parser_get_infix_precedence(compiler__parser__Parser* self, compiler__lexer__TokenType t) {
 if (t == 5 || t == 33 || t == 34 || t == 35 || t == 36 || t == 37) {
 return 1;
@@ -12224,7 +12231,7 @@ return 5;
 } else if (t == 23 || t == 11 || t == 24 || t == 72 || t == 68) {
 return 6;
 } else if (t == 4) {
-if (compiler__parser__Parser_peek_at(self, 1).type == 68) {
+if (compiler__parser__Parser_is_adjacent_negated_op(self)) {
 return 6;
 }
 return 11;
@@ -12470,6 +12477,12 @@ compiler__parser__Parser_consume(self, 14, KOBEL_STR("Expected ']' after candida
 return compiler__parser__Parser_node(self, (compiler__ast__NodeData){ .tag = 18, .u.ArrayLiteralExpr = { elements } }, line, col);
 } else if (tok.type == 7 || tok.type == 4 || tok.type == 8 || tok.type == 19) {
 compiler__ast__AstNode* operand = compiler__parser__Parser_parse_expression(self, 10);
+{
+compiler__ast__NodeData__IsExpr* is_e = NULL;
+if (((tok.type == 4) && (operand != NULL && operand->data.tag == compiler__ast__NodeData__IsExpr__TAG && (is_e = (compiler__ast__NodeData__IsExpr*)(&(operand)->data.u.IsExpr), 1))) && !str_empty(is_e->alias)) {
+std__collections__List_compiler__core__Diagnostic_plus_assign(&self->errors, compiler__core__Diagnostic_error(compiler__core__Span_init(self->file_id, line, col, 1), KOBEL_STR(""), KOBEL_STR("Cannot bind an 'as' alias with '!is'"), KOBEL_STR("")));
+}
+}
 return compiler__parser__Parser_node(self, (compiler__ast__NodeData){ .tag = 10, .u.UnaryExpr = { tok.type, operand, false } }, line, col);
 } else if (tok.type == 72) {
 return compiler__parser__Parser_parse_is_pattern(self, NULL, line, col);
@@ -12549,7 +12562,7 @@ return compiler__parser__Parser_node(self, (compiler__ast__NodeData){ .tag = 15,
 compiler__parser__Parser_advance(self);
 return compiler__parser__Parser_node(self, (compiler__ast__NodeData){ .tag = 15, .u.UpdateExpr = { 32, left } }, line, col);
 } else if (tok_type == 4) {
-if (compiler__parser__Parser_peek_at(self, 1).type != 68) {
+if (!compiler__parser__Parser_is_adjacent_negated_op(self)) {
 compiler__parser__Parser_advance(self);
 return compiler__parser__Parser_node(self, (compiler__ast__NodeData){ .tag = 10, .u.UnaryExpr = { 4, left, true } }, line, col);
 }
@@ -12622,6 +12635,17 @@ compiler__parser__Parser_advance(self);
 compiler__ast__AstNode* right = compiler__parser__Parser_parse_expression(self, prec);
 compiler__ast__AstNode* in_expr = compiler__parser__Parser_node(self, (compiler__ast__NodeData){ .tag = 9, .u.BinaryExpr = { left, 68, right } }, line, col);
 return compiler__parser__Parser_node(self, (compiler__ast__NodeData){ .tag = 10, .u.UnaryExpr = { 4, in_expr, false } }, line, col);
+} else if (compiler__parser__Parser_check(self, 4) && (compiler__parser__Parser_peek_at(self, 1).type == 72)) {
+compiler__parser__Parser_advance(self);
+compiler__parser__Parser_advance(self);
+compiler__ast__AstNode* is_expr = compiler__parser__Parser_parse_is_pattern(self, left, line, col);
+{
+compiler__ast__NodeData__IsExpr* is_e = NULL;
+if ((is_expr != NULL && is_expr->data.tag == compiler__ast__NodeData__IsExpr__TAG && (is_e = (compiler__ast__NodeData__IsExpr*)(&(is_expr)->data.u.IsExpr), 1)) && !str_empty(is_e->alias)) {
+std__collections__List_compiler__core__Diagnostic_plus_assign(&self->errors, compiler__core__Diagnostic_error(compiler__core__Span_init(self->file_id, line, col, 1), KOBEL_STR(""), KOBEL_STR("Cannot bind an 'as' alias with '!is'"), KOBEL_STR("")));
+}
+}
+return compiler__parser__Parser_node(self, (compiler__ast__NodeData){ .tag = 10, .u.UnaryExpr = { 4, is_expr, false } }, line, col);
 } else if (compiler__parser__Parser_check(self, 12) && compiler__parser__Parser_is_generic_args_ahead(self)) {
 compiler__parser__Parser_advance(self);
 std__collections__List_ptr_compiler__ast__AstNode type_args = std__collections__List_ptr_compiler__ast__AstNode_init(NULL, 0);
@@ -19432,7 +19456,7 @@ size_t __for_n = compiler__ast__NodeData__Program_count(prog);
 size_t __for_i = 0;
 while (__for_i < __for_n) {
 compiler__ast__AstNode* d = compiler__ast__NodeData__Program_at(prog, __for_i);
-if (!((d != NULL && d->data.tag == compiler__ast__NodeData__ImplDecl__TAG)) && !((d != NULL && d->data.tag == compiler__ast__NodeData__EnumDecl__TAG))) {
+if (!(d != NULL && d->data.tag == compiler__ast__NodeData__ImplDecl__TAG) && !(d != NULL && d->data.tag == compiler__ast__NodeData__EnumDecl__TAG)) {
 compiler__semantic__declaration__DeclarationCollector_collect_declaration(self, d);
 }
 __for_i = (__for_i + 1);
@@ -21248,7 +21272,7 @@ return compiler__semantic__lowering__LoweringPass_lowered(self, node, eq);
 compiler__ast__NodeData__ArrayLiteralExpr* al = NULL;
 if ((bin->op == 68) && (bin->right != NULL && bin->right->data.tag == compiler__ast__NodeData__ArrayLiteralExpr__TAG && (al = (compiler__ast__NodeData__ArrayLiteralExpr*)(&(bin->right)->data.u.ArrayLiteralExpr), 1))) {
 compiler__semantic__types__Type* lt = compiler__semantic__lowering__LoweringPass_type_of(self, bin->left);
-if (((lt != NULL && lt->kind == 18) && !std__collections__List_ptr_compiler__ast__AstNode_empty(&al->elements)) && !((std__collections__List_ptr_compiler__ast__AstNode_first(&al->elements) != NULL && std__collections__List_ptr_compiler__ast__AstNode_first(&al->elements)->data.tag == compiler__ast__NodeData__IsExpr__TAG))) {
+if (((lt != NULL && lt->kind == 18) && !std__collections__List_ptr_compiler__ast__AstNode_empty(&al->elements)) && !(std__collections__List_ptr_compiler__ast__AstNode_first(&al->elements) != NULL && std__collections__List_ptr_compiler__ast__AstNode_first(&al->elements)->data.tag == compiler__ast__NodeData__IsExpr__TAG)) {
 compiler__semantic__types__StructType* s_info = compiler__semantic__types__Type_as_struct(lt);
 std__collections__List_ptr_compiler__semantic__types__Type arg_types = std__collections__List_ptr_compiler__semantic__types__Type_init(NULL, 0);
 std__collections__List_ptr_compiler__semantic__types__Type_plus_assign(&arg_types, lt);
@@ -21780,7 +21804,7 @@ obj_expr = subj_copy;
 }
 }
 compiler__semantic__types__Type* obj_ty = compiler__semantic__checker__BodyChecker_check_expr(self, obj_expr, NULL);
-if ((!mem->is_safe && (obj_ty->kind == 16)) && !((obj_expr != NULL && obj_expr->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG))) {
+if ((!mem->is_safe && (obj_ty->kind == 16)) && !(obj_expr != NULL && obj_expr->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG)) {
 compiler__ast__AstNode* deref = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 10, .u.UnaryExpr = { 8, obj_expr, false } }, node->line, node->col);
 if (self->current_rec != NULL) {
 compiler__semantic__checker__BodyChecker_set_ann_obj(self, node, deref);
@@ -24220,7 +24244,7 @@ if ((node != NULL && node->data.tag == compiler__ast__NodeData__GroupExpr__TAG &
 return compiler__semantic__checker__BodyChecker_check_expr(self, g->expr, expected);
 }
 }
-if (!((node != NULL && node->data.tag == compiler__ast__NodeData__BinaryExpr__TAG)) && !((node != NULL && node->data.tag == compiler__ast__NodeData__AssignExpr__TAG))) {
+if (!(node != NULL && node->data.tag == compiler__ast__NodeData__BinaryExpr__TAG) && !(node != NULL && node->data.tag == compiler__ast__NodeData__AssignExpr__TAG)) {
 self->is_stmt_level = false;
 }
 compiler__semantic__types__Type* ty = compiler__semantic__checker__BodyChecker_check_expr_node(self, node, expected);
@@ -25349,7 +25373,7 @@ __for_go = (__for_i > __for_e);
 }
 while (__for_go) {
 size_t i = __for_i;
-if (!((std__collections__List_ptr_compiler__ast__AstNode_get(&call_args, i) != NULL && std__collections__List_ptr_compiler__ast__AstNode_get(&call_args, i)->data.tag == compiler__ast__NodeData__LambdaExpr__TAG))) {
+if (!(std__collections__List_ptr_compiler__ast__AstNode_get(&call_args, i) != NULL && std__collections__List_ptr_compiler__ast__AstNode_get(&call_args, i)->data.tag == compiler__ast__NodeData__LambdaExpr__TAG)) {
 if (__for_up) {
 __for_go = ((__for_i + 1) < __for_e);
 } else {
@@ -26337,6 +26361,26 @@ return compiler__semantic__types__PrimTypes_t_bool(compiler__semantic__checker__
 }
 }
 compiler__ast__AstNode* unwrapped = compiler__semantic__checker__BodyChecker_unwrap_group(self, pat);
+{
+compiler__ast__NodeData__UnaryExpr* un = NULL;
+if (((unwrapped != NULL && unwrapped->data.tag == compiler__ast__NodeData__UnaryExpr__TAG && (un = (compiler__ast__NodeData__UnaryExpr*)(&(unwrapped)->data.u.UnaryExpr), 1)) && (un->op == 4)) && !un->is_postfix) {
+compiler__ast__AstNode* inner = compiler__semantic__checker__BodyChecker_unwrap_group(self, un->operand);
+{
+compiler__ast__NodeData__IsExpr* inner_is = NULL;
+if ((inner != NULL && inner->data.tag == compiler__ast__NodeData__IsExpr__TAG && (inner_is = (compiler__ast__NodeData__IsExpr*)(&(inner)->data.u.IsExpr), 1))) {
+compiler__semantic__types__Type* subj_ty = ((inner_is->expr == NULL) ? cond_ty : compiler__semantic__checker__BodyChecker_check_expr(self, inner_is->expr, NULL));
+if (inner_is->expr == NULL) {
+inner_is->expr = cond;
+}
+compiler__semantic__checker__BodyChecker_check_is_pattern(self, inner_is->expr, subj_ty, inner);
+compiler__semantic__checker__BodyChecker_annotate_type(self, inner, compiler__semantic__types__PrimTypes_t_bool(compiler__semantic__checker__BodyChecker_prims(self)));
+compiler__semantic__checker__BodyChecker_annotate_type(self, pat, compiler__semantic__types__PrimTypes_t_bool(compiler__semantic__checker__BodyChecker_prims(self)));
+compiler__semantic__checker__BodyChecker_set_predicate_pattern(self, pat);
+return compiler__semantic__types__PrimTypes_t_bool(compiler__semantic__checker__BodyChecker_prims(self));
+}
+}
+}
+}
 {
 compiler__ast__NodeData__BinaryExpr* bin = NULL;
 if ((unwrapped != NULL && unwrapped->data.tag == compiler__ast__NodeData__BinaryExpr__TAG && (bin = (compiler__ast__NodeData__BinaryExpr*)(&(unwrapped)->data.u.BinaryExpr), 1)) && (bin->op == 29 || bin->op == 30)) {
@@ -27716,17 +27760,36 @@ compiler__semantic__checker__BodyChecker_check_statement(self, if_s->then_branch
 compiler__semantic__symbols__SymbolTable_exit_scope(&self->symtab);
 if (if_s->else_branch != NULL) {
 bool else_null_guard = false;
+bool else_neg_is = false;
 compiler__ast__AstNode* single_c = compiler__semantic__checker__BodyChecker_unwrap_group(self, if_s->condition);
 {
 compiler__ast__NodeData__BinaryExpr* eq_bin = NULL;
+compiler__ast__NodeData__UnaryExpr* neg_un = NULL;
 if ((single_c != NULL && single_c->data.tag == compiler__ast__NodeData__BinaryExpr__TAG && (eq_bin = (compiler__ast__NodeData__BinaryExpr*)(&(single_c)->data.u.BinaryExpr), 1)) && (eq_bin->op == 21)) {
 compiler__semantic__symbols__SymbolTable_enter_scope(&self->symtab, false);
 compiler__semantic__checker__BodyChecker_check_null_guard(self, eq_bin->left, eq_bin->right);
 else_null_guard = true;
+} else if (((single_c != NULL && single_c->data.tag == compiler__ast__NodeData__UnaryExpr__TAG && (neg_un = (compiler__ast__NodeData__UnaryExpr*)(&(single_c)->data.u.UnaryExpr), 1)) && (neg_un->op == 4)) && !neg_un->is_postfix) {
+compiler__ast__AstNode* inner_is = compiler__semantic__checker__BodyChecker_unwrap_group(self, neg_un->operand);
+{
+compiler__ast__NodeData__IsExpr* is_e = NULL;
+compiler__ast__NodeData__IdentifierExpr* id = NULL;
+if (((inner_is != NULL && inner_is->data.tag == compiler__ast__NodeData__IsExpr__TAG && (is_e = (compiler__ast__NodeData__IsExpr*)(&(inner_is)->data.u.IsExpr), 1)) && str_empty(is_e->alias)) && (is_e->expr != NULL && is_e->expr->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (id = (compiler__ast__NodeData__IdentifierExpr*)(&(is_e->expr)->data.u.IdentifierExpr), 1))) {
+compiler__semantic__types__Type* subj_ty = compiler__semantic__checker__BodyChecker_check_expr(self, is_e->expr, NULL);
+compiler__semantic__types__Type* cast_ty = compiler__semantic__checker__BodyChecker_check_is_pattern(self, is_e->expr, subj_ty, inner_is);
+if (cast_ty != NULL) {
+compiler__semantic__symbols__SymbolTable_enter_scope(&self->symtab, false);
+compiler__semantic__symbols__Symbol* subj_sym = compiler__semantic__symbols__SymbolTable_lookup(&self->symtab, id->name);
+bool mutable = (subj_sym != NULL ? subj_sym->mutable : false);
+compiler__semantic__symbols__SymbolTable_define(&self->symtab, (compiler__semantic__symbols__Symbol){ id->name, id->name, 0, cast_ty, mutable, false, 0, 0, NULL, NULL, false, false, false });
+else_neg_is = true;
+}
+}
+}
 }
 }
 compiler__semantic__checker__BodyChecker_check_statement(self, if_s->else_branch);
-if (else_null_guard) {
+if (else_null_guard || else_neg_is) {
 compiler__semantic__symbols__SymbolTable_exit_scope(&self->symtab);
 }
 }
@@ -30565,6 +30628,7 @@ std__string__StringBuilder_plus_assign_2(&self->out, cast_decl);
 std__string__StringBuilder_plus_assign_2_2(&self->out, '\n');
 }
 compiler__codegen__CCodeGen_gen_block_body(self, ifs->then_branch);
+compiler__ast__AstNode* last_cond = cond;
 compiler__ast__AstNode* cur_else = ifs->else_branch;
 while (cur_else != NULL) {
 {
@@ -30584,6 +30648,7 @@ break;
 }
 }
 }
+last_cond = elif_cond;
 kobel_str elif_cast = KOBEL_STR("");
 {
 compiler__ast__NodeData__IsExpr* elif_is_e = NULL;
@@ -30607,7 +30672,35 @@ break;
 }
 }
 if (cur_else != NULL) {
+kobel_str else_cast = KOBEL_STR("");
+{
+compiler__ast__NodeData__UnaryExpr* neg_un = NULL;
+if (((last_cond != NULL && last_cond->data.tag == compiler__ast__NodeData__UnaryExpr__TAG && (neg_un = (compiler__ast__NodeData__UnaryExpr*)(&(last_cond)->data.u.UnaryExpr), 1)) && (neg_un->op == 4)) && !neg_un->is_postfix) {
+compiler__ast__AstNode* inner_is = neg_un->operand;
+while (inner_is != NULL) {
+{
+compiler__ast__NodeData__GroupExpr* g = NULL;
+if ((inner_is != NULL && inner_is->data.tag == compiler__ast__NodeData__GroupExpr__TAG && (g = (compiler__ast__NodeData__GroupExpr*)(&(inner_is)->data.u.GroupExpr), 1))) {
+inner_is = g->expr;
+} else {
+break;
+}
+}
+}
+{
+compiler__ast__NodeData__IsExpr* else_is_e = NULL;
+compiler__ast__NodeData__IdentifierExpr* id = NULL;
+if (((inner_is != NULL && inner_is->data.tag == compiler__ast__NodeData__IsExpr__TAG && (else_is_e = (compiler__ast__NodeData__IsExpr*)(&(inner_is)->data.u.IsExpr), 1)) && str_empty(else_is_e->alias)) && (else_is_e->expr != NULL && else_is_e->expr->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (id = (compiler__ast__NodeData__IdentifierExpr*)(&(else_is_e->expr)->data.u.IdentifierExpr), 1))) {
+else_cast = compiler__codegen__CCodeGen_gen_smart_cast_decl(self, inner_is, else_is_e, else_is_e->expr, id->name);
+}
+}
+}
+}
 std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("} else {\n"));
+if (!str_empty(else_cast)) {
+std__string__StringBuilder_plus_assign_2(&self->out, else_cast);
+std__string__StringBuilder_plus_assign_2_2(&self->out, '\n');
+}
 compiler__codegen__CCodeGen_gen_block_body(self, cur_else);
 }
 std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("}\n"));
@@ -32085,6 +32178,12 @@ fmt__FormatBuffer_plus_assign_2(&self->buf, fmt__op_to_str(u->op));
 } else {
 fmt__FormatBuffer_plus_assign_2(&self->buf, fmt__op_to_str(u->op));
 bool needs_parens = ((u->operand != NULL && u->operand->data.tag == compiler__ast__NodeData__BinaryExpr__TAG) || (u->operand != NULL && u->operand->data.tag == compiler__ast__NodeData__AssignExpr__TAG));
+{
+compiler__ast__NodeData__IsExpr* is_e = NULL;
+if ((!needs_parens && (u->operand != NULL && u->operand->data.tag == compiler__ast__NodeData__IsExpr__TAG && (is_e = (compiler__ast__NodeData__IsExpr*)(&(u->operand)->data.u.IsExpr), 1))) && (is_e->expr != NULL)) {
+needs_parens = true;
+}
+}
 if (needs_parens) {
 fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR("("));
 }

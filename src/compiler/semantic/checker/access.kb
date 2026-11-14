@@ -35,7 +35,7 @@ impl BodyChecker {
 			}
 			var obj_ty = self.check_expr(obj_expr);
 
-			if (!mem.is_safe && obj_ty.kind == DataType.POINTER && !(obj_expr is IdentifierExpr)) {
+			if (!mem.is_safe && obj_ty.kind == DataType.POINTER && obj_expr !is IdentifierExpr) {
 				val deref = self.arena.node(
 					NodeData.UnaryExpr(TokenType.STAR, obj_expr, false),
 					node.line, node.col

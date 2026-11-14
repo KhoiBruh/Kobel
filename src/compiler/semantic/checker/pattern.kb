@@ -257,6 +257,23 @@ impl BodyChecker {
 
 		val unwrapped = self.unwrap_group(pat);
 		if (
+			unwrapped is UnaryExpr as un &&
+			un.op == TokenType.BANG &&
+			!un.is_postfix
+		) {
+			val inner = self.unwrap_group(un.operand);
+			if (inner is IsExpr as var inner_is) {
+				val subj_ty = if (inner_is.expr == null) cond_ty else self.check_expr(inner_is.expr!);
+				if (inner_is.expr == null) inner_is.expr = cond;
+				self.check_is_pattern(inner_is.expr, subj_ty, inner);
+				self.annotate_type(inner, self.prims().t_bool());
+				self.annotate_type(pat, self.prims().t_bool());
+				self.set_predicate_pattern(pat);
+				return self.prims().t_bool();
+			}
+		}
+
+		if (
 			unwrapped is BinaryExpr as bin &&
 			bin.op in [TokenType.DOT_DOT, TokenType.DOT_DOT_LESS]
 		) {

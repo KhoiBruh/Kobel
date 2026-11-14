@@ -774,11 +774,62 @@ fn test_in_candidate_list_restrictions() {
 	println("  [PASS] test_in_candidate_list_restrictions");
 }
 
+fn test_not_is_semantics() {
+	val valid_prog =
+		"""
+		enum SemaShape {
+		    Circle(radius: f64),
+		    Empty
+		}
+		fn f(s: SemaShape): f64 {
+		    if (s !is SemaShape.Circle) {
+		        return 0.0;
+		    } else {
+		        return s.radius;
+		    }
+		}
+		fn g(s: SemaShape): bool {
+		    return when (s) {
+		        !is SemaShape.Circle -> true;
+		        else -> false;
+		    };
+		}
+		""";
+	var l = Lexer(valid_prog);
+	var p = Parser(l.tokenize());
+	val prog = p.parse_program();
+	assert_eq_usz(p.errors.len, 0, "Parse errors in valid !is program");
+
+	var bp = BodyChecker();
+	bp.check_program(prog);
+	assert_eq_usz(bp.errors.len, 0, "Sema errors in valid !is program with else smart cast");
+
+	// `!is` must NOT smart-cast into the 'then' branch.
+	check_single_error(
+		"""
+		enum SemaShape2 {
+		    Circle(radius: f64),
+		    Empty
+		}
+		fn f(s: SemaShape2): f64 {
+		    if (s !is SemaShape2.Circle) {
+		        return s.radius;
+		    }
+		    return 0.0;
+		}
+		""",
+		"'!is' must not smart-cast into the then branch"
+	);
+
+	println("  [PASS] test_not_is_semantics");
+}
+
 fn main(): i32 {
 	println("[RUNNING] Bootstrap Semantic BodyChecker tests...");
 	test_when_subject_and_implicit_dot_restrictions();
 	test_lambda_body_and_call_restrictions();
 	test_in_candidate_list_restrictions();
+	test_not_is_semantics();
 	test_destructure_nullable_pointer_error();
 	test_cast_null_to_non_null_pointer_rejected();
 	test_unused_mutability_warning();

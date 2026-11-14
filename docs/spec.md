@@ -82,7 +82,7 @@
   - `*T`: Read-only pointer (dereferenced via `*p` or `p.field`).
   - `&T`: Mutable pointer.
 - **Casts:**
-  - `x as T`: Casts `x` to type `T`. Type checking and downcasting are performed via pattern matching and smart casting with `is` (`if (x is T)` or `when (x) { is T -> ... }`).
+  - `x as T`: Casts `x` to type `T`. Type checking and downcasting are performed via pattern matching and smart casting with `is` / `!is` (`if (x is T)`, `if (x !is T) ... else ...`, or `when (x) { is T -> ...; !is U -> ... }`).
 
 ---
 
@@ -216,6 +216,7 @@ val area = when (c) {
 
 - Variants can store named payload fields.
 - `is Enum.Variant as alias` binds a pointer to the variant payload.
+- `!is Enum.Variant` tests the negation of a type or variant pattern (desugared to `!(x is Variant)`); `else` branches of `if (x !is Variant)` smart-cast `x`, and `as` alias binding is rejected with `!is`.
 
 ---
 

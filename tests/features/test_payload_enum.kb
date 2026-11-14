@@ -52,6 +52,22 @@ fn kind_of(s: Shape): i32 {
 	return k;
 }
 
+// `when` arms and `if` conditions also support `!is`, with `else`-branch smart casting.
+fn circle_radius_or_zero(s: Shape): f64 {
+	if (s !is Shape.Circle) {
+		return 0.0;
+	} else {
+		return s.radius;
+	}
+}
+
+fn non_rect_tag(s: Shape): i32 {
+	return when (s) {
+		!is Shape.Rect -> 10;
+		else -> 20;
+	};
+}
+
 fn main(): i32 {
 	val c = Shape.Circle(2.0);
 	val r = Shape.Rect(3.0, 4.0);
@@ -73,6 +89,13 @@ fn main(): i32 {
 	if (kind_of(c) != 1) return 9;
 	if (kind_of(r) != 2) return 10;
 	if (kind_of(e) != 9) return 11;
+
+	if (c !is Shape.Circle) return 13;
+	if (!(c !is Shape.Rect)) return 14;
+	if (circle_radius_or_zero(c) != 2.0) return 15;
+	if (circle_radius_or_zero(r) != 0.0) return 16;
+	if (non_rect_tag(c) != 10) return 17;
+	if (non_rect_tag(r) != 20) return 18;
 
 	return 0;
 }

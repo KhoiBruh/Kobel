@@ -258,6 +258,16 @@ pub fn interp_find_close(text: str, start: usz): isz {
 
 impl Parser {
 
+	// True when '!' is immediately followed (with no whitespace) by 'in' or 'is'.
+	fn is_adjacent_negated_op(*self): bool {
+		val bang = self.peek();
+		val next = self.peek_at(1);
+		return bang.type == TokenType.BANG
+			&& next.type in [TokenType.KW_IN, TokenType.KW_IS]
+			&& bang.line == next.line
+			&& bang.col + 1 == next.col;
+	}
+
 	pub fn get_infix_precedence(*self, t: TokenType): Precedence => when (t) {
 		TokenType.EQUAL, TokenType.PLUS_EQUAL,
 		TokenType.MINUS_EQUAL, TokenType.STAR_EQUAL,
@@ -270,7 +280,7 @@ impl Parser {
 		TokenType.GREATER_EQUAL, TokenType.KW_IS,
 		TokenType.KW_IN -> Precedence.COMPARISON;
 		TokenType.BANG -> {
-			if (self.peek_at(1).type == TokenType.KW_IN) yield Precedence.COMPARISON;
+			if (self.is_adjacent_negated_op()) yield Precedence.COMPARISON;
 			yield Precedence.CALL;
 		}
 		TokenType.LESS -> {
@@ -489,6 +499,12 @@ impl Parser {
 			TokenType.MINUS, TokenType.BANG,
 			TokenType.STAR, TokenType.AMPERSAND -> {
 				val operand = self.parse_expression(Precedence.UNARY);
+				if (tok.type == TokenType.BANG && operand is IsExpr as is_e && !is_e.alias.empty()) {
+					self.errors += Diagnostic.error(
+						Span(self.file_id, line, col), "",
+						"Cannot bind an 'as' alias with '!is'"
+					);
+				}
 				yield self.node(NodeData.UnaryExpr(tok.type, operand, false), line, col);
 			}
 
@@ -594,7 +610,7 @@ impl Parser {
 			}
 			// Postfix force unwrap: left!
 			TokenType.BANG -> {
-				if (self.peek_at(1).type != TokenType.KW_IN) {
+				if (!self.is_adjacent_negated_op()) {
 					self.advance();
 					return self.node(NodeData.UnaryExpr(TokenType.BANG, left, true), line, col);
 				}
@@ -696,6 +712,21 @@ impl Parser {
 				val right = self.parse_expression(prec);
 				val in_expr = self.node(NodeData.BinaryExpr(left, TokenType.KW_IN, right), line, col);
 				yield self.node(NodeData.UnaryExpr(TokenType.BANG, in_expr, false), line, col);
+			}
+
+			// Negated type test: left !is Type
+			.check(TokenType.BANG) &&
+			.peek_at(1).type == TokenType.KW_IS -> {
+				self.advance(); // consume '!'
+				self.advance(); // consume 'is'
+				val is_expr = self.parse_is_pattern(left, line, col);
+				if (is_expr is IsExpr as is_e && !is_e.alias.empty()) {
+					self.errors += Diagnostic.error(
+						Span(self.file_id, line, col), "",
+						"Cannot bind an 'as' alias with '!is'"
+					);
+				}
+				yield self.node(NodeData.UnaryExpr(TokenType.BANG, is_expr, false), line, col);
 			}
 
 			// 5. Generic Call: left<T1, T2>(arg1, arg2) or left<T1, T2> { x -> ... }

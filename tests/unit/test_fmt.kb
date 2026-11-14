@@ -169,6 +169,13 @@ enum Shape {
 	assert_true(("!(x in list)" in in_once), "!in must format with parens around BinaryExpr");
 	assert_true(("return x in list;" in in_once), "in operator must be preserved");
 
+	val not_is_code = "fn check_not(x: Shape): bool {\n\twhen (x) {\n\t\t!is Circle -> return true;\n\t\telse -> return false;\n\t}\n\treturn x !is Circle;\n}\n";
+	val not_is_once = format_source(not_is_code, FormatOptions());
+	val not_is_twice = format_source(not_is_once, FormatOptions());
+	assert_eq_str(not_is_twice, not_is_once, "!is formatting must be idempotent");
+	assert_true(("!(x is Circle)" in not_is_once), "infix !is must format with parens around IsExpr");
+	assert_true(("!is Circle -> return true;" in not_is_once), "when arm !is must format without parens");
+
 	val broken = "fn broken( { x = ";
 	assert_true(!is_parseable(broken), "broken syntax must fail parseability check");
 	println("  [PASS] test_generic_impl_assoc_and_payload_enum");

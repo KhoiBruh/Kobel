@@ -461,6 +461,7 @@ impl CCodeGen {
 		}
 		self.gen_block_body(ifs.then_branch);
 
+		var last_cond = cond;
 		var cur_else = ifs.else_branch;
 		while (cur_else != null) {
 			if (cur_else is IfStmt as elif) {
@@ -471,6 +472,7 @@ impl CCodeGen {
 					if (elif_cond is GroupExpr as g) elif_cond = g.expr;
 					else break;
 				}
+				last_cond = elif_cond;
 
 				var elif_cast = "";
 				if (
@@ -493,7 +495,28 @@ impl CCodeGen {
 		}
 
 		if (cur_else != null) {
+			var else_cast = "";
+			if (
+				last_cond is UnaryExpr as neg_un &&
+				neg_un.op == TokenType.BANG &&
+				!neg_un.is_postfix
+			) {
+				var inner_is = neg_un.operand;
+				while (inner_is != null) {
+					if (inner_is is GroupExpr as g) inner_is = g.expr;
+					else break;
+				}
+				if (
+					inner_is is IsExpr as else_is_e &&
+					else_is_e.alias.empty() &&
+					else_is_e.expr is IdentifierExpr as id
+				) else_cast = self.gen_smart_cast_decl(inner_is, else_is_e, else_is_e.expr!, id.name);
+			}
 			self.out += "} else {\n";
+			if (!else_cast.empty()) {
+				self.out += else_cast;
+				self.out += '\n';
+			}
 			self.gen_block_body(cur_else);
 		}
 

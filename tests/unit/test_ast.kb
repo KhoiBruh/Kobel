@@ -66,7 +66,7 @@ fn test_expression_tree(): bool {
 			if (r_lit.raw_text != "3") return false;
 		} else return false;
 		if (bin.left is GroupExpr as grp) {
-			if (!(grp.expr is BinaryExpr)) return false;
+			if (grp.expr !is BinaryExpr) return false;
 		} else return false;
 	} else return false;
 
@@ -88,14 +88,14 @@ fn test_statement_nodes(): bool {
 
 	if (var_stmt is VarDeclStmt as vd) {
 		if (!vd.mutable || vd.name != "count") return false;
-		if (!(vd.type_annotation is NamedType)) return false;
-		if (!(vd.initializer is LiteralExpr)) return false;
+		if (vd.type_annotation !is NamedType) return false;
+		if (vd.initializer !is LiteralExpr) return false;
 	} else return false;
 
 	// return count;
 	val id_count = arena.node(NodeData.IdentifierExpr("count"), 2, 8);
 	val ret_stmt = arena.node(NodeData.ReturnStmt(id_count), 2, 1);
-	if (!(ret_stmt is ReturnStmt)) return false;
+	if (ret_stmt !is ReturnStmt) return false;
 
 	// { return count; }
 	var stmts = List<*AstNode>();
@@ -111,8 +111,8 @@ fn test_statement_nodes(): bool {
 	val if_stmt = arena.node(NodeData.IfStmt(cond, block, null), 3, 1);
 
 	if (if_stmt is IfStmt as ifs) {
-		if (!(ifs.condition is BinaryExpr)) return false;
-		if (!(ifs.then_branch is BlockStmt)) return false;
+		if (ifs.condition !is BinaryExpr) return false;
+		if (ifs.then_branch !is BlockStmt) return false;
 	} else return false;
 
 	return true;

@@ -297,9 +297,33 @@ fn test_val_var_self_rejected() {
 	println("  [PASS] test_val_var_self_rejected");
 }
 
+fn test_not_is_parsing() {
+	val src = "fn f(x: Shape): bool { when (x) { !is Circle -> return true; else -> {} } return x !is Rect; }";
+	var l = Lexer(src);
+	var p = Parser(l.tokenize());
+	val prog = p.parse_program();
+	assert_eq_usz(p.errors.len, 0, "Valid '!is' expressions must parse without errors");
+	assert_true(prog is Program, "Parsed node must be Program");
+
+	val bad_infix = "fn f(x: Shape): bool { return x !is Circle as c; }";
+	var l_bad1 = Lexer(bad_infix);
+	var p_bad1 = Parser(l_bad1.tokenize());
+	p_bad1.parse_program();
+	assert_true(p_bad1.errors.len >= 1, "Must reject 'x !is Type as alias'");
+
+	val bad_prefix = "fn f(x: Shape): i32 { return when (x) { !is Circle as c -> 1; else -> 0; }; }";
+	var l_bad2 = Lexer(bad_prefix);
+	var p_bad2 = Parser(l_bad2.tokenize());
+	p_bad2.parse_program();
+	assert_true(p_bad2.errors.len >= 1, "Must reject '!is Type as alias' in when arm");
+
+	println("  [PASS] test_not_is_parsing");
+}
+
 fn main(): i32 {
 	println("[RUNNING] Bootstrap Parser tests...");
 	test_val_var_self_rejected();
+	test_not_is_parsing();
 	test_expression_parsing();
 	test_call_and_member_parsing();
 	test_safe_member_and_elvis_parsing();

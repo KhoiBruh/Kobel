@@ -227,7 +227,8 @@ impl Formatter {
 					self.buf += op_to_str(u.op);
 				} else {
 					self.buf += op_to_str(u.op);
-					val needs_parens = u.operand is BinaryExpr || u.operand is AssignExpr;
+					var needs_parens = u.operand is BinaryExpr || u.operand is AssignExpr;
+					if (!needs_parens && u.operand is IsExpr as is_e && is_e.expr != null) needs_parens = true;
 					if (needs_parens) self.buf += "(";
 					self.format_expr(u.operand);
 					if (needs_parens) self.buf += ")";

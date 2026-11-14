@@ -492,6 +492,8 @@ double test__payload_enum__area(test__payload_enum__Shape s);
 double test__payload_enum__holder_area(test__payload_enum__Holder h);
 double test__payload_enum__radius_of(test__payload_enum__Shape* p);
 int32_t test__payload_enum__kind_of(test__payload_enum__Shape s);
+double test__payload_enum__circle_radius_or_zero(test__payload_enum__Shape s);
+int32_t test__payload_enum__non_rect_tag(test__payload_enum__Shape s);
 int32_t main(void);
 size_t std__collections__List_str_count(std__collections__List_str* self);
 kobel_str std__collections__List_str_at(std__collections__List_str* self, size_t i);
@@ -2044,6 +2046,20 @@ k = 9;
 return k;
 }
 
+double test__payload_enum__circle_radius_or_zero(test__payload_enum__Shape s) {
+if (!(s.tag == test__payload_enum__Shape__Circle__TAG)) {
+return 0.0;
+} else {
+void* __orig_s = (void*)&s;
+test__payload_enum__Shape__Circle* s = (test__payload_enum__Shape__Circle*)((&((test__payload_enum__Shape*)__orig_s)->u.Circle));
+return s->radius;
+}
+}
+
+int32_t test__payload_enum__non_rect_tag(test__payload_enum__Shape s) {
+return (!(s.tag == test__payload_enum__Shape__Rect__TAG) ? 10 : 20);
+}
+
 int32_t main(void) {
 test__payload_enum__Shape c = (test__payload_enum__Shape){ .tag = 0, .u.Circle = { 2.0 } };
 test__payload_enum__Shape r = (test__payload_enum__Shape){ .tag = 1, .u.Rect = { 3.0, 4.0 } };
@@ -2084,6 +2100,24 @@ return 10;
 }
 if (test__payload_enum__kind_of(e) != 9) {
 return 11;
+}
+if (!(c.tag == test__payload_enum__Shape__Circle__TAG)) {
+return 13;
+}
+if (!(!(c.tag == test__payload_enum__Shape__Rect__TAG))) {
+return 14;
+}
+if (test__payload_enum__circle_radius_or_zero(c) != 2.0) {
+return 15;
+}
+if (test__payload_enum__circle_radius_or_zero(r) != 0.0) {
+return 16;
+}
+if (test__payload_enum__non_rect_tag(c) != 10) {
+return 17;
+}
+if (test__payload_enum__non_rect_tag(r) != 20) {
+return 18;
 }
 return 0;
 }

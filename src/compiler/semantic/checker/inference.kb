@@ -55,7 +55,7 @@ impl BodyChecker {
 
 		// Pass 2: Infer from lambda arguments using already-known type parameters.
 		for (i in 0..<call_args.len) {
-			if (!(call_args[i] is LambdaExpr)) continue;
+			if (call_args[i] !is LambdaExpr) continue;
 			val param_idx = if (is_method) i + 1 else i;
 			if (param_idx >= params.len) break;
 			val p = params[param_idx];
