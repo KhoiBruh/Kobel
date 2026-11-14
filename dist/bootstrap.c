@@ -313,6 +313,7 @@ typedef struct compiler__core__SourceMap compiler__core__SourceMap;
 typedef struct compiler__lexer__Lexer compiler__lexer__Lexer;
 typedef int32_t compiler__lexer__TokenType;
 typedef struct compiler__lexer__Token compiler__lexer__Token;
+typedef int32_t compiler__ast__ReceiverKind;
 typedef struct compiler__ast__Param compiler__ast__Param;
 typedef struct compiler__ast__GenericParam compiler__ast__GenericParam;
 typedef struct compiler__ast__StructField compiler__ast__StructField;
@@ -734,8 +735,7 @@ struct compiler__lexer__Token {
 struct compiler__ast__Param {
     kobel_str name;
     compiler__ast__AstNode* type_node;
-    bool mutable;
-    bool has_val;
+    compiler__ast__ReceiverKind receiver;
     compiler__ast__AstNode* default_val;
 };
 
@@ -1965,7 +1965,6 @@ struct compiler__ast__NodeData__IsExpr {
     compiler__ast__AstNode* expr;
     compiler__ast__AstNode* target_type;
     kobel_str alias;
-    bool mutable;
 };
 struct compiler__ast__NodeData__LambdaExpr {
     std__collections__List_compiler__ast__Param params;
@@ -11572,25 +11571,14 @@ std__collections__List_compiler__ast__Param compiler__parser__Parser_parse_param
 compiler__parser__Parser_consume(self, 15, open_msg);
 std__collections__List_compiler__ast__Param params = std__collections__List_compiler__ast__Param_init(NULL, 0);
 if (!compiler__parser__Parser_check(self, 16)) {
-bool mutable = false;
-bool has_val = false;
-bool is_prefix_ptr = false;
+compiler__ast__ReceiverKind receiver = 0;
 if (compiler__parser__Parser_match_token(self, 19)) {
-mutable = true;
-is_prefix_ptr = true;
+receiver = 2;
 } else if (compiler__parser__Parser_match_token(self, 8)) {
-has_val = true;
-is_prefix_ptr = true;
-} else if (compiler__parser__Parser_check(self, 54) || compiler__parser__Parser_check(self, 53)) {
-compiler__lexer__Token mod_tok = compiler__parser__Parser_advance(self);
-if (compiler__parser__Parser_check(self, 43) && kobel_streq(compiler__parser__Parser_peek(self).text, KOBEL_STR("self"))) {
-compiler__parser__Parser_error(self, mod_tok, KOBEL_STR("'val self' and 'var self' are no longer supported; use '*self', '&self', or bare 'self'"));
-} else {
-compiler__parser__Parser_error(self, mod_tok, KOBEL_STR("Parameter modifiers 'var' and 'val' are not supported; use 'name: *Type' or 'name: &Type'"));
-}
+receiver = 1;
 }
 compiler__lexer__Token pname = compiler__parser__Parser_consume(self, 43, KOBEL_STR("Expected parameter name"));
-if (is_prefix_ptr && (!allow_self || !kobel_streq(pname.text, KOBEL_STR("self")))) {
+if ((receiver != 0) && (!allow_self || !kobel_streq(pname.text, KOBEL_STR("self")))) {
 compiler__parser__Parser_error(self, pname, KOBEL_STR("Prefix '*' and '&' are only supported for the 'self' receiver parameter"));
 }
 compiler__ast__AstNode* ptype;
@@ -11604,15 +11592,14 @@ goto __when_end_8;
 ptype = NULL;
 }
 __when_end_8:;
+if (((allow_self && kobel_streq(pname.text, KOBEL_STR("self"))) && (receiver == 0)) && (ptype == NULL)) {
+receiver = 3;
+}
 compiler__ast__AstNode* p_default = (compiler__parser__Parser_match_token(self, 5) ? compiler__parser__Parser_parse_expression(self, 0) : NULL);
-std__collections__List_compiler__ast__Param_plus_assign(&params, (compiler__ast__Param){ pname.text, ptype, mutable, has_val, p_default });
+std__collections__List_compiler__ast__Param_plus_assign(&params, (compiler__ast__Param){ pname.text, ptype, receiver, p_default });
 while (compiler__parser__Parser_match_token(self, 2)) {
 if ((std__collections__List_compiler__ast__Param_last(&params).type_node != NULL && std__collections__List_compiler__ast__Param_last(&params).type_node->data.tag == compiler__ast__NodeData__VariadicType__TAG)) {
 compiler__parser__Parser_error(self, compiler__parser__Parser_peek(self), KOBEL_STR("Variadic parameter '..T' must be the last parameter in the function declaration"));
-}
-if (compiler__parser__Parser_check(self, 54) || compiler__parser__Parser_check(self, 53)) {
-compiler__lexer__Token mod_tok = compiler__parser__Parser_advance(self);
-compiler__parser__Parser_error(self, mod_tok, KOBEL_STR("Parameter modifiers 'var' and 'val' are not supported; use 'name: *Type' or 'name: &Type'"));
 }
 compiler__lexer__Token p_name = compiler__parser__Parser_consume(self, 43, KOBEL_STR("Expected parameter name"));
 if (allow_self && kobel_streq(p_name.text, KOBEL_STR("self"))) {
@@ -11621,7 +11608,7 @@ compiler__parser__Parser_error(self, p_name, KOBEL_STR("'self' is only allowed a
 compiler__parser__Parser_consume(self, 1, KOBEL_STR("Expected ':' after parameter name"));
 compiler__ast__AstNode* p_type = compiler__parser__Parser_parse_type(self);
 compiler__ast__AstNode* p_def = (compiler__parser__Parser_match_token(self, 5) ? compiler__parser__Parser_parse_expression(self, 0) : NULL);
-std__collections__List_compiler__ast__Param_plus_assign(&params, (compiler__ast__Param){ p_name.text, p_type, false, false, p_def });
+std__collections__List_compiler__ast__Param_plus_assign(&params, (compiler__ast__Param){ p_name.text, p_type, 0, p_def });
 }
 }
 compiler__parser__Parser_consume(self, 16, KOBEL_STR("Expected ')' after parameters"));
@@ -12296,23 +12283,14 @@ return compiler__parser__Parser_parse_is_type_item(self);
 compiler__ast__AstNode* compiler__parser__Parser_parse_is_pattern(compiler__parser__Parser* self, compiler__ast__AstNode* left, size_t line, size_t col) {
 compiler__ast__AstNode* target_type = compiler__parser__Parser_parse_is_target(self);
 kobel_str alias = KOBEL_STR("");
-bool mutable = false;
 if (compiler__parser__Parser_match_token(self, 55)) {
-if (compiler__parser__Parser_match_token(self, 54)) {
-mutable = true;
-compiler__parser__Parser_match_token(self, 19);
-} else if (compiler__parser__Parser_match_token(self, 19)) {
-mutable = true;
-} else {
-compiler__parser__Parser_match_token(self, 53);
-}
 compiler__lexer__Token alias_tok = compiler__parser__Parser_consume(self, 43, KOBEL_STR("Expected identifier after 'as'"));
 alias = alias_tok.text;
 }
 if ((target_type != NULL && target_type->data.tag == compiler__ast__NodeData__ArrayLiteralExpr__TAG) && !str_empty(alias)) {
 std__collections__List_compiler__core__Diagnostic_plus_assign(&self->errors, compiler__core__Diagnostic_error(compiler__core__Span_init(self->file_id, line, col, 1), KOBEL_STR(""), KOBEL_STR("Cannot bind an 'as' alias with a type list '[...]'"), KOBEL_STR("")));
 }
-return compiler__parser__Parser_node(self, (compiler__ast__NodeData){ .tag = 21, .u.IsExpr = { left, target_type, alias, mutable } }, line, col);
+return compiler__parser__Parser_node(self, (compiler__ast__NodeData){ .tag = 21, .u.IsExpr = { left, target_type, alias } }, line, col);
 }
 
 std__collections__List_ptr_compiler__ast__AstNode compiler__parser__Parser_parse_when_patterns(compiler__parser__Parser* self) {
@@ -12435,11 +12413,6 @@ compiler__lexer__Token_unpack_3(&open_tok, &line, &col);
 std__collections__List_compiler__ast__Param params = std__collections__List_compiler__ast__Param_init(NULL, 0);
 if (!compiler__parser__Parser_check(self, 28)) {
 while (!compiler__parser__Parser_is_end(self)) {
-compiler__lexer__Token p_peek = compiler__parser__Parser_peek(self);
-if (p_peek.type == 54 || p_peek.type == 53) {
-compiler__parser__Parser_error(self, p_peek, KOBEL_STR("Lambda parameters are always immutable ('val') and cannot specify 'val' or 'var'"));
-compiler__parser__Parser_advance(self);
-}
 compiler__lexer__Token name_tok = compiler__parser__Parser_consume(self, 43, KOBEL_STR("Expected lambda parameter name before '->'"));
 compiler__ast__AstNode* type_node = NULL;
 if (compiler__parser__Parser_match_token(self, 1)) {
@@ -12449,7 +12422,7 @@ if (compiler__parser__Parser_match_token(self, 5)) {
 compiler__parser__Parser_error(self, compiler__parser__Parser_previous(self), KOBEL_STR("Lambda parameters cannot have default values"));
 compiler__parser__Parser_parse_expression(self, 0);
 }
-std__collections__List_compiler__ast__Param_plus_assign(&params, (compiler__ast__Param){ name_tok.text, type_node, false, false, NULL });
+std__collections__List_compiler__ast__Param_plus_assign(&params, (compiler__ast__Param){ name_tok.text, type_node, 0, NULL });
 if (!compiler__parser__Parser_match_token(self, 2)) {
 break;
 }
@@ -12655,10 +12628,6 @@ compiler__ast__AstNode* index = compiler__parser__Parser_parse_expression(self, 
 compiler__parser__Parser_consume(self, 14, KOBEL_STR("Expected ']' after array index"));
 return compiler__parser__Parser_node(self, (compiler__ast__NodeData){ .tag = 12, .u.IndexExpr = { left, index } }, line, col);
 } else if (compiler__parser__Parser_match_token(self, 55)) {
-if (compiler__parser__Parser_check(self, 20) && !(compiler__parser__Parser_peek_at(self, 1).type == 8 || compiler__parser__Parser_peek_at(self, 1).type == 19)) {
-compiler__parser__Parser_advance(self);
-compiler__parser__Parser_error(self, compiler__parser__Parser_previous(self), KOBEL_STR("Safe cast 'as?' has been removed; use 'is' with smart casting instead"));
-}
 compiler__ast__AstNode* target_type = compiler__parser__Parser_parse_type(self);
 return compiler__parser__Parser_node(self, (compiler__ast__NodeData){ .tag = 15, .u.CastExpr = { left, target_type } }, line, col);
 } else if (compiler__parser__Parser_match_token(self, 72)) {
@@ -13530,11 +13499,7 @@ return compiler__parser__Parser_node(self, (compiler__ast__NodeData){ .tag = 1, 
 }
 
 compiler__ast__AstNode* compiler__parser__Parser_parse_type(compiler__parser__Parser* self) {
-compiler__ast__AstNode* ty = compiler__parser__Parser_parse_single_type(self);
-if (compiler__parser__Parser_match_token(self, 20)) {
-compiler__parser__Parser_error(self, compiler__parser__Parser_previous(self), KOBEL_STR("Trailing '?' in types is not supported; use prefix '?*T' or '?&T' for nullable pointers"));
-}
-return ty;
+    return compiler__parser__Parser_parse_single_type(self);
 }
 
 void compiler__loader__ModuleFile_unpack_3(compiler__loader__ModuleFile* self, kobel_str* path, kobel_str* source) {
@@ -16012,7 +15977,7 @@ struct __lambda_env_22 {
 static compiler__ast__Param __lambda_fn_22(void* __raw_env, compiler__ast__Param p) {
     struct __lambda_env_22* __env = (struct __lambda_env_22*)__raw_env;
 compiler__ast__AstNode* pt = ((p.type_node != NULL) ? compiler__semantic__resolution__TypeResolver_clone_type((*(__env->self)), p.type_node, (__env->subst)) : NULL);
-return (compiler__ast__Param){ p.name, pt, p.mutable, p.has_val, NULL };
+return (compiler__ast__Param){ p.name, pt, p.receiver, NULL };
 }
 
 compiler__ast__AstNode* compiler__semantic__resolution__TypeResolver_clone_expr(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node, compiler__semantic__symbols__GenericSubst* subst) {
@@ -16090,15 +16055,7 @@ out = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 20
 } else if (target != NULL && target->data.tag == compiler__ast__NodeData__IsExpr__TAG) {
 compiler__ast__NodeData__IsExpr* is_e = (compiler__ast__NodeData__IsExpr*)(&(target)->data.u.IsExpr);
 compiler__ast__AstNode* expr_clone = ((is_e->expr != NULL) ? compiler__semantic__resolution__TypeResolver_clone_expr(self, is_e->expr, subst) : NULL);
-compiler__ast__AstNode* res_is = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 21, .u.IsExpr = { expr_clone, compiler__semantic__resolution__TypeResolver_clone_type(self, is_e->target_type, subst), is_e->alias, is_e->mutable } }, node->line, node->col);
-{
-compiler__ast__NodeData__IsExpr* res_e = NULL;
-if (!str_empty(is_e->alias) && (res_is != NULL && res_is->data.tag == compiler__ast__NodeData__IsExpr__TAG && (res_e = (compiler__ast__NodeData__IsExpr*)(&(res_is)->data.u.IsExpr), 1))) {
-res_e->alias = is_e->alias;
-res_e->mutable = is_e->mutable;
-}
-}
-out = res_is;
+out = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 21, .u.IsExpr = { expr_clone, compiler__semantic__resolution__TypeResolver_clone_type(self, is_e->target_type, subst), is_e->alias } }, node->line, node->col);
 goto __when_end_28;
 } else if (target != NULL && target->data.tag == compiler__ast__NodeData__StructCtorExpr__TAG) {
 compiler__ast__NodeData__StructCtorExpr* sc = (compiler__ast__NodeData__StructCtorExpr*)(&(target)->data.u.StructCtorExpr);
@@ -16486,7 +16443,7 @@ static compiler__ast__Param __lambda_fn_28(void* __raw_env, compiler__ast__Param
     struct __lambda_env_28* __env = (struct __lambda_env_28*)__raw_env;
 compiler__ast__AstNode* pt = ((p.type_node != NULL) ? compiler__semantic__resolution__TypeResolver_clone_type((*(__env->self)), p.type_node, (__env->subst)) : NULL);
 compiler__ast__AstNode* dflt = ((p.default_val != NULL) ? compiler__semantic__resolution__TypeResolver_clone_expr((*(__env->self)), p.default_val, (__env->subst)) : NULL);
-return (compiler__ast__Param){ p.name, pt, p.mutable, p.has_val, dflt };
+return (compiler__ast__Param){ p.name, pt, p.receiver, dflt };
 }
 
 compiler__ast__AstNode* compiler__semantic__resolution__TypeResolver_clone_fn(compiler__semantic__resolution__TypeResolver* self, compiler__ast__AstNode* node, compiler__semantic__symbols__GenericSubst* subst, kobel_str new_name) {
@@ -16783,12 +16740,12 @@ compiler__ast__Param p = std__collections__List_compiler__ast__Param_at(&mf->par
 compiler__ast__AstNode* pt = NULL;
 if (kobel_streq(p.name, KOBEL_STR("self")) && (p.type_node == NULL)) {
 compiler__ast__AstNode* named = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 1, .u.NamedType = { cname, std__collections__List_ptr_compiler__ast__AstNode_init(NULL, 0) } }, m->line, m->col);
-pt = (p.mutable ? std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 2, .u.PointerType = { true, false, named } }, m->line, m->col) : (p.has_val ? std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 2, .u.PointerType = { false, false, named } }, m->line, m->col) : named));
+pt = (p.receiver == 2 ? std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 2, .u.PointerType = { true, false, named } }, m->line, m->col) : (p.receiver == 1 ? std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 2, .u.PointerType = { false, false, named } }, m->line, m->col) : named));
 } else if (p.type_node != NULL) {
 pt = compiler__semantic__resolution__TypeResolver_clone_type(self, p.type_node, impl_subst);
 }
 compiler__ast__AstNode* dflt = ((p.default_val != NULL) ? compiler__semantic__resolution__TypeResolver_clone_expr(self, p.default_val, impl_subst) : NULL);
-std__collections__List_compiler__ast__Param_plus_assign(&m_params, (compiler__ast__Param){ p.name, pt, p.mutable, p.has_val, dflt });
+std__collections__List_compiler__ast__Param_plus_assign(&m_params, (compiler__ast__Param){ p.name, pt, p.receiver, dflt });
 __for_i = (__for_i + 1);
 }
 }
@@ -16875,7 +16832,7 @@ pt = std__memory__Arena_ast_type_from_type(&self->arena, ty);
 }
 }
 compiler__ast__AstNode* dflt = ((p.default_val != NULL) ? compiler__semantic__resolution__TypeResolver_clone_expr(self, p.default_val, compiler__semantic__resolution__TypeResolver_alloc_subst(self, compiler__semantic__symbols__GenericTemplate_param_names(tmpl), arg_asts)) : NULL);
-std__collections__List_compiler__ast__Param_plus_assign(&params, (compiler__ast__Param){ p.name, pt, p.mutable, p.has_val, dflt });
+std__collections__List_compiler__ast__Param_plus_assign(&params, (compiler__ast__Param){ p.name, pt, p.receiver, dflt });
 __for_i = (__for_i + 1);
 }
 }
@@ -16905,9 +16862,9 @@ while (__for_i < __for_n) {
 compiler__ast__Param p = std__collections__List_compiler__ast__Param_at(&t->params, __for_i);
 if (kobel_streq(p.name, KOBEL_STR("self")) && (p.type_node == NULL)) {
 if (receiver != NULL) {
-if (p.mutable) {
+if (p.receiver == 2) {
 std__collections__List_ptr_compiler__semantic__types__Type_plus_assign(&param_types, std__memory__Arena_pointer_type(&self->arena, receiver, true));
-} else if (p.has_val) {
+} else if (p.receiver == 1) {
 std__collections__List_ptr_compiler__semantic__types__Type_plus_assign(&param_types, std__memory__Arena_pointer_type(&self->arena, receiver, false));
 } else {
 std__collections__List_ptr_compiler__semantic__types__Type_plus_assign(&param_types, receiver);
@@ -17307,7 +17264,7 @@ if ((p.type_node != NULL && p.type_node->data.tag == compiler__ast__NodeData__Va
 is_vararg = true;
 }
 compiler__semantic__types__Type* pt = compiler__semantic__types__PrimTypes_t_none(compiler__semantic__resolution__TypeResolver_prims(self));
-pt = (kobel_streq(p.name, KOBEL_STR("self")) && (p.type_node == NULL) ? (p.mutable ? std__memory__Arena_pointer_type(&self->arena, st_type, true) : (p.has_val ? std__memory__Arena_pointer_type(&self->arena, st_type, false) : st_type)) : (p.type_node != NULL ? compiler__semantic__resolution__TypeResolver_resolve_ast_type(self, p.type_node) : compiler__semantic__types__PrimTypes_t_none(compiler__semantic__resolution__TypeResolver_prims(self))));
+pt = (kobel_streq(p.name, KOBEL_STR("self")) && (p.type_node == NULL) ? (p.receiver == 2 ? std__memory__Arena_pointer_type(&self->arena, st_type, true) : (p.receiver == 1 ? std__memory__Arena_pointer_type(&self->arena, st_type, false) : st_type)) : (p.type_node != NULL ? compiler__semantic__resolution__TypeResolver_resolve_ast_type(self, p.type_node) : compiler__semantic__types__PrimTypes_t_none(compiler__semantic__resolution__TypeResolver_prims(self))));
 std__collections__List_ptr_compiler__semantic__types__Type_plus_assign(&param_types, pt);
 __for_i = (__for_i + 1);
 }
@@ -17322,7 +17279,7 @@ if (fn_type == NULL) fn_type = std__memory__Arena_fn_type(&self->arena, param_ty
 kobel_str m_c_name = compiler__semantic__resolution__method_c_name(kobel_concat(3, st_c_name, KOBEL_STR("_"), f->name), param_types.len, std__collections__List_str_contains(&overloaded, f->name), used_names);
 std__collections__List_str_plus_assign(&used_names, m_c_name);
 bool is_static = (std__collections__List_compiler__ast__Param_empty(&f->params) || !kobel_streq(std__collections__List_compiler__ast__Param_get(&f->params, 0).name, KOBEL_STR("self")));
-bool is_move = ((!is_static && !std__collections__List_compiler__ast__Param_get(&f->params, 0).mutable) && !std__collections__List_compiler__ast__Param_get(&f->params, 0).has_val);
+bool is_move = (!is_static && (std__collections__List_compiler__ast__Param_get(&f->params, 0).receiver == 3));
 compiler__semantic__types__MethodInfo* mi = std__memory__Arena_create_val_compiler__semantic__types__MethodInfo(&self->arena, (compiler__semantic__types__MethodInfo){ f->name, m_c_name, fn_type, m_node, self->current_module, f->operator, is_static, f->initializer, is_move });
 std__collections__List_ptr_compiler__semantic__types__MethodInfo_plus_assign(&st_info->methods, mi);
 f->name = m_c_name;
@@ -17478,8 +17435,8 @@ continue;
 }
 compiler__semantic__types__Type* prim = compiler__semantic__types__resolve_primitive_name(self->symtab.prims, struct_name);
 compiler__ast__AstNode* named = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 1, .u.NamedType = { struct_name, std__collections__List_ptr_compiler__ast__AstNode_init(NULL, 0) } }, line, col);
-compiler__ast__AstNode* self_ty_node = ((prim != NULL) ? named : (p.mutable ? std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 2, .u.PointerType = { true, false, named } }, line, col) : (p.has_val ? std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 2, .u.PointerType = { false, false, named } }, line, col) : named)));
-std__collections__List_compiler__ast__Param_set(&f->params, i, (compiler__ast__Param){ p.name, self_ty_node, p.mutable, p.has_val, p.default_val });
+compiler__ast__AstNode* self_ty_node = ((prim != NULL) ? named : (p.receiver == 2 ? std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 2, .u.PointerType = { true, false, named } }, line, col) : (p.receiver == 1 ? std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 2, .u.PointerType = { false, false, named } }, line, col) : named)));
+std__collections__List_compiler__ast__Param_set(&f->params, i, (compiler__ast__Param){ p.name, self_ty_node, p.receiver, p.default_val });
 if (__for_up) {
 __for_go = ((__for_i + 1) < __for_e);
 } else {
@@ -19807,13 +19764,7 @@ while (__for_i < __for_n) {
 compiler__ast__Param p = std__collections__List_compiler__ast__Param_at(&f->params, __for_i);
 compiler__semantic__types__Type* pt = compiler__semantic__types__PrimTypes_t_none(compiler__semantic__declaration__DeclarationCollector_prims(self));
 if (kobel_streq(p.name, KOBEL_STR("self")) && (p.type_node == NULL)) {
-if (p.mutable) {
-pt = std__memory__Arena_pointer_type(&self->arena, st_type, true);
-} else if (p.has_val) {
-pt = std__memory__Arena_pointer_type(&self->arena, st_type, false);
-} else {
-pt = st_type;
-}
+pt = (p.receiver == 2 ? std__memory__Arena_pointer_type(&self->arena, st_type, true) : (p.receiver == 1 ? std__memory__Arena_pointer_type(&self->arena, st_type, false) : st_type));
 } else if (p.type_node != NULL) {
 if ((p.type_node != NULL && p.type_node->data.tag == compiler__ast__NodeData__VariadicType__TAG)) {
 is_vararg = true;
@@ -19831,14 +19782,14 @@ if (fn_type == NULL) fn_type = std__memory__Arena_fn_type(&self->arena, param_ty
 kobel_str m_c_name = compiler__semantic__declaration__method_c_name(kobel_concat(3, st_c_name, KOBEL_STR("_"), f->name), param_types.len, std__collections__List_str_contains(&overloaded, f->name), *used_names);
 std__collections__List_str_plus_assign(used_names, m_c_name);
 bool is_static = (std__collections__List_compiler__ast__Param_empty(&f->params) || !kobel_streq(std__collections__List_compiler__ast__Param_get(&f->params, 0).name, KOBEL_STR("self")));
-bool is_move = ((!is_static && !std__collections__List_compiler__ast__Param_get(&f->params, 0).mutable) && !std__collections__List_compiler__ast__Param_get(&f->params, 0).has_val);
+bool is_move = (!is_static && (std__collections__List_compiler__ast__Param_get(&f->params, 0).receiver == 3));
 compiler__semantic__types__MethodInfo* mi = std__memory__Arena_create_val_compiler__semantic__types__MethodInfo(&self->arena, (compiler__semantic__types__MethodInfo){ f->name, m_c_name, fn_type, m_node, self->current_module, f->operator, is_static, f->initializer, is_move });
 std__collections__List_ptr_compiler__semantic__types__MethodInfo_plus_assign(&st_info->methods, mi);
 f->name = m_c_name;
 }
 
 void compiler__semantic__declaration__DeclarationCollector_validate_constructor_signature(compiler__semantic__declaration__DeclarationCollector* self, compiler__ast__NodeData__FnDecl* f, compiler__ast__AstNode* m_node, kobel_str struct_name) {
-if (!kobel_streq(f->name, KOBEL_STR("new")) && !f->initializer) {
+if (!f->initializer) {
 return;
 }
 {
@@ -19847,7 +19798,7 @@ size_t __for_i = 0;
 while (__for_i < __for_n) {
 compiler__ast__Param p = std__collections__List_compiler__ast__Param_at(&f->params, __for_i);
 if (kobel_streq(p.name, KOBEL_STR("self"))) {
-compiler__semantic__declaration__DeclarationCollector_report_error(self, m_node, kobel_concat(3, KOBEL_STR("Constructor 'new' cannot have a 'self' parameter in struct '"), struct_name, KOBEL_STR("'")));
+compiler__semantic__declaration__DeclarationCollector_report_error(self, m_node, kobel_concat(3, KOBEL_STR("Constructor 'init' cannot have a 'self' parameter in struct '"), struct_name, KOBEL_STR("'")));
 }
 __for_i = (__for_i + 1);
 }
@@ -19859,7 +19810,7 @@ if (std__collections__List_compiler__ast__Param_empty(&f->params) || !kobel_stre
 compiler__semantic__declaration__DeclarationCollector_report_error(self, m_node, kobel_concat(5, KOBEL_STR("Operator '"), f->name, KOBEL_STR("' must have 'self' as its first parameter in struct '"), struct_name, KOBEL_STR("'")));
 return;
 }
-bool mutable_self = std__collections__List_compiler__ast__Param_get(&f->params, 0).mutable;
+bool mutable_self = (std__collections__List_compiler__ast__Param_get(&f->params, 0).receiver == 2);
 if (kobel_streq(f->name, KOBEL_STR("plus")) || kobel_streq(f->name, KOBEL_STR("minus")) || kobel_streq(f->name, KOBEL_STR("mul")) || kobel_streq(f->name, KOBEL_STR("div")) || kobel_streq(f->name, KOBEL_STR("rem")) || kobel_streq(f->name, KOBEL_STR("bit_and")) || kobel_streq(f->name, KOBEL_STR("bit_or")) || kobel_streq(f->name, KOBEL_STR("bit_xor")) || kobel_streq(f->name, KOBEL_STR("shl")) || kobel_streq(f->name, KOBEL_STR("shr")) || kobel_streq(f->name, KOBEL_STR("equals")) || kobel_streq(f->name, KOBEL_STR("compare")) || kobel_streq(f->name, KOBEL_STR("contains"))) {
 if (f->params.len != 2) {
 compiler__semantic__declaration__DeclarationCollector_report_error(self, m_node, kobel_concat(3, KOBEL_STR("Binary operator '"), f->name, KOBEL_STR("' must take exactly 1 parameter besides 'self'")));
@@ -20164,7 +20115,7 @@ compiler__semantic__types__Type* pt = compiler__semantic__types__PrimTypes_t_non
 if (kobel_streq(p.name, KOBEL_STR("self")) && (p.type_node == NULL)) {
 pt = prim;
 compiler__ast__AstNode* rt = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 1, .u.NamedType = { prim_name, std__collections__List_ptr_compiler__ast__AstNode_init(NULL, 0) } }, node->line, node->col);
-std__collections__List_compiler__ast__Param_set(&f->params, i, (compiler__ast__Param){ p.name, rt, p.mutable, p.has_val, p.default_val });
+std__collections__List_compiler__ast__Param_set(&f->params, i, (compiler__ast__Param){ p.name, rt, p.receiver, p.default_val });
 } else if (p.type_node != NULL) {
 if ((p.type_node != NULL && p.type_node->data.tag == compiler__ast__NodeData__VariadicType__TAG)) {
 is_vararg = true;
@@ -23909,10 +23860,6 @@ compiler__semantic__types__StructType* s_info = compiler__semantic__types__Type_
 if (!callee_is_self) {
 compiler__semantic__types__MethodInfo* init_cand = compiler__semantic__types__StructType_find_static_method_arity(s_info, KOBEL_STR("init"), call->args.len);
 compiler__semantic__types__MethodInfo* nm = compiler__semantic__checker__BodyChecker_method_with_defaults(self, KOBEL_STR("init"), call->args.len, s_info->methods, call, init_cand);
-if (nm == NULL) {
-compiler__semantic__types__MethodInfo* new_cand = compiler__semantic__types__StructType_find_static_method_arity(s_info, KOBEL_STR("new"), call->args.len);
-nm = compiler__semantic__checker__BodyChecker_method_with_defaults(self, KOBEL_STR("new"), call->args.len, s_info->methods, call, new_cand);
-}
 if (nm != NULL) {
 compiler__semantic__types__TypePayload__Fn* n_info = compiler__semantic__types__Type_as_fn(nm->fn_type);
 if (n_info->is_variadic) {
@@ -23996,7 +23943,7 @@ size_t i = __for_i;
 compiler__semantic__types__Type* param_ty = std__collections__List_ptr_compiler__semantic__types__Type_get(&n_info->param_types, i);
 compiler__ast__AstNode* arg_n = std__collections__List_ptr_compiler__ast__AstNode_get(&call->args, i);
 compiler__semantic__types__Type* arg_ty = compiler__semantic__checker__BodyChecker_check_expr(self, arg_n, param_ty);
-compiler__semantic__checker__BodyChecker_ensure(self, compiler__semantic__types__Type_can_assign(param_ty, arg_ty), node, KOBEL_STR("Argument type mismatch in call to 'new'"));
+compiler__semantic__checker__BodyChecker_ensure(self, compiler__semantic__types__Type_can_assign(param_ty, arg_ty), node, KOBEL_STR("Argument type mismatch in call to constructor"));
 if (__for_up) {
 __for_go = ((__for_i + 1) < __for_e);
 } else {
@@ -24020,7 +23967,7 @@ return n_info->return_type;
 }
 }
 if (s_info->has_private && !kobel_streq(s_info->module, self->symtab.current_module)) {
-compiler__semantic__checker__BodyChecker_report_error(self, node, kobel_concat(2, kobel_concat(3, KOBEL_STR("Cannot construct '"), s_info->name, KOBEL_STR("' from its fields: they are private to ")), kobel_concat(3, KOBEL_STR("module '"), s_info->module, KOBEL_STR("'; add a 'new' constructor"))));
+compiler__semantic__checker__BodyChecker_report_error(self, node, kobel_concat(2, kobel_concat(3, KOBEL_STR("Cannot construct '"), s_info->name, KOBEL_STR("' from its fields: they are private to ")), kobel_concat(3, KOBEL_STR("module '"), s_info->module, KOBEL_STR("'; add an 'init' constructor"))));
 }
 if (call->args.len < s_info->fields.len) {
 bool all_default = true;
@@ -25127,7 +25074,7 @@ return subj_ty;
 if (ei->is_payload) {
 compiler__semantic__types__StructType* base_s = compiler__semantic__types__Type_as_struct(base_ty);
 compiler__ast__AstNode* dummy_t = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 1, .u.NamedType = { base_s->c_name, std__collections__List_ptr_compiler__ast__AstNode_init(NULL, 0) } }, unwrapped_el->line, unwrapped_el->col);
-compiler__ast__AstNode* is_node = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 21, .u.IsExpr = { bin->left, dummy_t, KOBEL_STR(""), false } }, unwrapped_el->line, unwrapped_el->col);
+compiler__ast__AstNode* is_node = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 21, .u.IsExpr = { bin->left, dummy_t, KOBEL_STR("") } }, unwrapped_el->line, unwrapped_el->col);
 compiler__semantic__symbols__IsPatternInfo pat_info = (compiler__semantic__symbols__IsPatternInfo){ ei->tag_field, base_s->c_name, is_ptr, KOBEL_STR(""), false, i64_to_str(mi->value) };
 compiler__semantic__checker__BodyChecker_set_is_pattern(self, unwrapped_el, pat_info);
 compiler__semantic__checker__BodyChecker_set_is_pattern(self, is_node, pat_info);
@@ -26292,7 +26239,7 @@ if (compiler__semantic__checker__BodyChecker_is_multi_target_list(self, is_e)) {
 return false;
 }
 if (!str_empty(is_e->alias)) {
-return is_e->mutable;
+return false;
 }
 {
 compiler__ast__NodeData__IdentifierExpr* cond_id = NULL;
@@ -26638,10 +26585,10 @@ if (extra_info_node != NULL) {
 compiler__semantic__checker__BodyChecker_set_is_pattern(self, extra_info_node, info);
 }
 if (!str_empty(payload_path)) {
-return std__memory__Arena_pointer_type(&self->arena, target_ty, (is_e->mutable || (is_ptr && subj_mutable)));
+return std__memory__Arena_pointer_type(&self->arena, target_ty, (is_ptr && subj_mutable));
 }
 if (is_ptr) {
-return std__memory__Arena_pointer_type(&self->arena, target_ty, (is_e->mutable || (str_empty(is_e->alias) && subj_mutable)));
+return std__memory__Arena_pointer_type(&self->arena, target_ty, subj_mutable);
 }
 return target_ty;
 }
@@ -26855,7 +26802,7 @@ if (fn_info->is_variadic && (i == (f->params.len - 1))) {
 p_ty = std__memory__Arena_array_type(&self->arena, p_ty, 0);
 is_vararg = true;
 }
-compiler__semantic__symbols__Symbol sym = (compiler__semantic__symbols__Symbol){ p.name, p.name, 2, p_ty, p.mutable, false, fn_node->line, fn_node->col, NULL, NULL, false, false, false };
+compiler__semantic__symbols__Symbol sym = (compiler__semantic__symbols__Symbol){ p.name, p.name, 2, p_ty, (p.receiver == 2), false, fn_node->line, fn_node->col, NULL, NULL, false, false, false };
 sym.is_vararg = is_vararg;
 compiler__semantic__symbols__SymbolTable_define(&self->symtab, sym);
 if (__for_up) {
@@ -26906,18 +26853,10 @@ compiler__semantic__checker__BodyChecker_report_error(self, fn_node, KOBEL_STR("
 }
 }
 bool is_trait_impl = !str_empty(self->current_trait_name);
-{
-size_t __for_n = std__collections__List_compiler__ast__Param_count(&f->params);
-size_t __for_i = 0;
-while (__for_i < __for_n) {
-compiler__ast__Param p = std__collections__List_compiler__ast__Param_at(&f->params, __for_i);
-if (p.mutable && kobel_streq(p.name, KOBEL_STR("self"))) {
-compiler__semantic__symbols__Symbol* sym = compiler__semantic__symbols__SymbolTable_lookup(&self->symtab, p.name);
+if (!std__collections__List_compiler__ast__Param_empty(&f->params) && (std__collections__List_compiler__ast__Param_get(&f->params, 0).receiver == 2)) {
+compiler__semantic__symbols__Symbol* sym = compiler__semantic__symbols__SymbolTable_lookup(&self->symtab, std__collections__List_compiler__ast__Param_get(&f->params, 0).name);
 if (((sym != NULL) && !sym->mutated) && !is_trait_impl) {
 compiler__semantic__checker__BodyChecker_report_warning(self, fn_node, kobel_concat(2, kobel_concat(3, KOBEL_STR("In function '"), f->name, KOBEL_STR("': Receiver 'self' is declared mutable ")), KOBEL_STR("with '&self', but is never mutated; consider using '*self'")));
-}
-}
-__for_i = (__for_i + 1);
 }
 }
 if (had_env) {
@@ -27340,7 +27279,7 @@ while (__for_go) {
 size_t i = __for_i;
 compiler__ast__Param p = std__collections__List_compiler__ast__Param_get(&f->params, i);
 compiler__semantic__types__Type* p_ty = ((i < fn_info->param_types.len) ? std__collections__List_ptr_compiler__semantic__types__Type_get(&fn_info->param_types, i) : compiler__semantic__types__PrimTypes_t_none(compiler__semantic__checker__BodyChecker_prims(self)));
-compiler__semantic__symbols__SymbolTable_define(&self->symtab, (compiler__semantic__symbols__Symbol){ p.name, p.name, 2, p_ty, p.mutable, false, (*c->node).line, (*c->node).col, NULL, NULL, false, false, false });
+compiler__semantic__symbols__SymbolTable_define(&self->symtab, (compiler__semantic__symbols__Symbol){ p.name, p.name, 2, p_ty, (p.receiver == 2), false, (*c->node).line, (*c->node).col, NULL, NULL, false, false, false });
 if (__for_up) {
 __for_go = ((__for_i + 1) < __for_e);
 } else {
@@ -27839,7 +27778,7 @@ if (cast_ty != NULL) {
 {
 compiler__ast__NodeData__IdentifierExpr* id = NULL;
 if (!str_empty(is_e->alias)) {
-compiler__semantic__symbols__Symbol sym = (compiler__semantic__symbols__Symbol){ is_e->alias, is_e->alias, 0, cast_ty, is_e->mutable, false, 0, 0, NULL, NULL, false, false, false };
+compiler__semantic__symbols__Symbol sym = (compiler__semantic__symbols__Symbol){ is_e->alias, is_e->alias, 0, cast_ty, false, false, 0, 0, NULL, NULL, false, false, false };
 compiler__semantic__symbols__SymbolTable_define(&self->symtab, sym);
 } else if ((is_e->expr != NULL && is_e->expr->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (id = (compiler__ast__NodeData__IdentifierExpr*)(&(is_e->expr)->data.u.IdentifierExpr), 1))) {
 compiler__semantic__symbols__Symbol* subj_sym = compiler__semantic__symbols__SymbolTable_lookup(&self->symtab, id->name);
@@ -29730,11 +29669,7 @@ continue;
 }
 kobel_str p_ty = ((p.type_node != NULL) ? compiler__codegen__c_type_from_ast(p.type_node) : KOBEL_STR("void*"));
 if ((!str_empty(self_c_type) && kobel_streq(p.name, KOBEL_STR("self"))) && (p.type_node == NULL)) {
-if (p.mutable || p.has_val) {
-p_ty = kobel_concat(2, self_c_type, KOBEL_STR("*"));
-} else {
-p_ty = self_c_type;
-}
+p_ty = (p.receiver == 1 || p.receiver == 2 ? kobel_concat(2, self_c_type, KOBEL_STR("*")) : self_c_type);
 }
 std__string__StringBuilder_plus_assign_2(&self->out, p_ty);
 std__string__StringBuilder_plus_assign_2_2(&self->out, ' ');
@@ -32220,14 +32155,10 @@ return fmt__FormatBuffer_to_str(&scratch.buf).len;
 }
 
 void fmt__Formatter_format_param(fmt__Formatter* self, compiler__ast__Param p) {
-if (kobel_streq(p.name, KOBEL_STR("self"))) {
-if (p.mutable) {
+if (p.receiver == 2) {
 fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR("&self"));
-} else if (p.has_val) {
+} else if (p.receiver == 1) {
 fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR("*self"));
-} else {
-fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR("self"));
-}
 } else {
 fmt__FormatBuffer_plus_assign_2(&self->buf, p.name);
 }
@@ -32825,9 +32756,6 @@ fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR("is "));
 fmt__Formatter_format_type(self, is_e->target_type);
 if (!str_empty(is_e->alias)) {
 fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR(" as "));
-if (is_e->mutable) {
-fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR("var "));
-}
 fmt__FormatBuffer_plus_assign_2(&self->buf, is_e->alias);
 }
 } else if (node != NULL && node->data.tag == compiler__ast__NodeData__InterpExpr__TAG) {
@@ -33111,9 +33039,6 @@ if (prev_was_prefix_is) {
 fmt__Formatter_format_type(self, is_e->target_type);
 if (!str_empty(is_e->alias)) {
 fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR(" as "));
-if (is_e->mutable) {
-fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR("var "));
-}
 fmt__FormatBuffer_plus_assign_2(&self->buf, is_e->alias);
 }
 } else {
@@ -35370,16 +35295,12 @@ if (i > 0) {
 std__string__StringBuilder_plus_assign_2(&sb, KOBEL_STR(", "));
 }
 compiler__ast__Param p = std__collections__List_compiler__ast__Param_get(&params, i);
-if (kobel_streq(p.name, KOBEL_STR("self"))) {
-if (p.type_node == NULL) {
-if (p.mutable) {
+if (p.receiver == 2) {
 std__string__StringBuilder_plus_assign_2(&sb, KOBEL_STR("&self"));
-} else {
+} else if (p.receiver == 1) {
 std__string__StringBuilder_plus_assign_2(&sb, KOBEL_STR("*self"));
-}
-} else {
+} else if (p.receiver == 3) {
 std__string__StringBuilder_plus_assign_2(&sb, KOBEL_STR("self"));
-}
 } else {
 std__string__StringBuilder_plus_assign_2(&sb, kobel_concat(3, p.name, KOBEL_STR(": "), lsp__format_type_node(p.type_node)));
 }
@@ -36211,7 +36132,7 @@ lsp__IndexWalker_walk_expr(self, p.default_val);
 }
 if (!kobel_streq(p.name, KOBEL_STR("self"))) {
 kobel_str pt = lsp__format_type_node(p.type_node);
-lsp__IndexWalker_bind_local(self, p.name, 10, fl, fc, pt, p.mutable);
+lsp__IndexWalker_bind_local(self, p.name, 10, fl, fc, pt, false);
 }
 __for_i = (__for_i + 1);
 }
@@ -36599,7 +36520,7 @@ lsp__IndexWalker_walk_expr(self, node->expr);
 }
 lsp__IndexWalker_walk_type_node(self, node->target_type);
 if (!str_empty(node->alias)) {
-lsp__IndexWalker_bind_local(self, node->alias, 9, nl, nc, lsp__format_type_node(node->target_type), node->mutable);
+lsp__IndexWalker_bind_local(self, node->alias, 9, nl, nc, lsp__format_type_node(node->target_type), false);
 }
 } else if (node != NULL && node->data.tag == compiler__ast__NodeData__LambdaExpr__TAG) {
 void* __orig_node = (void*)node;
@@ -36614,7 +36535,7 @@ if (p.type_node != NULL) {
 lsp__IndexWalker_walk_type_node(self, p.type_node);
 }
 kobel_str pt = ((p.type_node != NULL) ? lsp__format_type_node(p.type_node) : KOBEL_STR("any"));
-lsp__IndexWalker_bind_local(self, p.name, 10, nl, nc, pt, p.mutable);
+lsp__IndexWalker_bind_local(self, p.name, 10, nl, nc, pt, false);
 __for_i = (__for_i + 1);
 }
 }

@@ -184,7 +184,7 @@ Any agent working on this codebase MUST keep these language/compiler mechanics i
    - Inside `if (ptr != null)`, Kobel automatically smart-casts `ptr` from `?*T` to non-null `*T`.
    - Do **not** write `ptr!` inside an `if (ptr != null)` branch; the compiler will reject `!` on an already smart-cast non-null pointer.
 4. **Indexing `List<T>` Parameters**:
-   - Subscript indexing `items[i]` requires `items` to be a `List<T>` value (or `var items: List<T>`), not a reference `&List<T>`. Since `List<T>` is a small header containing a heap buffer pointer (`data: *T`), passing `var items: List<T>` by value still mutates the underlying elements in-place if needed.
+   - Subscript indexing `items[i]` requires `items` to be a `List<T>` value (not a pointer `*List<T>` or `&List<T>`), because `op get` / `op set` are called directly on the value. Since `List<T>` is a small header containing a heap buffer pointer (`data: *T`), passing `items: List<T>` by value still reads/updates the underlying buffer elements in-place.
 5. **Bootstrap & Verification Gate**:
    - Always compile new changes using the seed compiler first:
      `.\build\seed\kobel_seed.exe build`

@@ -855,12 +855,63 @@ fn test_not_is_semantics() {
 	println("  [PASS] test_not_is_semantics");
 }
 
+fn test_is_pointer_mutability_propagation_and_no_new_ctor() {
+	// `is T as x` on read-only `*Base` stays `*T` and cannot pass to `&T`.
+	check_single_error(
+		"""
+		enum Node { Literal(v: i32), Empty }
+		fn take_mut(lit: &Node.Literal) {}
+		fn f(n: *Node) {
+		    if (n is Node.Literal as lit) {
+		        take_mut(lit);
+		    }
+		}
+		""",
+		"is Node.Literal as lit on *Node must remain read-only (*Node.Literal)"
+	);
+
+	// `is T as x` on mutable `&Base` propagates `&T` and can pass to `&T`.
+	val ok_src = """
+		enum Node { Literal(v: i32), Empty }
+		fn take_mut(lit: &Node.Literal) {}
+		fn f(n: &Node) {
+		    if (n is Node.Literal as lit) {
+		        take_mut(lit);
+		    }
+		}
+	""";
+	var ok_lexer = Lexer(ok_src);
+	var ok_parser = Parser(ok_lexer.tokenize());
+	val ok_prog = ok_parser.parse_program();
+	assert_eq_usz(ok_parser.errors.len, 0, "Mutable is propagation sample must parse");
+	var ok_bp = BodyChecker();
+	ok_bp.check_program(ok_prog);
+	assert_eq_usz(ok_bp.errors.len, 0, "is Node.Literal as lit on &Node must propagate &Node.Literal");
+
+	// `fn new(...)` is an ordinary static method, not a fallback for `Struct(...)`.
+	check_single_error(
+		"""
+		struct Boxed {
+		    pub v: i32
+		}
+		impl Boxed {
+		    pub fn new(v: i32): Boxed => Boxed { v: v };
+		}
+		fn f(): Boxed => Boxed(42);
+		""",
+		"Struct without init must reject Struct(...) even when fn new exists"
+	);
+
+	println("  [PASS] test_is_pointer_mutability_propagation_and_no_new_ctor");
+}
+
 fn main(): i32 {
 	println("[RUNNING] Bootstrap Semantic BodyChecker tests...");
 	test_when_subject_and_implicit_dot_restrictions();
 	test_lambda_body_and_call_restrictions();
 	test_in_candidate_list_restrictions();
 	test_not_is_semantics();
+	test_is_pointer_mutability_propagation_and_no_new_ctor();
 	test_destructure_nullable_pointer_error();
 	test_cast_null_to_non_null_pointer_rejected();
 	test_unused_mutability_warning();

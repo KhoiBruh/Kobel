@@ -22,7 +22,7 @@ use compiler.semantic.lowering.*;
 impl BodyChecker {
 
 	pub fn check_member_expr(&self, node: *AstNode): *Type {
-		if (node is MemberExpr as var mem) {
+		if (node is MemberExpr as mem) {
 			val const_ty = self.check_const_member(node, mem);
 			if (const_ty != null) return const_ty;
 

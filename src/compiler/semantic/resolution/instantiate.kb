@@ -157,16 +157,18 @@ impl TypeResolver {
 									var pt: ?*AstNode = null;
 									if (p.name == "self" && p.type_node == null) {
 										val named = self.arena.node(NodeData.NamedType(cname, List<*AstNode>()), m.line, m.col);
-										pt = if (p.mutable) self.arena.node(NodeData.PointerType(true, false, named), m.line, m.col)
-											else if (p.has_val) self.arena.node(NodeData.PointerType(false, false, named), m.line, m.col)
-											else named;
+										pt = when (p.receiver) {
+											ReceiverKind.PTR_MUT -> self.arena.node(NodeData.PointerType(true, false, named), m.line, m.col);
+											ReceiverKind.PTR_CONST -> self.arena.node(NodeData.PointerType(false, false, named), m.line, m.col);
+											else -> named;
+										};
 									} else if (p.type_node != null) {
 										pt = self.clone_type(p.type_node!, impl_subst);
 									}
 									val dflt = if (p.default_val != null)
 										self.clone_expr(p.default_val!, impl_subst)
 										else null;
-									m_params += Param(p.name, pt, p.mutable, p.has_val, dflt);
+									m_params += Param(p.name, pt, p.receiver, dflt);
 								}
 								val m_rt = if (mf.return_type != null)
 									self.clone_type(mf.return_type!, impl_subst)
@@ -257,7 +259,7 @@ impl TypeResolver {
 				val dflt = if (p.default_val != null)
 					self.clone_expr(p.default_val!, self.alloc_subst(tmpl.param_names(), arg_asts))
 					else null;
-				params += Param(p.name, pt, p.mutable, p.has_val, dflt);
+				params += Param(p.name, pt, p.receiver, dflt);
 			}
 
 			var rt: ?*AstNode = null;
@@ -293,8 +295,8 @@ impl TypeResolver {
 			for (p in t.params) {
 				if (p.name == "self" && p.type_node == null) {
 					if (receiver != null) {
-						if (p.mutable) param_types += self.arena.pointer_type(receiver, true);
-						else if (p.has_val) param_types += self.arena.pointer_type(receiver, false);
+						if (p.receiver == ReceiverKind.PTR_MUT) param_types += self.arena.pointer_type(receiver, true);
+						else if (p.receiver == ReceiverKind.PTR_CONST) param_types += self.arena.pointer_type(receiver, false);
 						else param_types += receiver;
 					}
 					else param_types += self.prims().t_none();
@@ -553,9 +555,11 @@ impl TypeResolver {
 						var pt: *Type = self.prims().t_none();
 						pt = when (p) {
 							.name == "self" &&
-							.type_node == null -> if (p.mutable) self.arena.pointer_type(st_type, true)
-								else if (p.has_val) self.arena.pointer_type(st_type, false)
-								else st_type;
+							.type_node == null -> when (p.receiver) {
+								ReceiverKind.PTR_MUT -> self.arena.pointer_type(st_type, true);
+								ReceiverKind.PTR_CONST -> self.arena.pointer_type(st_type, false);
+								else -> st_type;
+							};
 							.type_node != null -> self.resolve_ast_type(p.type_node!);
 							else -> self.prims().t_none();
 						};
@@ -575,7 +579,7 @@ impl TypeResolver {
 					used_names += m_c_name;
 
 					val is_static = f.params.empty() || f.params[0].name != "self";
-					val is_move = !is_static && !f.params[0].mutable && !f.params[0].has_val;
+					val is_move = !is_static && f.params[0].receiver == ReceiverKind.MOVE;
 					val mi = self.arena.create_val(
 						MethodInfo(
 							f.name, m_c_name, fn_type, m_node, self.current_module,

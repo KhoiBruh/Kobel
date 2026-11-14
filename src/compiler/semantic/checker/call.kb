@@ -5,7 +5,7 @@ mod compiler.semantic.checker;
  * BodyChecker - Call Expression & Constructor Resolution
  *
  * Resolves function calls, instance and primitive methods, type size queries,
- * string slicing, and struct construction (both `new` constructors and field lists).
+ * string slicing, and struct construction (both `init` constructors and field lists).
  * ============================================================================
  */
 
@@ -33,7 +33,7 @@ impl BodyChecker {
 
 			// Check member call queries: T.size(), s.slice(...) or instance/primitive methods
 			val callee = call.callee;
-			if (callee is MemberExpr as var mem) {
+			if (callee is MemberExpr as mem) {
 				if (mem.object is IdentifierExpr as id && id.name.empty() && self.when_subject != null) {
 					val subj_copy = self.copy_expr(self.when_subject!);
 					if (self.current_rec != null) self.set_ann_obj(callee, subj_copy);
@@ -273,7 +273,7 @@ impl BodyChecker {
 
 	fn lower_size_query(&self, node: *AstNode, mem: *MemberExpr): *Type {
 		val obj = mem.object;
-		if (obj is IdentifierExpr as var id) {
+		if (obj is IdentifierExpr as id) {
 			val idx = self.type_param_index(id.name);
 			if (idx >= 0) {
 				val arg_ty = if (self.has_decl && (idx as usz) < self.decl.subst_types.len)
@@ -1254,15 +1254,9 @@ impl BodyChecker {
 
 		if (!callee_is_self) {
 			val init_cand = s_info.find_static_method_arity("init", call.args.len);
-			var nm = self.method_with_defaults(
+			val nm = self.method_with_defaults(
 				"init", call.args.len, s_info.methods, call, init_cand
 			);
-			if (nm == null) {
-				val new_cand = s_info.find_static_method_arity("new", call.args.len);
-				nm = self.method_with_defaults(
-					"new", call.args.len, s_info.methods, call, new_cand
-				);
-			}
 			if (nm != null) {
 				val n_info = nm.fn_type.as_fn();
 				if (n_info.is_variadic) {
@@ -1284,7 +1278,7 @@ impl BodyChecker {
 						val param_ty = n_info.param_types[i];
 						val arg_n = call.args[i];
 						val arg_ty = self.check_expr(arg_n, param_ty);
-						self.ensure(param_ty.can_assign(arg_ty), node, "Argument type mismatch in call to 'new'");
+						self.ensure(param_ty.can_assign(arg_ty), node, "Argument type mismatch in call to constructor");
 					}
 				}
 				self.set_method(node, nm);
@@ -1297,7 +1291,7 @@ impl BodyChecker {
 			self.report_error(
 				node,
 				"Cannot construct '${s_info.name}' from its fields: they are private to " +
-				"module '${s_info.module}'; add a 'new' constructor"
+				"module '${s_info.module}'; add an 'init' constructor"
 			);
 		}
 

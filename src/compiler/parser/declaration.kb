@@ -62,30 +62,14 @@ impl Parser {
 		var params = List<Param>();
 
 		if (!self.check(TokenType.CLOSE_PAREN)) {
-			var mutable = false;
-			var has_val = false;
-			var is_prefix_ptr = false;
+			var receiver = ReceiverKind.NONE;
 			when (self) {
-				.match_token(TokenType.AMPERSAND) -> {
-					mutable = true;
-					is_prefix_ptr = true;
-				}
-				.match_token(TokenType.STAR) -> {
-					has_val = true;
-					is_prefix_ptr = true;
-				}
-				.check(TokenType.KW_VAR) || .check(TokenType.KW_VAL) -> {
-					val mod_tok = self.advance();
-					if (self.check(TokenType.IDENTIFIER) && self.peek().text == "self") {
-						self.error(mod_tok, "'val self' and 'var self' are no longer supported; use '*self', '&self', or bare 'self'");
-					} else {
-						self.error(mod_tok, "Parameter modifiers 'var' and 'val' are not supported; use 'name: *Type' or 'name: &Type'");
-					}
-				}
+				.match_token(TokenType.AMPERSAND) -> receiver = ReceiverKind.PTR_MUT;
+				.match_token(TokenType.STAR) -> receiver = ReceiverKind.PTR_CONST;
 			}
 
 			val pname = self.consume(TokenType.IDENTIFIER, "Expected parameter name");
-			if (is_prefix_ptr && (!allow_self || pname.text != "self")) {
+			if (receiver != ReceiverKind.NONE && (!allow_self || pname.text != "self")) {
 				self.error(pname, "Prefix '*' and '&' are only supported for the 'self' receiver parameter");
 			}
 			val ptype = when {
@@ -96,17 +80,16 @@ impl Parser {
 				}
 				else -> null;
 			};
+			if (allow_self && pname.text == "self" && receiver == ReceiverKind.NONE && ptype == null) {
+				receiver = ReceiverKind.MOVE;
+			}
 
 			val p_default = if (self.match_token(TokenType.EQUAL)) self.parse_expression(Precedence.NONE) else null;
-			params += Param(pname.text, ptype, mutable, has_val, p_default);
+			params += Param(pname.text, ptype, receiver, p_default);
 
 			while (self.match_token(TokenType.COMMA)) {
 				if (params.last().type_node is VariadicType) {
 					self.error(self.peek(), "Variadic parameter '..T' must be the last parameter in the function declaration");
-				}
-				if (self.check(TokenType.KW_VAR) || self.check(TokenType.KW_VAL)) {
-					val mod_tok = self.advance();
-					self.error(mod_tok, "Parameter modifiers 'var' and 'val' are not supported; use 'name: *Type' or 'name: &Type'");
 				}
 
 				val p_name = self.consume(TokenType.IDENTIFIER, "Expected parameter name");
@@ -118,7 +101,7 @@ impl Parser {
 
 				val p_def = if (self.match_token(TokenType.EQUAL)) self.parse_expression(Precedence.NONE)
 				else null;
-				params += Param(p_name.text, p_type, false, false, p_def);
+				params += Param(p_name.text, p_type, ReceiverKind.NONE, p_def);
 			}
 		}
 

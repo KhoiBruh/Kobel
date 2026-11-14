@@ -2457,12 +2457,12 @@ tests__features__test_types__Pair tests__features__test_types__Pair_init_2(int32
 
 void tests__features__test_types__test_new_overloads(tests__features__test_types__Tally* t) {
 tests__features__test_types__Pair d = tests__features__test_types__Pair_init_0();
-tests__features__test_types__check_i(d.a, 0, KOBEL_STR("Pair() dispatches to new()"), t);
+tests__features__test_types__check_i(d.a, 0, KOBEL_STR("Pair() dispatches to init()"), t);
 tests__features__test_types__Pair s = tests__features__test_types__Pair_init_1(7);
-tests__features__test_types__check_i(s.b, 7, KOBEL_STR("Pair(v) dispatches to new(v)"), t);
+tests__features__test_types__check_i(s.b, 7, KOBEL_STR("Pair(v) dispatches to init(v)"), t);
 tests__features__test_types__Pair f = tests__features__test_types__Pair_init_2(3, 4);
-tests__features__test_types__check_i(f.a, 3, KOBEL_STR("Pair(a,b) dispatches to new(a,b)"), t);
-tests__features__test_types__check_i(f.b, 4, KOBEL_STR("Pair(a,b) dispatches to new(a,b) (b)"), t);
+tests__features__test_types__check_i(f.a, 3, KOBEL_STR("Pair(a,b) dispatches to init(a,b)"), t);
+tests__features__test_types__check_i(f.b, 4, KOBEL_STR("Pair(a,b) dispatches to init(a,b) (b)"), t);
 }
 
 void tests__features__test_types__test_private_fields(tests__features__test_types__Tally* t) {

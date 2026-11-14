@@ -91,10 +91,12 @@ impl TypeResolver {
 			val prim = resolve_primitive_name(self.symtab.prims!, struct_name);
 			val named = self.arena.node(NodeData.NamedType(struct_name, List<*AstNode>()), line, col);
 			val self_ty_node = if (prim != null) named
-				else if (p.mutable) self.arena.node(NodeData.PointerType(true, false, named), line, col)
-				else if (p.has_val) self.arena.node(NodeData.PointerType(false, false, named), line, col)
-				else named;
-			f.params[i] = Param(p.name, self_ty_node, p.mutable, p.has_val, p.default_val);
+				else when (p.receiver) {
+					ReceiverKind.PTR_MUT -> self.arena.node(NodeData.PointerType(true, false, named), line, col);
+					ReceiverKind.PTR_CONST -> self.arena.node(NodeData.PointerType(false, false, named), line, col);
+					else -> named;
+				};
+			f.params[i] = Param(p.name, self_ty_node, p.receiver, p.default_val);
 		}
 	}
 

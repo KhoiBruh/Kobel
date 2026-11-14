@@ -193,7 +193,7 @@ impl BodyChecker {
 		val pat = patterns.first();
 		if (pat is IsExpr as is_e) {
 			if (self.is_multi_target_list(is_e)) return false;
-			if (!is_e.alias.empty()) return is_e.mutable;
+			if (!is_e.alias.empty()) return false;
 			if (cond is IdentifierExpr as cond_id) {
 				val subj_sym = self.symtab.lookup(cond_id.name);
 				return subj_sym != null && subj_sym.mutable;
@@ -210,7 +210,7 @@ impl BodyChecker {
 	): ?*Type {
 		if (!self.arm_smart_cast_sym(patterns, cond).empty()) {
 			val pat = patterns.first();
-			if (pat is IsExpr as var is_e) {
+			if (pat is IsExpr as is_e) {
 				if (is_e.expr == null) is_e.expr = cond;
 				return self.check_is_pattern(cond, cond_ty, pat);
 			}
@@ -265,7 +265,7 @@ impl BodyChecker {
 	fn check_arm_pattern(&self, pat: *AstNode, cond: ?*AstNode, cond_ty: ?*Type): *Type {
 		if (cond == null) return self.check_expr(pat);
 
-		if (pat is IsExpr as var is_e) {
+		if (pat is IsExpr as is_e) {
 			if (is_e.expr == null) is_e.expr = cond;
 			self.check_is_pattern(cond, cond_ty, pat);
 			return self.prims().t_bool();
@@ -278,7 +278,7 @@ impl BodyChecker {
 			!un.is_postfix
 		) {
 			val inner = self.unwrap_group(un.operand);
-			if (inner is IsExpr as var inner_is) {
+			if (inner is IsExpr as inner_is) {
 				val subj_ty = if (inner_is.expr == null) cond_ty else self.check_expr(inner_is.expr!);
 				if (inner_is.expr == null) inner_is.expr = cond;
 				self.check_is_pattern(inner_is.expr, subj_ty, inner);
@@ -389,7 +389,7 @@ impl BodyChecker {
 		else null;
 		val direct_enum = self.symtab.find_enum_info(base_s.name);
 
-		if (target_node is NamedType as var nt && nt.name.starts_with(".")) {
+		if (target_node is NamedType as nt && nt.name.starts_with(".")) {
 			val vname = nt.name.slice(1, nt.name.len);
 			if (data_enum?.is_payload && data_enum.find_member(vname) != null) {
 				nt.name = "${data_enum.name}.${vname}";
@@ -494,14 +494,11 @@ impl BodyChecker {
 		if (extra_info_node != null) self.set_is_pattern(extra_info_node, info);
 
 		if (!payload_path.empty()) {
-			return self.arena.pointer_type(target_ty, is_e.mutable || (is_ptr && subj_mutable));
+			return self.arena.pointer_type(target_ty, is_ptr && subj_mutable);
 		}
 
 		if (is_ptr) {
-			return self.arena.pointer_type(
-				target_ty,
-				is_e.mutable || (is_e.alias.empty() && subj_mutable)
-			);
+			return self.arena.pointer_type(target_ty, subj_mutable);
 		}
 		return target_ty;
 	}

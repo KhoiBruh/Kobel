@@ -44,7 +44,7 @@ impl LoweringPass {
 		if (program_node is Program as prog) {
 			for (decl in prog) {
 				when (decl) {
-					is FnDecl as var f -> {
+					is FnDecl as f -> {
 						if (f.type_params.len > 0) continue;
 						val rec = self.symtab.get_node_instance(decl);
 						if (rec != null) {
@@ -53,10 +53,10 @@ impl LoweringPass {
 							f.body = self.lower_stmt(f.body!);
 						}
 					}
-					is ImplDecl as var im -> {
+					is ImplDecl as im -> {
 						for (i in 0..<im.methods.len) {
 							val m = im.methods[i];
-							if (m is FnDecl as var mf) {
+							if (m is FnDecl as mf) {
 								if (mf.type_params.len > 0) continue;
 								val rec = self.symtab.get_node_instance(m);
 								if (rec != null) {
@@ -67,7 +67,7 @@ impl LoweringPass {
 							}
 						}
 					}
-					is ConstDecl as var c -> {
+					is ConstDecl as c -> {
 						if (c.value != null) c.value = self.lower_expr(c.value!);
 					}
 				}
@@ -84,41 +84,41 @@ impl LoweringPass {
 		if (res_stmt != null) return self.lower_stmt(res_stmt);
 
 		when (node) {
-			is BlockStmt as var blk -> {
+			is BlockStmt as blk -> {
 				for (i in 0..<blk.statements.len) {
 					blk.statements[i] = self.lower_stmt(blk.statements[i]);
 				}
 			}
-			is ExprStmt as var es -> {
+			is ExprStmt as es -> {
 				es.expr = self.lower_expr(es.expr);
 			}
-			is VarDeclStmt as var vd -> {
+			is VarDeclStmt as vd -> {
 				if (vd.initializer != null) vd.initializer = self.lower_expr(vd.initializer!);
 			}
-			is DestructDeclStmt as var ds -> {
+			is DestructDeclStmt as ds -> {
 				ds.initializer = self.lower_expr(ds.initializer);
 			}
-			is IfStmt as var ifs -> {
+			is IfStmt as ifs -> {
 				ifs.condition = self.lower_expr(ifs.condition);
 				ifs.then_branch = self.lower_stmt(ifs.then_branch);
 				if (ifs.else_branch != null) {
 					ifs.else_branch = self.lower_stmt(ifs.else_branch!);
 				}
 			}
-			is WhileStmt as var wh -> {
+			is WhileStmt as wh -> {
 				wh.condition = self.lower_expr(wh.condition);
 				wh.body = self.lower_stmt(wh.body);
 			}
-			is ForStmt as var fr -> {
+			is ForStmt as fr -> {
 				if (fr.iterable != null) fr.iterable = self.lower_expr(fr.iterable!);
 				if (fr.range_start != null) fr.range_start = self.lower_expr(fr.range_start!);
 				if (fr.range_end != null) fr.range_end = self.lower_expr(fr.range_end!);
 				fr.body = self.lower_stmt(fr.body);
 			}
-			is ReturnStmt as var ret -> {
+			is ReturnStmt as ret -> {
 				if (ret.value != null) ret.value = self.lower_expr(ret.value!);
 			}
-			is WhenStmt as var ws -> {
+			is WhenStmt as ws -> {
 				if (ws.condition != null) ws.condition = self.lower_expr(ws.condition!);
 				for (i in 0..<ws.arms.len) {
 					var arm = ws.arms[i];
@@ -129,10 +129,10 @@ impl LoweringPass {
 					ws.arms[i] = arm;
 				}
 			}
-			is YieldStmt as var ys -> {
+			is YieldStmt as ys -> {
 				if (ys.value != null) ys.value = self.lower_expr(ys.value!);
 			}
-			is DeferStmt as var ds -> {
+			is DeferStmt as ds -> {
 				ds.body = self.lower_stmt(ds.body);
 			}
 		}
@@ -149,16 +149,16 @@ impl LoweringPass {
 
 		var out = node;
 		when (node) {
-			is BinaryExpr as var b -> {
+			is BinaryExpr as b -> {
 				b.left = self.lower_expr(b.left);
 				b.right = self.lower_expr(b.right);
 				out = self.lower_binary(node, b);
 			}
-			is UnaryExpr as var u -> {
+			is UnaryExpr as u -> {
 				u.operand = self.lower_expr(u.operand);
 				out = self.lower_unary(node, u);
 			}
-			is CallExpr as var c -> {
+			is CallExpr as c -> {
 				c.callee = self.lower_expr(c.callee);
 				for (i in 0..<c.args.len) c.args[i] = self.lower_expr(c.args[i]);
 				if (self.symtab.get_resolved_method(node) != null) {
@@ -167,38 +167,38 @@ impl LoweringPass {
 					out = self.lower_call(node, c);
 				}
 			}
-			is MemberExpr as var m -> {
+			is MemberExpr as m -> {
 				m.object = self.lower_expr(m.object);
 				out = self.lower_member(node, m);
 			}
-			is IndexExpr as var ix -> {
+			is IndexExpr as ix -> {
 				ix.target = self.lower_expr(ix.target);
 				ix.index = self.lower_expr(ix.index);
 				out = self.lower_index(node, ix);
 			}
-			is AssignExpr as var asg -> {
+			is AssignExpr as asg -> {
 				asg.target = self.lower_expr(asg.target);
 				asg.value = self.lower_expr(asg.value);
 				out = self.lower_assign(node, asg);
 			}
-			is UpdateExpr as var up -> {
+			is UpdateExpr as up -> {
 				up.target = self.lower_expr(up.target);
 			}
-			is CastExpr as var cst -> {
+			is CastExpr as cst -> {
 				if (cst.expr != null) cst.expr = self.lower_expr(cst.expr!);
 			}
-			is GroupExpr as var g -> {
+			is GroupExpr as g -> {
 				g.expr = self.lower_expr(g.expr);
 			}
-			is ArrayLiteralExpr as var al -> {
+			is ArrayLiteralExpr as al -> {
 				for (i in 0..<al.elements.len) al.elements[i] = self.lower_expr(al.elements[i]);
 			}
-			is IfExpr as var ie -> {
+			is IfExpr as ie -> {
 				ie.condition = self.lower_expr(ie.condition);
 				ie.then_branch = self.lower_expr(ie.then_branch);
 				ie.else_branch = self.lower_expr(ie.else_branch);
 			}
-			is WhenExpr as var we -> {
+			is WhenExpr as we -> {
 				if (we.condition != null) we.condition = self.lower_expr(we.condition!);
 				for (i in 0..<we.arms.len) {
 					var arm = we.arms[i];
@@ -209,7 +209,7 @@ impl LoweringPass {
 					we.arms[i] = arm;
 				}
 			}
-			is InterpExpr as var ip -> {
+			is InterpExpr as ip -> {
 				for (i in 0..<ip.parts.len) {
 					var part = ip.parts[i];
 					when (part) {
@@ -223,16 +223,16 @@ impl LoweringPass {
 				}
 				out = self.lower_interp(node, ip);
 			}
-			is IsExpr as var ise -> {
+			is IsExpr as ise -> {
 				if (ise.expr != null) ise.expr = self.lower_expr(ise.expr!);
 			}
-			is StructCtorExpr as var sc -> {
+			is StructCtorExpr as sc -> {
 				for (i in 0..<sc.args.len) sc.args[i] = self.lower_expr(sc.args[i]);
 			}
-			is EnumCtorExpr as var ec -> {
+			is EnumCtorExpr as ec -> {
 				for (i in 0..<ec.args.len) ec.args[i] = self.lower_expr(ec.args[i]);
 			}
-			is LambdaExpr as var lam -> {
+			is LambdaExpr as lam -> {
 				if (lam.body is BlockStmt) lam.body = self.lower_stmt(lam.body);
 				else lam.body = self.lower_expr(lam.body);
 			}
@@ -270,7 +270,7 @@ impl LoweringPass {
 		return replacement;
 	}
 
-	fn lower_binary(&self, node: *AstNode, bin: &BinaryExpr): *AstNode {
+	fn lower_binary(&self, node: *AstNode, bin: *BinaryExpr): *AstNode {
 		if (bin.op == TokenType.QUESTION_COLON) {
 			if (self.is_stmt_node(bin.right)) bin.right = self.lower_stmt(bin.right);
 			return node;
@@ -384,7 +384,7 @@ impl LoweringPass {
 		return node;
 	}
 
-	fn lower_assign(&self, node: *AstNode, asgn: &AssignExpr): *AstNode {
+	fn lower_assign(&self, node: *AstNode, asgn: *AssignExpr): *AstNode {
 		if (self.symtab.get_resolved_method(node) != null) {
 			val mi = self.symtab.get_resolved_method(node)!;
 			val target_ty = self.type_of(asgn.target);
@@ -417,7 +417,7 @@ impl LoweringPass {
 		return node;
 	}
 
-	fn lower_interp(&self, node: *AstNode, ie: &InterpExpr): *AstNode {
+	fn lower_interp(&self, node: *AstNode, ie: *InterpExpr): *AstNode {
 		val (line, col) = node;
 		var pieces = List<*AstNode>();
 		defer pieces.free();
@@ -470,7 +470,7 @@ impl LoweringPass {
 		return null;
 	}
 
-	fn lower_member(&self, node: *AstNode, mem: &MemberExpr): *AstNode {
+	fn lower_member(&self, node: *AstNode, mem: *MemberExpr): *AstNode {
 		val obj = mem.object ?: return node;
 
 		val obj_ty = self.type_of(obj);
@@ -518,7 +518,7 @@ impl LoweringPass {
 		return node;
 	}
 
-	fn lower_unary(&self, node: *AstNode, un: &UnaryExpr): *AstNode {
+	fn lower_unary(&self, node: *AstNode, un: *UnaryExpr): *AstNode {
 		if (self.symtab.get_resolved_method(node) == null) return node;
 		val mi = self.symtab.get_resolved_method(node)!;
 		var args = List<*AstNode>();
@@ -535,7 +535,7 @@ impl LoweringPass {
 		return self.lowered(node, call);
 	}
 
-	fn lower_index(&self, node: *AstNode, idx: &IndexExpr): *AstNode {
+	fn lower_index(&self, node: *AstNode, idx: *IndexExpr): *AstNode {
 		if (idx.target is IdentifierExpr as id) {
 			val target_arr = self.type_of(idx.target);
 			if (target_arr?.kind == DataType.ARRAY && target_arr.as_array().length == 0) {
@@ -572,7 +572,7 @@ impl LoweringPass {
 		return self.lowered(node, call);
 	}
 
-	fn lower_bound_call(&self, node: *AstNode, call: &CallExpr): *AstNode {
+	fn lower_bound_call(&self, node: *AstNode, call: *CallExpr): *AstNode {
 		val callee = call.callee;
 		if (callee == null) return node;
 
@@ -688,7 +688,7 @@ impl LoweringPass {
 		return node;
 	}
 
-	fn lower_call(&self, node: *AstNode, call: &CallExpr): *AstNode {
+	fn lower_call(&self, node: *AstNode, call: *CallExpr): *AstNode {
 		val callee = call.callee ?: return node;
 		if (callee is MemberExpr as mem) {
 			if (mem.member != "slice") return node;

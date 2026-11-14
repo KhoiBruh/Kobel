@@ -330,7 +330,7 @@ impl BodyChecker {
 						if (!is_e.alias.empty()) {
 							val sym = Symbol(
 								is_e.alias, is_e.alias, SymbolKind.VAR,
-								cast_ty, is_e.mutable, false, 0, 0
+								cast_ty, false, false, 0, 0
 							);
 							self.symtab.define(sym);
 						} else if (is_e.expr is IdentifierExpr as id) {

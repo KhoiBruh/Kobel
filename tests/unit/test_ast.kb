@@ -125,8 +125,8 @@ fn test_declaration_nodes(): bool {
 	// fn add(a: i32, b: i32): i32 { return a + b; }
 	var params = List<Param>();
 	val ty_i32 = arena.node(NodeData.NamedType("i32", List<*AstNode>()), 1, 1);
-	params += Param("a", ty_i32, false, false, null);
-	params += Param("b", ty_i32, false, false, null);
+	params += Param("a", ty_i32, ReceiverKind.NONE, null);
+	params += Param("b", ty_i32, ReceiverKind.NONE, null);
 
 	val id_a = arena.node(NodeData.IdentifierExpr("a"), 1, 1);
 	val id_b = arena.node(NodeData.IdentifierExpr("b"), 1, 1);

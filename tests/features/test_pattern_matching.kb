@@ -143,39 +143,23 @@ fn eval_compound_condition(node: ?*Node): i32 {
 	return -1;
 }
 
-// Case 6: Mutable pattern binding ('is Type as var alias' and 'is Type as &alias')
+// Case 6: Mutable pattern binding propagates from '&T' subject ('is Type as alias')
 fn add_ten(l: &Literal) {
 	l.value += 10;
 }
 
-fn mutate_when_var(node: *Node) {
+fn mutate_when_ref(node: &Node) {
 	when (node) {
-		is Literal as var lit -> {
+		is Literal as lit -> {
 			lit.value = 100;
 			add_ten(lit);
 		}
 	}
 }
 
-fn mutate_when_ref(node: *Node) {
-	when (node) {
-		is Literal as &lit -> {
-			lit.value = 200;
-			add_ten(lit);
-		}
-	}
-}
-
-fn mutate_if_var(node: *Node) {
-	if (node is Literal as var lit) {
-		lit.value = 300;
-		add_ten(lit);
-	}
-}
-
-fn mutate_if_ref(node: *Node) {
-	if (node is Literal as &lit) {
-		lit.value = 400;
+fn mutate_if_ref(node: &Node) {
+	if (node is Literal as lit) {
+		lit.value = 200;
 		add_ten(lit);
 	}
 }
@@ -346,34 +330,20 @@ fn main(): i32 {
 		return 1;
 	}
 
-	// Test Case 6: Mutable pattern binding ('is Type as var alias' and 'is Type as &alias')
+	// Test Case 6: Mutable pattern binding via '&Node' subject ('is Type as alias')
 	var mut_lit = Literal(Literal.TAG, 1);
-	val mut_ptr = &mut_lit as *Node;
-
-	mutate_when_var(mut_ptr);
-	println("mutate_when_var: ${mut_lit.value}");
-	if (mut_lit.value != 110) {
-		println("FAIL: mutate_when_var");
-		return 1;
-	}
+	val mut_ptr = &mut_lit as &Node;
 
 	mutate_when_ref(mut_ptr);
 	println("mutate_when_ref: ${mut_lit.value}");
-	if (mut_lit.value != 210) {
+	if (mut_lit.value != 110) {
 		println("FAIL: mutate_when_ref");
-		return 1;
-	}
-
-	mutate_if_var(mut_ptr);
-	println("mutate_if_var: ${mut_lit.value}");
-	if (mut_lit.value != 310) {
-		println("FAIL: mutate_if_var");
 		return 1;
 	}
 
 	mutate_if_ref(mut_ptr);
 	println("mutate_if_ref: ${mut_lit.value}");
-	if (mut_lit.value != 410) {
+	if (mut_lit.value != 210) {
 		println("FAIL: mutate_if_ref");
 		return 1;
 	}

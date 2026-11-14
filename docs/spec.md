@@ -126,9 +126,8 @@ impl Point {
     - bare `self`: Consuming/move receiver (moves/consumes the caller variable).
   - Static methods omit `self` and are called via `TypeName.method(...)` or `Self.method(...)` within `impl`.
 - **Construction:**
-  - Unified constructor syntax: `Point(1, 2)` calls `Point.new(1, 2)` if defined, otherwise falls back to positional field construction.
-  - Explicit static call: `Point.new(1, 2)`.
-  - Raw struct construction: `Self(1, 2)` inside `impl` constructs fields directly without calling `new`.
+  - Unified constructor syntax: `Point(1, 2)` calls an `init(x, y)` constructor defined in `impl Point` if present, otherwise constructs struct fields positionally.
+  - Raw struct construction: `Self(1, 2)` inside `impl` constructs fields directly without calling `init`.
 
 ### Forward Declarations
 

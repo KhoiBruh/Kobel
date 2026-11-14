@@ -484,7 +484,7 @@ impl BodyChecker {
 						unwrapped_el.line, unwrapped_el.col
 					);
 					val is_node = self.arena.node(
-						NodeData.IsExpr(bin.left, dummy_t, "", false),
+						NodeData.IsExpr(bin.left, dummy_t, ""),
 						unwrapped_el.line, unwrapped_el.col
 					);
 					val pat_info = IsPatternInfo(

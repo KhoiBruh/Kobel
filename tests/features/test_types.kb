@@ -206,7 +206,7 @@ fn test_self(t: &Tally) {
 	check_i(w.y, 5, "Self builds a value (y)", t);
 }
 
-// --- 9. Kotlin-style construction through `new` overloads ------------------
+// --- 9. Construction through `init` overloads --------------------------------
 
 struct Pair {
 	pub a: i32,
@@ -221,12 +221,12 @@ impl Pair {
 
 fn test_new_overloads(t: &Tally) {
 	val d = Pair();
-	check_i(d.a, 0, "Pair() dispatches to new()", t);
+	check_i(d.a, 0, "Pair() dispatches to init()", t);
 	val s = Pair(7);
-	check_i(s.b, 7, "Pair(v) dispatches to new(v)", t);
+	check_i(s.b, 7, "Pair(v) dispatches to init(v)", t);
 	val f = Pair(3, 4);
-	check_i(f.a, 3, "Pair(a,b) dispatches to new(a,b)", t);
-	check_i(f.b, 4, "Pair(a,b) dispatches to new(a,b) (b)", t);
+	check_i(f.a, 3, "Pair(a,b) dispatches to init(a,b)", t);
+	check_i(f.b, 4, "Pair(a,b) dispatches to init(a,b) (b)", t);
 }
 
 // --- 10. non-pub fields: other modules must use a factory -------------------

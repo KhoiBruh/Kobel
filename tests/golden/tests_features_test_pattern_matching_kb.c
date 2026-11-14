@@ -517,9 +517,7 @@ int32_t tests__features__test_pattern_matching__eval_if_with_alias(tests__featur
 int32_t tests__features__test_pattern_matching__eval_if_no_alias(tests__features__test_pattern_matching__Node* node);
 int32_t tests__features__test_pattern_matching__eval_compound_condition(tests__features__test_pattern_matching__Node* node);
 void tests__features__test_pattern_matching__add_ten(tests__features__test_pattern_matching__Literal* l);
-void tests__features__test_pattern_matching__mutate_when_var(tests__features__test_pattern_matching__Node* node);
 void tests__features__test_pattern_matching__mutate_when_ref(tests__features__test_pattern_matching__Node* node);
-void tests__features__test_pattern_matching__mutate_if_var(tests__features__test_pattern_matching__Node* node);
 void tests__features__test_pattern_matching__mutate_if_ref(tests__features__test_pattern_matching__Node* node);
 int32_t tests__features__test_pattern_matching__color_score(tests__features__test_pattern_matching__ExhaustiveColor c);
 int32_t tests__features__test_pattern_matching__bool_score(bool b);
@@ -2185,7 +2183,7 @@ void tests__features__test_pattern_matching__add_ten(tests__features__test_patte
 l->value += 10;
 }
 
-void tests__features__test_pattern_matching__mutate_when_var(tests__features__test_pattern_matching__Node* node) {
+void tests__features__test_pattern_matching__mutate_when_ref(tests__features__test_pattern_matching__Node* node) {
 if (node != NULL && node->tag == tests__features__test_pattern_matching__Literal__TAG) {
 tests__features__test_pattern_matching__Literal* lit = (tests__features__test_pattern_matching__Literal*)node;
 lit->value = 100;
@@ -2193,29 +2191,11 @@ tests__features__test_pattern_matching__add_ten(lit);
 }
 }
 
-void tests__features__test_pattern_matching__mutate_when_ref(tests__features__test_pattern_matching__Node* node) {
-if (node != NULL && node->tag == tests__features__test_pattern_matching__Literal__TAG) {
-tests__features__test_pattern_matching__Literal* lit = (tests__features__test_pattern_matching__Literal*)node;
-lit->value = 200;
-tests__features__test_pattern_matching__add_ten(lit);
-}
-}
-
-void tests__features__test_pattern_matching__mutate_if_var(tests__features__test_pattern_matching__Node* node) {
-{
-tests__features__test_pattern_matching__Literal* lit = NULL;
-if ((node != NULL && node->tag == tests__features__test_pattern_matching__Literal__TAG && (lit = (tests__features__test_pattern_matching__Literal*)node, 1))) {
-lit->value = 300;
-tests__features__test_pattern_matching__add_ten(lit);
-}
-}
-}
-
 void tests__features__test_pattern_matching__mutate_if_ref(tests__features__test_pattern_matching__Node* node) {
 {
 tests__features__test_pattern_matching__Literal* lit = NULL;
 if ((node != NULL && node->tag == tests__features__test_pattern_matching__Literal__TAG && (lit = (tests__features__test_pattern_matching__Literal*)node, 1))) {
-lit->value = 400;
+lit->value = 200;
 tests__features__test_pattern_matching__add_ten(lit);
 }
 }
@@ -2350,27 +2330,15 @@ return 1;
 }
 tests__features__test_pattern_matching__Literal mut_lit = (tests__features__test_pattern_matching__Literal){ tests__features__test_pattern_matching__Literal__TAG, 1 };
 tests__features__test_pattern_matching__Node* mut_ptr = (tests__features__test_pattern_matching__Node*)&mut_lit;
-tests__features__test_pattern_matching__mutate_when_var(mut_ptr);
-std__io__println(kobel_concat(2, KOBEL_STR("mutate_when_var: "), i32_to_str(mut_lit.value)));
-if (mut_lit.value != 110) {
-std__io__println(KOBEL_STR("FAIL: mutate_when_var"));
-return 1;
-}
 tests__features__test_pattern_matching__mutate_when_ref(mut_ptr);
 std__io__println(kobel_concat(2, KOBEL_STR("mutate_when_ref: "), i32_to_str(mut_lit.value)));
-if (mut_lit.value != 210) {
+if (mut_lit.value != 110) {
 std__io__println(KOBEL_STR("FAIL: mutate_when_ref"));
-return 1;
-}
-tests__features__test_pattern_matching__mutate_if_var(mut_ptr);
-std__io__println(kobel_concat(2, KOBEL_STR("mutate_if_var: "), i32_to_str(mut_lit.value)));
-if (mut_lit.value != 310) {
-std__io__println(KOBEL_STR("FAIL: mutate_if_var"));
 return 1;
 }
 tests__features__test_pattern_matching__mutate_if_ref(mut_ptr);
 std__io__println(kobel_concat(2, KOBEL_STR("mutate_if_ref: "), i32_to_str(mut_lit.value)));
-if (mut_lit.value != 410) {
+if (mut_lit.value != 210) {
 std__io__println(KOBEL_STR("FAIL: mutate_if_ref"));
 return 1;
 }

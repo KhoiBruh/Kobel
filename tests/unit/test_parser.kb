@@ -118,9 +118,9 @@ fn check_valid_ptr_expr(src: str) {
 }
 
 fn check_bad_type_syntax(src: str) {
-	var l = Lexer(src);
+	var l = Lexer("fn f(x: ${src}) {}");
 	var p = Parser(l.tokenize());
-	p.parse_type();
+	p.parse_program();
 	assert_true(!p.errors.empty(), "Legacy or non-pointer nullable syntax must be rejected");
 }
 
@@ -354,6 +354,11 @@ fn test_val_var_self_rejected() {
 	check_bad_program_syntax("fn f(a: i32, val b: &i32) {}", "Must reject 'val' on trailing parameter");
 	check_bad_program_syntax("impl S { init(var x: i32) {} }", "Must reject 'var' in init parameter");
 	check_bad_program_syntax("impl S { op plus(*self, val rhs: S): S {} }", "Must reject 'val' in op parameter");
+	check_bad_program_syntax("fn f() { val g = { var x -> x }; }", "Must reject 'var' in lambda parameter");
+	check_bad_program_syntax("fn f() { val g = { val x -> x }; }", "Must reject 'val' in lambda parameter");
+	check_bad_program_syntax("fn f(x: *Node): bool { return x is Literal as var lit; }", "Must reject 'is Type as var alias'");
+	check_bad_program_syntax("fn f(x: *Node): bool { return x is Literal as &lit; }", "Must reject 'is Type as &alias'");
+	check_bad_program_syntax("fn f(x: *Node): bool { return x is Literal as val lit; }", "Must reject 'is Type as val alias'");
 
 	val src_valid = "impl S { fn f(*self, a: i32, b: *i32, c: &i32) {} fn g(&self) {} fn h(self) {} }";
 	var l_valid = Lexer(src_valid);

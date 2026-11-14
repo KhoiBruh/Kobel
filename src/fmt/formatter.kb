@@ -104,12 +104,10 @@ impl Formatter {
 	}
 
 	pub fn format_param(&self, p: Param) {
-		if (p.name == "self") {
-			if (p.mutable) self.buf += "&self";
-			else if (p.has_val) self.buf += "*self";
-			else self.buf += "self";
-		} else {
-			self.buf += p.name;
+		when (p.receiver) {
+			ReceiverKind.PTR_MUT -> self.buf += "&self";
+			ReceiverKind.PTR_CONST -> self.buf += "*self";
+			else -> self.buf += p.name;
 		}
 		if (p.type_node != null) {
 			self.buf += ": ";
@@ -415,7 +413,6 @@ impl Formatter {
 				self.format_type(is_e.target_type);
 				if (!is_e.alias.empty()) {
 					self.buf += " as ";
-					if (is_e.mutable) self.buf += "var ";
 					self.buf += is_e.alias;
 				}
 			}
@@ -633,7 +630,6 @@ impl Formatter {
 					self.format_type(is_e.target_type);
 					if (!is_e.alias.empty()) {
 						self.buf += " as ";
-						if (is_e.mutable) self.buf += "var ";
 						self.buf += is_e.alias;
 					}
 				} else {

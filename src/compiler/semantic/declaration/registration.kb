@@ -138,7 +138,7 @@ impl DeclarationCollector {
 			var used_names = st_info.methods.map { m -> m.c_name };
 
 			for (m_node in im.methods) {
-				if (m_node is FnDecl as var f) {
+				if (m_node is FnDecl as f) {
 					self.collect_single_impl_method(
 						m_node, f, st_type, st_c_name, st_info, overloaded, &used_names
 					);
@@ -164,13 +164,11 @@ impl DeclarationCollector {
 		for (p in f.params) {
 			var pt: *Type = self.prims().t_none();
 			if (p.name == "self" && p.type_node == null) {
-				if (p.mutable) {
-					pt = self.arena.pointer_type(st_type, true);
-				} else if (p.has_val) {
-					pt = self.arena.pointer_type(st_type, false);
-				} else {
-					pt = st_type;
-				}
+				pt = when (p.receiver) {
+					ReceiverKind.PTR_MUT -> self.arena.pointer_type(st_type, true);
+					ReceiverKind.PTR_CONST -> self.arena.pointer_type(st_type, false);
+					else -> st_type;
+				};
 			} else if (p.type_node != null) {
 				if (p.type_node is VariadicType) is_vararg = true;
 				pt = self.resolve_ast_type(p.type_node!);
@@ -193,7 +191,7 @@ impl DeclarationCollector {
 		used_names += m_c_name;
 
 		val is_static = f.params.empty() || f.params[0].name != "self";
-		val is_move = !is_static && !f.params[0].mutable && !f.params[0].has_val;
+		val is_move = !is_static && f.params[0].receiver == ReceiverKind.MOVE;
 		val mi = self.arena.create_val(
 			MethodInfo(
 				f.name, m_c_name, fn_type, m_node,
@@ -207,12 +205,12 @@ impl DeclarationCollector {
 	}
 
 	fn validate_constructor_signature(&self, f: *FnDecl, m_node: *AstNode, struct_name: str) {
-		if (f.name != "new" && !f.initializer) return;
+		if (!f.initializer) return;
 		for (p in f.params) {
 			if (p.name == "self") {
 				self.report_error(
 					m_node,
-					"Constructor 'new' cannot have a 'self' parameter in struct '${struct_name}'"
+					"Constructor 'init' cannot have a 'self' parameter in struct '${struct_name}'"
 				);
 			}
 		}
@@ -224,7 +222,7 @@ impl DeclarationCollector {
 			return;
 		}
 
-		val mutable_self = f.params[0].mutable;
+		val mutable_self = f.params[0].receiver == ReceiverKind.PTR_MUT;
 		when (f.name) {
 			"plus", "minus", "mul", "div", "rem",
 			"bit_and", "bit_or", "bit_xor", "shl", "shr",
@@ -454,7 +452,7 @@ impl DeclarationCollector {
 			if (p.name == "self" && p.type_node == null) {
 				pt = prim;
 				val rt = self.arena.node(NodeData.NamedType(prim_name, List<*AstNode>()), node.line, node.col);
-				f.params[i] = Param(p.name, rt, p.mutable, p.has_val, p.default_val);
+				f.params[i] = Param(p.name, rt, p.receiver, p.default_val);
 			} else if (p.type_node != null) {
 				if (p.type_node is VariadicType) is_vararg = true;
 				pt = self.resolve_ast_type(p.type_node!);

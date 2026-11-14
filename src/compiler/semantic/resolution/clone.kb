@@ -203,17 +203,10 @@ impl TypeResolver {
 
 			is IsExpr as is_e -> {
 				val expr_clone = if (is_e.expr != null) self.clone_expr(is_e.expr!, subst) else null;
-				val res_is = self.arena.node(
-					NodeData.IsExpr(expr_clone, self.clone_type(is_e.target_type, subst), is_e.alias, is_e.mutable),
+				yield self.arena.node(
+					NodeData.IsExpr(expr_clone, self.clone_type(is_e.target_type, subst), is_e.alias),
 					node.line, node.col
 				);
-
-				if (!is_e.alias.empty() && res_is is IsExpr as res_e) {
-					res_e.alias = is_e.alias;
-					res_e.mutable = is_e.mutable;
-				}
-
-				yield res_is;
 			}
 
 			is StructCtorExpr as sc -> self.arena.node(
@@ -237,7 +230,7 @@ impl TypeResolver {
 			is LambdaExpr as lam -> {
 				val c_params = lam.params.map { p ->
 					val pt = if (p.type_node != null) self.clone_type(p.type_node!, subst) else null;
-					yield Param(p.name, pt, p.mutable, p.has_val, null);
+					yield Param(p.name, pt, p.receiver, null);
 				};
 				val c_body = if (lam.body is BlockStmt)
 					self.clone_stmt(lam.body, subst)
@@ -572,7 +565,7 @@ impl TypeResolver {
 			val params = f.params.map { p ->
 				val pt = if (p.type_node != null) self.clone_type(p.type_node!, subst) else null;
 				val dflt = if (p.default_val != null) self.clone_expr(p.default_val!, subst) else null;
-				yield Param(p.name, pt, p.mutable, p.has_val, dflt);
+				yield Param(p.name, pt, p.receiver, dflt);
 			};
 			val rt = if (f.return_type != null) self.clone_type(f.return_type!, subst) else null;
 			return self.arena.node(

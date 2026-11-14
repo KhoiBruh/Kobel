@@ -11,11 +11,17 @@ use compiler.core.Span;
  * ============================================================================
  */
 
+pub enum ReceiverKind {
+	NONE,
+	PTR_CONST,
+	PTR_MUT,
+	MOVE
+}
+
 pub struct Param {
 	pub name: str,
 	pub type_node: ?*AstNode = null,
-	pub mutable: bool,
-	pub has_val: bool,
+	pub receiver: ReceiverKind = ReceiverKind.NONE,
 	pub default_val: ?*AstNode = null
 }
 

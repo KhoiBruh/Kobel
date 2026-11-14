@@ -331,15 +331,11 @@ pub fn format_fn_signature(
 	for (i in 0..<params.len) {
 		if (i > 0) sb += ", ";
 		val p = params[i];
-		if (p.name == "self") {
-			if (p.type_node == null) {
-				if (p.mutable) sb += "&self";
-				else sb += "*self";
-			} else {
-				sb += "self";
-			}
-		} else {
-			sb += "${p.name}: ${format_type_node(p.type_node)}";
+		when (p.receiver) {
+			ReceiverKind.PTR_MUT -> sb += "&self";
+			ReceiverKind.PTR_CONST -> sb += "*self";
+			ReceiverKind.MOVE -> sb += "self";
+			else -> sb += "${p.name}: ${format_type_node(p.type_node)}";
 		}
 	}
 	sb += ")";
@@ -958,7 +954,7 @@ impl IndexWalker {
 			if (p.default_val != null) self.walk_expr(p.default_val);
 			if (p.name != "self") {
 				val pt = format_type_node(p.type_node);
-				self.bind_local(p.name, SymRole.PARAM, fl, fc, pt, p.mutable);
+				self.bind_local(p.name, SymRole.PARAM, fl, fc, pt, false);
 			}
 		}
 		if (f.return_type != null) self.walk_type_node(f.return_type);
@@ -1206,7 +1202,7 @@ impl IndexWalker {
 				if (node.expr != null) self.walk_expr(node.expr);
 				self.walk_type_node(node.target_type);
 				if (!node.alias.empty()) {
-					self.bind_local(node.alias, SymRole.LOCAL, nl, nc, format_type_node(node.target_type), node.mutable);
+					self.bind_local(node.alias, SymRole.LOCAL, nl, nc, format_type_node(node.target_type), false);
 				}
 			}
 			is LambdaExpr -> {
@@ -1214,7 +1210,7 @@ impl IndexWalker {
 				for (p in node.params) {
 					if (p.type_node != null) self.walk_type_node(p.type_node);
 					val pt = if (p.type_node != null) format_type_node(p.type_node) else "any";
-					self.bind_local(p.name, SymRole.PARAM, nl, nc, pt, p.mutable);
+					self.bind_local(p.name, SymRole.PARAM, nl, nc, pt, false);
 				}
 				self.walk_stmt(node.body);
 				self.pop_scope();

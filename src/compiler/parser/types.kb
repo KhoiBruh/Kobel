@@ -82,13 +82,6 @@ impl Parser {
 		return self.node(NodeData.NamedType(full_name, type_args), line, col);
 	}
 
-	pub fn parse_type(&self): *AstNode {
-		val ty = self.parse_single_type();
-		if (self.match_token(TokenType.QUESTION)) {
-			self.error(self.previous(), "Trailing '?' in types is not supported; use prefix '?*T' or '?&T' for nullable pointers");
-		}
-
-		return ty;
-	}
+	pub fn parse_type(&self): *AstNode => self.parse_single_type();
 
 }

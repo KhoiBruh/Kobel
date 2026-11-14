@@ -308,8 +308,10 @@ impl CCodeGen {
 					p.name == "self" &&
 					p.type_node == null
 				) {
-					if (p.mutable || p.has_val) p_ty = "${self_c_type}*";
-					else p_ty = self_c_type;
+					p_ty = when (p.receiver) {
+						ReceiverKind.PTR_CONST, ReceiverKind.PTR_MUT -> "${self_c_type}*";
+						else -> self_c_type;
+					};
 				}
 				self.out += p_ty;
 				self.out += ' ';

@@ -65,7 +65,7 @@ impl TypeResolver {
 		if (node == null) return self.prims().t_none();
 
 		return when (node) {
-			is NamedType as var named -> {
+			is NamedType as named -> {
 				val name = named.name;
 
 				val subst_res = self.subst.lookup(name);

@@ -140,11 +140,11 @@ impl TypeResolver {
 	 * struct's name. A *method* template is deliberately left alone: choosing one
 	 * needs the receiver's type, which only the body pass knows.
 	 */
-	fn rewrite_call_target(&self, node: *AstNode, c: &CallExpr) {
+	fn rewrite_call_target(&self, node: *AstNode, c: *CallExpr) {
 		if (c.type_args.empty()) return;
 
 		val callee = c.callee;
-		if (callee is IdentifierExpr as var cid) {
+		if (callee is IdentifierExpr as cid) {
 			val ft = self.find_fn_template(cid.name);
 			if (ft != null) {
 				val cname = self.instantiate_fn(ft, c.type_args);
@@ -164,7 +164,7 @@ impl TypeResolver {
 	fn rewrite_expr_generics(&self, node: *AstNode): bool {
 		val cur = node;
 		return when (cur) {
-			is CallExpr as var c -> {
+			is CallExpr as c -> {
 				self.rewrite_call_target(node, c);
 				self.rewrite_generics(c.callee);
 				for (a in c.args) self.rewrite_generics(a);

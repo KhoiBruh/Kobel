@@ -331,17 +331,7 @@ impl Parser {
 		val target_type = self.parse_is_target();
 
 		var alias = "";
-		var mutable = false;
 		if (self.match_token(TokenType.KW_AS)) {
-			when (self) {
-				.match_token(TokenType.KW_VAR) -> {
-					mutable = true;
-					self.match_token(TokenType.AMPERSAND);
-				}
-				.match_token(TokenType.AMPERSAND) -> mutable = true;
-				else -> self.match_token(TokenType.KW_VAL);
-			}
-
 			val alias_tok = self.consume(TokenType.IDENTIFIER, "Expected identifier after 'as'");
 			alias = alias_tok.text;
 		}
@@ -353,7 +343,7 @@ impl Parser {
 			);
 		}
 
-		return self.node(NodeData.IsExpr(left, target_type, alias, mutable), line, col);
+		return self.node(NodeData.IsExpr(left, target_type, alias), line, col);
 	}
 
 	pub fn parse_when_patterns(&self): List<*AstNode> {
@@ -444,11 +434,6 @@ impl Parser {
 		var params = List<Param>();
 		if (!self.check(TokenType.ARROW)) {
 			while (!self.is_end()) {
-				val p_peek = self.peek();
-				if (p_peek.type in [TokenType.KW_VAR, TokenType.KW_VAL]) {
-					self.error(p_peek, "Lambda parameters are always immutable ('val') and cannot specify 'val' or 'var'");
-					self.advance();
-				}
 				val name_tok = self.consume(TokenType.IDENTIFIER, "Expected lambda parameter name before '->'");
 				var type_node: ?*AstNode = null;
 				if (self.match_token(TokenType.COLON)) {
@@ -458,7 +443,7 @@ impl Parser {
 					self.error(self.previous(), "Lambda parameters cannot have default values");
 					self.parse_expression(Precedence.NONE);
 				}
-				params += Param(name_tok.text, type_node, false, false, null);
+				params += Param(name_tok.text, type_node, ReceiverKind.NONE, null);
 				if (!self.match_token(TokenType.COMMA)) break;
 			}
 		}
@@ -722,15 +707,11 @@ impl Parser {
 
 			// 4. Type Cast: left as Type
 			.match_token(TokenType.KW_AS) -> {
-				if (self.check(TokenType.QUESTION) && !(self.peek_at(1).type in [TokenType.STAR, TokenType.AMPERSAND])) {
-					self.advance();
-					self.error(self.previous(), "Safe cast 'as?' has been removed; use 'is' with smart casting instead");
-				}
 				val target_type = self.parse_type();
 				yield self.node(NodeData.CastExpr(left, target_type), line, col);
 			}
 
-			// Type Test: left is Type [as [var|val|&] alias]
+			// Type Test: left is Type [as alias]
 			.match_token(TokenType.KW_IS) -> self.parse_is_pattern(left, line, col);
 
 			// In test: left in right
@@ -793,7 +774,7 @@ impl Parser {
 			// 6b. Trailing Lambda Call: left { x -> ... } or left(a) { x -> ... }
 			.check(TokenType.OPEN_BRACE) &&
 			.is_lambda_brace_ahead() -> {
-				if (left is CallExpr as var call) {
+				if (left is CallExpr as call) {
 					val had_empty = call.args.empty();
 					call.args += self.parse_lambda_expr(true, had_empty);
 					yield left;

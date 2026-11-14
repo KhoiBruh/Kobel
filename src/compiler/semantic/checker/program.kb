@@ -104,7 +104,7 @@ impl BodyChecker {
 					is_vararg = true;
 				}
 				var sym = Symbol(
-					p.name, p.name, SymbolKind.PARAM, p_ty, p.mutable, false,
+					p.name, p.name, SymbolKind.PARAM, p_ty, p.receiver == ReceiverKind.PTR_MUT, false,
 					fn_node.line, fn_node.col, null
 				);
 				sym.is_vararg = is_vararg;
@@ -141,16 +141,14 @@ impl BodyChecker {
 			}
 
 			val is_trait_impl = !self.current_trait_name.empty();
-			for (p in f.params) {
-				if (p.mutable && p.name == "self") {
-					val sym = self.symtab.lookup(p.name);
-					if (sym != null && !sym.mutated && !is_trait_impl) {
-						self.report_warning(
-							fn_node,
-							"In function '${f.name}': Receiver 'self' is declared mutable " +
-							"with '&self', but is never mutated; consider using '*self'"
-						);
-					}
+			if (!f.params.empty() && f.params[0].receiver == ReceiverKind.PTR_MUT) {
+				val sym = self.symtab.lookup(f.params[0].name);
+				if (sym != null && !sym.mutated && !is_trait_impl) {
+					self.report_warning(
+						fn_node,
+						"In function '${f.name}': Receiver 'self' is declared mutable " +
+						"with '&self', but is never mutated; consider using '*self'"
+					);
 				}
 			}
 
@@ -412,7 +410,7 @@ impl BodyChecker {
 				val p = f.params[i];
 				val p_ty = if (i < fn_info.param_types.len) fn_info.param_types[i] else self.prims().t_none();
 				self.symtab.define(Symbol(
-					p.name, p.name, SymbolKind.PARAM, p_ty, p.mutable, false,
+					p.name, p.name, SymbolKind.PARAM, p_ty, p.receiver == ReceiverKind.PTR_MUT, false,
 					c.node.line, c.node.col, null
 				));
 			}
