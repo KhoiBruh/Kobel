@@ -31,7 +31,8 @@ impl CCodeGen {
 
 	pub fn gen_cond(&self, cond: *AstNode): str {
 		val s = self.gen_expr(cond);
-		if (cond != null && cond is [BinaryExpr, GroupExpr, IsExpr, IfExpr]) return s;
+		val unwrapped = unwrap_group_expr(cond);
+		if (unwrapped != null && unwrapped is AssignExpr) return "((${s}))";
 		return "(${s})";
 	}
 
@@ -189,7 +190,7 @@ impl CCodeGen {
 				self.out += ty_str;
 				self.out += ' ';
 				self.out += vd.name;
-				self.out += " = (";
+				self.out += " = ";
 				self.out += obj_wrap;
 				self.out += " != NULL ? ";
 				self.out += obj_wrap;
@@ -197,7 +198,7 @@ impl CCodeGen {
 				self.out += mem.member;
 				self.out += " : ";
 				self.out += r_s;
-				self.out += ");\n";
+				self.out += ";\n";
 				return;
 			}
 		}
@@ -705,7 +706,7 @@ impl CCodeGen {
 				}
 				val r_s = self.gen_expr(eb.right);
 				self.out += tgt;
-				self.out += " = (";
+				self.out += " = ";
 				self.out += obj_wrap;
 				self.out += " != NULL ? ";
 				self.out += obj_wrap;
@@ -713,7 +714,7 @@ impl CCodeGen {
 				self.out += mem.member;
 				self.out += " : ";
 				self.out += r_s;
-				self.out += ");\n";
+				self.out += ";\n";
 				return;
 			}
 		}
@@ -893,7 +894,7 @@ impl CCodeGen {
 	}
 
 	fn gen_when_stmt(&self, ws: *WhenStmt) {
-		val cond = if (ws.condition != null) self.gen_expr(ws.condition!) else "";
+		val cond = if (ws.condition != null) self.gen_expr_prec(ws.condition!, PREC_POSTFIX) else "";
 		var first = true;
 		for (arm in ws.arms) {
 			var cast_decl = "";
@@ -983,7 +984,7 @@ impl CCodeGen {
 	}
 
 	pub fn gen_when_with_target(&self, we: *WhenExpr, target_name: str, is_ret: bool) {
-		val cond = if (we.condition != null) self.gen_expr(we.condition!) else "";
+		val cond = if (we.condition != null) self.gen_expr_prec(we.condition!, PREC_POSTFIX) else "";
 		var first = true;
 
 		val prev_target = self.yield_target;

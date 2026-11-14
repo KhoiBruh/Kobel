@@ -572,27 +572,27 @@ int32_t h = 5381;
 size_t __for_e = s.len;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t i = __for_i;
-int32_t c = ((int32_t)(uint8_t)(s.data[i]));
-h = ((h * 33) + c);
+int32_t c = (int32_t)(uint8_t)s.data[i];
+h = h * 33 + c;
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -610,18 +610,18 @@ if (st->current == NULL) {
 std__memory__Arena_new_block(self, size);
 }
 std__memory__ArenaBlock* blk = st->current;
-size_t rem = (blk->used % align);
+size_t rem = blk->used % align;
 size_t aligned_used = blk->used;
 if (rem != 0) {
-aligned_used = (blk->used + (align - rem));
+aligned_used = blk->used + (align - rem);
 }
-if ((aligned_used + size) > blk->size) {
+if (aligned_used + size > blk->size) {
 std__memory__Arena_new_block(self, size);
 aligned_used = 0;
 }
 std__memory__ArenaBlock* cur_blk = st->current;
 uint8_t* ptr = &cur_blk->data[aligned_used];
-cur_blk->used = (aligned_used + size);
+cur_blk->used = aligned_used + size;
 return ptr;
 }
 
@@ -674,7 +674,7 @@ self->state = NULL;
 kobel_str std__string__str_from_bytes(uint8_t* buf, size_t len) {
 std__string__StrRaw r = (std__string__StrRaw){ (const char*)buf, len };
 kobel_str* sp = (kobel_str*)&r;
-return (*(sp));
+return *sp;
 }
 
 std__string__StringBuilder std__string__StringBuilder_init(size_t init_cap) {
@@ -687,10 +687,10 @@ return (std__string__StringBuilder){ raw, 0, cap };
 }
 
 void std__string__StringBuilder_append_char(std__string__StringBuilder* self, char c) {
-if ((self->len + 2) >= self->cap) {
-std__string__StringBuilder_grow(self, (self->len + 2));
+if (self->len + 2 >= self->cap) {
+std__string__StringBuilder_grow(self, self->len + 2);
 }
-self->buf[self->len] = ((int32_t)(uint8_t)(c));
+self->buf[self->len] = (int32_t)(uint8_t)c;
 self->len++;
 }
 
@@ -699,8 +699,8 @@ size_t s_len = s.len;
 if (s_len == 0) {
 return;
 }
-if (((self->len + s_len) + 1) >= self->cap) {
-std__string__StringBuilder_grow(self, ((self->len + s_len) + 1));
+if (self->len + s_len + 1 >= self->cap) {
+std__string__StringBuilder_grow(self, self->len + s_len + 1);
 }
 memcpy(&self->buf[self->len], s.data, s_len);
 self->len += s_len;
@@ -719,9 +719,9 @@ place *= 10;
 }
 uint64_t rest = n;
 while (place > 0) {
-uint64_t digit = (rest / place);
-std__string__StringBuilder_plus_assign_2_2(self, ((char)((uint8_t)(digit + 48))));
-rest -= (digit * place);
+uint64_t digit = rest / place;
+std__string__StringBuilder_plus_assign_2_2(self, (char)(uint8_t)(digit + 48));
+rest -= digit * place;
 place /= 10;
 }
 }
@@ -729,7 +729,7 @@ place /= 10;
 void std__string__StringBuilder_append_i64(std__string__StringBuilder* self, int64_t n) {
 if (n < 0) {
 std__string__StringBuilder_plus_assign_2_2(self, '-');
-uint64_t mag = ((uint64_t)(0 - (n + 1)) + 1);
+uint64_t mag = (uint64_t)(0 - (n + 1)) + 1;
 std__string__StringBuilder_append_u64(self, mag);
 return;
 }
@@ -741,7 +741,7 @@ void std__string__StringBuilder_append_i32(std__string__StringBuilder* self, int
 }
 
 void std__string__StringBuilder_grow(std__string__StringBuilder* self, size_t min_cap) {
-size_t new_cap = ((self->cap < 16) ? 16 : (self->cap * 2));
+size_t new_cap = self->cap < 16 ? 16 : self->cap * 2;
 while (new_cap < min_cap) {
 new_cap *= 2;
 }
@@ -767,7 +767,7 @@ void std__string__StringBuilder_plus_assign_2_4(std__string__StringBuilder* self
 }
 
 kobel_str std__string__StringBuilder_to_str(std__string__StringBuilder* self) {
-uint8_t* str_data = std__memory__Heap_create_u8((self->len + 1));
+uint8_t* str_data = std__memory__Heap_create_u8(self->len + 1);
 if (self->len > 0) {
 memcpy(str_data, self->buf, self->len);
 }
@@ -777,7 +777,7 @@ return std__string__str_from_bytes(str_data, self->len);
 
 kobel_str std__traits__fmt_u64(uint64_t n0) {
 if (n0 < 10) {
-return ((uint8_t)n0 == 0 ? KOBEL_STR("0") : ((uint8_t)n0 == 1 ? KOBEL_STR("1") : ((uint8_t)n0 == 2 ? KOBEL_STR("2") : ((uint8_t)n0 == 3 ? KOBEL_STR("3") : ((uint8_t)n0 == 4 ? KOBEL_STR("4") : ((uint8_t)n0 == 5 ? KOBEL_STR("5") : ((uint8_t)n0 == 6 ? KOBEL_STR("6") : ((uint8_t)n0 == 7 ? KOBEL_STR("7") : ((uint8_t)n0 == 8 ? KOBEL_STR("8") : KOBEL_STR("9"))))))))));
+return ((uint8_t)n0) == 0 ? KOBEL_STR("0") : ((uint8_t)n0) == 1 ? KOBEL_STR("1") : ((uint8_t)n0) == 2 ? KOBEL_STR("2") : ((uint8_t)n0) == 3 ? KOBEL_STR("3") : ((uint8_t)n0) == 4 ? KOBEL_STR("4") : ((uint8_t)n0) == 5 ? KOBEL_STR("5") : ((uint8_t)n0) == 6 ? KOBEL_STR("6") : ((uint8_t)n0) == 7 ? KOBEL_STR("7") : ((uint8_t)n0) == 8 ? KOBEL_STR("8") : KOBEL_STR("9");
 }
 uint64_t n = n0;
 size_t digits = 1;
@@ -786,12 +786,12 @@ while (probe >= 10) {
 probe /= 10;
 digits++;
 }
-uint8_t* buf = std__memory__Heap_create_u8((digits + 1));
+uint8_t* buf = std__memory__Heap_create_u8(digits + 1);
 buf[digits] = 0;
 size_t i = digits;
 while (i > 0) {
 i--;
-buf[i] = (uint8_t)(48 + (n % 10));
+buf[i] = (uint8_t)(48 + n % 10);
 n /= 10;
 }
 return std__string__str_from_bytes(buf, digits);
@@ -799,14 +799,14 @@ return std__string__str_from_bytes(buf, digits);
 
 kobel_str std__traits__fmt_i64(int64_t v) {
 if (v < 0) {
-uint64_t mag = ((uint64_t)(0 - (v + 1)) + 1);
+uint64_t mag = (uint64_t)(0 - (v + 1)) + 1;
 return kobel_concat(2, KOBEL_STR("-"), std__traits__fmt_u64(mag));
 }
 return std__traits__fmt_u64((uint64_t)v);
 }
 
 kobel_str std__traits__fmt_bool(bool b) {
-    return (b ? KOBEL_STR("true") : KOBEL_STR("false"));
+    return b ? KOBEL_STR("true") : KOBEL_STR("false");
 }
 
 kobel_str std__traits__fmt_zeros(size_t n) {
@@ -816,31 +816,31 @@ return KOBEL_STR("");
 if (n <= 6) {
 return kobel_slice(KOBEL_STR("000000"), 0, n);
 }
-uint8_t* buf = std__memory__Heap_create_u8((n + 1));
+uint8_t* buf = std__memory__Heap_create_u8(n + 1);
 {
 size_t __for_e = n;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t i = __for_i;
-buf[i] = ((int32_t)(uint8_t)('0'));
+buf[i] = (int32_t)(uint8_t)'0';
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -853,7 +853,7 @@ kobel_str std__traits__fmt_f64(double v) {
 if (v != v) {
 return KOBEL_STR("nan");
 }
-double diff = (v - v);
+double diff = v - v;
 if (diff != 0) {
 if (v > 0) {
 return KOBEL_STR("inf");
@@ -864,7 +864,7 @@ kobel_str sign = KOBEL_STR("");
 double x = v;
 if (x < 0) {
 sign = KOBEL_STR("-");
-x = (0 - x);
+x = 0 - x;
 }
 int32_t prec = 6;
 double scale = 1.0;
@@ -872,33 +872,33 @@ double scale = 1.0;
 int32_t __for_e = prec;
 int32_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 int32_t k = __for_i;
 scale *= 10.0;
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
 }
 uint64_t ip = (uint64_t)x;
-uint64_t frac = (uint64_t)(((x - ((double)ip)) * scale) + 0.5);
-if (frac >= ((uint64_t)scale)) {
+uint64_t frac = (uint64_t)((x - (double)ip) * scale + 0.5);
+if (frac >= (uint64_t)scale) {
 ip++;
 frac = 0;
 }
@@ -908,11 +908,11 @@ return out;
 }
 kobel_str digits = std__traits__fmt_u64(frac);
 if (digits.len < prec) {
-digits = kobel_concat(2, std__traits__fmt_zeros((prec - digits.len)), digits);
+digits = kobel_concat(2, std__traits__fmt_zeros(prec - digits.len), digits);
 }
 size_t end = digits.len;
 while (end > 0) {
-if (digits.data[(end - 1)] != '0') {
+if (digits.data[end - 1] != '0') {
 break;
 }
 end--;
@@ -953,7 +953,7 @@ int32_t testsupport__box__boxed_value(testsupport__box__Boxed b) {
 
 void tests__features__test_types__check_i(int32_t got, int32_t want, kobel_str msg, tests__features__test_types__Tally* t) {
 if (got != want) {
-t->fails = (t->fails + 1);
+t->fails = t->fails + 1;
 std__io__print(KOBEL_STR("  [FAIL] "));
 std__io__print(msg);
 std__io__println(kobel_concat(4, KOBEL_STR(": got "), i32_to_str(got), KOBEL_STR(", want "), i32_to_str(want)));
@@ -962,7 +962,7 @@ std__io__println(kobel_concat(4, KOBEL_STR(": got "), i32_to_str(got), KOBEL_STR
 
 void tests__features__test_types__check_str(kobel_str got, kobel_str want, kobel_str msg, tests__features__test_types__Tally* t) {
 if (!kobel_streq(got, want)) {
-t->fails = (t->fails + 1);
+t->fails = t->fails + 1;
 std__io__print(KOBEL_STR("  [FAIL] "));
 std__io__print(msg);
 std__io__print(KOBEL_STR(": got '"));
@@ -993,11 +993,11 @@ tests__features__test_types__check_str(tests__features__test_types__Person_shout
 }
 
 int32_t tests__features__test_types__Box_measure(tests__features__test_types__Box* self) {
-    return (self->w * self->h);
+    return self->w * self->h;
 }
 
 int32_t tests__features__test_types__Box_summary(tests__features__test_types__Box* self) {
-    return (tests__features__test_types__Box_measure(self) * 2);
+    return tests__features__test_types__Box_measure(self) * 2;
 }
 
 void tests__features__test_types__test_inheritance(tests__features__test_types__Tally* t) {
@@ -1039,7 +1039,7 @@ tests__features__test_types__check_str(tests__features__test_types__label_tests_
 }
 
 int32_t i32_twice(int32_t self) {
-    return (self * 2);
+    return self * 2;
 }
 
 kobel_str str_shout(kobel_str self) {
@@ -1058,11 +1058,11 @@ int32_t tests__features__test_types__Counter_add_to_1(tests__features__test_type
 }
 
 int32_t tests__features__test_types__Counter_add_to_2(tests__features__test_types__Counter* self, int32_t extra) {
-    return (self->n + extra);
+    return self->n + extra;
 }
 
 int32_t tests__features__test_types__Counter_add_to_3(tests__features__test_types__Counter* self, int32_t a, int32_t b) {
-    return ((self->n + a) + b);
+    return self->n + a + b;
 }
 
 void tests__features__test_types__test_overloads(tests__features__test_types__Tally* t) {
@@ -1073,7 +1073,7 @@ tests__features__test_types__check_i(tests__features__test_types__Counter_add_to
 }
 
 tests__features__test_types__Vec2 tests__features__test_types__Vec2_shifted(tests__features__test_types__Vec2* self, int32_t d) {
-    return (tests__features__test_types__Vec2){ (self->x + d), (self->y + d) };
+    return (tests__features__test_types__Vec2){ self->x + d, self->y + d };
 }
 
 void tests__features__test_types__test_self(tests__features__test_types__Tally* t) {
@@ -1138,10 +1138,10 @@ void tests__features__test_types__test_std_ctors(tests__features__test_types__Ta
 {
 std__memory__Arena a = std__memory__Arena_init(4096);
 int32_t* p = std__memory__Arena_create_i32(&a);
-(*(p) = 7);
-tests__features__test_types__check_i((*(p)), 7, KOBEL_STR("Arena(block_size) + a.create<T>"), t);
+*p = 7;
+tests__features__test_types__check_i(*p, 7, KOBEL_STR("Arena(block_size) + a.create<T>"), t);
 int32_t* p2 = std__memory__Arena_create_val_i32(&a, 42);
-tests__features__test_types__check_i((*(p2)), 42, KOBEL_STR("a.create_val<T>(value)"), t);
+tests__features__test_types__check_i(*p2, 42, KOBEL_STR("a.create_val<T>(value)"), t);
 std__memory__Arena_free(&a);
 }
 {
@@ -1183,15 +1183,15 @@ tests__features__test_types__check_i((int32_t)res.len, 0, KOBEL_STR("res from ma
 }
 
 double tests__features__test_types__take_untyped_f64(double x) {
-    return (x + 1.0);
+    return x + 1.0;
 }
 
 size_t tests__features__test_types__take_untyped_usz(size_t x) {
-    return (x + 1);
+    return x + 1;
 }
 
 int8_t tests__features__test_types__take_untyped_i8(int8_t x) {
-    return (x + 1);
+    return x + 1;
 }
 
 void tests__features__test_types__test_numeric_literals(tests__features__test_types__Tally* t) {
@@ -1229,7 +1229,7 @@ tests__features__test_types__check_i((int32_t)std__collections__List_usz_get(&nu
 tests__features__test_types__check_i((int32_t)(num_list.len + 5), 7, KOBEL_STR("num_list.len + 5"), t);
 tests__features__test_types__check_i((int32_t)(5 + num_list.len), 7, KOBEL_STR("5 + num_list.len"), t);
 double f_cmp = 1.0;
-tests__features__test_types__check_i(((f_cmp == 1) ? 1 : 0), 1, KOBEL_STR("f64 == untyped 1"), t);
+tests__features__test_types__check_i(f_cmp == 1 ? 1 : 0, 1, KOBEL_STR("f64 == untyped 1"), t);
 }
 
 kobel_str tests__features__test_types__takes_raw_str(kobel_str s) {
@@ -1248,10 +1248,10 @@ tests__features__test_types__check_str(s, KOBEL_STR("GET"), KOBEL_STR("HttpMetho
 tests__features__test_types__HttpMethod m_ctor = KOBEL_STR("POST");
 tests__features__test_types__check_str(m_ctor, KOBEL_STR("POST"), KOBEL_STR("HttpMethod constructor"), t);
 tests__features__test_types__AsciiCode a_ctor = '@';
-tests__features__test_types__check_i(((a_ctor == '@') ? 1 : 0), 1, KOBEL_STR("AsciiCode constructor"), t);
+tests__features__test_types__check_i(a_ctor == '@' ? 1 : 0, 1, KOBEL_STR("AsciiCode constructor"), t);
 tests__features__test_types__check_str(tests__features__test_types__takes_raw_str(c), KOBEL_STR("custom"), KOBEL_STR("HttpMethod passed to str param"), t);
-tests__features__test_types__check_i((kobel_streq(g, KOBEL_STR("GET")) ? 1 : 0), 1, KOBEL_STR("HttpMethod == str"), t);
-tests__features__test_types__check_i((('@' == '@') ? 1 : 0), 1, KOBEL_STR("AsciiCode == char"), t);
+tests__features__test_types__check_i(kobel_streq(g, KOBEL_STR("GET")) ? 1 : 0, 1, KOBEL_STR("HttpMethod == str"), t);
+tests__features__test_types__check_i('@' == '@' ? 1 : 0, 1, KOBEL_STR("AsciiCode == char"), t);
 tests__features__test_types__check_str(g, KOBEL_STR("GET"), KOBEL_STR("HttpMethod in string interpolation"), t);
 tests__features__test_types__RatioNum r = 0.5;
 tests__features__test_types__check_str(f64_to_str(r), KOBEL_STR("0.5"), KOBEL_STR("RatioNum.HALF.value"), t);
@@ -1263,20 +1263,20 @@ tests__features__test_types__check_i(st, 200, KOBEL_STR("HttpStatus constructor"
 
 void tests__features__test_types__test_cast_standardization(tests__features__test_types__Tally* t) {
 char ch = 'A';
-int32_t code = ((int32_t)(uint8_t)(ch));
+int32_t code = (int32_t)(uint8_t)ch;
 tests__features__test_types__check_i(code, 65, KOBEL_STR("char.code() returns 65"), t);
 char zero = '0';
-tests__features__test_types__check_i(((int32_t)(uint8_t)(zero)), 48, KOBEL_STR("'0'.code() returns 48"), t);
-char b = ((char)(66));
-tests__features__test_types__check_i(((b == 'B') ? 1 : 0), 1, KOBEL_STR("char(66) == 'B'"), t);
-tests__features__test_types__check_i(((int32_t)(uint8_t)(((char)(((int32_t)(uint8_t)(b)))))), 66, KOBEL_STR("char roundtrip"), t);
+tests__features__test_types__check_i((int32_t)(uint8_t)zero, 48, KOBEL_STR("'0'.code() returns 48"), t);
+char b = (char)66;
+tests__features__test_types__check_i(b == 'B' ? 1 : 0, 1, KOBEL_STR("char(66) == 'B'"), t);
+tests__features__test_types__check_i((int32_t)(uint8_t)(char)(int32_t)(uint8_t)b, 66, KOBEL_STR("char roundtrip"), t);
 int32_t x = 42;
 int32_t* p = &x;
-size_t addr = ((uintptr_t)(p));
-tests__features__test_types__check_i(((addr > 0) ? 1 : 0), 1, KOBEL_STR("ptr.addr() > 0"), t);
+size_t addr = (uintptr_t)p;
+tests__features__test_types__check_i(addr > 0 ? 1 : 0, 1, KOBEL_STR("ptr.addr() > 0"), t);
 int32_t* null_p = NULL;
-size_t null_addr = ((uintptr_t)(null_p));
-tests__features__test_types__check_i(((null_addr == 0) ? 1 : 0), 1, KOBEL_STR("null.addr() == 0"), t);
+size_t null_addr = (uintptr_t)null_p;
+tests__features__test_types__check_i(null_addr == 0 ? 1 : 0, 1, KOBEL_STR("null.addr() == 0"), t);
 }
 
 kobel_str tests__features__test_types__infer_greet_block(kobel_str name) {
@@ -1288,8 +1288,8 @@ kobel_str tests__features__test_types__infer_greet_arrow(kobel_str name) {
 }
 
 int32_t tests__features__test_types__infer_compute_num(int32_t x) {
-int32_t a = (x * 3);
-return (a + 5);
+int32_t a = x * 3;
+return a + 5;
 }
 
 bool tests__features__test_types__infer_is_pos(int32_t x) {
@@ -1315,7 +1315,7 @@ tests__features__test_types__check_i(n, 9876, KOBEL_STR("untyped int const"), t)
 double f = tests__features__test_types__INFER_FLOAT_CONST;
 tests__features__test_types__check_str(f64_to_str(f), KOBEL_STR("2.718"), KOBEL_STR("untyped float const"), t);
 bool b = tests__features__test_types__INFER_BOOL_CONST;
-tests__features__test_types__check_i((b ? 1 : 0), 1, KOBEL_STR("untyped bool const"), t);
+tests__features__test_types__check_i(b ? 1 : 0, 1, KOBEL_STR("untyped bool const"), t);
 kobel_str si = tests__features__test_types__INFER_INTERP_CONST;
 tests__features__test_types__check_str(si, KOBEL_STR("const_123"), KOBEL_STR("untyped interp const"), t);
 kobel_str g = tests__features__test_types__infer_greet_block(KOBEL_STR("World"));
@@ -1325,9 +1325,9 @@ tests__features__test_types__check_str(a, KOBEL_STR("Hi Kobel!"), KOBEL_STR("arr
 int32_t calc = tests__features__test_types__infer_compute_num(10);
 tests__features__test_types__check_i(calc, 35, KOBEL_STR("block return computed int"), t);
 bool pos = tests__features__test_types__infer_is_pos(10);
-tests__features__test_types__check_i((pos ? 1 : 0), 1, KOBEL_STR("block return bool true"), t);
+tests__features__test_types__check_i(pos ? 1 : 0, 1, KOBEL_STR("block return bool true"), t);
 bool neg = tests__features__test_types__infer_is_pos(-5);
-tests__features__test_types__check_i((!neg ? 1 : 0), 1, KOBEL_STR("block return bool false"), t);
+tests__features__test_types__check_i(!neg ? 1 : 0, 1, KOBEL_STR("block return bool false"), t);
 kobel_str hole = tests__features__test_types__infer_interp_hole_call();
 tests__features__test_types__check_str(hole, KOBEL_STR("Welcome to Kobel!"), KOBEL_STR("interp hole calling unannotated fn"), t);
 }
@@ -1365,36 +1365,36 @@ return 0;
 void tests__features__test_types__test_force_unwrap(tests__features__test_types__Tally* t) {
 const char* maybe_ptr = "hello";
 const char* forced_ptr = maybe_ptr;
-tests__features__test_types__check_i(((forced_ptr[0] == 'h') ? 1 : 0), 1, KOBEL_STR("Force unwrap pointer success"), t);
+tests__features__test_types__check_i(forced_ptr[0] == 'h' ? 1 : 0, 1, KOBEL_STR("Force unwrap pointer success"), t);
 }
 
 std__collections__List_str std__collections__List_str_init(kobel_str* items_data, size_t items_len) {
-size_t cap = ((items_len < 4) ? 4 : items_len);
+size_t cap = items_len < 4 ? 4 : items_len;
 kobel_str* buf = std__memory__Heap_create_str(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t i = __for_i;
 buf[i] = items_data[i];
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -1411,7 +1411,7 @@ self->len++;
 }
 
 void std__collections__List_str_grow(std__collections__List_str* self) {
-size_t new_cap = (self->cap * 2);
+size_t new_cap = self->cap * 2;
 self->data = std__memory__Heap_resize_str(self->data, new_cap);
 self->cap = new_cap;
 }
@@ -1425,32 +1425,32 @@ void std__collections__List_str_plus_assign(std__collections__List_str* self, ko
 }
 
 std__collections__List_i32 std__collections__List_i32_init(int32_t* items_data, size_t items_len) {
-size_t cap = ((items_len < 4) ? 4 : items_len);
+size_t cap = items_len < 4 ? 4 : items_len;
 int32_t* buf = std__memory__Heap_create_i32(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t i = __for_i;
 buf[i] = items_data[i];
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -1467,7 +1467,7 @@ self->len++;
 }
 
 void std__collections__List_i32_grow(std__collections__List_i32* self) {
-size_t new_cap = (self->cap * 2);
+size_t new_cap = self->cap * 2;
 self->data = std__memory__Heap_resize_i32(self->data, new_cap);
 self->cap = new_cap;
 }
@@ -1533,26 +1533,26 @@ bool* occ = std__memory__Heap_create_bool(cap);
 size_t __for_e = cap;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t i = __for_i;
 occ[i] = false;
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -1561,16 +1561,16 @@ return (std__collections__HashMap_str_i32){ keys, values, hashes, occ, 0, cap };
 }
 
 int32_t std__collections__HashMap_str_i32_get_or(std__collections__HashMap_str_i32* self, kobel_str key, int32_t value) {
-if ((self->len == 0) || (self->cap == 0)) {
+if (self->len == 0 || self->cap == 0) {
 return value;
 }
 size_t h = str_hash(key);
-size_t idx = (h % self->cap);
+size_t idx = h % self->cap;
 while (self->occupied[idx]) {
-if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
+if (self->hashes[idx] == h && kobel_streq(self->keys[idx], key)) {
 return self->values[idx];
 }
-idx = ((idx + 1) % self->cap);
+idx = (idx + 1) % self->cap;
 }
 return value;
 }
@@ -1581,7 +1581,7 @@ kobel_str* old_keys = self->keys;
 int32_t* old_vals = self->values;
 size_t* old_hashes = self->hashes;
 bool* old_occ = self->occupied;
-size_t new_cap = ((old_cap < 8) ? 16 : (old_cap * 2));
+size_t new_cap = old_cap < 8 ? 16 : old_cap * 2;
 kobel_str* keys = std__memory__Heap_create_str(new_cap);
 int32_t* values = std__memory__Heap_create_i32(new_cap);
 size_t* hashes = std__memory__Heap_create_usz(new_cap);
@@ -1590,26 +1590,26 @@ bool* new_occ = std__memory__Heap_create_bool(new_cap);
 size_t __for_e = new_cap;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t j = __for_i;
 new_occ[j] = false;
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -1619,20 +1619,20 @@ if (old_cap > 0) {
 size_t __for_e = old_cap;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t i = __for_i;
 if (old_occ[i]) {
 size_t h = old_hashes[i];
-size_t idx = (h % new_cap);
+size_t idx = h % new_cap;
 while (new_occ[idx]) {
-idx = ((idx + 1) % new_cap);
+idx = (idx + 1) % new_cap;
 }
 keys[idx] = old_keys[i];
 values[idx] = old_vals[i];
@@ -1640,15 +1640,15 @@ hashes[idx] = h;
 new_occ[idx] = true;
 }
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -1675,17 +1675,17 @@ std__memory__Heap_free_bool(self.occupied);
 }
 
 void std__collections__HashMap_str_i32_set(std__collections__HashMap_str_i32* self, kobel_str key, int32_t value) {
-if ((self->cap == 0) || ((self->len * 10) >= (self->cap * 7))) {
+if (self->cap == 0 || self->len * 10 >= self->cap * 7) {
 std__collections__HashMap_str_i32_grow(self);
 }
 size_t h = str_hash(key);
-size_t idx = (h % self->cap);
+size_t idx = h % self->cap;
 while (self->occupied[idx]) {
-if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
+if (self->hashes[idx] == h && kobel_streq(self->keys[idx], key)) {
 self->values[idx] = value;
 return;
 }
-idx = ((idx + 1) % self->cap);
+idx = (idx + 1) % self->cap;
 }
 self->keys[idx] = key;
 self->values[idx] = value;
@@ -1695,32 +1695,32 @@ self->len++;
 }
 
 std__collections__List_usz std__collections__List_usz_init(size_t* items_data, size_t items_len) {
-size_t cap = ((items_len < 4) ? 4 : items_len);
+size_t cap = items_len < 4 ? 4 : items_len;
 size_t* buf = std__memory__Heap_create_usz(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t i = __for_i;
 buf[i] = items_data[i];
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -1737,7 +1737,7 @@ self->len++;
 }
 
 void std__collections__List_usz_grow(std__collections__List_usz* self) {
-size_t new_cap = (self->cap * 2);
+size_t new_cap = self->cap * 2;
 self->data = std__memory__Heap_resize_usz(self->data, new_cap);
 self->cap = new_cap;
 }
@@ -1768,16 +1768,16 @@ void std__memory__Heap_free_usz(size_t* ptr) {
 
 std__memory__ArenaState* std__memory__Heap_create_val_std__memory__ArenaState(std__memory__ArenaState value) {
 std__memory__ArenaState* ptr = std__memory__Heap_create_std__memory__ArenaState(1);
-(*(ptr) = value);
+*ptr = value;
 return ptr;
 }
 
 uint8_t* std__memory__Heap_create_u8(size_t count) {
-    return (uint8_t*)malloc((count * 1));
+    return (uint8_t*)malloc(count * 1);
 }
 
 std__memory__ArenaBlock* std__memory__Heap_create_std__memory__ArenaBlock(size_t count) {
-    return (std__memory__ArenaBlock*)malloc((count * 32));
+    return (std__memory__ArenaBlock*)malloc(count * 32);
 }
 
 void std__memory__Heap_free_std__memory__ArenaBlock(std__memory__ArenaBlock* ptr) {
@@ -1789,7 +1789,7 @@ void std__memory__Heap_free_std__memory__ArenaState(std__memory__ArenaState* ptr
 }
 
 uint8_t* std__memory__Heap_resize_u8(uint8_t* ptr, size_t count) {
-    return (uint8_t*)realloc((uint8_t*)ptr, (count * 1));
+    return (uint8_t*)realloc((uint8_t*)ptr, count * 1);
 }
 
 int32_t* std__memory__Arena_create_i32(std__memory__Arena* self) {
@@ -1798,32 +1798,32 @@ int32_t* std__memory__Arena_create_i32(std__memory__Arena* self) {
 
 int32_t* std__memory__Arena_create_val_i32(std__memory__Arena* self, int32_t value) {
 int32_t* ptr = std__memory__Arena_create_i32(self);
-(*(ptr) = value);
+*ptr = value;
 return ptr;
 }
 
 kobel_str* std__memory__Heap_create_str(size_t count) {
-    return (kobel_str*)malloc((count * 16));
+    return (kobel_str*)malloc(count * 16);
 }
 
 kobel_str* std__memory__Heap_resize_str(kobel_str* ptr, size_t count) {
-    return (kobel_str*)realloc((uint8_t*)ptr, (count * 16));
+    return (kobel_str*)realloc((uint8_t*)ptr, count * 16);
 }
 
 int32_t* std__memory__Heap_create_i32(size_t count) {
-    return (int32_t*)malloc((count * 4));
+    return (int32_t*)malloc(count * 4);
 }
 
 int32_t* std__memory__Heap_resize_i32(int32_t* ptr, size_t count) {
-    return (int32_t*)realloc((uint8_t*)ptr, (count * 4));
+    return (int32_t*)realloc((uint8_t*)ptr, count * 4);
 }
 
 size_t* std__memory__Heap_create_usz(size_t count) {
-    return (size_t*)malloc((count * 8));
+    return (size_t*)malloc(count * 8);
 }
 
 bool* std__memory__Heap_create_bool(size_t count) {
-    return (bool*)malloc((count * 1));
+    return (bool*)malloc(count * 1);
 }
 
 void std__memory__Heap_free_bool(bool* ptr) {
@@ -1831,10 +1831,10 @@ void std__memory__Heap_free_bool(bool* ptr) {
 }
 
 size_t* std__memory__Heap_resize_usz(size_t* ptr, size_t count) {
-    return (size_t*)realloc((uint8_t*)ptr, (count * 8));
+    return (size_t*)realloc((uint8_t*)ptr, count * 8);
 }
 
 std__memory__ArenaState* std__memory__Heap_create_std__memory__ArenaState(size_t count) {
-    return (std__memory__ArenaState*)malloc((count * 16));
+    return (std__memory__ArenaState*)malloc(count * 16);
 }
 

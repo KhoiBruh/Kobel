@@ -435,27 +435,27 @@ int32_t h = 5381;
 size_t __for_e = s.len;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t i = __for_i;
-int32_t c = ((int32_t)(uint8_t)(s.data[i]));
-h = ((h * 33) + c);
+int32_t c = (int32_t)(uint8_t)s.data[i];
+h = h * 33 + c;
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -470,7 +470,7 @@ size_t str_hash(kobel_str self) {
 kobel_str std__string__str_from_bytes(uint8_t* buf, size_t len) {
 std__string__StrRaw r = (std__string__StrRaw){ (const char*)buf, len };
 kobel_str* sp = (kobel_str*)&r;
-return (*(sp));
+return *sp;
 }
 
 std__string__StringBuilder std__string__StringBuilder_init(size_t init_cap) {
@@ -483,10 +483,10 @@ return (std__string__StringBuilder){ raw, 0, cap };
 }
 
 void std__string__StringBuilder_append_char(std__string__StringBuilder* self, char c) {
-if ((self->len + 2) >= self->cap) {
-std__string__StringBuilder_grow(self, (self->len + 2));
+if (self->len + 2 >= self->cap) {
+std__string__StringBuilder_grow(self, self->len + 2);
 }
-self->buf[self->len] = ((int32_t)(uint8_t)(c));
+self->buf[self->len] = (int32_t)(uint8_t)c;
 self->len++;
 }
 
@@ -495,8 +495,8 @@ size_t s_len = s.len;
 if (s_len == 0) {
 return;
 }
-if (((self->len + s_len) + 1) >= self->cap) {
-std__string__StringBuilder_grow(self, ((self->len + s_len) + 1));
+if (self->len + s_len + 1 >= self->cap) {
+std__string__StringBuilder_grow(self, self->len + s_len + 1);
 }
 memcpy(&self->buf[self->len], s.data, s_len);
 self->len += s_len;
@@ -515,9 +515,9 @@ place *= 10;
 }
 uint64_t rest = n;
 while (place > 0) {
-uint64_t digit = (rest / place);
-std__string__StringBuilder_plus_assign_2_2(self, ((char)((uint8_t)(digit + 48))));
-rest -= (digit * place);
+uint64_t digit = rest / place;
+std__string__StringBuilder_plus_assign_2_2(self, (char)(uint8_t)(digit + 48));
+rest -= digit * place;
 place /= 10;
 }
 }
@@ -525,7 +525,7 @@ place /= 10;
 void std__string__StringBuilder_append_i64(std__string__StringBuilder* self, int64_t n) {
 if (n < 0) {
 std__string__StringBuilder_plus_assign_2_2(self, '-');
-uint64_t mag = ((uint64_t)(0 - (n + 1)) + 1);
+uint64_t mag = (uint64_t)(0 - (n + 1)) + 1;
 std__string__StringBuilder_append_u64(self, mag);
 return;
 }
@@ -537,7 +537,7 @@ void std__string__StringBuilder_append_i32(std__string__StringBuilder* self, int
 }
 
 void std__string__StringBuilder_grow(std__string__StringBuilder* self, size_t min_cap) {
-size_t new_cap = ((self->cap < 16) ? 16 : (self->cap * 2));
+size_t new_cap = self->cap < 16 ? 16 : self->cap * 2;
 while (new_cap < min_cap) {
 new_cap *= 2;
 }
@@ -563,15 +563,15 @@ void std__string__StringBuilder_plus_assign_2_4(std__string__StringBuilder* self
 }
 
 char std__string__StringBuilder_get(std__string__StringBuilder* self, size_t i) {
-    return ((char)(self->buf[i]));
+    return (char)self->buf[i];
 }
 
 uint8_t std__string__StringBuilder_set(std__string__StringBuilder* self, size_t i, char c) {
-    return self->buf[i] = ((int32_t)(uint8_t)(c));
+    return self->buf[i] = (int32_t)(uint8_t)c;
 }
 
 kobel_str std__string__StringBuilder_to_str(std__string__StringBuilder* self) {
-uint8_t* str_data = std__memory__Heap_create_u8((self->len + 1));
+uint8_t* str_data = std__memory__Heap_create_u8(self->len + 1);
 if (self->len > 0) {
 memcpy(str_data, self->buf, self->len);
 }
@@ -581,7 +581,7 @@ return std__string__str_from_bytes(str_data, self->len);
 
 kobel_str std__traits__fmt_u64(uint64_t n0) {
 if (n0 < 10) {
-return ((uint8_t)n0 == 0 ? KOBEL_STR("0") : ((uint8_t)n0 == 1 ? KOBEL_STR("1") : ((uint8_t)n0 == 2 ? KOBEL_STR("2") : ((uint8_t)n0 == 3 ? KOBEL_STR("3") : ((uint8_t)n0 == 4 ? KOBEL_STR("4") : ((uint8_t)n0 == 5 ? KOBEL_STR("5") : ((uint8_t)n0 == 6 ? KOBEL_STR("6") : ((uint8_t)n0 == 7 ? KOBEL_STR("7") : ((uint8_t)n0 == 8 ? KOBEL_STR("8") : KOBEL_STR("9"))))))))));
+return ((uint8_t)n0) == 0 ? KOBEL_STR("0") : ((uint8_t)n0) == 1 ? KOBEL_STR("1") : ((uint8_t)n0) == 2 ? KOBEL_STR("2") : ((uint8_t)n0) == 3 ? KOBEL_STR("3") : ((uint8_t)n0) == 4 ? KOBEL_STR("4") : ((uint8_t)n0) == 5 ? KOBEL_STR("5") : ((uint8_t)n0) == 6 ? KOBEL_STR("6") : ((uint8_t)n0) == 7 ? KOBEL_STR("7") : ((uint8_t)n0) == 8 ? KOBEL_STR("8") : KOBEL_STR("9");
 }
 uint64_t n = n0;
 size_t digits = 1;
@@ -590,12 +590,12 @@ while (probe >= 10) {
 probe /= 10;
 digits++;
 }
-uint8_t* buf = std__memory__Heap_create_u8((digits + 1));
+uint8_t* buf = std__memory__Heap_create_u8(digits + 1);
 buf[digits] = 0;
 size_t i = digits;
 while (i > 0) {
 i--;
-buf[i] = (uint8_t)(48 + (n % 10));
+buf[i] = (uint8_t)(48 + n % 10);
 n /= 10;
 }
 return std__string__str_from_bytes(buf, digits);
@@ -603,7 +603,7 @@ return std__string__str_from_bytes(buf, digits);
 
 kobel_str std__traits__fmt_i64(int64_t v) {
 if (v < 0) {
-uint64_t mag = ((uint64_t)(0 - (v + 1)) + 1);
+uint64_t mag = (uint64_t)(0 - (v + 1)) + 1;
 return kobel_concat(2, KOBEL_STR("-"), std__traits__fmt_u64(mag));
 }
 return std__traits__fmt_u64((uint64_t)v);
@@ -648,32 +648,32 @@ test__test_operators__Vector2 test__test_operators__Vector2_init(int32_t x, int3
 }
 
 test__test_operators__Vector2 test__test_operators__Vector2_plus_2(test__test_operators__Vector2* self, test__test_operators__Vector2 other) {
-    return test__test_operators__Vector2_init((self->x + other.x), (self->y + other.y));
+    return test__test_operators__Vector2_init(self->x + other.x, self->y + other.y);
 }
 
 test__test_operators__Vector2 test__test_operators__Vector2_plus_2_2(test__test_operators__Vector2* self, int32_t scalar) {
-    return test__test_operators__Vector2_init((self->x + scalar), (self->y + scalar));
+    return test__test_operators__Vector2_init(self->x + scalar, self->y + scalar);
 }
 
 test__test_operators__Vector2 test__test_operators__Vector2_minus(test__test_operators__Vector2* self, test__test_operators__Vector2 other) {
-    return test__test_operators__Vector2_init((self->x - other.x), (self->y - other.y));
+    return test__test_operators__Vector2_init(self->x - other.x, self->y - other.y);
 }
 
 test__test_operators__Vector2 test__test_operators__Vector2_mul(test__test_operators__Vector2* self, int32_t factor) {
-    return test__test_operators__Vector2_init((self->x * factor), (self->y * factor));
+    return test__test_operators__Vector2_init(self->x * factor, self->y * factor);
 }
 
 test__test_operators__Vector2 test__test_operators__Vector2_negate(test__test_operators__Vector2* self) {
-    return test__test_operators__Vector2_init((0 - self->x), (0 - self->y));
+    return test__test_operators__Vector2_init(0 - self->x, 0 - self->y);
 }
 
 bool test__test_operators__Vector2_equals(test__test_operators__Vector2* self, test__test_operators__Vector2 other) {
-    return ((self->x == other.x) && (self->y == other.y));
+    return self->x == other.x && self->y == other.y;
 }
 
 void test__test_operators__Vector2_plus_assign(test__test_operators__Vector2* self, test__test_operators__Vector2 other) {
-self->x = (self->x + other.x);
-self->y = (self->y + other.y);
+self->x = self->x + other.x;
+self->y = self->y + other.y;
 }
 
 test__test_operators__IntBuffer test__test_operators__IntBuffer_init(int32_t a, int32_t b, int32_t c) {
@@ -681,7 +681,7 @@ test__test_operators__IntBuffer test__test_operators__IntBuffer_init(int32_t a, 
 }
 
 int32_t test__test_operators__IntBuffer_get(test__test_operators__IntBuffer* self, size_t idx) {
-    return (idx == 0 ? self->a : (idx == 1 ? self->b : (idx == 2 ? self->c : 0)));
+    return idx == 0 ? self->a : idx == 1 ? self->b : idx == 2 ? self->c : 0;
 }
 
 void test__test_operators__IntBuffer_set(test__test_operators__IntBuffer* self, size_t idx, int32_t val_in) {
@@ -695,9 +695,9 @@ self->c = val_in;
 }
 
 void test__test_operators__IntBuffer_plus_assign(test__test_operators__IntBuffer* self, int32_t delta) {
-self->a = (self->a + delta);
-self->b = (self->b + delta);
-self->c = (self->c + delta);
+self->a = self->a + delta;
+self->b = self->b + delta;
+self->c = self->c + delta;
 }
 
 void test__test_operators__test_vector_ops(void) {
@@ -759,12 +759,12 @@ std__collections__HashMap_str_i32_set(&map, KOBEL_STR("apple"), 100);
 std__collections__HashMap_str_i32_set(&map, KOBEL_STR("banana"), 200);
 testsupport__assert__assert_true(std__collections__HashMap_str_i32_contains(&map, KOBEL_STR("apple")), KOBEL_STR("'apple' in map"));
 testsupport__assert__assert_true(std__collections__HashMap_str_i32_contains(&map, KOBEL_STR("banana")), KOBEL_STR("'banana' in map"));
-testsupport__assert__assert_true(!(std__collections__HashMap_str_i32_contains(&map, KOBEL_STR("cherry"))), KOBEL_STR("!('cherry' in map)"));
+testsupport__assert__assert_true(!std__collections__HashMap_str_i32_contains(&map, KOBEL_STR("cherry")), KOBEL_STR("!('cherry' in map)"));
 int32_t* apple_ptr = std__collections__HashMap_str_i32_get(&map, KOBEL_STR("apple"));
-testsupport__assert__assert_true((apple_ptr != NULL), KOBEL_STR("apple_ptr != null"));
+testsupport__assert__assert_true(apple_ptr != NULL, KOBEL_STR("apple_ptr != null"));
 testsupport__assert__assert_eq_i32(*apple_ptr, 100, KOBEL_STR("*map['apple']"));
 int32_t* banana_ptr = std__collections__HashMap_str_i32_get(&map, KOBEL_STR("banana"));
-testsupport__assert__assert_true((banana_ptr != NULL), KOBEL_STR("banana_ptr != null"));
+testsupport__assert__assert_true(banana_ptr != NULL, KOBEL_STR("banana_ptr != null"));
 testsupport__assert__assert_eq_i32(*banana_ptr, 200, KOBEL_STR("*map['banana']"));
 std__collections__HashMap_str_i32_set(&map, KOBEL_STR("apple"), 999);
 testsupport__assert__assert_eq_i32(*std__collections__HashMap_str_i32_get(&map, KOBEL_STR("apple")), 999, KOBEL_STR("*map['apple'] after update"));
@@ -779,7 +779,7 @@ std__collections__HashSet_str_plus_assign(&set, KOBEL_STR("gamma"));
 testsupport__assert__assert_true(std__collections__HashSet_str_contains(&set, KOBEL_STR("alpha")), KOBEL_STR("'alpha' in set"));
 testsupport__assert__assert_true(std__collections__HashSet_str_contains(&set, KOBEL_STR("beta")), KOBEL_STR("'beta' in set"));
 testsupport__assert__assert_true(std__collections__HashSet_str_contains(&set, KOBEL_STR("gamma")), KOBEL_STR("'gamma' in set"));
-testsupport__assert__assert_true(!(std__collections__HashSet_str_contains(&set, KOBEL_STR("delta"))), KOBEL_STR("!('delta' in set)"));
+testsupport__assert__assert_true(!std__collections__HashSet_str_contains(&set, KOBEL_STR("delta")), KOBEL_STR("!('delta' in set)"));
 int32_t count = 0;
 {
 size_t __for_n = std__collections__HashSet_str_count(&set);
@@ -788,7 +788,7 @@ while (__for_i < __for_n) {
 kobel_str item = std__collections__HashSet_str_at(&set, __for_i);
 testsupport__assert__assert_true(std__collections__HashSet_str_contains(&set, item), KOBEL_STR("item in set during iteration"));
 count++;
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 }
 }
 testsupport__assert__assert_eq_i32(count, 3, KOBEL_STR("HashSet iteration count == 3"));
@@ -803,10 +803,10 @@ std__string__StringBuilder_plus_assign_2(&sb, KOBEL_STR("World"));
 std__string__StringBuilder_plus_assign_2_2(&sb, '!');
 std__string__StringBuilder_plus_assign_2_4(&sb, 42);
 testsupport__assert__assert_true(kobel_streq(std__string__StringBuilder_to_str(&sb), KOBEL_STR("Hello World!42")), KOBEL_STR("sb.to_str() == 'Hello World!42'"));
-testsupport__assert__assert_true((std__string__StringBuilder_get(&sb, 0) == 'H'), KOBEL_STR("sb[0] == 'H'"));
-testsupport__assert__assert_true((std__string__StringBuilder_get(&sb, 6) == 'W'), KOBEL_STR("sb[6] == 'W'"));
+testsupport__assert__assert_true(std__string__StringBuilder_get(&sb, 0) == 'H', KOBEL_STR("sb[0] == 'H'"));
+testsupport__assert__assert_true(std__string__StringBuilder_get(&sb, 6) == 'W', KOBEL_STR("sb[6] == 'W'"));
 std__string__StringBuilder_set(&sb, 0, 'h');
-testsupport__assert__assert_true((std__string__StringBuilder_get(&sb, 0) == 'h'), KOBEL_STR("sb[0] after set == 'h'"));
+testsupport__assert__assert_true(std__string__StringBuilder_get(&sb, 0) == 'h', KOBEL_STR("sb[0] after set == 'h'"));
 std__string__StringBuilder_free(sb);
 }
 
@@ -853,32 +853,32 @@ return 0;
 }
 
 std__collections__List_i32 std__collections__List_i32_init(int32_t* items_data, size_t items_len) {
-size_t cap = ((items_len < 4) ? 4 : items_len);
+size_t cap = items_len < 4 ? 4 : items_len;
 int32_t* buf = std__memory__Heap_create_i32(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t i = __for_i;
 buf[i] = items_data[i];
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -895,7 +895,7 @@ self->len++;
 }
 
 void std__collections__List_i32_grow(std__collections__List_i32* self) {
-size_t new_cap = (self->cap * 2);
+size_t new_cap = self->cap * 2;
 self->data = std__memory__Heap_resize_i32(self->data, new_cap);
 self->cap = new_cap;
 }
@@ -905,12 +905,12 @@ intptr_t std__collections__List_i32_index_of(std__collections__List_i32* self, i
 size_t __for_e = self->len;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t i = __for_i;
@@ -918,15 +918,15 @@ if (self->data[i] == value) {
 return i;
 }
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -943,7 +943,7 @@ int32_t std__collections__List_i32_get(std__collections__List_i32* self, size_t 
 }
 
 bool std__collections__List_i32_contains(std__collections__List_i32* self, int32_t value) {
-    return (std__collections__List_i32_index_of(self, value) != -1);
+    return std__collections__List_i32_index_of(self, value) != -1;
 }
 
 int32_t std__collections__List_i32_set(std__collections__List_i32* self, size_t index, int32_t value) {
@@ -966,26 +966,26 @@ bool* occ = std__memory__Heap_create_bool(cap);
 size_t __for_e = cap;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t i = __for_i;
 occ[i] = false;
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -994,16 +994,16 @@ return (std__collections__HashSet_str){ keys, hashes, occ, 0, cap };
 }
 
 bool std__collections__HashSet_str_add(std__collections__HashSet_str* self, kobel_str key) {
-if ((self->cap == 0) || ((self->len * 10) >= (self->cap * 7))) {
+if (self->cap == 0 || self->len * 10 >= self->cap * 7) {
 std__collections__HashSet_str_grow(self);
 }
 size_t h = str_hash(key);
-size_t idx = (h % self->cap);
+size_t idx = h % self->cap;
 while (self->occupied[idx]) {
-if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
+if (self->hashes[idx] == h && kobel_streq(self->keys[idx], key)) {
 return false;
 }
-idx = ((idx + 1) % self->cap);
+idx = (idx + 1) % self->cap;
 }
 self->keys[idx] = key;
 self->hashes[idx] = h;
@@ -1017,7 +1017,7 @@ size_t old_cap = self->cap;
 kobel_str* old_keys = self->keys;
 size_t* old_hashes = self->hashes;
 bool* old_occ = self->occupied;
-size_t new_cap = ((old_cap < 8) ? 16 : (old_cap * 2));
+size_t new_cap = old_cap < 8 ? 16 : old_cap * 2;
 kobel_str* keys = std__memory__Heap_create_str(new_cap);
 size_t* hashes = std__memory__Heap_create_usz(new_cap);
 bool* new_occ = std__memory__Heap_create_bool(new_cap);
@@ -1025,26 +1025,26 @@ bool* new_occ = std__memory__Heap_create_bool(new_cap);
 size_t __for_e = new_cap;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t j = __for_i;
 new_occ[j] = false;
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -1054,35 +1054,35 @@ if (old_cap > 0) {
 size_t __for_e = old_cap;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t i = __for_i;
 if (old_occ[i]) {
 size_t h = old_hashes[i];
-size_t idx = (h % new_cap);
+size_t idx = h % new_cap;
 while (new_occ[idx]) {
-idx = ((idx + 1) % new_cap);
+idx = (idx + 1) % new_cap;
 }
 keys[idx] = old_keys[i];
 hashes[idx] = h;
 new_occ[idx] = true;
 }
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -1110,16 +1110,16 @@ bool std__collections__HashSet_str_plus_assign(std__collections__HashSet_str* se
 }
 
 bool std__collections__HashSet_str_contains(std__collections__HashSet_str* self, kobel_str key) {
-if ((self->len == 0) || (self->cap == 0)) {
+if (self->len == 0 || self->cap == 0) {
 return false;
 }
 size_t h = str_hash(key);
-size_t idx = (h % self->cap);
+size_t idx = h % self->cap;
 while (self->occupied[idx]) {
-if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
+if (self->hashes[idx] == h && kobel_streq(self->keys[idx], key)) {
 return true;
 }
-idx = ((idx + 1) % self->cap);
+idx = (idx + 1) % self->cap;
 }
 return false;
 }
@@ -1134,12 +1134,12 @@ int32_t seen = 0;
 size_t __for_e = self->cap;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t idx = __for_i;
@@ -1150,15 +1150,15 @@ return self->keys[idx];
 seen++;
 }
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -1179,26 +1179,26 @@ bool* occ = std__memory__Heap_create_bool(cap);
 size_t __for_e = cap;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t i = __for_i;
 occ[i] = false;
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -1212,7 +1212,7 @@ kobel_str* old_keys = self->keys;
 int32_t* old_vals = self->values;
 size_t* old_hashes = self->hashes;
 bool* old_occ = self->occupied;
-size_t new_cap = ((old_cap < 8) ? 16 : (old_cap * 2));
+size_t new_cap = old_cap < 8 ? 16 : old_cap * 2;
 kobel_str* keys = std__memory__Heap_create_str(new_cap);
 int32_t* values = std__memory__Heap_create_i32(new_cap);
 size_t* hashes = std__memory__Heap_create_usz(new_cap);
@@ -1221,26 +1221,26 @@ bool* new_occ = std__memory__Heap_create_bool(new_cap);
 size_t __for_e = new_cap;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t j = __for_i;
 new_occ[j] = false;
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -1250,20 +1250,20 @@ if (old_cap > 0) {
 size_t __for_e = old_cap;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t i = __for_i;
 if (old_occ[i]) {
 size_t h = old_hashes[i];
-size_t idx = (h % new_cap);
+size_t idx = h % new_cap;
 while (new_occ[idx]) {
-idx = ((idx + 1) % new_cap);
+idx = (idx + 1) % new_cap;
 }
 keys[idx] = old_keys[i];
 values[idx] = old_vals[i];
@@ -1271,15 +1271,15 @@ hashes[idx] = h;
 new_occ[idx] = true;
 }
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -1306,17 +1306,17 @@ std__memory__Heap_free_bool(self.occupied);
 }
 
 void std__collections__HashMap_str_i32_set(std__collections__HashMap_str_i32* self, kobel_str key, int32_t value) {
-if ((self->cap == 0) || ((self->len * 10) >= (self->cap * 7))) {
+if (self->cap == 0 || self->len * 10 >= self->cap * 7) {
 std__collections__HashMap_str_i32_grow(self);
 }
 size_t h = str_hash(key);
-size_t idx = (h % self->cap);
+size_t idx = h % self->cap;
 while (self->occupied[idx]) {
-if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
+if (self->hashes[idx] == h && kobel_streq(self->keys[idx], key)) {
 self->values[idx] = value;
 return;
 }
-idx = ((idx + 1) % self->cap);
+idx = (idx + 1) % self->cap;
 }
 self->keys[idx] = key;
 self->values[idx] = value;
@@ -1326,31 +1326,31 @@ self->len++;
 }
 
 int32_t* std__collections__HashMap_str_i32_get(std__collections__HashMap_str_i32* self, kobel_str key) {
-if ((self->len == 0) || (self->cap == 0)) {
+if (self->len == 0 || self->cap == 0) {
 return NULL;
 }
 size_t h = str_hash(key);
-size_t idx = (h % self->cap);
+size_t idx = h % self->cap;
 while (self->occupied[idx]) {
-if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
+if (self->hashes[idx] == h && kobel_streq(self->keys[idx], key)) {
 return &self->values[idx];
 }
-idx = ((idx + 1) % self->cap);
+idx = (idx + 1) % self->cap;
 }
 return NULL;
 }
 
 bool std__collections__HashMap_str_i32_contains(std__collections__HashMap_str_i32* self, kobel_str key) {
-if ((self->len == 0) || (self->cap == 0)) {
+if (self->len == 0 || self->cap == 0) {
 return false;
 }
 size_t h = str_hash(key);
-size_t idx = (h % self->cap);
+size_t idx = h % self->cap;
 while (self->occupied[idx]) {
-if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
+if (self->hashes[idx] == h && kobel_streq(self->keys[idx], key)) {
 return true;
 }
-idx = ((idx + 1) % self->cap);
+idx = (idx + 1) % self->cap;
 }
 return false;
 }
@@ -1368,31 +1368,31 @@ void std__memory__Heap_free_i32(int32_t* ptr) {
 }
 
 uint8_t* std__memory__Heap_create_u8(size_t count) {
-    return (uint8_t*)malloc((count * 1));
+    return (uint8_t*)malloc(count * 1);
 }
 
 uint8_t* std__memory__Heap_resize_u8(uint8_t* ptr, size_t count) {
-    return (uint8_t*)realloc((uint8_t*)ptr, (count * 1));
+    return (uint8_t*)realloc((uint8_t*)ptr, count * 1);
 }
 
 kobel_str* std__memory__Heap_create_str(size_t count) {
-    return (kobel_str*)malloc((count * 16));
+    return (kobel_str*)malloc(count * 16);
 }
 
 int32_t* std__memory__Heap_create_i32(size_t count) {
-    return (int32_t*)malloc((count * 4));
+    return (int32_t*)malloc(count * 4);
 }
 
 int32_t* std__memory__Heap_resize_i32(int32_t* ptr, size_t count) {
-    return (int32_t*)realloc((uint8_t*)ptr, (count * 4));
+    return (int32_t*)realloc((uint8_t*)ptr, count * 4);
 }
 
 size_t* std__memory__Heap_create_usz(size_t count) {
-    return (size_t*)malloc((count * 8));
+    return (size_t*)malloc(count * 8);
 }
 
 bool* std__memory__Heap_create_bool(size_t count) {
-    return (bool*)malloc((count * 1));
+    return (bool*)malloc(count * 1);
 }
 
 void std__memory__Heap_free_usz(size_t* ptr) {

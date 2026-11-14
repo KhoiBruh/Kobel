@@ -360,18 +360,18 @@ if (st->current == NULL) {
 std__memory__Arena_new_block(self, size);
 }
 std__memory__ArenaBlock* blk = st->current;
-size_t rem = (blk->used % align);
+size_t rem = blk->used % align;
 size_t aligned_used = blk->used;
 if (rem != 0) {
-aligned_used = (blk->used + (align - rem));
+aligned_used = blk->used + (align - rem);
 }
-if ((aligned_used + size) > blk->size) {
+if (aligned_used + size > blk->size) {
 std__memory__Arena_new_block(self, size);
 aligned_used = 0;
 }
 std__memory__ArenaBlock* cur_blk = st->current;
 uint8_t* ptr = &cur_blk->data[aligned_used];
-cur_blk->used = (aligned_used + size);
+cur_blk->used = aligned_used + size;
 return ptr;
 }
 
@@ -436,8 +436,8 @@ return 3;
 }
 std__memory__Arena arena = std__memory__Arena_init(1024);
 int32_t* p = std__memory__Arena_create_i32(&arena);
-(*(p) = 9);
-if ((*(p)) != 9) {
+*p = 9;
+if (*p != 9) {
 {
 int32_t __ret_tmp = 4;
 std__memory__Arena_free(&arena);
@@ -445,7 +445,7 @@ return __ret_tmp;
 }
 }
 int32_t* q = std__memory__Arena_create_val_i32(&arena, 5);
-if ((*(q)) != 5) {
+if (*q != 5) {
 {
 int32_t __ret_tmp = 5;
 std__memory__Arena_free(&arena);
@@ -483,8 +483,8 @@ return __ret_tmp;
 }
 }
 int32_t* hp = std__memory__Heap_create_i32(1);
-(*(hp) = 77);
-if ((*(hp)) != 77) {
+*hp = 77;
+if (*hp != 77) {
 {
 int32_t __ret_tmp = 10;
 std__memory__Heap_free_i32(hp);
@@ -505,7 +505,7 @@ int32_t test__generic_methods__Box_i32_get(test__generic_methods__Box_i32* self)
 }
 
 int32_t test__generic_methods__Box_i32_get_twice(test__generic_methods__Box_i32* self) {
-    return (test__generic_methods__Box_i32_get(self) + test__generic_methods__Box_i32_get(self));
+    return test__generic_methods__Box_i32_get(self) + test__generic_methods__Box_i32_get(self);
 }
 
 void std__memory__Heap_free_u8(uint8_t* ptr) {
@@ -514,16 +514,16 @@ void std__memory__Heap_free_u8(uint8_t* ptr) {
 
 std__memory__ArenaState* std__memory__Heap_create_val_std__memory__ArenaState(std__memory__ArenaState value) {
 std__memory__ArenaState* ptr = std__memory__Heap_create_std__memory__ArenaState(1);
-(*(ptr) = value);
+*ptr = value;
 return ptr;
 }
 
 uint8_t* std__memory__Heap_create_u8(size_t count) {
-    return (uint8_t*)malloc((count * 1));
+    return (uint8_t*)malloc(count * 1);
 }
 
 std__memory__ArenaBlock* std__memory__Heap_create_std__memory__ArenaBlock(size_t count) {
-    return (std__memory__ArenaBlock*)malloc((count * 32));
+    return (std__memory__ArenaBlock*)malloc(count * 32);
 }
 
 void std__memory__Heap_free_std__memory__ArenaBlock(std__memory__ArenaBlock* ptr) {
@@ -535,11 +535,11 @@ void std__memory__Heap_free_std__memory__ArenaState(std__memory__ArenaState* ptr
 }
 
 int32_t test__generic_methods__A_pick_i32(test__generic_methods__A* self) {
-    return (self->v + 1);
+    return self->v + 1;
 }
 
 int32_t test__generic_methods__B_pick_i32(test__generic_methods__B* self) {
-    return (self->v + 2);
+    return self->v + 2;
 }
 
 int32_t* std__memory__Arena_create_i32(std__memory__Arena* self) {
@@ -548,22 +548,22 @@ int32_t* std__memory__Arena_create_i32(std__memory__Arena* self) {
 
 int32_t* std__memory__Arena_create_val_i32(std__memory__Arena* self, int32_t value) {
 int32_t* ptr = std__memory__Arena_create_i32(self);
-(*(ptr) = value);
+*ptr = value;
 return ptr;
 }
 
 kobel_str* std__memory__Arena_create_val_str(std__memory__Arena* self, kobel_str value) {
 kobel_str* ptr = std__memory__Arena_create_str(self);
-(*(ptr) = value);
+*ptr = value;
 return ptr;
 }
 
 int32_t test__generic_methods__A_pick_or_i32(test__generic_methods__A* self, int32_t bonus) {
-    return (self->v + bonus);
+    return self->v + bonus;
 }
 
 int32_t* std__memory__Heap_create_i32(size_t count) {
-    return (int32_t*)malloc((count * 4));
+    return (int32_t*)malloc(count * 4);
 }
 
 void std__memory__Heap_free_i32(int32_t* ptr) {
@@ -571,7 +571,7 @@ void std__memory__Heap_free_i32(int32_t* ptr) {
 }
 
 std__memory__ArenaState* std__memory__Heap_create_std__memory__ArenaState(size_t count) {
-    return (std__memory__ArenaState*)malloc((count * 16));
+    return (std__memory__ArenaState*)malloc(count * 16);
 }
 
 kobel_str* std__memory__Arena_create_str(std__memory__Arena* self) {

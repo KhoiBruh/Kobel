@@ -328,7 +328,7 @@ size_t __for_i = 0;
 while (__for_i < __for_n) {
 int32_t x = items_data[__for_i];
 total += x;
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 }
 }
 return total;
@@ -359,7 +359,7 @@ std__collections__Array_i32 arr = std__collections__Array_i32_init((int32_t[]){ 
 if (arr.len != 5) {
 return 8;
 }
-if ((std__collections__Array_i32_get(&arr, 0) != 1) || (std__collections__Array_i32_get(&arr, 4) != 5)) {
+if (std__collections__Array_i32_get(&arr, 0) != 1 || std__collections__Array_i32_get(&arr, 4) != 5) {
 return 9;
 }
 int32_t arr_sum = 0;
@@ -369,7 +369,7 @@ size_t __for_i = 0;
 while (__for_i < __for_n) {
 int32_t n = std__collections__Array_i32_at(&arr, __for_i);
 arr_sum += n;
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 }
 }
 if (arr_sum != 15) {
@@ -383,7 +383,7 @@ std__collections__List_i32_free(list);
 return __ret_tmp;
 }
 }
-if ((std__collections__List_i32_get(&list, 0) != 10) || (std__collections__List_i32_get(&list, 1) != 20) || (std__collections__List_i32_get(&list, 2) != 30)) {
+if (std__collections__List_i32_get(&list, 0) != 10 || std__collections__List_i32_get(&list, 1) != 20 || std__collections__List_i32_get(&list, 2) != 30) {
 {
 int32_t __ret_tmp = 12;
 std__collections__List_i32_free(list);
@@ -424,32 +424,32 @@ int32_t std__collections__Array_i32_get(std__collections__Array_i32* self, size_
 }
 
 std__collections__List_i32 std__collections__List_i32_init(int32_t* items_data, size_t items_len) {
-size_t cap = ((items_len < 4) ? 4 : items_len);
+size_t cap = items_len < 4 ? 4 : items_len;
 int32_t* buf = std__memory__Heap_create_i32(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t i = __for_i;
 buf[i] = items_data[i];
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -470,6 +470,6 @@ void std__memory__Heap_free_i32(int32_t* ptr) {
 }
 
 int32_t* std__memory__Heap_create_i32(size_t count) {
-    return (int32_t*)malloc((count * 4));
+    return (int32_t*)malloc(count * 4);
 }
 

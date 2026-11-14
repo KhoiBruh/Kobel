@@ -487,7 +487,7 @@ tests__features__test_control_flow__Bundle* std__memory__Heap_resize_tests__feat
 kobel_str std__string__str_from_bytes(uint8_t* buf, size_t len) {
 std__string__StrRaw r = (std__string__StrRaw){ (const char*)buf, len };
 kobel_str* sp = (kobel_str*)&r;
-return (*(sp));
+return *sp;
 }
 
 std__string__StringBuilder std__string__StringBuilder_init(size_t init_cap) {
@@ -500,10 +500,10 @@ return (std__string__StringBuilder){ raw, 0, cap };
 }
 
 void std__string__StringBuilder_append_char(std__string__StringBuilder* self, char c) {
-if ((self->len + 2) >= self->cap) {
-std__string__StringBuilder_grow(self, (self->len + 2));
+if (self->len + 2 >= self->cap) {
+std__string__StringBuilder_grow(self, self->len + 2);
 }
-self->buf[self->len] = ((int32_t)(uint8_t)(c));
+self->buf[self->len] = (int32_t)(uint8_t)c;
 self->len++;
 }
 
@@ -512,8 +512,8 @@ size_t s_len = s.len;
 if (s_len == 0) {
 return;
 }
-if (((self->len + s_len) + 1) >= self->cap) {
-std__string__StringBuilder_grow(self, ((self->len + s_len) + 1));
+if (self->len + s_len + 1 >= self->cap) {
+std__string__StringBuilder_grow(self, self->len + s_len + 1);
 }
 memcpy(&self->buf[self->len], s.data, s_len);
 self->len += s_len;
@@ -532,9 +532,9 @@ place *= 10;
 }
 uint64_t rest = n;
 while (place > 0) {
-uint64_t digit = (rest / place);
-std__string__StringBuilder_plus_assign_2_2(self, ((char)((uint8_t)(digit + 48))));
-rest -= (digit * place);
+uint64_t digit = rest / place;
+std__string__StringBuilder_plus_assign_2_2(self, (char)(uint8_t)(digit + 48));
+rest -= digit * place;
 place /= 10;
 }
 }
@@ -542,7 +542,7 @@ place /= 10;
 void std__string__StringBuilder_append_i64(std__string__StringBuilder* self, int64_t n) {
 if (n < 0) {
 std__string__StringBuilder_plus_assign_2_2(self, '-');
-uint64_t mag = ((uint64_t)(0 - (n + 1)) + 1);
+uint64_t mag = (uint64_t)(0 - (n + 1)) + 1;
 std__string__StringBuilder_append_u64(self, mag);
 return;
 }
@@ -554,7 +554,7 @@ void std__string__StringBuilder_append_i32(std__string__StringBuilder* self, int
 }
 
 void std__string__StringBuilder_grow(std__string__StringBuilder* self, size_t min_cap) {
-size_t new_cap = ((self->cap < 16) ? 16 : (self->cap * 2));
+size_t new_cap = self->cap < 16 ? 16 : self->cap * 2;
 while (new_cap < min_cap) {
 new_cap *= 2;
 }
@@ -584,12 +584,12 @@ size_t std__string__StringBuilder_count(std__string__StringBuilder* self) {
 }
 
 char std__string__StringBuilder_at(std__string__StringBuilder* self, size_t i) {
-    return ((char)(self->buf[i]));
+    return (char)self->buf[i];
 }
 
 kobel_str std__traits__fmt_u64(uint64_t n0) {
 if (n0 < 10) {
-return ((uint8_t)n0 == 0 ? KOBEL_STR("0") : ((uint8_t)n0 == 1 ? KOBEL_STR("1") : ((uint8_t)n0 == 2 ? KOBEL_STR("2") : ((uint8_t)n0 == 3 ? KOBEL_STR("3") : ((uint8_t)n0 == 4 ? KOBEL_STR("4") : ((uint8_t)n0 == 5 ? KOBEL_STR("5") : ((uint8_t)n0 == 6 ? KOBEL_STR("6") : ((uint8_t)n0 == 7 ? KOBEL_STR("7") : ((uint8_t)n0 == 8 ? KOBEL_STR("8") : KOBEL_STR("9"))))))))));
+return ((uint8_t)n0) == 0 ? KOBEL_STR("0") : ((uint8_t)n0) == 1 ? KOBEL_STR("1") : ((uint8_t)n0) == 2 ? KOBEL_STR("2") : ((uint8_t)n0) == 3 ? KOBEL_STR("3") : ((uint8_t)n0) == 4 ? KOBEL_STR("4") : ((uint8_t)n0) == 5 ? KOBEL_STR("5") : ((uint8_t)n0) == 6 ? KOBEL_STR("6") : ((uint8_t)n0) == 7 ? KOBEL_STR("7") : ((uint8_t)n0) == 8 ? KOBEL_STR("8") : KOBEL_STR("9");
 }
 uint64_t n = n0;
 size_t digits = 1;
@@ -598,12 +598,12 @@ while (probe >= 10) {
 probe /= 10;
 digits++;
 }
-uint8_t* buf = std__memory__Heap_create_u8((digits + 1));
+uint8_t* buf = std__memory__Heap_create_u8(digits + 1);
 buf[digits] = 0;
 size_t i = digits;
 while (i > 0) {
 i--;
-buf[i] = (uint8_t)(48 + (n % 10));
+buf[i] = (uint8_t)(48 + n % 10);
 n /= 10;
 }
 return std__string__str_from_bytes(buf, digits);
@@ -611,7 +611,7 @@ return std__string__str_from_bytes(buf, digits);
 
 kobel_str std__traits__fmt_i64(int64_t v) {
 if (v < 0) {
-uint64_t mag = ((uint64_t)(0 - (v + 1)) + 1);
+uint64_t mag = (uint64_t)(0 - (v + 1)) + 1;
 return kobel_concat(2, KOBEL_STR("-"), std__traits__fmt_u64(mag));
 }
 return std__traits__fmt_u64((uint64_t)v);
@@ -631,7 +631,7 @@ void std__io__println(kobel_str s) {
 
 void tests__features__test_control_flow__check(bool ok, kobel_str msg, tests__features__test_control_flow__Tally* t) {
 if (!ok) {
-t->fails = (t->fails + 1);
+t->fails = t->fails + 1;
 std__io__print(KOBEL_STR("  [FAIL] "));
 std__io__println(msg);
 }
@@ -644,33 +644,33 @@ int32_t count = 0;
 int32_t __for_e = 4;
 int32_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i <= __for_e);
+__for_go = __for_i <= __for_e;
 } else {
-__for_go = (__for_i >= __for_e);
+__for_go = __for_i >= __for_e;
 }
 while (__for_go) {
 int32_t i = __for_i;
-sum = (sum + i);
-count = (count + 1);
+sum = sum + i;
+count = count + 1;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
 }
-tests__features__test_control_flow__check((count == 5), KOBEL_STR("closed 0..4 must run 5 times"), t);
-tests__features__test_control_flow__check((sum == 10), KOBEL_STR("closed 0..4 sum must be 10"), t);
+tests__features__test_control_flow__check(count == 5, KOBEL_STR("closed 0..4 must run 5 times"), t);
+tests__features__test_control_flow__check(sum == 10, KOBEL_STR("closed 0..4 sum must be 10"), t);
 }
 
 void tests__features__test_control_flow__test_range_closed_desc(tests__features__test_control_flow__Tally* t) {
@@ -680,63 +680,63 @@ int32_t count = 0;
 int32_t __for_e = 0;
 int32_t __for_i = __for_e;
 __for_i = 4;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i <= __for_e);
+__for_go = __for_i <= __for_e;
 } else {
-__for_go = (__for_i >= __for_e);
+__for_go = __for_i >= __for_e;
 }
 while (__for_go) {
 int32_t i = __for_i;
-sum = (sum + i);
-count = (count + 1);
+sum = sum + i;
+count = count + 1;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
 }
-tests__features__test_control_flow__check((count == 5), KOBEL_STR("closed 4..0 must run 5 times"), t);
-tests__features__test_control_flow__check((sum == 10), KOBEL_STR("closed 4..0 sum must be 10"), t);
+tests__features__test_control_flow__check(count == 5, KOBEL_STR("closed 4..0 must run 5 times"), t);
+tests__features__test_control_flow__check(sum == 10, KOBEL_STR("closed 4..0 sum must be 10"), t);
 count = 0;
 {
 int32_t __for_e = 3;
 int32_t __for_i = __for_e;
 __for_i = 3;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i <= __for_e);
+__for_go = __for_i <= __for_e;
 } else {
-__for_go = (__for_i >= __for_e);
+__for_go = __for_i >= __for_e;
 }
 while (__for_go) {
 int32_t i = __for_i;
-count = (count + 1);
+count = count + 1;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
 }
-tests__features__test_control_flow__check((count == 1), KOBEL_STR("closed 3..3 must run exactly once"), t);
+tests__features__test_control_flow__check(count == 1, KOBEL_STR("closed 3..3 must run exactly once"), t);
 }
 
 void tests__features__test_control_flow__test_range_open(tests__features__test_control_flow__Tally* t) {
@@ -746,146 +746,146 @@ int32_t count = 0;
 int32_t __for_e = 4;
 int32_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 int32_t i = __for_i;
-sum = (sum + i);
-count = (count + 1);
+sum = sum + i;
+count = count + 1;
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
 }
-tests__features__test_control_flow__check((count == 3), KOBEL_STR("open 0>..<4 must run 3 times"), t);
-tests__features__test_control_flow__check((sum == 6), KOBEL_STR("open 0>..<4 sum must be 6"), t);
+tests__features__test_control_flow__check(count == 3, KOBEL_STR("open 0>..<4 must run 3 times"), t);
+tests__features__test_control_flow__check(sum == 6, KOBEL_STR("open 0>..<4 sum must be 6"), t);
 sum = 0;
 count = 0;
 {
 int32_t __for_e = 0;
 int32_t __for_i = __for_e;
 __for_i = 4;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 int32_t i = __for_i;
-sum = (sum + i);
-count = (count + 1);
+sum = sum + i;
+count = count + 1;
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
 }
-tests__features__test_control_flow__check((count == 3), KOBEL_STR("open 4>..<0 must run 3 times"), t);
-tests__features__test_control_flow__check((sum == 6), KOBEL_STR("open 4>..<0 sum must be 6"), t);
+tests__features__test_control_flow__check(count == 3, KOBEL_STR("open 4>..<0 must run 3 times"), t);
+tests__features__test_control_flow__check(sum == 6, KOBEL_STR("open 4>..<0 sum must be 6"), t);
 count = 0;
 {
 int32_t __for_e = 2;
 int32_t __for_i = __for_e;
 __for_i = 1;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 int32_t i = __for_i;
-count = (count + 1);
+count = count + 1;
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
 }
-tests__features__test_control_flow__check((count == 0), KOBEL_STR("open 1>..<2 must be empty"), t);
+tests__features__test_control_flow__check(count == 0, KOBEL_STR("open 1>..<2 must be empty"), t);
 count = 0;
 {
 int32_t __for_e = 1;
 int32_t __for_i = __for_e;
 __for_i = 2;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 int32_t i = __for_i;
-count = (count + 1);
+count = count + 1;
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
 }
-tests__features__test_control_flow__check((count == 0), KOBEL_STR("open 2>..<1 must be empty"), t);
+tests__features__test_control_flow__check(count == 0, KOBEL_STR("open 2>..<1 must be empty"), t);
 }
 
 void tests__features__test_control_flow__test_range_bound_type(tests__features__test_control_flow__Tally* t, size_t n) {
@@ -894,32 +894,32 @@ size_t total = 0;
 size_t __for_e = n;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i <= __for_e);
+__for_go = __for_i <= __for_e;
 } else {
-__for_go = (__for_i >= __for_e);
+__for_go = __for_i >= __for_e;
 }
 while (__for_go) {
 size_t i = __for_i;
 size_t* same = &i;
-total = (total + i);
+total = total + i;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
 }
-tests__features__test_control_flow__check((total == 15), KOBEL_STR("0..5(usz) sum must be 15"), t);
+tests__features__test_control_flow__check(total == 15, KOBEL_STR("0..5(usz) sum must be 15"), t);
 }
 
 void tests__features__test_control_flow__test_iter_list(tests__features__test_control_flow__Tally* t) {
@@ -934,16 +934,16 @@ size_t __for_n = std__collections__List_i32_count(&nums);
 size_t __for_i = 0;
 while (__for_i < __for_n) {
 int32_t x = std__collections__List_i32_at(&nums, __for_i);
-sum = (sum + x);
-count = (count + 1);
-__for_i = (__for_i + 1);
+sum = sum + x;
+count = count + 1;
+__for_i = __for_i + 1;
 }
 }
-tests__features__test_control_flow__check((count == 3), KOBEL_STR("list iteration must run 3 times"), t);
-tests__features__test_control_flow__check((sum == 60), KOBEL_STR("list iteration sum must be 60"), t);
-tests__features__test_control_flow__check((nums.len == 3), KOBEL_STR("list must keep its length after the loop"), t);
+tests__features__test_control_flow__check(count == 3, KOBEL_STR("list iteration must run 3 times"), t);
+tests__features__test_control_flow__check(sum == 60, KOBEL_STR("list iteration sum must be 60"), t);
+tests__features__test_control_flow__check(nums.len == 3, KOBEL_STR("list must keep its length after the loop"), t);
 std__collections__List_i32_plus_assign(&nums, 40);
-tests__features__test_control_flow__check((nums.len == 4), KOBEL_STR("list must still be appendable after the loop"), t);
+tests__features__test_control_flow__check(nums.len == 4, KOBEL_STR("list must still be appendable after the loop"), t);
 std__collections__List_i32_free(nums);
 }
 
@@ -956,18 +956,18 @@ size_t __for_n = s.len;
 size_t __for_i = 0;
 while (__for_i < __for_n) {
 char c = s.data[__for_i];
-count = (count + 1);
+count = count + 1;
 if (c == 'e') {
-hits = (hits + 1);
+hits = hits + 1;
 }
 if (c == 'o') {
-hits = (hits + 1);
+hits = hits + 1;
 }
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 }
 }
-tests__features__test_control_flow__check((count == 5), KOBEL_STR("str iteration must run 5 times"), t);
-tests__features__test_control_flow__check((hits == 2), KOBEL_STR("str iteration must find 'e' and 'o'"), t);
+tests__features__test_control_flow__check(count == 5, KOBEL_STR("str iteration must run 5 times"), t);
+tests__features__test_control_flow__check(hits == 2, KOBEL_STR("str iteration must find 'e' and 'o'"), t);
 }
 
 void tests__features__test_control_flow__test_iter_member(tests__features__test_control_flow__Tally* t) {
@@ -979,13 +979,13 @@ size_t __for_n = box.name.len;
 size_t __for_i = 0;
 while (__for_i < __for_n) {
 char c = box.name.data[__for_i];
-count = (count + 1);
+count = count + 1;
 last = c;
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 }
 }
-tests__features__test_control_flow__check((count == 3), KOBEL_STR("member str iteration must run 3 times"), t);
-tests__features__test_control_flow__check((last == 'c'), KOBEL_STR("member str iteration must see the last char"), t);
+tests__features__test_control_flow__check(count == 3, KOBEL_STR("member str iteration must run 3 times"), t);
+tests__features__test_control_flow__check(last == 'c', KOBEL_STR("member str iteration must see the last char"), t);
 }
 
 void tests__features__test_control_flow__test_nested(tests__features__test_control_flow__Tally* t) {
@@ -994,12 +994,12 @@ int32_t count = 0;
 int32_t __for_e = 2;
 int32_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i <= __for_e);
+__for_go = __for_i <= __for_e;
 } else {
-__for_go = (__for_i >= __for_e);
+__for_go = __for_i >= __for_e;
 }
 while (__for_go) {
 int32_t i = __for_i;
@@ -1007,45 +1007,45 @@ int32_t i = __for_i;
 int32_t __for_e = 2;
 int32_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i <= __for_e);
+__for_go = __for_i <= __for_e;
 } else {
-__for_go = (__for_i >= __for_e);
+__for_go = __for_i >= __for_e;
 }
 while (__for_go) {
 int32_t j = __for_i;
-count = (count + 1);
+count = count + 1;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
 }
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
 }
-tests__features__test_control_flow__check((count == 9), KOBEL_STR("nested for must run 9 times"), t);
+tests__features__test_control_flow__check(count == 9, KOBEL_STR("nested for must run 9 times"), t);
 }
 
 void tests__features__test_control_flow__test_break_continue(tests__features__test_control_flow__Tally* t) {
@@ -1054,26 +1054,26 @@ int32_t count = 0;
 int32_t __for_e = 10;
 int32_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i <= __for_e);
+__for_go = __for_i <= __for_e;
 } else {
-__for_go = (__for_i >= __for_e);
+__for_go = __for_i >= __for_e;
 }
 while (__for_go) {
 int32_t i = __for_i;
 if (i == 3) {
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 continue;
@@ -1081,70 +1081,70 @@ continue;
 if (i == 7) {
 break;
 }
-count = (count + 1);
+count = count + 1;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
 }
-tests__features__test_control_flow__check((count == 6), KOBEL_STR("continue must still advance the counter"), t);
+tests__features__test_control_flow__check(count == 6, KOBEL_STR("continue must still advance the counter"), t);
 int32_t sum = 0;
 {
 int32_t __for_e = 6;
 int32_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i <= __for_e);
+__for_go = __for_i <= __for_e;
 } else {
-__for_go = (__for_i >= __for_e);
+__for_go = __for_i >= __for_e;
 }
 while (__for_go) {
 int32_t i = __for_i;
 if (i == 1) {
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 continue;
 } else if (i == 2 || i == 3) {
-sum = (sum + 10);
+sum = sum + 10;
 } else {
-sum = (sum + 1);
+sum = sum + 1;
 }
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
 }
-tests__features__test_control_flow__check((sum == 24), KOBEL_STR("continue in a when arm must still advance the counter"), t);
+tests__features__test_control_flow__check(sum == 24, KOBEL_STR("continue in a when arm must still advance the counter"), t);
 }
 
 void tests__features__test_control_flow__test_loop_var_is_fresh(tests__features__test_control_flow__Tally* t) {
@@ -1153,33 +1153,33 @@ std__collections__List_i32 sum = std__collections__List_i32_init(NULL, 0);
 int32_t __for_e = 3;
 int32_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i <= __for_e);
+__for_go = __for_i <= __for_e;
 } else {
-__for_go = (__for_i >= __for_e);
+__for_go = __for_i >= __for_e;
 }
 while (__for_go) {
 int32_t i = __for_i;
 std__collections__List_i32_plus_assign(&sum, i);
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
 }
 int32_t a = std__collections__List_i32_get(&sum, 0);
 int32_t b = std__collections__List_i32_get(&sum, 2);
-tests__features__test_control_flow__check(((a == 0) && (b == 2)), KOBEL_STR("loop variable must be fresh per iteration"), t);
+tests__features__test_control_flow__check(a == 0 && b == 2, KOBEL_STR("loop variable must be fresh per iteration"), t);
 std__collections__List_i32_free(sum);
 }
 
@@ -1188,7 +1188,7 @@ std__collections__List_i32 nums = std__collections__List_i32_init(NULL, 0);
 std__collections__List_i32_plus_assign(&nums, 5);
 std__collections__List_i32_plus_assign(&nums, 6);
 int32_t n = tests__features__test_control_flow__count_items_i32(nums);
-tests__features__test_control_flow__check((n == 2), KOBEL_STR("generic function with for must count 2"), t);
+tests__features__test_control_flow__check(n == 2, KOBEL_STR("generic function with for must count 2"), t);
 std__collections__List_i32_free(nums);
 }
 
@@ -1199,151 +1199,151 @@ int32_t count = 0;
 int32_t __for_e = 5;
 int32_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 int32_t i = __for_i;
-sum = (sum + i);
-count = (count + 1);
+sum = sum + i;
+count = count + 1;
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
 }
-tests__features__test_control_flow__check((count == 5), KOBEL_STR("half-open 0..<5 must run 5 times"), t);
-tests__features__test_control_flow__check((sum == 10), KOBEL_STR("half-open 0..<5 sum must be 10"), t);
+tests__features__test_control_flow__check(count == 5, KOBEL_STR("half-open 0..<5 must run 5 times"), t);
+tests__features__test_control_flow__check(sum == 10, KOBEL_STR("half-open 0..<5 sum must be 10"), t);
 sum = 0;
 count = 0;
 {
 int32_t __for_e = 0;
 int32_t __for_i = __for_e;
 __for_i = 5;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 int32_t i = __for_i;
-sum = (sum + i);
-count = (count + 1);
+sum = sum + i;
+count = count + 1;
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
 }
-tests__features__test_control_flow__check((count == 5), KOBEL_STR("half-open 5..<0 must run 5 times (5..1)"), t);
-tests__features__test_control_flow__check((sum == 15), KOBEL_STR("half-open 5..<0 sum must be 15"), t);
+tests__features__test_control_flow__check(count == 5, KOBEL_STR("half-open 5..<0 must run 5 times (5..1)"), t);
+tests__features__test_control_flow__check(sum == 15, KOBEL_STR("half-open 5..<0 sum must be 15"), t);
 count = 0;
 {
 int32_t __for_e = 3;
 int32_t __for_i = __for_e;
 __for_i = 3;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 int32_t i = __for_i;
-count = (count + 1);
+count = count + 1;
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
 }
-tests__features__test_control_flow__check((count == 0), KOBEL_STR("half-open 3..<3 must be empty"), t);
+tests__features__test_control_flow__check(count == 0, KOBEL_STR("half-open 3..<3 must be empty"), t);
 count = 0;
 {
 int32_t __for_e = 5;
 int32_t __for_i = __for_e;
 __for_i = 2;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 int32_t i = __for_i;
-count = (count + 1);
+count = count + 1;
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
 }
-tests__features__test_control_flow__check((count == 3), KOBEL_STR("half-open 2..<5 must run 3 times"), t);
+tests__features__test_control_flow__check(count == 3, KOBEL_STR("half-open 2..<5 must run 3 times"), t);
 int32_t evens = 0;
 {
 int32_t __for_e = 10;
 int32_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 int32_t i = __for_i;
-if ((i % 2) != 0) {
+if (i % 2 != 0) {
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 continue;
@@ -1351,22 +1351,22 @@ continue;
 if (i > 6) {
 break;
 }
-evens = (evens + 1);
+evens = evens + 1;
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
 }
-tests__features__test_control_flow__check((evens == 4), KOBEL_STR("half-open 0..<10 with continue and break (0, 2, 4, 6)"), t);
+tests__features__test_control_flow__check(evens == 4, KOBEL_STR("half-open 0..<10 with continue and break (0, 2, 4, 6)"), t);
 }
 
 void tests__features__test_control_flow__test_range_half_open_index(tests__features__test_control_flow__Tally* t) {
@@ -1384,35 +1384,35 @@ int32_t seps = 0;
 size_t __for_e = nums.len;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t i = __for_i;
 if (i > 0) {
-seps = (seps + 1);
+seps = seps + 1;
 }
-sum = ((sum + std__collections__List_i32_get(&nums, i)) + std__collections__List_i32_get(&rev, i));
+sum = sum + std__collections__List_i32_get(&nums, i) + std__collections__List_i32_get(&rev, i);
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
 }
-tests__features__test_control_flow__check((sum == 66), KOBEL_STR("indexed half-open loop must sum both lists"), t);
-tests__features__test_control_flow__check((seps == 2), KOBEL_STR("indexed half-open loop must see i > 0 twice"), t);
+tests__features__test_control_flow__check(sum == 66, KOBEL_STR("indexed half-open loop must sum both lists"), t);
+tests__features__test_control_flow__check(seps == 2, KOBEL_STR("indexed half-open loop must see i > 0 twice"), t);
 std__collections__List_i32_free(rev);
 std__collections__List_i32_free(nums);
 }
@@ -1423,32 +1423,32 @@ int32_t count = 0;
 size_t __for_e = n;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t i = __for_i;
 size_t* same = &i;
-count = (count + 1);
+count = count + 1;
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
 }
-tests__features__test_control_flow__check((count == 0), KOBEL_STR("half-open 0..<0 must be empty"), t);
+tests__features__test_control_flow__check(count == 0, KOBEL_STR("half-open 0..<0 must be empty"), t);
 }
 
 size_t tests__features__test_control_flow__Steps_count(tests__features__test_control_flow__Steps* self) {
@@ -1456,7 +1456,7 @@ size_t tests__features__test_control_flow__Steps_count(tests__features__test_con
 }
 
 int32_t tests__features__test_control_flow__Steps_at(tests__features__test_control_flow__Steps* self, size_t i) {
-    return (((int32_t)i) * 10);
+    return (int32_t)i * 10;
 }
 
 void tests__features__test_control_flow__test_iterable_trait(tests__features__test_control_flow__Tally* t) {
@@ -1468,13 +1468,13 @@ size_t __for_n = tests__features__test_control_flow__Steps_count(&s);
 size_t __for_i = 0;
 while (__for_i < __for_n) {
 int32_t v = tests__features__test_control_flow__Steps_at(&s, __for_i);
-sum = (sum + v);
-seen = (seen + 1);
-__for_i = (__for_i + 1);
+sum = sum + v;
+seen = seen + 1;
+__for_i = __for_i + 1;
 }
 }
-tests__features__test_control_flow__check((seen == 3), KOBEL_STR("Iterable: loop runs count() times"), t);
-tests__features__test_control_flow__check((sum == 30), KOBEL_STR("Iterable: elements come from at(i)"), t);
+tests__features__test_control_flow__check(seen == 3, KOBEL_STR("Iterable: loop runs count() times"), t);
+tests__features__test_control_flow__check(sum == 30, KOBEL_STR("Iterable: elements come from at(i)"), t);
 tests__features__test_control_flow__Steps e = (tests__features__test_control_flow__Steps){ 0 };
 int32_t hits = 0;
 {
@@ -1482,11 +1482,11 @@ size_t __for_n = tests__features__test_control_flow__Steps_count(&e);
 size_t __for_i = 0;
 while (__for_i < __for_n) {
 int32_t v = tests__features__test_control_flow__Steps_at(&e, __for_i);
-hits = (hits + 1);
-__for_i = (__for_i + 1);
+hits = hits + 1;
+__for_i = __for_i + 1;
 }
 }
-tests__features__test_control_flow__check((hits == 0), KOBEL_STR("Iterable: empty container runs zero times"), t);
+tests__features__test_control_flow__check(hits == 0, KOBEL_STR("Iterable: empty container runs zero times"), t);
 tests__features__test_control_flow__Steps* s_ptr = &s;
 int32_t ptr_sum = 0;
 {
@@ -1494,30 +1494,30 @@ size_t __for_n = tests__features__test_control_flow__Steps_count(s_ptr);
 size_t __for_i = 0;
 while (__for_i < __for_n) {
 int32_t v = tests__features__test_control_flow__Steps_at(s_ptr, __for_i);
-ptr_sum = (ptr_sum + v);
-__for_i = (__for_i + 1);
+ptr_sum = ptr_sum + v;
+__for_i = __for_i + 1;
 }
 }
-tests__features__test_control_flow__check((ptr_sum == 30), KOBEL_STR("Iterable: pointer to container can be iterated"), t);
+tests__features__test_control_flow__check(ptr_sum == 30, KOBEL_STR("Iterable: pointer to container can be iterated"), t);
 }
 
 void tests__features__test_control_flow__test_array_literal(tests__features__test_control_flow__Tally* t) {
 std__collections__Array_i32 a = std__collections__Array_i32_init((int32_t[]){ 1, 2, 3 }, 3);
-tests__features__test_control_flow__check((a.len == 3), KOBEL_STR("Array<i32>: .len is the element count"), t);
-tests__features__test_control_flow__check(((std__collections__Array_i32_get(&a, 0) == 1) && (std__collections__Array_i32_get(&a, 2) == 3)), KOBEL_STR("Array<i32>: indexed access"), t);
+tests__features__test_control_flow__check(a.len == 3, KOBEL_STR("Array<i32>: .len is the element count"), t);
+tests__features__test_control_flow__check(std__collections__Array_i32_get(&a, 0) == 1 && std__collections__Array_i32_get(&a, 2) == 3, KOBEL_STR("Array<i32>: indexed access"), t);
 int32_t sum = 0;
 {
 size_t __for_n = std__collections__Array_i32_count(&a);
 size_t __for_i = 0;
 while (__for_i < __for_n) {
 int32_t x = std__collections__Array_i32_at(&a, __for_i);
-sum = (sum + x);
-__for_i = (__for_i + 1);
+sum = sum + x;
+__for_i = __for_i + 1;
 }
 }
-tests__features__test_control_flow__check((sum == 6), KOBEL_STR("for over Array<i32>"), t);
+tests__features__test_control_flow__check(sum == 6, KOBEL_STR("for over Array<i32>"), t);
 std__collections__Array_str words = std__collections__Array_str_init((kobel_str[]){ KOBEL_STR("ab"), KOBEL_STR("cde") }, 2);
-tests__features__test_control_flow__check((std__collections__Array_str_get(&words, 1).len == 3), KOBEL_STR("Array<str> elements"), t);
+tests__features__test_control_flow__check(std__collections__Array_str_get(&words, 1).len == 3, KOBEL_STR("Array<str> elements"), t);
 std__collections__Array_tests__features__test_control_flow__Vec2 pts = std__collections__Array_tests__features__test_control_flow__Vec2_init((tests__features__test_control_flow__Vec2[]){ (tests__features__test_control_flow__Vec2){ 1, 2 }, (tests__features__test_control_flow__Vec2){ 3, 4 } }, 2);
 int32_t total = 0;
 {
@@ -1525,51 +1525,51 @@ size_t __for_n = std__collections__Array_tests__features__test_control_flow__Vec
 size_t __for_i = 0;
 while (__for_i < __for_n) {
 tests__features__test_control_flow__Vec2 p = std__collections__Array_tests__features__test_control_flow__Vec2_at(&pts, __for_i);
-total = ((total + p.x) + p.y);
-__for_i = (__for_i + 1);
+total = total + p.x + p.y;
+__for_i = __for_i + 1;
 }
 }
-tests__features__test_control_flow__check((total == 10), KOBEL_STR("for over Array<Vec2>"), t);
+tests__features__test_control_flow__check(total == 10, KOBEL_STR("for over Array<Vec2>"), t);
 std__collections__Array_i32 inferred = std__collections__Array_i32_init((int32_t[]){ 7, 8 }, 2);
-tests__features__test_control_flow__check(((inferred.len == 2) && (std__collections__Array_i32_get(&inferred, 1) == 8)), KOBEL_STR("Array<i32> element check"), t);
+tests__features__test_control_flow__check(inferred.len == 2 && std__collections__Array_i32_get(&inferred, 1) == 8, KOBEL_STR("Array<i32> element check"), t);
 }
 
 void tests__features__test_control_flow__test_in_candidate_list(tests__features__test_control_flow__Tally* t) {
 char ch = 'g';
-tests__features__test_control_flow__check((ch == 't' || ch == 'g' || ch == 'k'), KOBEL_STR("char in candidate list"), t);
+tests__features__test_control_flow__check(ch == 't' || ch == 'g' || ch == 'k', KOBEL_STR("char in candidate list"), t);
 tests__features__test_control_flow__check(!('z' == 't' || 'z' == 'g' || 'z' == 'k'), KOBEL_STR("char !in candidate list"), t);
-tests__features__test_control_flow__check((((('m') >= ('a') && ('m') <= ('z')) || (('m') <= ('a') && ('m') >= ('z'))) || ((('m') >= ('A') && ('m') <= ('Z')) || (('m') <= ('A') && ('m') >= ('Z'))) || 'm' == '_'), KOBEL_STR("char in range candidate list"), t);
-tests__features__test_control_flow__check((((('_') >= ('a') && ('_') <= ('z')) || (('_') <= ('a') && ('_') >= ('z'))) || ((('_') >= ('A') && ('_') <= ('Z')) || (('_') <= ('A') && ('_') >= ('Z'))) || '_' == '_'), KOBEL_STR("char in mixed range/literal list"), t);
-tests__features__test_control_flow__check(!(((('!') >= ('a') && ('!') <= ('z')) || (('!') <= ('a') && ('!') >= ('z'))) || ((('!') >= ('A') && ('!') <= ('Z')) || (('!') <= ('A') && ('!') >= ('Z'))) || '!' == '_'), KOBEL_STR("char !in range candidate list"), t);
+tests__features__test_control_flow__check(('m' >= 'a' && 'm' <= 'z') || ('m' <= 'a' && 'm' >= 'z') || ('m' >= 'A' && 'm' <= 'Z') || ('m' <= 'A' && 'm' >= 'Z') || 'm' == '_', KOBEL_STR("char in range candidate list"), t);
+tests__features__test_control_flow__check(('_' >= 'a' && '_' <= 'z') || ('_' <= 'a' && '_' >= 'z') || ('_' >= 'A' && '_' <= 'Z') || ('_' <= 'A' && '_' >= 'Z') || '_' == '_', KOBEL_STR("char in mixed range/literal list"), t);
+tests__features__test_control_flow__check(!(('!' >= 'a' && '!' <= 'z') || ('!' <= 'a' && '!' >= 'z') || ('!' >= 'A' && '!' <= 'Z') || ('!' <= 'A' && '!' >= 'Z') || '!' == '_'), KOBEL_STR("char !in range candidate list"), t);
 int32_t num = 15;
-tests__features__test_control_flow__check(((((num) >= (0) && (num) <= (5)) || ((num) <= (0) && (num) >= (5))) || (((num) >= (10) && (num) < (20)) || ((num) <= (10) && (num) > (20))) || num == 99), KOBEL_STR("int in mixed range candidate list"), t);
-tests__features__test_control_flow__check(!((((20) >= (0) && (20) <= (5)) || ((20) <= (0) && (20) >= (5))) || (((20) >= (10) && (20) < (20)) || ((20) <= (10) && (20) > (20))) || 20 == 99), KOBEL_STR("int !in half-open range upper bound"), t);
-tests__features__test_control_flow__check(((((5) >= (0) && (5) <= (5)) || ((5) <= (0) && (5) >= (5))) || (((5) >= (10) && (5) < (20)) || ((5) <= (10) && (5) > (20))) || 5 == 99), KOBEL_STR("int in closed range upper bound"), t);
+tests__features__test_control_flow__check((num >= 0 && num <= 5) || (num <= 0 && num >= 5) || (num >= 10 && num < 20) || (num <= 10 && num > 20) || num == 99, KOBEL_STR("int in mixed range candidate list"), t);
+tests__features__test_control_flow__check(!((20 >= 0 && 20 <= 5) || (20 <= 0 && 20 >= 5) || (20 >= 10 && 20 < 20) || (20 <= 10 && 20 > 20) || 20 == 99), KOBEL_STR("int !in half-open range upper bound"), t);
+tests__features__test_control_flow__check((5 >= 0 && 5 <= 5) || (5 <= 0 && 5 >= 5) || (5 >= 10 && 5 < 20) || (5 <= 10 && 5 > 20) || 5 == 99, KOBEL_STR("int in closed range upper bound"), t);
 kobel_str kw = KOBEL_STR("val");
-tests__features__test_control_flow__check((kobel_streq(kw, KOBEL_STR("fn")) || kobel_streq(kw, KOBEL_STR("val")) || kobel_streq(kw, KOBEL_STR("var"))), KOBEL_STR("str in candidate list"), t);
+tests__features__test_control_flow__check(kobel_streq(kw, KOBEL_STR("fn")) || kobel_streq(kw, KOBEL_STR("val")) || kobel_streq(kw, KOBEL_STR("var")), KOBEL_STR("str in candidate list"), t);
 tests__features__test_control_flow__check(!(kobel_streq(KOBEL_STR("let"), KOBEL_STR("fn")) || kobel_streq(KOBEL_STR("let"), KOBEL_STR("val")) || kobel_streq(KOBEL_STR("let"), KOBEL_STR("var"))), KOBEL_STR("str !in candidate list"), t);
 tests__features__test_control_flow__CfStatus st = 0;
-tests__features__test_control_flow__check((st == 0 || st == 404), KOBEL_STR("plain enum qualified in list"), t);
-tests__features__test_control_flow__check((st == 0 || st == 404), KOBEL_STR("plain enum shorthand in list"), t);
-tests__features__test_control_flow__check((st == 0 || st == 404), KOBEL_STR("plain enum bare in list"), t);
+tests__features__test_control_flow__check(st == 0 || st == 404, KOBEL_STR("plain enum qualified in list"), t);
+tests__features__test_control_flow__check(st == 0 || st == 404, KOBEL_STR("plain enum shorthand in list"), t);
+tests__features__test_control_flow__check(st == 0 || st == 404, KOBEL_STR("plain enum bare in list"), t);
 tests__features__test_control_flow__check(!(405 == 0 || 405 == 404), KOBEL_STR("plain enum !in list"), t);
 tests__features__test_control_flow__CfMethod m = KOBEL_STR("POST");
-tests__features__test_control_flow__check((kobel_streq(m, KOBEL_STR("GET")) || kobel_streq(m, KOBEL_STR("POST"))), KOBEL_STR("raw-value str enum shorthand in list"), t);
+tests__features__test_control_flow__check(kobel_streq(m, KOBEL_STR("GET")) || kobel_streq(m, KOBEL_STR("POST")), KOBEL_STR("raw-value str enum shorthand in list"), t);
 tests__features__test_control_flow__check(!(kobel_streq(KOBEL_STR("DELETE"), KOBEL_STR("GET")) || kobel_streq(KOBEL_STR("DELETE"), KOBEL_STR("POST"))), KOBEL_STR("raw-value str enum !in list"), t);
 tests__features__test_control_flow__CfShape shape = (tests__features__test_control_flow__CfShape){ .tag = 0, .u.Circle = { 2.0 } };
 tests__features__test_control_flow__CfShape* p_shape = &shape;
-tests__features__test_control_flow__check((shape.tag == 0 || shape.tag == 2), KOBEL_STR("payload enum qualified in list"), t);
-tests__features__test_control_flow__check((shape.tag == 0 || shape.tag == 2), KOBEL_STR("payload enum shorthand in list"), t);
+tests__features__test_control_flow__check(shape.tag == 0 || shape.tag == 2, KOBEL_STR("payload enum qualified in list"), t);
+tests__features__test_control_flow__check(shape.tag == 0 || shape.tag == 2, KOBEL_STR("payload enum shorthand in list"), t);
 tests__features__test_control_flow__check(!((tests__features__test_control_flow__CfShape){ .tag = 1, .u.Rect = { 1.0, 2.0 } }.tag == 0 || (tests__features__test_control_flow__CfShape){ .tag = 1, .u.Rect = { 1.0, 2.0 } }.tag == 2), KOBEL_STR("payload enum !in list"), t);
-tests__features__test_control_flow__check((p_shape != NULL && p_shape->tag == 0 || p_shape != NULL && p_shape->tag == 1), KOBEL_STR("pointer to payload enum in list"), t);
+tests__features__test_control_flow__check((p_shape != NULL && p_shape->tag == 0) || (p_shape != NULL && p_shape->tag == 1), KOBEL_STR("pointer to payload enum in list"), t);
 tests__features__test_control_flow__CfHolder holder = (tests__features__test_control_flow__CfHolder){ 20, (tests__features__test_control_flow__CfShape){ .tag = 2 } };
 tests__features__test_control_flow__CfHolder* p_holder = &holder;
 tests__features__test_control_flow__CfHolder* null_holder = NULL;
-tests__features__test_control_flow__check((p_holder != NULL && (p_holder->code == 10 || p_holder->code == 20 || p_holder->code == 30)), KOBEL_STR("safe nav field in candidate list"), t);
+tests__features__test_control_flow__check(p_holder != NULL && (p_holder->code == 10 || p_holder->code == 20 || p_holder->code == 30), KOBEL_STR("safe nav field in candidate list"), t);
 tests__features__test_control_flow__check(!(null_holder != NULL && (null_holder->code == 10 || null_holder->code == 20 || null_holder->code == 30)), KOBEL_STR("null safe nav in candidate list is false"), t);
 tests__features__test_control_flow__check(!(null_holder != NULL && (null_holder->shape.tag == 0 || null_holder->shape.tag == 2)), KOBEL_STR("null safe nav payload enum !in list"), t);
-tests__features__test_control_flow__check((p_holder != NULL && (p_holder->shape.tag == 0 || p_holder->shape.tag == 2)), KOBEL_STR("safe nav payload enum in list"), t);
-tests__features__test_control_flow__check((kobel_memeq(&(tests__features__test_control_flow__Vec2){ 3, 4 }, &(tests__features__test_control_flow__Vec2){ 1, 2 }, 8) || kobel_memeq(&(tests__features__test_control_flow__Vec2){ 3, 4 }, &(tests__features__test_control_flow__Vec2){ 3, 4 }, 8)), KOBEL_STR("struct in candidate list"), t);
+tests__features__test_control_flow__check(p_holder != NULL && (p_holder->shape.tag == 0 || p_holder->shape.tag == 2), KOBEL_STR("safe nav payload enum in list"), t);
+tests__features__test_control_flow__check(kobel_memeq(&(tests__features__test_control_flow__Vec2){ 3, 4 }, &(tests__features__test_control_flow__Vec2){ 1, 2 }, 8) || kobel_memeq(&(tests__features__test_control_flow__Vec2){ 3, 4 }, &(tests__features__test_control_flow__Vec2){ 3, 4 }, 8), KOBEL_STR("struct in candidate list"), t);
 tests__features__test_control_flow__check(!(kobel_memeq(&(tests__features__test_control_flow__Vec2){ 5, 6 }, &(tests__features__test_control_flow__Vec2){ 1, 2 }, 8) || kobel_memeq(&(tests__features__test_control_flow__Vec2){ 5, 6 }, &(tests__features__test_control_flow__Vec2){ 3, 4 }, 8)), KOBEL_STR("struct !in candidate list"), t);
 }
 
@@ -1589,13 +1589,13 @@ if (count == 0) {
 first = c;
 }
 last = c;
-count = (count + 1);
-__for_i = (__for_i + 1);
+count = count + 1;
+__for_i = __for_i + 1;
 }
 }
-tests__features__test_control_flow__check((count == 4), KOBEL_STR("StringBuilder iteration must run len times"), t);
-tests__features__test_control_flow__check((first == 'a'), KOBEL_STR("StringBuilder iteration must start at the first char"), t);
-tests__features__test_control_flow__check((last == '7'), KOBEL_STR("StringBuilder iteration must see appended digits"), t);
+tests__features__test_control_flow__check(count == 4, KOBEL_STR("StringBuilder iteration must run len times"), t);
+tests__features__test_control_flow__check(first == 'a', KOBEL_STR("StringBuilder iteration must start at the first char"), t);
+tests__features__test_control_flow__check(last == '7', KOBEL_STR("StringBuilder iteration must see appended digits"), t);
 std__string__StringBuilder_free(sb);
 }
 
@@ -1610,13 +1610,13 @@ size_t __for_n = std__collections__List_tests__features__test_control_flow__Bund
 size_t __for_i = 0;
 while (__for_i < __for_n) {
 tests__features__test_control_flow__Bundle b = std__collections__List_tests__features__test_control_flow__Bundle_at(&items, __for_i);
-ids = (ids + b.id);
-count = (count + 1);
-__for_i = (__for_i + 1);
+ids = ids + b.id;
+count = count + 1;
+__for_i = __for_i + 1;
 }
 }
-tests__features__test_control_flow__check((count == 2), KOBEL_STR("List<struct> iteration must run twice"), t);
-tests__features__test_control_flow__check((ids == 3), KOBEL_STR("List<struct> iteration must yield whole elements"), t);
+tests__features__test_control_flow__check(count == 2, KOBEL_STR("List<struct> iteration must run twice"), t);
+tests__features__test_control_flow__check(ids == 3, KOBEL_STR("List<struct> iteration must yield whole elements"), t);
 std__collections__List_tests__features__test_control_flow__Bundle_free(items);
 }
 
@@ -1630,11 +1630,11 @@ size_t __for_n = std__collections__List_i32_count(&bag.items);
 size_t __for_i = 0;
 while (__for_i < __for_n) {
 int32_t n = std__collections__List_i32_at(&bag.items, __for_i);
-sum = (sum + n);
-__for_i = (__for_i + 1);
+sum = sum + n;
+__for_i = __for_i + 1;
 }
 }
-tests__features__test_control_flow__check((sum == 9), KOBEL_STR("iteration over a List field"), t);
+tests__features__test_control_flow__check(sum == 9, KOBEL_STR("iteration over a List field"), t);
 std__collections__List_i32_free(bag.items);
 }
 
@@ -1681,15 +1681,15 @@ int32_t tests__features__test_control_flow__helper_return_with_defer(bool cond, 
 if (cond) {
 {
 int32_t __ret_tmp = 42;
-(*(trace) = kobel_concat(2, (*(trace)), KOBEL_STR("defer_inner;")));
-(*(trace) = kobel_concat(2, (*(trace)), KOBEL_STR("defer_outer;")));
+*trace = kobel_concat(2, *trace, KOBEL_STR("defer_inner;"));
+*trace = kobel_concat(2, *trace, KOBEL_STR("defer_outer;"));
 return __ret_tmp;
 }
 }
-(*(trace) = kobel_concat(2, (*(trace)), KOBEL_STR("after_if;")));
+*trace = kobel_concat(2, *trace, KOBEL_STR("after_if;"));
 {
 int32_t __ret_tmp = 100;
-(*(trace) = kobel_concat(2, (*(trace)), KOBEL_STR("defer_outer;")));
+*trace = kobel_concat(2, *trace, KOBEL_STR("defer_outer;"));
 return __ret_tmp;
 }
 }
@@ -1697,11 +1697,11 @@ return __ret_tmp;
 void tests__features__test_control_flow__test_defer_early_return(tests__features__test_control_flow__Tally* t) {
 kobel_str trace1 = KOBEL_STR("");
 int32_t r1 = tests__features__test_control_flow__helper_return_with_defer(true, &trace1);
-tests__features__test_control_flow__check((r1 == 42), KOBEL_STR("early return value must be 42"), t);
+tests__features__test_control_flow__check(r1 == 42, KOBEL_STR("early return value must be 42"), t);
 tests__features__test_control_flow__check(kobel_streq(trace1, KOBEL_STR("defer_inner;defer_outer;")), KOBEL_STR("early return must unwind all active defers in LIFO"), t);
 kobel_str trace2 = KOBEL_STR("");
 int32_t r2 = tests__features__test_control_flow__helper_return_with_defer(false, &trace2);
-tests__features__test_control_flow__check((r2 == 100), KOBEL_STR("normal return value must be 100"), t);
+tests__features__test_control_flow__check(r2 == 100, KOBEL_STR("normal return value must be 100"), t);
 tests__features__test_control_flow__check(kobel_streq(trace2, KOBEL_STR("after_if;defer_outer;")), KOBEL_STR("normal path must run defers before return"), t);
 }
 
@@ -1772,32 +1772,32 @@ int32_t std__collections__List_i32_at(std__collections__List_i32* self, size_t i
 }
 
 std__collections__List_i32 std__collections__List_i32_init(int32_t* items_data, size_t items_len) {
-size_t cap = ((items_len < 4) ? 4 : items_len);
+size_t cap = items_len < 4 ? 4 : items_len;
 int32_t* buf = std__memory__Heap_create_i32(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t i = __for_i;
 buf[i] = items_data[i];
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -1814,7 +1814,7 @@ self->len++;
 }
 
 void std__collections__List_i32_grow(std__collections__List_i32* self) {
-size_t new_cap = (self->cap * 2);
+size_t new_cap = self->cap * 2;
 self->data = std__memory__Heap_resize_i32(self->data, new_cap);
 self->cap = new_cap;
 }
@@ -1838,8 +1838,8 @@ size_t __for_n = std__collections__List_i32_count(&xs);
 size_t __for_i = 0;
 while (__for_i < __for_n) {
 int32_t x = std__collections__List_i32_at(&xs, __for_i);
-n = (n + 1);
-__for_i = (__for_i + 1);
+n = n + 1;
+__for_i = __for_i + 1;
 }
 }
 return n;
@@ -1890,32 +1890,32 @@ tests__features__test_control_flow__Bundle std__collections__List_tests__feature
 }
 
 std__collections__List_tests__features__test_control_flow__Bundle std__collections__List_tests__features__test_control_flow__Bundle_init(tests__features__test_control_flow__Bundle* items_data, size_t items_len) {
-size_t cap = ((items_len < 4) ? 4 : items_len);
+size_t cap = items_len < 4 ? 4 : items_len;
 tests__features__test_control_flow__Bundle* buf = std__memory__Heap_create_tests__features__test_control_flow__Bundle(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t i = __for_i;
 buf[i] = items_data[i];
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -1932,7 +1932,7 @@ self->len++;
 }
 
 void std__collections__List_tests__features__test_control_flow__Bundle_grow(std__collections__List_tests__features__test_control_flow__Bundle* self) {
-size_t new_cap = (self->cap * 2);
+size_t new_cap = self->cap * 2;
 self->data = std__memory__Heap_resize_tests__features__test_control_flow__Bundle(self->data, new_cap);
 self->cap = new_cap;
 }
@@ -1958,26 +1958,26 @@ void std__memory__Heap_free_tests__features__test_control_flow__Bundle(tests__fe
 }
 
 uint8_t* std__memory__Heap_create_u8(size_t count) {
-    return (uint8_t*)malloc((count * 1));
+    return (uint8_t*)malloc(count * 1);
 }
 
 uint8_t* std__memory__Heap_resize_u8(uint8_t* ptr, size_t count) {
-    return (uint8_t*)realloc((uint8_t*)ptr, (count * 1));
+    return (uint8_t*)realloc((uint8_t*)ptr, count * 1);
 }
 
 int32_t* std__memory__Heap_create_i32(size_t count) {
-    return (int32_t*)malloc((count * 4));
+    return (int32_t*)malloc(count * 4);
 }
 
 int32_t* std__memory__Heap_resize_i32(int32_t* ptr, size_t count) {
-    return (int32_t*)realloc((uint8_t*)ptr, (count * 4));
+    return (int32_t*)realloc((uint8_t*)ptr, count * 4);
 }
 
 tests__features__test_control_flow__Bundle* std__memory__Heap_create_tests__features__test_control_flow__Bundle(size_t count) {
-    return (tests__features__test_control_flow__Bundle*)malloc((count * 24));
+    return (tests__features__test_control_flow__Bundle*)malloc(count * 24);
 }
 
 tests__features__test_control_flow__Bundle* std__memory__Heap_resize_tests__features__test_control_flow__Bundle(tests__features__test_control_flow__Bundle* ptr, size_t count) {
-    return (tests__features__test_control_flow__Bundle*)realloc((uint8_t*)ptr, (count * 24));
+    return (tests__features__test_control_flow__Bundle*)realloc((uint8_t*)ptr, count * 24);
 }
 

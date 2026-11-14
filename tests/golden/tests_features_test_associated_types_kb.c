@@ -320,7 +320,7 @@ return self->v;
 
 int32_t test__associated_types__IntBox_get(test__associated_types__IntBox* self, size_t i) {
 int32_t base = self->v;
-return (base + ((int32_t)i));
+return base + (int32_t)i;
 }
 
 void test__associated_types__IntBox_put(test__associated_types__IntBox* self, int32_t v) {

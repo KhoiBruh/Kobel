@@ -371,32 +371,32 @@ return 0;
 }
 
 std__collections__List_i32 std__collections__List_i32_init(int32_t* items_data, size_t items_len) {
-size_t cap = ((items_len < 4) ? 4 : items_len);
+size_t cap = items_len < 4 ? 4 : items_len;
 int32_t* buf = std__memory__Heap_create_i32(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t i = __for_i;
 buf[i] = items_data[i];
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -413,7 +413,7 @@ self->len++;
 }
 
 void std__collections__List_i32_grow(std__collections__List_i32* self) {
-size_t new_cap = (self->cap * 2);
+size_t new_cap = self->cap * 2;
 self->data = std__memory__Heap_resize_i32(self->data, new_cap);
 self->cap = new_cap;
 }
@@ -438,32 +438,32 @@ return y;
 }
 
 std__collections__List_std__collections__List_i32 std__collections__List_std__collections__List_i32_init(std__collections__List_i32* items_data, size_t items_len) {
-size_t cap = ((items_len < 4) ? 4 : items_len);
+size_t cap = items_len < 4 ? 4 : items_len;
 std__collections__List_i32* buf = std__memory__Heap_create_std__collections__List_i32(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t i = __for_i;
 buf[i] = items_data[i];
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -480,7 +480,7 @@ self->len++;
 }
 
 void std__collections__List_std__collections__List_i32_grow(std__collections__List_std__collections__List_i32* self) {
-size_t new_cap = (self->cap * 2);
+size_t new_cap = self->cap * 2;
 self->data = std__memory__Heap_resize_std__collections__List_i32(self->data, new_cap);
 self->cap = new_cap;
 }
@@ -498,11 +498,11 @@ return x;
 }
 
 int32_t* std__memory__Heap_create_i32(size_t count) {
-    return (int32_t*)malloc((count * 4));
+    return (int32_t*)malloc(count * 4);
 }
 
 int32_t* std__memory__Heap_resize_i32(int32_t* ptr, size_t count) {
-    return (int32_t*)realloc((uint8_t*)ptr, (count * 4));
+    return (int32_t*)realloc((uint8_t*)ptr, count * 4);
 }
 
 int32_t test__generics__id_i32(int32_t x) {
@@ -510,10 +510,10 @@ return x;
 }
 
 std__collections__List_i32* std__memory__Heap_create_std__collections__List_i32(size_t count) {
-    return (std__collections__List_i32*)malloc((count * 24));
+    return (std__collections__List_i32*)malloc(count * 24);
 }
 
 std__collections__List_i32* std__memory__Heap_resize_std__collections__List_i32(std__collections__List_i32* ptr, size_t count) {
-    return (std__collections__List_i32*)realloc((uint8_t*)ptr, (count * 24));
+    return (std__collections__List_i32*)realloc((uint8_t*)ptr, count * 24);
 }
 

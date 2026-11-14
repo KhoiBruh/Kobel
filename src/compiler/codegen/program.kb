@@ -86,7 +86,7 @@ impl CCodeGen {
 					is ConstDecl as c -> {
 						if (!live.has_const(c.name)) continue;
 						// Module-level constants become preprocessor macros.
-						val c_val_str = if (c.value != null) self.gen_expr(c.value!) else "0";
+						val c_val_str = if (c.value != null) self.gen_expr_prec(c.value!, PREC_POSTFIX) else "0";
 						self.out += "#define ";
 						self.out += c.name;
 						self.out += ' ';

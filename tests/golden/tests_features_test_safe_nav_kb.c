@@ -323,7 +323,7 @@ return self->is_active;
 }
 
 bool test__safe_nav__takes_non_null(test__safe_nav__Inner* item) {
-return (item->kind == 1);
+return item->kind == 1;
 }
 
 bool test__safe_nav__test_elvis_jump_on_null(test__safe_nav__Inner* p) {
@@ -340,30 +340,30 @@ test__safe_nav__Middle mid1 = (test__safe_nav__Middle){ &in1 };
 test__safe_nav__Outer out1 = (test__safe_nav__Outer){ &mid1 };
 test__safe_nav__Inner* p_null_in = NULL;
 test__safe_nav__Outer* p_null_out = NULL;
-if ((p_null_in != NULL) && test__safe_nav__Inner_check_ok(p_null_in)) {
+if (p_null_in != NULL && test__safe_nav__Inner_check_ok(p_null_in)) {
 return 1;
 }
 test__safe_nav__Inner* p_real_in = &in1;
-if (!((p_real_in != NULL) && test__safe_nav__Inner_check_ok(p_real_in))) {
+if (!(p_real_in != NULL && test__safe_nav__Inner_check_ok(p_real_in))) {
 return 2;
 }
-if ((p_null_in != NULL && p_null_in->is_active)) {
+if (p_null_in != NULL && p_null_in->is_active) {
 return 3;
 }
 if (!(p_real_in != NULL && p_real_in->is_active)) {
 return 4;
 }
 test__safe_nav__Outer* p_out = &out1;
-if (!(((p_out != NULL ? p_out->middle : NULL) != NULL && (p_out != NULL ? p_out->middle : NULL)->inner != NULL) && test__safe_nav__Inner_check_ok(((p_out != NULL ? p_out->middle : NULL) != NULL ? (p_out != NULL ? p_out->middle : NULL)->inner : NULL)))) {
+if (!((p_out != NULL ? p_out->middle : NULL) != NULL && (p_out != NULL ? p_out->middle : NULL)->inner != NULL && test__safe_nav__Inner_check_ok((p_out != NULL ? p_out->middle : NULL) != NULL ? (p_out != NULL ? p_out->middle : NULL)->inner : NULL))) {
 return 5;
 }
-if (((p_null_out != NULL ? p_null_out->middle : NULL) != NULL && (p_null_out != NULL ? p_null_out->middle : NULL)->inner != NULL) && test__safe_nav__Inner_check_ok(((p_null_out != NULL ? p_null_out->middle : NULL) != NULL ? (p_null_out != NULL ? p_null_out->middle : NULL)->inner : NULL))) {
+if ((p_null_out != NULL ? p_null_out->middle : NULL) != NULL && (p_null_out != NULL ? p_null_out->middle : NULL)->inner != NULL && test__safe_nav__Inner_check_ok((p_null_out != NULL ? p_null_out->middle : NULL) != NULL ? (p_null_out != NULL ? p_null_out->middle : NULL)->inner : NULL)) {
 return 6;
 }
 test__safe_nav__Middle mid_empty = (test__safe_nav__Middle){ NULL };
 test__safe_nav__Outer out_mid_empty = (test__safe_nav__Outer){ &mid_empty };
 test__safe_nav__Outer* p_broken = &out_mid_empty;
-if (((p_broken != NULL ? p_broken->middle : NULL) != NULL && (p_broken != NULL ? p_broken->middle : NULL)->inner != NULL) && test__safe_nav__Inner_check_ok(((p_broken != NULL ? p_broken->middle : NULL) != NULL ? (p_broken != NULL ? p_broken->middle : NULL)->inner : NULL))) {
+if ((p_broken != NULL ? p_broken->middle : NULL) != NULL && (p_broken != NULL ? p_broken->middle : NULL)->inner != NULL && test__safe_nav__Inner_check_ok((p_broken != NULL ? p_broken->middle : NULL) != NULL ? (p_broken != NULL ? p_broken->middle : NULL)->inner : NULL)) {
 return 7;
 }
 if (p_null_in != NULL && p_null_in->kind == 0) {
@@ -396,19 +396,19 @@ return 15;
 } else {
 return 16;
 }
-test__safe_nav__ItemKind k_fallback = (p_null_in != NULL ? p_null_in->kind : 2);
+test__safe_nav__ItemKind k_fallback = p_null_in != NULL ? p_null_in->kind : 2;
 if (k_fallback != 2) {
 return 17;
 }
-test__safe_nav__ItemKind k_real = (p_real_in != NULL ? p_real_in->kind : 2);
+test__safe_nav__ItemKind k_real = p_real_in != NULL ? p_real_in->kind : 2;
 if (k_real != 1) {
 return 18;
 }
-int32_t cnt_fallback = (p_null_in != NULL ? p_null_in->count : 99);
+int32_t cnt_fallback = p_null_in != NULL ? p_null_in->count : 99;
 if (cnt_fallback != 99) {
 return 19;
 }
-int32_t cnt_real = (p_real_in != NULL ? p_real_in->count : 99);
+int32_t cnt_real = p_real_in != NULL ? p_real_in->count : 99;
 if (cnt_real != 42) {
 return 20;
 }

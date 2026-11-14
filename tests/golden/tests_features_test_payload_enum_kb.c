@@ -338,10 +338,10 @@ int32_t main(void);
 double test__payload_enum__area(test__payload_enum__Shape s) {
 if (s.tag == test__payload_enum__Shape__Circle__TAG) {
 test__payload_enum__Shape__Circle* c = (test__payload_enum__Shape__Circle*)(&s.u.Circle);
-return ((3.0 * c->radius) * c->radius);
+return 3.0 * c->radius * c->radius;
 } else if (s.tag == test__payload_enum__Shape__Rect__TAG) {
 test__payload_enum__Shape__Rect* r = (test__payload_enum__Shape__Rect*)(&s.u.Rect);
-return (r->width * r->height);
+return r->width * r->height;
 } else {
 void* __orig_s = (void*)&s;
 test__payload_enum__Shape__Empty* s = (test__payload_enum__Shape__Empty*)((&((test__payload_enum__Shape*)__orig_s)->u.Empty));
@@ -352,7 +352,7 @@ return 0.0;
 double test__payload_enum__holder_area(test__payload_enum__Holder h) {
 if (h.shape.tag == test__payload_enum__Shape__Circle__TAG) {
 test__payload_enum__Shape__Circle* c = (test__payload_enum__Shape__Circle*)(&h.shape.u.Circle);
-return ((3.0 * c->radius) * c->radius);
+return 3.0 * c->radius * c->radius;
 } else {
 return 0.0;
 }
@@ -394,7 +394,7 @@ return s->radius;
 }
 
 int32_t test__payload_enum__non_rect_tag(test__payload_enum__Shape s) {
-return (!(s.tag == test__payload_enum__Shape__Rect__TAG) ? 10 : 20);
+return !(s.tag == test__payload_enum__Shape__Rect__TAG) ? 10 : 20;
 }
 
 bool test__payload_enum__has_area_list(test__payload_enum__Shape s) {
@@ -461,7 +461,7 @@ return 11;
 if (!(c.tag == test__payload_enum__Shape__Circle__TAG)) {
 return 13;
 }
-if (!(!(c.tag == test__payload_enum__Shape__Rect__TAG))) {
+if (!!(c.tag == test__payload_enum__Shape__Rect__TAG)) {
 return 14;
 }
 if (test__payload_enum__circle_radius_or_zero(c) != 2.0) {
@@ -476,7 +476,7 @@ return 17;
 if (test__payload_enum__non_rect_tag(r) != 20) {
 return 18;
 }
-if (!((c.tag == test__payload_enum__Shape__Circle__TAG || c.tag == test__payload_enum__Shape__Rect__TAG))) {
+if (!(c.tag == test__payload_enum__Shape__Circle__TAG || c.tag == test__payload_enum__Shape__Rect__TAG)) {
 return 19;
 }
 if (e.tag == test__payload_enum__Shape__Circle__TAG || e.tag == test__payload_enum__Shape__Rect__TAG) {
@@ -485,7 +485,7 @@ return 20;
 if (!(c.tag == test__payload_enum__Shape__Circle__TAG || c.tag == test__payload_enum__Shape__Rect__TAG)) {
 return 21;
 }
-if (!(!(e.tag == test__payload_enum__Shape__Circle__TAG || e.tag == test__payload_enum__Shape__Rect__TAG))) {
+if (!!(e.tag == test__payload_enum__Shape__Circle__TAG || e.tag == test__payload_enum__Shape__Rect__TAG)) {
 return 22;
 }
 if (!test__payload_enum__has_area_list(c) || !test__payload_enum__has_area_list(r) || test__payload_enum__has_area_list(e)) {
@@ -499,13 +499,13 @@ return 25;
 }
 test__payload_enum__Holder* hp = &h;
 test__payload_enum__Holder* null_hp = NULL;
-if (!((hp != NULL && (hp->shape.tag == test__payload_enum__Shape__Circle__TAG || hp->shape.tag == test__payload_enum__Shape__Rect__TAG)))) {
+if (!(hp != NULL && (hp->shape.tag == test__payload_enum__Shape__Circle__TAG || hp->shape.tag == test__payload_enum__Shape__Rect__TAG))) {
 return 26;
 }
 if (null_hp != NULL && (null_hp->shape.tag == test__payload_enum__Shape__Circle__TAG || null_hp->shape.tag == test__payload_enum__Shape__Rect__TAG)) {
 return 27;
 }
-if (!(!(null_hp != NULL && (null_hp->shape.tag == test__payload_enum__Shape__Circle__TAG || null_hp->shape.tag == test__payload_enum__Shape__Rect__TAG)))) {
+if (!!(null_hp != NULL && (null_hp->shape.tag == test__payload_enum__Shape__Circle__TAG || null_hp->shape.tag == test__payload_enum__Shape__Rect__TAG))) {
 return 28;
 }
 return 0;

@@ -478,8 +478,8 @@ void std__memory__Heap_free_bool(bool* ptr);
 tests__features__test_collections__Point2D* std__memory__Heap_create_tests__features__test_collections__Point2D(size_t count);
 
 size_t std__traits__hash_int(size_t n) {
-size_t x = ((n + (n / 8)) * 2654435761);
-x = ((x + (x / 65536)) * 2246822519);
+size_t x = (n + n / 8) * 2654435761;
+x = (x + x / 65536) * 2246822519;
 return x;
 }
 
@@ -489,27 +489,27 @@ int32_t h = 5381;
 size_t __for_e = s.len;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t i = __for_i;
-int32_t c = ((int32_t)(uint8_t)(s.data[i]));
-h = ((h * 33) + c);
+int32_t c = (int32_t)(uint8_t)s.data[i];
+h = h * 33 + c;
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -528,12 +528,12 @@ size_t i32_hash(int32_t self) {
 kobel_str std__string__str_from_bytes(uint8_t* buf, size_t len) {
 std__string__StrRaw r = (std__string__StrRaw){ (const char*)buf, len };
 kobel_str* sp = (kobel_str*)&r;
-return (*(sp));
+return *sp;
 }
 
 kobel_str std__traits__fmt_u64(uint64_t n0) {
 if (n0 < 10) {
-return ((uint8_t)n0 == 0 ? KOBEL_STR("0") : ((uint8_t)n0 == 1 ? KOBEL_STR("1") : ((uint8_t)n0 == 2 ? KOBEL_STR("2") : ((uint8_t)n0 == 3 ? KOBEL_STR("3") : ((uint8_t)n0 == 4 ? KOBEL_STR("4") : ((uint8_t)n0 == 5 ? KOBEL_STR("5") : ((uint8_t)n0 == 6 ? KOBEL_STR("6") : ((uint8_t)n0 == 7 ? KOBEL_STR("7") : ((uint8_t)n0 == 8 ? KOBEL_STR("8") : KOBEL_STR("9"))))))))));
+return ((uint8_t)n0) == 0 ? KOBEL_STR("0") : ((uint8_t)n0) == 1 ? KOBEL_STR("1") : ((uint8_t)n0) == 2 ? KOBEL_STR("2") : ((uint8_t)n0) == 3 ? KOBEL_STR("3") : ((uint8_t)n0) == 4 ? KOBEL_STR("4") : ((uint8_t)n0) == 5 ? KOBEL_STR("5") : ((uint8_t)n0) == 6 ? KOBEL_STR("6") : ((uint8_t)n0) == 7 ? KOBEL_STR("7") : ((uint8_t)n0) == 8 ? KOBEL_STR("8") : KOBEL_STR("9");
 }
 uint64_t n = n0;
 size_t digits = 1;
@@ -542,12 +542,12 @@ while (probe >= 10) {
 probe /= 10;
 digits++;
 }
-uint8_t* buf = std__memory__Heap_create_u8((digits + 1));
+uint8_t* buf = std__memory__Heap_create_u8(digits + 1);
 buf[digits] = 0;
 size_t i = digits;
 while (i > 0) {
 i--;
-buf[i] = (uint8_t)(48 + (n % 10));
+buf[i] = (uint8_t)(48 + n % 10);
 n /= 10;
 }
 return std__string__str_from_bytes(buf, digits);
@@ -555,16 +555,16 @@ return std__string__str_from_bytes(buf, digits);
 
 kobel_str std__traits__fmt_i64(int64_t v) {
 if (v < 0) {
-uint64_t mag = ((uint64_t)(0 - (v + 1)) + 1);
+uint64_t mag = (uint64_t)(0 - (v + 1)) + 1;
 return kobel_concat(2, KOBEL_STR("-"), std__traits__fmt_u64(mag));
 }
 return std__traits__fmt_u64((uint64_t)v);
 }
 
 kobel_str std__traits__fmt_char(char c) {
-int32_t code = ((int32_t)(uint8_t)(c));
-if ((code >= 48) && (code <= 57)) {
-return (c == '0' ? KOBEL_STR("0") : (c == '1' ? KOBEL_STR("1") : (c == '2' ? KOBEL_STR("2") : (c == '3' ? KOBEL_STR("3") : (c == '4' ? KOBEL_STR("4") : (c == '5' ? KOBEL_STR("5") : (c == '6' ? KOBEL_STR("6") : (c == '7' ? KOBEL_STR("7") : (c == '8' ? KOBEL_STR("8") : KOBEL_STR("9"))))))))));
+int32_t code = (int32_t)(uint8_t)c;
+if (code >= 48 && code <= 57) {
+return c == '0' ? KOBEL_STR("0") : c == '1' ? KOBEL_STR("1") : c == '2' ? KOBEL_STR("2") : c == '3' ? KOBEL_STR("3") : c == '4' ? KOBEL_STR("4") : c == '5' ? KOBEL_STR("5") : c == '6' ? KOBEL_STR("6") : c == '7' ? KOBEL_STR("7") : c == '8' ? KOBEL_STR("8") : KOBEL_STR("9");
 }
 uint8_t* buf = std__memory__Heap_create_u8(2);
 buf[0] = code;
@@ -573,7 +573,7 @@ return std__string__str_from_bytes(buf, 1);
 }
 
 kobel_str std__traits__fmt_bool(bool b) {
-    return (b ? KOBEL_STR("true") : KOBEL_STR("false"));
+    return b ? KOBEL_STR("true") : KOBEL_STR("false");
 }
 
 kobel_str std__traits__fmt_zeros(size_t n) {
@@ -583,31 +583,31 @@ return KOBEL_STR("");
 if (n <= 6) {
 return kobel_slice(KOBEL_STR("000000"), 0, n);
 }
-uint8_t* buf = std__memory__Heap_create_u8((n + 1));
+uint8_t* buf = std__memory__Heap_create_u8(n + 1);
 {
 size_t __for_e = n;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t i = __for_i;
-buf[i] = ((int32_t)(uint8_t)('0'));
+buf[i] = (int32_t)(uint8_t)'0';
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -620,7 +620,7 @@ kobel_str std__traits__fmt_f64(double v) {
 if (v != v) {
 return KOBEL_STR("nan");
 }
-double diff = (v - v);
+double diff = v - v;
 if (diff != 0) {
 if (v > 0) {
 return KOBEL_STR("inf");
@@ -631,7 +631,7 @@ kobel_str sign = KOBEL_STR("");
 double x = v;
 if (x < 0) {
 sign = KOBEL_STR("-");
-x = (0 - x);
+x = 0 - x;
 }
 int32_t prec = 6;
 double scale = 1.0;
@@ -639,33 +639,33 @@ double scale = 1.0;
 int32_t __for_e = prec;
 int32_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 int32_t k = __for_i;
 scale *= 10.0;
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
 }
 uint64_t ip = (uint64_t)x;
-uint64_t frac = (uint64_t)(((x - ((double)ip)) * scale) + 0.5);
-if (frac >= ((uint64_t)scale)) {
+uint64_t frac = (uint64_t)((x - (double)ip) * scale + 0.5);
+if (frac >= (uint64_t)scale) {
 ip++;
 frac = 0;
 }
@@ -675,11 +675,11 @@ return out;
 }
 kobel_str digits = std__traits__fmt_u64(frac);
 if (digits.len < prec) {
-digits = kobel_concat(2, std__traits__fmt_zeros((prec - digits.len)), digits);
+digits = kobel_concat(2, std__traits__fmt_zeros(prec - digits.len), digits);
 }
 size_t end = digits.len;
 while (end > 0) {
-if (digits.data[(end - 1)] != '0') {
+if (digits.data[end - 1] != '0') {
 break;
 }
 end--;
@@ -719,11 +719,11 @@ kobel_str tests__features__test_collections__Point2D_to_str(tests__features__tes
 }
 
 size_t tests__features__test_collections__Point2D_hash(tests__features__test_collections__Point2D* self) {
-    return (((size_t)self->x * 31) + ((size_t)self->y));
+    return (size_t)self->x * 31 + (size_t)self->y;
 }
 
 int32_t tests__features__test_collections__CustomIndexBox_get(tests__features__test_collections__CustomIndexBox* self, size_t i) {
-    return ((i == 0) ? self->a : self->b);
+    return i == 0 ? self->a : self->b;
 }
 
 void tests__features__test_collections__CustomIndexBox_set(tests__features__test_collections__CustomIndexBox* self, size_t i, int32_t v) {
@@ -742,7 +742,7 @@ size_t __for_i = 0;
 while (__for_i < __for_n) {
 int32_t x = std__collections__List_i32_at(&list, __for_i);
 total += x;
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 }
 }
 return total;
@@ -757,7 +757,7 @@ std__collections__List_i32 nums = std__collections__List_i32_init((int32_t[]){ 1
 if (nums.len != 5) {
 return false;
 }
-if ((std__collections__List_i32_get(&nums, 0) != 1) || (std__collections__List_i32_get(&nums, 4) != 5)) {
+if (std__collections__List_i32_get(&nums, 0) != 1 || std__collections__List_i32_get(&nums, 4) != 5) {
 return false;
 }
 std__collections__List_str empty = std__collections__List_str_init(NULL, 0);
@@ -766,7 +766,7 @@ return false;
 }
 std__collections__List_str_plus_assign(&empty, KOBEL_STR("first"));
 std__collections__List_str_plus_assign(&empty, KOBEL_STR("second"));
-if ((empty.len != 2) || !kobel_streq(std__collections__List_str_get(&empty, 0), KOBEL_STR("first")) || !kobel_streq(std__collections__List_str_get(&empty, 1), KOBEL_STR("second"))) {
+if (empty.len != 2 || !kobel_streq(std__collections__List_str_get(&empty, 0), KOBEL_STR("first")) || !kobel_streq(std__collections__List_str_get(&empty, 1), KOBEL_STR("second"))) {
 return false;
 }
 int32_t s = tests__features__test_collections__sum_list(std__collections__List_i32_init((int32_t[]){ 10, 20, 30, 40 }, 4));
@@ -774,7 +774,7 @@ if (s != 100) {
 return false;
 }
 std__collections__List_str words = tests__features__test_collections__make_strings();
-if ((words.len != 4) || !kobel_streq(std__collections__List_str_get(&words, 0), KOBEL_STR("kobel")) || !kobel_streq(std__collections__List_str_get(&words, 3), KOBEL_STR("literal"))) {
+if (words.len != 4 || !kobel_streq(std__collections__List_str_get(&words, 0), KOBEL_STR("kobel")) || !kobel_streq(std__collections__List_str_get(&words, 3), KOBEL_STR("literal"))) {
 return false;
 }
 std__collections__List_std__collections__List_i32 matrix = std__collections__List_std__collections__List_i32_init((std__collections__List_i32[]){ std__collections__List_i32_init((int32_t[]){ 1, 2 }, 2), std__collections__List_i32_init((int32_t[]){ 3, 4 }, 2) }, 2);
@@ -783,7 +783,7 @@ return false;
 }
 std__collections__List_i32 row0 = std__collections__List_std__collections__List_i32_get(&matrix, 0);
 std__collections__List_i32 row1 = std__collections__List_std__collections__List_i32_get(&matrix, 1);
-if ((std__collections__List_i32_get(&row0, 1) != 2) || (std__collections__List_i32_get(&row1, 0) != 3)) {
+if (std__collections__List_i32_get(&row0, 1) != 2 || std__collections__List_i32_get(&row1, 0) != 3) {
 return false;
 }
 return true;
@@ -791,23 +791,23 @@ return true;
 
 bool tests__features__test_collections__test_indexing(void) {
 std__collections__List_i32 list = std__collections__List_i32_init((int32_t[]){ 10, 20, 30, 40 }, 4);
-if ((std__collections__List_i32_get(&list, 0) != 10) || (std__collections__List_i32_get(&list, 2) != 30) || (std__collections__List_i32_get(&list, 3) != 40)) {
+if (std__collections__List_i32_get(&list, 0) != 10 || std__collections__List_i32_get(&list, 2) != 30 || std__collections__List_i32_get(&list, 3) != 40) {
 return false;
 }
 std__collections__List_i32 mut_list = std__collections__List_i32_init((int32_t[]){ 1, 2, 3 }, 3);
 std__collections__List_i32_set(&mut_list, 0, 100);
 std__collections__List_i32_set(&mut_list, 2, 300);
-if ((std__collections__List_i32_get(&mut_list, 0) != 100) || (std__collections__List_i32_get(&mut_list, 1) != 2) || (std__collections__List_i32_get(&mut_list, 2) != 300)) {
+if (std__collections__List_i32_get(&mut_list, 0) != 100 || std__collections__List_i32_get(&mut_list, 1) != 2 || std__collections__List_i32_get(&mut_list, 2) != 300) {
 return false;
 }
-std__collections__List_i32_set(&mut_list, 0, (std__collections__List_i32_get(&mut_list, 0) + 50));
-std__collections__List_i32_set(&mut_list, 1, (std__collections__List_i32_get(&mut_list, 1) * 10));
-std__collections__List_i32_set(&mut_list, 2, (std__collections__List_i32_get(&mut_list, 2) - 100));
-if ((std__collections__List_i32_get(&mut_list, 0) != 150) || (std__collections__List_i32_get(&mut_list, 1) != 20) || (std__collections__List_i32_get(&mut_list, 2) != 200)) {
+std__collections__List_i32_set(&mut_list, 0, std__collections__List_i32_get(&mut_list, 0) + 50);
+std__collections__List_i32_set(&mut_list, 1, std__collections__List_i32_get(&mut_list, 1) * 10);
+std__collections__List_i32_set(&mut_list, 2, std__collections__List_i32_get(&mut_list, 2) - 100);
+if (std__collections__List_i32_get(&mut_list, 0) != 150 || std__collections__List_i32_get(&mut_list, 1) != 20 || std__collections__List_i32_get(&mut_list, 2) != 200) {
 return false;
 }
 tests__features__test_collections__CustomIndexBox box_val = (tests__features__test_collections__CustomIndexBox){ 10, 20 };
-if ((tests__features__test_collections__CustomIndexBox_get(&box_val, 0) != 10) || (tests__features__test_collections__CustomIndexBox_get(&box_val, 1) != 20)) {
+if (tests__features__test_collections__CustomIndexBox_get(&box_val, 0) != 10 || tests__features__test_collections__CustomIndexBox_get(&box_val, 1) != 20) {
 return false;
 }
 tests__features__test_collections__CustomIndexBox_set(&box_val, 0, 99);
@@ -865,32 +865,32 @@ return __ret_tmp;
 int32_t __for_e = 60;
 int32_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 int32_t i = __for_i;
 kobel_str key = kobel_concat(2, KOBEL_STR("key_"), i32_to_str(i));
-std__collections__HashMap_str_i32_set(&map, key, ((int32_t)i * 10));
+std__collections__HashMap_str_i32_set(&map, key, (int32_t)i * 10);
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
 }
-if ((map.len != 60) || (std__collections__HashMap_str_i32_count(&map) != 60)) {
+if (map.len != 60 || std__collections__HashMap_str_i32_count(&map) != 60) {
 {
 bool __ret_tmp = false;
 std__collections__HashMap_str_i32_free(map);
@@ -901,17 +901,17 @@ return __ret_tmp;
 int32_t __for_e = 60;
 int32_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 int32_t i = __for_i;
 kobel_str key = kobel_concat(2, KOBEL_STR("key_"), i32_to_str(i));
-if (!(std__collections__HashMap_str_i32_contains(&map, key))) {
+if (!std__collections__HashMap_str_i32_contains(&map, key)) {
 {
 bool __ret_tmp = false;
 std__collections__HashMap_str_i32_free(map);
@@ -919,7 +919,7 @@ return __ret_tmp;
 }
 }
 int32_t* p = std__collections__HashMap_str_i32_get(&map, key);
-if ((p == NULL) || (*p != ((int32_t)i * 10))) {
+if (p == NULL || *p != (int32_t)i * 10) {
 {
 bool __ret_tmp = false;
 std__collections__HashMap_str_i32_free(map);
@@ -927,15 +927,15 @@ return __ret_tmp;
 }
 }
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -944,16 +944,16 @@ __for_i = (__for_i - 1);
 int32_t __for_e = 60;
 int32_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 int32_t i = __for_i;
-if ((i % 2) == 0) {
+if (i % 2 == 0) {
 kobel_str key = kobel_concat(2, KOBEL_STR("key_"), i32_to_str(i));
 if (!std__collections__HashMap_str_i32_remove(&map, key)) {
 {
@@ -964,15 +964,15 @@ return __ret_tmp;
 }
 }
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -988,17 +988,17 @@ return __ret_tmp;
 int32_t __for_e = 60;
 int32_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 int32_t i = __for_i;
 kobel_str key = kobel_concat(2, KOBEL_STR("key_"), i32_to_str(i));
-if ((i % 2) == 0) {
+if (i % 2 == 0) {
 if (std__collections__HashMap_str_i32_contains(&map, key)) {
 {
 bool __ret_tmp = false;
@@ -1014,7 +1014,7 @@ return __ret_tmp;
 }
 }
 } else {
-if (!(std__collections__HashMap_str_i32_contains(&map, key))) {
+if (!std__collections__HashMap_str_i32_contains(&map, key)) {
 {
 bool __ret_tmp = false;
 std__collections__HashMap_str_i32_free(map);
@@ -1022,7 +1022,7 @@ return __ret_tmp;
 }
 }
 int32_t* p = std__collections__HashMap_str_i32_get(&map, key);
-if ((p == NULL) || (*p != ((int32_t)i * 10))) {
+if (p == NULL || *p != (int32_t)i * 10) {
 {
 bool __ret_tmp = false;
 std__collections__HashMap_str_i32_free(map);
@@ -1031,15 +1031,15 @@ return __ret_tmp;
 }
 }
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -1087,7 +1087,7 @@ std__collections__HashMap_i32_str_free(int_map);
 return __ret_tmp;
 }
 }
-if (!(std__collections__HashMap_i32_str_contains(&int_map, 1)) || !(std__collections__HashMap_i32_str_contains(&int_map, 42)) || (std__collections__HashMap_i32_str_contains(&int_map, 99))) {
+if (!std__collections__HashMap_i32_str_contains(&int_map, 1) || !std__collections__HashMap_i32_str_contains(&int_map, 42) || std__collections__HashMap_i32_str_contains(&int_map, 99)) {
 {
 bool __ret_tmp = false;
 std__collections__HashMap_i32_str_free(int_map);
@@ -1095,7 +1095,7 @@ return __ret_tmp;
 }
 }
 kobel_str* ans = std__collections__HashMap_i32_str_get(&int_map, 42);
-if ((ans == NULL) || !kobel_streq(*ans, KOBEL_STR("answer"))) {
+if (ans == NULL || !kobel_streq(*ans, KOBEL_STR("answer"))) {
 {
 bool __ret_tmp = false;
 std__collections__HashMap_i32_str_free(int_map);
@@ -1123,7 +1123,7 @@ std__collections__HashMap_i32_str_free(int_map);
 return __ret_tmp;
 }
 }
-if ((int_map.len != 2) || (std__collections__HashMap_i32_str_contains(&int_map, 2))) {
+if (int_map.len != 2 || std__collections__HashMap_i32_str_contains(&int_map, 2)) {
 {
 bool __ret_tmp = false;
 std__collections__HashMap_i32_str_free(int_map);
@@ -1144,7 +1144,7 @@ std__collections__HashMap_i32_str_free(int_map);
 return __ret_tmp;
 }
 }
-if (!(std__collections__HashMap_tests__features__test_collections__Point2D_i32_contains(&pt_map, p3))) {
+if (!std__collections__HashMap_tests__features__test_collections__Point2D_i32_contains(&pt_map, p3)) {
 {
 bool __ret_tmp = false;
 std__collections__HashMap_tests__features__test_collections__Point2D_i32_free(pt_map);
@@ -1153,7 +1153,7 @@ return __ret_tmp;
 }
 }
 int32_t* v = std__collections__HashMap_tests__features__test_collections__Point2D_i32_get(&pt_map, p3);
-if ((v == NULL) || (*v != 100)) {
+if (v == NULL || *v != 100) {
 {
 bool __ret_tmp = false;
 std__collections__HashMap_tests__features__test_collections__Point2D_i32_free(pt_map);
@@ -1171,7 +1171,7 @@ return __ret_tmp;
 }
 }
 int32_t* v2 = std__collections__HashMap_tests__features__test_collections__Point2D_i32_get(&pt_map, p1);
-if ((v2 == NULL) || (*v2 != 999)) {
+if (v2 == NULL || *v2 != 999) {
 {
 bool __ret_tmp = false;
 std__collections__HashMap_tests__features__test_collections__Point2D_i32_free(pt_map);
@@ -1237,17 +1237,17 @@ return false;
 if (!std__collections__List_i32_contains(&l, 30) || std__collections__List_i32_contains(&l, 99)) {
 return false;
 }
-if (!(std__collections__List_i32_contains(&l, 30))) {
+if (!std__collections__List_i32_contains(&l, 30)) {
 return false;
 }
-if (!(!std__collections__List_i32_contains(&l, 99))) {
+if (!!std__collections__List_i32_contains(&l, 99)) {
 return false;
 }
 std__collections__List_i32 m = std__collections__List_i32_init((int32_t[]){ 10, 20, 30, 40 }, 4);
 if (!std__collections__List_i32_remove(&m, 20)) {
 return false;
 }
-if ((m.len != 3) || (std__collections__List_i32_get(&m, 0) != 10) || (std__collections__List_i32_get(&m, 1) != 30) || (std__collections__List_i32_get(&m, 2) != 40)) {
+if (m.len != 3 || std__collections__List_i32_get(&m, 0) != 10 || std__collections__List_i32_get(&m, 1) != 30 || std__collections__List_i32_get(&m, 2) != 40) {
 return false;
 }
 if (std__collections__List_i32_remove(&m, 99)) {
@@ -1255,10 +1255,10 @@ return false;
 }
 std__collections__List_i32 r = std__collections__List_i32_init((int32_t[]){ 1, 2, 3, 2, 4, 2, 5 }, 7);
 size_t removed = std__collections__List_i32_remove_all(&r, 2);
-if ((removed != 3) || (r.len != 4)) {
+if (removed != 3 || r.len != 4) {
 return false;
 }
-if ((std__collections__List_i32_get(&r, 0) != 1) || (std__collections__List_i32_get(&r, 1) != 3) || (std__collections__List_i32_get(&r, 2) != 4) || (std__collections__List_i32_get(&r, 3) != 5)) {
+if (std__collections__List_i32_get(&r, 0) != 1 || std__collections__List_i32_get(&r, 1) != 3 || std__collections__List_i32_get(&r, 2) != 4 || std__collections__List_i32_get(&r, 3) != 5) {
 return false;
 }
 std__collections__List_i32 p = std__collections__List_i32_init((int32_t[]){ 10, 20 }, 2);
@@ -1273,28 +1273,28 @@ return false;
 }
 std__collections__List_i32 s = std__collections__List_i32_init((int32_t[]){ 10, 20, 30 }, 3);
 std__collections__List_i32_swap(&s, 0, 2);
-if ((std__collections__List_i32_get(&s, 0) != 30) || (std__collections__List_i32_get(&s, 1) != 20) || (std__collections__List_i32_get(&s, 2) != 10)) {
+if (std__collections__List_i32_get(&s, 0) != 30 || std__collections__List_i32_get(&s, 1) != 20 || std__collections__List_i32_get(&s, 2) != 10) {
 return false;
 }
 std__collections__List_i32 rev = std__collections__List_i32_init((int32_t[]){ 1, 2, 3, 4, 5 }, 5);
 std__collections__List_i32_reverse(&rev);
-if ((std__collections__List_i32_get(&rev, 0) != 5) || (std__collections__List_i32_get(&rev, 1) != 4) || (std__collections__List_i32_get(&rev, 2) != 3) || (std__collections__List_i32_get(&rev, 3) != 2) || (std__collections__List_i32_get(&rev, 4) != 1)) {
+if (std__collections__List_i32_get(&rev, 0) != 5 || std__collections__List_i32_get(&rev, 1) != 4 || std__collections__List_i32_get(&rev, 2) != 3 || std__collections__List_i32_get(&rev, 3) != 2 || std__collections__List_i32_get(&rev, 4) != 1) {
 return false;
 }
 std__collections__List_i32 sl = std__collections__List_i32_sub(&rev, 1, 3);
-if ((sl.len != 3) || (std__collections__List_i32_get(&sl, 0) != 4) || (std__collections__List_i32_get(&sl, 1) != 3) || (std__collections__List_i32_get(&sl, 2) != 2)) {
+if (sl.len != 3 || std__collections__List_i32_get(&sl, 0) != 4 || std__collections__List_i32_get(&sl, 1) != 3 || std__collections__List_i32_get(&sl, 2) != 2) {
 return false;
 }
 std__collections__List_i32 ext = std__collections__List_i32_init((int32_t[]){ 1, 2 }, 2);
 std__collections__List_i32_extend(&ext, std__collections__List_i32_init((int32_t[]){ 3, 4 }, 2));
-if ((ext.len != 4) || (std__collections__List_i32_get(&ext, 0) != 1) || (std__collections__List_i32_get(&ext, 1) != 2) || (std__collections__List_i32_get(&ext, 2) != 3) || (std__collections__List_i32_get(&ext, 3) != 4)) {
+if (ext.len != 4 || std__collections__List_i32_get(&ext, 0) != 1 || std__collections__List_i32_get(&ext, 1) != 2 || std__collections__List_i32_get(&ext, 2) != 3 || std__collections__List_i32_get(&ext, 3) != 4) {
 return false;
 }
 std__collections__List_tests__features__test_collections__Point2D pts = std__collections__List_tests__features__test_collections__Point2D_init((tests__features__test_collections__Point2D[]){ (tests__features__test_collections__Point2D){ 1, 2 }, (tests__features__test_collections__Point2D){ 3, 4 } }, 2);
-if (!(std__collections__List_tests__features__test_collections__Point2D_contains(&pts, (tests__features__test_collections__Point2D){ 3, 4 }))) {
+if (!std__collections__List_tests__features__test_collections__Point2D_contains(&pts, (tests__features__test_collections__Point2D){ 3, 4 })) {
 return false;
 }
-if (!(!std__collections__List_tests__features__test_collections__Point2D_contains(&pts, (tests__features__test_collections__Point2D){ 5, 6 }))) {
+if (!!std__collections__List_tests__features__test_collections__Point2D_contains(&pts, (tests__features__test_collections__Point2D){ 5, 6 })) {
 return false;
 }
 if (std__collections__List_tests__features__test_collections__Point2D_index_of(&pts, (tests__features__test_collections__Point2D){ 3, 4 }) != 1) {
@@ -1343,32 +1343,32 @@ return 0;
 }
 
 std__collections__List_str std__collections__List_str_init(kobel_str* items_data, size_t items_len) {
-size_t cap = ((items_len < 4) ? 4 : items_len);
+size_t cap = items_len < 4 ? 4 : items_len;
 kobel_str* buf = std__memory__Heap_create_str(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t i = __for_i;
 buf[i] = items_data[i];
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -1385,7 +1385,7 @@ self->len++;
 }
 
 void std__collections__List_str_grow(std__collections__List_str* self) {
-size_t new_cap = (self->cap * 2);
+size_t new_cap = self->cap * 2;
 self->data = std__memory__Heap_resize_str(self->data, new_cap);
 self->cap = new_cap;
 }
@@ -1411,32 +1411,32 @@ int32_t std__collections__List_i32_at(std__collections__List_i32* self, size_t i
 }
 
 std__collections__List_i32 std__collections__List_i32_init(int32_t* items_data, size_t items_len) {
-size_t cap = ((items_len < 4) ? 4 : items_len);
+size_t cap = items_len < 4 ? 4 : items_len;
 int32_t* buf = std__memory__Heap_create_i32(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t i = __for_i;
 buf[i] = items_data[i];
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -1464,13 +1464,13 @@ size_t __for_i = 0;
 while (__for_i < __for_n) {
 int32_t data = std__collections__List_i32_at(&other, __for_i);
 std__collections__List_i32_plus_assign(self, data);
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 }
 }
 }
 
 void std__collections__List_i32_grow(std__collections__List_i32* self) {
-size_t new_cap = (self->cap * 2);
+size_t new_cap = self->cap * 2;
 self->data = std__memory__Heap_resize_i32(self->data, new_cap);
 self->cap = new_cap;
 }
@@ -1478,29 +1478,29 @@ self->cap = new_cap;
 int32_t std__collections__List_i32_remove_at(std__collections__List_i32* self, size_t index) {
 int32_t item = self->data[index];
 {
-size_t __for_e = (self->len - 1);
+size_t __for_e = self->len - 1;
 size_t __for_i = __for_e;
 __for_i = index;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t i = __for_i;
-self->data[i] = self->data[(i + 1)];
+self->data[i] = self->data[i + 1];
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -1510,7 +1510,7 @@ return item;
 }
 
 int32_t std__collections__List_i32_pop_or(std__collections__List_i32* self, int32_t value) {
-    return ((self->len == 0) ? value : std__collections__List_i32_pop(self));
+    return self->len == 0 ? value : std__collections__List_i32_pop(self);
 }
 
 void std__collections__List_i32_swap(std__collections__List_i32* self, size_t a, size_t b) {
@@ -1524,7 +1524,7 @@ if (self->len <= 1) {
 return;
 }
 int32_t left = 0;
-size_t right = (self->len - 1);
+size_t right = self->len - 1;
 while (left < right) {
 int32_t tmp = self->data[left];
 self->data[left] = self->data[right];
@@ -1539,31 +1539,31 @@ std__collections__List_i32 res = (std__collections__List_i32){ std__memory__Heap
 if (start >= self->len) {
 return res;
 }
-size_t end = (((start + count) > self->len) ? self->len : (start + count));
+size_t end = start + count > self->len ? self->len : start + count;
 {
 size_t __for_e = end;
 size_t __for_i = __for_e;
 __for_i = start;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t i = __for_i;
 std__collections__List_i32_plus_assign(&res, self->data[i]);
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -1576,12 +1576,12 @@ intptr_t std__collections__List_i32_index_of(std__collections__List_i32* self, i
 size_t __for_e = self->len;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t i = __for_i;
@@ -1589,15 +1589,15 @@ if (self->data[i] == value) {
 return i;
 }
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -1609,7 +1609,7 @@ intptr_t std__collections__List_i32_last_index_of(std__collections__List_i32* se
 if (self->len == 0) {
 return -1;
 }
-size_t i = (self->len - 1);
+size_t i = self->len - 1;
 while (true) {
 if (self->data[i] == value) {
 return i;
@@ -1637,7 +1637,7 @@ struct __lambda_env_7 {
 
 static bool __lambda_fn_7(void* __raw_env, int32_t x) {
     struct __lambda_env_7* __env = (struct __lambda_env_7*)__raw_env;
-    return (x == (__env->value));
+    return x == (__env->value);
 }
 
 size_t std__collections__List_i32_remove_all(std__collections__List_i32* self, int32_t value) {
@@ -1651,12 +1651,12 @@ int32_t removed = 0;
 size_t __for_e = self->len;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t i = __for_i;
@@ -1669,15 +1669,15 @@ self->data[write] = self->data[i];
 write++;
 }
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -1695,7 +1695,7 @@ int32_t std__collections__List_i32_get(std__collections__List_i32* self, size_t 
 }
 
 bool std__collections__List_i32_contains(std__collections__List_i32* self, int32_t value) {
-    return (std__collections__List_i32_index_of(self, value) != -1);
+    return std__collections__List_i32_index_of(self, value) != -1;
 }
 
 int32_t std__collections__List_i32_set(std__collections__List_i32* self, size_t index, int32_t value) {
@@ -1707,32 +1707,32 @@ void std__collections__List_i32_plus_assign(std__collections__List_i32* self, in
 }
 
 std__collections__List_std__collections__List_i32 std__collections__List_std__collections__List_i32_init(std__collections__List_i32* items_data, size_t items_len) {
-size_t cap = ((items_len < 4) ? 4 : items_len);
+size_t cap = items_len < 4 ? 4 : items_len;
 std__collections__List_i32* buf = std__memory__Heap_create_std__collections__List_i32(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t i = __for_i;
 buf[i] = items_data[i];
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -1757,26 +1757,26 @@ bool* occ = std__memory__Heap_create_bool(cap);
 size_t __for_e = cap;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t i = __for_i;
 occ[i] = false;
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -1786,42 +1786,42 @@ return (std__collections__HashMap_str_i32){ keys, values, hashes, occ, 0, cap };
 
 size_t std__collections__HashMap_str_i32_dist(std__collections__HashMap_str_i32* self, size_t from, size_t to) {
 if (to >= from) {
-return (to - from);
+return to - from;
 }
-return ((self->cap + to) - from);
+return self->cap + to - from;
 }
 
 bool std__collections__HashMap_str_i32_remove(std__collections__HashMap_str_i32* self, kobel_str key) {
-if ((self->len == 0) || (self->cap == 0)) {
+if (self->len == 0 || self->cap == 0) {
 return false;
 }
 size_t h = str_hash(key);
-size_t idx = (h % self->cap);
+size_t idx = h % self->cap;
 while (self->occupied[idx]) {
-if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
+if (self->hashes[idx] == h && kobel_streq(self->keys[idx], key)) {
 size_t i = idx;
-size_t j = ((idx + 1) % self->cap);
+size_t j = (idx + 1) % self->cap;
 while (self->occupied[j]) {
-size_t k = (self->hashes[j] % self->cap);
+size_t k = self->hashes[j] % self->cap;
 if (std__collections__HashMap_str_i32_dist(self, k, i) < std__collections__HashMap_str_i32_dist(self, k, j)) {
 self->keys[i] = self->keys[j];
 self->values[i] = self->values[j];
 self->hashes[i] = self->hashes[j];
 i = j;
 }
-j = ((j + 1) % self->cap);
+j = (j + 1) % self->cap;
 }
 self->occupied[i] = false;
 self->len--;
 return true;
 }
-idx = ((idx + 1) % self->cap);
+idx = (idx + 1) % self->cap;
 }
 return false;
 }
 
 bool std__collections__HashMap_str_i32_empty(std__collections__HashMap_str_i32* self) {
-    return (self->len == 0);
+    return self->len == 0;
 }
 
 std__collections__List_str std__collections__HashMap_str_i32_keys(std__collections__HashMap_str_i32* self) {
@@ -1833,12 +1833,12 @@ return res;
 size_t __for_e = self->cap;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t i = __for_i;
@@ -1846,15 +1846,15 @@ if (self->occupied[i]) {
 std__collections__List_str_plus_assign(&res, self->keys[i]);
 }
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -1871,12 +1871,12 @@ return res;
 size_t __for_e = self->cap;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t i = __for_i;
@@ -1884,15 +1884,15 @@ if (self->occupied[i]) {
 std__collections__List_i32_plus_assign(&res, self->values[i]);
 }
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -1906,7 +1906,7 @@ kobel_str* old_keys = self->keys;
 int32_t* old_vals = self->values;
 size_t* old_hashes = self->hashes;
 bool* old_occ = self->occupied;
-size_t new_cap = ((old_cap < 8) ? 16 : (old_cap * 2));
+size_t new_cap = old_cap < 8 ? 16 : old_cap * 2;
 kobel_str* keys = std__memory__Heap_create_str(new_cap);
 int32_t* values = std__memory__Heap_create_i32(new_cap);
 size_t* hashes = std__memory__Heap_create_usz(new_cap);
@@ -1915,26 +1915,26 @@ bool* new_occ = std__memory__Heap_create_bool(new_cap);
 size_t __for_e = new_cap;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t j = __for_i;
 new_occ[j] = false;
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -1944,20 +1944,20 @@ if (old_cap > 0) {
 size_t __for_e = old_cap;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t i = __for_i;
 if (old_occ[i]) {
 size_t h = old_hashes[i];
-size_t idx = (h % new_cap);
+size_t idx = h % new_cap;
 while (new_occ[idx]) {
-idx = ((idx + 1) % new_cap);
+idx = (idx + 1) % new_cap;
 }
 keys[idx] = old_keys[i];
 values[idx] = old_vals[i];
@@ -1965,15 +1965,15 @@ hashes[idx] = h;
 new_occ[idx] = true;
 }
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -2000,17 +2000,17 @@ std__memory__Heap_free_bool(self.occupied);
 }
 
 void std__collections__HashMap_str_i32_set(std__collections__HashMap_str_i32* self, kobel_str key, int32_t value) {
-if ((self->cap == 0) || ((self->len * 10) >= (self->cap * 7))) {
+if (self->cap == 0 || self->len * 10 >= self->cap * 7) {
 std__collections__HashMap_str_i32_grow(self);
 }
 size_t h = str_hash(key);
-size_t idx = (h % self->cap);
+size_t idx = h % self->cap;
 while (self->occupied[idx]) {
-if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
+if (self->hashes[idx] == h && kobel_streq(self->keys[idx], key)) {
 self->values[idx] = value;
 return;
 }
-idx = ((idx + 1) % self->cap);
+idx = (idx + 1) % self->cap;
 }
 self->keys[idx] = key;
 self->values[idx] = value;
@@ -2020,31 +2020,31 @@ self->len++;
 }
 
 int32_t* std__collections__HashMap_str_i32_get(std__collections__HashMap_str_i32* self, kobel_str key) {
-if ((self->len == 0) || (self->cap == 0)) {
+if (self->len == 0 || self->cap == 0) {
 return NULL;
 }
 size_t h = str_hash(key);
-size_t idx = (h % self->cap);
+size_t idx = h % self->cap;
 while (self->occupied[idx]) {
-if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
+if (self->hashes[idx] == h && kobel_streq(self->keys[idx], key)) {
 return &self->values[idx];
 }
-idx = ((idx + 1) % self->cap);
+idx = (idx + 1) % self->cap;
 }
 return NULL;
 }
 
 bool std__collections__HashMap_str_i32_contains(std__collections__HashMap_str_i32* self, kobel_str key) {
-if ((self->len == 0) || (self->cap == 0)) {
+if (self->len == 0 || self->cap == 0) {
 return false;
 }
 size_t h = str_hash(key);
-size_t idx = (h % self->cap);
+size_t idx = h % self->cap;
 while (self->occupied[idx]) {
-if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
+if (self->hashes[idx] == h && kobel_streq(self->keys[idx], key)) {
 return true;
 }
-idx = ((idx + 1) % self->cap);
+idx = (idx + 1) % self->cap;
 }
 return false;
 }
@@ -2066,26 +2066,26 @@ bool* occ = std__memory__Heap_create_bool(cap);
 size_t __for_e = cap;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t i = __for_i;
 occ[i] = false;
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -2095,51 +2095,51 @@ return (std__collections__HashMap_i32_str){ keys, values, hashes, occ, 0, cap };
 
 size_t std__collections__HashMap_i32_str_dist(std__collections__HashMap_i32_str* self, size_t from, size_t to) {
 if (to >= from) {
-return (to - from);
+return to - from;
 }
-return ((self->cap + to) - from);
+return self->cap + to - from;
 }
 
 kobel_str std__collections__HashMap_i32_str_get_or(std__collections__HashMap_i32_str* self, int32_t key, kobel_str value) {
-if ((self->len == 0) || (self->cap == 0)) {
+if (self->len == 0 || self->cap == 0) {
 return value;
 }
 size_t h = i32_hash(key);
-size_t idx = (h % self->cap);
+size_t idx = h % self->cap;
 while (self->occupied[idx]) {
-if ((self->hashes[idx] == h) && (self->keys[idx] == key)) {
+if (self->hashes[idx] == h && self->keys[idx] == key) {
 return self->values[idx];
 }
-idx = ((idx + 1) % self->cap);
+idx = (idx + 1) % self->cap;
 }
 return value;
 }
 
 bool std__collections__HashMap_i32_str_remove(std__collections__HashMap_i32_str* self, int32_t key) {
-if ((self->len == 0) || (self->cap == 0)) {
+if (self->len == 0 || self->cap == 0) {
 return false;
 }
 size_t h = i32_hash(key);
-size_t idx = (h % self->cap);
+size_t idx = h % self->cap;
 while (self->occupied[idx]) {
-if ((self->hashes[idx] == h) && (self->keys[idx] == key)) {
+if (self->hashes[idx] == h && self->keys[idx] == key) {
 size_t i = idx;
-size_t j = ((idx + 1) % self->cap);
+size_t j = (idx + 1) % self->cap;
 while (self->occupied[j]) {
-size_t k = (self->hashes[j] % self->cap);
+size_t k = self->hashes[j] % self->cap;
 if (std__collections__HashMap_i32_str_dist(self, k, i) < std__collections__HashMap_i32_str_dist(self, k, j)) {
 self->keys[i] = self->keys[j];
 self->values[i] = self->values[j];
 self->hashes[i] = self->hashes[j];
 i = j;
 }
-j = ((j + 1) % self->cap);
+j = (j + 1) % self->cap;
 }
 self->occupied[i] = false;
 self->len--;
 return true;
 }
-idx = ((idx + 1) % self->cap);
+idx = (idx + 1) % self->cap;
 }
 return false;
 }
@@ -2150,7 +2150,7 @@ int32_t* old_keys = self->keys;
 kobel_str* old_vals = self->values;
 size_t* old_hashes = self->hashes;
 bool* old_occ = self->occupied;
-size_t new_cap = ((old_cap < 8) ? 16 : (old_cap * 2));
+size_t new_cap = old_cap < 8 ? 16 : old_cap * 2;
 int32_t* keys = std__memory__Heap_create_i32(new_cap);
 kobel_str* values = std__memory__Heap_create_str(new_cap);
 size_t* hashes = std__memory__Heap_create_usz(new_cap);
@@ -2159,26 +2159,26 @@ bool* new_occ = std__memory__Heap_create_bool(new_cap);
 size_t __for_e = new_cap;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t j = __for_i;
 new_occ[j] = false;
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -2188,20 +2188,20 @@ if (old_cap > 0) {
 size_t __for_e = old_cap;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t i = __for_i;
 if (old_occ[i]) {
 size_t h = old_hashes[i];
-size_t idx = (h % new_cap);
+size_t idx = h % new_cap;
 while (new_occ[idx]) {
-idx = ((idx + 1) % new_cap);
+idx = (idx + 1) % new_cap;
 }
 keys[idx] = old_keys[i];
 values[idx] = old_vals[i];
@@ -2209,15 +2209,15 @@ hashes[idx] = h;
 new_occ[idx] = true;
 }
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -2244,17 +2244,17 @@ std__memory__Heap_free_bool(self.occupied);
 }
 
 void std__collections__HashMap_i32_str_set(std__collections__HashMap_i32_str* self, int32_t key, kobel_str value) {
-if ((self->cap == 0) || ((self->len * 10) >= (self->cap * 7))) {
+if (self->cap == 0 || self->len * 10 >= self->cap * 7) {
 std__collections__HashMap_i32_str_grow(self);
 }
 size_t h = i32_hash(key);
-size_t idx = (h % self->cap);
+size_t idx = h % self->cap;
 while (self->occupied[idx]) {
-if ((self->hashes[idx] == h) && (self->keys[idx] == key)) {
+if (self->hashes[idx] == h && self->keys[idx] == key) {
 self->values[idx] = value;
 return;
 }
-idx = ((idx + 1) % self->cap);
+idx = (idx + 1) % self->cap;
 }
 self->keys[idx] = key;
 self->values[idx] = value;
@@ -2264,62 +2264,62 @@ self->len++;
 }
 
 kobel_str* std__collections__HashMap_i32_str_get(std__collections__HashMap_i32_str* self, int32_t key) {
-if ((self->len == 0) || (self->cap == 0)) {
+if (self->len == 0 || self->cap == 0) {
 return NULL;
 }
 size_t h = i32_hash(key);
-size_t idx = (h % self->cap);
+size_t idx = h % self->cap;
 while (self->occupied[idx]) {
-if ((self->hashes[idx] == h) && (self->keys[idx] == key)) {
+if (self->hashes[idx] == h && self->keys[idx] == key) {
 return &self->values[idx];
 }
-idx = ((idx + 1) % self->cap);
+idx = (idx + 1) % self->cap;
 }
 return NULL;
 }
 
 bool std__collections__HashMap_i32_str_contains(std__collections__HashMap_i32_str* self, int32_t key) {
-if ((self->len == 0) || (self->cap == 0)) {
+if (self->len == 0 || self->cap == 0) {
 return false;
 }
 size_t h = i32_hash(key);
-size_t idx = (h % self->cap);
+size_t idx = h % self->cap;
 while (self->occupied[idx]) {
-if ((self->hashes[idx] == h) && (self->keys[idx] == key)) {
+if (self->hashes[idx] == h && self->keys[idx] == key) {
 return true;
 }
-idx = ((idx + 1) % self->cap);
+idx = (idx + 1) % self->cap;
 }
 return false;
 }
 
 std__collections__List_tests__features__test_collections__Point2D std__collections__List_tests__features__test_collections__Point2D_init(tests__features__test_collections__Point2D* items_data, size_t items_len) {
-size_t cap = ((items_len < 4) ? 4 : items_len);
+size_t cap = items_len < 4 ? 4 : items_len;
 tests__features__test_collections__Point2D* buf = std__memory__Heap_create_tests__features__test_collections__Point2D(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t i = __for_i;
 buf[i] = items_data[i];
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -2332,12 +2332,12 @@ intptr_t std__collections__List_tests__features__test_collections__Point2D_index
 size_t __for_e = self->len;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t i = __for_i;
@@ -2345,15 +2345,15 @@ if (kobel_memeq(&self->data[i], &value, 8)) {
 return i;
 }
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -2362,7 +2362,7 @@ return -1;
 }
 
 bool std__collections__List_tests__features__test_collections__Point2D_contains(std__collections__List_tests__features__test_collections__Point2D* self, tests__features__test_collections__Point2D value) {
-    return (std__collections__List_tests__features__test_collections__Point2D_index_of(self, value) != -1);
+    return std__collections__List_tests__features__test_collections__Point2D_index_of(self, value) != -1;
 }
 
 std__collections__HashMap_tests__features__test_collections__Point2D_i32 std__collections__HashMap_tests__features__test_collections__Point2D_i32_init(size_t init_cap) {
@@ -2378,26 +2378,26 @@ bool* occ = std__memory__Heap_create_bool(cap);
 size_t __for_e = cap;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t i = __for_i;
 occ[i] = false;
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -2407,36 +2407,36 @@ return (std__collections__HashMap_tests__features__test_collections__Point2D_i32
 
 size_t std__collections__HashMap_tests__features__test_collections__Point2D_i32_dist(std__collections__HashMap_tests__features__test_collections__Point2D_i32* self, size_t from, size_t to) {
 if (to >= from) {
-return (to - from);
+return to - from;
 }
-return ((self->cap + to) - from);
+return self->cap + to - from;
 }
 
 bool std__collections__HashMap_tests__features__test_collections__Point2D_i32_remove(std__collections__HashMap_tests__features__test_collections__Point2D_i32* self, tests__features__test_collections__Point2D key) {
-if ((self->len == 0) || (self->cap == 0)) {
+if (self->len == 0 || self->cap == 0) {
 return false;
 }
 size_t h = tests__features__test_collections__Point2D_hash(&key);
-size_t idx = (h % self->cap);
+size_t idx = h % self->cap;
 while (self->occupied[idx]) {
-if ((self->hashes[idx] == h) && kobel_memeq(&self->keys[idx], &key, 8)) {
+if (self->hashes[idx] == h && kobel_memeq(&self->keys[idx], &key, 8)) {
 size_t i = idx;
-size_t j = ((idx + 1) % self->cap);
+size_t j = (idx + 1) % self->cap;
 while (self->occupied[j]) {
-size_t k = (self->hashes[j] % self->cap);
+size_t k = self->hashes[j] % self->cap;
 if (std__collections__HashMap_tests__features__test_collections__Point2D_i32_dist(self, k, i) < std__collections__HashMap_tests__features__test_collections__Point2D_i32_dist(self, k, j)) {
 self->keys[i] = self->keys[j];
 self->values[i] = self->values[j];
 self->hashes[i] = self->hashes[j];
 i = j;
 }
-j = ((j + 1) % self->cap);
+j = (j + 1) % self->cap;
 }
 self->occupied[i] = false;
 self->len--;
 return true;
 }
-idx = ((idx + 1) % self->cap);
+idx = (idx + 1) % self->cap;
 }
 return false;
 }
@@ -2447,7 +2447,7 @@ tests__features__test_collections__Point2D* old_keys = self->keys;
 int32_t* old_vals = self->values;
 size_t* old_hashes = self->hashes;
 bool* old_occ = self->occupied;
-size_t new_cap = ((old_cap < 8) ? 16 : (old_cap * 2));
+size_t new_cap = old_cap < 8 ? 16 : old_cap * 2;
 tests__features__test_collections__Point2D* keys = std__memory__Heap_create_tests__features__test_collections__Point2D(new_cap);
 int32_t* values = std__memory__Heap_create_i32(new_cap);
 size_t* hashes = std__memory__Heap_create_usz(new_cap);
@@ -2456,26 +2456,26 @@ bool* new_occ = std__memory__Heap_create_bool(new_cap);
 size_t __for_e = new_cap;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t j = __for_i;
 new_occ[j] = false;
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -2485,20 +2485,20 @@ if (old_cap > 0) {
 size_t __for_e = old_cap;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t i = __for_i;
 if (old_occ[i]) {
 size_t h = old_hashes[i];
-size_t idx = (h % new_cap);
+size_t idx = h % new_cap;
 while (new_occ[idx]) {
-idx = ((idx + 1) % new_cap);
+idx = (idx + 1) % new_cap;
 }
 keys[idx] = old_keys[i];
 values[idx] = old_vals[i];
@@ -2506,15 +2506,15 @@ hashes[idx] = h;
 new_occ[idx] = true;
 }
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -2541,17 +2541,17 @@ std__memory__Heap_free_bool(self.occupied);
 }
 
 void std__collections__HashMap_tests__features__test_collections__Point2D_i32_set(std__collections__HashMap_tests__features__test_collections__Point2D_i32* self, tests__features__test_collections__Point2D key, int32_t value) {
-if ((self->cap == 0) || ((self->len * 10) >= (self->cap * 7))) {
+if (self->cap == 0 || self->len * 10 >= self->cap * 7) {
 std__collections__HashMap_tests__features__test_collections__Point2D_i32_grow(self);
 }
 size_t h = tests__features__test_collections__Point2D_hash(&key);
-size_t idx = (h % self->cap);
+size_t idx = h % self->cap;
 while (self->occupied[idx]) {
-if ((self->hashes[idx] == h) && kobel_memeq(&self->keys[idx], &key, 8)) {
+if (self->hashes[idx] == h && kobel_memeq(&self->keys[idx], &key, 8)) {
 self->values[idx] = value;
 return;
 }
-idx = ((idx + 1) % self->cap);
+idx = (idx + 1) % self->cap;
 }
 self->keys[idx] = key;
 self->values[idx] = value;
@@ -2561,31 +2561,31 @@ self->len++;
 }
 
 int32_t* std__collections__HashMap_tests__features__test_collections__Point2D_i32_get(std__collections__HashMap_tests__features__test_collections__Point2D_i32* self, tests__features__test_collections__Point2D key) {
-if ((self->len == 0) || (self->cap == 0)) {
+if (self->len == 0 || self->cap == 0) {
 return NULL;
 }
 size_t h = tests__features__test_collections__Point2D_hash(&key);
-size_t idx = (h % self->cap);
+size_t idx = h % self->cap;
 while (self->occupied[idx]) {
-if ((self->hashes[idx] == h) && kobel_memeq(&self->keys[idx], &key, 8)) {
+if (self->hashes[idx] == h && kobel_memeq(&self->keys[idx], &key, 8)) {
 return &self->values[idx];
 }
-idx = ((idx + 1) % self->cap);
+idx = (idx + 1) % self->cap;
 }
 return NULL;
 }
 
 bool std__collections__HashMap_tests__features__test_collections__Point2D_i32_contains(std__collections__HashMap_tests__features__test_collections__Point2D_i32* self, tests__features__test_collections__Point2D key) {
-if ((self->len == 0) || (self->cap == 0)) {
+if (self->len == 0 || self->cap == 0) {
 return false;
 }
 size_t h = tests__features__test_collections__Point2D_hash(&key);
-size_t idx = (h % self->cap);
+size_t idx = h % self->cap;
 while (self->occupied[idx]) {
-if ((self->hashes[idx] == h) && kobel_memeq(&self->keys[idx], &key, 8)) {
+if (self->hashes[idx] == h && kobel_memeq(&self->keys[idx], &key, 8)) {
 return true;
 }
-idx = ((idx + 1) % self->cap);
+idx = (idx + 1) % self->cap;
 }
 return false;
 }
@@ -2603,35 +2603,35 @@ void std__memory__Heap_free_tests__features__test_collections__Point2D(tests__fe
 }
 
 uint8_t* std__memory__Heap_create_u8(size_t count) {
-    return (uint8_t*)malloc((count * 1));
+    return (uint8_t*)malloc(count * 1);
 }
 
 kobel_str* std__memory__Heap_create_str(size_t count) {
-    return (kobel_str*)malloc((count * 16));
+    return (kobel_str*)malloc(count * 16);
 }
 
 kobel_str* std__memory__Heap_resize_str(kobel_str* ptr, size_t count) {
-    return (kobel_str*)realloc((uint8_t*)ptr, (count * 16));
+    return (kobel_str*)realloc((uint8_t*)ptr, count * 16);
 }
 
 int32_t* std__memory__Heap_create_i32(size_t count) {
-    return (int32_t*)malloc((count * 4));
+    return (int32_t*)malloc(count * 4);
 }
 
 int32_t* std__memory__Heap_resize_i32(int32_t* ptr, size_t count) {
-    return (int32_t*)realloc((uint8_t*)ptr, (count * 4));
+    return (int32_t*)realloc((uint8_t*)ptr, count * 4);
 }
 
 std__collections__List_i32* std__memory__Heap_create_std__collections__List_i32(size_t count) {
-    return (std__collections__List_i32*)malloc((count * 24));
+    return (std__collections__List_i32*)malloc(count * 24);
 }
 
 size_t* std__memory__Heap_create_usz(size_t count) {
-    return (size_t*)malloc((count * 8));
+    return (size_t*)malloc(count * 8);
 }
 
 bool* std__memory__Heap_create_bool(size_t count) {
-    return (bool*)malloc((count * 1));
+    return (bool*)malloc(count * 1);
 }
 
 void std__memory__Heap_free_usz(size_t* ptr) {
@@ -2643,6 +2643,6 @@ void std__memory__Heap_free_bool(bool* ptr) {
 }
 
 tests__features__test_collections__Point2D* std__memory__Heap_create_tests__features__test_collections__Point2D(size_t count) {
-    return (tests__features__test_collections__Point2D*)malloc((count * 8));
+    return (tests__features__test_collections__Point2D*)malloc(count * 8);
 }
 

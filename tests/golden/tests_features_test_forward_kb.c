@@ -317,7 +317,7 @@ return 1;
 if ((*b.a).v != 5) {
 return 2;
 }
-if ((a.b != NULL) && ((*(*a.b).a).v != 5)) {
+if (a.b != NULL && (*(*a.b).a).v != 5) {
 return 3;
 }
 return 0;

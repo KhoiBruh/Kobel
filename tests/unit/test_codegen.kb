@@ -167,11 +167,70 @@ fn test_dce_keeps_all_without_main() {
 	println("  [PASS] test_dce_keeps_all_without_main");
 }
 
+fn test_minimal_parens_precedence() {
+	val src = """
+		const MACRO_SUM = 1 + 2;
+
+		struct Wrap {
+		    pub flag: bool,
+		    pub v: i32
+		}
+
+		fn exprs(a: i32, b: i32, c: i32, w: ?*Wrap, ch: char): bool {
+		    val k = (a + b) * c;
+		    val m = a - (b + c);
+		    val f = a + b - c;
+		    val ternary_v = if (a > 0) b + 1 else c + MACRO_SUM;
+		    val ok_range = ch in ['a'..'z'];
+		    if (a == 1 || b == 2) {
+		        return (a > 0 && b > 0) || c > 0;
+		    }
+		    if (w?.v == 1 && !(a > 0 && b < 0)) {
+		        return k > m + f && ternary_v > 0 && ok_range;
+		    }
+		    return false;
+		}
+	""";
+
+	var arena = Arena(65536);
+	defer arena.free();
+
+	var lexer = Lexer(src);
+	var parser = Parser(lexer.tokenize());
+	val prog = parser.parse_program();
+	assert_eq_usz(parser.errors.len, 0, "Precedence test source must parse cleanly");
+
+	var dp = DeclarationCollector(arena);
+	dp.collect_program(prog);
+	assert_eq_usz(dp.errors.len, 0, "Precedence test source must pass decl pass");
+
+	var bp = BodyChecker(dp.symtab, dp);
+	bp.check_program(prog);
+	assert_eq_usz(bp.errors.len, 0, "Precedence test source must typecheck cleanly");
+
+	var codegen = CCodeGen(&bp.symtab);
+	val c_code = codegen.gen_program(prog);
+
+	assert_true(c_code.contains("#define MACRO_SUM (1 + 2)"), "Macro const keeps parens");
+	assert_true(c_code.contains("(a + b) * c"), "Mul over add keeps parens");
+	assert_true(c_code.contains("a - (b + c)"), "Right-hand add under minus keeps parens");
+	assert_true(c_code.contains("a + b - c;"), "Left-associative add/sub drops parens");
+	assert_true(c_code.contains("a > 0 ? b + 1 : c + MACRO_SUM;"), "Top-level if-expr drops parens");
+	assert_true(c_code.contains("(ch >= 'a' && ch <= 'z') || (ch <= 'a' && ch >= 'z')"), "Range omits redundant atom parens");
+	assert_true(!c_code.contains("((ch) >="), "Range must not double-wrap condition");
+	assert_true(c_code.contains("if (a == 1 || b == 2)"), "Comparison inside || drops parens");
+	assert_true(c_code.contains("(a > 0 && b > 0) || c > 0;"), "&& inside || keeps parens for clang");
+	assert_true(c_code.contains("if (w != NULL && w->v == 1 && !(a > 0 && b < 0))"), "Safe cmp and negated && format cleanly");
+
+	println("  [PASS] test_minimal_parens_precedence");
+}
+
 fn main(): i32 {
 	println("[RUNNING] Bootstrap C CodeGen tests...");
 	test_end_to_end_codegen();
 	test_dce_prunes_unused_and_keeps_reachable();
 	test_dce_keeps_all_without_main();
+	test_minimal_parens_precedence();
 	println("[ALL PASSED] Bootstrap C CodeGen passed all tests successfully!");
 	return 0;
 }

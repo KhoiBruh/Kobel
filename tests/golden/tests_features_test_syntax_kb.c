@@ -433,27 +433,27 @@ int32_t h = 5381;
 size_t __for_e = s.len;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t i = __for_i;
-int32_t c = ((int32_t)(uint8_t)(s.data[i]));
-h = ((h * 33) + c);
+int32_t c = (int32_t)(uint8_t)s.data[i];
+h = h * 33 + c;
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -468,11 +468,11 @@ size_t str_hash(kobel_str self) {
 kobel_str std__string__str_from_bytes(uint8_t* buf, size_t len) {
 std__string__StrRaw r = (std__string__StrRaw){ (const char*)buf, len };
 kobel_str* sp = (kobel_str*)&r;
-return (*(sp));
+return *sp;
 }
 
 bool str_empty(kobel_str self) {
-    return (self.len == 0);
+    return self.len == 0;
 }
 
 intptr_t str_index_of(kobel_str self, kobel_str sub) {
@@ -482,17 +482,17 @@ return 0;
 if (self.len < sub.len) {
 return -1;
 }
-size_t max_start = (self.len - sub.len);
+size_t max_start = self.len - sub.len;
 {
 size_t __for_e = max_start;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i <= __for_e);
+__for_go = __for_i <= __for_e;
 } else {
-__for_go = (__for_i >= __for_e);
+__for_go = __for_i >= __for_e;
 }
 while (__for_go) {
 size_t i = __for_i;
@@ -501,29 +501,29 @@ bool matched = true;
 size_t __for_e = sub.len;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t j = __for_i;
-if (self.data[(i + j)] != sub.data[j]) {
+if (self.data[i + j] != sub.data[j]) {
 matched = false;
 break;
 }
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -532,15 +532,15 @@ if (matched) {
 return i;
 }
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -549,12 +549,12 @@ return -1;
 }
 
 bool str_contains(kobel_str self, kobel_str sub) {
-    return (str_index_of(self, sub) >= 0);
+    return str_index_of(self, sub) >= 0;
 }
 
 kobel_str std__traits__fmt_u64(uint64_t n0) {
 if (n0 < 10) {
-return ((uint8_t)n0 == 0 ? KOBEL_STR("0") : ((uint8_t)n0 == 1 ? KOBEL_STR("1") : ((uint8_t)n0 == 2 ? KOBEL_STR("2") : ((uint8_t)n0 == 3 ? KOBEL_STR("3") : ((uint8_t)n0 == 4 ? KOBEL_STR("4") : ((uint8_t)n0 == 5 ? KOBEL_STR("5") : ((uint8_t)n0 == 6 ? KOBEL_STR("6") : ((uint8_t)n0 == 7 ? KOBEL_STR("7") : ((uint8_t)n0 == 8 ? KOBEL_STR("8") : KOBEL_STR("9"))))))))));
+return ((uint8_t)n0) == 0 ? KOBEL_STR("0") : ((uint8_t)n0) == 1 ? KOBEL_STR("1") : ((uint8_t)n0) == 2 ? KOBEL_STR("2") : ((uint8_t)n0) == 3 ? KOBEL_STR("3") : ((uint8_t)n0) == 4 ? KOBEL_STR("4") : ((uint8_t)n0) == 5 ? KOBEL_STR("5") : ((uint8_t)n0) == 6 ? KOBEL_STR("6") : ((uint8_t)n0) == 7 ? KOBEL_STR("7") : ((uint8_t)n0) == 8 ? KOBEL_STR("8") : KOBEL_STR("9");
 }
 uint64_t n = n0;
 size_t digits = 1;
@@ -563,12 +563,12 @@ while (probe >= 10) {
 probe /= 10;
 digits++;
 }
-uint8_t* buf = std__memory__Heap_create_u8((digits + 1));
+uint8_t* buf = std__memory__Heap_create_u8(digits + 1);
 buf[digits] = 0;
 size_t i = digits;
 while (i > 0) {
 i--;
-buf[i] = (uint8_t)(48 + (n % 10));
+buf[i] = (uint8_t)(48 + n % 10);
 n /= 10;
 }
 return std__string__str_from_bytes(buf, digits);
@@ -576,7 +576,7 @@ return std__string__str_from_bytes(buf, digits);
 
 kobel_str std__traits__fmt_i64(int64_t v) {
 if (v < 0) {
-uint64_t mag = ((uint64_t)(0 - (v + 1)) + 1);
+uint64_t mag = (uint64_t)(0 - (v + 1)) + 1;
 return kobel_concat(2, KOBEL_STR("-"), std__traits__fmt_u64(mag));
 }
 return std__traits__fmt_u64((uint64_t)v);
@@ -595,7 +595,7 @@ tests__features__test_syntax__PointWithDefaults tests__features__test_syntax__Po
 }
 
 tests__features__test_syntax__PointWithDefaults tests__features__test_syntax__PointWithDefaults_add_offset(tests__features__test_syntax__PointWithDefaults* self, int32_t dx, int32_t dy) {
-return tests__features__test_syntax__PointWithDefaults_init((self->x + dx), (self->y + dy));
+return tests__features__test_syntax__PointWithDefaults_init(self->x + dx, self->y + dy);
 }
 
 kobel_str tests__features__test_syntax__SafeNode_get_name(tests__features__test_syntax__SafeNode* self) {
@@ -611,7 +611,7 @@ return kobel_concat(4, greeting, KOBEL_STR(", "), name, punctuation);
 }
 
 int32_t tests__features__test_syntax__add_nums_default(int32_t a, int32_t b, int32_t c) {
-return ((a + b) + c);
+return a + b + c;
 }
 
 bool tests__features__test_syntax__test_compound_assign(void) {
@@ -647,26 +647,26 @@ int32_t total = 0;
 int32_t __for_e = 5;
 int32_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 int32_t i = __for_i;
 total += i;
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -748,7 +748,7 @@ kobel_str tests__features__test_syntax__helper_when_yield(int32_t k) {
 if (k == 10) {
 return KOBEL_STR("ten");
 } else if (k == 20) {
-int32_t doubled = (k * 2);
+int32_t doubled = k * 2;
 return kobel_concat(2, KOBEL_STR("calculated_"), i32_to_str(doubled));
 } else {
 return KOBEL_STR("default_value");
@@ -787,7 +787,7 @@ kobel_str category;
 if (a > b) {
 category = KOBEL_STR("greater");
 } else if (a < b) {
-int32_t diff = (b - a);
+int32_t diff = b - a;
 category = kobel_concat(2, KOBEL_STR("smaller_by_"), i32_to_str(diff));
 goto __when_end_3;
 } else {
@@ -836,27 +836,27 @@ if (tests__features__test_syntax__add_nums_default(5, 1, 2) != 8) {
 return false;
 }
 tests__features__test_syntax__ConfigWithDefaults c1 = (tests__features__test_syntax__ConfigWithDefaults){ KOBEL_STR("localhost"), 8080, false, std__collections__List_str_init(NULL, 0) };
-if (!kobel_streq(c1.host, KOBEL_STR("localhost")) || (c1.port != 8080) || (c1.debug != false) || (c1.tags.len != 0)) {
+if (!kobel_streq(c1.host, KOBEL_STR("localhost")) || c1.port != 8080 || c1.debug != false || c1.tags.len != 0) {
 return false;
 }
 tests__features__test_syntax__ConfigWithDefaults c2 = (tests__features__test_syntax__ConfigWithDefaults){ KOBEL_STR("0.0.0.0"), 3000, true, std__collections__List_str_init(NULL, 0) };
-if (!kobel_streq(c2.host, KOBEL_STR("0.0.0.0")) || (c2.port != 3000) || (c2.debug != true)) {
+if (!kobel_streq(c2.host, KOBEL_STR("0.0.0.0")) || c2.port != 3000 || c2.debug != true) {
 return false;
 }
 tests__features__test_syntax__PointWithDefaults p0 = tests__features__test_syntax__PointWithDefaults_init(0, 0);
-if ((p0.x != 0) || (p0.y != 0)) {
+if (p0.x != 0 || p0.y != 0) {
 return false;
 }
 tests__features__test_syntax__PointWithDefaults p1 = tests__features__test_syntax__PointWithDefaults_init(10, 0);
-if ((p1.x != 10) || (p1.y != 0)) {
+if (p1.x != 10 || p1.y != 0) {
 return false;
 }
 tests__features__test_syntax__PointWithDefaults p2 = tests__features__test_syntax__PointWithDefaults_init(10, 20);
-if ((p2.x != 10) || (p2.y != 20)) {
+if (p2.x != 10 || p2.y != 20) {
 return false;
 }
 tests__features__test_syntax__PointWithDefaults p3 = tests__features__test_syntax__PointWithDefaults_add_offset(&p2, 5, 5);
-if ((p3.x != 15) || (p3.y != 25)) {
+if (p3.x != 15 || p3.y != 25) {
 return false;
 }
 return true;
@@ -938,31 +938,31 @@ int32_t break_count = 0;
 int32_t __for_e = 5;
 int32_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i <= __for_e);
+__for_go = __for_i <= __for_e;
 } else {
-__for_go = (__for_i >= __for_e);
+__for_go = __for_i >= __for_e;
 }
 while (__for_go) {
 int32_t i = __for_i;
-int32_t* p = ((i == 3) ? NULL : &x);
+int32_t* p = i == 3 ? NULL : &x;
 int32_t* unwrapped = p;
 if (unwrapped == NULL) {
 break;
 }
-break_count = (break_count + 1);
+break_count = break_count + 1;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -973,65 +973,65 @@ return false;
 tests__features__test_syntax__Counter c = (tests__features__test_syntax__Counter){ 0 };
 int32_t* res1 = tests__features__test_syntax__track_ptr(&x, &c);
 if (res1 == NULL) res1 = &y;
-if ((c.count != 1) || (*res1 != 10)) {
+if (c.count != 1 || *res1 != 10) {
 return false;
 }
 c.count = 0;
 int32_t* res2 = tests__features__test_syntax__track_ptr(NULL, &c);
 if (res2 == NULL) res2 = &y;
-if ((c.count != 1) || (*res2 != 20)) {
+if (c.count != 1 || *res2 != 20) {
 return false;
 }
 c.count = 0;
 int32_t* res3 = &x;
 res3 = tests__features__test_syntax__track_ptr(&y, &c);
 if (res3 == NULL) res3 = &x;
-if ((c.count != 1) || (*res3 != 20)) {
+if (c.count != 1 || *res3 != 20) {
 return false;
 }
 c.count = 0;
 res3 = tests__features__test_syntax__track_ptr(NULL, &c);
 if (res3 == NULL) res3 = &x;
-if ((c.count != 1) || (*res3 != 10)) {
+if (c.count != 1 || *res3 != 10) {
 return false;
 }
 c.count = 0;
 int32_t* res4 = tests__features__test_syntax__ret_elvis(&x, &y, &c);
-if ((c.count != 1) || (*res4 != 10)) {
+if (c.count != 1 || *res4 != 10) {
 return false;
 }
 c.count = 0;
 int32_t* res5 = tests__features__test_syntax__ret_elvis(NULL, &y, &c);
-if ((c.count != 1) || (*res5 != 20)) {
+if (c.count != 1 || *res5 != 20) {
 return false;
 }
 c.count = 0;
 int32_t* res6 = tests__features__test_syntax__arrow_elvis(&x, &y, &c);
-if ((c.count != 1) || (*res6 != 10)) {
+if (c.count != 1 || *res6 != 10) {
 return false;
 }
 c.count = 0;
 int32_t* res7 = tests__features__test_syntax__arrow_elvis(NULL, &y, &c);
-if ((c.count != 1) || (*res7 != 20)) {
+if (c.count != 1 || *res7 != 20) {
 return false;
 }
 c.count = 0;
 int32_t* res8 = tests__features__test_syntax__track_ptr(&x, &c);
 if (res8 == NULL) res8 = tests__features__test_syntax__track_ptr(&y, &c);
 if (res8 == NULL) res8 = &y;
-if ((c.count != 1) || (*res8 != 10)) {
+if (c.count != 1 || *res8 != 10) {
 return false;
 }
 c.count = 0;
 int32_t* res9 = tests__features__test_syntax__track_ptr(NULL, &c);
 if (res9 == NULL) res9 = tests__features__test_syntax__track_ptr(&y, &c);
 if (res9 == NULL) res9 = &x;
-if ((c.count != 2) || (*res9 != 20)) {
+if (c.count != 2 || *res9 != 20) {
 return false;
 }
 c.count = 0;
 const char* p_null_char = NULL;
-kobel_str s_null = kobel_from_cstr((const char*)(p_null_char));
+kobel_str s_null = kobel_from_cstr((const char*)p_null_char);
 kobel_str s1 = s_null;
 if (s1.data == NULL) s1 = KOBEL_STR("fallback");
 if (!kobel_streq(s1, KOBEL_STR("fallback"))) {
@@ -1053,45 +1053,45 @@ int32_t cont_count = 0;
 int32_t __for_e = 5;
 int32_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 int32_t i = __for_i;
-int32_t* p = (((i % 2) == 0) ? NULL : &x);
+int32_t* p = i % 2 == 0 ? NULL : &x;
 int32_t* unwrapped = p;
 if (unwrapped == NULL) {
 {
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 continue;
 }
 }
-cont_count = (cont_count + 1);
+cont_count = cont_count + 1;
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -1154,7 +1154,7 @@ if (!smart_cast_ok) {
 return false;
 }
 bool compound_ok = false;
-if ((opt_p != NULL) && (*opt_p == 10)) {
+if (opt_p != NULL && *opt_p == 10) {
 compound_ok = true;
 }
 if (!compound_ok) {
@@ -1176,7 +1176,7 @@ int32_t* while_p = &x;
 int32_t while_count = 0;
 while (while_p != NULL) {
 int32_t* nn_p3 = while_p;
-while_count = (while_count + *nn_p3);
+while_count = while_count + *nn_p3;
 while_p = NULL;
 }
 if (while_count != 10) {
@@ -1188,14 +1188,14 @@ return true;
 kobel_str tests__features__test_syntax__safe_call_chain_ret(tests__features__test_syntax__SafeNode* node) {
 {
 kobel_str __ret_tmp;
-__ret_tmp = ((node != NULL ? node->child : NULL) != NULL ? (node != NULL ? node->child : NULL)->name : kobel_null_str());
+__ret_tmp = (node != NULL ? node->child : NULL) != NULL ? (node != NULL ? node->child : NULL)->name : kobel_null_str();
 if (__ret_tmp.data != NULL) return __ret_tmp;
 return KOBEL_STR("none");
 }
 }
 
 kobel_str tests__features__test_syntax__safe_call_jump_ret(tests__features__test_syntax__SafeNode* node) {
-kobel_str name = ((node != NULL ? node->child : NULL) != NULL ? (node != NULL ? node->child : NULL)->name : kobel_null_str());
+kobel_str name = (node != NULL ? node->child : NULL) != NULL ? (node != NULL ? node->child : NULL)->name : kobel_null_str();
 if (name.data == NULL) {
 return KOBEL_STR("escaped");
 }
@@ -1204,30 +1204,30 @@ return name;
 
 bool tests__features__test_syntax__test_safe_calls(void) {
 tests__features__test_syntax__SafeNode* null_node = NULL;
-kobel_str s1 = (null_node != NULL ? null_node->name : kobel_null_str());
+kobel_str s1 = null_node != NULL ? null_node->name : kobel_null_str();
 if (s1.data == NULL) s1 = KOBEL_STR("fallback");
 if (!kobel_streq(s1, KOBEL_STR("fallback"))) {
 return false;
 }
 tests__features__test_syntax__SafeNode leaf = (tests__features__test_syntax__SafeNode){ KOBEL_STR("leaf"), NULL, NULL };
-kobel_str s2 = ((&leaf) != NULL ? (&leaf)->name : kobel_null_str());
+kobel_str s2 = (&leaf) != NULL ? (&leaf)->name : kobel_null_str();
 if (s2.data == NULL) s2 = KOBEL_STR("fallback");
 if (!kobel_streq(s2, KOBEL_STR("leaf"))) {
 return false;
 }
 tests__features__test_syntax__SafeNode root = (tests__features__test_syntax__SafeNode){ KOBEL_STR("root"), NULL, &leaf };
-kobel_str s3 = (((&root) != NULL ? (&root)->child : NULL) != NULL ? ((&root) != NULL ? (&root)->child : NULL)->name : kobel_null_str());
+kobel_str s3 = ((&root) != NULL ? (&root)->child : NULL) != NULL ? ((&root) != NULL ? (&root)->child : NULL)->name : kobel_null_str();
 if (s3.data == NULL) s3 = KOBEL_STR("fallback");
 if (!kobel_streq(s3, KOBEL_STR("leaf"))) {
 return false;
 }
-kobel_str s4 = ((null_node != NULL ? null_node->child : NULL) != NULL ? (null_node != NULL ? null_node->child : NULL)->name : kobel_null_str());
+kobel_str s4 = (null_node != NULL ? null_node->child : NULL) != NULL ? (null_node != NULL ? null_node->child : NULL)->name : kobel_null_str();
 if (s4.data == NULL) s4 = KOBEL_STR("fallback");
 if (!kobel_streq(s4, KOBEL_STR("fallback"))) {
 return false;
 }
 tests__features__test_syntax__SafeNode lonely = (tests__features__test_syntax__SafeNode){ KOBEL_STR("lonely"), NULL, NULL };
-kobel_str s5 = (((&lonely) != NULL ? (&lonely)->child : NULL) != NULL ? ((&lonely) != NULL ? (&lonely)->child : NULL)->name : kobel_null_str());
+kobel_str s5 = ((&lonely) != NULL ? (&lonely)->child : NULL) != NULL ? ((&lonely) != NULL ? (&lonely)->child : NULL)->name : kobel_null_str();
 if (s5.data == NULL) s5 = KOBEL_STR("fallback");
 if (!kobel_streq(s5, KOBEL_STR("fallback"))) {
 return false;
@@ -1250,22 +1250,22 @@ return false;
 if (!kobel_streq(tests__features__test_syntax__safe_call_chain_ret(&root), KOBEL_STR("leaf"))) {
 return false;
 }
-kobel_str m1 = ((null_node != NULL) ? tests__features__test_syntax__SafeNode_get_name(null_node) : kobel_null_str());
+kobel_str m1 = null_node != NULL ? tests__features__test_syntax__SafeNode_get_name(null_node) : kobel_null_str();
 if (m1.data == NULL) m1 = KOBEL_STR("no-name");
 if (!kobel_streq(m1, KOBEL_STR("no-name"))) {
 return false;
 }
-kobel_str m2 = (((&leaf) != NULL) ? tests__features__test_syntax__SafeNode_get_name((&leaf)) : kobel_null_str());
+kobel_str m2 = &leaf != NULL ? tests__features__test_syntax__SafeNode_get_name(&leaf) : kobel_null_str();
 if (m2.data == NULL) m2 = KOBEL_STR("no-name");
 if (!kobel_streq(m2, KOBEL_STR("leaf"))) {
 return false;
 }
-tests__features__test_syntax__SafeNode* m3 = (((&root) != NULL) ? tests__features__test_syntax__SafeNode_get_child((&root)) : NULL);
+tests__features__test_syntax__SafeNode* m3 = &root != NULL ? tests__features__test_syntax__SafeNode_get_child(&root) : NULL;
 if (m3 == NULL) m3 = NULL;
 if (m3 == NULL) {
 return false;
 }
-kobel_str m3_name = (m3 != NULL ? m3->name : kobel_null_str());
+kobel_str m3_name = m3 != NULL ? m3->name : kobel_null_str();
 if (m3_name.data == NULL) m3_name = KOBEL_STR("");
 if (!kobel_streq(m3_name, KOBEL_STR("leaf"))) {
 return false;
@@ -1275,47 +1275,47 @@ int32_t cont_count = 0;
 int32_t __for_e = 4;
 int32_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 int32_t i = __for_i;
-tests__features__test_syntax__SafeNode* node_opt = ((i == 2) ? &root : NULL);
-kobel_str child_name = ((node_opt != NULL ? node_opt->child : NULL) != NULL ? (node_opt != NULL ? node_opt->child : NULL)->name : kobel_null_str());
+tests__features__test_syntax__SafeNode* node_opt = i == 2 ? &root : NULL;
+kobel_str child_name = (node_opt != NULL ? node_opt->child : NULL) != NULL ? (node_opt != NULL ? node_opt->child : NULL)->name : kobel_null_str();
 if (child_name.data == NULL) {
 {
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 continue;
 }
 }
 if (kobel_streq(child_name, KOBEL_STR("leaf"))) {
-cont_count = (cont_count + 1);
+cont_count = cont_count + 1;
 }
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -1331,15 +1331,15 @@ return false;
 tests__features__test_syntax__SafeNode* mut_slot = NULL;
 tests__features__test_syntax__SafeNode** mut_ref = &mut_slot;
 mut_ref[0] = &leaf;
-if (!kobel_streq((((mut_ref[0]) != NULL && (mut_ref[0])->name.data != NULL) ? (mut_ref[0])->name : KOBEL_STR("")), KOBEL_STR("leaf"))) {
+if (!kobel_streq(mut_ref[0] != NULL && mut_ref[0]->name.data != NULL ? mut_ref[0]->name : KOBEL_STR(""), KOBEL_STR("leaf"))) {
 return false;
 }
 tests__features__test_syntax__SafeNode* mut_ptr = &leaf;
-if (!kobel_streq(((mut_ptr != NULL && mut_ptr->name.data != NULL) ? mut_ptr->name : KOBEL_STR("")), KOBEL_STR("leaf"))) {
+if (!kobel_streq(mut_ptr != NULL && mut_ptr->name.data != NULL ? mut_ptr->name : KOBEL_STR(""), KOBEL_STR("leaf"))) {
 return false;
 }
 tests__features__test_syntax__SafeNode* casted_null = (tests__features__test_syntax__SafeNode*)mut_ptr;
-if (!kobel_streq(((casted_null != NULL && casted_null->name.data != NULL) ? casted_null->name : KOBEL_STR("")), KOBEL_STR("leaf"))) {
+if (!kobel_streq(casted_null != NULL && casted_null->name.data != NULL ? casted_null->name : KOBEL_STR(""), KOBEL_STR("leaf"))) {
 return false;
 }
 return true;
@@ -1365,7 +1365,7 @@ if (!kobel_streq(s4, KOBEL_STR("Hello Kobel! You have 3 messages."))) {
 return false;
 }
 std__collections__Array_str arr = std__collections__Array_str_init((kobel_str[]){ KOBEL_STR("foobar"), KOBEL_STR("baz") }, 2);
-if ((arr.len != 2) || !kobel_streq(std__collections__Array_str_get(&arr, 0), KOBEL_STR("foobar")) || !kobel_streq(std__collections__Array_str_get(&arr, 1), KOBEL_STR("baz"))) {
+if (arr.len != 2 || !kobel_streq(std__collections__Array_str_get(&arr, 0), KOBEL_STR("foobar")) || !kobel_streq(std__collections__Array_str_get(&arr, 1), KOBEL_STR("baz"))) {
 return false;
 }
 return true;
@@ -1534,32 +1534,32 @@ return 0;
 }
 
 std__collections__List_str std__collections__List_str_init(kobel_str* items_data, size_t items_len) {
-size_t cap = ((items_len < 4) ? 4 : items_len);
+size_t cap = items_len < 4 ? 4 : items_len;
 kobel_str* buf = std__memory__Heap_create_str(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t i = __for_i;
 buf[i] = items_data[i];
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -1576,7 +1576,7 @@ self->len++;
 }
 
 void std__collections__List_str_grow(std__collections__List_str* self) {
-size_t new_cap = (self->cap * 2);
+size_t new_cap = self->cap * 2;
 self->data = std__memory__Heap_resize_str(self->data, new_cap);
 self->cap = new_cap;
 }
@@ -1586,12 +1586,12 @@ intptr_t std__collections__List_str_index_of(std__collections__List_str* self, k
 size_t __for_e = self->len;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t i = __for_i;
@@ -1599,15 +1599,15 @@ if (kobel_streq(self->data[i], value)) {
 return i;
 }
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -1620,7 +1620,7 @@ void std__collections__List_str_free(std__collections__List_str self) {
 }
 
 bool std__collections__List_str_contains(std__collections__List_str* self, kobel_str value) {
-    return (std__collections__List_str_index_of(self, value) != -1);
+    return std__collections__List_str_index_of(self, value) != -1;
 }
 
 void std__collections__List_str_plus_assign(std__collections__List_str* self, kobel_str value) {
@@ -1648,26 +1648,26 @@ bool* occ = std__memory__Heap_create_bool(cap);
 size_t __for_e = cap;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t i = __for_i;
 occ[i] = false;
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -1681,7 +1681,7 @@ kobel_str* old_keys = self->keys;
 int32_t* old_vals = self->values;
 size_t* old_hashes = self->hashes;
 bool* old_occ = self->occupied;
-size_t new_cap = ((old_cap < 8) ? 16 : (old_cap * 2));
+size_t new_cap = old_cap < 8 ? 16 : old_cap * 2;
 kobel_str* keys = std__memory__Heap_create_str(new_cap);
 int32_t* values = std__memory__Heap_create_i32(new_cap);
 size_t* hashes = std__memory__Heap_create_usz(new_cap);
@@ -1690,26 +1690,26 @@ bool* new_occ = std__memory__Heap_create_bool(new_cap);
 size_t __for_e = new_cap;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t j = __for_i;
 new_occ[j] = false;
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -1719,20 +1719,20 @@ if (old_cap > 0) {
 size_t __for_e = old_cap;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t i = __for_i;
 if (old_occ[i]) {
 size_t h = old_hashes[i];
-size_t idx = (h % new_cap);
+size_t idx = h % new_cap;
 while (new_occ[idx]) {
-idx = ((idx + 1) % new_cap);
+idx = (idx + 1) % new_cap;
 }
 keys[idx] = old_keys[i];
 values[idx] = old_vals[i];
@@ -1740,15 +1740,15 @@ hashes[idx] = h;
 new_occ[idx] = true;
 }
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -1775,17 +1775,17 @@ std__memory__Heap_free_bool(self.occupied);
 }
 
 void std__collections__HashMap_str_i32_set(std__collections__HashMap_str_i32* self, kobel_str key, int32_t value) {
-if ((self->cap == 0) || ((self->len * 10) >= (self->cap * 7))) {
+if (self->cap == 0 || self->len * 10 >= self->cap * 7) {
 std__collections__HashMap_str_i32_grow(self);
 }
 size_t h = str_hash(key);
-size_t idx = (h % self->cap);
+size_t idx = h % self->cap;
 while (self->occupied[idx]) {
-if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
+if (self->hashes[idx] == h && kobel_streq(self->keys[idx], key)) {
 self->values[idx] = value;
 return;
 }
-idx = ((idx + 1) % self->cap);
+idx = (idx + 1) % self->cap;
 }
 self->keys[idx] = key;
 self->values[idx] = value;
@@ -1795,16 +1795,16 @@ self->len++;
 }
 
 bool std__collections__HashMap_str_i32_contains(std__collections__HashMap_str_i32* self, kobel_str key) {
-if ((self->len == 0) || (self->cap == 0)) {
+if (self->len == 0 || self->cap == 0) {
 return false;
 }
 size_t h = str_hash(key);
-size_t idx = (h % self->cap);
+size_t idx = h % self->cap;
 while (self->occupied[idx]) {
-if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
+if (self->hashes[idx] == h && kobel_streq(self->keys[idx], key)) {
 return true;
 }
-idx = ((idx + 1) % self->cap);
+idx = (idx + 1) % self->cap;
 }
 return false;
 }
@@ -1821,26 +1821,26 @@ bool* occ = std__memory__Heap_create_bool(cap);
 size_t __for_e = cap;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t i = __for_i;
 occ[i] = false;
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -1849,16 +1849,16 @@ return (std__collections__HashSet_str){ keys, hashes, occ, 0, cap };
 }
 
 bool std__collections__HashSet_str_add(std__collections__HashSet_str* self, kobel_str key) {
-if ((self->cap == 0) || ((self->len * 10) >= (self->cap * 7))) {
+if (self->cap == 0 || self->len * 10 >= self->cap * 7) {
 std__collections__HashSet_str_grow(self);
 }
 size_t h = str_hash(key);
-size_t idx = (h % self->cap);
+size_t idx = h % self->cap;
 while (self->occupied[idx]) {
-if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
+if (self->hashes[idx] == h && kobel_streq(self->keys[idx], key)) {
 return false;
 }
-idx = ((idx + 1) % self->cap);
+idx = (idx + 1) % self->cap;
 }
 self->keys[idx] = key;
 self->hashes[idx] = h;
@@ -1872,7 +1872,7 @@ size_t old_cap = self->cap;
 kobel_str* old_keys = self->keys;
 size_t* old_hashes = self->hashes;
 bool* old_occ = self->occupied;
-size_t new_cap = ((old_cap < 8) ? 16 : (old_cap * 2));
+size_t new_cap = old_cap < 8 ? 16 : old_cap * 2;
 kobel_str* keys = std__memory__Heap_create_str(new_cap);
 size_t* hashes = std__memory__Heap_create_usz(new_cap);
 bool* new_occ = std__memory__Heap_create_bool(new_cap);
@@ -1880,26 +1880,26 @@ bool* new_occ = std__memory__Heap_create_bool(new_cap);
 size_t __for_e = new_cap;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t j = __for_i;
 new_occ[j] = false;
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -1909,35 +1909,35 @@ if (old_cap > 0) {
 size_t __for_e = old_cap;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t i = __for_i;
 if (old_occ[i]) {
 size_t h = old_hashes[i];
-size_t idx = (h % new_cap);
+size_t idx = h % new_cap;
 while (new_occ[idx]) {
-idx = ((idx + 1) % new_cap);
+idx = (idx + 1) % new_cap;
 }
 keys[idx] = old_keys[i];
 hashes[idx] = h;
 new_occ[idx] = true;
 }
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -1965,16 +1965,16 @@ bool std__collections__HashSet_str_plus_assign(std__collections__HashSet_str* se
 }
 
 bool std__collections__HashSet_str_contains(std__collections__HashSet_str* self, kobel_str key) {
-if ((self->len == 0) || (self->cap == 0)) {
+if (self->len == 0 || self->cap == 0) {
 return false;
 }
 size_t h = str_hash(key);
-size_t idx = (h % self->cap);
+size_t idx = h % self->cap;
 while (self->occupied[idx]) {
-if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
+if (self->hashes[idx] == h && kobel_streq(self->keys[idx], key)) {
 return true;
 }
-idx = ((idx + 1) % self->cap);
+idx = (idx + 1) % self->cap;
 }
 return false;
 }
@@ -1988,27 +1988,27 @@ void std__memory__Heap_free_i32(int32_t* ptr) {
 }
 
 uint8_t* std__memory__Heap_create_u8(size_t count) {
-    return (uint8_t*)malloc((count * 1));
+    return (uint8_t*)malloc(count * 1);
 }
 
 kobel_str* std__memory__Heap_create_str(size_t count) {
-    return (kobel_str*)malloc((count * 16));
+    return (kobel_str*)malloc(count * 16);
 }
 
 kobel_str* std__memory__Heap_resize_str(kobel_str* ptr, size_t count) {
-    return (kobel_str*)realloc((uint8_t*)ptr, (count * 16));
+    return (kobel_str*)realloc((uint8_t*)ptr, count * 16);
 }
 
 int32_t* std__memory__Heap_create_i32(size_t count) {
-    return (int32_t*)malloc((count * 4));
+    return (int32_t*)malloc(count * 4);
 }
 
 size_t* std__memory__Heap_create_usz(size_t count) {
-    return (size_t*)malloc((count * 8));
+    return (size_t*)malloc(count * 8);
 }
 
 bool* std__memory__Heap_create_bool(size_t count) {
-    return (bool*)malloc((count * 1));
+    return (bool*)malloc(count * 1);
 }
 
 void std__memory__Heap_free_usz(size_t* ptr) {

@@ -306,7 +306,7 @@ int32_t test__self_move__Point_into_sum(test__self_move__Point self);
 int32_t main(void);
 
 int32_t test__self_move__Point_sum(test__self_move__Point* self) {
-    return (self->x + self->y);
+    return self->x + self->y;
 }
 
 void test__self_move__Point_translate(test__self_move__Point* self, int32_t dx, int32_t dy) {
@@ -315,7 +315,7 @@ self->y += dy;
 }
 
 int32_t test__self_move__Point_into_sum(test__self_move__Point self) {
-    return (self.x + self.y);
+    return self.x + self.y;
 }
 
 int32_t main(void) {
@@ -324,7 +324,7 @@ if (test__self_move__Point_sum(&p) != 30) {
 return 1;
 }
 test__self_move__Point_translate(&p, 5, 5);
-if ((p.x != 15) || (p.y != 25)) {
+if (p.x != 15 || p.y != 25) {
 return 2;
 }
 if (test__self_move__Point_sum(&p) != 40) {

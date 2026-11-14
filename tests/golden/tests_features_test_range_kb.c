@@ -370,12 +370,12 @@ size_t std__range__Range_i64_count(std__range__Range_i64* self);
 kobel_str std__string__str_from_bytes(uint8_t* buf, size_t len) {
 std__string__StrRaw r = (std__string__StrRaw){ (const char*)buf, len };
 kobel_str* sp = (kobel_str*)&r;
-return (*(sp));
+return *sp;
 }
 
 kobel_str std__traits__fmt_u64(uint64_t n0) {
 if (n0 < 10) {
-return ((uint8_t)n0 == 0 ? KOBEL_STR("0") : ((uint8_t)n0 == 1 ? KOBEL_STR("1") : ((uint8_t)n0 == 2 ? KOBEL_STR("2") : ((uint8_t)n0 == 3 ? KOBEL_STR("3") : ((uint8_t)n0 == 4 ? KOBEL_STR("4") : ((uint8_t)n0 == 5 ? KOBEL_STR("5") : ((uint8_t)n0 == 6 ? KOBEL_STR("6") : ((uint8_t)n0 == 7 ? KOBEL_STR("7") : ((uint8_t)n0 == 8 ? KOBEL_STR("8") : KOBEL_STR("9"))))))))));
+return ((uint8_t)n0) == 0 ? KOBEL_STR("0") : ((uint8_t)n0) == 1 ? KOBEL_STR("1") : ((uint8_t)n0) == 2 ? KOBEL_STR("2") : ((uint8_t)n0) == 3 ? KOBEL_STR("3") : ((uint8_t)n0) == 4 ? KOBEL_STR("4") : ((uint8_t)n0) == 5 ? KOBEL_STR("5") : ((uint8_t)n0) == 6 ? KOBEL_STR("6") : ((uint8_t)n0) == 7 ? KOBEL_STR("7") : ((uint8_t)n0) == 8 ? KOBEL_STR("8") : KOBEL_STR("9");
 }
 uint64_t n = n0;
 size_t digits = 1;
@@ -384,12 +384,12 @@ while (probe >= 10) {
 probe /= 10;
 digits++;
 }
-uint8_t* buf = std__memory__Heap_create_u8((digits + 1));
+uint8_t* buf = std__memory__Heap_create_u8(digits + 1);
 buf[digits] = 0;
 size_t i = digits;
 while (i > 0) {
 i--;
-buf[i] = (uint8_t)(48 + (n % 10));
+buf[i] = (uint8_t)(48 + n % 10);
 n /= 10;
 }
 return std__string__str_from_bytes(buf, digits);
@@ -397,7 +397,7 @@ return std__string__str_from_bytes(buf, digits);
 
 kobel_str std__traits__fmt_i64(int64_t v) {
 if (v < 0) {
-uint64_t mag = ((uint64_t)(0 - (v + 1)) + 1);
+uint64_t mag = (uint64_t)(0 - (v + 1)) + 1;
 return kobel_concat(2, KOBEL_STR("-"), std__traits__fmt_u64(mag));
 }
 return std__traits__fmt_u64((uint64_t)v);
@@ -452,24 +452,24 @@ std__process__Process_exit(1);
 }
 
 int32_t test__test_range__classify_char(char c) {
-    return ((((c) >= ('a') && (c) <= ('z')) || ((c) <= ('a') && (c) >= ('z'))) || (((c) >= ('A') && (c) <= ('Z')) || ((c) <= ('A') && (c) >= ('Z'))) ? 1 : ((((c) >= ('0') && (c) <= ('9')) || ((c) <= ('0') && (c) >= ('9'))) ? 2 : 0));
+    return (c >= 'a' && c <= 'z') || (c <= 'a' && c >= 'z') || (c >= 'A' && c <= 'Z') || (c <= 'A' && c >= 'Z') ? 1 : (c >= '0' && c <= '9') || (c <= '0' && c >= '9') ? 2 : 0;
 }
 
 int32_t test__test_range__classify_num(int32_t n) {
-    return ((((n) >= (0) && (n) < (10)) || ((n) <= (0) && (n) > (10))) ? 1 : ((((n) >= (10) && (n) <= (20)) || ((n) <= (10) && (n) >= (20))) ? 2 : ((((n) >= (50) && (n) <= (30)) || ((n) <= (50) && (n) >= (30))) ? 3 : 0)));
+    return (n >= 0 && n < 10) || (n <= 0 && n > 10) ? 1 : (n >= 10 && n <= 20) || (n <= 10 && n >= 20) ? 2 : (n >= 50 && n <= 30) || (n <= 50 && n >= 30) ? 3 : 0;
 }
 
 int32_t test__test_range__classify_desc_half(int32_t n) {
-    return ((((n) >= (10) && (n) < (0)) || ((n) <= (10) && (n) > (0))) ? 1 : 0);
+    return (n >= 10 && n < 0) || (n <= 10 && n > 0) ? 1 : 0;
 }
 
 int32_t test__test_range__test_when_stmt(char c) {
 int32_t category = 0;
-if ((((c) >= ('a') && (c) <= ('z')) || ((c) <= ('a') && (c) >= ('z')))) {
+if ((c >= 'a' && c <= 'z') || (c <= 'a' && c >= 'z')) {
 category = 1;
-} else if ((((c) >= ('A') && (c) <= ('Z')) || ((c) <= ('A') && (c) >= ('Z')))) {
+} else if ((c >= 'A' && c <= 'Z') || (c <= 'A' && c >= 'Z')) {
 category = 2;
-} else if ((((c) >= ('0') && (c) <= ('9')) || ((c) <= ('0') && (c) >= ('9')))) {
+} else if ((c >= '0' && c <= '9') || (c <= '0' && c >= '9')) {
 category = 3;
 } else {
 category = -1;
@@ -500,11 +500,11 @@ testsupport__assert__assert_eq_usz(std__range__Range_i32_count(&r3), 11, KOBEL_S
 testsupport__assert__assert_eq_i32(std__range__Range_i32_at(&r3, 0), 10, KOBEL_STR("r3.at(0)"));
 testsupport__assert__assert_eq_i32(std__range__Range_i32_at(&r3, 10), 0, KOBEL_STR("r3.at(10)"));
 std__range__Range_char rc = (std__range__Range_char){ 'a', 'z', true };
-testsupport__assert__assert_true((rc.start == 'a'), KOBEL_STR("rc.start == 'a'"));
-testsupport__assert__assert_true((rc.end == 'z'), KOBEL_STR("rc.end == 'z'"));
+testsupport__assert__assert_true(rc.start == 'a', KOBEL_STR("rc.start == 'a'"));
+testsupport__assert__assert_true(rc.end == 'z', KOBEL_STR("rc.end == 'z'"));
 testsupport__assert__assert_eq_usz(std__range__Range_char_count(&rc), 26, KOBEL_STR("rc.count() == 26"));
-testsupport__assert__assert_true((std__range__Range_char_at(&rc, 0) == 'a'), KOBEL_STR("rc.at(0) == 'a'"));
-testsupport__assert__assert_true((std__range__Range_char_at(&rc, 25) == 'z'), KOBEL_STR("rc.at(25) == 'z'"));
+testsupport__assert__assert_true(std__range__Range_char_at(&rc, 0) == 'a', KOBEL_STR("rc.at(0) == 'a'"));
+testsupport__assert__assert_true(std__range__Range_char_at(&rc, 25) == 'z', KOBEL_STR("rc.at(25) == 'z'"));
 testsupport__assert__assert_true(std__range__Range_i32_equals(&r1, (std__range__Range_i32){ 0, 10, true }), KOBEL_STR("r1 == 0..10"));
 testsupport__assert__assert_true(!std__range__Range_i32_equals(&r1, r2), KOBEL_STR("r1 != r2"));
 std__range__Range_usz r_usz = (std__range__Range_usz){ ((size_t)0ULL), ((size_t)5ULL), false };
@@ -524,27 +524,27 @@ int32_t count = 0;
 int32_t __for_e = 5;
 int32_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i <= __for_e);
+__for_go = __for_i <= __for_e;
 } else {
-__for_go = (__for_i >= __for_e);
+__for_go = __for_i >= __for_e;
 }
 while (__for_go) {
 int32_t i = __for_i;
 sum += i;
 count += 1;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -557,27 +557,27 @@ count = 0;
 int32_t __for_e = 5;
 int32_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 int32_t i = __for_i;
 sum += i;
 count += 1;
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -590,27 +590,27 @@ count = 0;
 int32_t __for_e = 0;
 int32_t __for_i = __for_e;
 __for_i = 5;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i <= __for_e);
+__for_go = __for_i <= __for_e;
 } else {
-__for_go = (__for_i >= __for_e);
+__for_go = __for_i >= __for_e;
 }
 while (__for_go) {
 int32_t i = __for_i;
 sum += i;
 count += 1;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -623,27 +623,27 @@ count = 0;
 int32_t __for_e = 0;
 int32_t __for_i = __for_e;
 __for_i = 5;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 int32_t i = __for_i;
 sum += i;
 count += 1;
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -657,12 +657,12 @@ int32_t char_count = 0;
 char __for_e = 'e';
 char __for_i = __for_e;
 __for_i = 'a';
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i <= __for_e);
+__for_go = __for_i <= __for_e;
 } else {
-__for_go = (__for_i >= __for_e);
+__for_go = __for_i >= __for_e;
 }
 while (__for_go) {
 char c = __for_i;
@@ -672,33 +672,33 @@ first_c = c;
 last_c = c;
 char_count += 1;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
 }
 testsupport__assert__assert_eq_i32(char_count, 5, KOBEL_STR("char_count 'a'..'e'"));
-testsupport__assert__assert_true((first_c == 'a'), KOBEL_STR("first char 'a'"));
-testsupport__assert__assert_true((last_c == 'e'), KOBEL_STR("last char 'e'"));
+testsupport__assert__assert_true(first_c == 'a', KOBEL_STR("first char 'a'"));
+testsupport__assert__assert_true(last_c == 'e', KOBEL_STR("last char 'e'"));
 char_count = 0;
 {
 char __for_e = 'a';
 char __for_i = __for_e;
 __for_i = 'e';
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i <= __for_e);
+__for_go = __for_i <= __for_e;
 } else {
-__for_go = (__for_i >= __for_e);
+__for_go = __for_i >= __for_e;
 }
 while (__for_go) {
 char c = __for_i;
@@ -708,79 +708,79 @@ first_c = c;
 last_c = c;
 char_count += 1;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
 }
 testsupport__assert__assert_eq_i32(char_count, 5, KOBEL_STR("char_count 'e'..'a'"));
-testsupport__assert__assert_true((first_c == 'e'), KOBEL_STR("first char 'e'"));
-testsupport__assert__assert_true((last_c == 'a'), KOBEL_STR("last char 'a'"));
+testsupport__assert__assert_true(first_c == 'e', KOBEL_STR("first char 'e'"));
+testsupport__assert__assert_true(last_c == 'a', KOBEL_STR("last char 'a'"));
 char_count = 0;
 {
 char __for_e = 'e';
 char __for_i = __for_e;
 __for_i = 'a';
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 char c = __for_i;
 last_c = c;
 char_count += 1;
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
 }
 testsupport__assert__assert_eq_i32(char_count, 4, KOBEL_STR("char_count 'a'..<'e'"));
-testsupport__assert__assert_true((last_c == 'd'), KOBEL_STR("last char 'd'"));
+testsupport__assert__assert_true(last_c == 'd', KOBEL_STR("last char 'd'"));
 sum = 0;
 {
 int32_t __for_e = 3;
 int32_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i <= __for_e);
+__for_go = __for_i <= __for_e;
 } else {
-__for_go = (__for_i >= __for_e);
+__for_go = __for_i >= __for_e;
 }
 while (__for_go) {
 int32_t i = __for_i;
 sum += i;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -791,26 +791,26 @@ size_t u_sum = 0;
 size_t __for_e = ((size_t)5ULL);
 size_t __for_i = __for_e;
 __for_i = ((size_t)0ULL);
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t u = __for_i;
 u_sum += u;
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -821,26 +821,26 @@ u_sum = 0;
 size_t __for_e = ((size_t)0ULL);
 size_t __for_i = __for_e;
 __for_i = ((size_t)5ULL);
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i <= __for_e);
+__for_go = __for_i <= __for_e;
 } else {
-__for_go = (__for_i >= __for_e);
+__for_go = __for_i >= __for_e;
 }
 while (__for_go) {
 size_t u = __for_i;
 u_sum += u;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -851,26 +851,26 @@ u_sum = 0;
 size_t __for_e = ((size_t)0ULL);
 size_t __for_i = __for_e;
 __for_i = ((size_t)5ULL);
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t u = __for_i;
 u_sum += u;
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -881,86 +881,86 @@ int64_t l_sum = 0;
 int64_t __for_e = 3LL;
 int64_t __for_i = __for_e;
 __for_i = 0LL;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i <= __for_e);
+__for_go = __for_i <= __for_e;
 } else {
-__for_go = (__for_i >= __for_e);
+__for_go = __for_i >= __for_e;
 }
 while (__for_go) {
 int64_t l = __for_i;
 l_sum += l;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
 }
-testsupport__assert__assert_true((l_sum == 6LL), KOBEL_STR("l_sum 0L..3L"));
+testsupport__assert__assert_true(l_sum == 6LL, KOBEL_STR("l_sum 0L..3L"));
 l_sum = 0;
 {
 int64_t __for_e = 0LL;
 int64_t __for_i = __for_e;
 __for_i = 3LL;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i <= __for_e);
+__for_go = __for_i <= __for_e;
 } else {
-__for_go = (__for_i >= __for_e);
+__for_go = __for_i >= __for_e;
 }
 while (__for_go) {
 int64_t l = __for_i;
 l_sum += l;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
 }
-testsupport__assert__assert_true((l_sum == 6LL), KOBEL_STR("l_sum 3L..0L"));
+testsupport__assert__assert_true(l_sum == 6LL, KOBEL_STR("l_sum 3L..0L"));
 bool ran = false;
 {
 int32_t __for_e = 5;
 int32_t __for_i = __for_e;
 __for_i = 5;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 int32_t i = __for_i;
 ran = true;
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -979,7 +979,7 @@ while (__for_i < __for_n) {
 int32_t x = std__range__Range_i32_at(&r_asc, __for_i);
 sum += x;
 count += 1;
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 }
 }
 testsupport__assert__assert_eq_i32(sum, 10, KOBEL_STR("sum via Range variable"));
@@ -994,7 +994,7 @@ while (__for_i < __for_n) {
 int32_t x = std__range__Range_i32_at(&r_desc, __for_i);
 sum += x;
 count += 1;
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 }
 }
 testsupport__assert__assert_eq_i32(sum, 10, KOBEL_STR("sum via descending Range variable"));
@@ -1009,7 +1009,7 @@ while (__for_i < __for_n) {
 int32_t x = std__range__Range_i32_at(&r_half, __for_i);
 sum += x;
 count += 1;
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 }
 }
 testsupport__assert__assert_eq_i32(sum, 6, KOBEL_STR("sum via half-open Range variable"));
@@ -1022,7 +1022,7 @@ size_t __for_i = 0;
 while (__for_i < __for_n) {
 char c = std__range__Range_char_at(&r_char, __for_i);
 c_count += 1;
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 }
 }
 testsupport__assert__assert_eq_i32(c_count, 3, KOBEL_STR("count via char Range variable"));
@@ -1034,7 +1034,7 @@ size_t __for_i = 0;
 while (__for_i < __for_n) {
 size_t u = std__range__Range_usz_at(&r_u, __for_i);
 usum += u;
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 }
 }
 testsupport__assert__assert_eq_usz(usum, 6, KOBEL_STR("usum via Range<usz>"));
@@ -1046,7 +1046,7 @@ size_t __for_i = 0;
 while (__for_i < __for_n) {
 size_t u = std__range__Range_usz_at(&r_ud, __for_i);
 usum += u;
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 }
 }
 testsupport__assert__assert_eq_usz(usum, 10, KOBEL_STR("usum via descending Range<usz>"));
@@ -1064,12 +1064,12 @@ cd_first = c;
 }
 cd_last = c;
 cd_cnt += 1;
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 }
 }
 testsupport__assert__assert_eq_i32(cd_cnt, 3, KOBEL_STR("cd_cnt"));
-testsupport__assert__assert_true((cd_first == 'c'), KOBEL_STR("cd_first == 'c'"));
-testsupport__assert__assert_true((cd_last == 'a'), KOBEL_STR("cd_last == 'a'"));
+testsupport__assert__assert_true(cd_first == 'c', KOBEL_STR("cd_first == 'c'"));
+testsupport__assert__assert_true(cd_last == 'a', KOBEL_STR("cd_last == 'a'"));
 std__range__Range_i32 r_emp = (std__range__Range_i32){ 5, 5, false };
 bool emp_ran = false;
 {
@@ -1078,7 +1078,7 @@ size_t __for_i = 0;
 while (__for_i < __for_n) {
 int32_t x = std__range__Range_i32_at(&r_emp, __for_i);
 emp_ran = true;
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 }
 }
 testsupport__assert__assert_true(!emp_ran, KOBEL_STR("!emp_ran via Range variable"));
@@ -1088,10 +1088,10 @@ void test__test_range__test_containment(void) {
 testsupport__assert__assert_true(std__range__Range_i32_contains(&(std__range__Range_i32){ 0, 10, true }, 5), KOBEL_STR("5 in 0..10"));
 testsupport__assert__assert_true(std__range__Range_i32_contains(&(std__range__Range_i32){ 0, 10, true }, 0), KOBEL_STR("0 in 0..10"));
 testsupport__assert__assert_true(std__range__Range_i32_contains(&(std__range__Range_i32){ 0, 10, true }, 10), KOBEL_STR("10 in 0..10"));
-testsupport__assert__assert_true(!(std__range__Range_i32_contains(&(std__range__Range_i32){ 0, 10, true }, 11)), KOBEL_STR("!(11 in 0..10)"));
+testsupport__assert__assert_true(!std__range__Range_i32_contains(&(std__range__Range_i32){ 0, 10, true }, 11), KOBEL_STR("!(11 in 0..10)"));
 testsupport__assert__assert_true(!std__range__Range_i32_contains(&(std__range__Range_i32){ 0, 10, true }, 11), KOBEL_STR("11 !in 0..10"));
 testsupport__assert__assert_true(std__range__Range_i32_contains(&(std__range__Range_i32){ 0, 10, false }, 9), KOBEL_STR("9 in 0..<10"));
-testsupport__assert__assert_true(!(std__range__Range_i32_contains(&(std__range__Range_i32){ 0, 10, false }, 10)), KOBEL_STR("!(10 in 0..<10)"));
+testsupport__assert__assert_true(!std__range__Range_i32_contains(&(std__range__Range_i32){ 0, 10, false }, 10), KOBEL_STR("!(10 in 0..<10)"));
 testsupport__assert__assert_true(!std__range__Range_i32_contains(&(std__range__Range_i32){ 0, 10, false }, 10), KOBEL_STR("10 !in 0..<10"));
 testsupport__assert__assert_true(std__range__Range_i32_contains(&(std__range__Range_i32){ 10, 0, true }, 5), KOBEL_STR("5 in 10..0"));
 testsupport__assert__assert_true(std__range__Range_i32_contains(&(std__range__Range_i32){ 10, 0, true }, 10), KOBEL_STR("10 in 10..0"));
@@ -1154,122 +1154,122 @@ return 0;
 }
 
 bool std__range__Range_char_is_ascending(std__range__Range_char* self) {
-    return (self->start <= self->end);
+    return self->start <= self->end;
 }
 
 bool std__range__Range_char_contains(std__range__Range_char* self, char item) {
 if (std__range__Range_char_is_ascending(self)) {
 if (self->inclusive) {
-return ((item >= self->start) && (item <= self->end));
+return item >= self->start && item <= self->end;
 }
-return ((item >= self->start) && (item < self->end));
+return item >= self->start && item < self->end;
 }
 if (self->inclusive) {
-return ((item <= self->start) && (item >= self->end));
+return item <= self->start && item >= self->end;
 }
-return ((item <= self->start) && (item > self->end));
+return item <= self->start && item > self->end;
 }
 
 size_t std__range__Range_char_count(std__range__Range_char* self) {
 if (std__range__Range_char_is_ascending(self)) {
 size_t diff = (size_t)(self->end - self->start);
-return (self->inclusive ? (diff + 1) : diff);
+return self->inclusive ? diff + 1 : diff;
 }
 size_t diff = (size_t)(self->start - self->end);
-return (self->inclusive ? (diff + 1) : diff);
+return self->inclusive ? diff + 1 : diff;
 }
 
 char std__range__Range_char_at(std__range__Range_char* self, size_t i) {
 if (std__range__Range_char_is_ascending(self)) {
-return (char)(self->start + ((intptr_t)i));
+return (char)(self->start + (intptr_t)i);
 }
-return (char)(self->start - ((intptr_t)i));
+return (char)(self->start - (intptr_t)i);
 }
 
 uint8_t* std__memory__Heap_create_u8(size_t count) {
-    return (uint8_t*)malloc((count * 1));
+    return (uint8_t*)malloc(count * 1);
 }
 
 bool std__range__Range_i32_is_ascending(std__range__Range_i32* self) {
-    return (self->start <= self->end);
+    return self->start <= self->end;
 }
 
 bool std__range__Range_i32_equals(std__range__Range_i32* self, std__range__Range_i32 other) {
-    return ((self->start == other.start) && (self->end == other.end) && (self->inclusive == other.inclusive));
+    return self->start == other.start && self->end == other.end && self->inclusive == other.inclusive;
 }
 
 bool std__range__Range_i32_contains(std__range__Range_i32* self, int32_t item) {
 if (std__range__Range_i32_is_ascending(self)) {
 if (self->inclusive) {
-return ((item >= self->start) && (item <= self->end));
+return item >= self->start && item <= self->end;
 }
-return ((item >= self->start) && (item < self->end));
+return item >= self->start && item < self->end;
 }
 if (self->inclusive) {
-return ((item <= self->start) && (item >= self->end));
+return item <= self->start && item >= self->end;
 }
-return ((item <= self->start) && (item > self->end));
+return item <= self->start && item > self->end;
 }
 
 size_t std__range__Range_i32_count(std__range__Range_i32* self) {
 if (std__range__Range_i32_is_ascending(self)) {
 size_t diff = (size_t)(self->end - self->start);
-return (self->inclusive ? (diff + 1) : diff);
+return self->inclusive ? diff + 1 : diff;
 }
 size_t diff = (size_t)(self->start - self->end);
-return (self->inclusive ? (diff + 1) : diff);
+return self->inclusive ? diff + 1 : diff;
 }
 
 int32_t std__range__Range_i32_at(std__range__Range_i32* self, size_t i) {
 if (std__range__Range_i32_is_ascending(self)) {
-return (int32_t)(self->start + ((intptr_t)i));
+return (int32_t)(self->start + (intptr_t)i);
 }
-return (int32_t)(self->start - ((intptr_t)i));
+return (int32_t)(self->start - (intptr_t)i);
 }
 
 bool std__range__Range_usz_is_ascending(std__range__Range_usz* self) {
-    return (self->start <= self->end);
+    return self->start <= self->end;
 }
 
 bool std__range__Range_usz_contains(std__range__Range_usz* self, size_t item) {
 if (std__range__Range_usz_is_ascending(self)) {
 if (self->inclusive) {
-return ((item >= self->start) && (item <= self->end));
+return item >= self->start && item <= self->end;
 }
-return ((item >= self->start) && (item < self->end));
+return item >= self->start && item < self->end;
 }
 if (self->inclusive) {
-return ((item <= self->start) && (item >= self->end));
+return item <= self->start && item >= self->end;
 }
-return ((item <= self->start) && (item > self->end));
+return item <= self->start && item > self->end;
 }
 
 size_t std__range__Range_usz_count(std__range__Range_usz* self) {
 if (std__range__Range_usz_is_ascending(self)) {
 size_t diff = (size_t)(self->end - self->start);
-return (self->inclusive ? (diff + 1) : diff);
+return self->inclusive ? diff + 1 : diff;
 }
 size_t diff = (size_t)(self->start - self->end);
-return (self->inclusive ? (diff + 1) : diff);
+return self->inclusive ? diff + 1 : diff;
 }
 
 size_t std__range__Range_usz_at(std__range__Range_usz* self, size_t i) {
 if (std__range__Range_usz_is_ascending(self)) {
-return (size_t)(self->start + ((intptr_t)i));
+return (size_t)(self->start + (intptr_t)i);
 }
-return (size_t)(self->start - ((intptr_t)i));
+return (size_t)(self->start - (intptr_t)i);
 }
 
 bool std__range__Range_i64_is_ascending(std__range__Range_i64* self) {
-    return (self->start <= self->end);
+    return self->start <= self->end;
 }
 
 size_t std__range__Range_i64_count(std__range__Range_i64* self) {
 if (std__range__Range_i64_is_ascending(self)) {
 size_t diff = (size_t)(self->end - self->start);
-return (self->inclusive ? (diff + 1) : diff);
+return self->inclusive ? diff + 1 : diff;
 }
 size_t diff = (size_t)(self->start - self->end);
-return (self->inclusive ? (diff + 1) : diff);
+return self->inclusive ? diff + 1 : diff;
 }
 

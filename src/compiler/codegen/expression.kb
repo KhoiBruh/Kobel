@@ -20,6 +20,24 @@ use compiler.semantic.symbols.*;
 // Expression Code Generation
 // ============================================================================
 
+const PREC_NONE: i32 = 0;
+const PREC_ASSIGN: i32 = 1;
+const PREC_TERNARY: i32 = 2;
+const PREC_OR: i32 = 3;
+const PREC_AND: i32 = 4;
+const PREC_EQ: i32 = 5;
+const PREC_REL: i32 = 6;
+const PREC_ADD: i32 = 7;
+const PREC_MUL: i32 = 8;
+const PREC_UNARY: i32 = 9;
+const PREC_POSTFIX: i32 = 10;
+const PREC_ATOM: i32 = 11;
+
+pub fn wrap_prec(s: str, prec: i32, min_prec: i32): str {
+	if (prec < min_prec) return "(${s})";
+	return s;
+}
+
 pub fn unwrap_group_expr(node: ?*AstNode): ?*AstNode {
 	var cur = node;
 	while (cur != null) {
@@ -29,18 +47,22 @@ pub fn unwrap_group_expr(node: ?*AstNode): ?*AstNode {
 	return cur;
 }
 
-pub fn expr_needs_parens_for_member(node: *AstNode) => when (node) {
-	is IdentifierExpr,
-	MemberExpr,
-	CallExpr,
-	IndexExpr,
-	GroupExpr -> false;
-	else -> true;
-};
+pub fn expr_needs_parens_for_member(node: *AstNode): bool {
+	val cur = unwrap_group_expr(node) ?: return true;
+	if (cur is MemberExpr as m) return m.is_safe;
+	return when (cur) {
+		is IdentifierExpr,
+		CallExpr,
+		IndexExpr -> false;
+		else -> true;
+	};
+}
 
 impl CCodeGen {
 
-	pub fn gen_expr(&self, node: ?*AstNode): str {
+	pub fn gen_expr(&self, node: ?*AstNode): str => self.gen_expr_prec(node, PREC_NONE);
+
+	pub fn gen_expr_prec(&self, node: ?*AstNode, min_prec: i32): str {
 		if (node == null) return "";
 		val ast_node = node!;
 
@@ -49,23 +71,18 @@ impl CCodeGen {
 
 			is IdentifierExpr -> self.gen_ident_expr(node.name);
 
-			is GroupExpr -> {
-				val inner = self.gen_expr(node.expr);
-				val ne = node.expr;
-				if (ne is [BinaryExpr, GroupExpr]) yield inner;
-				yield "(${inner})";
-			}
+			is GroupExpr -> self.gen_expr_prec(node.expr, min_prec);
 
-			is BinaryExpr -> self.gen_binary_expr(ast_node, node);
+			is BinaryExpr -> self.gen_binary_expr(ast_node, node, min_prec);
 
-			is UnaryExpr -> self.gen_unary_expr(node);
+			is UnaryExpr -> self.gen_unary_expr(node, min_prec);
 
-			is CallExpr -> self.gen_call_expr(ast_node, node);
+			is CallExpr -> self.gen_call_expr(ast_node, node, min_prec);
 
-			is MemberExpr -> self.gen_member_expr(ast_node, node);
+			is MemberExpr -> self.gen_member_expr(ast_node, node, min_prec);
 
 			is IndexExpr -> {
-				val tgt = self.gen_expr(node.target);
+				val tgt = self.gen_expr_prec(node.target, PREC_POSTFIX);
 				val idx = self.gen_expr(node.index);
 				val tgt_ty = self.node_type(node.target);
 				if (tgt_ty?.kind == DataType.ARRAY && tgt_ty.as_array().length == 0 && node.target is IdentifierExpr as id) {
@@ -78,31 +95,30 @@ impl CCodeGen {
 					}
 				}
 				if (self.is_str_value(node.target)) {
-					val tgt_wrap = if (expr_needs_parens_for_member(node.target)) "(${tgt})" else tgt;
-					yield "${tgt_wrap}.data[${idx}]";
+					yield "${tgt}.data[${idx}]";
 				}
 				yield "${tgt}[${idx}]";
 			}
 
-			is AssignExpr -> self.gen_assign_expr(node);
+			is AssignExpr -> self.gen_assign_expr(node, min_prec);
 
 			is UpdateExpr -> {
 				val op_str = if (node.op == TokenType.PLUS_PLUS) "++" else "--";
-				yield "${self.gen_expr(node.target)}${op_str}";
+				yield "${self.gen_expr_prec(node.target, PREC_POSTFIX)}${op_str}";
 			}
 
-			is CastExpr as cst -> self.gen_cast_expr(cst);
+			is CastExpr as cst -> self.gen_cast_expr(cst, min_prec);
 
 			is IfExpr -> {
-				val cond = self.gen_expr(node.condition);
-				val th = self.gen_expr(node.then_branch);
-				val el = self.gen_expr(node.else_branch);
-				yield "(${cond} ? ${th} : ${el})";
+				val cond = self.gen_expr_prec(node.condition, PREC_TERNARY + 1);
+				val th = self.gen_expr_prec(node.then_branch, PREC_TERNARY + 1);
+				val el = self.gen_expr_prec(node.else_branch, PREC_TERNARY);
+				yield wrap_prec("${cond} ? ${th} : ${el}", PREC_TERNARY, min_prec);
 			}
 
-			is WhenExpr -> self.gen_when_expr(node);
+			is WhenExpr -> self.gen_when_expr(node, min_prec);
 
-			is IsExpr -> self.gen_is_expr(ast_node, node);
+			is IsExpr -> self.gen_is_expr(ast_node, node, min_prec);
 
 			// A struct value built from its fields: `(Point){ 1, 2 }`.
 			is StructCtorExpr -> {
@@ -185,8 +201,8 @@ impl CCodeGen {
 		};
 	}
 
-	// Binary expressions lower to a parenthesised C operator (?: for the elvis form).
-	fn gen_binary_expr(&self, ast_node: *AstNode, bin: *BinaryExpr): str {
+	// Binary expressions lower to a C operator (`?:` lowers to C `?:`, with parens only as needed).
+	fn gen_binary_expr(&self, ast_node: *AstNode, bin: *BinaryExpr, min_prec: i32): str {
 		if (bin.op in [TokenType.DOT_DOT, TokenType.DOT_DOT_LESS]) {
 			val c_ty = self.c_type_of(ast_node);
 			val l = self.gen_expr(bin.left);
@@ -198,26 +214,25 @@ impl CCodeGen {
 		if (bin.op == TokenType.QUESTION_COLON) {
 			val unwrapped_l = unwrap_group_expr(bin.left);
 			if (unwrapped_l != null && unwrapped_l is MemberExpr as mem && mem.is_safe) {
-				val obj_s = self.gen_expr(mem.object);
-				val obj_wrap = if (expr_needs_parens_for_member(mem.object)) "(${obj_s})" else obj_s;
-				val r_s = self.gen_expr(bin.right);
+				val obj_wrap = self.gen_expr_prec(mem.object, PREC_POSTFIX);
+				val r_s = self.gen_expr_prec(bin.right, PREC_TERNARY);
+				val mem_val = "${obj_wrap}->${mem.member}";
 				if (self.is_str_value(unwrapped_l) || self.is_str_value(bin.right)) {
-					val mem_val = "${obj_wrap}->${mem.member}";
-					return "((${obj_wrap} != NULL && ${mem_val}.data != NULL) ? ${mem_val} : ${r_s})";
+					return wrap_prec("${obj_wrap} != NULL && ${mem_val}.data != NULL ? ${mem_val} : ${r_s}", PREC_TERNARY, min_prec);
 				}
 				if (self.is_pointer_value(unwrapped_l) || self.is_pointer_value(bin.right)) {
-					val mem_val = "${obj_wrap}->${mem.member}";
-					return "((${obj_wrap} != NULL && ${mem_val} != NULL) ? ${mem_val} : ${r_s})";
+					return wrap_prec("${obj_wrap} != NULL && ${mem_val} != NULL ? ${mem_val} : ${r_s}", PREC_TERNARY, min_prec);
 				}
-				return "(${obj_wrap} != NULL ? ${obj_wrap}->${mem.member} : ${r_s})";
+				return wrap_prec("${obj_wrap} != NULL ? ${mem_val} : ${r_s}", PREC_TERNARY, min_prec);
 			}
-			val l = self.gen_expr(bin.left);
-			val r = self.gen_expr(bin.right);
+			val l = self.gen_expr_prec(bin.left, PREC_TERNARY + 1);
+			val r = self.gen_expr_prec(bin.right, PREC_TERNARY);
 			if (self.is_str_value(bin.left)) {
-				val l_wrap = if (expr_needs_parens_for_member(bin.left)) "(${l})" else l;
-				return "(${l_wrap}.data != NULL ? ${l} : ${r})";
+				val l_wrap = self.gen_expr_prec(bin.left, PREC_POSTFIX);
+				return wrap_prec("${l_wrap}.data != NULL ? ${l} : ${r}", PREC_TERNARY, min_prec);
 			}
-			return "(${l} != NULL ? ${l} : ${r})";
+			val l_cmp = self.gen_expr_prec(bin.left, PREC_EQ + 1);
+			return wrap_prec("${l_cmp} != NULL ? ${l} : ${r}", PREC_TERNARY, min_prec);
 		}
 
 		if (bin.op == TokenType.KW_IN) {
@@ -225,13 +240,13 @@ impl CCodeGen {
 			if (unwrapped_r != null && unwrapped_r is ArrayLiteralExpr as al) {
 				val unwrapped_l = unwrap_group_expr(bin.left);
 				if (unwrapped_l != null && unwrapped_l is MemberExpr as mem && mem.is_safe) {
-					val obj_s = self.gen_expr(mem.object);
-					val obj_wrap = if (expr_needs_parens_for_member(mem.object)) "(${obj_s})" else obj_s;
+					val obj_wrap = self.gen_expr_prec(mem.object, PREC_POSTFIX);
 					val cond = "${obj_wrap}->${mem.member}";
-					return "(${obj_wrap} != NULL && (${self.gen_when_test(cond, al.elements)}))";
+					val test_s = self.gen_when_test_prec(cond, al.elements, PREC_AND);
+					return wrap_prec("${obj_wrap} != NULL && ${test_s}", PREC_AND, min_prec);
 				}
-				val cond = self.gen_expr(bin.left);
-				return "(${self.gen_when_test(cond, al.elements)})";
+				val cond = self.gen_expr_prec(bin.left, PREC_POSTFIX);
+				return self.gen_when_test_prec(cond, al.elements, min_prec);
 			}
 		}
 
@@ -249,6 +264,7 @@ impl CCodeGen {
 			var r_is_safe = false;
 			if (unwrapped_r != null && unwrapped_r is MemberExpr as mem_r) r_is_safe = mem_r.is_safe;
 
+			val cmp_prec = if (bin.op in [TokenType.EQUAL_EQUAL, TokenType.BANG_EQUAL]) PREC_EQ else PREC_REL;
 			val op_str = when (bin.op) {
 				TokenType.EQUAL_EQUAL -> "==";
 				TokenType.BANG_EQUAL -> "!=";
@@ -269,39 +285,31 @@ impl CCodeGen {
 			}
 
 			if (l_is_safe && !r_is_safe && unwrapped_l is MemberExpr as mem) {
-				val obj_s = self.gen_expr(mem.object);
-				val obj_wrap = if (expr_needs_parens_for_member(mem.object)) "(${obj_s})" else obj_s;
-				val r_s = self.gen_expr(bin.right);
+				val obj_wrap = self.gen_expr_prec(mem.object, PREC_POSTFIX);
+				val r_s = self.gen_expr_prec(bin.right, cmp_prec + 1);
 				if (bin.op == TokenType.EQUAL_EQUAL && r_is_null) {
-					return "(${obj_wrap} == NULL || ${obj_wrap}->${mem.member} ${op_str} ${r_s})";
+					return wrap_prec("${obj_wrap} == NULL || ${obj_wrap}->${mem.member} ${op_str} ${r_s}", PREC_OR, min_prec);
 				}
-				return "(${obj_wrap} != NULL && ${obj_wrap}->${mem.member} ${op_str} ${r_s})";
+				return wrap_prec("${obj_wrap} != NULL && ${obj_wrap}->${mem.member} ${op_str} ${r_s}", PREC_AND, min_prec);
 			}
 			if (r_is_safe && !l_is_safe && unwrapped_r is MemberExpr as mem) {
-				val obj_s = self.gen_expr(mem.object);
-				val obj_wrap = if (expr_needs_parens_for_member(mem.object)) "(${obj_s})" else obj_s;
-				val l_s = self.gen_expr(bin.left);
+				val obj_wrap = self.gen_expr_prec(mem.object, PREC_POSTFIX);
+				val l_s = self.gen_expr_prec(bin.left, cmp_prec + 1);
 				if (bin.op == TokenType.EQUAL_EQUAL && l_is_null) {
-					return "(${obj_wrap} == NULL || ${l_s} ${op_str} ${obj_wrap}->${mem.member})";
+					return wrap_prec("${obj_wrap} == NULL || ${l_s} ${op_str} ${obj_wrap}->${mem.member}", PREC_OR, min_prec);
 				}
-				return "(${obj_wrap} != NULL && ${l_s} ${op_str} ${obj_wrap}->${mem.member})";
+				return wrap_prec("${obj_wrap} != NULL && ${l_s} ${op_str} ${obj_wrap}->${mem.member}", PREC_AND, min_prec);
 			}
 			if (
 				l_is_safe && r_is_safe &&
 				unwrapped_l is MemberExpr as mem_l_val &&
 				unwrapped_r is MemberExpr as mem_r_val
 			) {
-				val obj_l_s = self.gen_expr(mem_l_val.object);
-				val obj_r_s = self.gen_expr(mem_r_val.object);
-				val obj_l_wrap = if (expr_needs_parens_for_member(mem_l_val.object)) {
-					"(${obj_l_s})"
-				} else obj_l_s;
-				val obj_r_wrap = if (expr_needs_parens_for_member(mem_r_val.object)) {
-					"(${obj_r_s})"
-				} else obj_r_s;
+				val obj_l_wrap = self.gen_expr_prec(mem_l_val.object, PREC_POSTFIX);
+				val obj_r_wrap = self.gen_expr_prec(mem_r_val.object, PREC_POSTFIX);
 				val l_acc = "${obj_l_wrap}->${mem_l_val.member}";
 				val r_acc = "${obj_r_wrap}->${mem_r_val.member}";
-				return "(${obj_l_wrap} != NULL && ${obj_r_wrap} != NULL && ${l_acc} ${op_str} ${r_acc})";
+				return wrap_prec("${obj_l_wrap} != NULL && ${obj_r_wrap} != NULL && ${l_acc} ${op_str} ${r_acc}", PREC_AND, min_prec);
 			}
 		}
 
@@ -320,44 +328,59 @@ impl CCodeGen {
 			TokenType.OR_OR -> "||";
 			else -> "+";
 		};
+		val op_prec = when (bin.op) {
+			TokenType.STAR, TokenType.SLASH, TokenType.PERCENT -> PREC_MUL;
+			TokenType.PLUS, TokenType.MINUS -> PREC_ADD;
+			TokenType.LESS, TokenType.LESS_EQUAL, TokenType.GREATER, TokenType.GREATER_EQUAL -> PREC_REL;
+			TokenType.EQUAL_EQUAL, TokenType.BANG_EQUAL -> PREC_EQ;
+			TokenType.AND_AND -> PREC_AND;
+			TokenType.OR_OR -> PREC_OR;
+			else -> PREC_ADD;
+		};
 
 		if (bin.op in [TokenType.AND_AND, TokenType.OR_OR]) {
-			val l = self.gen_assoc_bin_part(bin.left, bin.op, op_str);
-			val r = self.gen_assoc_bin_part(bin.right, bin.op, op_str);
-			return "(${l} ${op_str} ${r})";
+			// Parenthesize `&&` inside `||` to avoid `-Wlogical-op-parentheses`.
+			val child_min = if (bin.op == TokenType.OR_OR) PREC_AND + 1 else PREC_AND;
+			val l = self.gen_assoc_bin_part(bin.left, bin.op, op_str, child_min);
+			val r = self.gen_assoc_bin_part(bin.right, bin.op, op_str, child_min);
+			return wrap_prec("${l} ${op_str} ${r}", op_prec, min_prec);
 		}
 
-		val l = self.gen_expr(bin.left);
-		val r = self.gen_expr(bin.right);
-		return "(${l} ${op_str} ${r})";
+		val l_min = if (op_prec in [PREC_EQ, PREC_REL]) op_prec + 1 else op_prec;
+		val l = self.gen_expr_prec(bin.left, l_min);
+		val r = self.gen_expr_prec(bin.right, op_prec + 1);
+		return wrap_prec("${l} ${op_str} ${r}", op_prec, min_prec);
 	}
 
-	fn gen_assoc_bin_part(&self, node: *AstNode, op: TokenType, op_str: str): str {
+	fn gen_assoc_bin_part(&self, node: *AstNode, op: TokenType, op_str: str, child_min: i32): str {
 		val cur = unwrap_group_expr(node);
 		if (cur != null && cur is BinaryExpr as sub && sub.op == op) {
-			val sl = self.gen_assoc_bin_part(sub.left, op, op_str);
-			val sr = self.gen_assoc_bin_part(sub.right, op, op_str);
+			val sl = self.gen_assoc_bin_part(sub.left, op, op_str, child_min);
+			val sr = self.gen_assoc_bin_part(sub.right, op, op_str, child_min);
 			return "${sl} ${op_str} ${sr}";
 		}
-		return self.gen_expr(node);
+		return self.gen_expr_prec(node, child_min);
 	}
 
 	// Unary operators lower to a C prefix operator (- guards a negative operand).
-	fn gen_unary_expr(&self, un: *UnaryExpr): str {
-		val opnd = self.gen_expr(un.operand);
-		if (un.is_postfix && un.op == TokenType.BANG) return opnd;
+	fn gen_unary_expr(&self, un: *UnaryExpr, min_prec: i32): str {
+		if (un.is_postfix && un.op == TokenType.BANG) {
+			return self.gen_expr_prec(un.operand, min_prec);
+		}
+		val opnd = self.gen_expr_prec(un.operand, PREC_UNARY);
 
-		return when (un.op) {
+		val s = when (un.op) {
 			TokenType.MINUS -> if (opnd.starts_with("-")) "- (${opnd})" else "-${opnd}";
 			TokenType.BANG -> "!${opnd}";
 			TokenType.STAR -> "*${opnd}";
 			TokenType.AMPERSAND -> "&${opnd}";
 			else -> opnd;
 		};
+		return wrap_prec(s, PREC_UNARY, min_prec);
 	}
 
 	// Calls lower to a C call, a struct compound literal, or an inlined string/size helper.
-	fn gen_call_expr(&self, ast_node: *AstNode, call: *CallExpr): str {
+	fn gen_call_expr(&self, ast_node: *AstNode, call: *CallExpr, min_prec: i32): str {
 		// Static or string method call: T.size() -> sizeof(T), s.c_str() -> kobel_cstr(s)
 		val callee = call.callee;
 		if (callee is MemberExpr as mem) {
@@ -372,35 +395,48 @@ impl CCodeGen {
 			}
 			if (mem.member == "c_str") return "kobel_cstr(${self.gen_expr(mem.object)})";
 			if (mem.member == "addr" && self.is_pointer_value(mem.object)) {
-				val obj_str = self.gen_expr(mem.object);
-				if (mem.is_safe) return "(${obj_str} != NULL ? (uintptr_t)(${obj_str}) : 0)";
-				return "((uintptr_t)(${obj_str}))";
+				if (mem.is_safe) {
+					val obj_cmp = self.gen_expr_prec(mem.object, PREC_EQ + 1);
+					val obj_cast = self.gen_expr_prec(mem.object, PREC_UNARY);
+					return wrap_prec("${obj_cmp} != NULL ? (uintptr_t)${obj_cast} : 0", PREC_TERNARY, min_prec);
+				}
+				val obj_str = self.gen_expr_prec(mem.object, PREC_UNARY);
+				return wrap_prec("(uintptr_t)${obj_str}", PREC_UNARY, min_prec);
 			}
 			if (mem.member == "write" && self.is_pointer_value(mem.object) && call.args.len == 1) {
-				val obj_str = self.gen_expr(mem.object);
+				if (mem.is_safe) {
+					val obj_cmp = self.gen_expr_prec(mem.object, PREC_EQ + 1);
+					val obj_deref = self.gen_expr_prec(mem.object, PREC_UNARY);
+					val val_str = self.gen_expr_prec(call.args[0], PREC_TERNARY);
+					return wrap_prec("${obj_cmp} != NULL ? (*${obj_deref} = ${val_str}) : 0", PREC_TERNARY, min_prec);
+				}
+				val obj_str = self.gen_expr_prec(mem.object, PREC_UNARY);
 				val val_str = self.gen_expr(call.args[0]);
-				if (mem.is_safe) return "(${obj_str} != NULL ? (*(${obj_str}) = ${val_str}) : 0)";
-				return "(*(${obj_str}) = ${val_str})";
+				return wrap_prec("*${obj_str} = ${val_str}", PREC_ASSIGN, min_prec);
 			}
 			if (mem.member == "read" && self.is_pointer_value(mem.object) && call.args.empty()) {
-				val obj_str = self.gen_expr(mem.object);
-				if (mem.is_safe) return "(${obj_str} != NULL ? *(${obj_str}) : 0)";
-				return "(*(${obj_str}))";
+				if (mem.is_safe) {
+					val obj_cmp = self.gen_expr_prec(mem.object, PREC_EQ + 1);
+					val obj_deref = self.gen_expr_prec(mem.object, PREC_UNARY);
+					return wrap_prec("${obj_cmp} != NULL ? *${obj_deref} : 0", PREC_TERNARY, min_prec);
+				}
+				val obj_str = self.gen_expr_prec(mem.object, PREC_UNARY);
+				return wrap_prec("*${obj_str}", PREC_UNARY, min_prec);
 			}
 			if (mem.member == "code" && self.is_char_value(mem.object)) {
-				val obj_str = self.gen_expr(mem.object);
-				return "((int32_t)(uint8_t)(${obj_str}))";
+				val obj_str = self.gen_expr_prec(mem.object, PREC_UNARY);
+				return wrap_prec("(int32_t)(uint8_t)${obj_str}", PREC_UNARY, min_prec);
 			}
 		}
 
 		if (callee is IdentifierExpr as id && id.name == "char" && call.args.len == 1) {
-			return "((char)(${self.gen_expr(call.args[0])}))";
+			return wrap_prec("(char)${self.gen_expr_prec(call.args[0], PREC_UNARY)}", PREC_UNARY, min_prec);
 		}
 		if (callee is IdentifierExpr as id && id.name == "str" && call.args.len == 1) {
-			return "kobel_from_cstr((const char*)(${self.gen_expr(call.args[0])}))";
+			return "kobel_from_cstr((const char*)${self.gen_expr_prec(call.args[0], PREC_UNARY)})";
 		}
 
-		val callee_str = self.gen_expr(call.callee);
+		val callee_str = self.gen_expr_prec(call.callee, PREC_POSTFIX);
 
 		var is_vararg_call = false;
 		var varg_fixed_count: usz = 0;
@@ -470,7 +506,7 @@ impl CCodeGen {
 
 	// Member access lowers to ./->. `str` is a struct (`kobel_str`), so `.len` and
 	// `.data` emit directly as field accesses.
-	fn gen_member_expr(&self, ast_node: *AstNode, mem: *MemberExpr): str {
+	fn gen_member_expr(&self, ast_node: *AstNode, mem: *MemberExpr, min_prec: i32): str {
 		val obj_node = mem.object;
 		val obj_ty = self.node_type(obj_node);
 		if (obj_ty?.kind == DataType.ARRAY && obj_ty.as_array().length == 0 && obj_node is IdentifierExpr as id) {
@@ -484,7 +520,6 @@ impl CCodeGen {
 				if (mem.member == "data") return "${id.name}_data";
 			}
 		}
-		val obj = self.gen_expr(obj_node);
 		// A member access on a pointer value needs `->`; the receiver of a
 		// non-identifier pointer is dereferenced by sema instead.
 		var is_ptr = false;
@@ -492,22 +527,22 @@ impl CCodeGen {
 		if (raw_obj is IdentifierExpr) {
 			is_ptr = self.c_type_of(obj_node).ends_with("*");
 		}
-		val obj_str = if (expr_needs_parens_for_member(obj_node)) "(${obj})" else obj;
+		val obj_str = self.gen_expr_prec(obj_node, PREC_POSTFIX);
 		if (mem.is_safe) {
 			val mem_ty = self.node_type(ast_node);
 			if (mem_ty != null) {
 				val mk = mem_ty.kind;
 				if (mk == DataType.BOOL) {
-					return "(${obj_str} != NULL && ${obj_str}->${mem.member})";
+					return wrap_prec("${obj_str} != NULL && ${obj_str}->${mem.member}", PREC_AND, min_prec);
 				}
 				if (mk == DataType.STR) {
-					return "(${obj_str} != NULL ? ${obj_str}->${mem.member} : kobel_null_str())";
+					return wrap_prec("${obj_str} != NULL ? ${obj_str}->${mem.member} : kobel_null_str()", PREC_TERNARY, min_prec);
 				}
 				if (mem_ty.is_integer() || mem_ty.is_enum() || mk == DataType.CHAR) {
-					return "(${obj_str} != NULL ? ${obj_str}->${mem.member} : 0)";
+					return wrap_prec("${obj_str} != NULL ? ${obj_str}->${mem.member} : 0", PREC_TERNARY, min_prec);
 				}
 				if (mk in [DataType.F32, DataType.F64]) {
-					return "(${obj_str} != NULL ? ${obj_str}->${mem.member} : 0.0)";
+					return wrap_prec("${obj_str} != NULL ? ${obj_str}->${mem.member} : 0.0", PREC_TERNARY, min_prec);
 				}
 			}
 			val unwrapped_obj = unwrap_group_expr(obj_node);
@@ -521,30 +556,30 @@ impl CCodeGen {
 						if (f.name == mem.member) {
 							val fk = f.type_ptr.kind;
 							if (fk == DataType.BOOL) {
-								return "(${obj_str} != NULL && ${obj_str}->${mem.member})";
+								return wrap_prec("${obj_str} != NULL && ${obj_str}->${mem.member}", PREC_AND, min_prec);
 							}
 							if (fk == DataType.STR) {
-								return "(${obj_str} != NULL ? ${obj_str}->${mem.member} : kobel_null_str())";
+								return wrap_prec("${obj_str} != NULL ? ${obj_str}->${mem.member} : kobel_null_str()", PREC_TERNARY, min_prec);
 							}
 							if (f.type_ptr.is_integer() || f.type_ptr.is_enum() || fk == DataType.CHAR) {
-								return "(${obj_str} != NULL ? ${obj_str}->${mem.member} : 0)";
+								return wrap_prec("${obj_str} != NULL ? ${obj_str}->${mem.member} : 0", PREC_TERNARY, min_prec);
 							}
 							if (fk in [DataType.F32, DataType.F64]) {
-								return "(${obj_str} != NULL ? ${obj_str}->${mem.member} : 0.0)";
+								return wrap_prec("${obj_str} != NULL ? ${obj_str}->${mem.member} : 0.0", PREC_TERNARY, min_prec);
 							}
-							return "(${obj_str} != NULL ? ${obj_str}->${mem.member} : NULL)";
+							return wrap_prec("${obj_str} != NULL ? ${obj_str}->${mem.member} : NULL", PREC_TERNARY, min_prec);
 						}
 					}
 				}
 			}
-			return "(${obj_str} != NULL ? ${obj_str}->${mem.member} : NULL)";
+			return wrap_prec("${obj_str} != NULL ? ${obj_str}->${mem.member} : NULL", PREC_TERNARY, min_prec);
 		}
 		if (is_ptr) return "${obj_str}->${mem.member}";
 		return "${obj_str}.${mem.member}";
 	}
 
 	// Assignments lower to the matching C compound-assignment operator.
-	fn gen_assign_expr(&self, asgn: *AssignExpr): str {
+	fn gen_assign_expr(&self, asgn: *AssignExpr, min_prec: i32): str {
 		val op_str = when (asgn.op) {
 			TokenType.PLUS_EQUAL -> "+=";
 			TokenType.MINUS_EQUAL -> "-=";
@@ -553,28 +588,37 @@ impl CCodeGen {
 			TokenType.PERCENT_EQUAL -> "%=";
 			else -> "=";
 		};
-		return "${self.gen_expr(asgn.target)} ${op_str} ${self.gen_expr(asgn.value)}";
+		val tgt = self.gen_expr_prec(asgn.target, PREC_POSTFIX);
+		val val_s = self.gen_expr(asgn.value);
+		return wrap_prec("${tgt} ${op_str} ${val_s}", PREC_ASSIGN, min_prec);
 	}
 
 	// when expressions lower to nested C ternaries, evaluated from the last arm back.
-	fn gen_when_expr(&self, we: *WhenExpr): str {
+	fn gen_when_expr(&self, we: *WhenExpr, min_prec: i32): str {
 		if (we.arms.empty()) return "0";
-		val cond = if (we.condition != null) self.gen_expr(we.condition!) else "";
+		val cond = if (we.condition != null) self.gen_expr_prec(we.condition!, PREC_POSTFIX) else "";
 		val has_else = we.arms.any { arm -> arm.is_else };
+
+		if (we.arms.len == 1) {
+			val only = we.arms[0];
+			if (only.is_else || !has_else) {
+				return self.gen_expr_prec(only.body, min_prec);
+			}
+		}
 
 		var res = "0";
 		var i = we.arms.len;
 		if (!has_else) {
 			i--;
-			res = self.gen_expr(we.arms[i].body);
+			res = self.gen_expr_prec(we.arms[i].body, PREC_TERNARY);
 		}
 		while (i > 0) {
 			i--;
 			val arm = we.arms[i];
-			res = if (arm.is_else) self.gen_expr(arm.body)
-			else "(${self.gen_when_test(cond, arm.patterns)} ? ${self.gen_expr(arm.body)} : ${res})";
+			res = if (arm.is_else) self.gen_expr_prec(arm.body, PREC_TERNARY)
+			else "${self.gen_when_test_prec(cond, arm.patterns, PREC_TERNARY + 1)} ? ${self.gen_expr_prec(arm.body, PREC_TERNARY + 1)} : ${res}";
 		}
-		return res;
+		return wrap_prec(res, PREC_TERNARY, min_prec);
 	}
 
 	// Tag test of a smart cast. A pointer subject is compared against NULL
@@ -590,12 +634,12 @@ impl CCodeGen {
 	): str => if (is_ptr) "${subject} != NULL && ${subject}->${tag_field} == ${tag_const}"
 		else "${subject}.${tag_field} == ${tag_const}";
 
-	pub fn gen_cast_expr(&self, cst: *CastExpr): str {
+	pub fn gen_cast_expr(&self, cst: *CastExpr, min_prec: i32): str {
 		val ty = c_type_from_ast(cst.target_type);
 		if (ty == "kobel_str" && cst.expr != null && self.is_pointer_value(cst.expr!)) {
-			return "kobel_from_cstr((const char*)(${self.gen_expr(cst.expr)}))";
+			return "kobel_from_cstr((const char*)${self.gen_expr_prec(cst.expr, PREC_UNARY)})";
 		}
-		return "(${ty})${self.gen_expr(cst.expr)}";
+		return wrap_prec("(${ty})${self.gen_expr_prec(cst.expr, PREC_UNARY)}", PREC_UNARY, min_prec);
 	}
 
 	fn gen_is_single_test(*self, obj_str: str, info_node: *AstNode, target_node: *AstNode): str {
@@ -607,22 +651,17 @@ impl CCodeGen {
 		return self.gen_tag_test(obj_str, pat_info.is_ptr, tag_field, tag_const);
 	}
 
-	pub fn gen_is_expr(&self, ast_node: *AstNode, is_e: *IsExpr): str {
+	pub fn gen_is_expr(&self, ast_node: *AstNode, is_e: *IsExpr, min_prec: i32): str {
 		var prefix = "";
-		var suffix = "";
 		var obj_str = "";
 		if (is_e.expr != null) {
 			val unwrapped_subj = unwrap_group_expr(is_e.expr!);
 			if (unwrapped_subj != null && unwrapped_subj is MemberExpr as mem && mem.is_safe) {
-				val base_s = self.gen_expr(mem.object);
-				val base_wrap = if (expr_needs_parens_for_member(mem.object)) "(${base_s})" else base_s;
-				prefix = "(${base_wrap} != NULL && ";
-				suffix = ")";
+				val base_wrap = self.gen_expr_prec(mem.object, PREC_POSTFIX);
+				prefix = "${base_wrap} != NULL && ";
 				obj_str = "${base_wrap}->${mem.member}";
 			} else {
-				val obj = self.gen_expr(is_e.expr!);
-				val needs_parens = expr_needs_parens_for_member(is_e.expr!);
-				obj_str = if (needs_parens) "(${obj})" else obj;
+				obj_str = self.gen_expr_prec(is_e.expr!, PREC_POSTFIX);
 			}
 		}
 
@@ -630,10 +669,19 @@ impl CCodeGen {
 			var res = "";
 			for (i in 0..<al.elements.len) {
 				val t_node = al.elements[i];
-				val t_str = self.gen_is_single_test(obj_str, t_node, t_node);
+				val raw_t = self.gen_is_single_test(obj_str, t_node, t_node);
+				val t_is_ptr = self.is_pattern_info(t_node).is_ptr;
+				val t_str = if (al.elements.len > 1 && t_is_ptr) "(${raw_t})" else raw_t;
 				res = if (i == 0) t_str else "${res} || ${t_str}";
 			}
-			return "${prefix}(${res})${suffix}";
+			if (!prefix.empty()) {
+				val inner = if (al.elements.len > 1) "(${res})" else res;
+				return wrap_prec("${prefix}${inner}", PREC_AND, min_prec);
+			}
+			val r_prec = if (al.elements.len > 1) PREC_OR
+				else if (!al.elements.empty() && self.is_pattern_info(al.elements[0]).is_ptr) PREC_AND
+				else PREC_EQ;
+			return wrap_prec(res, r_prec, min_prec);
 		}
 
 		val pat_info = self.is_pattern_info(ast_node);
@@ -655,56 +703,79 @@ impl CCodeGen {
 					"(${target_name}*)&${obj_str}"
 				}
 			};
-			return "${prefix}(${tag_test} && (${is_e.alias} = ${cast_val}, 1))${suffix}";
+			return wrap_prec("${prefix}${tag_test} && (${is_e.alias} = ${cast_val}, 1)", PREC_AND, min_prec);
 		}
-		return "${prefix}(${tag_test})${suffix}";
+		val r_prec = if (!prefix.empty() || pat_info.is_ptr) PREC_AND else PREC_EQ;
+		return wrap_prec("${prefix}${tag_test}", r_prec, min_prec);
 	}
 
 	// Builds the test expression of a `when` arm: `c == p1 || c == p2`.
 	// For the boolean form (`cond` empty) each pattern is itself the test.
 	// String patterns compare with `kobel_streq`.
 	pub fn gen_when_test(&self, cond: str, patterns: List<*AstNode>): str {
+		return self.gen_when_test_prec(cond, patterns, PREC_NONE);
+	}
+
+	pub fn gen_when_test_prec(&self, cond: str, patterns: List<*AstNode>, min_prec: i32): str {
+		if (patterns.empty()) return "1";
+		val multi_or = patterns.len > 1;
 		var res = "";
+		var res_prec = PREC_ATOM;
 		for (i in 0..<patterns.len) {
 			val p = patterns[i];
 			var test = "";
+			var test_prec = PREC_ATOM;
 			val unwrapped_p = unwrap_group_expr(p);
 			if (cond.empty() || self.is_predicate_pattern(p)) {
-				val raw = self.gen_expr(p);
-				test = if (patterns.len == 1 && raw.starts_with("(") && raw.ends_with(")"))
-					raw.slice(1, raw.len - 1)
-				else raw;
+				if (!multi_or) return self.gen_expr_prec(p, min_prec);
+				test = self.gen_expr_prec(p, PREC_AND + 1);
+				test_prec = PREC_AND + 1;
 			} else if (p is IsExpr as is_e) {
 				if (is_e.target_type is ArrayLiteralExpr as al) {
 					for (k in 0..<al.elements.len) {
 						val el = al.elements[k];
-						val el_test = self.gen_is_single_test(cond, el, el);
+						val raw_el = self.gen_is_single_test(cond, el, el);
+						val el_ptr = self.is_pattern_info(el).is_ptr;
+						val el_test = if (al.elements.len > 1 && el_ptr) "(${raw_el})" else raw_el;
 						test = if (k == 0) el_test else "${test} || ${el_test}";
 					}
+					test_prec = if (al.elements.len > 1) PREC_OR
+						else if (!al.elements.empty() && self.is_pattern_info(al.elements[0]).is_ptr) PREC_AND
+						else PREC_EQ;
 				} else {
 					test = self.gen_is_single_test(cond, p, is_e.target_type);
+					test_prec = if (self.is_pattern_info(p).is_ptr) PREC_AND else PREC_EQ;
 				}
 			} else if (unwrapped_p is BinaryExpr as bin && bin.op in [TokenType.DOT_DOT, TokenType.DOT_DOT_LESS]) {
-				val s = self.gen_expr(bin.left);
-				val e = self.gen_expr(bin.right);
+				val s = self.gen_expr_prec(bin.left, PREC_REL + 1);
+				val e = self.gen_expr_prec(bin.right, PREC_REL + 1);
 				val op1 = if (bin.op == TokenType.DOT_DOT) "<=" else "<";
 				val op2 = if (bin.op == TokenType.DOT_DOT) ">=" else ">";
-				test = "(((${cond}) >= (${s}) && (${cond}) ${op1} (${e})) || ((${cond}) <= (${s}) && (${cond}) ${op2} (${e})))";
+				test = "(${cond} >= ${s} && ${cond} ${op1} ${e}) || (${cond} <= ${s} && ${cond} ${op2} ${e})";
+				test_prec = PREC_OR;
 			} else if (p is LiteralExpr as lit) {
 				if (lit.literal_kind == Literal.STRING) {
 					test = "kobel_streq(${cond}, ${self.gen_expr(p)})";
+					test_prec = PREC_POSTFIX;
 				} else {
-					test = "${cond} == ${self.gen_expr(p)}";
+					test = "${cond} == ${self.gen_expr_prec(p, PREC_EQ + 1)}";
+					test_prec = PREC_EQ;
 				}
 			} else if (self.is_str_value(p)) {
 				test = "kobel_streq(${cond}, ${self.gen_expr(p)})";
+				test_prec = PREC_POSTFIX;
 			} else {
-				test = "${cond} == ${self.gen_expr(p)}";
+				test = "${cond} == ${self.gen_expr_prec(p, PREC_EQ + 1)}";
+				test_prec = PREC_EQ;
+			}
+			if (multi_or && test_prec <= PREC_AND && test_prec != PREC_OR) {
+				test = "(${test})";
 			}
 			res = if (i == 0) test else "${res} || ${test}";
+			res_prec = if (i == 0) test_prec else PREC_OR;
 		}
-		if (res.empty()) res = "1";
-		return res;
+		if (res.empty()) return "1";
+		return wrap_prec(res, res_prec, min_prec);
 	}
 
 	// C type of an expression: sema resolved it and stored the result on the

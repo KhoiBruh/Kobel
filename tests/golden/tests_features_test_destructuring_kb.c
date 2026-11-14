@@ -429,27 +429,27 @@ int32_t h = 5381;
 size_t __for_e = s.len;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t i = __for_i;
-int32_t c = ((int32_t)(uint8_t)(s.data[i]));
-h = ((h * 33) + c);
+int32_t c = (int32_t)(uint8_t)s.data[i];
+h = h * 33 + c;
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -464,12 +464,12 @@ size_t str_hash(kobel_str self) {
 kobel_str std__string__str_from_bytes(uint8_t* buf, size_t len) {
 std__string__StrRaw r = (std__string__StrRaw){ (const char*)buf, len };
 kobel_str* sp = (kobel_str*)&r;
-return (*(sp));
+return *sp;
 }
 
 kobel_str std__traits__fmt_u64(uint64_t n0) {
 if (n0 < 10) {
-return ((uint8_t)n0 == 0 ? KOBEL_STR("0") : ((uint8_t)n0 == 1 ? KOBEL_STR("1") : ((uint8_t)n0 == 2 ? KOBEL_STR("2") : ((uint8_t)n0 == 3 ? KOBEL_STR("3") : ((uint8_t)n0 == 4 ? KOBEL_STR("4") : ((uint8_t)n0 == 5 ? KOBEL_STR("5") : ((uint8_t)n0 == 6 ? KOBEL_STR("6") : ((uint8_t)n0 == 7 ? KOBEL_STR("7") : ((uint8_t)n0 == 8 ? KOBEL_STR("8") : KOBEL_STR("9"))))))))));
+return ((uint8_t)n0) == 0 ? KOBEL_STR("0") : ((uint8_t)n0) == 1 ? KOBEL_STR("1") : ((uint8_t)n0) == 2 ? KOBEL_STR("2") : ((uint8_t)n0) == 3 ? KOBEL_STR("3") : ((uint8_t)n0) == 4 ? KOBEL_STR("4") : ((uint8_t)n0) == 5 ? KOBEL_STR("5") : ((uint8_t)n0) == 6 ? KOBEL_STR("6") : ((uint8_t)n0) == 7 ? KOBEL_STR("7") : ((uint8_t)n0) == 8 ? KOBEL_STR("8") : KOBEL_STR("9");
 }
 uint64_t n = n0;
 size_t digits = 1;
@@ -478,12 +478,12 @@ while (probe >= 10) {
 probe /= 10;
 digits++;
 }
-uint8_t* buf = std__memory__Heap_create_u8((digits + 1));
+uint8_t* buf = std__memory__Heap_create_u8(digits + 1);
 buf[digits] = 0;
 size_t i = digits;
 while (i > 0) {
 i--;
-buf[i] = (uint8_t)(48 + (n % 10));
+buf[i] = (uint8_t)(48 + n % 10);
 n /= 10;
 }
 return std__string__str_from_bytes(buf, digits);
@@ -491,7 +491,7 @@ return std__string__str_from_bytes(buf, digits);
 
 kobel_str std__traits__fmt_i64(int64_t v) {
 if (v < 0) {
-uint64_t mag = ((uint64_t)(0 - (v + 1)) + 1);
+uint64_t mag = (uint64_t)(0 - (v + 1)) + 1;
 return kobel_concat(2, KOBEL_STR("-"), std__traits__fmt_u64(mag));
 }
 return std__traits__fmt_u64((uint64_t)v);
@@ -536,7 +536,7 @@ test__test_destructuring__Wrapper test__test_destructuring__Wrapper_init(int32_t
 }
 
 void test__test_destructuring__Wrapper_unpack(test__test_destructuring__Wrapper* self, int32_t* out) {
-(*(out) = self->value);
+*out = self->value;
 }
 
 test__test_destructuring__Point2D test__test_destructuring__Point2D_init(int32_t x, int32_t y) {
@@ -544,8 +544,8 @@ test__test_destructuring__Point2D test__test_destructuring__Point2D_init(int32_t
 }
 
 void test__test_destructuring__Point2D_unpack(test__test_destructuring__Point2D* self, int32_t* x, int32_t* y) {
-(*(x) = self->x);
-(*(y) = self->y);
+*x = self->x;
+*y = self->y;
 }
 
 test__test_destructuring__Triple test__test_destructuring__Triple_init(int32_t v0, int32_t v1, int32_t v2) {
@@ -594,8 +594,8 @@ int32_t my;
 test__test_destructuring__Point2D_unpack(&pt, &mx, &my);
 testsupport__assert__assert_eq_i32(mx, 10, KOBEL_STR("mx initial == 10"));
 testsupport__assert__assert_eq_i32(my, 20, KOBEL_STR("my initial == 20"));
-mx = (mx + 5);
-my = (my + 7);
+mx = mx + 5;
+my = my + 7;
 testsupport__assert__assert_eq_i32(mx, 15, KOBEL_STR("mx modified == 15"));
 testsupport__assert__assert_eq_i32(my, 27, KOBEL_STR("my modified == 27"));
 }
@@ -654,8 +654,8 @@ kobel_str k;
 int32_t v;
 std__collections__Pair_str_i32_unpack(&__destruct_tmp_13, &k, &v);
 sum += v;
-testsupport__assert__assert_true((kobel_streq(k, KOBEL_STR("apple")) || kobel_streq(k, KOBEL_STR("banana"))), KOBEL_STR("valid key"));
-__for_i = (__for_i + 1);
+testsupport__assert__assert_true(kobel_streq(k, KOBEL_STR("apple")) || kobel_streq(k, KOBEL_STR("banana")), KOBEL_STR("valid key"));
+__for_i = __for_i + 1;
 }
 }
 testsupport__assert__assert_eq_i32(sum, 30, KOBEL_STR("hashmap for ((k, v) in map) sum == 30"));
@@ -669,7 +669,7 @@ kobel_str k;
 int32_t v;
 std__collections__Pair_str_i32_unpack(&__destruct_tmp_14, &k, &v);
 sum2 += v;
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 }
 }
 testsupport__assert__assert_eq_i32(sum2, 30, KOBEL_STR("hashmap for (val (k, v) in &map) sum2 == 30"));
@@ -682,9 +682,9 @@ std__collections__Pair_str_i32 __destruct_tmp_15 = std__collections__HashMap_str
 kobel_str k;
 int32_t v;
 std__collections__Pair_str_i32_unpack(&__destruct_tmp_15, &k, &v);
-v = (v + 1);
+v = v + 1;
 var_sum += v;
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 }
 }
 testsupport__assert__assert_eq_i32(var_sum, 32, KOBEL_STR("hashmap for (var (k, v) in map) sum == 32"));
@@ -698,8 +698,8 @@ kobel_str k;
 int32_t __destruct_unused_16_1;
 std__collections__Pair_str_i32_unpack(&__destruct_tmp_16, &k, &__destruct_unused_16_1);
 count++;
-testsupport__assert__assert_true((kobel_streq(k, KOBEL_STR("apple")) || kobel_streq(k, KOBEL_STR("banana"))), KOBEL_STR("key present"));
-__for_i = (__for_i + 1);
+testsupport__assert__assert_true(kobel_streq(k, KOBEL_STR("apple")) || kobel_streq(k, KOBEL_STR("banana")), KOBEL_STR("key present"));
+__for_i = __for_i + 1;
 }
 }
 testsupport__assert__assert_eq_i32(count, 2, KOBEL_STR("count == 2"));
@@ -722,7 +722,7 @@ int32_t py;
 test__test_destructuring__Point2D_unpack(&__destruct_tmp_17, &px, &py);
 total_x += px;
 total_y += py;
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 }
 }
 testsupport__assert__assert_eq_i32(total_x, 4, KOBEL_STR("total_x == 4"));
@@ -736,10 +736,10 @@ test__test_destructuring__Point2D __destruct_tmp_18 = std__collections__List_tes
 int32_t px;
 int32_t py;
 test__test_destructuring__Point2D_unpack(&__destruct_tmp_18, &px, &py);
-px = (px * 10);
-py = (py * 10);
-mod_sum += (px + py);
-__for_i = (__for_i + 1);
+px = px * 10;
+py = py * 10;
+mod_sum += px + py;
+__for_i = __for_i + 1;
 }
 }
 testsupport__assert__assert_eq_i32(mod_sum, 100, KOBEL_STR("mod_sum == 100"));
@@ -761,8 +761,8 @@ kobel_str k;
 int32_t v;
 std__collections__Pair_str_i32_unpack(&__destruct_tmp_19, &k, &v);
 sum += v;
-testsupport__assert__assert_true((kobel_streq(k, KOBEL_STR("one")) || kobel_streq(k, KOBEL_STR("two"))), KOBEL_STR("valid key from entries"));
-__for_i = (__for_i + 1);
+testsupport__assert__assert_true(kobel_streq(k, KOBEL_STR("one")) || kobel_streq(k, KOBEL_STR("two")), KOBEL_STR("valid key from entries"));
+__for_i = __for_i + 1;
 }
 }
 testsupport__assert__assert_eq_i32(sum, 3, KOBEL_STR("entries destructuring sum == 3"));
@@ -801,14 +801,14 @@ test__test_destructuring__Tuple3_i32_str_bool test__test_destructuring__Tuple3_i
 }
 
 void test__test_destructuring__Tuple3_i32_str_bool_unpack(test__test_destructuring__Tuple3_i32_str_bool* self, int32_t* a, kobel_str* b, bool* c) {
-(*(a) = self->a);
-(*(b) = self->b);
-(*(c) = self->c);
+*a = self->a;
+*b = self->b;
+*c = self->c;
 }
 
 void std__collections__Pair_str_i32_unpack(std__collections__Pair_str_i32* self, kobel_str* first, int32_t* second) {
-(*(first) = self->first);
-(*(second) = self->second);
+*first = self->first;
+*second = self->second;
 }
 
 size_t std__collections__List_std__collections__Pair_str_i32_count(std__collections__List_std__collections__Pair_str_i32* self) {
@@ -820,32 +820,32 @@ std__collections__Pair_str_i32 std__collections__List_std__collections__Pair_str
 }
 
 std__collections__List_std__collections__Pair_str_i32 std__collections__List_std__collections__Pair_str_i32_init(std__collections__Pair_str_i32* items_data, size_t items_len) {
-size_t cap = ((items_len < 4) ? 4 : items_len);
+size_t cap = items_len < 4 ? 4 : items_len;
 std__collections__Pair_str_i32* buf = std__memory__Heap_create_std__collections__Pair_str_i32(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t i = __for_i;
 buf[i] = items_data[i];
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -862,7 +862,7 @@ self->len++;
 }
 
 void std__collections__List_std__collections__Pair_str_i32_grow(std__collections__List_std__collections__Pair_str_i32* self) {
-size_t new_cap = (self->cap * 2);
+size_t new_cap = self->cap * 2;
 self->data = std__memory__Heap_resize_std__collections__Pair_str_i32(self->data, new_cap);
 self->cap = new_cap;
 }
@@ -888,26 +888,26 @@ bool* occ = std__memory__Heap_create_bool(cap);
 size_t __for_e = cap;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t i = __for_i;
 occ[i] = false;
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -924,12 +924,12 @@ return res;
 size_t __for_e = self->cap;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t i = __for_i;
@@ -937,15 +937,15 @@ if (self->occupied[i]) {
 std__collections__List_std__collections__Pair_str_i32_plus_assign(&res, (std__collections__Pair_str_i32){ self->keys[i], self->values[i] });
 }
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -959,7 +959,7 @@ kobel_str* old_keys = self->keys;
 int32_t* old_vals = self->values;
 size_t* old_hashes = self->hashes;
 bool* old_occ = self->occupied;
-size_t new_cap = ((old_cap < 8) ? 16 : (old_cap * 2));
+size_t new_cap = old_cap < 8 ? 16 : old_cap * 2;
 kobel_str* keys = std__memory__Heap_create_str(new_cap);
 int32_t* values = std__memory__Heap_create_i32(new_cap);
 size_t* hashes = std__memory__Heap_create_usz(new_cap);
@@ -968,26 +968,26 @@ bool* new_occ = std__memory__Heap_create_bool(new_cap);
 size_t __for_e = new_cap;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t j = __for_i;
 new_occ[j] = false;
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -997,20 +997,20 @@ if (old_cap > 0) {
 size_t __for_e = old_cap;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t i = __for_i;
 if (old_occ[i]) {
 size_t h = old_hashes[i];
-size_t idx = (h % new_cap);
+size_t idx = h % new_cap;
 while (new_occ[idx]) {
-idx = ((idx + 1) % new_cap);
+idx = (idx + 1) % new_cap;
 }
 keys[idx] = old_keys[i];
 values[idx] = old_vals[i];
@@ -1018,15 +1018,15 @@ hashes[idx] = h;
 new_occ[idx] = true;
 }
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -1053,17 +1053,17 @@ std__memory__Heap_free_bool(self.occupied);
 }
 
 void std__collections__HashMap_str_i32_set(std__collections__HashMap_str_i32* self, kobel_str key, int32_t value) {
-if ((self->cap == 0) || ((self->len * 10) >= (self->cap * 7))) {
+if (self->cap == 0 || self->len * 10 >= self->cap * 7) {
 std__collections__HashMap_str_i32_grow(self);
 }
 size_t h = str_hash(key);
-size_t idx = (h % self->cap);
+size_t idx = h % self->cap;
 while (self->occupied[idx]) {
-if ((self->hashes[idx] == h) && kobel_streq(self->keys[idx], key)) {
+if (self->hashes[idx] == h && kobel_streq(self->keys[idx], key)) {
 self->values[idx] = value;
 return;
 }
-idx = ((idx + 1) % self->cap);
+idx = (idx + 1) % self->cap;
 }
 self->keys[idx] = key;
 self->values[idx] = value;
@@ -1082,12 +1082,12 @@ int32_t seen = 0;
 size_t __for_e = self->cap;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t idx = __for_i;
@@ -1098,15 +1098,15 @@ return (std__collections__Pair_str_i32){ self->keys[idx], self->values[idx] };
 seen++;
 }
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -1123,32 +1123,32 @@ test__test_destructuring__Point2D std__collections__List_test__test_destructurin
 }
 
 std__collections__List_test__test_destructuring__Point2D std__collections__List_test__test_destructuring__Point2D_init(test__test_destructuring__Point2D* items_data, size_t items_len) {
-size_t cap = ((items_len < 4) ? 4 : items_len);
+size_t cap = items_len < 4 ? 4 : items_len;
 test__test_destructuring__Point2D* buf = std__memory__Heap_create_test__test_destructuring__Point2D(cap);
 {
 size_t __for_e = items_len;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t i = __for_i;
 buf[i] = items_data[i];
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -1165,7 +1165,7 @@ self->len++;
 }
 
 void std__collections__List_test__test_destructuring__Point2D_grow(std__collections__List_test__test_destructuring__Point2D* self) {
-size_t new_cap = (self->cap * 2);
+size_t new_cap = self->cap * 2;
 self->data = std__memory__Heap_resize_test__test_destructuring__Point2D(self->data, new_cap);
 self->cap = new_cap;
 }
@@ -1195,31 +1195,31 @@ void std__memory__Heap_free_test__test_destructuring__Point2D(test__test_destruc
 }
 
 uint8_t* std__memory__Heap_create_u8(size_t count) {
-    return (uint8_t*)malloc((count * 1));
+    return (uint8_t*)malloc(count * 1);
 }
 
 kobel_str* std__memory__Heap_create_str(size_t count) {
-    return (kobel_str*)malloc((count * 16));
+    return (kobel_str*)malloc(count * 16);
 }
 
 int32_t* std__memory__Heap_create_i32(size_t count) {
-    return (int32_t*)malloc((count * 4));
+    return (int32_t*)malloc(count * 4);
 }
 
 std__collections__Pair_str_i32* std__memory__Heap_create_std__collections__Pair_str_i32(size_t count) {
-    return (std__collections__Pair_str_i32*)malloc((count * 24));
+    return (std__collections__Pair_str_i32*)malloc(count * 24);
 }
 
 std__collections__Pair_str_i32* std__memory__Heap_resize_std__collections__Pair_str_i32(std__collections__Pair_str_i32* ptr, size_t count) {
-    return (std__collections__Pair_str_i32*)realloc((uint8_t*)ptr, (count * 24));
+    return (std__collections__Pair_str_i32*)realloc((uint8_t*)ptr, count * 24);
 }
 
 size_t* std__memory__Heap_create_usz(size_t count) {
-    return (size_t*)malloc((count * 8));
+    return (size_t*)malloc(count * 8);
 }
 
 bool* std__memory__Heap_create_bool(size_t count) {
-    return (bool*)malloc((count * 1));
+    return (bool*)malloc(count * 1);
 }
 
 void std__memory__Heap_free_usz(size_t* ptr) {
@@ -1231,10 +1231,10 @@ void std__memory__Heap_free_bool(bool* ptr) {
 }
 
 test__test_destructuring__Point2D* std__memory__Heap_create_test__test_destructuring__Point2D(size_t count) {
-    return (test__test_destructuring__Point2D*)malloc((count * 8));
+    return (test__test_destructuring__Point2D*)malloc(count * 8);
 }
 
 test__test_destructuring__Point2D* std__memory__Heap_resize_test__test_destructuring__Point2D(test__test_destructuring__Point2D* ptr, size_t count) {
-    return (test__test_destructuring__Point2D*)realloc((uint8_t*)ptr, (count * 8));
+    return (test__test_destructuring__Point2D*)realloc((uint8_t*)ptr, count * 8);
 }
 

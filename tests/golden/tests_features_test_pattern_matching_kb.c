@@ -385,11 +385,11 @@ uint8_t* std__memory__Heap_create_u8(size_t count);
 kobel_str std__string__str_from_bytes(uint8_t* buf, size_t len) {
 std__string__StrRaw r = (std__string__StrRaw){ (const char*)buf, len };
 kobel_str* sp = (kobel_str*)&r;
-return (*(sp));
+return *sp;
 }
 
 bool str_empty(kobel_str self) {
-    return (self.len == 0);
+    return self.len == 0;
 }
 
 bool str_starts_with(kobel_str self, kobel_str prefix) {
@@ -400,12 +400,12 @@ return false;
 size_t __for_e = prefix.len;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t i = __for_i;
@@ -413,15 +413,15 @@ if (self.data[i] != prefix.data[i]) {
 return false;
 }
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -433,33 +433,33 @@ bool str_ends_with(kobel_str self, kobel_str suffix) {
 if (self.len < suffix.len) {
 return false;
 }
-size_t off = (self.len - suffix.len);
+size_t off = self.len - suffix.len;
 {
 size_t __for_e = suffix.len;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t i = __for_i;
-if (self.data[(off + i)] != suffix.data[i]) {
+if (self.data[off + i] != suffix.data[i]) {
 return false;
 }
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -474,17 +474,17 @@ return 0;
 if (self.len < sub.len) {
 return -1;
 }
-size_t max_start = (self.len - sub.len);
+size_t max_start = self.len - sub.len;
 {
 size_t __for_e = max_start;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i <= __for_e);
+__for_go = __for_i <= __for_e;
 } else {
-__for_go = (__for_i >= __for_e);
+__for_go = __for_i >= __for_e;
 }
 while (__for_go) {
 size_t i = __for_i;
@@ -493,29 +493,29 @@ bool matched = true;
 size_t __for_e = sub.len;
 size_t __for_i = __for_e;
 __for_i = 0;
-bool __for_up = (__for_i <= __for_e);
+bool __for_up = __for_i <= __for_e;
 bool __for_go = false;
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t j = __for_i;
-if (self.data[(i + j)] != sub.data[j]) {
+if (self.data[i + j] != sub.data[j]) {
 matched = false;
 break;
 }
 if (__for_up) {
-__for_go = ((__for_i + 1) < __for_e);
+__for_go = __for_i + 1 < __for_e;
 } else {
-__for_go = ((__for_i - 1) > __for_e);
+__for_go = __for_i - 1 > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -524,15 +524,15 @@ if (matched) {
 return i;
 }
 if (__for_up) {
-__for_go = (__for_i < __for_e);
+__for_go = __for_i < __for_e;
 } else {
-__for_go = (__for_i > __for_e);
+__for_go = __for_i > __for_e;
 }
 if (__for_go) {
 if (__for_up) {
-__for_i = (__for_i + 1);
+__for_i = __for_i + 1;
 } else {
-__for_i = (__for_i - 1);
+__for_i = __for_i - 1;
 }
 }
 }
@@ -542,7 +542,7 @@ return -1;
 
 kobel_str std__traits__fmt_u64(uint64_t n0) {
 if (n0 < 10) {
-return ((uint8_t)n0 == 0 ? KOBEL_STR("0") : ((uint8_t)n0 == 1 ? KOBEL_STR("1") : ((uint8_t)n0 == 2 ? KOBEL_STR("2") : ((uint8_t)n0 == 3 ? KOBEL_STR("3") : ((uint8_t)n0 == 4 ? KOBEL_STR("4") : ((uint8_t)n0 == 5 ? KOBEL_STR("5") : ((uint8_t)n0 == 6 ? KOBEL_STR("6") : ((uint8_t)n0 == 7 ? KOBEL_STR("7") : ((uint8_t)n0 == 8 ? KOBEL_STR("8") : KOBEL_STR("9"))))))))));
+return ((uint8_t)n0) == 0 ? KOBEL_STR("0") : ((uint8_t)n0) == 1 ? KOBEL_STR("1") : ((uint8_t)n0) == 2 ? KOBEL_STR("2") : ((uint8_t)n0) == 3 ? KOBEL_STR("3") : ((uint8_t)n0) == 4 ? KOBEL_STR("4") : ((uint8_t)n0) == 5 ? KOBEL_STR("5") : ((uint8_t)n0) == 6 ? KOBEL_STR("6") : ((uint8_t)n0) == 7 ? KOBEL_STR("7") : ((uint8_t)n0) == 8 ? KOBEL_STR("8") : KOBEL_STR("9");
 }
 uint64_t n = n0;
 size_t digits = 1;
@@ -551,12 +551,12 @@ while (probe >= 10) {
 probe /= 10;
 digits++;
 }
-uint8_t* buf = std__memory__Heap_create_u8((digits + 1));
+uint8_t* buf = std__memory__Heap_create_u8(digits + 1);
 buf[digits] = 0;
 size_t i = digits;
 while (i > 0) {
 i--;
-buf[i] = (uint8_t)(48 + (n % 10));
+buf[i] = (uint8_t)(48 + n % 10);
 n /= 10;
 }
 return std__string__str_from_bytes(buf, digits);
@@ -564,14 +564,14 @@ return std__string__str_from_bytes(buf, digits);
 
 kobel_str std__traits__fmt_i64(int64_t v) {
 if (v < 0) {
-uint64_t mag = ((uint64_t)(0 - (v + 1)) + 1);
+uint64_t mag = (uint64_t)(0 - (v + 1)) + 1;
 return kobel_concat(2, KOBEL_STR("-"), std__traits__fmt_u64(mag));
 }
 return std__traits__fmt_u64((uint64_t)v);
 }
 
 kobel_str std__traits__fmt_bool(bool b) {
-    return (b ? KOBEL_STR("true") : KOBEL_STR("false"));
+    return b ? KOBEL_STR("true") : KOBEL_STR("false");
 }
 
 kobel_str bool_to_str(bool self) {
@@ -594,7 +594,7 @@ return node->value;
 } else if (node != NULL && node->tag == tests__features__test_pattern_matching__Binary__TAG) {
 void* __orig_node = (void*)node;
 tests__features__test_pattern_matching__Binary* node = (tests__features__test_pattern_matching__Binary*)__orig_node;
-return (tests__features__test_pattern_matching__eval(node->left) + tests__features__test_pattern_matching__eval(node->right));
+return tests__features__test_pattern_matching__eval(node->left) + tests__features__test_pattern_matching__eval(node->right);
 } else {
 return 0;
 }
@@ -608,7 +608,7 @@ return node->value;
 } else if (node != NULL && node->tag == tests__features__test_pattern_matching__Binary__TAG) {
 void* __orig_node = (void*)node;
 tests__features__test_pattern_matching__Binary* node = (tests__features__test_pattern_matching__Binary*)__orig_node;
-return (tests__features__test_pattern_matching__eval_when_expr(node->left) + tests__features__test_pattern_matching__eval_when_expr(node->right));
+return tests__features__test_pattern_matching__eval_when_expr(node->left) + tests__features__test_pattern_matching__eval_when_expr(node->right);
 } else {
 return 0;
 }
@@ -649,14 +649,14 @@ return 0;
 int32_t tests__features__test_pattern_matching__eval_with_alias(tests__features__test_pattern_matching__Node* node) {
 if (node != NULL && node->tag == tests__features__test_pattern_matching__Literal__TAG) {
 tests__features__test_pattern_matching__Literal* lit = (tests__features__test_pattern_matching__Literal*)node;
-bool check_orig = ((node != NULL && node->tag == tests__features__test_pattern_matching__Literal__TAG));
+bool check_orig = node != NULL && node->tag == tests__features__test_pattern_matching__Literal__TAG;
 if (check_orig) {
 return lit->value;
 }
 return 0;
 } else if (node != NULL && node->tag == tests__features__test_pattern_matching__Binary__TAG) {
 tests__features__test_pattern_matching__Binary* b = (tests__features__test_pattern_matching__Binary*)node;
-return (tests__features__test_pattern_matching__eval_with_alias(b->left) + tests__features__test_pattern_matching__eval_with_alias(b->right));
+return tests__features__test_pattern_matching__eval_with_alias(b->left) + tests__features__test_pattern_matching__eval_with_alias(b->right);
 } else {
 return 0;
 }
@@ -669,7 +669,7 @@ tests__features__test_pattern_matching__Literal* lit = (tests__features__test_pa
 return lit->value;
 } else if (node != NULL && node->tag == tests__features__test_pattern_matching__Binary__TAG) {
 tests__features__test_pattern_matching__Binary* b = (tests__features__test_pattern_matching__Binary*)node;
-return (tests__features__test_pattern_matching__eval_expr_alias(b->left) + tests__features__test_pattern_matching__eval_expr_alias(b->right));
+return tests__features__test_pattern_matching__eval_expr_alias(b->left) + tests__features__test_pattern_matching__eval_expr_alias(b->right);
 } else {
 return 0;
 }
@@ -685,7 +685,7 @@ return lit->value;
 {
 tests__features__test_pattern_matching__Binary* b = NULL;
 if (node != NULL && node->tag == tests__features__test_pattern_matching__Binary__TAG && (b = (tests__features__test_pattern_matching__Binary*)node, 1)) {
-return (tests__features__test_pattern_matching__eval_if_with_alias(b->left) + tests__features__test_pattern_matching__eval_if_with_alias(b->right));
+return tests__features__test_pattern_matching__eval_if_with_alias(b->left) + tests__features__test_pattern_matching__eval_if_with_alias(b->right);
 }
 }
 return 0;
@@ -700,7 +700,7 @@ return node->value;
 if (node != NULL && node->tag == tests__features__test_pattern_matching__Binary__TAG) {
 void* __orig_node = (void*)node;
 tests__features__test_pattern_matching__Binary* node = (tests__features__test_pattern_matching__Binary*)__orig_node;
-return (tests__features__test_pattern_matching__eval_if_no_alias(node->left) + tests__features__test_pattern_matching__eval_if_no_alias(node->right));
+return tests__features__test_pattern_matching__eval_if_no_alias(node->left) + tests__features__test_pattern_matching__eval_if_no_alias(node->right);
 }
 return 0;
 }
@@ -709,16 +709,16 @@ int32_t tests__features__test_pattern_matching__eval_compound_condition(tests__f
 {
 tests__features__test_pattern_matching__Literal* lit = NULL;
 tests__features__test_pattern_matching__Binary* b = NULL;
-if ((node != NULL && node->tag == tests__features__test_pattern_matching__Literal__TAG && (lit = (tests__features__test_pattern_matching__Literal*)node, 1)) && (lit->value > 15)) {
-return (lit->value * 2);
-} else if ((node != NULL && node->tag == tests__features__test_pattern_matching__Literal__TAG && (lit = (tests__features__test_pattern_matching__Literal*)node, 1)) && (lit->value <= 15)) {
-return (lit->value + 1);
-} else if ((node != NULL && node->tag == tests__features__test_pattern_matching__Binary__TAG && (b = (tests__features__test_pattern_matching__Binary*)node, 1)) && (b->left != NULL) && (b->right != NULL)) {
+if (node != NULL && node->tag == tests__features__test_pattern_matching__Literal__TAG && (lit = (tests__features__test_pattern_matching__Literal*)node, 1) && lit->value > 15) {
+return lit->value * 2;
+} else if (node != NULL && node->tag == tests__features__test_pattern_matching__Literal__TAG && (lit = (tests__features__test_pattern_matching__Literal*)node, 1) && lit->value <= 15) {
+return lit->value + 1;
+} else if (node != NULL && node->tag == tests__features__test_pattern_matching__Binary__TAG && (b = (tests__features__test_pattern_matching__Binary*)node, 1) && b->left != NULL && b->right != NULL) {
 {
 tests__features__test_pattern_matching__Literal* l_lit = NULL;
 tests__features__test_pattern_matching__Literal* r_lit = NULL;
-if ((b->left != NULL && b->left->tag == tests__features__test_pattern_matching__Literal__TAG && (l_lit = (tests__features__test_pattern_matching__Literal*)b->left, 1)) && (b->right != NULL && b->right->tag == tests__features__test_pattern_matching__Literal__TAG && (r_lit = (tests__features__test_pattern_matching__Literal*)b->right, 1))) {
-return (l_lit->value + r_lit->value);
+if (b->left != NULL && b->left->tag == tests__features__test_pattern_matching__Literal__TAG && (l_lit = (tests__features__test_pattern_matching__Literal*)b->left, 1) && b->right != NULL && b->right->tag == tests__features__test_pattern_matching__Literal__TAG && (r_lit = (tests__features__test_pattern_matching__Literal*)b->right, 1)) {
+return l_lit->value + r_lit->value;
 }
 }
 }
@@ -749,15 +749,15 @@ tests__features__test_pattern_matching__add_ten(lit);
 }
 
 int32_t tests__features__test_pattern_matching__color_score(tests__features__test_pattern_matching__ExhaustiveColor c) {
-return (c == 0 ? 10 : (c == 1 ? 20 : 30));
+return c == 0 ? 10 : c == 1 ? 20 : 30;
 }
 
 int32_t tests__features__test_pattern_matching__bool_score(bool b) {
-return (b == true ? 100 : 200);
+return b == true ? 100 : 200;
 }
 
 bool tests__features__test_pattern_matching__Probe_is_positive(tests__features__test_pattern_matching__Probe* self) {
-    return (self->x > 0);
+    return self->x > 0;
 }
 
 bool tests__features__test_pattern_matching__Probe_has_prefix(tests__features__test_pattern_matching__Probe* self, kobel_str pfx) {
@@ -765,11 +765,11 @@ bool tests__features__test_pattern_matching__Probe_has_prefix(tests__features__t
 }
 
 int32_t tests__features__test_pattern_matching__Probe_classify(tests__features__test_pattern_matching__Probe* self) {
-    return (tests__features__test_pattern_matching__Probe_is_positive(self) && tests__features__test_pattern_matching__Probe_has_prefix(self, KOBEL_STR("ok")) ? 1 : (tests__features__test_pattern_matching__Probe_is_positive(self) ? 2 : (self->x == 0 ? 3 : 4)));
+    return tests__features__test_pattern_matching__Probe_is_positive(self) && tests__features__test_pattern_matching__Probe_has_prefix(self, KOBEL_STR("ok")) ? 1 : tests__features__test_pattern_matching__Probe_is_positive(self) ? 2 : self->x == 0 ? 3 : 4;
 }
 
 int32_t tests__features__test_pattern_matching__classify_str_subject(kobel_str s) {
-    return (str_ends_with(s, KOBEL_STR("a")) ? 10 : (str_starts_with(s, KOBEL_STR("b")) ? 20 : (str_index_of(s, KOBEL_STR("C")) == 3 ? 30 : (kobel_streq(s, KOBEL_STR("D")) ? 40 : (!str_empty(s) && (s.len == 2) ? 50 : 0)))));
+    return str_ends_with(s, KOBEL_STR("a")) ? 10 : str_starts_with(s, KOBEL_STR("b")) ? 20 : str_index_of(s, KOBEL_STR("C")) == 3 ? 30 : kobel_streq(s, KOBEL_STR("D")) ? 40 : !str_empty(s) && s.len == 2 ? 50 : 0;
 }
 
 int32_t tests__features__test_pattern_matching__classify_str_stmt(kobel_str s) {
@@ -785,7 +785,7 @@ return out;
 }
 
 bool tests__features__test_pattern_matching__is_known_node(tests__features__test_pattern_matching__Node* node) {
-if (node != NULL && node->tag == tests__features__test_pattern_matching__Literal__TAG || node != NULL && node->tag == tests__features__test_pattern_matching__Binary__TAG) {
+if ((node != NULL && node->tag == tests__features__test_pattern_matching__Literal__TAG) || (node != NULL && node->tag == tests__features__test_pattern_matching__Binary__TAG)) {
 return true;
 } else {
 return false;
@@ -828,8 +828,8 @@ std__io__println(KOBEL_STR("FAIL: eval_expr_alias"));
 return 1;
 }
 tests__features__test_pattern_matching__Node* node_ptr = (tests__features__test_pattern_matching__Node*)&bin;
-bool check_bin = (node_ptr != NULL && node_ptr->tag == tests__features__test_pattern_matching__Binary__TAG);
-bool check_lit = (node_ptr != NULL && node_ptr->tag == tests__features__test_pattern_matching__Literal__TAG);
+bool check_bin = node_ptr != NULL && node_ptr->tag == tests__features__test_pattern_matching__Binary__TAG;
+bool check_lit = node_ptr != NULL && node_ptr->tag == tests__features__test_pattern_matching__Literal__TAG;
 std__io__println(kobel_concat(2, KOBEL_STR("node_ptr is Binary = "), bool_to_str(check_bin)));
 std__io__println(kobel_concat(2, KOBEL_STR("node_ptr is Literal = "), bool_to_str(check_lit)));
 if (!check_bin || check_lit) {
@@ -842,7 +842,7 @@ int32_t enum_r1 = tests__features__test_pattern_matching__eval_expr((tests__feat
 int32_t enum_r2 = tests__features__test_pattern_matching__eval_expr((tests__features__test_pattern_matching__BaseExpr*)&neg);
 std__io__println(kobel_concat(2, KOBEL_STR("eval_expr(num) = "), i32_to_str(enum_r1)));
 std__io__println(kobel_concat(2, KOBEL_STR("eval_expr(neg) = "), i32_to_str(enum_r2)));
-if ((enum_r1 != 42) || (enum_r2 != -42)) {
+if (enum_r1 != 42 || enum_r2 != -42) {
 std__io__println(KOBEL_STR("FAIL: enum-based smart cast"));
 return 1;
 }
@@ -868,10 +868,10 @@ tests__features__test_pattern_matching__Node* null_node = NULL;
 int32_t null_when = tests__features__test_pattern_matching__eval(null_node);
 int32_t null_if = tests__features__test_pattern_matching__eval_if_with_alias(null_node);
 int32_t null_expr = tests__features__test_pattern_matching__eval_expr_alias(null_node);
-bool null_is = (null_node != NULL && null_node->tag == tests__features__test_pattern_matching__Literal__TAG);
+bool null_is = null_node != NULL && null_node->tag == tests__features__test_pattern_matching__Literal__TAG;
 std__io__println(kobel_concat(4, KOBEL_STR("eval(null) = "), i32_to_str(null_when), KOBEL_STR(", eval_if_with_alias(null) = "), i32_to_str(null_if)));
 std__io__println(kobel_concat(4, KOBEL_STR("eval_expr_alias(null) = "), i32_to_str(null_expr), KOBEL_STR(", null is Literal = "), bool_to_str(null_is)));
-if ((null_when != 0) || (null_if != 0) || (null_expr != 0) || null_is) {
+if (null_when != 0 || null_if != 0 || null_expr != 0 || null_is) {
 std__io__println(KOBEL_STR("FAIL: null subject in pattern match"));
 return 1;
 }
@@ -894,15 +894,15 @@ int32_t c2 = tests__features__test_pattern_matching__eval_compound_condition((te
 int32_t c3 = tests__features__test_pattern_matching__eval_compound_condition((tests__features__test_pattern_matching__Node*)&bin);
 int32_t c4 = tests__features__test_pattern_matching__eval_compound_condition(null_node);
 std__io__println(kobel_concat(8, KOBEL_STR("compound: c1="), i32_to_str(c1), KOBEL_STR(", c2="), i32_to_str(c2), KOBEL_STR(", c3="), i32_to_str(c3), KOBEL_STR(", c4="), i32_to_str(c4)));
-if ((c1 != 11) || (c2 != 50) || (c3 != 35) || (c4 != -1)) {
+if (c1 != 11 || c2 != 50 || c3 != 35 || c4 != -1) {
 std__io__println(KOBEL_STR("FAIL: eval_compound_condition"));
 return 1;
 }
-if ((tests__features__test_pattern_matching__color_score(0) != 10) || (tests__features__test_pattern_matching__color_score(2) != 30)) {
+if (tests__features__test_pattern_matching__color_score(0) != 10 || tests__features__test_pattern_matching__color_score(2) != 30) {
 std__io__println(KOBEL_STR("FAIL: exhaustive enum when"));
 return 1;
 }
-if ((tests__features__test_pattern_matching__bool_score(true) != 100) || (tests__features__test_pattern_matching__bool_score(false) != 200)) {
+if (tests__features__test_pattern_matching__bool_score(true) != 100 || tests__features__test_pattern_matching__bool_score(false) != 200) {
 std__io__println(KOBEL_STR("FAIL: exhaustive bool when"));
 return 1;
 }
@@ -910,7 +910,7 @@ tests__features__test_pattern_matching__Literal* safe_lit = tests__features__tes
 tests__features__test_pattern_matching__Literal* safe_not_lit = tests__features__test_pattern_matching__cast_to_literal((tests__features__test_pattern_matching__Node*)&bin);
 tests__features__test_pattern_matching__Binary* safe_bin = tests__features__test_pattern_matching__cast_to_binary((tests__features__test_pattern_matching__Node*)&bin);
 tests__features__test_pattern_matching__Literal* safe_null = tests__features__test_pattern_matching__cast_to_literal(null_node);
-if ((safe_lit == NULL) || (safe_lit->value != 10)) {
+if (safe_lit == NULL || safe_lit->value != 10) {
 std__io__println(KOBEL_STR("FAIL: safe cast literal match"));
 return 1;
 }
@@ -918,7 +918,7 @@ if (safe_not_lit != NULL) {
 std__io__println(KOBEL_STR("FAIL: safe cast mismatch should be null"));
 return 1;
 }
-if ((safe_bin == NULL) || (safe_bin->tag != 2)) {
+if (safe_bin == NULL || safe_bin->tag != 2) {
 std__io__println(KOBEL_STR("FAIL: safe cast binary match"));
 return 1;
 }
@@ -927,11 +927,11 @@ std__io__println(KOBEL_STR("FAIL: safe cast null should be null"));
 return 1;
 }
 std__io__println(KOBEL_STR("smart cast via when: OK"));
-if ((tests__features__test_pattern_matching__classify_str_subject(KOBEL_STR("cba")) != 10) || (tests__features__test_pattern_matching__classify_str_subject(KOBEL_STR("bet")) != 20) || (tests__features__test_pattern_matching__classify_str_subject(KOBEL_STR("xyzC1")) != 30) || (tests__features__test_pattern_matching__classify_str_subject(KOBEL_STR("D")) != 40) || (tests__features__test_pattern_matching__classify_str_subject(KOBEL_STR("hi")) != 50) || (tests__features__test_pattern_matching__classify_str_subject(KOBEL_STR("")) != 0)) {
+if (tests__features__test_pattern_matching__classify_str_subject(KOBEL_STR("cba")) != 10 || tests__features__test_pattern_matching__classify_str_subject(KOBEL_STR("bet")) != 20 || tests__features__test_pattern_matching__classify_str_subject(KOBEL_STR("xyzC1")) != 30 || tests__features__test_pattern_matching__classify_str_subject(KOBEL_STR("D")) != 40 || tests__features__test_pattern_matching__classify_str_subject(KOBEL_STR("hi")) != 50 || tests__features__test_pattern_matching__classify_str_subject(KOBEL_STR("")) != 0) {
 std__io__println(KOBEL_STR("FAIL: classify_str_subject"));
 return 1;
 }
-if ((tests__features__test_pattern_matching__classify_str_stmt(KOBEL_STR("box")) != 100) || (tests__features__test_pattern_matching__classify_str_stmt(KOBEL_STR("EXACT")) != 100) || (tests__features__test_pattern_matching__classify_str_stmt(KOBEL_STR("yes")) != 200) || (tests__features__test_pattern_matching__classify_str_stmt(KOBEL_STR("no")) != 300)) {
+if (tests__features__test_pattern_matching__classify_str_stmt(KOBEL_STR("box")) != 100 || tests__features__test_pattern_matching__classify_str_stmt(KOBEL_STR("EXACT")) != 100 || tests__features__test_pattern_matching__classify_str_stmt(KOBEL_STR("yes")) != 200 || tests__features__test_pattern_matching__classify_str_stmt(KOBEL_STR("no")) != 300) {
 std__io__println(KOBEL_STR("FAIL: classify_str_stmt"));
 return 1;
 }
@@ -939,7 +939,7 @@ tests__features__test_pattern_matching__Probe p1 = (tests__features__test_patter
 tests__features__test_pattern_matching__Probe p2 = (tests__features__test_pattern_matching__Probe){ 5, KOBEL_STR("other") };
 tests__features__test_pattern_matching__Probe p3 = (tests__features__test_pattern_matching__Probe){ 0, KOBEL_STR("zero") };
 tests__features__test_pattern_matching__Probe p4 = (tests__features__test_pattern_matching__Probe){ -3, KOBEL_STR("neg") };
-if ((tests__features__test_pattern_matching__Probe_classify(&p1) != 1) || (tests__features__test_pattern_matching__Probe_classify(&p2) != 2) || (tests__features__test_pattern_matching__Probe_classify(&p3) != 3) || (tests__features__test_pattern_matching__Probe_classify(&p4) != 4)) {
+if (tests__features__test_pattern_matching__Probe_classify(&p1) != 1 || tests__features__test_pattern_matching__Probe_classify(&p2) != 2 || tests__features__test_pattern_matching__Probe_classify(&p3) != 3 || tests__features__test_pattern_matching__Probe_classify(&p4) != 4) {
 std__io__println(KOBEL_STR("FAIL: Probe.classify via when (self)"));
 return 1;
 }
@@ -949,11 +949,11 @@ return 1;
 }
 tests__features__test_pattern_matching__Node* p_lit = (tests__features__test_pattern_matching__Node*)&lit1;
 tests__features__test_pattern_matching__Node* p_bin = (tests__features__test_pattern_matching__Node*)&bin;
-if (!((p_lit != NULL && p_lit->tag == tests__features__test_pattern_matching__Literal__TAG || p_lit != NULL && p_lit->tag == tests__features__test_pattern_matching__Binary__TAG)) || !((p_bin != NULL && p_bin->tag == tests__features__test_pattern_matching__Literal__TAG || p_bin != NULL && p_bin->tag == tests__features__test_pattern_matching__Binary__TAG)) || ((null_node != NULL && null_node->tag == tests__features__test_pattern_matching__Literal__TAG || null_node != NULL && null_node->tag == tests__features__test_pattern_matching__Binary__TAG))) {
+if (!((p_lit != NULL && p_lit->tag == tests__features__test_pattern_matching__Literal__TAG) || (p_lit != NULL && p_lit->tag == tests__features__test_pattern_matching__Binary__TAG)) || !((p_bin != NULL && p_bin->tag == tests__features__test_pattern_matching__Literal__TAG) || (p_bin != NULL && p_bin->tag == tests__features__test_pattern_matching__Binary__TAG)) || ((null_node != NULL && null_node->tag == tests__features__test_pattern_matching__Literal__TAG) || (null_node != NULL && null_node->tag == tests__features__test_pattern_matching__Binary__TAG))) {
 std__io__println(KOBEL_STR("FAIL: 'is [Literal, Binary]' type list"));
 return 1;
 }
-if ((!(p_lit != NULL && p_lit->tag == tests__features__test_pattern_matching__Literal__TAG || p_lit != NULL && p_lit->tag == tests__features__test_pattern_matching__Binary__TAG)) || !(!(null_node != NULL && null_node->tag == tests__features__test_pattern_matching__Literal__TAG || null_node != NULL && null_node->tag == tests__features__test_pattern_matching__Binary__TAG))) {
+if (!((p_lit != NULL && p_lit->tag == tests__features__test_pattern_matching__Literal__TAG) || (p_lit != NULL && p_lit->tag == tests__features__test_pattern_matching__Binary__TAG)) || !!((null_node != NULL && null_node->tag == tests__features__test_pattern_matching__Literal__TAG) || (null_node != NULL && null_node->tag == tests__features__test_pattern_matching__Binary__TAG))) {
 std__io__println(KOBEL_STR("FAIL: '!is [Literal, Binary]' type list"));
 return 1;
 }
@@ -963,6 +963,6 @@ return 0;
 }
 
 uint8_t* std__memory__Heap_create_u8(size_t count) {
-    return (uint8_t*)malloc((count * 1));
+    return (uint8_t*)malloc(count * 1);
 }
 

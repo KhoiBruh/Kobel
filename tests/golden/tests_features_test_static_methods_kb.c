@@ -329,15 +329,15 @@ uint8_t* std__memory__Heap_create_u8(size_t count);
 kobel_str std__string__str_from_bytes(uint8_t* buf, size_t len) {
 std__string__StrRaw r = (std__string__StrRaw){ (const char*)buf, len };
 kobel_str* sp = (kobel_str*)&r;
-return (*(sp));
+return *sp;
 }
 
 bool std__filesystem__Path_exists(std__filesystem__Path* self) {
-    return (kobel_path_exists(self->raw) != 0);
+    return kobel_path_exists(self->raw) != 0;
 }
 
 bool std__filesystem__Path_remove(std__filesystem__Path* self) {
-    return (remove(kobel_cstr(self->raw)) == 0);
+    return remove(kobel_cstr(self->raw)) == 0;
 }
 
 kobel_str std__filesystem__Path_read_text(std__filesystem__Path* self) {
@@ -353,7 +353,7 @@ return KOBEL_STR("");
 }
 fseek(f, 0, 0);
 size_t sz = (size_t)size_i64;
-uint8_t* buf = std__memory__Heap_create_u8((sz + 1));
+uint8_t* buf = std__memory__Heap_create_u8(sz + 1);
 if (buf == NULL) {
 fclose(f);
 return KOBEL_STR("");
@@ -371,7 +371,7 @@ return false;
 }
 size_t written = fwrite(content.data, 1, content.len, f);
 fclose(f);
-return (written == content.len);
+return written == content.len;
 }
 
 test__static_methods__Point test__static_methods__Point_init(int32_t x, int32_t y) {
@@ -391,7 +391,7 @@ test__static_methods__Point test__static_methods__Point_default_x(int32_t y, int
 }
 
 test__static_methods__Point test__static_methods__Point_add(test__static_methods__Point p1, test__static_methods__Point p2) {
-    return test__static_methods__Point_init((p1.x + p2.x), (p1.y + p2.y));
+    return test__static_methods__Point_init(p1.x + p2.x, p1.y + p2.y);
 }
 
 test__static_methods__Point test__static_methods__Point_make_zero(void) {
@@ -399,32 +399,32 @@ test__static_methods__Point test__static_methods__Point_make_zero(void) {
 }
 
 int32_t test__static_methods__Point_length_squared(test__static_methods__Point* self) {
-    return ((self->x * self->x) + (self->y * self->y));
+    return self->x * self->x + self->y * self->y;
 }
 
 int32_t main(void) {
 test__static_methods__Point p1 = test__static_methods__Point_create(3, 4);
-if ((p1.x != 3) || (p1.y != 4)) {
+if (p1.x != 3 || p1.y != 4) {
 return 1;
 }
 test__static_methods__Point p2 = test__static_methods__Point_init(5, 6);
-if ((p2.x != 5) || (p2.y != 6)) {
+if (p2.x != 5 || p2.y != 6) {
 return 2;
 }
 test__static_methods__Point p0 = test__static_methods__Point_origin();
-if ((p0.x != 0) || (p0.y != 0)) {
+if (p0.x != 0 || p0.y != 0) {
 return 3;
 }
 test__static_methods__Point pz = test__static_methods__Point_make_zero();
-if ((pz.x != 0) || (pz.y != 0)) {
+if (pz.x != 0 || pz.y != 0) {
 return 4;
 }
 test__static_methods__Point p_sum = test__static_methods__Point_add(p1, p2);
-if ((p_sum.x != 8) || (p_sum.y != 10)) {
+if (p_sum.x != 8 || p_sum.y != 10) {
 return 5;
 }
 test__static_methods__Point pd = test__static_methods__Point_default_x(10, 42);
-if ((pd.x != 42) || (pd.y != 10)) {
+if (pd.x != 42 || pd.y != 10) {
 return 6;
 }
 if (test__static_methods__Point_length_squared(&p1) != 25) {
@@ -457,6 +457,6 @@ return 0;
 }
 
 uint8_t* std__memory__Heap_create_u8(size_t count) {
-    return (uint8_t*)malloc((count * 1));
+    return (uint8_t*)malloc(count * 1);
 }
 
