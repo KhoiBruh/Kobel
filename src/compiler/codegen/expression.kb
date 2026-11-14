@@ -60,8 +60,6 @@ impl CCodeGen {
 
 			is UnaryExpr -> self.gen_unary_expr(node);
 
-			is ArrayLiteralExpr -> self.gen_array_literal_expr(node);
-
 			is CallExpr -> self.gen_call_expr(ast_node, node);
 
 			is MemberExpr -> self.gen_member_expr(ast_node, node);
@@ -222,6 +220,21 @@ impl CCodeGen {
 			return "(${l} != NULL ? ${l} : ${r})";
 		}
 
+		if (bin.op == TokenType.KW_IN) {
+			val unwrapped_r = unwrap_group_expr(bin.right);
+			if (unwrapped_r != null && unwrapped_r is ArrayLiteralExpr as al) {
+				val unwrapped_l = unwrap_group_expr(bin.left);
+				if (unwrapped_l != null && unwrapped_l is MemberExpr as mem && mem.is_safe) {
+					val obj_s = self.gen_expr(mem.object);
+					val obj_wrap = if (expr_needs_parens_for_member(mem.object)) "(${obj_s})" else obj_s;
+					val cond = "${obj_wrap}->${mem.member}";
+					return "(${obj_wrap} != NULL && (${self.gen_when_test(cond, al.elements)}))";
+				}
+				val cond = self.gen_expr(bin.left);
+				return "(${self.gen_when_test(cond, al.elements)})";
+			}
+		}
+
 		val is_cmp = when (bin.op) {
 			TokenType.EQUAL_EQUAL, TokenType.BANG_EQUAL,
 			TokenType.LESS, TokenType.LESS_EQUAL,
@@ -326,31 +339,6 @@ impl CCodeGen {
 			TokenType.AMPERSAND -> "&${opnd}";
 			else -> opnd;
 		};
-	}
-
-	// `[1, 2, 3]` -> a C99 compound literal, `(int32_t[]){1, 2, 3}`. It decays
-	// to a pointer, which is how this backend represents an array value.
-	fn gen_array_literal_expr(&self, al: *ArrayLiteralExpr): str {
-		val elem_c = when {
-			al.elem_type_node != null -> c_type_from_ast(al.elem_type_node!);
-
-			!self.array_elem_hint.empty() -> self.array_elem_hint;
-
-			!al.elements.empty() -> self.c_type_or(al.elements.first(), "int32_t");
-
-			else -> "int32_t";
-		};
-
-		val elems_str = al.elements.map { el -> self.gen_expr(el) };
-		val joined_elems = ", ".join(elems_str);
-		val arr_res = "(${elem_c}[]){${joined_elems}}";
-
-		if (!al.list_struct_name.empty()) {
-			return if (al.elements.empty()) "${al.list_struct_name}_from_array(NULL, 0)"
-			else "${al.list_struct_name}_from_array(${arr_res}, ${al.elements.len})";
-		}
-
-		return arr_res;
 	}
 
 	// Calls lower to a C call, a struct compound literal, or an inlined string/size helper.

@@ -302,9 +302,22 @@ typedef struct tests__features__test_control_flow__Bundle tests__features__test_
 typedef struct tests__features__test_control_flow__Tally tests__features__test_control_flow__Tally;
 typedef struct tests__features__test_control_flow__Steps tests__features__test_control_flow__Steps;
 typedef struct tests__features__test_control_flow__Vec2 tests__features__test_control_flow__Vec2;
+typedef int32_t tests__features__test_control_flow__CfStatus;
+typedef kobel_str tests__features__test_control_flow__CfMethod;
+typedef struct tests__features__test_control_flow__CfShape tests__features__test_control_flow__CfShape;
+typedef struct tests__features__test_control_flow__CfShape__Circle tests__features__test_control_flow__CfShape__Circle;
+#define tests__features__test_control_flow__CfShape__Circle__TAG 0
+typedef struct tests__features__test_control_flow__CfShape__Rect tests__features__test_control_flow__CfShape__Rect;
+#define tests__features__test_control_flow__CfShape__Rect__TAG 1
+typedef struct tests__features__test_control_flow__CfShape__Empty tests__features__test_control_flow__CfShape__Empty;
+#define tests__features__test_control_flow__CfShape__Empty__TAG 2
+typedef struct tests__features__test_control_flow__CfHolder tests__features__test_control_flow__CfHolder;
 typedef struct tests__features__test_control_flow__Bag tests__features__test_control_flow__Bag;
 typedef struct std__collections__List_str std__collections__List_str;
 typedef struct std__collections__List_i32 std__collections__List_i32;
+typedef struct std__collections__Array_i32 std__collections__Array_i32;
+typedef struct std__collections__Array_str std__collections__Array_str;
+typedef struct std__collections__Array_tests__features__test_control_flow__Vec2 std__collections__Array_tests__features__test_control_flow__Vec2;
 typedef struct std__collections__List_tests__features__test_control_flow__Bundle std__collections__List_tests__features__test_control_flow__Bundle;
 
 
@@ -354,6 +367,30 @@ struct tests__features__test_control_flow__Vec2 {
     int32_t y;
 };
 
+struct tests__features__test_control_flow__CfShape__Circle {
+    double radius;
+};
+struct tests__features__test_control_flow__CfShape__Rect {
+    double width;
+    double height;
+};
+struct tests__features__test_control_flow__CfShape__Empty {
+    char __empty;
+};
+struct tests__features__test_control_flow__CfShape {
+    int32_t tag;
+    union {
+        struct tests__features__test_control_flow__CfShape__Circle Circle;
+        struct tests__features__test_control_flow__CfShape__Rect Rect;
+        struct tests__features__test_control_flow__CfShape__Empty Empty;
+    } u;
+};
+
+struct tests__features__test_control_flow__CfHolder {
+    int32_t code;
+    tests__features__test_control_flow__CfShape shape;
+};
+
 struct std__collections__List_str {
     kobel_str* data;
     size_t len;
@@ -366,6 +403,21 @@ struct std__collections__List_i32 {
     size_t cap;
 };
 
+struct std__collections__Array_i32 {
+    int32_t* data;
+    size_t len;
+};
+
+struct std__collections__Array_str {
+    kobel_str* data;
+    size_t len;
+};
+
+struct std__collections__Array_tests__features__test_control_flow__Vec2 {
+    tests__features__test_control_flow__Vec2* data;
+    size_t len;
+};
+
 struct std__collections__List_tests__features__test_control_flow__Bundle {
     tests__features__test_control_flow__Bundle* data;
     size_t len;
@@ -376,37 +428,7 @@ struct tests__features__test_control_flow__Bag {
     std__collections__List_i32 items;
 };
 
-static inline std__collections__List_str std__collections__List_str_from_array(const void* src, size_t n) {
-	size_t elem_size = sizeof(*(((std__collections__List_str*)0)->data));
-	size_t cap = (n < 4) ? 4 : n;
-	void* data = malloc(cap * elem_size);
-	if (n > 0 && src != NULL) memcpy(data, src, n * elem_size);
-	std__collections__List_str l;
-	l.data = data;
-	l.len = n;
-	l.cap = cap;
-	return l;
-}static inline std__collections__List_i32 std__collections__List_i32_from_array(const void* src, size_t n) {
-	size_t elem_size = sizeof(*(((std__collections__List_i32*)0)->data));
-	size_t cap = (n < 4) ? 4 : n;
-	void* data = malloc(cap * elem_size);
-	if (n > 0 && src != NULL) memcpy(data, src, n * elem_size);
-	std__collections__List_i32 l;
-	l.data = data;
-	l.len = n;
-	l.cap = cap;
-	return l;
-}static inline std__collections__List_tests__features__test_control_flow__Bundle std__collections__List_tests__features__test_control_flow__Bundle_from_array(const void* src, size_t n) {
-	size_t elem_size = sizeof(*(((std__collections__List_tests__features__test_control_flow__Bundle*)0)->data));
-	size_t cap = (n < 4) ? 4 : n;
-	void* data = malloc(cap * elem_size);
-	if (n > 0 && src != NULL) memcpy(data, src, n * elem_size);
-	std__collections__List_tests__features__test_control_flow__Bundle l;
-	l.data = data;
-	l.len = n;
-	l.cap = cap;
-	return l;
-}size_t std__traits__hash_int(size_t n);
+size_t std__traits__hash_int(size_t n);
 size_t std__traits__hash_str(kobel_str s);
 int32_t bool_hash(bool self);
 size_t char_hash(char self);
@@ -535,6 +557,7 @@ size_t tests__features__test_control_flow__Steps_count(tests__features__test_con
 int32_t tests__features__test_control_flow__Steps_at(tests__features__test_control_flow__Steps* self, size_t i);
 void tests__features__test_control_flow__test_iterable_trait(tests__features__test_control_flow__Tally* t);
 void tests__features__test_control_flow__test_array_literal(tests__features__test_control_flow__Tally* t);
+void tests__features__test_control_flow__test_in_candidate_list(tests__features__test_control_flow__Tally* t);
 void tests__features__test_control_flow__test_iter_string_builder(tests__features__test_control_flow__Tally* t);
 void tests__features__test_control_flow__test_iter_struct_elements(tests__features__test_control_flow__Tally* t);
 void tests__features__test_control_flow__test_iter_list_field(tests__features__test_control_flow__Tally* t);
@@ -624,6 +647,36 @@ bool std__collections__List_i32_contains(std__collections__List_i32* self, int32
 int32_t std__collections__List_i32_set(std__collections__List_i32* self, size_t index, int32_t value);
 void std__collections__List_i32_plus_assign(std__collections__List_i32* self, int32_t value);
 int32_t tests__features__test_control_flow__count_items_i32(std__collections__List_i32 xs);
+size_t std__collections__Array_i32_count(std__collections__Array_i32* self);
+int32_t std__collections__Array_i32_at(std__collections__Array_i32* self, size_t i);
+std__collections__Array_i32 std__collections__Array_i32_init(int32_t* items_data, size_t items_len);
+bool std__collections__Array_i32_empty(std__collections__Array_i32* self);
+int32_t std__collections__Array_i32_first(std__collections__Array_i32* self);
+int32_t std__collections__Array_i32_last(std__collections__Array_i32* self);
+int32_t std__collections__Array_i32_get(std__collections__Array_i32* self, size_t i);
+void std__collections__Array_i32_set(std__collections__Array_i32* self, size_t i, int32_t value);
+bool std__collections__Array_i32_contains(std__collections__Array_i32* self, int32_t value);
+std__collections__Array_i32 std__collections__Array_i32_slice(std__collections__Array_i32* self, size_t start, size_t end);
+size_t std__collections__Array_str_count(std__collections__Array_str* self);
+kobel_str std__collections__Array_str_at(std__collections__Array_str* self, size_t i);
+std__collections__Array_str std__collections__Array_str_init(kobel_str* items_data, size_t items_len);
+bool std__collections__Array_str_empty(std__collections__Array_str* self);
+kobel_str std__collections__Array_str_first(std__collections__Array_str* self);
+kobel_str std__collections__Array_str_last(std__collections__Array_str* self);
+kobel_str std__collections__Array_str_get(std__collections__Array_str* self, size_t i);
+void std__collections__Array_str_set(std__collections__Array_str* self, size_t i, kobel_str value);
+bool std__collections__Array_str_contains(std__collections__Array_str* self, kobel_str value);
+std__collections__Array_str std__collections__Array_str_slice(std__collections__Array_str* self, size_t start, size_t end);
+size_t std__collections__Array_tests__features__test_control_flow__Vec2_count(std__collections__Array_tests__features__test_control_flow__Vec2* self);
+tests__features__test_control_flow__Vec2 std__collections__Array_tests__features__test_control_flow__Vec2_at(std__collections__Array_tests__features__test_control_flow__Vec2* self, size_t i);
+std__collections__Array_tests__features__test_control_flow__Vec2 std__collections__Array_tests__features__test_control_flow__Vec2_init(tests__features__test_control_flow__Vec2* items_data, size_t items_len);
+bool std__collections__Array_tests__features__test_control_flow__Vec2_empty(std__collections__Array_tests__features__test_control_flow__Vec2* self);
+tests__features__test_control_flow__Vec2 std__collections__Array_tests__features__test_control_flow__Vec2_first(std__collections__Array_tests__features__test_control_flow__Vec2* self);
+tests__features__test_control_flow__Vec2 std__collections__Array_tests__features__test_control_flow__Vec2_last(std__collections__Array_tests__features__test_control_flow__Vec2* self);
+tests__features__test_control_flow__Vec2 std__collections__Array_tests__features__test_control_flow__Vec2_get(std__collections__Array_tests__features__test_control_flow__Vec2* self, size_t i);
+void std__collections__Array_tests__features__test_control_flow__Vec2_set(std__collections__Array_tests__features__test_control_flow__Vec2* self, size_t i, tests__features__test_control_flow__Vec2 value);
+bool std__collections__Array_tests__features__test_control_flow__Vec2_contains(std__collections__Array_tests__features__test_control_flow__Vec2* self, tests__features__test_control_flow__Vec2 value);
+std__collections__Array_tests__features__test_control_flow__Vec2 std__collections__Array_tests__features__test_control_flow__Vec2_slice(std__collections__Array_tests__features__test_control_flow__Vec2* self, size_t start, size_t end);
 size_t std__collections__List_tests__features__test_control_flow__Bundle_count(std__collections__List_tests__features__test_control_flow__Bundle* self);
 tests__features__test_control_flow__Bundle std__collections__List_tests__features__test_control_flow__Bundle_at(std__collections__List_tests__features__test_control_flow__Bundle* self, size_t i);
 std__collections__List_tests__features__test_control_flow__Bundle std__collections__List_tests__features__test_control_flow__Bundle_init(tests__features__test_control_flow__Bundle* items_data, size_t items_len);
@@ -2983,36 +3036,75 @@ tests__features__test_control_flow__check((ptr_sum == 30), KOBEL_STR("Iterable: 
 }
 
 void tests__features__test_control_flow__test_array_literal(tests__features__test_control_flow__Tally* t) {
-int32_t* a = (int32_t[]){1, 2, 3};
-tests__features__test_control_flow__check((3 == 3), KOBEL_STR("array literal: .len is the element count"), t);
-tests__features__test_control_flow__check(((a[0] == 1) && (a[2] == 3)), KOBEL_STR("array literal: indexed access"), t);
+std__collections__Array_i32 a = std__collections__Array_i32_init((int32_t[]){ 1, 2, 3 }, 3);
+tests__features__test_control_flow__check((a.len == 3), KOBEL_STR("Array<i32>: .len is the element count"), t);
+tests__features__test_control_flow__check(((std__collections__Array_i32_get(&a, 0) == 1) && (std__collections__Array_i32_get(&a, 2) == 3)), KOBEL_STR("Array<i32>: indexed access"), t);
 int32_t sum = 0;
 {
-size_t __for_n = 3;
+size_t __for_n = std__collections__Array_i32_count(&a);
 size_t __for_i = 0;
 while (__for_i < __for_n) {
-int32_t x = a[__for_i];
+int32_t x = std__collections__Array_i32_at(&a, __for_i);
 sum = (sum + x);
 __for_i = (__for_i + 1);
 }
 }
-tests__features__test_control_flow__check((sum == 6), KOBEL_STR("for over a fixed-size array"), t);
-kobel_str* words = (kobel_str[]){KOBEL_STR("ab"), KOBEL_STR("cde")};
-tests__features__test_control_flow__check((words[1].len == 3), KOBEL_STR("array of str elements"), t);
-tests__features__test_control_flow__Vec2* pts = (tests__features__test_control_flow__Vec2[]){(tests__features__test_control_flow__Vec2){ 1, 2 }, (tests__features__test_control_flow__Vec2){ 3, 4 }};
+tests__features__test_control_flow__check((sum == 6), KOBEL_STR("for over Array<i32>"), t);
+std__collections__Array_str words = std__collections__Array_str_init((kobel_str[]){ KOBEL_STR("ab"), KOBEL_STR("cde") }, 2);
+tests__features__test_control_flow__check((std__collections__Array_str_get(&words, 1).len == 3), KOBEL_STR("Array<str> elements"), t);
+std__collections__Array_tests__features__test_control_flow__Vec2 pts = std__collections__Array_tests__features__test_control_flow__Vec2_init((tests__features__test_control_flow__Vec2[]){ (tests__features__test_control_flow__Vec2){ 1, 2 }, (tests__features__test_control_flow__Vec2){ 3, 4 } }, 2);
 int32_t total = 0;
 {
-size_t __for_n = 2;
+size_t __for_n = std__collections__Array_tests__features__test_control_flow__Vec2_count(&pts);
 size_t __for_i = 0;
 while (__for_i < __for_n) {
-tests__features__test_control_flow__Vec2 p = pts[__for_i];
+tests__features__test_control_flow__Vec2 p = std__collections__Array_tests__features__test_control_flow__Vec2_at(&pts, __for_i);
 total = ((total + p.x) + p.y);
 __for_i = (__for_i + 1);
 }
 }
-tests__features__test_control_flow__check((total == 10), KOBEL_STR("for over an array of structs"), t);
-int32_t* inferred = (int32_t[]){7, 8};
-tests__features__test_control_flow__check(((2 == 2) && (inferred[1] == 8)), KOBEL_STR("array literal without annotation"), t);
+tests__features__test_control_flow__check((total == 10), KOBEL_STR("for over Array<Vec2>"), t);
+std__collections__Array_i32 inferred = std__collections__Array_i32_init((int32_t[]){ 7, 8 }, 2);
+tests__features__test_control_flow__check(((inferred.len == 2) && (std__collections__Array_i32_get(&inferred, 1) == 8)), KOBEL_STR("Array<i32> element check"), t);
+}
+
+void tests__features__test_control_flow__test_in_candidate_list(tests__features__test_control_flow__Tally* t) {
+char ch = 'g';
+tests__features__test_control_flow__check((ch == 't' || ch == 'g' || ch == 'k'), KOBEL_STR("char in candidate list"), t);
+tests__features__test_control_flow__check(!('z' == 't' || 'z' == 'g' || 'z' == 'k'), KOBEL_STR("char !in candidate list"), t);
+tests__features__test_control_flow__check((((('m') >= ('a') && ('m') <= ('z')) || (('m') <= ('a') && ('m') >= ('z'))) || ((('m') >= ('A') && ('m') <= ('Z')) || (('m') <= ('A') && ('m') >= ('Z'))) || 'm' == '_'), KOBEL_STR("char in range candidate list"), t);
+tests__features__test_control_flow__check((((('_') >= ('a') && ('_') <= ('z')) || (('_') <= ('a') && ('_') >= ('z'))) || ((('_') >= ('A') && ('_') <= ('Z')) || (('_') <= ('A') && ('_') >= ('Z'))) || '_' == '_'), KOBEL_STR("char in mixed range/literal list"), t);
+tests__features__test_control_flow__check(!(((('!') >= ('a') && ('!') <= ('z')) || (('!') <= ('a') && ('!') >= ('z'))) || ((('!') >= ('A') && ('!') <= ('Z')) || (('!') <= ('A') && ('!') >= ('Z'))) || '!' == '_'), KOBEL_STR("char !in range candidate list"), t);
+int32_t num = 15;
+tests__features__test_control_flow__check(((((num) >= (0) && (num) <= (5)) || ((num) <= (0) && (num) >= (5))) || (((num) >= (10) && (num) < (20)) || ((num) <= (10) && (num) > (20))) || num == 99), KOBEL_STR("int in mixed range candidate list"), t);
+tests__features__test_control_flow__check(!((((20) >= (0) && (20) <= (5)) || ((20) <= (0) && (20) >= (5))) || (((20) >= (10) && (20) < (20)) || ((20) <= (10) && (20) > (20))) || 20 == 99), KOBEL_STR("int !in half-open range upper bound"), t);
+tests__features__test_control_flow__check(((((5) >= (0) && (5) <= (5)) || ((5) <= (0) && (5) >= (5))) || (((5) >= (10) && (5) < (20)) || ((5) <= (10) && (5) > (20))) || 5 == 99), KOBEL_STR("int in closed range upper bound"), t);
+kobel_str kw = KOBEL_STR("val");
+tests__features__test_control_flow__check((kobel_streq(kw, KOBEL_STR("fn")) || kobel_streq(kw, KOBEL_STR("val")) || kobel_streq(kw, KOBEL_STR("var"))), KOBEL_STR("str in candidate list"), t);
+tests__features__test_control_flow__check(!(kobel_streq(KOBEL_STR("let"), KOBEL_STR("fn")) || kobel_streq(KOBEL_STR("let"), KOBEL_STR("val")) || kobel_streq(KOBEL_STR("let"), KOBEL_STR("var"))), KOBEL_STR("str !in candidate list"), t);
+tests__features__test_control_flow__CfStatus st = 0;
+tests__features__test_control_flow__check((st == 0 || st == 404), KOBEL_STR("plain enum qualified in list"), t);
+tests__features__test_control_flow__check((st == 0 || st == 404), KOBEL_STR("plain enum shorthand in list"), t);
+tests__features__test_control_flow__check((st == 0 || st == 404), KOBEL_STR("plain enum bare in list"), t);
+tests__features__test_control_flow__check(!(405 == 0 || 405 == 404), KOBEL_STR("plain enum !in list"), t);
+tests__features__test_control_flow__CfMethod m = KOBEL_STR("POST");
+tests__features__test_control_flow__check((kobel_streq(m, KOBEL_STR("GET")) || kobel_streq(m, KOBEL_STR("POST"))), KOBEL_STR("raw-value str enum shorthand in list"), t);
+tests__features__test_control_flow__check(!(kobel_streq(KOBEL_STR("DELETE"), KOBEL_STR("GET")) || kobel_streq(KOBEL_STR("DELETE"), KOBEL_STR("POST"))), KOBEL_STR("raw-value str enum !in list"), t);
+tests__features__test_control_flow__CfShape shape = (tests__features__test_control_flow__CfShape){ .tag = 0, .u.Circle = { 2.0 } };
+tests__features__test_control_flow__CfShape* p_shape = &shape;
+tests__features__test_control_flow__check((shape.tag == 0 || shape.tag == 2), KOBEL_STR("payload enum qualified in list"), t);
+tests__features__test_control_flow__check((shape.tag == 0 || shape.tag == 2), KOBEL_STR("payload enum shorthand in list"), t);
+tests__features__test_control_flow__check(!((tests__features__test_control_flow__CfShape){ .tag = 1, .u.Rect = { 1.0, 2.0 } }.tag == 0 || (tests__features__test_control_flow__CfShape){ .tag = 1, .u.Rect = { 1.0, 2.0 } }.tag == 2), KOBEL_STR("payload enum !in list"), t);
+tests__features__test_control_flow__check((p_shape != NULL && p_shape->tag == 0 || p_shape != NULL && p_shape->tag == 1), KOBEL_STR("pointer to payload enum in list"), t);
+tests__features__test_control_flow__CfHolder holder = (tests__features__test_control_flow__CfHolder){ 20, (tests__features__test_control_flow__CfShape){ .tag = 2 } };
+tests__features__test_control_flow__CfHolder* p_holder = &holder;
+tests__features__test_control_flow__CfHolder* null_holder = NULL;
+tests__features__test_control_flow__check((p_holder != NULL && (p_holder->code == 10 || p_holder->code == 20 || p_holder->code == 30)), KOBEL_STR("safe nav field in candidate list"), t);
+tests__features__test_control_flow__check(!(null_holder != NULL && (null_holder->code == 10 || null_holder->code == 20 || null_holder->code == 30)), KOBEL_STR("null safe nav in candidate list is false"), t);
+tests__features__test_control_flow__check(!(null_holder != NULL && (null_holder->shape.tag == 0 || null_holder->shape.tag == 2)), KOBEL_STR("null safe nav payload enum !in list"), t);
+tests__features__test_control_flow__check((p_holder != NULL && (p_holder->shape.tag == 0 || p_holder->shape.tag == 2)), KOBEL_STR("safe nav payload enum in list"), t);
+tests__features__test_control_flow__check((kobel_memeq(&(tests__features__test_control_flow__Vec2){ 3, 4 }, &(tests__features__test_control_flow__Vec2){ 1, 2 }, 8) || kobel_memeq(&(tests__features__test_control_flow__Vec2){ 3, 4 }, &(tests__features__test_control_flow__Vec2){ 3, 4 }, 8)), KOBEL_STR("struct in candidate list"), t);
+tests__features__test_control_flow__check(!(kobel_memeq(&(tests__features__test_control_flow__Vec2){ 5, 6 }, &(tests__features__test_control_flow__Vec2){ 1, 2 }, 8) || kobel_memeq(&(tests__features__test_control_flow__Vec2){ 5, 6 }, &(tests__features__test_control_flow__Vec2){ 3, 4 }, 8)), KOBEL_STR("struct !in candidate list"), t);
 }
 
 void tests__features__test_control_flow__test_iter_string_builder(tests__features__test_control_flow__Tally* t) {
@@ -3188,6 +3280,7 @@ tests__features__test_control_flow__test_loop_var_is_fresh(&t);
 tests__features__test_control_flow__test_generic_for(&t);
 tests__features__test_control_flow__test_iterable_trait(&t);
 tests__features__test_control_flow__test_array_literal(&t);
+tests__features__test_control_flow__test_in_candidate_list(&t);
 tests__features__test_control_flow__test_iter_string_builder(&t);
 tests__features__test_control_flow__test_iter_struct_elements(&t);
 tests__features__test_control_flow__test_iter_list_field(&t);
@@ -4366,6 +4459,228 @@ __for_i = (__for_i + 1);
 }
 }
 return n;
+}
+
+size_t std__collections__Array_i32_count(std__collections__Array_i32* self) {
+    return self->len;
+}
+
+int32_t std__collections__Array_i32_at(std__collections__Array_i32* self, size_t i) {
+    return self->data[i];
+}
+
+std__collections__Array_i32 std__collections__Array_i32_init(int32_t* items_data, size_t items_len) {
+    return (std__collections__Array_i32){ items_data, items_len };
+}
+
+bool std__collections__Array_i32_empty(std__collections__Array_i32* self) {
+    return (self->len == 0);
+}
+
+int32_t std__collections__Array_i32_first(std__collections__Array_i32* self) {
+    return self->data[0];
+}
+
+int32_t std__collections__Array_i32_last(std__collections__Array_i32* self) {
+    return self->data[(self->len - 1)];
+}
+
+int32_t std__collections__Array_i32_get(std__collections__Array_i32* self, size_t i) {
+    return self->data[i];
+}
+
+void std__collections__Array_i32_set(std__collections__Array_i32* self, size_t i, int32_t value) {
+self->data[i] = value;
+}
+
+bool std__collections__Array_i32_contains(std__collections__Array_i32* self, int32_t value) {
+{
+size_t __for_e = self->len;
+size_t __for_i = __for_e;
+__for_i = 0;
+bool __for_up = (__for_i <= __for_e);
+bool __for_go = false;
+if (__for_up) {
+__for_go = (__for_i < __for_e);
+} else {
+__for_go = (__for_i > __for_e);
+}
+while (__for_go) {
+size_t i = __for_i;
+if (self->data[i] == value) {
+return true;
+}
+if (__for_up) {
+__for_go = ((__for_i + 1) < __for_e);
+} else {
+__for_go = ((__for_i - 1) > __for_e);
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = (__for_i + 1);
+} else {
+__for_i = (__for_i - 1);
+}
+}
+}
+}
+return false;
+}
+
+std__collections__Array_i32 std__collections__Array_i32_slice(std__collections__Array_i32* self, size_t start, size_t end) {
+size_t s = ((start > self->len) ? self->len : start);
+size_t e = ((end > self->len) ? self->len : end);
+size_t new_len = ((e > s) ? (e - s) : 0);
+int32_t* new_ptr = ((new_len > 0) ? (int32_t*)(&self->data[s]) : self->data);
+return (std__collections__Array_i32){ new_ptr, new_len };
+}
+
+size_t std__collections__Array_str_count(std__collections__Array_str* self) {
+    return self->len;
+}
+
+kobel_str std__collections__Array_str_at(std__collections__Array_str* self, size_t i) {
+    return self->data[i];
+}
+
+std__collections__Array_str std__collections__Array_str_init(kobel_str* items_data, size_t items_len) {
+    return (std__collections__Array_str){ items_data, items_len };
+}
+
+bool std__collections__Array_str_empty(std__collections__Array_str* self) {
+    return (self->len == 0);
+}
+
+kobel_str std__collections__Array_str_first(std__collections__Array_str* self) {
+    return self->data[0];
+}
+
+kobel_str std__collections__Array_str_last(std__collections__Array_str* self) {
+    return self->data[(self->len - 1)];
+}
+
+kobel_str std__collections__Array_str_get(std__collections__Array_str* self, size_t i) {
+    return self->data[i];
+}
+
+void std__collections__Array_str_set(std__collections__Array_str* self, size_t i, kobel_str value) {
+self->data[i] = value;
+}
+
+bool std__collections__Array_str_contains(std__collections__Array_str* self, kobel_str value) {
+{
+size_t __for_e = self->len;
+size_t __for_i = __for_e;
+__for_i = 0;
+bool __for_up = (__for_i <= __for_e);
+bool __for_go = false;
+if (__for_up) {
+__for_go = (__for_i < __for_e);
+} else {
+__for_go = (__for_i > __for_e);
+}
+while (__for_go) {
+size_t i = __for_i;
+if (kobel_streq(self->data[i], value)) {
+return true;
+}
+if (__for_up) {
+__for_go = ((__for_i + 1) < __for_e);
+} else {
+__for_go = ((__for_i - 1) > __for_e);
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = (__for_i + 1);
+} else {
+__for_i = (__for_i - 1);
+}
+}
+}
+}
+return false;
+}
+
+std__collections__Array_str std__collections__Array_str_slice(std__collections__Array_str* self, size_t start, size_t end) {
+size_t s = ((start > self->len) ? self->len : start);
+size_t e = ((end > self->len) ? self->len : end);
+size_t new_len = ((e > s) ? (e - s) : 0);
+kobel_str* new_ptr = ((new_len > 0) ? (kobel_str*)(&self->data[s]) : self->data);
+return (std__collections__Array_str){ new_ptr, new_len };
+}
+
+size_t std__collections__Array_tests__features__test_control_flow__Vec2_count(std__collections__Array_tests__features__test_control_flow__Vec2* self) {
+    return self->len;
+}
+
+tests__features__test_control_flow__Vec2 std__collections__Array_tests__features__test_control_flow__Vec2_at(std__collections__Array_tests__features__test_control_flow__Vec2* self, size_t i) {
+    return self->data[i];
+}
+
+std__collections__Array_tests__features__test_control_flow__Vec2 std__collections__Array_tests__features__test_control_flow__Vec2_init(tests__features__test_control_flow__Vec2* items_data, size_t items_len) {
+    return (std__collections__Array_tests__features__test_control_flow__Vec2){ items_data, items_len };
+}
+
+bool std__collections__Array_tests__features__test_control_flow__Vec2_empty(std__collections__Array_tests__features__test_control_flow__Vec2* self) {
+    return (self->len == 0);
+}
+
+tests__features__test_control_flow__Vec2 std__collections__Array_tests__features__test_control_flow__Vec2_first(std__collections__Array_tests__features__test_control_flow__Vec2* self) {
+    return self->data[0];
+}
+
+tests__features__test_control_flow__Vec2 std__collections__Array_tests__features__test_control_flow__Vec2_last(std__collections__Array_tests__features__test_control_flow__Vec2* self) {
+    return self->data[(self->len - 1)];
+}
+
+tests__features__test_control_flow__Vec2 std__collections__Array_tests__features__test_control_flow__Vec2_get(std__collections__Array_tests__features__test_control_flow__Vec2* self, size_t i) {
+    return self->data[i];
+}
+
+void std__collections__Array_tests__features__test_control_flow__Vec2_set(std__collections__Array_tests__features__test_control_flow__Vec2* self, size_t i, tests__features__test_control_flow__Vec2 value) {
+self->data[i] = value;
+}
+
+bool std__collections__Array_tests__features__test_control_flow__Vec2_contains(std__collections__Array_tests__features__test_control_flow__Vec2* self, tests__features__test_control_flow__Vec2 value) {
+{
+size_t __for_e = self->len;
+size_t __for_i = __for_e;
+__for_i = 0;
+bool __for_up = (__for_i <= __for_e);
+bool __for_go = false;
+if (__for_up) {
+__for_go = (__for_i < __for_e);
+} else {
+__for_go = (__for_i > __for_e);
+}
+while (__for_go) {
+size_t i = __for_i;
+if (kobel_memeq(&self->data[i], &value, 8)) {
+return true;
+}
+if (__for_up) {
+__for_go = ((__for_i + 1) < __for_e);
+} else {
+__for_go = ((__for_i - 1) > __for_e);
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = (__for_i + 1);
+} else {
+__for_i = (__for_i - 1);
+}
+}
+}
+}
+return false;
+}
+
+std__collections__Array_tests__features__test_control_flow__Vec2 std__collections__Array_tests__features__test_control_flow__Vec2_slice(std__collections__Array_tests__features__test_control_flow__Vec2* self, size_t start, size_t end) {
+size_t s = ((start > self->len) ? self->len : start);
+size_t e = ((end > self->len) ? self->len : end);
+size_t new_len = ((e > s) ? (e - s) : 0);
+tests__features__test_control_flow__Vec2* new_ptr = ((new_len > 0) ? (tests__features__test_control_flow__Vec2*)(&self->data[s]) : self->data);
+return (std__collections__Array_tests__features__test_control_flow__Vec2){ new_ptr, new_len };
 }
 
 size_t std__collections__List_tests__features__test_control_flow__Bundle_count(std__collections__List_tests__features__test_control_flow__Bundle* self) {

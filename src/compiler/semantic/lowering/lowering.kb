@@ -258,6 +258,9 @@ impl LoweringPass {
 		if (self.symtab.is_predicate_pattern(original)) {
 			self.symtab.set_predicate_pattern(replacement);
 		}
+		if (self.symtab.has_is_pattern(original)) {
+			self.symtab.set_is_pattern(replacement, self.symtab.get_is_pattern(original));
+		}
 		if (self.symtab.has_lambda_info(original)) {
 			self.symtab.set_lambda_info(replacement, self.symtab.get_lambda_info(original));
 		}
@@ -286,6 +289,40 @@ impl LoweringPass {
 				);
 				return self.lowered(node, eq);
 			}
+		}
+
+		if (bin.op == TokenType.KW_IN && bin.right is ArrayLiteralExpr as al) {
+			val lt = self.type_of(bin.left);
+			if (lt?.kind == DataType.STRUCT && !al.elements.empty() && !(al.elements.first() is IsExpr)) {
+				val s_info = lt.as_struct();
+				var arg_types = List<*Type>();
+				arg_types += lt;
+				arg_types += lt;
+				val eq_mi = s_info.find_operator("equals", arg_types);
+				var acc: *AstNode? = null;
+				for (el in al.elements) {
+					var eq_bin = BinaryExpr(bin.left, TokenType.EQUAL_EQUAL, el);
+					val eq_node = self.arena.node(
+						NodeData.BinaryExpr(bin.left, TokenType.EQUAL_EQUAL, el),
+						el.line, el.col
+					);
+					self.symtab.set_node_type(eq_node, self.symtab.prims.t_bool());
+					if (eq_mi != null) self.symtab.set_resolved_method(eq_node, eq_mi);
+					val low_eq = self.lower_binary(eq_node, &eq_bin);
+					if (acc == null) {
+						acc = low_eq;
+					} else {
+						val or_node = self.arena.node(
+							NodeData.BinaryExpr(acc, TokenType.OR_OR, low_eq),
+							node.line, node.col
+						);
+						self.symtab.set_node_type(or_node, self.symtab.prims.t_bool());
+						acc = or_node;
+					}
+				}
+				if (acc != null) return self.lowered(node, acc);
+			}
+			return node;
 		}
 
 		if (bin.op == TokenType.KW_IN && self.symtab.get_resolved_method(node) != null) {

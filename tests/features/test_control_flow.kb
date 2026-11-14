@@ -309,32 +309,109 @@ fn test_iterable_trait(var t: &Tally) {
 	check(ptr_sum == 30, "Iterable: pointer to container can be iterated", t);
 }
 
-// -- fixed-size arrays and array literals ------------------------------------
+// -- Array<T> and candidate-list containment (`in [...]`) ---------------------
 
 struct Vec2 {
 	pub x: i32,
 	pub y: i32
 }
 
+enum CfStatus {
+	OK,
+	NOT_FOUND = 404,
+	ERROR
+}
+
+enum CfMethod: str {
+	GET,
+	POST = "POST",
+	DELETE
+}
+
+enum CfShape {
+	Circle(radius: f64),
+	Rect(width: f64, height: f64),
+	Empty
+}
+
+struct CfHolder {
+	pub code: i32,
+	pub shape: CfShape
+}
+
 fn test_array_literal(var t: &Tally) {
-	val a: [i32; 3] = [1, 2, 3];
-	check(a.len == 3, "array literal: .len is the element count", t);
-	check(a[0] == 1 && a[2] == 3, "array literal: indexed access", t);
+	val a = Array<i32>(1, 2, 3);
+	check(a.len == 3, "Array<i32>: .len is the element count", t);
+	check(a[0] == 1 && a[2] == 3, "Array<i32>: indexed access", t);
 
 	var sum: i32 = 0;
 	for (x in a) sum = sum + x;
-	check(sum == 6, "for over a fixed-size array", t);
+	check(sum == 6, "for over Array<i32>", t);
 
-	val words: [str; 2] = ["ab", "cde"];
-	check(words[1].len == 3, "array of str elements", t);
+	val words = Array<str>("ab", "cde");
+	check(words[1].len == 3, "Array<str> elements", t);
 
-	val pts: [Vec2; 2] = [Vec2(1, 2), Vec2(3, 4)];
+	val pts = Array<Vec2>(Vec2(1, 2), Vec2(3, 4));
 	var total: i32 = 0;
 	for (p in pts) total = total + p.x + p.y;
-	check(total == 10, "for over an array of structs", t);
+	check(total == 10, "for over Array<Vec2>", t);
 
-	val inferred = [7, 8];
-	check(inferred.len == 2 && inferred[1] == 8, "array literal without annotation", t);
+	val inferred = Array<i32>(7, 8);
+	check(inferred.len == 2 && inferred[1] == 8, "Array<i32> element check", t);
+}
+
+fn test_in_candidate_list(var t: &Tally) {
+	// 1. Character literals and ranges
+	val ch = 'g';
+	check(ch in ['t', 'g', 'k'], "char in candidate list", t);
+	check('z' !in ['t', 'g', 'k'], "char !in candidate list", t);
+	check('m' in ['a'..'z', 'A'..'Z', '_'], "char in range candidate list", t);
+	check('_' in ['a'..'z', 'A'..'Z', '_'], "char in mixed range/literal list", t);
+	check('!' !in ['a'..'z', 'A'..'Z', '_'], "char !in range candidate list", t);
+
+	// 2. Integer literals and ranges
+	val num = 15;
+	check(num in [0..5, 10..<20, 99], "int in mixed range candidate list", t);
+	check(20 !in [0..5, 10..<20, 99], "int !in half-open range upper bound", t);
+	check(5 in [0..5, 10..<20, 99], "int in closed range upper bound", t);
+
+	// 3. Strings
+	val kw = "val";
+	check(kw in ["fn", "val", "var"], "str in candidate list", t);
+	check("let" !in ["fn", "val", "var"], "str !in candidate list", t);
+
+	// 4. Plain enum (qualified, shorthand, bare)
+	val st = CfStatus.OK;
+	check(st in [CfStatus.OK, CfStatus.NOT_FOUND], "plain enum qualified in list", t);
+	check(st in [.OK, .NOT_FOUND], "plain enum shorthand in list", t);
+	check(st in [OK, NOT_FOUND], "plain enum bare in list", t);
+	check(CfStatus.ERROR !in [.OK, .NOT_FOUND], "plain enum !in list", t);
+
+	// 5. Raw-value str enum
+	val m = CfMethod.POST;
+	check(m in [.GET, .POST], "raw-value str enum shorthand in list", t);
+	check(CfMethod.DELETE !in [CfMethod.GET, CfMethod.POST], "raw-value str enum !in list", t);
+
+	// 6. Payload enum (value & pointer, qualified & shorthand)
+	val shape = CfShape.Circle(2.0);
+	val p_shape = &shape;
+	check(shape in [CfShape.Circle, CfShape.Empty], "payload enum qualified in list", t);
+	check(shape in [.Circle, .Empty], "payload enum shorthand in list", t);
+	check(CfShape.Rect(1.0, 2.0) !in [.Circle, .Empty], "payload enum !in list", t);
+	check(p_shape in [.Circle, .Rect], "pointer to payload enum in list", t);
+
+	// 7. Safe navigation on LHS
+	val holder = CfHolder(20, CfShape.Empty);
+	val p_holder: *CfHolder? = &holder;
+	val null_holder: *CfHolder? = null;
+	check(p_holder?.code in [10, 20, 30], "safe nav field in candidate list", t);
+	check(!(null_holder?.code in [10, 20, 30]), "null safe nav in candidate list is false", t);
+	check(null_holder?.shape !in [.Circle, .Empty], "null safe nav payload enum !in list", t);
+	check(p_holder?.shape in [.Circle, .Empty], "safe nav payload enum in list", t);
+
+	// 8. Struct equality
+	check(Vec2(3, 4) in [Vec2(1, 2), Vec2(3, 4)], "struct in candidate list", t);
+	check(Vec2(5, 6) !in [Vec2(1, 2), Vec2(3, 4)], "struct !in candidate list", t);
 }
 
 // -- Iterable: std containers and non-scalar elements ------------------------
@@ -496,6 +573,7 @@ fn main(): i32 {
 	test_generic_for(&t);
 	test_iterable_trait(&t);
 	test_array_literal(&t);
+	test_in_candidate_list(&t);
 	test_iter_string_builder(&t);
 	test_iter_struct_elements(&t);
 	test_iter_list_field(&t);

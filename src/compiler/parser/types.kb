@@ -11,19 +11,6 @@ use compiler.ast.*;
  * ============================================================================
  */
 
-fn parse_usize_literal(text: str): usz {
-	var size: usz = 0;
-	for (ch in text) {
-		when (ch) {
-			'0'..'9' -> {
-				val digit = ch.code() - '0'.code();
-				size = size * 10 + (digit as usz);
-			}
-		}
-	}
-	return size;
-}
-
 impl Parser {
 
 	pub fn parse_single_type(&self): *AstNode {
@@ -46,16 +33,6 @@ impl Parser {
 			return self.node(NodeData.PointerType(true, pointee), line, col);
 		}
 
-		// 2. Fixed-size array type: [T; N]
-		if (self.match_token(TokenType.OPEN_BRACKET)) {
-			val elem_type = self.parse_type();
-			self.consume(TokenType.SEMI_COLON, "Expected ';' after array element type");
-			val size_tok = self.consume(TokenType.NUMBER, "Expected integer literal for array size");
-			self.consume(TokenType.CLOSE_BRACKET, "Expected ']' after array size");
-			val size = parse_usize_literal(size_tok.text);
-			return self.node(NodeData.ArrayType(elem_type, size), line, col);
-		}
-
 		// 3. Function type: (T1, T2) -> R
 		if (self.match_token(TokenType.OPEN_PAREN)) {
 			var param_types = List<*AstNode>();
@@ -71,7 +48,7 @@ impl Parser {
 			return self.node(NodeData.FnType(param_types, ret_type), line, col);
 		}
 
-		// 3. Named type / Path: Foo, std.collections.List, List<T>
+		// 4. Named type / Path: Foo, std.collections.List, List<T>
 		val id_tok = self.consume(TokenType.IDENTIFIER, "Expected type name");
 		var full_name = id_tok.text;
 
@@ -87,19 +64,6 @@ impl Parser {
 				while (self.match_token(TokenType.COMMA)) type_args += self.parse_type();
 			}
 			self.consume(TokenType.GREATER, "Expected '>' after type arguments");
-		}
-
-		// 4. Array type syntax per the spec: Array<T>(N)
-		if (
-			full_name == "Array"
-			&& type_args.len == 1
-			&& self.check(TokenType.OPEN_PAREN)
-		) {
-			self.consume(TokenType.OPEN_PAREN, "Expected '(' after 'Array<T>'");
-			val size_tok = self.consume(TokenType.NUMBER, "Expected integer literal for array size");
-			self.consume(TokenType.CLOSE_PAREN, "Expected ')' after array size");
-			val size = parse_usize_literal(size_tok.text);
-			return self.node(NodeData.ArrayType(type_args.first(), size), line, col);
 		}
 
 		return self.node(NodeData.NamedType(full_name, type_args), line, col);

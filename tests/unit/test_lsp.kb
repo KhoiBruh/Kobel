@@ -1,6 +1,7 @@
 mod test_lsp;
 
 use std.io.println;
+use std.collections.Array;
 use std.filesystem.*;
 
 use lsp.*;
@@ -36,7 +37,7 @@ fn find_line_col(text: str, needle: str): Pair<usz, usz> {
 }
 
 fn test_new_features_and_semantics() {
-	val kws = ["is", "op", "init", "yield", "defer", "when", "trait", "impl"];
+	val kws = Array<str>("is", "op", "init", "yield", "defer", "when", "trait", "impl");
 	for (kw in kws) {
 		assert_true(!keyword_hover(kw).empty(), "keyword_hover should document keyword");
 	}

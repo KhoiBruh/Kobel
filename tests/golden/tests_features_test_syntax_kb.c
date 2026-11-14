@@ -308,6 +308,7 @@ typedef struct tests__features__test_syntax__SafeNode tests__features__test_synt
 #define tests__features__test_syntax__PointConst__ZERO 0
 #define tests__features__test_syntax__NodeConst__KIND 100
 typedef struct std__collections__List_str std__collections__List_str;
+typedef struct std__collections__Array_str std__collections__Array_str;
 typedef struct std__collections__List_i32 std__collections__List_i32;
 typedef struct std__collections__Pair_str_i32 std__collections__Pair_str_i32;
 typedef struct std__collections__List_std__collections__Pair_str_i32 std__collections__List_std__collections__Pair_str_i32;
@@ -373,6 +374,11 @@ struct std__collections__List_str {
     size_t cap;
 };
 
+struct std__collections__Array_str {
+    kobel_str* data;
+    size_t len;
+};
+
 struct std__collections__List_i32 {
     int32_t* data;
     size_t len;
@@ -414,37 +420,7 @@ struct tests__features__test_syntax__ConfigWithDefaults {
     std__collections__List_str tags;
 };
 
-static inline std__collections__List_str std__collections__List_str_from_array(const void* src, size_t n) {
-	size_t elem_size = sizeof(*(((std__collections__List_str*)0)->data));
-	size_t cap = (n < 4) ? 4 : n;
-	void* data = malloc(cap * elem_size);
-	if (n > 0 && src != NULL) memcpy(data, src, n * elem_size);
-	std__collections__List_str l;
-	l.data = data;
-	l.len = n;
-	l.cap = cap;
-	return l;
-}static inline std__collections__List_i32 std__collections__List_i32_from_array(const void* src, size_t n) {
-	size_t elem_size = sizeof(*(((std__collections__List_i32*)0)->data));
-	size_t cap = (n < 4) ? 4 : n;
-	void* data = malloc(cap * elem_size);
-	if (n > 0 && src != NULL) memcpy(data, src, n * elem_size);
-	std__collections__List_i32 l;
-	l.data = data;
-	l.len = n;
-	l.cap = cap;
-	return l;
-}static inline std__collections__List_std__collections__Pair_str_i32 std__collections__List_std__collections__Pair_str_i32_from_array(const void* src, size_t n) {
-	size_t elem_size = sizeof(*(((std__collections__List_std__collections__Pair_str_i32*)0)->data));
-	size_t cap = (n < 4) ? 4 : n;
-	void* data = malloc(cap * elem_size);
-	if (n > 0 && src != NULL) memcpy(data, src, n * elem_size);
-	std__collections__List_std__collections__Pair_str_i32 l;
-	l.data = data;
-	l.len = n;
-	l.cap = cap;
-	return l;
-}size_t std__traits__hash_int(size_t n);
+size_t std__traits__hash_int(size_t n);
 size_t std__traits__hash_str(kobel_str s);
 int32_t bool_hash(bool self);
 size_t char_hash(char self);
@@ -618,6 +594,16 @@ kobel_str std__collections__List_str_get(std__collections__List_str* self, size_
 bool std__collections__List_str_contains(std__collections__List_str* self, kobel_str value);
 kobel_str std__collections__List_str_set(std__collections__List_str* self, size_t index, kobel_str value);
 void std__collections__List_str_plus_assign(std__collections__List_str* self, kobel_str value);
+size_t std__collections__Array_str_count(std__collections__Array_str* self);
+kobel_str std__collections__Array_str_at(std__collections__Array_str* self, size_t i);
+std__collections__Array_str std__collections__Array_str_init(kobel_str* items_data, size_t items_len);
+bool std__collections__Array_str_empty(std__collections__Array_str* self);
+kobel_str std__collections__Array_str_first(std__collections__Array_str* self);
+kobel_str std__collections__Array_str_last(std__collections__Array_str* self);
+kobel_str std__collections__Array_str_get(std__collections__Array_str* self, size_t i);
+void std__collections__Array_str_set(std__collections__Array_str* self, size_t i, kobel_str value);
+bool std__collections__Array_str_contains(std__collections__Array_str* self, kobel_str value);
+std__collections__Array_str std__collections__Array_str_slice(std__collections__Array_str* self, size_t start, size_t end);
 size_t std__collections__List_i32_count(std__collections__List_i32* self);
 int32_t std__collections__List_i32_at(std__collections__List_i32* self, size_t i);
 std__collections__List_i32 std__collections__List_i32_init(int32_t* items_data, size_t items_len);
@@ -2944,8 +2930,8 @@ kobel_str s4 = kobel_concat(5, KOBEL_STR("Hello "), name, KOBEL_STR("! You have 
 if (!kobel_streq(s4, KOBEL_STR("Hello Kobel! You have 3 messages."))) {
 return false;
 }
-kobel_str* arr = (kobel_str[]){KOBEL_STR("foobar"), KOBEL_STR("baz")};
-if (((2 != 2) || !kobel_streq(arr[0], KOBEL_STR("foobar"))) || !kobel_streq(arr[1], KOBEL_STR("baz"))) {
+std__collections__Array_str arr = std__collections__Array_str_init((kobel_str[]){ KOBEL_STR("foobar"), KOBEL_STR("baz") }, 2);
+if (((arr.len != 2) || !kobel_streq(std__collections__Array_str_get(&arr, 0), KOBEL_STR("foobar"))) || !kobel_streq(std__collections__Array_str_get(&arr, 1), KOBEL_STR("baz"))) {
 return false;
 }
 return true;
@@ -3686,6 +3672,80 @@ kobel_str std__collections__List_str_set(std__collections__List_str* self, size_
 
 void std__collections__List_str_plus_assign(std__collections__List_str* self, kobel_str value) {
     std__collections__List_str_add(self, value);
+}
+
+size_t std__collections__Array_str_count(std__collections__Array_str* self) {
+    return self->len;
+}
+
+kobel_str std__collections__Array_str_at(std__collections__Array_str* self, size_t i) {
+    return self->data[i];
+}
+
+std__collections__Array_str std__collections__Array_str_init(kobel_str* items_data, size_t items_len) {
+    return (std__collections__Array_str){ items_data, items_len };
+}
+
+bool std__collections__Array_str_empty(std__collections__Array_str* self) {
+    return (self->len == 0);
+}
+
+kobel_str std__collections__Array_str_first(std__collections__Array_str* self) {
+    return self->data[0];
+}
+
+kobel_str std__collections__Array_str_last(std__collections__Array_str* self) {
+    return self->data[(self->len - 1)];
+}
+
+kobel_str std__collections__Array_str_get(std__collections__Array_str* self, size_t i) {
+    return self->data[i];
+}
+
+void std__collections__Array_str_set(std__collections__Array_str* self, size_t i, kobel_str value) {
+self->data[i] = value;
+}
+
+bool std__collections__Array_str_contains(std__collections__Array_str* self, kobel_str value) {
+{
+size_t __for_e = self->len;
+size_t __for_i = __for_e;
+__for_i = 0;
+bool __for_up = (__for_i <= __for_e);
+bool __for_go = false;
+if (__for_up) {
+__for_go = (__for_i < __for_e);
+} else {
+__for_go = (__for_i > __for_e);
+}
+while (__for_go) {
+size_t i = __for_i;
+if (kobel_streq(self->data[i], value)) {
+return true;
+}
+if (__for_up) {
+__for_go = ((__for_i + 1) < __for_e);
+} else {
+__for_go = ((__for_i - 1) > __for_e);
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = (__for_i + 1);
+} else {
+__for_i = (__for_i - 1);
+}
+}
+}
+}
+return false;
+}
+
+std__collections__Array_str std__collections__Array_str_slice(std__collections__Array_str* self, size_t start, size_t end) {
+size_t s = ((start > self->len) ? self->len : start);
+size_t e = ((end > self->len) ? self->len : end);
+size_t new_len = ((e > s) ? (e - s) : 0);
+kobel_str* new_ptr = ((new_len > 0) ? (kobel_str*)(&self->data[s]) : self->data);
+return (std__collections__Array_str){ new_ptr, new_len };
 }
 
 size_t std__collections__List_i32_count(std__collections__List_i32* self) {

@@ -103,14 +103,9 @@ impl CCodeGen {
 	fn gen_var_decl_stmt(&self, vd: *VarDeclStmt) {
 		var ty_str = "int32_t";
 
-		var elem_hint = "";
 		val t_ann = vd.type_annotation;
 		if (t_ann != null) {
 			ty_str = c_type_from_ast(t_ann);
-
-			// `[T; N]` is emitted as a pointer, and its literal needs the
-			// element type spelled out.
-			if (t_ann is ArrayType) elem_hint = c_type_from_ast(t_ann.element_type);
 		} else if (vd.initializer != null) {
 			val init_e = vd.initializer;
 			ty_str = self.c_type_or(init_e!, "int32_t");
@@ -140,10 +135,7 @@ impl CCodeGen {
 		}
 
 		if (vd.initializer != null) {
-			val saved_hint = self.array_elem_hint;
-			self.array_elem_hint = elem_hint;
 			val init_s = self.gen_expr(vd.initializer!);
-			self.array_elem_hint = saved_hint;
 			self.out += ty_str;
 			self.out += ' ';
 			self.out += vd.name;

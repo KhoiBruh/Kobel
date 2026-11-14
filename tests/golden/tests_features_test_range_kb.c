@@ -364,17 +364,7 @@ struct std__range__Range_i64 {
     bool inclusive;
 };
 
-static inline std__collections__List_str std__collections__List_str_from_array(const void* src, size_t n) {
-	size_t elem_size = sizeof(*(((std__collections__List_str*)0)->data));
-	size_t cap = (n < 4) ? 4 : n;
-	void* data = malloc(cap * elem_size);
-	if (n > 0 && src != NULL) memcpy(data, src, n * elem_size);
-	std__collections__List_str l;
-	l.data = data;
-	l.len = n;
-	l.cap = cap;
-	return l;
-}size_t std__traits__hash_int(size_t n);
+size_t std__traits__hash_int(size_t n);
 size_t std__traits__hash_str(kobel_str s);
 int32_t bool_hash(bool self);
 size_t char_hash(char self);

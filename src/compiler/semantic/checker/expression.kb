@@ -5,7 +5,7 @@ mod compiler.semantic.checker;
  * BodyChecker - Primaries and Operators
  *
  * Literals, identifiers, binary operator families (including the elvis form),
- * unary operators, `if` expressions, and array literals.
+ * unary operators, `if` expressions, and `in [...]` candidate lists.
  * ============================================================================
  */
 
@@ -20,61 +20,6 @@ use compiler.semantic.declaration.*;
 use compiler.semantic.lowering.*;
 
 impl BodyChecker {
-
-	pub fn coerce_to_list(&self, node: *AstNode, list_ty: *Type) {
-		if (node == null || list_ty == null) return;
-
-		when (node) {
-			is ArrayLiteralExpr as var al -> {
-				val s = list_ty.as_struct();
-				if (self.current_rec != null) {
-					val e = self.ann_entry(node);
-					e.list_name = s.c_name;
-					e.has_list_name = true;
-					if (s.fields.empty()) return;
-					val f0e = s.fields.first();
-					if (f0e.type_ptr.kind != DataType.POINTER) return;
-					val elem_tye = f0e.type_ptr.as_pointer().pointee;
-					e.elem_node = self.arena.ast_type_from_type(elem_tye);
-					e.has_elem_node = true;
-					for (el in al.elements) {
-						if (elem_tye?.is_list()) self.coerce_to_list(el, elem_tye);
-						val el_ty = self.check_expr(el, elem_tye);
-						if (!elem_tye.can_assign(el_ty)) {
-							self.report_error(el, "Element type mismatch in List literal");
-						}
-					}
-					return;
-				}
-
-				al.list_struct_name = s.c_name;
-
-				if (s.fields.empty()) return;
-				val f0 = s.fields.first();
-				if (f0.type_ptr.kind != DataType.POINTER) return;
-				val elem_ty = f0.type_ptr.as_pointer().pointee;
-				al.elem_type_node = self.arena.ast_type_from_type(elem_ty);
-
-				for (el in al.elements) {
-					if (elem_ty?.is_list()) self.coerce_to_list(el, elem_ty);
-					val el_ty = self.check_expr(el, elem_ty);
-					if (!elem_ty.can_assign(el_ty)) {
-						self.report_error(el, "Element type mismatch in List literal");
-					}
-				}
-			}
-			is IfExpr -> {
-				self.coerce_to_list(node.then_branch, list_ty);
-				self.coerce_to_list(node.else_branch, list_ty);
-			}
-			is GroupExpr -> self.coerce_to_list(node.expr, list_ty);
-			is WhenExpr -> {
-				for (arm in node.arms) {
-					self.coerce_to_list(arm.body, list_ty);
-				}
-			}
-		}
-	}
 
 	pub fn is_untyped_literal(*self, node: *AstNode): bool {
 		if (node == null) return false;
@@ -210,7 +155,8 @@ impl BodyChecker {
 				TokenType.EQUAL_EQUAL, TokenType.BANG_EQUAL,
 				TokenType.LESS, TokenType.LESS_EQUAL,
 				TokenType.GREATER, TokenType.GREATER_EQUAL,
-				TokenType.AND_AND, TokenType.OR_OR -> true;
+				TokenType.AND_AND, TokenType.OR_OR,
+				TokenType.KW_IN -> true;
 				else -> false;
 			};
 
@@ -219,6 +165,10 @@ impl BodyChecker {
 
 			var lt_num = self.check_expr(bin.left, num_expected);
 			var lt = lt_num;
+			if (bin.op == TokenType.KW_IN && self.unwrap_group(bin.right) is ArrayLiteralExpr as al) {
+				self.in_safe_nav_context = prev_sn;
+				return self.check_in_list_op(node, bin, lt, al);
+			}
 			var r_expected: *Type? = num_expected;
 			if (lt.is_numeric()) r_expected = lt;
 			var rt = self.check_expr(bin.right, r_expected);
@@ -452,6 +402,141 @@ impl BodyChecker {
 		return self.check_expr(call_node);
 	}
 
+	fn check_in_list_op(&self, node: *AstNode, bin: *BinaryExpr, lt: *Type, al: *ArrayLiteralExpr): *Type {
+		if (al.elements.empty()) {
+			self.report_error(bin.right, "Candidate list in 'in' operator cannot be empty");
+			return self.prims().t_bool();
+		}
+
+		var subj_ty = lt;
+		var base_ty = subj_ty;
+		var is_ptr = false;
+		if (base_ty.kind == DataType.POINTER) {
+			is_ptr = true;
+			base_ty = base_ty.as_pointer().pointee;
+		}
+
+		var enum_info: *EnumInfo? = null;
+		if (base_ty.is_enum()) {
+			enum_info = base_ty.as_enum();
+		} else if (base_ty.kind == DataType.STRUCT) {
+			enum_info = self.symtab.find_enum_info(base_ty.as_struct().name);
+		}
+
+		for (el in al.elements) {
+			val unwrapped_el = self.unwrap_group(el);
+			if (
+				unwrapped_el is BinaryExpr as rbin && (
+					rbin.op == TokenType.DOT_DOT ||
+					rbin.op == TokenType.DOT_DOT_LESS
+				)
+			) {
+				self.check_in_list_elem(rbin.left, bin, subj_ty, base_ty, is_ptr, enum_info);
+				self.check_in_list_elem(rbin.right, bin, subj_ty, base_ty, is_ptr, enum_info);
+				val is_valid_range_subj = subj_ty.is_numeric() ||
+					subj_ty.kind == DataType.CHAR ||
+					(subj_ty.is_enum() && (subj_ty.as_enum().underlying.is_numeric() || subj_ty.as_enum().underlying.kind == DataType.CHAR));
+				self.ensure(
+					is_valid_range_subj,
+					unwrapped_el,
+					"Range in 'in' list requires a numeric or char operand"
+				);
+				self.annotate_type(unwrapped_el, self.prims().t_bool());
+			} else {
+				val el_ty = self.check_in_list_elem(el, bin, subj_ty, base_ty, is_ptr, enum_info);
+				if (self.is_untyped_literal(bin.left) && el_ty.is_numeric() && !subj_ty.equals(el_ty)) {
+					subj_ty = self.check_expr(bin.left, el_ty);
+					base_ty = subj_ty;
+				}
+			}
+		}
+
+		self.annotate_type(bin.right, self.prims().t_none());
+		return self.prims().t_bool();
+	}
+
+	fn check_in_list_elem(
+		&self,
+		el: *AstNode,
+		bin: *BinaryExpr,
+		subj_ty: *Type,
+		base_ty: *Type,
+		is_ptr: bool,
+		enum_info: *EnumInfo?
+	): *Type {
+		val unwrapped_el = self.unwrap_group(el);
+		if (enum_info != null) {
+			val ei = enum_info;
+			var vname = "";
+			var is_explicit_enum_mem = false;
+			if (unwrapped_el is MemberExpr as mem && mem.object is IdentifierExpr as oid) {
+				if (oid.name.empty() || oid.name == ei.name || oid.name == ei.c_name) {
+					vname = mem.member;
+					is_explicit_enum_mem = true;
+				}
+			} else if (unwrapped_el is IdentifierExpr as id) {
+				if (self.symtab.lookup(id.name) == null && ei.find_member(id.name) != null) {
+					vname = id.name;
+				}
+			}
+
+			if (!vname.empty()) {
+				val mi = ei.find_member(vname);
+				if (mi == null) {
+					self.report_error(el, "Enum '${ei.name}' has no member '${vname}'");
+					return subj_ty;
+				}
+				if (ei.is_payload) {
+					val base_s = base_ty.as_struct()!;
+					val dummy_t = self.arena.node(
+						NodeData.NamedType(base_s.c_name, List<*AstNode>()),
+						unwrapped_el.line, unwrapped_el.col
+					);
+					val is_node = self.arena.node(
+						NodeData.IsExpr(bin.left, dummy_t, "", false),
+						unwrapped_el.line, unwrapped_el.col
+					);
+					val pat_info = IsPatternInfo(
+						ei.tag_field, base_s.c_name, is_ptr,
+						"", false, "${mi.value}"
+					);
+					self.set_is_pattern(unwrapped_el, pat_info);
+					self.set_is_pattern(is_node, pat_info);
+					self.set_resolved(unwrapped_el, is_node);
+					self.annotate_type(unwrapped_el, self.prims().t_bool());
+					self.annotate_type(is_node, self.prims().t_bool());
+					return subj_ty;
+				}
+				val lit = self.arena.node(
+					NodeData.LiteralExpr(mi.lit_kind, mi.raw_text),
+					unwrapped_el.line, unwrapped_el.col
+				);
+				val carrier = self.arena.create_val(
+					Type(ei.underlying.kind, ei.underlying.size, ei.underlying.align, TypePayload.Enum(ei))
+				);
+				self.set_resolved(unwrapped_el, lit);
+				self.annotate_type(lit, carrier);
+				self.annotate_type(unwrapped_el, carrier);
+				return carrier;
+			} else if (is_explicit_enum_mem) {
+				self.report_error(el, "Enum '${ei.name}' has no member '${vname}'");
+				return subj_ty;
+			}
+		}
+
+		val exp_ty = if (subj_ty.is_numeric()) subj_ty else null;
+		var el_ty = self.check_expr(el, exp_ty);
+		if (self.is_untyped_literal(el) && subj_ty.is_numeric() && !el_ty.equals(subj_ty)) {
+			el_ty = self.check_expr(el, subj_ty);
+		}
+		self.ensure(
+			subj_ty.can_assign(el_ty) || el_ty.can_assign(subj_ty),
+			el,
+			"Element type in 'in' list does not match left-hand operand type"
+		);
+		return el_ty;
+	}
+
 	fn check_range_op(&self, node: *AstNode, bin: *BinaryExpr, lt: *Type, rt: *Type): *Type {
 		var l_ty = lt;
 		var r_ty = rt;
@@ -580,26 +665,10 @@ impl BodyChecker {
 	}
 
 	pub fn check_array_literal_expr(&self, node: *AstNode): *Type {
-		if (node is ArrayLiteralExpr as al) {
-			if (!al.list_struct_name.empty()) {
-				val sym = self.symtab.lookup(al.list_struct_name);
-				if (sym != null) return sym.type_ptr;
-			}
-
-			if (al.elements.empty()) {
-				self.report_error(node, "Cannot infer the element type of an empty array literal");
-				return self.prims().t_none();
-			}
-
-			val elem_ty = self.check_expr(al.elements.first());
-			for (i in 1..<al.elements.len) {
-				val t = self.check_expr(al.elements[i], elem_ty);
-				if (!elem_ty.can_assign(t)) {
-					self.report_error(al.elements[i], "Array literal element type mismatch");
-				}
-			}
-			return self.arena.array_type(elem_ty, al.elements.len);
-		}
+		self.report_error(
+			node,
+			"Candidate list '[...]' is only allowed on the right-hand side of 'in' or '!in'"
+		);
 		return self.prims().t_none();
 	}
 

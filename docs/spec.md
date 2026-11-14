@@ -367,7 +367,15 @@ if (x in 0..10) { ... }
 if (c in 'a'..'z') { ... }
 if (x in r1) { ... }
 if (x !in r1) { ... }
+
+// Candidate-list containment (zero-allocation inline value, range, and enum tests)
+if (c in ['t', 'g', 'k']) { ... }
+if (c in ['a'..'z', 'A'..'Z', '_']) { ... }
+if (status !in [.OK, .NOT_FOUND]) { ... }
+if (shape in [Shape.Circle, Shape.Empty]) { ... }
 ```
+
+Candidate lists `[a, b, ...]` are valid strictly on the right-hand side of `in` / `!in` (never as standalone array values) and lower directly to short-circuit comparisons without allocating memory. They support primitives, strings, ranges (`..`, `..<`), structs, and enum variants (`Enum.VARIANT`, `.VARIANT`, or bare `VARIANT`, including payload enum tag checks).
 
 When written directly in `for` loop headers (`for (i in 0..10)`, `for (i in 0..<len)`), the compiler lowers them directly to zero-cost C counter loops with automatic bidirectional direction. When assigned to a variable, `Range<T>` implements the `Iterable` trait (`count()`, `at(i)`).
 

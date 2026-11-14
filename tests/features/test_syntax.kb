@@ -1,6 +1,7 @@
 mod tests.features.test_syntax;
 
 use std.io.*;
+use std.collections.Array;
 use std.collections.List;
 use std.collections.HashMap;
 use std.collections.HashSet;
@@ -513,7 +514,7 @@ fn test_adjacent_strings(): bool {
 	if (s4 != "Hello Kobel! You have 3 messages.") return false;
 
 	// 5. In expression context (array)
-	val arr = ["foo" "bar", "baz"];
+	val arr = Array<str>("foo" "bar", "baz");
 	if (arr.len != 2 || arr[0] != "foobar" || arr[1] != "baz") return false;
 
 	return true;

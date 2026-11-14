@@ -41,9 +41,6 @@ pub struct CCodeGen {
 	pub out: StringBuilder,
 
 	pub errors: List<str> = List(),
-	// C element type for the array literal being emitted, when the surrounding
-	// declaration already knows it (`val a: [T; N] = [...]`).
-	pub array_elem_hint: str = "",
 	pub yield_target: str = "",
 	pub is_yield_return: bool = false,
 	pub current_fn_ret_type: str = "",

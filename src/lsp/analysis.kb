@@ -742,21 +742,21 @@ impl AnalysisResult {
 		}
 
 		// 1. Language Keywords (including new Kobel keywords)
-		val kws = [
+		val kws = Array<str>(
 			"fn", "val", "var", "const", "struct", "enum", "trait", "impl",
 			"when", "if", "else", "while", "for", "in", "return", "yield",
 			"pub", "use", "mod", "extern", "defer", "is", "op", "init",
 			"true", "false", "null", "as", "break", "continue"
-		];
+		);
 		for (kw in kws) add_completion_item(items, kw, Completion.KEYWORD.value, "keyword");
 
 		// 2. Built-in & Standard Types
-		val prims = [
+		val prims = Array<str>(
 			"i8", "i16", "i32", "i64", "isz",
 			"u8", "u16", "u32", "u64", "usz",
 			"f32", "f64", "bool", "char", "str", "none",
 			"Range", "Array", "List", "HashMap", "HashSet"
-		];
+		);
 		for (pt in prims) add_completion_item(items, pt, Completion.TYPE.value, "type");
 
 		// 3. Local variables/params in current file + module & imported symbols

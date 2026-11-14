@@ -455,7 +455,7 @@ impl Parser {
 				yield self.node(NodeData.GroupExpr(inner), line, col);
 			}
 
-			// Array Literal: [a, b, c]
+			// Candidate list: [a, b, c] (contextually valid on RHS of 'in' / '!in')
 			TokenType.OPEN_BRACKET -> {
 				var elements = List<*AstNode>();
 				if (!self.check(TokenType.CLOSE_BRACKET)) {
@@ -465,8 +465,8 @@ impl Parser {
 						elements += self.parse_expression(Precedence.NONE);
 					}
 				}
-				self.consume(TokenType.CLOSE_BRACKET, "Expected ']' after array literal");
-				yield self.node(NodeData.ArrayLiteralExpr(elements, "", null), line, col);
+				self.consume(TokenType.CLOSE_BRACKET, "Expected ']' after candidate list");
+				yield self.node(NodeData.ArrayLiteralExpr(elements), line, col);
 			}
 
 			// Prefix Unary: -, !, *, &

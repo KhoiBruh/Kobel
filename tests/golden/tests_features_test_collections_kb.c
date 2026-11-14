@@ -437,77 +437,7 @@ struct std__collections__HashMap_tests__features__test_collections__Point2D_i32 
     size_t cap;
 };
 
-static inline std__collections__List_str std__collections__List_str_from_array(const void* src, size_t n) {
-	size_t elem_size = sizeof(*(((std__collections__List_str*)0)->data));
-	size_t cap = (n < 4) ? 4 : n;
-	void* data = malloc(cap * elem_size);
-	if (n > 0 && src != NULL) memcpy(data, src, n * elem_size);
-	std__collections__List_str l;
-	l.data = data;
-	l.len = n;
-	l.cap = cap;
-	return l;
-}static inline std__collections__List_i32 std__collections__List_i32_from_array(const void* src, size_t n) {
-	size_t elem_size = sizeof(*(((std__collections__List_i32*)0)->data));
-	size_t cap = (n < 4) ? 4 : n;
-	void* data = malloc(cap * elem_size);
-	if (n > 0 && src != NULL) memcpy(data, src, n * elem_size);
-	std__collections__List_i32 l;
-	l.data = data;
-	l.len = n;
-	l.cap = cap;
-	return l;
-}static inline std__collections__List_std__collections__List_i32 std__collections__List_std__collections__List_i32_from_array(const void* src, size_t n) {
-	size_t elem_size = sizeof(*(((std__collections__List_std__collections__List_i32*)0)->data));
-	size_t cap = (n < 4) ? 4 : n;
-	void* data = malloc(cap * elem_size);
-	if (n > 0 && src != NULL) memcpy(data, src, n * elem_size);
-	std__collections__List_std__collections__List_i32 l;
-	l.data = data;
-	l.len = n;
-	l.cap = cap;
-	return l;
-}static inline std__collections__List_std__collections__Pair_str_i32 std__collections__List_std__collections__Pair_str_i32_from_array(const void* src, size_t n) {
-	size_t elem_size = sizeof(*(((std__collections__List_std__collections__Pair_str_i32*)0)->data));
-	size_t cap = (n < 4) ? 4 : n;
-	void* data = malloc(cap * elem_size);
-	if (n > 0 && src != NULL) memcpy(data, src, n * elem_size);
-	std__collections__List_std__collections__Pair_str_i32 l;
-	l.data = data;
-	l.len = n;
-	l.cap = cap;
-	return l;
-}static inline std__collections__List_std__collections__Pair_i32_str std__collections__List_std__collections__Pair_i32_str_from_array(const void* src, size_t n) {
-	size_t elem_size = sizeof(*(((std__collections__List_std__collections__Pair_i32_str*)0)->data));
-	size_t cap = (n < 4) ? 4 : n;
-	void* data = malloc(cap * elem_size);
-	if (n > 0 && src != NULL) memcpy(data, src, n * elem_size);
-	std__collections__List_std__collections__Pair_i32_str l;
-	l.data = data;
-	l.len = n;
-	l.cap = cap;
-	return l;
-}static inline std__collections__List_tests__features__test_collections__Point2D std__collections__List_tests__features__test_collections__Point2D_from_array(const void* src, size_t n) {
-	size_t elem_size = sizeof(*(((std__collections__List_tests__features__test_collections__Point2D*)0)->data));
-	size_t cap = (n < 4) ? 4 : n;
-	void* data = malloc(cap * elem_size);
-	if (n > 0 && src != NULL) memcpy(data, src, n * elem_size);
-	std__collections__List_tests__features__test_collections__Point2D l;
-	l.data = data;
-	l.len = n;
-	l.cap = cap;
-	return l;
-}static inline std__collections__List_std__collections__Pair_tests__features__test_collections__Point2D_i32 std__collections__List_std__collections__Pair_tests__features__test_collections__Point2D_i32_from_array(const void* src, size_t n) {
-	size_t elem_size = sizeof(*(((std__collections__List_std__collections__Pair_tests__features__test_collections__Point2D_i32*)0)->data));
-	size_t cap = (n < 4) ? 4 : n;
-	void* data = malloc(cap * elem_size);
-	if (n > 0 && src != NULL) memcpy(data, src, n * elem_size);
-	std__collections__List_std__collections__Pair_tests__features__test_collections__Point2D_i32 l;
-	l.data = data;
-	l.len = n;
-	l.cap = cap;
-	return l;
-}size_t std__traits__hash_int(size_t n);
+size_t std__traits__hash_int(size_t n);
 size_t std__traits__hash_str(kobel_str s);
 int32_t bool_hash(bool self);
 size_t char_hash(char self);
@@ -2464,18 +2394,18 @@ return total;
 }
 
 std__collections__List_str tests__features__test_collections__make_strings(void) {
-    return std__collections__List_str_from_array((kobel_str[]){KOBEL_STR("kobel"), KOBEL_STR("bootstrap"), KOBEL_STR("list"), KOBEL_STR("literal")}, 4);
+    return std__collections__List_str_init((kobel_str[]){ KOBEL_STR("kobel"), KOBEL_STR("bootstrap"), KOBEL_STR("list"), KOBEL_STR("literal") }, 4);
 }
 
 bool tests__features__test_collections__test_list_literals(void) {
-std__collections__List_i32 nums = std__collections__List_i32_from_array((int32_t[]){1, 2, 3, 4, 5}, 5);
+std__collections__List_i32 nums = std__collections__List_i32_init((int32_t[]){ 1, 2, 3, 4, 5 }, 5);
 if (nums.len != 5) {
 return false;
 }
 if ((std__collections__List_i32_get(&nums, 0) != 1) || (std__collections__List_i32_get(&nums, 4) != 5)) {
 return false;
 }
-std__collections__List_str empty = std__collections__List_str_from_array(NULL, 0);
+std__collections__List_str empty = std__collections__List_str_init(NULL, 0);
 if (empty.len != 0) {
 return false;
 }
@@ -2484,7 +2414,7 @@ std__collections__List_str_plus_assign(&empty, KOBEL_STR("second"));
 if (((empty.len != 2) || !kobel_streq(std__collections__List_str_get(&empty, 0), KOBEL_STR("first"))) || !kobel_streq(std__collections__List_str_get(&empty, 1), KOBEL_STR("second"))) {
 return false;
 }
-int32_t s = tests__features__test_collections__sum_list(std__collections__List_i32_from_array((int32_t[]){10, 20, 30, 40}, 4));
+int32_t s = tests__features__test_collections__sum_list(std__collections__List_i32_init((int32_t[]){ 10, 20, 30, 40 }, 4));
 if (s != 100) {
 return false;
 }
@@ -2492,7 +2422,7 @@ std__collections__List_str words = tests__features__test_collections__make_strin
 if (((words.len != 4) || !kobel_streq(std__collections__List_str_get(&words, 0), KOBEL_STR("kobel"))) || !kobel_streq(std__collections__List_str_get(&words, 3), KOBEL_STR("literal"))) {
 return false;
 }
-std__collections__List_std__collections__List_i32 matrix = std__collections__List_std__collections__List_i32_from_array((std__collections__List_i32[]){std__collections__List_i32_from_array((int32_t[]){1, 2}, 2), std__collections__List_i32_from_array((int32_t[]){3, 4}, 2)}, 2);
+std__collections__List_std__collections__List_i32 matrix = std__collections__List_std__collections__List_i32_init((std__collections__List_i32[]){ std__collections__List_i32_init((int32_t[]){ 1, 2 }, 2), std__collections__List_i32_init((int32_t[]){ 3, 4 }, 2) }, 2);
 if (matrix.len != 2) {
 return false;
 }
@@ -2505,11 +2435,11 @@ return true;
 }
 
 bool tests__features__test_collections__test_indexing(void) {
-std__collections__List_i32 list = std__collections__List_i32_from_array((int32_t[]){10, 20, 30, 40}, 4);
+std__collections__List_i32 list = std__collections__List_i32_init((int32_t[]){ 10, 20, 30, 40 }, 4);
 if (((std__collections__List_i32_get(&list, 0) != 10) || (std__collections__List_i32_get(&list, 2) != 30)) || (std__collections__List_i32_get(&list, 3) != 40)) {
 return false;
 }
-std__collections__List_i32 mut_list = std__collections__List_i32_from_array((int32_t[]){1, 2, 3}, 3);
+std__collections__List_i32 mut_list = std__collections__List_i32_init((int32_t[]){ 1, 2, 3 }, 3);
 std__collections__List_i32_set(&mut_list, 0, 100);
 std__collections__List_i32_set(&mut_list, 2, 300);
 if (((std__collections__List_i32_get(&mut_list, 0) != 100) || (std__collections__List_i32_get(&mut_list, 1) != 2)) || (std__collections__List_i32_get(&mut_list, 2) != 300)) {
@@ -2927,7 +2857,7 @@ return __ret_tmp;
 }
 
 bool tests__features__test_collections__test_list_utilities(void) {
-std__collections__List_i32 l = std__collections__List_i32_from_array((int32_t[]){10, 20, 30, 20, 50}, 5);
+std__collections__List_i32 l = std__collections__List_i32_init((int32_t[]){ 10, 20, 30, 20, 50 }, 5);
 if (std__collections__List_i32_index_of(&l, 10) != 0) {
 return false;
 }
@@ -2958,7 +2888,7 @@ return false;
 if (!(!std__collections__List_i32_contains(&l, 99))) {
 return false;
 }
-std__collections__List_i32 m = std__collections__List_i32_from_array((int32_t[]){10, 20, 30, 40}, 4);
+std__collections__List_i32 m = std__collections__List_i32_init((int32_t[]){ 10, 20, 30, 40 }, 4);
 if (!std__collections__List_i32_remove(&m, 20)) {
 return false;
 }
@@ -2968,7 +2898,7 @@ return false;
 if (std__collections__List_i32_remove(&m, 99)) {
 return false;
 }
-std__collections__List_i32 r = std__collections__List_i32_from_array((int32_t[]){1, 2, 3, 2, 4, 2, 5}, 7);
+std__collections__List_i32 r = std__collections__List_i32_init((int32_t[]){ 1, 2, 3, 2, 4, 2, 5 }, 7);
 size_t removed = std__collections__List_i32_remove_all(&r, 2);
 if ((removed != 3) || (r.len != 4)) {
 return false;
@@ -2976,7 +2906,7 @@ return false;
 if ((((std__collections__List_i32_get(&r, 0) != 1) || (std__collections__List_i32_get(&r, 1) != 3)) || (std__collections__List_i32_get(&r, 2) != 4)) || (std__collections__List_i32_get(&r, 3) != 5)) {
 return false;
 }
-std__collections__List_i32 p = std__collections__List_i32_from_array((int32_t[]){10, 20}, 2);
+std__collections__List_i32 p = std__collections__List_i32_init((int32_t[]){ 10, 20 }, 2);
 if (std__collections__List_i32_pop_or(&p, 0) != 20) {
 return false;
 }
@@ -2986,12 +2916,12 @@ return false;
 if (std__collections__List_i32_pop_or(&p, 999) != 999) {
 return false;
 }
-std__collections__List_i32 s = std__collections__List_i32_from_array((int32_t[]){10, 20, 30}, 3);
+std__collections__List_i32 s = std__collections__List_i32_init((int32_t[]){ 10, 20, 30 }, 3);
 std__collections__List_i32_swap(&s, 0, 2);
 if (((std__collections__List_i32_get(&s, 0) != 30) || (std__collections__List_i32_get(&s, 1) != 20)) || (std__collections__List_i32_get(&s, 2) != 10)) {
 return false;
 }
-std__collections__List_i32 rev = std__collections__List_i32_from_array((int32_t[]){1, 2, 3, 4, 5}, 5);
+std__collections__List_i32 rev = std__collections__List_i32_init((int32_t[]){ 1, 2, 3, 4, 5 }, 5);
 std__collections__List_i32_reverse(&rev);
 if (((((std__collections__List_i32_get(&rev, 0) != 5) || (std__collections__List_i32_get(&rev, 1) != 4)) || (std__collections__List_i32_get(&rev, 2) != 3)) || (std__collections__List_i32_get(&rev, 3) != 2)) || (std__collections__List_i32_get(&rev, 4) != 1)) {
 return false;
@@ -3000,12 +2930,12 @@ std__collections__List_i32 sl = std__collections__List_i32_sub(&rev, 1, 3);
 if ((((sl.len != 3) || (std__collections__List_i32_get(&sl, 0) != 4)) || (std__collections__List_i32_get(&sl, 1) != 3)) || (std__collections__List_i32_get(&sl, 2) != 2)) {
 return false;
 }
-std__collections__List_i32 ext = std__collections__List_i32_from_array((int32_t[]){1, 2}, 2);
-std__collections__List_i32_extend(&ext, std__collections__List_i32_from_array((int32_t[]){3, 4}, 2));
+std__collections__List_i32 ext = std__collections__List_i32_init((int32_t[]){ 1, 2 }, 2);
+std__collections__List_i32_extend(&ext, std__collections__List_i32_init((int32_t[]){ 3, 4 }, 2));
 if (((((ext.len != 4) || (std__collections__List_i32_get(&ext, 0) != 1)) || (std__collections__List_i32_get(&ext, 1) != 2)) || (std__collections__List_i32_get(&ext, 2) != 3)) || (std__collections__List_i32_get(&ext, 3) != 4)) {
 return false;
 }
-std__collections__List_tests__features__test_collections__Point2D pts = std__collections__List_tests__features__test_collections__Point2D_from_array((tests__features__test_collections__Point2D[]){(tests__features__test_collections__Point2D){ 1, 2 }, (tests__features__test_collections__Point2D){ 3, 4 }}, 2);
+std__collections__List_tests__features__test_collections__Point2D pts = std__collections__List_tests__features__test_collections__Point2D_init((tests__features__test_collections__Point2D[]){ (tests__features__test_collections__Point2D){ 1, 2 }, (tests__features__test_collections__Point2D){ 3, 4 } }, 2);
 if (!(std__collections__List_tests__features__test_collections__Point2D_contains(&pts, (tests__features__test_collections__Point2D){ 3, 4 }))) {
 return false;
 }

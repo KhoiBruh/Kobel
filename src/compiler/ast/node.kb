@@ -59,7 +59,7 @@ pub enum NodeData {
 	UpdateExpr(op: TokenType, target: *AstNode),
 	CastExpr(expr: *AstNode?, target_type: *AstNode),
 	GroupExpr(expr: *AstNode),
-	ArrayLiteralExpr(elements: List<*AstNode>, list_struct_name: str, elem_type_node: *AstNode?),
+	ArrayLiteralExpr(elements: List<*AstNode>),
 	IfExpr(condition: *AstNode, then_branch: *AstNode, else_branch: *AstNode),
 	WhenExpr(condition: *AstNode?, arms: List<WhenArm>),
 	InterpExpr(parts: List<InterpPart>),

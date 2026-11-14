@@ -443,7 +443,6 @@ impl BodyChecker {
 					if (param_ty?.kind == DataType.POINTER && param_ty.as_pointer().mutable) {
 						self.mark_node_mutated(arg_n);
 					}
-					if (param_ty?.is_list()) self.coerce_to_list(arg_n, param_ty);
 					val is_fn_forward = (
 						param_ty?.kind == DataType.FN
 						&& i == call.args.len - 1
@@ -461,7 +460,6 @@ impl BodyChecker {
 				}
 				for (i in min_user_args..<call.args.len) {
 					val arg_n = call.args[i];
-					if (elem_ty?.is_list()) self.coerce_to_list(arg_n, elem_ty);
 					val arg_ty = self.check_expr(arg_n, elem_ty);
 					self.ensure(
 						elem_ty.can_assign(arg_ty),
@@ -479,7 +477,6 @@ impl BodyChecker {
 				if (param_ty?.kind == DataType.POINTER && param_ty.as_pointer().mutable) {
 					self.mark_node_mutated(arg_n);
 				}
-				if (param_ty?.is_list()) self.coerce_to_list(arg_n, param_ty);
 				val is_fn_forward = (
 					param_ty?.kind == DataType.FN
 					&& i == call.args.len - 1
@@ -582,7 +579,6 @@ impl BodyChecker {
 					for (i in 0..<call.args.len) {
 						val param_ty = fn_info.param_types[i];
 						val arg_n = call.args[i];
-						if (param_ty?.is_list()) self.coerce_to_list(arg_n, param_ty);
 						val is_fn_forward = (
 							param_ty?.kind == DataType.FN
 							&& i == call.args.len - 1
@@ -644,7 +640,6 @@ impl BodyChecker {
 					if (param_ty?.kind == DataType.POINTER && param_ty.as_pointer().mutable) {
 						self.mark_node_mutated(arg_n);
 					}
-					if (param_ty?.is_list()) self.coerce_to_list(arg_n, param_ty);
 					val is_fn_forward = (
 						param_ty?.kind == DataType.FN
 						&& i == call.args.len - 1
@@ -662,7 +657,6 @@ impl BodyChecker {
 				}
 				for (i in min_args..<call.args.len) {
 					val arg_n = call.args[i];
-					if (elem_ty?.is_list()) self.coerce_to_list(arg_n, elem_ty);
 					val arg_ty = self.check_expr(arg_n, elem_ty);
 					self.ensure(
 						elem_ty.can_assign(arg_ty),
@@ -680,7 +674,6 @@ impl BodyChecker {
 				if (param_ty?.kind == DataType.POINTER && param_ty.as_pointer().mutable) {
 					self.mark_node_mutated(arg_n);
 				}
-				if (param_ty?.is_list()) self.coerce_to_list(arg_n, param_ty);
 				val is_fn_forward = (
 					param_ty?.kind == DataType.FN
 					&& i == call.args.len - 1
@@ -881,7 +874,6 @@ impl BodyChecker {
 					if (param_ty?.kind == DataType.POINTER && param_ty.as_pointer().mutable) {
 						self.mark_node_mutated(arg_n);
 					}
-					if (param_ty?.is_list()) self.coerce_to_list(arg_n, param_ty);
 					val is_fn_forward = (
 						param_ty?.kind == DataType.FN
 						&& i == new_cc.args.len - 1
@@ -985,7 +977,6 @@ impl BodyChecker {
 				for (i in 0..<call.args.len) {
 					val f_ty = field_types[i];
 					val arg_n = call.args[i];
-					if (f_ty?.is_list()) self.coerce_to_list(arg_n, f_ty);
 					val arg_ty = self.check_expr(arg_n, f_ty);
 					self.ensure(
 						f_ty.can_assign(arg_ty),
@@ -1026,7 +1017,6 @@ impl BodyChecker {
 					if (param_ty?.kind == DataType.POINTER && param_ty.as_pointer().mutable) {
 						self.mark_node_mutated(arg_n);
 					}
-					if (param_ty?.is_list()) self.coerce_to_list(arg_n, param_ty);
 					val is_fn_forward = (
 						param_ty?.kind == DataType.FN
 						&& i == call.args.len - 1
@@ -1053,7 +1043,6 @@ impl BodyChecker {
 				}
 				for (i in min_args..<call.args.len) {
 					val arg_n = call.args[i];
-					if (elem_ty?.is_list()) self.coerce_to_list(arg_n, elem_ty);
 					val arg_ty = self.check_expr(arg_n, elem_ty);
 					if (!elem_ty.can_assign(arg_ty)) {
 						self.report_error(node, "Argument type mismatch in variadic arguments");
@@ -1069,7 +1058,6 @@ impl BodyChecker {
 				if (param_ty?.kind == DataType.POINTER && param_ty.as_pointer().mutable) {
 					self.mark_node_mutated(arg_n);
 				}
-				if (param_ty?.is_list()) self.coerce_to_list(arg_n, param_ty);
 				val is_fn_forward = (
 					param_ty?.kind == DataType.FN
 					&& i == call.args.len - 1
@@ -1202,7 +1190,6 @@ impl BodyChecker {
 					self.report_error(lam.body, "Lambda cannot return another lambda/closure");
 				}
 				if (inferred_ret != null && inferred_ret.kind != DataType.NONE) {
-					if (inferred_ret.is_list()) self.coerce_to_list(lam.body, inferred_ret);
 					val body_ty = self.check_expr(lam.body, inferred_ret);
 					if (body_ty.kind == DataType.FN) {
 						self.report_error(lam.body, "Lambda cannot return another lambda/closure");
@@ -1287,13 +1274,11 @@ impl BodyChecker {
 					for (i in 0..<min_args) {
 						val param_ty = n_info.param_types[i];
 						val arg_n = call.args[i];
-						if (param_ty?.is_list()) self.coerce_to_list(arg_n, param_ty);
 						val arg_ty = self.check_expr(arg_n, param_ty);
 						self.ensure(param_ty.can_assign(arg_ty), node, "Argument type mismatch in call to constructor");
 					}
 					for (i in min_args..<call.args.len) {
 						val arg_n = call.args[i];
-						if (elem_ty?.is_list()) self.coerce_to_list(arg_n, elem_ty);
 						val arg_ty = self.check_expr(arg_n, elem_ty);
 						self.ensure(elem_ty.can_assign(arg_ty), node, "Argument type mismatch in variadic arguments");
 					}
@@ -1301,7 +1286,6 @@ impl BodyChecker {
 					for (i in 0..<call.args.len) {
 						val param_ty = n_info.param_types[i];
 						val arg_n = call.args[i];
-						if (param_ty?.is_list()) self.coerce_to_list(arg_n, param_ty);
 						val arg_ty = self.check_expr(arg_n, param_ty);
 						self.ensure(param_ty.can_assign(arg_ty), node, "Argument type mismatch in call to 'new'");
 					}
@@ -1341,7 +1325,6 @@ impl BodyChecker {
 			for (i in 0..<call.args.len) {
 				val f_ty = s_info.fields[i].type_ptr;
 				val arg_n = call.args[i];
-				if (f_ty?.is_list()) self.coerce_to_list(arg_n, f_ty);
 				val arg_ty = self.check_expr(arg_n, f_ty);
 				self.ensure(
 					f_ty.can_assign(arg_ty),

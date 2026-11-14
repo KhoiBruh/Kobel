@@ -437,9 +437,6 @@ impl BodyChecker {
 						if (ys.value is LambdaExpr)
 							self.report_error(ys.value!, "Lambda cannot return or yield another lambda/closure");
 
-						if (self.lambda_return_type?.is_list())
-							self.coerce_to_list(ys.value!, self.lambda_return_type!);
-
 						val val_ty = self.check_expr(ys.value!, self.lambda_return_type);
 						if (val_ty.kind == DataType.FN)
 							self.report_error(node, "Lambda cannot return or yield another lambda/closure");

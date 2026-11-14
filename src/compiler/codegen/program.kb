@@ -152,32 +152,6 @@ impl CCodeGen {
 				else if (item is EnumDecl as e) self.gen_payload_enum(e);
 			}
 
-			// 3b. List constructors (emitted after all struct types are fully defined)
-			for (decl_list in prog) {
-				if (
-					!decl_is_template(decl_list) &&
-					decl_list is StructDecl as s &&
-					(
-						s.name.starts_with("std__collections__list__List") ||
-						s.name.starts_with("std__collections__List")
-					)
-				) {
-					self.out += """
-						static inline ${s.name} ${s.name}_from_array(const void* src, size_t n) {
-							size_t elem_size = sizeof(*(((${s.name}*)0)->data));
-							size_t cap = (n < 4) ? 4 : n;
-							void* data = malloc(cap * elem_size);
-							if (n > 0 && src != NULL) memcpy(data, src, n * elem_size);
-							${s.name} l;
-							l.data = data;
-							l.len = n;
-							l.cap = cap;
-							return l;
-						}
-					""";
-				}
-			}
-
 			// 4. Function Prototypes
 			for (decl in prog) {
 				if (decl_is_template(decl)) continue;

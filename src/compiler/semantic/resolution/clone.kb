@@ -112,6 +112,7 @@ impl TypeResolver {
 		if (e?.resolved != null) {
 			val r = self.clone_expr(e.resolved!, subst);
 			if (e.ty != null) self.symtab.set_node_type(r, e.ty);
+			if (e.has_is_info) self.symtab.set_is_pattern(r, e.is_info);
 			if (e.is_predicate) self.symtab.set_predicate_pattern(r);
 			return r;
 		}
@@ -186,22 +187,10 @@ impl TypeResolver {
 				node.line, node.col
 			);
 
-			is ArrayLiteralExpr as al -> {
-				var lname = al.list_struct_name;
-				var enode = al.elem_type_node;
-				if (e != null) {
-					if (e.has_list_name) lname = e.list_name;
-					if (e.has_elem_node) enode = self.clone_type(e.elem_node!, subst);
-				}
-
-				yield self.arena.node(
-					NodeData.ArrayLiteralExpr(
-						self.clone_expr_list(al.elements, subst),
-						lname, enode
-					),
-					node.line, node.col
-				);
-			}
+			is ArrayLiteralExpr as al -> self.arena.node(
+				NodeData.ArrayLiteralExpr(self.clone_expr_list(al.elements, subst)),
+				node.line, node.col
+			);
 
 			is WhenExpr as we -> self.arena.node(
 				NodeData.WhenExpr(

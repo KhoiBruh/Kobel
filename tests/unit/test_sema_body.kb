@@ -740,10 +740,45 @@ fn test_lambda_body_and_call_restrictions() {
 	println("  [PASS] test_lambda_body_and_call_restrictions");
 }
 
+fn test_in_candidate_list_restrictions() {
+	// 1. Standalone '[...]' array literal is rejected
+	check_single_error(
+		"""
+		fn test() {
+		    val x = [1, 2, 3];
+		}
+		""",
+		"Standalone '[...]' array literal must be rejected"
+	);
+
+	// 2. Empty candidate list in 'in' is rejected
+	check_single_error(
+		"""
+		fn test() {
+		    if (1 in []) {}
+		}
+		""",
+		"Empty candidate list in 'in' must be rejected"
+	);
+
+	// 3. Mismatched element type in 'in' candidate list is rejected
+	check_single_error(
+		"""
+		fn test() {
+		    if (1 in ["a", "b"]) {}
+		}
+		""",
+		"Mismatched element type in 'in' candidate list must be rejected"
+	);
+
+	println("  [PASS] test_in_candidate_list_restrictions");
+}
+
 fn main(): i32 {
 	println("[RUNNING] Bootstrap Semantic BodyChecker tests...");
 	test_when_subject_and_implicit_dot_restrictions();
 	test_lambda_body_and_call_restrictions();
+	test_in_candidate_list_restrictions();
 	test_destructure_nullable_pointer_error();
 	test_cast_null_to_non_null_pointer_rejected();
 	test_unused_mutability_warning();
