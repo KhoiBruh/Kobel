@@ -752,11 +752,7 @@ impl LoweringPass {
 
 	fn is_stmt_node(*self, node: *AstNode): bool {
 		if (node == null) return false;
-		return node is ReturnStmt ||
-			node is BreakStmt ||
-			node is ContinueStmt ||
-			node is YieldStmt ||
-			node is BlockStmt;
+		return node is [ReturnStmt, BreakStmt, ContinueStmt, YieldStmt, BlockStmt];
 	}
 
 	fn is_array_expr(*self, node: *AstNode): bool {

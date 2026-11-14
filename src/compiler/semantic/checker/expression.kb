@@ -216,11 +216,7 @@ impl BodyChecker {
 			"Left-hand side of Elvis operator '?:' must be a pointer, string, or safe navigation '?'"
 		);
 
-		val is_jump = bin.right is ReturnStmt ||
-			bin.right is BreakStmt ||
-			bin.right is ContinueStmt ||
-			bin.right is YieldStmt ||
-			bin.right is BlockStmt;
+		val is_jump = bin.right is [ReturnStmt, BreakStmt, ContinueStmt, YieldStmt, BlockStmt];
 
 		var rt: *Type? = null;
 		if (is_jump) {

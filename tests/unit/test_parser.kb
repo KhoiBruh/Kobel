@@ -317,6 +317,24 @@ fn test_not_is_parsing() {
 	p_bad2.parse_program();
 	assert_true(p_bad2.errors.len >= 1, "Must reject '!is Type as alias' in when arm");
 
+	val src_list = "fn f(x: Shape): bool { when (x) { is [.Circle, .Rect] -> return true; !is [Empty] -> return false; else -> {} } return x is [Circle, Rect] && x !is [Empty]; }";
+	var l_list = Lexer(src_list);
+	var p_list = Parser(l_list.tokenize());
+	p_list.parse_program();
+	assert_eq_usz(p_list.errors.len, 0, "Valid 'is [...]' and '!is [...]' must parse without errors");
+
+	val bad_list_alias = "fn f(x: Shape): bool { return x is [Circle, Rect] as c; }";
+	var l_bad3 = Lexer(bad_list_alias);
+	var p_bad3 = Parser(l_bad3.tokenize());
+	p_bad3.parse_program();
+	assert_eq_usz(p_bad3.errors.len, 1, "Must reject 'x is [A, B] as alias' with single error");
+
+	val bad_not_list_alias = "fn f(x: Shape): bool { return x !is [Circle, Rect] as c; }";
+	var l_bad4 = Lexer(bad_not_list_alias);
+	var p_bad4 = Parser(l_bad4.tokenize());
+	p_bad4.parse_program();
+	assert_eq_usz(p_bad4.errors.len, 1, "Must reject 'x !is [A, B] as alias' with single error");
+
 	println("  [PASS] test_not_is_parsing");
 }
 

@@ -301,8 +301,35 @@ impl Parser {
 		else -> Precedence.NONE;
 	};
 
+	fn parse_is_type_item(&self): *AstNode {
+		if (self.match_token(TokenType.DOT)) {
+			val (line, col) = self.previous();
+			val mem = self.consume(TokenType.IDENTIFIER, "Expected variant name after '.'");
+			return self.node(NodeData.NamedType(".${mem.text}", List<*AstNode>()), line, col);
+		}
+		return self.parse_type();
+	}
+
+	fn parse_is_target(&self): *AstNode {
+		if (self.match_token(TokenType.OPEN_BRACKET)) {
+			val (lb_line, lb_col) = self.previous();
+			var types = List<*AstNode>();
+			if (!self.check(TokenType.CLOSE_BRACKET)) {
+				types += self.parse_is_type_item();
+				while (self.match_token(TokenType.COMMA)) {
+					if (self.check(TokenType.CLOSE_BRACKET)) break;
+					types += self.parse_is_type_item();
+				}
+			}
+			self.consume(TokenType.CLOSE_BRACKET, "Expected ']' after type list");
+			return self.node(NodeData.ArrayLiteralExpr(types), lb_line, lb_col);
+		}
+		return self.parse_is_type_item();
+	}
+
 	fn parse_is_pattern(&self, left: *AstNode?, line: usz, col: usz): *AstNode {
-		val target_type = self.parse_type();
+		val target_type = self.parse_is_target();
+
 		var alias = "";
 		var mutable = false;
 		if (self.match_token(TokenType.KW_AS)) {
@@ -317,6 +344,13 @@ impl Parser {
 
 			val alias_tok = self.consume(TokenType.IDENTIFIER, "Expected identifier after 'as'");
 			alias = alias_tok.text;
+		}
+
+		if (target_type is ArrayLiteralExpr && !alias.empty()) {
+			self.errors += Diagnostic.error(
+				Span(self.file_id, line, col), "",
+				"Cannot bind an 'as' alias with a type list '[...]'"
+			);
 		}
 
 		return self.node(NodeData.IsExpr(left, target_type, alias, mutable), line, col);
@@ -499,7 +533,7 @@ impl Parser {
 			TokenType.MINUS, TokenType.BANG,
 			TokenType.STAR, TokenType.AMPERSAND -> {
 				val operand = self.parse_expression(Precedence.UNARY);
-				if (tok.type == TokenType.BANG && operand is IsExpr as is_e && !is_e.alias.empty()) {
+				if (tok.type == TokenType.BANG && operand is IsExpr as is_e && !is_e.alias.empty() && is_e.target_type !is ArrayLiteralExpr) {
 					self.errors += Diagnostic.error(
 						Span(self.file_id, line, col), "",
 						"Cannot bind an 'as' alias with '!is'"
@@ -720,7 +754,7 @@ impl Parser {
 				self.advance(); // consume '!'
 				self.advance(); // consume 'is'
 				val is_expr = self.parse_is_pattern(left, line, col);
-				if (is_expr is IsExpr as is_e && !is_e.alias.empty()) {
+				if (is_expr is IsExpr as is_e && !is_e.alias.empty() && is_e.target_type !is ArrayLiteralExpr) {
 					self.errors += Diagnostic.error(
 						Span(self.file_id, line, col), "",
 						"Cannot bind an 'as' alias with '!is'"

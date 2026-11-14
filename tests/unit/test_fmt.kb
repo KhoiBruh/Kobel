@@ -176,6 +176,14 @@ enum Shape {
 	assert_true(("!(x is Circle)" in not_is_once), "infix !is must format with parens around IsExpr");
 	assert_true(("!is Circle -> return true;" in not_is_once), "when arm !is must format without parens");
 
+	val type_list_code = "fn has_kind(x: AstNode): bool {\n\tif (x !is [BinaryExpr, AssignExpr]) return false;\n\twhen (x) {\n\t\tis [.Literal, .Binary] -> return true;\n\t\telse -> return false;\n\t}\n\treturn x is [BinaryExpr, AssignExpr];\n}\n";
+	val type_list_once = format_source(type_list_code, FormatOptions());
+	val type_list_twice = format_source(type_list_once, FormatOptions());
+	assert_eq_str(type_list_twice, type_list_once, "is/!is [...] formatting must be idempotent");
+	assert_true(("!(x is [BinaryExpr, AssignExpr])" in type_list_once), "!is [...] must format cleanly");
+	assert_true(("is [.Literal, .Binary] -> return true;" in type_list_once), "when arm is [...] with leading dots must preserve syntax");
+	assert_true(("return x is [BinaryExpr, AssignExpr];" in type_list_once), "is [...] must preserve syntax");
+
 	val broken = "fn broken( { x = ";
 	assert_true(!is_parseable(broken), "broken syntax must fail parseability check");
 	println("  [PASS] test_generic_impl_assoc_and_payload_enum");

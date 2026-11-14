@@ -68,6 +68,21 @@ fn non_rect_tag(s: Shape): i32 {
 	};
 }
 
+fn has_area_list(s: Shape): bool {
+	return when (s) {
+		is [.Circle, .Rect] -> true;
+		is .Empty -> false;
+	};
+}
+
+fn single_list_radius_else(s: Shape): f64 {
+	if (s !is [.Circle]) {
+		return 0.0;
+	} else {
+		return s.radius;
+	}
+}
+
 fn main(): i32 {
 	val c = Shape.Circle(2.0);
 	val r = Shape.Rect(3.0, 4.0);
@@ -96,6 +111,20 @@ fn main(): i32 {
 	if (circle_radius_or_zero(r) != 0.0) return 16;
 	if (non_rect_tag(c) != 10) return 17;
 	if (non_rect_tag(r) != 20) return 18;
+
+	if (!(c is [Shape.Circle, Shape.Rect])) return 19;
+	if (e is [Shape.Circle, Shape.Rect]) return 20;
+	if (c !is [.Circle, .Rect]) return 21;
+	if (!(e !is [.Circle, .Rect])) return 22;
+	if (!has_area_list(c) || !has_area_list(r) || has_area_list(e)) return 23;
+	if (single_list_radius_else(c) != 2.0) return 24;
+	if (single_list_radius_else(r) != 0.0) return 25;
+
+	val hp: *Holder? = &h;
+	val null_hp: *Holder? = null;
+	if (!(hp?.shape is [.Circle, .Rect])) return 26;
+	if (null_hp?.shape is [.Circle, .Rect]) return 27;
+	if (!(null_hp?.shape !is [.Circle, .Rect])) return 28;
 
 	return 0;
 }

@@ -279,7 +279,7 @@ impl TypeResolver {
 				self.symtab.set_current_module(m.full_path);
 			}
 
-			if (decl is FnDecl || decl is ImplDecl) continue;
+			if (decl is [FnDecl, ImplDecl]) continue;
 
 			self.rewrite_generics(decl);
 		}

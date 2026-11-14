@@ -458,6 +458,16 @@ fn main(): i32 {
 		println("FAIL: grouped 'is Literal, Binary' pattern");
 		return 1;
 	}
+	val p_lit: *Node = &lit1 as *Node;
+	val p_bin: *Node = &bin as *Node;
+	if (!(p_lit is [Literal, Binary]) || !(p_bin is [Literal, Binary]) || (null_node is [Literal, Binary])) {
+		println("FAIL: 'is [Literal, Binary]' type list");
+		return 1;
+	}
+	if ((p_lit !is [Literal, Binary]) || !(null_node !is [Literal, Binary])) {
+		println("FAIL: '!is [Literal, Binary]' type list");
+		return 1;
+	}
 	println("implicit subject when (.method / .field): OK");
 
 	println("=== ALL PATTERN MATCHING TESTS PASSED! ===");

@@ -821,6 +821,36 @@ fn test_not_is_semantics() {
 		"'!is' must not smart-cast into the then branch"
 	);
 
+	// Empty type list in `is []` and `!is []` is rejected.
+	check_single_error(
+		"""
+		enum SemaShape3 { Circle(radius: f64), Empty }
+		fn f(s: SemaShape3): bool => s is [];
+		""",
+		"Empty type list in 'is []' must be rejected"
+	);
+	check_single_error(
+		"""
+		enum SemaShape4 { Circle(radius: f64), Empty }
+		fn f(s: SemaShape4): bool => s !is [];
+		""",
+		"Empty type list in '!is []' must be rejected"
+	);
+
+	// Multi-type list `is [A, B]` must NOT smart-cast into a single variant type.
+	check_single_error(
+		"""
+		enum SemaShape5 { Circle(radius: f64), Empty }
+		fn f(s: SemaShape5): f64 {
+		    if (s is [SemaShape5.Circle, SemaShape5.Empty]) {
+		        return s.radius;
+		    }
+		    return 0.0;
+		}
+		""",
+		"Multi-type 'is [A, B]' must not smart-cast"
+	);
+
 	println("  [PASS] test_not_is_semantics");
 }
 

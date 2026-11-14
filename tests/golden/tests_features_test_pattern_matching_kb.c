@@ -2432,6 +2432,16 @@ if ((!tests__features__test_pattern_matching__is_known_node((tests__features__te
 std__io__println(KOBEL_STR("FAIL: grouped 'is Literal, Binary' pattern"));
 return 1;
 }
+tests__features__test_pattern_matching__Node* p_lit = (tests__features__test_pattern_matching__Node*)&lit1;
+tests__features__test_pattern_matching__Node* p_bin = (tests__features__test_pattern_matching__Node*)&bin;
+if ((!((p_lit != NULL && p_lit->tag == tests__features__test_pattern_matching__Literal__TAG || p_lit != NULL && p_lit->tag == tests__features__test_pattern_matching__Binary__TAG)) || !((p_bin != NULL && p_bin->tag == tests__features__test_pattern_matching__Literal__TAG || p_bin != NULL && p_bin->tag == tests__features__test_pattern_matching__Binary__TAG))) || ((null_node != NULL && null_node->tag == tests__features__test_pattern_matching__Literal__TAG || null_node != NULL && null_node->tag == tests__features__test_pattern_matching__Binary__TAG))) {
+std__io__println(KOBEL_STR("FAIL: 'is [Literal, Binary]' type list"));
+return 1;
+}
+if ((!(p_lit != NULL && p_lit->tag == tests__features__test_pattern_matching__Literal__TAG || p_lit != NULL && p_lit->tag == tests__features__test_pattern_matching__Binary__TAG)) || !(!(null_node != NULL && null_node->tag == tests__features__test_pattern_matching__Literal__TAG || null_node != NULL && null_node->tag == tests__features__test_pattern_matching__Binary__TAG))) {
+std__io__println(KOBEL_STR("FAIL: '!is [Literal, Binary]' type list"));
+return 1;
+}
 std__io__println(KOBEL_STR("implicit subject when (.method / .field): OK"));
 std__io__println(KOBEL_STR("=== ALL PATTERN MATCHING TESTS PASSED! ==="));
 return 0;

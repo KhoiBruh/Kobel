@@ -119,18 +119,36 @@ impl BodyChecker {
 		for (arm in we.arms) {
 			if (arm.is_else) continue;
 			for (pat in arm.patterns) {
-				val vname = self.match_enum_variant(pat, enum_info!);
-				if (!vname.empty()) {
-					var already = false;
-					for (c in covered) {
-						if (c == vname) already = true;
+				if (pat is IsExpr as is_e && is_e.target_type is ArrayLiteralExpr as al) {
+					for (el in al.elements) {
+						val vname = self.match_enum_variant_type(el, enum_info!);
+						if (!vname.empty() && vname !in covered) covered += vname;
 					}
-					if (!already) covered += vname;
+					continue;
 				}
+				val vname = self.match_enum_variant(pat, enum_info!);
+				if (!vname.empty() && vname !in covered) covered += vname;
 			}
 		}
 
 		return covered.len == enum_info.members.len;
+	}
+
+	fn match_enum_variant_type(&self, type_node: *AstNode?, enum_info: *EnumInfo): str {
+		if (type_node == null) return "";
+		if (type_node is NamedType as nt && nt.name.starts_with(".")) {
+			val m = enum_info.find_member(nt.name.slice(1, nt.name.len));
+			if (m != null) return m.name;
+		}
+		val target_ty = self.resolve_type(type_node!);
+		if (target_ty?.kind == DataType.STRUCT) {
+			val target_s = target_ty.as_struct();
+			for (m in enum_info.members) {
+				val full_vname = "${enum_info.name}.${m.name}";
+				if (target_s.name in [full_vname, m.name]) return m.name;
+			}
+		}
+		return "";
 	}
 
 	fn match_enum_variant(&self, pat: *AstNode, enum_info: *EnumInfo): str {
@@ -144,18 +162,7 @@ impl BodyChecker {
 				if (m != null) return m.name;
 			}
 		} else if (pat is IsExpr as is_e) {
-			if (is_e.target_type != null) {
-				val target_ty = self.resolve_type(is_e.target_type);
-				if (target_ty?.kind == DataType.STRUCT) {
-					val target_s = target_ty.as_struct();
-					for (m in enum_info.members) {
-						val full_vname = "${enum_info.name}.${m.name}";
-						if (target_s.name in [full_vname, m.name]) {
-							return m.name;
-						}
-					}
-				}
-			}
+			return self.match_enum_variant_type(is_e.target_type, enum_info);
 		} else if (pat is IdentifierExpr as id) {
 			val m = enum_info.find_member(id.name);
 			if (m != null) return m.name;
@@ -163,10 +170,18 @@ impl BodyChecker {
 		return "";
 	}
 
+	fn is_multi_target_list(*self, is_e: *IsExpr): bool {
+		if (is_e.target_type is ArrayLiteralExpr as al) {
+			return al.elements.len != 1;
+		}
+		return false;
+	}
+
 	pub fn arm_smart_cast_sym(*self, patterns: List<*AstNode>, cond: *AstNode?): str {
 		if (cond == null || patterns.len != 1) return "";
 		val pat = patterns.first();
 		if (pat is IsExpr as is_e) {
+			if (self.is_multi_target_list(is_e)) return "";
 			if (!is_e.alias.empty()) return is_e.alias;
 			if (cond is IdentifierExpr as cond_id) return cond_id.name;
 		}
@@ -177,6 +192,7 @@ impl BodyChecker {
 		if (cond == null || patterns.len != 1) return false;
 		val pat = patterns.first();
 		if (pat is IsExpr as is_e) {
+			if (self.is_multi_target_list(is_e)) return false;
 			if (!is_e.alias.empty()) return is_e.mutable;
 			if (cond is IdentifierExpr as cond_id) {
 				val subj_sym = self.symtab.lookup(cond_id.name);
@@ -356,18 +372,144 @@ impl BodyChecker {
 		return self.check_expr(body, expected);
 	}
 
+	fn check_single_is_target(
+		&self,
+		info_node: *AstNode,
+		extra_info_node: *AstNode?,
+		err_node: *AstNode,
+		target_node: *AstNode,
+		is_e: *IsExpr,
+		base_s: *StructType,
+		is_ptr: bool,
+		subj_mutable: bool
+	): *Type? {
+		val data_ty = self.field_type_of(base_s, "data");
+		val data_enum = if (data_ty?.kind == DataType.STRUCT)
+			self.symtab.find_enum_info(data_ty.as_struct()!.name)
+		else null;
+		val direct_enum = self.symtab.find_enum_info(base_s.name);
+
+		if (target_node is NamedType as var nt && nt.name.starts_with(".")) {
+			val vname = nt.name.slice(1, nt.name.len);
+			if (data_enum?.is_payload && data_enum.find_member(vname) != null) {
+				nt.name = "${data_enum.name}.${vname}";
+			} else if (direct_enum?.is_payload && direct_enum.find_member(vname) != null) {
+				nt.name = "${direct_enum.name}.${vname}";
+			}
+		}
+
+		val target_ty = self.resolve_type(target_node);
+		if (target_ty.kind != DataType.STRUCT) {
+			self.report_error(err_node, "Target type of 'is' must be a struct");
+			return null;
+		}
+
+		val target_s = target_ty.as_struct();
+		var is_payload_data = false;
+		var tag_field_name = "";
+		var tag_const_c_name = "";
+
+		var matched_data_member: *EnumMemberInfo? = null;
+		if (data_enum?.is_payload) {
+			for (m in data_enum.members) {
+				if (target_s.name in [m.name, "${data_enum.name}.${m.name}"]) {
+					is_payload_data = true;
+					matched_data_member = m;
+					tag_field_name = "data.tag";
+					val auto_tag = self.symtab.lookup("${data_enum.name}.${m.name}__TAG");
+					tag_const_c_name = if (auto_tag != null) auto_tag.c_name
+						else "${data_enum.c_name}__${m.name}__TAG";
+				}
+			}
+		}
+
+		if (!is_payload_data) {
+			val tag_const_sym = self.find_tag_const(target_s.name);
+			if (tag_const_sym == null || tag_const_sym.kind != SymbolKind.CONST) {
+				self.report_error(
+					err_node,
+					"Cannot smart cast to '${target_s.name}': " +
+					"struct '${target_s.name}' must declare a 'const TAG'"
+				);
+				return null;
+			}
+
+			tag_field_name = self.tag_field_name_of(base_s);
+			if (tag_field_name.empty()) {
+				self.report_error(
+					err_node,
+					"Subject struct '${base_s.name}' must have a tag field as its first field"
+				);
+				return null;
+			}
+
+			val tag_field_ty = self.field_type_of(base_s, tag_field_name);
+			if (!tag_field_ty.can_assign(tag_const_sym.type_ptr)) {
+				self.report_error(
+					err_node,
+					"Tag type mismatch: '${base_s.name}.${tag_field_name}' does not match '${target_s.name}.TAG'"
+				);
+				return null;
+			}
+			tag_const_c_name = tag_const_sym.c_name;
+		}
+
+		var payload_path = "";
+		var payload_ptr = false;
+
+		if (is_payload_data) {
+			var is_inner_ptr = true;
+			var member_name = target_s.name;
+			if (matched_data_member != null) {
+				member_name = matched_data_member.name;
+				val p_ty = matched_data_member.payload_ty;
+				if (p_ty != null && p_ty.kind == DataType.STRUCT) {
+					val s = p_ty.as_struct();
+					if (!s.fields.any { f -> f.name == "inner" }) is_inner_ptr = false;
+				}
+			}
+
+			if (is_inner_ptr) {
+				payload_path = "data.u.${member_name}.inner";
+				payload_ptr = true;
+			} else {
+				payload_path = "data.u.${member_name}";
+				payload_ptr = false;
+			}
+		}
+
+		if (direct_enum?.is_payload) {
+			for (m in direct_enum.members) {
+				if (m.payload_ty != null && m.payload_ty.equals(target_ty)) {
+					payload_path = m.payload_path;
+				}
+			}
+		}
+
+		val info = IsPatternInfo(
+			tag_field_name, base_s.c_name, is_ptr,
+			payload_path, payload_ptr, tag_const_c_name
+		);
+		self.set_is_pattern(info_node, info);
+		if (extra_info_node != null) self.set_is_pattern(extra_info_node, info);
+
+		if (!payload_path.empty()) {
+			return self.arena.pointer_type(target_ty, is_e.mutable || (is_ptr && subj_mutable));
+		}
+
+		if (is_ptr) {
+			return self.arena.pointer_type(
+				target_ty,
+				is_e.mutable || (is_e.alias.empty() && subj_mutable)
+			);
+		}
+		return target_ty;
+	}
+
 	pub fn check_is_pattern(&self, subject: *AstNode?, subj_ty: *Type?, is_node: *AstNode): *Type? {
 		if (is_node == null) return null;
 
 		if (is_node is IsExpr as is_e) {
-			val target_ty = self.resolve_type(is_e.target_type);
-			if (target_ty.kind != DataType.STRUCT) {
-				self.report_error(is_node, "Target type of 'is' must be a struct");
-				return null;
-			}
-
-			val target_s = target_ty.as_struct();
-
 			var base_ty = subj_ty;
 			var is_ptr = false;
 			var subj_mutable = false;
@@ -383,111 +525,27 @@ impl BodyChecker {
 
 			val base_s = base_ty.as_struct()!;
 
-			val data_ty = self.field_type_of(base_s, "data");
-			val data_enum = if (data_ty?.kind == DataType.STRUCT)
-				self.symtab.find_enum_info(data_ty.as_struct()!.name)
-			else null;
-			var is_payload_data = false;
-			var tag_field_name = "";
-			var tag_const_c_name = "";
-
-			var matched_data_member: *EnumMemberInfo? = null;
-			if (data_enum?.is_payload) {
-				for (m in data_enum.members) {
-					if (target_s.name in [m.name, "${data_enum.name}.${m.name}"]) {
-						is_payload_data = true;
-						matched_data_member = m;
-						tag_field_name = "data.tag";
-						val auto_tag = self.symtab.lookup("${data_enum.name}.${m.name}__TAG");
-						tag_const_c_name = if (auto_tag != null) auto_tag.c_name
-							else "${data_enum.c_name}__${m.name}__TAG";
-					}
-				}
-			}
-
-			if (!is_payload_data) {
-				val tag_const_sym = self.find_tag_const(target_s.name);
-				if (tag_const_sym == null || tag_const_sym.kind != SymbolKind.CONST) {
-					self.report_error(
-						is_node,
-						"Cannot smart cast to '${target_s.name}': " +
-						"struct '${target_s.name}' must declare a 'const TAG'"
-					);
+			if (is_e.target_type is ArrayLiteralExpr as al) {
+				if (al.elements.empty()) {
+					self.report_error(is_e.target_type, "Type list in 'is' operator cannot be empty");
 					return null;
 				}
-
-				tag_field_name = self.tag_field_name_of(base_s);
-				if (tag_field_name.empty()) {
-					self.report_error(
-						is_node,
-						"Subject struct '${base_s.name}' must have a tag field as its first field"
+				var single_cast: *Type? = null;
+				for (i in 0..<al.elements.len) {
+					val t_node = al.elements[i];
+					val extra = if (al.elements.len == 1) is_node else null;
+					val cty = self.check_single_is_target(
+						t_node, extra, t_node, t_node, is_e, base_s, is_ptr, subj_mutable
 					);
-					return null;
+					if (al.elements.len == 1 && i == 0) single_cast = cty;
 				}
-
-				val tag_field_ty = self.field_type_of(base_s, tag_field_name);
-				if (!tag_field_ty.can_assign(tag_const_sym.type_ptr)) {
-					self.report_error(
-						is_node,
-						"Tag type mismatch: '${base_s.name}.${tag_field_name}' does not match '${target_s.name}.TAG'"
-					);
-					return null;
-				}
-				tag_const_c_name = tag_const_sym.c_name;
+				if (al.elements.len == 1) return single_cast;
+				return null;
 			}
 
-			var payload_path = "";
-			var payload_ptr = false;
-
-			if (is_payload_data) {
-				var is_inner_ptr = true;
-				var member_name = target_s.name;
-				if (matched_data_member != null) {
-					member_name = matched_data_member.name;
-					val p_ty = matched_data_member.payload_ty;
-					if (p_ty != null && p_ty.kind == DataType.STRUCT) {
-						val s = p_ty.as_struct();
-						if (!s.fields.any { f -> f.name == "inner" }) is_inner_ptr = false;
-					}
-				}
-
-				if (is_inner_ptr) {
-					payload_path = "data.u.${member_name}.inner";
-					payload_ptr = true;
-				} else {
-					payload_path = "data.u.${member_name}";
-					payload_ptr = false;
-				}
-			}
-
-			val enum_info = self.symtab.find_enum_info(base_s.name);
-			if (enum_info?.is_payload) {
-				for (m in enum_info.members) {
-					if (m.payload_ty != null && m.payload_ty.equals(target_ty)) {
-						payload_path = m.payload_path;
-					}
-				}
-			}
-
-			self.set_is_pattern(
-				is_node,
-				IsPatternInfo(
-					tag_field_name, base_s.c_name, is_ptr,
-					payload_path, payload_ptr, tag_const_c_name
-				)
+			return self.check_single_is_target(
+				is_node, null, is_node, is_e.target_type, is_e, base_s, is_ptr, subj_mutable
 			);
-
-			if (!payload_path.empty()) {
-				return self.arena.pointer_type(target_ty, is_e.mutable || (is_ptr && subj_mutable));
-			}
-
-			if (is_ptr) {
-				return self.arena.pointer_type(
-					target_ty,
-					is_e.mutable || (is_e.alias.empty() && subj_mutable)
-				);
-			}
-			return target_ty;
 		}
 		return null;
 	}
@@ -517,7 +575,10 @@ impl BodyChecker {
 				self.report_error(node, "'is' expression requires a subject");
 				return self.prims().t_bool();
 			}
+			val prev_sn = self.in_safe_nav_context;
+			self.in_safe_nav_context = true;
 			val subj_ty = self.check_expr(is_e.expr!);
+			self.in_safe_nav_context = prev_sn;
 			self.check_is_pattern(is_e.expr, subj_ty, node);
 		}
 		return self.prims().t_bool();

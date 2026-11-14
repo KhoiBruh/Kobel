@@ -31,12 +31,7 @@ impl CCodeGen {
 
 	pub fn gen_cond(&self, cond: *AstNode): str {
 		val s = self.gen_expr(cond);
-		if (
-			cond != null && (
-				cond is BinaryExpr ||
-				cond is GroupExpr
-			)
-		) return s;
+		if (cond != null && cond is [BinaryExpr, GroupExpr]) return s;
 		return "(${s})";
 	}
 
@@ -438,6 +433,7 @@ impl CCodeGen {
 		var cast_decl = "";
 		if (
 			cond is IsExpr as is_e &&
+			!self.is_multi_target_list(is_e) &&
 			is_e.alias.empty() &&
 			is_e.expr is IdentifierExpr as id
 		) cast_decl = self.gen_smart_cast_decl(cond, is_e, is_e.expr!, id.name);
@@ -477,6 +473,7 @@ impl CCodeGen {
 				var elif_cast = "";
 				if (
 					elif_cond is IsExpr as elif_is_e &&
+					!self.is_multi_target_list(elif_is_e) &&
 					elif_is_e.alias.empty() &&
 					elif_is_e.expr is IdentifierExpr as id
 				) elif_cast = self.gen_smart_cast_decl(elif_cond, elif_is_e, elif_is_e.expr!, id.name);
@@ -508,6 +505,7 @@ impl CCodeGen {
 				}
 				if (
 					inner_is is IsExpr as else_is_e &&
+					!self.is_multi_target_list(else_is_e) &&
 					else_is_e.alias.empty() &&
 					else_is_e.expr is IdentifierExpr as id
 				) else_cast = self.gen_smart_cast_decl(inner_is, else_is_e, else_is_e.expr!, id.name);
@@ -874,12 +872,20 @@ impl CCodeGen {
 		}
 	}
 
+	fn is_multi_target_list(*self, is_e: *IsExpr): bool {
+		if (is_e.target_type is ArrayLiteralExpr as al) {
+			return al.elements.len != 1;
+		}
+		return false;
+	}
+
 	// Name an arm binds: its alias, or the subject's own name for a plain
 	// identifier subject. Empty when the arm binds nothing.
 	fn when_arm_binding(*self, patterns: List<*AstNode>, cond: *AstNode?): str {
 		if (cond == null || patterns.len != 1) return "";
 		val pat = patterns.first();
 		if (pat is IsExpr as is_e) {
+			if (self.is_multi_target_list(is_e)) return "";
 			if (!is_e.alias.empty()) return is_e.alias;
 			if (cond is IdentifierExpr as id) return id.name;
 		}
@@ -926,7 +932,11 @@ impl CCodeGen {
 		subject: *AstNode, var_name: str
 	): str {
 		val pat_info = self.is_pattern_info(is_node);
-		val target_name = c_type_from_ast(is_e.target_type);
+		var target_node = is_e.target_type;
+		if (target_node is ArrayLiteralExpr as al && !al.elements.empty()) {
+			target_node = al.elements.first();
+		}
+		val target_name = c_type_from_ast(target_node);
 		val bound_name = if (!is_e.alias.empty()) is_e.alias else var_name;
 		val is_ptr = if (pat_info.is_ptr) true else self.is_pointer_value(subject);
 		if (!is_e.alias.empty()) {
@@ -1055,10 +1065,6 @@ impl CCodeGen {
 
 }
 
-fn is_jump_or_block(node: *AstNode?) => node != null && (
-	node is ReturnStmt ||
-	node is BreakStmt ||
-	node is ContinueStmt ||
-	node is YieldStmt ||
-	node is BlockStmt
-);
+fn is_jump_or_block(node: *AstNode?) => node != null && node is [
+	ReturnStmt, BreakStmt, ContinueStmt, YieldStmt, BlockStmt
+];

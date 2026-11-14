@@ -321,7 +321,10 @@ impl BodyChecker {
 
 				val unwrapped_c = self.unwrap_group(c);
 				if (unwrapped_c is IsExpr as is_e) {
+					val prev_sn = self.in_safe_nav_context;
+					self.in_safe_nav_context = true;
 					val subj_ty = if (is_e.expr != null) self.check_expr(is_e.expr!) else self.prims().t_none();
+					self.in_safe_nav_context = prev_sn;
 					val cast_ty = self.check_is_pattern(is_e.expr, subj_ty, unwrapped_c);
 					if (cast_ty != null) {
 						if (!is_e.alias.empty()) {
@@ -372,7 +375,10 @@ impl BodyChecker {
 				) {
 					val inner_is = self.unwrap_group(neg_un.operand);
 					if (inner_is is IsExpr as is_e && is_e.alias.empty() && is_e.expr is IdentifierExpr as id) {
+						val prev_sn = self.in_safe_nav_context;
+						self.in_safe_nav_context = true;
 						val subj_ty = self.check_expr(is_e.expr!);
+						self.in_safe_nav_context = prev_sn;
 						val cast_ty = self.check_is_pattern(is_e.expr, subj_ty, inner_is);
 						if (cast_ty != null) {
 							self.symtab.enter_scope(false);

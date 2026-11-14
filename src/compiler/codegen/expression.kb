@@ -52,7 +52,7 @@ impl CCodeGen {
 			is GroupExpr -> {
 				val inner = self.gen_expr(node.expr);
 				val ne = node.expr;
-				if (ne is BinaryExpr || ne is GroupExpr) yield inner;
+				if (ne is [BinaryExpr, GroupExpr]) yield inner;
 				yield "(${inner})";
 			}
 
@@ -582,16 +582,47 @@ impl CCodeGen {
 		return "(${ty})${self.gen_expr(cst.expr)}";
 	}
 
-	pub fn gen_is_expr(&self, ast_node: *AstNode, is_e: *IsExpr): str {
-		val pat_info = self.is_pattern_info(ast_node);
-		val obj = if (is_e.expr != null) self.gen_expr(is_e.expr!) else "";
-		val target_name = c_type_from_ast(is_e.target_type);
+	fn gen_is_single_test(*self, obj_str: str, info_node: *AstNode, target_node: *AstNode): str {
+		val pat_info = self.is_pattern_info(info_node);
+		val target_name = c_type_from_ast(target_node);
 		var tag_field = pat_info.tag_field;
 		if (tag_field.empty()) tag_field = "tag";
-		val needs_parens = is_e.expr != null && expr_needs_parens_for_member(is_e.expr!);
-		val obj_str = if (needs_parens) "(${obj})" else obj;
 		val tag_const = if (pat_info.tag_const.empty()) "${target_name}__TAG" else pat_info.tag_const;
-		val tag_test = self.gen_tag_test(obj_str, pat_info.is_ptr, tag_field, tag_const);
+		return self.gen_tag_test(obj_str, pat_info.is_ptr, tag_field, tag_const);
+	}
+
+	pub fn gen_is_expr(&self, ast_node: *AstNode, is_e: *IsExpr): str {
+		var prefix = "";
+		var suffix = "";
+		var obj_str = "";
+		if (is_e.expr != null) {
+			val unwrapped_subj = unwrap_group_expr(is_e.expr!);
+			if (unwrapped_subj != null && unwrapped_subj is MemberExpr as mem && mem.is_safe) {
+				val base_s = self.gen_expr(mem.object);
+				val base_wrap = if (expr_needs_parens_for_member(mem.object)) "(${base_s})" else base_s;
+				prefix = "(${base_wrap} != NULL && ";
+				suffix = ")";
+				obj_str = "${base_wrap}->${mem.member}";
+			} else {
+				val obj = self.gen_expr(is_e.expr!);
+				val needs_parens = expr_needs_parens_for_member(is_e.expr!);
+				obj_str = if (needs_parens) "(${obj})" else obj;
+			}
+		}
+
+		if (is_e.target_type is ArrayLiteralExpr as al) {
+			var res = "";
+			for (i in 0..<al.elements.len) {
+				val t_node = al.elements[i];
+				val t_str = self.gen_is_single_test(obj_str, t_node, t_node);
+				res = if (i == 0) t_str else "${res} || ${t_str}";
+			}
+			return "${prefix}(${res})${suffix}";
+		}
+
+		val pat_info = self.is_pattern_info(ast_node);
+		val target_name = c_type_from_ast(is_e.target_type);
+		val tag_test = self.gen_is_single_test(obj_str, ast_node, is_e.target_type);
 		if (!is_e.alias.empty()) {
 			val cast_val = if (pat_info.is_ptr) {
 				if (!pat_info.payload_path.empty()) {
@@ -608,9 +639,9 @@ impl CCodeGen {
 					"(${target_name}*)&${obj_str}"
 				}
 			};
-			return "(${tag_test} && (${is_e.alias} = ${cast_val}, 1))";
+			return "${prefix}(${tag_test} && (${is_e.alias} = ${cast_val}, 1))${suffix}";
 		}
-		return "(${tag_test})";
+		return "${prefix}(${tag_test})${suffix}";
 	}
 
 	// Builds the test expression of a `when` arm: `c == p1 || c == p2`.
@@ -628,12 +659,15 @@ impl CCodeGen {
 					raw.slice(1, raw.len - 1)
 				else raw;
 			} else if (p is IsExpr as is_e) {
-				val pat_info = self.is_pattern_info(p);
-				val target_name = c_type_from_ast(is_e.target_type);
-				var tag_field = pat_info.tag_field;
-				if (tag_field.empty()) tag_field = "tag";
-				val tag_const = if (pat_info.tag_const.empty()) "${target_name}__TAG" else pat_info.tag_const;
-				test = self.gen_tag_test(cond, pat_info.is_ptr, tag_field, tag_const);
+				if (is_e.target_type is ArrayLiteralExpr as al) {
+					for (k in 0..<al.elements.len) {
+						val el = al.elements[k];
+						val el_test = self.gen_is_single_test(cond, el, el);
+						test = if (k == 0) el_test else "${test} || ${el_test}";
+					}
+				} else {
+					test = self.gen_is_single_test(cond, p, is_e.target_type);
+				}
 			} else if (unwrapped_p is BinaryExpr as bin && bin.op in [TokenType.DOT_DOT, TokenType.DOT_DOT_LESS]) {
 				val s = self.gen_expr(bin.left);
 				val e = self.gen_expr(bin.right);

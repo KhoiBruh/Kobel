@@ -207,7 +207,7 @@ impl BodyChecker {
 		if (node == null) return self.prims().t_none();
 		if (node is GroupExpr as g) return self.check_expr(g.expr, expected);
 
-		if (node !is BinaryExpr && node !is AssignExpr) {
+		if (node !is [BinaryExpr, AssignExpr]) {
 			self.is_stmt_level = false;
 		}
 

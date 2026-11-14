@@ -275,6 +275,17 @@ pub fn format_type_node(node: *AstNode?): str {
 		is NullableType -> return format_type_node(node.inner_type) + "?";
 		is VariadicType -> return ".." + format_type_node(node.element_type);
 		is ArrayType -> return "[${format_type_node(node.element_type)}; ${node.size}]";
+		is ArrayLiteralExpr -> {
+			var sb = StringBuilder();
+			defer sb.free();
+			sb += "[";
+			for (i in 0..<node.elements.len) {
+				if (i > 0) sb += ", ";
+				sb += format_type_node(node.elements[i]);
+			}
+			sb += "]";
+			return sb.to_str();
+		}
 		is FnType -> {
 			var sb = StringBuilder();
 			defer sb.free();
@@ -628,6 +639,7 @@ impl IndexWalker {
 			is NullableType -> self.walk_type_node(node.inner_type);
 			is VariadicType -> self.walk_type_node(node.element_type);
 			is ArrayType -> self.walk_type_node(node.element_type);
+			is ArrayLiteralExpr -> for (el in node.elements) self.walk_type_node(el);
 			is FnType -> {
 				for (pt in node.param_types) self.walk_type_node(pt);
 				self.walk_type_node(node.return_type);

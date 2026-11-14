@@ -78,6 +78,11 @@ impl TypeResolver {
 				node.line, node.col
 			);
 
+			is ArrayLiteralExpr as al -> self.arena.node(
+				NodeData.ArrayLiteralExpr(self.clone_type_args(al.elements, subst)),
+				node.line, node.col
+			);
+
 			is VariadicType as vt -> self.arena.node(
 				NodeData.VariadicType(self.clone_type(vt.element_type, subst)),
 				node.line, node.col
@@ -100,13 +105,9 @@ impl TypeResolver {
 
 	pub fn clone_expr(&self, node: *AstNode, subst: *GenericSubst? = null): *AstNode {
 		val raw_node = node;
-		if (
-			raw_node is ReturnStmt
-			|| raw_node is BreakStmt
-			|| raw_node is ContinueStmt
-			|| raw_node is YieldStmt
-			|| raw_node is BlockStmt
-		) return self.clone_stmt(node, subst);
+		if (raw_node is [ReturnStmt, BreakStmt, ContinueStmt, YieldStmt, BlockStmt]) {
+			return self.clone_stmt(node, subst);
+		}
 
 		val e = self.mat_ann(node);
 		if (e?.resolved != null) {
