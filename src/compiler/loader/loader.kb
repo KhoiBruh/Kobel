@@ -94,13 +94,13 @@ fn str_less(a: str, b: str): bool {
 	return a.len < b.len;
 }
 
-fn sort_strings(var items: List<str>) {
+fn sort_strings(items: &List<str>) {
 	for (i in 0..<items.len) {
 		for (j in (i + 1)..<items.len) {
-			if (str_less(items[j], items[i])) {
-				val tmp = items[i];
-				items[i] = items[j];
-				items[j] = tmp;
+			if (str_less((*items)[j], (*items)[i])) {
+				val tmp = (*items)[i];
+				(*items)[i] = (*items)[j];
+				(*items)[j] = tmp;
 			}
 		}
 	}
@@ -208,7 +208,7 @@ impl ModuleLoader {
 			val entries = dir_p.list_dir();
 			if (!entries.empty()) {
 				var kb_files = entries.filter { e -> e.ends_with(".kb") };
-				sort_strings(kb_files);
+				sort_strings(&kb_files);
 
 				for (f in kb_files) {
 					val f_p = dir_p.join(f);

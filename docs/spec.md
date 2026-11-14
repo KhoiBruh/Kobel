@@ -163,7 +163,7 @@ impl Greeter for Point {
 
 - Traits support inheritance: `trait B : A { ... }`.
 - Traits can provide default method implementations that implementors may override.
-- Trait bounds on generics: `fn show<T: Greeter>(val item: T) { ... }`.
+- Trait bounds on generics: `fn show<T: Greeter>(item: T) { ... }`.
 
 ### Associated Types
 
@@ -237,7 +237,7 @@ impl Box<T> {
     pub fn get(*self): T => self.value;
 }
 
-fn identity<T>(val x: T): T => x;
+fn identity<T>(x: T): T => x;
 
 // Generic method on struct:
 impl Arena {

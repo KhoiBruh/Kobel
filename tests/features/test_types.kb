@@ -16,7 +16,7 @@ struct Tally {
 	pub fails: i32
 }
 
-fn check_i(got: i32, want: i32, msg: str, var t: &Tally) {
+fn check_i(got: i32, want: i32, msg: str, t: &Tally) {
 	if (got != want) {
 		t.fails = t.fails + 1;
 		print("  [FAIL] ");
@@ -25,7 +25,7 @@ fn check_i(got: i32, want: i32, msg: str, var t: &Tally) {
 	}
 }
 
-fn check_str(got: str, want: str, msg: str, var t: &Tally) {
+fn check_str(got: str, want: str, msg: str, t: &Tally) {
 	if (got != want) {
 		t.fails = t.fails + 1;
 		print("  [FAIL] ");
@@ -54,7 +54,7 @@ impl Greeter for Person {
 	fn name(*self): str => self.who;
 }
 
-fn test_required_and_default(var t: &Tally) {
+fn test_required_and_default(t: &Tally) {
 	val p = Person("Kobel");
 	check_str(p.name(), "Kobel", "required method", t);
 	check_str(p.greet(), "Hello Kobel", "default calls a required method", t);
@@ -80,7 +80,7 @@ impl Summarizable for Box {
 	fn measure(*self): i32 => self.w * self.h;
 }
 
-fn test_inheritance(var t: &Tally) {
+fn test_inheritance(t: &Tally) {
 	val b = Box(4, 5);
 	check_i(b.measure(), 20, "base method comes from the impl", t);
 	check_i(b.summary(), 40, "inherited default uses the base method", t);
@@ -97,22 +97,22 @@ impl Summarizable for Fake {
 	fn summary(*self): i32 => 999;
 }
 
-fn test_override(var t: &Tally) {
+fn test_override(t: &Tally) {
 	val f = Fake(1);
 	check_i(f.summary(), 999, "an impl may override a default", t);
 }
 
 // --- 4. generic bounds -----------------------------------------------------
 
-fn announce<T: Greeter>(val item: T): str => item.greet();
+fn announce<T: Greeter>(item: T): str => item.greet();
 
-fn total<T: Measurable>(val item: T): i32 => item.measure();
+fn total<T: Measurable>(item: T): i32 => item.measure();
 
-fn score<T: Summarizable>(val item: T): i32 => item.summary();
+fn score<T: Summarizable>(item: T): i32 => item.summary();
 
-fn stringify<T: Stringer>(val item: T): str => item.to_str();
+fn stringify<T: Stringer>(item: T): str => item.to_str();
 
-fn test_bounds(var t: &Tally) {
+fn test_bounds(t: &Tally) {
 	val p = Person("Ada");
 	check_str(announce<Person>(p), "Hello Ada", "bound on the trait itself", t);
 	val b = Box(3, 7);
@@ -144,9 +144,9 @@ impl Named for Beta {
 	fn tag(*self): str => "beta";
 }
 
-fn label<T: Named>(val item: T): str => item.tag();
+fn label<T: Named>(item: T): str => item.tag();
 
-fn test_two_impls(var t: &Tally) {
+fn test_two_impls(t: &Tally) {
 	check_str(label<Alpha>(Alpha(1)), "alpha", "first impl of a trait", t);
 	check_str(label<Beta>(Beta(2)), "beta", "second impl of the same trait", t);
 }
@@ -161,7 +161,7 @@ impl str {
 	fn shout(*self): str => self + "!";
 }
 
-fn test_prim_methods(var t: &Tally) {
+fn test_prim_methods(t: &Tally) {
 	val n: i32 = 21;
 	check_i(n.twice(), 42, "method on a built-in numeric type", t);
 	val s = "hi";
@@ -180,7 +180,7 @@ impl Counter {
 	fn add_to(*self, a: i32, b: i32): i32 => self.n + a + b;
 }
 
-fn test_overloads(var t: &Tally) {
+fn test_overloads(t: &Tally) {
 	val c = Counter(10);
 	check_i(c.add_to(), 10, "overload: no argument", t);
 	check_i(c.add_to(5), 15, "overload: one argument", t);
@@ -199,7 +199,7 @@ impl Vec2 {
 	fn origin(): Vec2 => Self(0, 0);
 }
 
-fn test_self(var t: &Tally) {
+fn test_self(t: &Tally) {
 	val v = Vec2(1, 2);
 	val w = v.shifted(3);
 	check_i(w.x, 4, "Self builds a value (x)", t);
@@ -219,7 +219,7 @@ impl Pair {
 	init(a: i32, b: i32) => Self(a, b);
 }
 
-fn test_new_overloads(var t: &Tally) {
+fn test_new_overloads(t: &Tally) {
 	val d = Pair();
 	check_i(d.a, 0, "Pair() dispatches to new()", t);
 	val s = Pair(7);
@@ -231,7 +231,7 @@ fn test_new_overloads(var t: &Tally) {
 
 // --- 10. non-pub fields: other modules must use a factory -------------------
 
-fn test_private_fields(var t: &Tally) {
+fn test_private_fields(t: &Tally) {
 	val b = make_box(42);
 	check_i(boxed_value(b), 42, "type with a private field built through its factory", t);
 }
@@ -248,7 +248,7 @@ impl Pair<T> {
 	init(v: T) => Self(v, v);
 }
 
-fn test_generic_trait_impl(var t: &Tally) {
+fn test_generic_trait_impl(t: &Tally) {
 	val p = Pair<i32>();
 	check_i(p.a, 0, "generic impl: Pair<i32>() uses new()", t);
 	val q = Pair<i32>(7);
@@ -257,7 +257,7 @@ fn test_generic_trait_impl(var t: &Tally) {
 
 // --- 12. std.List built through the New trait -------------------------------
 
-fn test_list_ctor(var t: &Tally) {
+fn test_list_ctor(t: &Tally) {
 	{
 		var xs = List<i32>();
 		defer xs.free();
@@ -280,7 +280,7 @@ fn test_list_ctor(var t: &Tally) {
 // Arena / HashMap / StringBuilder now take constructor syntax; their private
 // fields mean this is the only way to build them from another module.
 
-fn test_std_ctors(var t: &Tally) {
+fn test_std_ctors(t: &Tally) {
 	{
 		var a = Arena(4096);
 		defer a.free();
@@ -322,7 +322,7 @@ fn make_numbers_target(): List<i32> {
 	return List();
 }
 
-fn test_generic_target_typing(var t: &Tally) {
+fn test_generic_target_typing(t: &Tally) {
 	val nums: List<i32> = List();
 	check_i(nums.len as i32, 0, "nums is List<i32> with len 0", t);
 
@@ -347,7 +347,7 @@ fn take_untyped_i8(x: i8): i8 => x + 1;
 // --- 15. numeric literal suffixes -------------------------------------------
 // A trailing hex digit must not be read as a type suffix: `0xBB` is 187 (i32),
 // not `0xB` as an i8, and `0xBF` / `0xEF` / `0xAD` are integers, not floats.
-fn test_numeric_literals(var t: &Tally) {
+fn test_numeric_literals(t: &Tally) {
 	check_i(0xBB, 187, "hex 0xBB", t);
 	check_i(0xBF, 191, "hex 0xBF", t);
 	check_i(0xEF, 239, "hex 0xEF", t);
@@ -418,7 +418,7 @@ enum HttpStatus: i32 {
 
 fn takes_raw_str(s: str): str => s;
 
-fn test_raw_value_enums(var t: &Tally) {
+fn test_raw_value_enums(t: &Tally) {
 	val g = HttpMethod.GET;
 	val p = HttpMethod.POST;
 	val c = HttpMethod.CUSTOM;
@@ -451,7 +451,7 @@ fn test_raw_value_enums(var t: &Tally) {
 }
 
 // --- 17. cast standardization (ptr.addr, char.code, char constructor) --------
-fn test_cast_standardization(var t: &Tally) {
+fn test_cast_standardization(t: &Tally) {
 	val ch = 'A';
 	val code = ch.code();
 	check_i(code, 65, "char.code() returns 65", t);
@@ -504,7 +504,7 @@ fn infer_interp_hole_call() {
 	return "Welcome to ${infer_callee_name()}!";
 }
 
-fn test_return_and_const_inference(var t: &Tally) {
+fn test_return_and_const_inference(t: &Tally) {
 	val s: str = INFER_STR_CONST;
 	check_str(s, "hello_prelude", "untyped str const", t);
 
@@ -571,7 +571,7 @@ fn main(): i32 {
 	println("=== ALL TRAITS, OOP & TYPE TESTS PASSED! ===");
 	return 0;
 }// 19. Force Unwrap Operator (!)
-fn test_force_unwrap(var t: &Tally) {
+fn test_force_unwrap(t: &Tally) {
 	val maybe_ptr: ?*char = "hello";
 	val forced_ptr: *char = maybe_ptr!;
 	check_i(if (forced_ptr[0] == 'h') 1 else 0, 1, "Force unwrap pointer success", t);

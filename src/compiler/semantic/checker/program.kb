@@ -142,24 +142,14 @@ impl BodyChecker {
 
 			val is_trait_impl = !self.current_trait_name.empty();
 			for (p in f.params) {
-				if (p.mutable) {
+				if (p.mutable && p.name == "self") {
 					val sym = self.symtab.lookup(p.name);
-					if (sym != null && !sym.mutated) {
-						if (p.name == "self") {
-							if (!is_trait_impl) {
-								self.report_warning(
-									fn_node,
-									"In function '${f.name}': Receiver 'self' is declared mutable " +
-									"with '&self', but is never mutated; consider using '*self'"
-								);
-							}
-						} else if (!p.name.starts_with("_")) {
-							self.report_warning(
-								fn_node,
-								"In function '${f.name}': Parameter '${p.name}' is declared mutable " +
-								"with 'var', but is never mutated; consider using 'val'"
-							);
-						}
+					if (sym != null && !sym.mutated && !is_trait_impl) {
+						self.report_warning(
+							fn_node,
+							"In function '${f.name}': Receiver 'self' is declared mutable " +
+							"with '&self', but is never mutated; consider using '*self'"
+						);
 					}
 				}
 			}

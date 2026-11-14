@@ -229,17 +229,18 @@ fn test_val_immutability() {
 	bp5.check_program(p5.parse_program());
 	assert_true(bp5.errors.len >= 1, "Must catch field mutation on *self");
 
-	// 6f: Mutations on var are allowed without errors
+	// 6f: Mutations on local var and &self are allowed without errors
 	val src6 = """
 		struct Point { pub x: i32 }
 		impl Point {
-		    pub fn test(&self, var p: i32): none {
+		    pub fn test(&self, p: &i32): none {
 		        var x = 10;
 		        x = 20;
 		        x += 5;
 		        x++;
-		        p = 30;
-		        p++;
+		        var q = *p;
+		        q = 30;
+		        q++;
 		        self.x = 40;
 		    }
 		}
@@ -538,7 +539,6 @@ fn test_unused_mutability_warning() {
 		impl Item {
 		    pub fn query(&self): i32 => self.val;
 		}
-		fn compute(var x: i32): i32 => x + 1;
 	""";
 	var l = Lexer(src);
 	var p = Parser(l.tokenize());
@@ -546,7 +546,7 @@ fn test_unused_mutability_warning() {
 	bp.check_program(p.parse_program());
 
 	assert_eq_usz(bp.errors.len, 0, "No errors expected");
-	assert_eq_usz(bp.warnings.len, 2, "Must emit 2 warnings for unused &self and unused var param");
+	assert_eq_usz(bp.warnings.len, 1, "Must emit 1 warning for unused &self");
 	println("  [PASS] test_unused_mutability_warning");
 }
 

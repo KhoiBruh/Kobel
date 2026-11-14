@@ -60,9 +60,6 @@ impl TypeResolver {
 			val p = f.params[i];
 			if (p.type_node != null && p.type_node is FnType) {
 				fn_param_count++;
-				if (p.mutable) {
-					self.report_error(node, "Lambda parameter '${p.name}' cannot be declared 'var'");
-				}
 				if (p.default_val != null) {
 					self.report_error(node, "Lambda parameter '${p.name}' cannot have a default value");
 				}
@@ -77,7 +74,7 @@ impl TypeResolver {
 
 	fn collect_generic_impl_methods(&self, im: *ImplDecl) {
 		for (m in im.methods) {
-			if (m is FnDecl as var f) {
+			if (m is FnDecl as f) {
 				if (f.type_params.len == 0) continue;
 				self.validate_fn_lambda_rules(m, f);
 				self.normalize_generic_self_param(f, im.struct_name, m.line, m.col);
@@ -86,7 +83,7 @@ impl TypeResolver {
 		}
 	}
 
-	fn normalize_generic_self_param(&self, var f: *FnDecl, struct_name: str, line: i32, col: i32) {
+	fn normalize_generic_self_param(&self, f: *FnDecl, struct_name: str, line: i32, col: i32) {
 		for (i in 0..<f.params.len) {
 			val p = f.params[i];
 			if (p.name != "self" || p.type_node != null) continue;

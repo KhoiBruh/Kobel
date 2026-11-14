@@ -338,24 +338,28 @@ fn test_safe_member_and_elvis_parsing() {
 	println("  [PASS] test_safe_member_and_elvis_parsing");
 }
 
+fn check_bad_program_syntax(src: str, msg: str) {
+	var l = Lexer(src);
+	var p = Parser(l.tokenize());
+	p.parse_program();
+	assert_true(!p.errors.empty(), msg);
+}
+
 fn test_val_var_self_rejected() {
-	val src_val = "impl S { fn f(val self) {} }";
-	var l_val = Lexer(src_val);
-	var p_val = Parser(l_val.tokenize());
-	p_val.parse_program();
-	assert_true(p_val.errors.len >= 1, "Must reject 'val self'");
+	check_bad_program_syntax("impl S { fn f(val self) {} }", "Must reject 'val self'");
+	check_bad_program_syntax("impl S { fn f(var self) {} }", "Must reject 'var self'");
+	check_bad_program_syntax("fn f(var x: i32) {}", "Must reject 'var' parameter modifier");
+	check_bad_program_syntax("fn f(val x: i32) {}", "Must reject 'val' parameter modifier");
+	check_bad_program_syntax("fn f(a: i32, var b: *i32) {}", "Must reject 'var' on trailing parameter");
+	check_bad_program_syntax("fn f(a: i32, val b: &i32) {}", "Must reject 'val' on trailing parameter");
+	check_bad_program_syntax("impl S { init(var x: i32) {} }", "Must reject 'var' in init parameter");
+	check_bad_program_syntax("impl S { op plus(*self, val rhs: S): S {} }", "Must reject 'val' in op parameter");
 
-	val src_var = "impl S { fn f(var self) {} }";
-	var l_var = Lexer(src_var);
-	var p_var = Parser(l_var.tokenize());
-	p_var.parse_program();
-	assert_true(p_var.errors.len >= 1, "Must reject 'var self'");
-
-	val src_valid = "impl S { fn f(*self) {} fn g(&self) {} fn h(self) {} }";
+	val src_valid = "impl S { fn f(*self, a: i32, b: *i32, c: &i32) {} fn g(&self) {} fn h(self) {} }";
 	var l_valid = Lexer(src_valid);
 	var p_valid = Parser(l_valid.tokenize());
 	p_valid.parse_program();
-	assert_eq_usz(p_valid.errors.len, 0, "Must accept '*self', '&self', and 'self'");
+	assert_eq_usz(p_valid.errors.len, 0, "Must accept '*self', '&self', 'self', and pointer/value parameters without val/var");
 
 	println("  [PASS] test_val_var_self_rejected");
 }

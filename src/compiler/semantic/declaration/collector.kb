@@ -104,7 +104,7 @@ impl DeclarationCollector {
 		return r;
 	}
 
-	pub fn apply_resolver(&self, val r: TypeResolver) {
+	pub fn apply_resolver(&self, r: TypeResolver) {
 		self.symtab = r.symtab;
 		self.arena = r.arena;
 		self.current_module = r.current_module;

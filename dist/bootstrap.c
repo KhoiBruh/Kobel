@@ -2964,7 +2964,7 @@ void compiler__loader__ModuleFile_unpack_3(compiler__loader__ModuleFile* self, k
 void compiler__loader__ModuleFile_unpack_4(compiler__loader__ModuleFile* self, bool* found, kobel_str* path, kobel_str* source);
 kobel_str compiler__loader__detect_project_root(kobel_str start_dir);
 bool compiler__loader__str_less(kobel_str a, kobel_str b);
-void compiler__loader__sort_strings(std__collections__List_str items);
+void compiler__loader__sort_strings(std__collections__List_str* items);
 compiler__loader__ModuleLoader compiler__loader__ModuleLoader_init_2(kobel_str entry_dir, std__collections__List_str extra_roots);
 compiler__loader__ModuleLoader compiler__loader__ModuleLoader_init_3(kobel_str entry_dir, std__collections__List_str extra_roots, std__memory__Arena arena);
 compiler__ast__AstNode* compiler__loader__ModuleLoader_module_decl(compiler__loader__ModuleLoader* self, std__collections__List_str path, kobel_str full_path, size_t line, size_t col);
@@ -11575,23 +11575,23 @@ if (!compiler__parser__Parser_check(self, 16)) {
 bool mutable = false;
 bool has_val = false;
 bool is_prefix_ptr = false;
-if (compiler__parser__Parser_match_token(self, 54)) {
-mutable = true;
-} else if (compiler__parser__Parser_match_token(self, 53)) {
-has_val = true;
-} else if (compiler__parser__Parser_match_token(self, 19)) {
+if (compiler__parser__Parser_match_token(self, 19)) {
 mutable = true;
 is_prefix_ptr = true;
 } else if (compiler__parser__Parser_match_token(self, 8)) {
 has_val = true;
 is_prefix_ptr = true;
+} else if (compiler__parser__Parser_check(self, 54) || compiler__parser__Parser_check(self, 53)) {
+compiler__lexer__Token mod_tok = compiler__parser__Parser_advance(self);
+if (compiler__parser__Parser_check(self, 43) && kobel_streq(compiler__parser__Parser_peek(self).text, KOBEL_STR("self"))) {
+compiler__parser__Parser_error(self, mod_tok, KOBEL_STR("'val self' and 'var self' are no longer supported; use '*self', '&self', or bare 'self'"));
+} else {
+compiler__parser__Parser_error(self, mod_tok, KOBEL_STR("Parameter modifiers 'var' and 'val' are not supported; use 'name: *Type' or 'name: &Type'"));
+}
 }
 compiler__lexer__Token pname = compiler__parser__Parser_consume(self, 43, KOBEL_STR("Expected parameter name"));
 if (is_prefix_ptr && (!allow_self || !kobel_streq(pname.text, KOBEL_STR("self")))) {
 compiler__parser__Parser_error(self, pname, KOBEL_STR("Prefix '*' and '&' are only supported for the 'self' receiver parameter"));
-}
-if ((kobel_streq(pname.text, KOBEL_STR("self")) && !is_prefix_ptr) && (mutable || has_val)) {
-compiler__parser__Parser_error(self, pname, KOBEL_STR("'val self' and 'var self' are no longer supported; use '*self', '&self', or bare 'self'"));
 }
 compiler__ast__AstNode* ptype;
 if (compiler__parser__Parser_match_token(self, 1)) {
@@ -11610,12 +11610,9 @@ while (compiler__parser__Parser_match_token(self, 2)) {
 if ((std__collections__List_compiler__ast__Param_last(&params).type_node != NULL && std__collections__List_compiler__ast__Param_last(&params).type_node->data.tag == compiler__ast__NodeData__VariadicType__TAG)) {
 compiler__parser__Parser_error(self, compiler__parser__Parser_peek(self), KOBEL_STR("Variadic parameter '..T' must be the last parameter in the function declaration"));
 }
-bool p_mutable = false;
-bool p_has_val = false;
-if (compiler__parser__Parser_match_token(self, 54)) {
-p_mutable = true;
-} else if (compiler__parser__Parser_match_token(self, 53)) {
-p_has_val = true;
+if (compiler__parser__Parser_check(self, 54) || compiler__parser__Parser_check(self, 53)) {
+compiler__lexer__Token mod_tok = compiler__parser__Parser_advance(self);
+compiler__parser__Parser_error(self, mod_tok, KOBEL_STR("Parameter modifiers 'var' and 'val' are not supported; use 'name: *Type' or 'name: &Type'"));
 }
 compiler__lexer__Token p_name = compiler__parser__Parser_consume(self, 43, KOBEL_STR("Expected parameter name"));
 if (allow_self && kobel_streq(p_name.text, KOBEL_STR("self"))) {
@@ -11624,7 +11621,7 @@ compiler__parser__Parser_error(self, p_name, KOBEL_STR("'self' is only allowed a
 compiler__parser__Parser_consume(self, 1, KOBEL_STR("Expected ':' after parameter name"));
 compiler__ast__AstNode* p_type = compiler__parser__Parser_parse_type(self);
 compiler__ast__AstNode* p_def = (compiler__parser__Parser_match_token(self, 5) ? compiler__parser__Parser_parse_expression(self, 0) : NULL);
-std__collections__List_compiler__ast__Param_plus_assign(&params, (compiler__ast__Param){ p_name.text, p_type, p_mutable, p_has_val, p_def });
+std__collections__List_compiler__ast__Param_plus_assign(&params, (compiler__ast__Param){ p_name.text, p_type, false, false, p_def });
 }
 }
 compiler__parser__Parser_consume(self, 16, KOBEL_STR("Expected ')' after parameters"));
@@ -13611,9 +13608,9 @@ __for_i = (__for_i - 1);
 return (a.len < b.len);
 }
 
-void compiler__loader__sort_strings(std__collections__List_str items) {
+void compiler__loader__sort_strings(std__collections__List_str* items) {
 {
-size_t __for_e = items.len;
+size_t __for_e = items->len;
 size_t __for_i = __for_e;
 __for_i = 0;
 bool __for_up = (__for_i <= __for_e);
@@ -13626,7 +13623,7 @@ __for_go = (__for_i > __for_e);
 while (__for_go) {
 size_t i = __for_i;
 {
-size_t __for_e = items.len;
+size_t __for_e = items->len;
 size_t __for_i = __for_e;
 __for_i = (i + 1);
 bool __for_up = (__for_i <= __for_e);
@@ -13638,10 +13635,10 @@ __for_go = (__for_i > __for_e);
 }
 while (__for_go) {
 size_t j = __for_i;
-if (compiler__loader__str_less(std__collections__List_str_get(&items, j), std__collections__List_str_get(&items, i))) {
-kobel_str tmp = std__collections__List_str_get(&items, i);
-std__collections__List_str_set(&items, i, std__collections__List_str_get(&items, j));
-std__collections__List_str_set(&items, j, tmp);
+if (compiler__loader__str_less(std__collections__List_str_get(&(*items), j), std__collections__List_str_get(&(*items), i))) {
+kobel_str tmp = std__collections__List_str_get(&(*items), i);
+std__collections__List_str_set(&(*items), i, std__collections__List_str_get(&(*items), j));
+std__collections__List_str_set(&(*items), j, tmp);
 }
 if (__for_up) {
 __for_go = ((__for_i + 1) < __for_e);
@@ -13793,7 +13790,7 @@ std__filesystem__Path dir_p = std__filesystem__Path_join(&root_p, rel_dir);
 std__collections__List_str entries = std__filesystem__Path_list_dir(&dir_p);
 if (!std__collections__List_str_empty(&entries)) {
 std__collections__List_str kb_files = std__collections__List_str_filter(&entries, (kobel_closure){ (void*)__lambda_fn_16, NULL });
-compiler__loader__sort_strings(kb_files);
+compiler__loader__sort_strings(&kb_files);
 {
 size_t __for_n = std__collections__List_str_count(&kb_files);
 size_t __for_i = 0;
@@ -14414,10 +14411,11 @@ return assignable_match;
 }
 
 compiler__semantic__types__Type* std__memory__Arena_struct_type(std__memory__Arena* self, kobel_str name, std__collections__List_compiler__semantic__types__StructField fields) {
+std__collections__List_compiler__semantic__types__StructField layout_fields = fields;
 int32_t max_align = 1;
 int32_t current_offset = 0;
 {
-size_t __for_e = fields.len;
+size_t __for_e = layout_fields.len;
 size_t __for_i = __for_e;
 __for_i = 0;
 bool __for_up = (__for_i <= __for_e);
@@ -14429,7 +14427,7 @@ __for_go = (__for_i > __for_e);
 }
 while (__for_go) {
 size_t i = __for_i;
-compiler__semantic__types__StructField f = std__collections__List_compiler__semantic__types__StructField_get(&fields, i);
+compiler__semantic__types__StructField f = std__collections__List_compiler__semantic__types__StructField_get(&layout_fields, i);
 size_t f_align = (*f.type_ptr).align;
 if (f_align > max_align) {
 max_align = f_align;
@@ -14439,7 +14437,7 @@ if (rem != 0) {
 current_offset += (f_align - rem);
 }
 f.offset = current_offset;
-std__collections__List_compiler__semantic__types__StructField_set(&fields, i, f);
+std__collections__List_compiler__semantic__types__StructField_set(&layout_fields, i, f);
 current_offset += (*f.type_ptr).size;
 if (__for_up) {
 __for_go = ((__for_i + 1) < __for_e);
@@ -14459,7 +14457,7 @@ int32_t total_rem = (current_offset % max_align);
 if (total_rem != 0) {
 current_offset += (max_align - total_rem);
 }
-compiler__semantic__types__StructType* struct_info = std__memory__Arena_create_val_compiler__semantic__types__StructType(self, (compiler__semantic__types__StructType){ name, name, fields, std__collections__List_ptr_compiler__semantic__types__MethodInfo_init(NULL, 0), KOBEL_STR(""), false, true });
+compiler__semantic__types__StructType* struct_info = std__memory__Arena_create_val_compiler__semantic__types__StructType(self, (compiler__semantic__types__StructType){ name, name, layout_fields, std__collections__List_ptr_compiler__semantic__types__MethodInfo_init(NULL, 0), KOBEL_STR(""), false, true });
 return std__memory__Arena_type_payload(self, 18, current_offset, max_align, (compiler__semantic__types__TypePayload){ .tag = 3, .u.Struct = { struct_info } });
 }
 
@@ -17400,9 +17398,6 @@ size_t i = __for_i;
 compiler__ast__Param p = std__collections__List_compiler__ast__Param_get(&f->params, i);
 if ((p.type_node != NULL) && (p.type_node != NULL && p.type_node->data.tag == compiler__ast__NodeData__FnType__TAG)) {
 fn_param_count++;
-if (p.mutable) {
-compiler__semantic__resolution__TypeResolver_report_error(self, node, kobel_concat(3, KOBEL_STR("Lambda parameter '"), p.name, KOBEL_STR("' cannot be declared 'var'")));
-}
 if (p.default_val != NULL) {
 compiler__semantic__resolution__TypeResolver_report_error(self, node, kobel_concat(3, KOBEL_STR("Lambda parameter '"), p.name, KOBEL_STR("' cannot have a default value")));
 }
@@ -26916,16 +26911,10 @@ size_t __for_n = std__collections__List_compiler__ast__Param_count(&f->params);
 size_t __for_i = 0;
 while (__for_i < __for_n) {
 compiler__ast__Param p = std__collections__List_compiler__ast__Param_at(&f->params, __for_i);
-if (p.mutable) {
+if (p.mutable && kobel_streq(p.name, KOBEL_STR("self"))) {
 compiler__semantic__symbols__Symbol* sym = compiler__semantic__symbols__SymbolTable_lookup(&self->symtab, p.name);
-if ((sym != NULL) && !sym->mutated) {
-if (kobel_streq(p.name, KOBEL_STR("self"))) {
-if (!is_trait_impl) {
+if (((sym != NULL) && !sym->mutated) && !is_trait_impl) {
 compiler__semantic__checker__BodyChecker_report_warning(self, fn_node, kobel_concat(2, kobel_concat(3, KOBEL_STR("In function '"), f->name, KOBEL_STR("': Receiver 'self' is declared mutable ")), KOBEL_STR("with '&self', but is never mutated; consider using '*self'")));
-}
-} else if (!str_starts_with(p.name, KOBEL_STR("_"))) {
-compiler__semantic__checker__BodyChecker_report_warning(self, fn_node, kobel_concat(2, kobel_concat(5, KOBEL_STR("In function '"), f->name, KOBEL_STR("': Parameter '"), p.name, KOBEL_STR("' is declared mutable ")), KOBEL_STR("with 'var', but is never mutated; consider using 'val'")));
-}
 }
 }
 __for_i = (__for_i + 1);
@@ -32240,11 +32229,6 @@ fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR("*self"));
 fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR("self"));
 }
 } else {
-if (p.mutable) {
-fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR("var "));
-} else if (p.has_val) {
-fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR("val "));
-}
 fmt__FormatBuffer_plus_assign_2(&self->buf, p.name);
 }
 if (p.type_node != NULL) {

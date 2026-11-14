@@ -33,7 +33,7 @@ pub struct JsonValue {
 // Serialization Helpers
 // ============================================================================
 
-fn append_json_escaped_str(var sb: &StringBuilder, s: str) {
+fn append_json_escaped_str(sb: &StringBuilder, s: str) {
 	sb += '"';
 	sb.append_escaped(s);
 	sb += '"';
@@ -73,7 +73,7 @@ impl JsonValue {
 		return parser.parse_value();
 	}
 
-	pub fn serialize_to(*self, var sb: &StringBuilder) {
+	pub fn serialize_to(*self, sb: &StringBuilder) {
 		if (self == null) {
 			sb += "null";
 			return;

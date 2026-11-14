@@ -66,8 +66,6 @@ impl Parser {
 			var has_val = false;
 			var is_prefix_ptr = false;
 			when (self) {
-				.match_token(TokenType.KW_VAR) -> mutable = true;
-				.match_token(TokenType.KW_VAL) -> has_val = true;
 				.match_token(TokenType.AMPERSAND) -> {
 					mutable = true;
 					is_prefix_ptr = true;
@@ -76,14 +74,19 @@ impl Parser {
 					has_val = true;
 					is_prefix_ptr = true;
 				}
+				.check(TokenType.KW_VAR) || .check(TokenType.KW_VAL) -> {
+					val mod_tok = self.advance();
+					if (self.check(TokenType.IDENTIFIER) && self.peek().text == "self") {
+						self.error(mod_tok, "'val self' and 'var self' are no longer supported; use '*self', '&self', or bare 'self'");
+					} else {
+						self.error(mod_tok, "Parameter modifiers 'var' and 'val' are not supported; use 'name: *Type' or 'name: &Type'");
+					}
+				}
 			}
 
 			val pname = self.consume(TokenType.IDENTIFIER, "Expected parameter name");
 			if (is_prefix_ptr && (!allow_self || pname.text != "self")) {
 				self.error(pname, "Prefix '*' and '&' are only supported for the 'self' receiver parameter");
-			}
-			if (pname.text == "self" && !is_prefix_ptr && (mutable || has_val)) {
-				self.error(pname, "'val self' and 'var self' are no longer supported; use '*self', '&self', or bare 'self'");
 			}
 			val ptype = when {
 				self.match_token(TokenType.COLON) -> self.parse_type();
@@ -101,11 +104,9 @@ impl Parser {
 				if (params.last().type_node is VariadicType) {
 					self.error(self.peek(), "Variadic parameter '..T' must be the last parameter in the function declaration");
 				}
-				var p_mutable = false;
-				var p_has_val = false;
-				when (self) {
-					.match_token(TokenType.KW_VAR) -> p_mutable = true;
-					.match_token(TokenType.KW_VAL) -> p_has_val = true;
+				if (self.check(TokenType.KW_VAR) || self.check(TokenType.KW_VAL)) {
+					val mod_tok = self.advance();
+					self.error(mod_tok, "Parameter modifiers 'var' and 'val' are not supported; use 'name: *Type' or 'name: &Type'");
 				}
 
 				val p_name = self.consume(TokenType.IDENTIFIER, "Expected parameter name");
@@ -117,7 +118,7 @@ impl Parser {
 
 				val p_def = if (self.match_token(TokenType.EQUAL)) self.parse_expression(Precedence.NONE)
 				else null;
-				params += Param(p_name.text, p_type, p_mutable, p_has_val, p_def);
+				params += Param(p_name.text, p_type, false, false, p_def);
 			}
 		}
 

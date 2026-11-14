@@ -19,7 +19,7 @@ pub struct PrimTypes {
 	pub types: List<*Type>
 }
 
-fn prim_with_methods(var arena: &Arena, kind: DataType): *Type {
+fn prim_with_methods(arena: &Arena, kind: DataType): *Type {
 	var t = arena.primitive_type(Type.primitive(kind));
 	val pm = arena.create_val(PrimMethods());
 	t.methods = pm;
@@ -28,7 +28,7 @@ fn prim_with_methods(var arena: &Arena, kind: DataType): *Type {
 
 impl PrimTypes {
 
-	pub init(var arena: &Arena) {
+	pub init(arena: &Arena) {
 		var types = List<*Type>();
 		types += prim_with_methods(arena, DataType.NONE);
 		types += prim_with_methods(arena, DataType.BOOL);

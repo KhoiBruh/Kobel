@@ -124,7 +124,7 @@ fn test_generic_bounds_checking() {
 		struct Invalid {
 		    pub v: i32
 		}
-		fn call_bound<T: MyBound>(val x: T): i32 => x.op();
+		fn call_bound<T: MyBound>(x: T): i32 => x.op();
 		fn test(): i32 {
 		    val a = call_bound<Valid>(Valid(1));
 		    val b = call_bound<Invalid>(Invalid(2));
@@ -154,7 +154,6 @@ fn test_lambda_declaration_restrictions() {
 		fn bad_multi(a: (i32) -> i32, b: (i32) -> i32) {}
 		fn bad_non_final(f: (i32) -> i32, x: i32) {}
 		fn bad_ret(): (i32) -> i32 {}
-		fn bad_var(var f: (i32) -> i32) {}
 		struct BadStruct {
 		    pub cb: (i32) -> i32
 		}
@@ -171,7 +170,7 @@ fn test_lambda_declaration_restrictions() {
 	var decl_p = DeclarationCollector();
 	decl_p.collect_program(prog);
 
-	assert_true(decl_p.errors.len >= 6, "Must reject multiple/non-final/return/var/struct/enum lambda types");
+	assert_true(decl_p.errors.len >= 5, "Must reject multiple/non-final/return/struct/enum lambda types");
 	println("  [PASS] test_lambda_declaration_restrictions");
 }
 

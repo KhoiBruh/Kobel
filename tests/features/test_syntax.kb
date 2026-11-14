@@ -236,12 +236,12 @@ fn test_default_arguments(): bool {
 	return true;
 }
 
-fn elvis_helper_ret(val ptr: ?*i32): i32 {
+fn elvis_helper_ret(ptr: ?*i32): i32 {
 	val unwrapped = ptr ?: return 42;
 	return *unwrapped;
 }
 
-fn elvis_chained_ret(val p1: ?*i32, val p2: ?*i32): i32 {
+fn elvis_chained_ret(p1: ?*i32, p2: ?*i32): i32 {
 	val unwrapped = p1 ?: p2 ?: return 99;
 	return *unwrapped;
 }

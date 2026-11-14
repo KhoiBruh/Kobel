@@ -201,12 +201,13 @@ impl StructType {
 
 impl Arena {
 
-	pub fn struct_type(&self, name: str, var fields: List<StructField>): *Type {
+	pub fn struct_type(&self, name: str, fields: List<StructField>): *Type {
+		var layout_fields = fields;
 		var max_align = 1;
 		var current_offset = 0;
 
-		for (i in 0..<fields.len) {
-			var f = fields[i];
+		for (i in 0..<layout_fields.len) {
+			var f = layout_fields[i];
 			val f_align = f.type_ptr.align;
 			if (f_align > max_align) max_align = f_align;
 
@@ -214,14 +215,14 @@ impl Arena {
 			if (rem != 0) current_offset += (f_align - rem);
 
 			f.offset = current_offset;
-			fields[i] = f;
+			layout_fields[i] = f;
 			current_offset += f.type_ptr.size;
 		}
 
 		val total_rem = current_offset % max_align;
 		if (total_rem != 0) current_offset += (max_align - total_rem);
 
-		val struct_info = self.create_val(StructType(name, name, fields, List<*MethodInfo>(), "", false));
+		val struct_info = self.create_val(StructType(name, name, layout_fields, List<*MethodInfo>(), "", false));
 		return self.type_payload(DataType.STRUCT, current_offset, max_align, TypePayload.Struct(struct_info));
 	}
 

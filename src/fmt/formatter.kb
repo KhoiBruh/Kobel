@@ -109,8 +109,6 @@ impl Formatter {
 			else if (p.has_val) self.buf += "*self";
 			else self.buf += "self";
 		} else {
-			if (p.mutable) self.buf += "var ";
-			else if (p.has_val) self.buf += "val ";
 			self.buf += p.name;
 		}
 		if (p.type_node != null) {

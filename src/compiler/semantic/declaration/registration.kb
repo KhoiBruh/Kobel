@@ -151,7 +151,7 @@ impl DeclarationCollector {
 
 	fn collect_single_impl_method(
 		&self, m_node: *AstNode, f: *FnDecl, st_type: *Type,
-		st_c_name: str, st_info: *StructType, overloaded: List<str>, var used_names: &List<str>
+		st_c_name: str, st_info: *StructType, overloaded: List<str>, used_names: &List<str>
 	) {
 		if (f.type_params.len > 0) return;
 
@@ -355,7 +355,7 @@ impl DeclarationCollector {
 		return null;
 	}
 
-	fn collect_return_exprs(*self, stmt: ?*AstNode, var out_returns: &List<*AstNode>) {
+	fn collect_return_exprs(*self, stmt: ?*AstNode, out_returns: &List<*AstNode>) {
 		if (stmt == null) return;
 
 		when (stmt) {
@@ -441,7 +441,7 @@ impl DeclarationCollector {
 
 	fn collect_single_prim_method(
 		&self, node: *AstNode, m_node: *AstNode, f: *FnDecl,
-		prim: *Type, prim_name: str, overloaded: List<str>, var used_names: &List<str>
+		prim: *Type, prim_name: str, overloaded: List<str>, used_names: &List<str>
 	) {
 		if (f.type_params.len > 0) return;
 		self.validate_fn_lambda_rules(m_node, f);

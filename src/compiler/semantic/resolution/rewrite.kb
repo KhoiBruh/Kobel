@@ -41,7 +41,7 @@ impl TypeResolver {
 			if (cur == null) return;
 
 			when (cur) {
-				is CallExpr as var call -> self.propagate_call_target_type(nt, call);
+				is CallExpr as call -> self.propagate_call_target_type(nt, call);
 
 				is IfExpr as ife -> {
 					self.propagate_target_type(node, ife.then_branch);
@@ -55,10 +55,10 @@ impl TypeResolver {
 		}
 	}
 
-	fn propagate_call_target_type(*self, nt: *NamedType, var call: *CallExpr) {
+	fn propagate_call_target_type(*self, nt: *NamedType, call: *CallExpr) {
 		if (!call.type_args.empty()) return;
 
-		if (call.callee is IdentifierExpr as var cid) {
+		if (call.callee is IdentifierExpr as cid) {
 			if (nt.type_args.len > 0) {
 				if (cid.name == nt.name) {
 					var new_targs = List<*AstNode>();

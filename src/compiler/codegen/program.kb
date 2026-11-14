@@ -417,7 +417,7 @@ impl CCodeGen {
 		return "void";
 	}
 
-	pub fn collect_lambdas_in_node(*self, node: ?*AstNode, var out: &List<*AstNode>) {
+	pub fn collect_lambdas_in_node(*self, node: ?*AstNode, out: &List<*AstNode>) {
 		if (node == null) return;
 		val cur = node!;
 		when (cur) {
