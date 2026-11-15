@@ -133,5 +133,25 @@ fn main(): i32 {
 	val str_res = transform_val(99) { n -> "num:${n}" };
 	if (str_res != "num:99") return 24;
 
+	// Case 12: Nested single-expression and multi-statement lambdas inside single-expression lambda
+	if (!row1.any { a -> evens.all { b -> b > 0 && a >= 10 } }) return 25;
+
+	val threshold = 10;
+	val nested_ok = row1.any { a ->
+		evens.all { b ->
+			val sum_ab = a + b;
+			yield sum_ab > threshold;
+		}
+	};
+	if (!nested_ok) return 26;
+
+	var acc2 = 0;
+	row1.each { a -> evens.each { b ->
+		val p = a * b;
+		acc2 += p;
+	} };
+	// row1=[10, 20], evens=[2, 4] -> (20 + 40) + (40 + 80) = 180
+	if (acc2 != 180) return 27;
+
 	return 0;
 }

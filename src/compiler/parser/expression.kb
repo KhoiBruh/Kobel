@@ -36,7 +36,7 @@ pub enum Precedence {
 // into the same token, so a '.' in the text marks a float literal. Hex/binary
 // literals and suffixes never contain one.
 pub fn num_literal_is_float(text: str): bool {
-	if (text.any { c -> yield c == '.'; }) return true;
+	if (text.any { c -> c == '.' }) return true;
 	// A trailing F/D is only a float suffix when the literal really carries one:
 	// `0xEF` ends in F but is the integer 239.
 	val suffix = text.num_suffix();
@@ -390,37 +390,56 @@ impl Parser {
 		) return true;
 
 		var brace_depth = 0;
-		var when_brace_depth = 0;
+		// Depth at which an opaque braced sub-expression (`when` or nested lambda)
+		// started; statements/yield inside it belong to the inner construct, not us.
+		var opaque_brace_depth = 0;
 		var pending_when = false;
+		var pending_when_paren_depth = 0;
 		var paren_depth = 0;
 
 		for (i in self.current..<self.tokens.len) {
 			val tok = self.tokens[i];
+			if (opaque_brace_depth > 0) {
+				if (tok.type == TokenType.OPEN_BRACE) {
+					brace_depth++;
+				} else if (tok.type == TokenType.CLOSE_BRACE) {
+					if (brace_depth == opaque_brace_depth) opaque_brace_depth = 0;
+					brace_depth--;
+				} else if (tok.type == TokenType.END_OF_FILE) {
+					return false;
+				}
+				continue;
+			}
+
 			when (tok.type) {
-				TokenType.KW_WHEN -> if (paren_depth == 0) pending_when = true;
+				TokenType.KW_WHEN -> {
+					pending_when = true;
+					pending_when_paren_depth = paren_depth;
+				}
 				TokenType.OPEN_PAREN -> paren_depth++;
-				TokenType.CLOSE_PAREN -> if (paren_depth > 0) paren_depth--;
+				TokenType.CLOSE_PAREN -> {
+					if (paren_depth > 0) paren_depth--;
+					if (pending_when && paren_depth < pending_when_paren_depth) {
+						pending_when = false;
+					}
+				}
 				TokenType.OPEN_BRACE -> {
 					brace_depth++;
-					if (pending_when && paren_depth == 0) {
-						when_brace_depth++;
+					if (pending_when && paren_depth == pending_when_paren_depth) {
+						opaque_brace_depth = brace_depth;
+						pending_when = false;
+					} else if (self.is_lambda_brace_at(i)) {
+						opaque_brace_depth = brace_depth;
 						pending_when = false;
 					}
 				}
 				TokenType.CLOSE_BRACE -> {
 					if (brace_depth == 0) return false;
-					if (when_brace_depth > 0 && brace_depth == when_brace_depth) {
-						when_brace_depth--;
-					}
 					brace_depth--;
 				}
-				TokenType.SEMI_COLON -> {
-					if (brace_depth == 0) return true;
-					if (when_brace_depth == 0) return true;
-				}
-				TokenType.KW_YIELD, TokenType.KW_RETURN -> {
-					if (when_brace_depth == 0) return true;
-				}
+				TokenType.SEMI_COLON, TokenType.KW_YIELD, TokenType.KW_RETURN,
+				TokenType.KW_VAL, TokenType.KW_VAR, TokenType.KW_DEFER,
+				TokenType.KW_WHILE, TokenType.KW_FOR -> return true;
 				TokenType.END_OF_FILE -> return false;
 			}
 		}

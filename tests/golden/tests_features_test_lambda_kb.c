@@ -559,6 +559,66 @@ static kobel_str __lambda_fn_25(void* __raw_env, int32_t n) {
     return kobel_concat(2, KOBEL_STR("num:"), i32_to_str(n));
 }
 
+struct __lambda_env_26 {
+    int32_t a;
+};
+
+static bool __lambda_fn_26(void* __raw_env, int32_t b) {
+    struct __lambda_env_26* __env = (struct __lambda_env_26*)__raw_env;
+    return b > 0 && (__env->a) >= 10;
+}
+
+struct __lambda_env_27 {
+    std__collections__List_i32* evens;
+};
+
+static bool __lambda_fn_27(void* __raw_env, int32_t a) {
+    struct __lambda_env_27* __env = (struct __lambda_env_27*)__raw_env;
+    return std__collections__List_i32_all(&(*(__env->evens)), (kobel_closure){ (void*)__lambda_fn_26, (void*)&(struct __lambda_env_26){ a } });
+}
+
+struct __lambda_env_28 {
+    int32_t a;
+    int32_t threshold;
+};
+
+static bool __lambda_fn_28(void* __raw_env, int32_t b) {
+    struct __lambda_env_28* __env = (struct __lambda_env_28*)__raw_env;
+int32_t sum_ab = (__env->a) + b;
+return sum_ab > (__env->threshold);
+}
+
+struct __lambda_env_29 {
+    std__collections__List_i32* evens;
+    int32_t threshold;
+};
+
+static bool __lambda_fn_29(void* __raw_env, int32_t a) {
+    struct __lambda_env_29* __env = (struct __lambda_env_29*)__raw_env;
+    return std__collections__List_i32_all(&(*(__env->evens)), (kobel_closure){ (void*)__lambda_fn_28, (void*)&(struct __lambda_env_28){ a, (__env->threshold) } });
+}
+
+struct __lambda_env_30 {
+    int32_t a;
+    int32_t* acc2;
+};
+
+static void __lambda_fn_30(void* __raw_env, int32_t b) {
+    struct __lambda_env_30* __env = (struct __lambda_env_30*)__raw_env;
+int32_t p = (__env->a) * b;
+(*(__env->acc2)) += p;
+}
+
+struct __lambda_env_31 {
+    std__collections__List_i32* evens;
+    int32_t* acc2;
+};
+
+static void __lambda_fn_31(void* __raw_env, int32_t a) {
+    struct __lambda_env_31* __env = (struct __lambda_env_31*)__raw_env;
+    std__collections__List_i32_each(&(*(__env->evens)), (kobel_closure){ (void*)__lambda_fn_30, (void*)&(struct __lambda_env_30){ a, &(*(__env->acc2)) } });
+}
+
 int32_t main(void) {
 int32_t r0 = test__lambda__run_once((kobel_closure){ (void*)__lambda_fn_6, NULL });
 if (r0 != 42) {
@@ -776,6 +836,49 @@ kobel_str str_res = test__lambda__transform_val_i32_str(99, (kobel_closure){ (vo
 if (!kobel_streq(str_res, KOBEL_STR("num:99"))) {
 {
 int32_t __ret_tmp = 24;
+std__collections__List_i32_free(row1);
+std__collections__List_i32_free(grades);
+std__collections__List_i32_free(clamped);
+std__collections__List_str_free(labels);
+std__collections__List_i32_free(squares);
+std__collections__List_i32_free(evens);
+std__collections__List_i32_free(list);
+return __ret_tmp;
+}
+}
+if (!std__collections__List_i32_any(&row1, (kobel_closure){ (void*)__lambda_fn_27, (void*)&(struct __lambda_env_27){ &evens } })) {
+{
+int32_t __ret_tmp = 25;
+std__collections__List_i32_free(row1);
+std__collections__List_i32_free(grades);
+std__collections__List_i32_free(clamped);
+std__collections__List_str_free(labels);
+std__collections__List_i32_free(squares);
+std__collections__List_i32_free(evens);
+std__collections__List_i32_free(list);
+return __ret_tmp;
+}
+}
+int32_t threshold = 10;
+bool nested_ok = std__collections__List_i32_any(&row1, (kobel_closure){ (void*)__lambda_fn_29, (void*)&(struct __lambda_env_29){ &evens, threshold } });
+if (!nested_ok) {
+{
+int32_t __ret_tmp = 26;
+std__collections__List_i32_free(row1);
+std__collections__List_i32_free(grades);
+std__collections__List_i32_free(clamped);
+std__collections__List_str_free(labels);
+std__collections__List_i32_free(squares);
+std__collections__List_i32_free(evens);
+std__collections__List_i32_free(list);
+return __ret_tmp;
+}
+}
+int32_t acc2 = 0;
+std__collections__List_i32_each(&row1, (kobel_closure){ (void*)__lambda_fn_31, (void*)&(struct __lambda_env_31){ &evens, &acc2 } });
+if (acc2 != 180) {
+{
+int32_t __ret_tmp = 27;
 std__collections__List_i32_free(row1);
 std__collections__List_i32_free(grades);
 std__collections__List_i32_free(clamped);

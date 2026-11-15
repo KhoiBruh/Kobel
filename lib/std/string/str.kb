@@ -127,9 +127,7 @@ impl str {
 		return str_from_bytes(buf, self.len);
 	}
 
-	pub fn blank(*self) => self.all { c ->
-		yield c.is_whitespace();
-	};
+	pub fn blank(*self) => self.all { c ->  c.is_whitespace() };
 
 	pub fn starts_with(*self, prefix: str): bool {
 		if (self.len < prefix.len) return false;

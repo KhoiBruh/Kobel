@@ -410,10 +410,61 @@ fn test_not_is_parsing() {
 	println("  [PASS] test_not_is_parsing");
 }
 
+fn test_nested_lambda_in_expr_lambda() {
+	val src1 = """
+		fn f() {
+			val ok = xs.any { a -> ys.all { b ->
+				val k = b + 1;
+				yield k > a;
+			} };
+		}
+	""";
+	var l1 = Lexer(src1);
+	var p1 = Parser(l1.tokenize());
+	val prog1 = p1.parse_program();
+	assert_eq_usz(p1.errors.len, 0, "Expr lambda wrapping multi-stmt nested lambda must parse cleanly");
+	if (prog1 is Program as pr && pr.declarations.len == 1 && pr.declarations[0] is FnDecl as fn_d && fn_d.body is BlockStmt as blk) {
+		val stmts = blk.statements;
+		assert_eq_usz(stmts.len, 1, "Outer fn body must have 1 statement");
+		assert_true(stmts[0] is VarDeclStmt, "Statement must be VarDeclStmt");
+		if (stmts[0] is VarDeclStmt as vd && vd.initializer is CallExpr as call1) {
+			val outer_lam = call1.args[0];
+			assert_true(outer_lam is LambdaExpr, "Arg must be LambdaExpr");
+			if (outer_lam is LambdaExpr as lam1) {
+				assert_true(lam1.body is CallExpr, "Outer lambda body must remain CallExpr, not BlockStmt");
+				if (lam1.body is CallExpr as call2 && call2.args.len == 1) {
+					val inner_lam = call2.args[0];
+					assert_true(inner_lam is LambdaExpr, "Inner arg must be LambdaExpr");
+					if (inner_lam is LambdaExpr as lam2) {
+						assert_true(lam2.body is BlockStmt, "Inner multi-statement lambda body must be BlockStmt");
+					}
+				}
+			}
+		}
+	}
+
+	val src2 = """
+		fn g() {
+			val ok1 = xs.any { a -> wrap(when (a) {
+				1 -> ys.any { b -> val k = b + 1; yield k > a; };
+				else -> false;
+			}) };
+			val ok2 = xs.any { a -> if (a > 0) { ys.all { b -> val k = b + 1; yield k > a; } } else { false } };
+		}
+	""";
+	var l2 = Lexer(src2);
+	var p2 = Parser(l2.tokenize());
+	p2.parse_program();
+	assert_eq_usz(p2.errors.len, 0, "Expr lambda containing when-in-parens or if-branch with nested multi-stmt lambda must parse cleanly");
+
+	println("  [PASS] test_nested_lambda_in_expr_lambda");
+}
+
 fn main(): i32 {
 	println("[RUNNING] Bootstrap Parser tests...");
 	test_val_var_self_rejected();
 	test_not_is_parsing();
+	test_nested_lambda_in_expr_lambda();
 	test_expression_parsing();
 	test_call_and_member_parsing();
 	test_safe_member_and_elvis_parsing();

@@ -4245,7 +4245,7 @@ return std__string__str_from_bytes(buf, self.len);
 
 static bool __lambda_fn_1(void* __raw_env, char c) {
     (void)__raw_env;
-return char_is_whitespace(c);
+    return char_is_whitespace(c);
 }
 
 bool str_blank(kobel_str self) {
@@ -4431,7 +4431,7 @@ kobel_str str_replace_char(kobel_str self, char from, char to) {
     return str_map_chars(self, (kobel_closure){ (void*)__lambda_fn_3, (void*)&(struct __lambda_env_3){ from, to } });
 }
 
-static int32_t __lambda_fn_5(void* __raw_env, int32_t acc, kobel_str item) {
+static int32_t __lambda_fn_6(void* __raw_env, int32_t acc, kobel_str item) {
     (void)__raw_env;
     return acc + item.len;
 }
@@ -4443,7 +4443,7 @@ return KOBEL_STR("");
 if (list.len == 1) {
 return list.data[0];
 }
-int32_t total = std__collections__std__collections__List_str_fold_i32(&list, 0, (kobel_closure){ (void*)__lambda_fn_5, NULL });
+int32_t total = std__collections__std__collections__List_str_fold_i32(&list, 0, (kobel_closure){ (void*)__lambda_fn_6, NULL });
 total += self.len * (list.len - 1);
 uint8_t* buf = std__memory__Heap_create_u8(total + 1);
 int32_t w = 0;
@@ -4955,19 +4955,19 @@ bool std__filesystem__str_is_sep(char c) {
     return c == '/' || c == '\\';
 }
 
-struct __lambda_env_6 {
+struct __lambda_env_4 {
     char from;
     char to;
     bool fold_case;
 };
 
-static char __lambda_fn_6(void* __raw_env, char c) {
-    struct __lambda_env_6* __env = (struct __lambda_env_6*)__raw_env;
-return c == (__env->from) ? (__env->to) : (__env->fold_case) && char_is_alpha(c) ? char_lower(c) : c;
+static char __lambda_fn_4(void* __raw_env, char c) {
+    struct __lambda_env_4* __env = (struct __lambda_env_4*)__raw_env;
+    return c == (__env->from) ? (__env->to) : char_is_alpha(c) && (__env->fold_case) ? char_lower(c) : c;
 }
 
 kobel_str std__filesystem__remap_path_bytes(kobel_str s, char from, char to, bool fold_case) {
-    return str_map_chars(s, (kobel_closure){ (void*)__lambda_fn_6, (void*)&(struct __lambda_env_6){ from, to, fold_case } });
+    return str_map_chars(s, (kobel_closure){ (void*)__lambda_fn_4, (void*)&(struct __lambda_env_4){ from, to, fold_case } });
 }
 
 static bool __lambda_fn_7(void* __raw_env, char c) {
@@ -7315,7 +7315,7 @@ return compiler__parser__Parser_node(self, (compiler__ast__NodeData){ .tag = 48,
 
 static bool __lambda_fn_15(void* __raw_env, char c) {
     (void)__raw_env;
-return c == '.';
+    return c == '.';
 }
 
 bool compiler__parser__num_literal_is_float(kobel_str text) {
@@ -7686,8 +7686,9 @@ if (first.type == 53 || first.type == 54 || first.type == 69 || first.type == 48
 return true;
 }
 int32_t brace_depth = 0;
-int32_t when_brace_depth = 0;
+int32_t opaque_brace_depth = 0;
 bool pending_when = false;
+int32_t pending_when_paren_depth = 0;
 int32_t paren_depth = 0;
 {
 size_t __for_e = self->tokens.len;
@@ -7703,41 +7704,61 @@ __for_go = __for_i > __for_e;
 while (__for_go) {
 size_t i = __for_i;
 compiler__lexer__Token tok = std__collections__List_compiler__lexer__Token_get(&self->tokens, i);
-if (tok.type == 61) {
-if (paren_depth == 0) {
-pending_when = true;
+if (opaque_brace_depth > 0) {
+if (tok.type == 17) {
+brace_depth++;
+} else if (tok.type == 18) {
+if (brace_depth == opaque_brace_depth) {
+opaque_brace_depth = 0;
 }
+brace_depth--;
+} else if (tok.type == 74) {
+return false;
+}
+{
+if (__for_up) {
+__for_go = __for_i + 1 < __for_e;
+} else {
+__for_go = __for_i - 1 > __for_e;
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = __for_i + 1;
+} else {
+__for_i = __for_i - 1;
+}
+}
+continue;
+}
+}
+if (tok.type == 61) {
+pending_when = true;
+pending_when_paren_depth = paren_depth;
 } else if (tok.type == 15) {
 paren_depth++;
 } else if (tok.type == 16) {
 if (paren_depth > 0) {
 paren_depth--;
 }
+if (pending_when && paren_depth < pending_when_paren_depth) {
+pending_when = false;
+}
 } else if (tok.type == 17) {
 brace_depth++;
-if (pending_when && paren_depth == 0) {
-when_brace_depth++;
+if (pending_when && paren_depth == pending_when_paren_depth) {
+opaque_brace_depth = brace_depth;
+pending_when = false;
+} else if (compiler__parser__Parser_is_lambda_brace_at(self, i)) {
+opaque_brace_depth = brace_depth;
 pending_when = false;
 }
 } else if (tok.type == 18) {
 if (brace_depth == 0) {
 return false;
 }
-if (when_brace_depth > 0 && brace_depth == when_brace_depth) {
-when_brace_depth--;
-}
 brace_depth--;
-} else if (tok.type == 0) {
-if (brace_depth == 0) {
+} else if (tok.type == 0 || tok.type == 69 || tok.type == 48 || tok.type == 53 || tok.type == 54 || tok.type == 71 || tok.type == 56 || tok.type == 67) {
 return true;
-}
-if (when_brace_depth == 0) {
-return true;
-}
-} else if (tok.type == 69 || tok.type == 48) {
-if (when_brace_depth == 0) {
-return true;
-}
 } else if (tok.type == 74) {
 return false;
 }
