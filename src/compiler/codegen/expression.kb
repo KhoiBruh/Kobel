@@ -621,14 +621,14 @@ impl CCodeGen {
 		return wrap_prec(res, PREC_TERNARY, min_prec);
 	}
 
-	// Tag test of a smart cast. A pointer subject is compared against NULL
-	// first: reading the tag would dereference it, and a null subject matches no
-	// struct pattern, so the caller takes its `else` path.
-	//
-	// ponytail: the subject is re-evaluated for the NULL test. Safe today
-	// because every subject is a plain path (`p`, `obj.field`); upgrade by
-	// hoisting `void* __subj = ...;` in statement position if a call ever
-	// becomes a subject.
+	/*
+	 * Tag test of a smart cast. A pointer subject is compared against NULL first
+	 * because reading the tag would dereference it; a null subject matches no
+	 * struct pattern, so the caller takes its `else` path.
+	 *
+	 * The subject is re-evaluated for the NULL test, assuming it is a plain path
+	 * (e.g., `p`, `obj.field`) with no side effects.
+	 */
 	pub fn gen_tag_test(
 		*self, subject: str, is_ptr: bool, tag_field: str, tag_const: str
 	): str => if (is_ptr) "${subject} != NULL && ${subject}->${tag_field} == ${tag_const}"

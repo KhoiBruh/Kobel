@@ -10,7 +10,7 @@ use std.memory.*;
  */
 
 extern "libc" {
-	fn fopen(filename: *char, mode: *char): *none;
+	fn fopen(filename: *char, mode: *char): ?*none;
 	fn fclose(stream: ?*none): i32;
 	fn fread(ptr: &u8, size: usz, count: usz, stream: ?*none): usz;
 	fn fwrite(ptr: *char, size: usz, count: usz, stream: ?*none): usz;

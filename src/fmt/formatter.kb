@@ -91,11 +91,13 @@ impl Formatter {
 	 * Width bookkeeping: render a fragment into a scratch formatter so a long
 	 * argument/parameter list can break before it, without touching the line.
 	 */
-	fn measure_expr(*self, node: *AstNode): usz {
-		var scratch = Formatter(self.options, CommentTable(List<Comment>()), "");
+	fn render_expr(*self, node: *AstNode): str {
+		var scratch = Formatter(self.options, CommentTable(List<Comment>()), self.source);
 		scratch.format_expr(node);
-		return scratch.buf.to_str().len;
+		return scratch.buf.to_str();
 	}
+
+	fn measure_expr(*self, node: *AstNode): usz => self.render_expr(node).len;
 
 	fn measure_param(*self, p: Param): usz {
 		var scratch = Formatter(self.options, CommentTable(List<Comment>()), "");
@@ -319,9 +321,21 @@ impl Formatter {
 					self.buf.newline();
 					self.buf += "}";
 				} else {
-					self.buf += " ";
-					self.format_expr(lam.body);
-					self.buf += " }";
+					val rendered = self.render_expr(lam.body);
+					val wraps = rendered.index_of("\n") >= 0 ||
+						self.buf.current_col + 1 + rendered.len + 2 > self.options.max_width;
+					if (wraps) {
+						self.buf.indent();
+						self.buf.newline();
+						self.format_expr(lam.body);
+						self.buf.dedent();
+						self.buf.newline();
+						self.buf += "}";
+					} else {
+						self.buf += " ";
+						self.format_expr(lam.body);
+						self.buf += " }";
+					}
 				}
 			}
 			is MemberExpr as m -> {

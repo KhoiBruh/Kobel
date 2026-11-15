@@ -115,7 +115,7 @@ fn test_wraps_long_lines() {
 }
 
 fn test_lambda_formatting() {
-	val code = "fn run(a: i32, f: (i32) -> i32): i32 {\n\tval x = list.filter { item -> item > 0 };\n\tval y = list.fold(0) { acc, item ->\n\t\tval next = acc + item;\n\t\tyield next;\n\t};\n\treturn f(a);\n}\n";
+	val code = "fn run(a: i32, f: (i32) -> i32): i32 {\n\tval x = list.filter { item -> item > 0 };\n\tval y = list.fold(0) { acc, item ->\n\t\tval next = acc + item;\n\t\tyield next;\n\t};\n\tval z = list.map { item -> when (item) {\n\t\t0 -> 1;\n\t\telse -> item;\n\t} };\n\tval nested = apply(a) { outer -> apply(outer) { inner -> when (inner) {\n\t\t1 -> 2;\n\t\telse -> inner;\n\t} } };\n\treturn f(a);\n}\n";
 	val once = format_source(code, FormatOptions());
 	val twice = format_source(once, FormatOptions());
 
@@ -123,6 +123,8 @@ fn test_lambda_formatting() {
 	assert_true(("f: (i32) -> i32" in once), "function type parameter must format cleanly");
 	assert_true(("list.filter { item -> item > 0 }" in once), "single-arg trailing lambda must format without parens");
 	assert_true(("list.fold(0) { acc, item ->" in once), "multi-arg trailing lambda must format with normal args in parens");
+	assert_true(("list.map { item ->\n\t\twhen (item) {\n\t\t\t0 -> 1;\n\t\t\telse -> item;\n\t\t}\n\t};" in once), "multi-line expr lambda must break and indent cleanly");
+	assert_true(("apply(a) { outer ->\n\t\tapply(outer) { inner ->\n\t\t\twhen (inner) {" in once), "nested multi-line expr lambdas must indent at each level");
 	println("  [PASS] test_lambda_formatting");
 }
 

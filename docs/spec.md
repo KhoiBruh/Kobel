@@ -436,6 +436,34 @@ val tag = when (text) {
 - **Pure subject requirement:** The subject expression inside `when (subject)` cannot contain function or method calls (bind call results to a `val` variable first so the subject is not re-evaluated across arms).
 - **Leading-dot patterns (`.member` / `.method()`):** Inside `when (subject)`, a leading `.` or `?.` accesses a field or method on `subject`. Any arm pattern using a leading-dot receiver must evaluate to `bool` and acts as a predicate test.
 
+### Lambdas and Function Types
+
+Function types use arrow syntax `(ParamTypes...) -> ReturnType`. Lambdas support type inference, lexical variable capture, single-expression bodies, multi-statement blocks with `yield`, and Kotlin-style trailing lambda call syntax:
+
+```kobel
+// Explicit function type parameter
+fn apply(x: i32, f: (i32) -> i32): i32 => f(x);
+
+// Single-expression lambda (no `yield` required; works with `when` and nested lambdas)
+val doubled = apply(5) { x -> x * 2 };
+val positive = list.filter { item -> item > 0 };
+
+// Multi-statement block lambda with `yield` and trailing-call arguments
+val total = list.fold(0) { acc, item ->
+    val next = acc + item;
+    yield next;
+};
+
+// Zero-parameter and explicitly typed lambdas
+val factor = 10;
+val scaled: (i32) -> i32 = { n: i32 -> n * factor };
+val constant: () -> i32 = { -> 42 };
+```
+
+- **Single-expression lambdas:** When the body is a single expression (e.g., `x + 1`, `when (...) { ... }`, or a nested call/lambda), it is implicitly yielded as the lambda's value.
+- **Multi-statement lambdas:** Multi-statement bodies use `yield expr;` to return a value (or omit `yield` for `none`-returning lambdas).
+- **Trailing lambdas:** When a call's last argument is a lambda, it may be placed outside `(...)` (or omit `()` when it is the only argument).
+
 ### Statements and Increment
 
 ```kobel
@@ -531,6 +559,5 @@ pub fn main(): i32 {
 The following features are designed for future language versions:
 
 - **Error Union Types & Faults:** A planned error handling model with `fault` definitions and recovery operators (`!:`) to replace plain status returns.
-- **Lambdas and Closures:** Inline anonymous functions and closures with variable capture.
 - **Freestanding Target:** Direct syscall / no-libc compilation mode.
 - **Concurrency:** Structured concurrency and lightweight threading abstractions.

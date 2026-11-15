@@ -158,9 +158,7 @@ impl TypeResolver {
 				yield self.arena.fn_type(p_types, ret_ty);
 			}
 
-			is VariadicType as var_ast -> {
-				yield self.resolve_ast_type(var_ast.element_type);
-			}
+			is VariadicType as var_ast -> self.resolve_ast_type(var_ast.element_type);
 
 			else -> self.prims().t_none();
 		};

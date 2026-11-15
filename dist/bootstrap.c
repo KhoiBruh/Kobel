@@ -3023,6 +3023,7 @@ void compiler__codegen__CCodeGen_gen_block_stmt(compiler__codegen__CCodeGen* sel
 void compiler__codegen__CCodeGen_gen_break_stmt(compiler__codegen__CCodeGen* self);
 void compiler__codegen__CCodeGen_gen_continue_stmt(compiler__codegen__CCodeGen* self);
 void compiler__codegen__CCodeGen_gen_var_decl_stmt(compiler__codegen__CCodeGen* self, compiler__ast__NodeData__VarDeclStmt* vd);
+void compiler__codegen__CCodeGen_gen_elvis_chain(compiler__codegen__CCodeGen* self, kobel_str decl_lhs, kobel_str target_lhs, compiler__ast__AstNode* val_expr, bool is_str_initial);
 void compiler__codegen__CCodeGen_gen_var_elvis_init(compiler__codegen__CCodeGen* self, compiler__ast__NodeData__VarDeclStmt* vd, compiler__ast__AstNode* init_e, kobel_str ty_str);
 void compiler__codegen__CCodeGen_gen_destruct_decl_stmt(compiler__codegen__CCodeGen* self, compiler__ast__AstNode* node, compiler__ast__NodeData__DestructDeclStmt* ds);
 std__collections__List_compiler__codegen__ConditionAlias compiler__codegen__CCodeGen_collect_condition_aliases(compiler__codegen__CCodeGen* self, compiler__ast__AstNode* expr);
@@ -3074,6 +3075,7 @@ bool fmt__is_inline_stmt(compiler__ast__AstNode* node);
 kobel_str fmt__op_to_str(compiler__lexer__TokenType op);
 fmt__Formatter fmt__Formatter_init(fmt__FormatOptions options, fmt__CommentTable comments, kobel_str source);
 kobel_str fmt__Formatter_to_str(fmt__Formatter* self);
+kobel_str fmt__Formatter_render_expr(fmt__Formatter* self, compiler__ast__AstNode* node);
 size_t fmt__Formatter_measure_expr(fmt__Formatter* self, compiler__ast__AstNode* node);
 size_t fmt__Formatter_measure_param(fmt__Formatter* self, compiler__ast__Param p);
 void fmt__Formatter_format_param(fmt__Formatter* self, compiler__ast__Param p);
@@ -26042,28 +26044,25 @@ std__string__StringBuilder_plus_assign_2(&self->out, vd->name);
 std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
 }
 
-void compiler__codegen__CCodeGen_gen_var_elvis_init(compiler__codegen__CCodeGen* self, compiler__ast__NodeData__VarDeclStmt* vd, compiler__ast__AstNode* init_e, kobel_str ty_str) {
-compiler__ast__AstNode* unwrapped_init = compiler__codegen__unwrap_group_expr(init_e);
+void compiler__codegen__CCodeGen_gen_elvis_chain(compiler__codegen__CCodeGen* self, kobel_str decl_lhs, kobel_str target_lhs, compiler__ast__AstNode* val_expr, bool is_str_initial) {
+compiler__ast__AstNode* unwrapped_val = compiler__codegen__unwrap_group_expr(val_expr);
 {
 compiler__ast__NodeData__BinaryExpr* eb = NULL;
-if (unwrapped_init != NULL && unwrapped_init != NULL && unwrapped_init->data.tag == compiler__ast__NodeData__BinaryExpr__TAG && (eb = (compiler__ast__NodeData__BinaryExpr*)(&unwrapped_init->data.u.BinaryExpr), 1) && eb->op == 38) {
+if (unwrapped_val != NULL && unwrapped_val != NULL && unwrapped_val->data.tag == compiler__ast__NodeData__BinaryExpr__TAG && (eb = (compiler__ast__NodeData__BinaryExpr*)(&unwrapped_val->data.u.BinaryExpr), 1) && eb->op == 38) {
 compiler__ast__AstNode* unwrapped_l = compiler__codegen__unwrap_group_expr(eb->left);
 {
 compiler__ast__NodeData__MemberExpr* mem = NULL;
 if (unwrapped_l != NULL && unwrapped_l != NULL && unwrapped_l->data.tag == compiler__ast__NodeData__MemberExpr__TAG && (mem = (compiler__ast__NodeData__MemberExpr*)(&unwrapped_l->data.u.MemberExpr), 1) && mem->is_safe && !compiler__codegen__CCodeGen_is_pointer_value(self, unwrapped_l) && !compiler__codegen__CCodeGen_is_str_value(self, unwrapped_l)) {
 compiler__ast__AstNode* unwrapped_r = compiler__codegen__unwrap_group_expr(eb->right);
 bool is_jump = unwrapped_r != NULL && compiler__codegen__is_jump_or_block(unwrapped_r);
-kobel_str obj_s = compiler__codegen__CCodeGen_gen_expr(self, mem->object);
-kobel_str obj_wrap = compiler__codegen__expr_needs_parens_for_member(mem->object) ? kobel_concat(3, KOBEL_STR("("), obj_s, KOBEL_STR(")")) : obj_s;
+kobel_str obj_wrap = compiler__codegen__CCodeGen_gen_expr_prec(self, mem->object, compiler__codegen__PREC_POSTFIX);
 if (is_jump) {
 std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("if ("));
 std__string__StringBuilder_plus_assign_2(&self->out, obj_wrap);
 std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" == NULL) {\n"));
 compiler__codegen__CCodeGen_gen_statement(self, unwrapped_r);
 std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("}\n"));
-std__string__StringBuilder_plus_assign_2(&self->out, ty_str);
-std__string__StringBuilder_plus_assign_2_2(&self->out, ' ');
-std__string__StringBuilder_plus_assign_2(&self->out, vd->name);
+std__string__StringBuilder_plus_assign_2(&self->out, decl_lhs);
 std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" = "));
 std__string__StringBuilder_plus_assign_2(&self->out, obj_wrap);
 std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("->"));
@@ -26072,9 +26071,7 @@ std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
 return;
 }
 kobel_str r_s = compiler__codegen__CCodeGen_gen_expr(self, eb->right);
-std__string__StringBuilder_plus_assign_2(&self->out, ty_str);
-std__string__StringBuilder_plus_assign_2_2(&self->out, ' ');
-std__string__StringBuilder_plus_assign_2(&self->out, vd->name);
+std__string__StringBuilder_plus_assign_2(&self->out, decl_lhs);
 std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" = "));
 std__string__StringBuilder_plus_assign_2(&self->out, obj_wrap);
 std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" != NULL ? "));
@@ -26089,89 +26086,66 @@ return;
 }
 }
 }
-bool is_str_var = kobel_streq(ty_str, KOBEL_STR("kobel_str"));
+bool is_str_tgt = is_str_initial;
 {
 compiler__ast__NodeData__BinaryExpr* eb2 = NULL;
-if (unwrapped_init != NULL && unwrapped_init->data.tag == compiler__ast__NodeData__BinaryExpr__TAG && (eb2 = (compiler__ast__NodeData__BinaryExpr*)(&unwrapped_init->data.u.BinaryExpr), 1)) {
-if (compiler__codegen__CCodeGen_is_str_value(self, eb2->left)) {
-is_str_var = true;
+if (unwrapped_val != NULL && unwrapped_val->data.tag == compiler__ast__NodeData__BinaryExpr__TAG && (eb2 = (compiler__ast__NodeData__BinaryExpr*)(&unwrapped_val->data.u.BinaryExpr), 1) && compiler__codegen__CCodeGen_is_str_value(self, eb2->left)) {
+is_str_tgt = true;
 }
 }
-}
-kobel_str null_chk = is_str_var ? KOBEL_STR(".data == NULL") : KOBEL_STR(" == NULL");
-compiler__ast__AstNode* cur = init_e;
+kobel_str null_chk = is_str_tgt ? KOBEL_STR(".data == NULL") : KOBEL_STR(" == NULL");
+compiler__ast__AstNode* cur = val_expr;
 bool first = true;
 while (cur != NULL) {
-while (cur != NULL) {
-{
-compiler__ast__NodeData__GroupExpr* g = NULL;
-if (cur != NULL && cur->data.tag == compiler__ast__NodeData__GroupExpr__TAG && (g = (compiler__ast__NodeData__GroupExpr*)(&cur->data.u.GroupExpr), 1)) {
-cur = g->expr;
-} else {
-break;
-}
-}
-}
+cur = compiler__codegen__unwrap_group_expr(cur);
 if (cur == NULL) {
 break;
 }
 {
 compiler__ast__NodeData__BinaryExpr* b = NULL;
-if (cur != NULL && cur->data.tag == compiler__ast__NodeData__BinaryExpr__TAG && (b = (compiler__ast__NodeData__BinaryExpr*)(&cur->data.u.BinaryExpr), 1)) {
-if (b->op == 38) {
+if (cur != NULL && cur->data.tag == compiler__ast__NodeData__BinaryExpr__TAG && (b = (compiler__ast__NodeData__BinaryExpr*)(&cur->data.u.BinaryExpr), 1) && b->op == 38) {
 if (first) {
-std__string__StringBuilder_plus_assign_2(&self->out, ty_str);
-std__string__StringBuilder_plus_assign_2_2(&self->out, ' ');
-std__string__StringBuilder_plus_assign_2(&self->out, vd->name);
+std__string__StringBuilder_plus_assign_2(&self->out, decl_lhs);
 std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" = "));
 std__string__StringBuilder_plus_assign_2(&self->out, compiler__codegen__CCodeGen_gen_expr(self, b->left));
 std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
 first = false;
 } else {
 std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("if ("));
-std__string__StringBuilder_plus_assign_2(&self->out, vd->name);
+std__string__StringBuilder_plus_assign_2(&self->out, target_lhs);
 std__string__StringBuilder_plus_assign_2(&self->out, null_chk);
 std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(") "));
-std__string__StringBuilder_plus_assign_2(&self->out, vd->name);
+std__string__StringBuilder_plus_assign_2(&self->out, target_lhs);
 std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" = "));
 std__string__StringBuilder_plus_assign_2(&self->out, compiler__codegen__CCodeGen_gen_expr(self, b->left));
 std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
 }
 cur = b->right;
-} else {
+} else if (compiler__codegen__is_jump_or_block(cur)) {
 std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("if ("));
-std__string__StringBuilder_plus_assign_2(&self->out, vd->name);
-std__string__StringBuilder_plus_assign_2(&self->out, null_chk);
-std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(") "));
-std__string__StringBuilder_plus_assign_2(&self->out, vd->name);
-std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" = "));
-std__string__StringBuilder_plus_assign_2(&self->out, compiler__codegen__CCodeGen_gen_expr(self, cur));
-std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
-break;
-}
-} else {
-bool is_jump = compiler__codegen__is_jump_or_block(cur);
-if (is_jump) {
-std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("if ("));
-std__string__StringBuilder_plus_assign_2(&self->out, vd->name);
+std__string__StringBuilder_plus_assign_2(&self->out, target_lhs);
 std__string__StringBuilder_plus_assign_2(&self->out, null_chk);
 std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(") {\n"));
 compiler__codegen__CCodeGen_gen_statement(self, cur);
 std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("}\n"));
+break;
 } else {
 std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("if ("));
-std__string__StringBuilder_plus_assign_2(&self->out, vd->name);
+std__string__StringBuilder_plus_assign_2(&self->out, target_lhs);
 std__string__StringBuilder_plus_assign_2(&self->out, null_chk);
 std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(") "));
-std__string__StringBuilder_plus_assign_2(&self->out, vd->name);
+std__string__StringBuilder_plus_assign_2(&self->out, target_lhs);
 std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" = "));
 std__string__StringBuilder_plus_assign_2(&self->out, compiler__codegen__CCodeGen_gen_expr(self, cur));
 std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
-}
 break;
 }
 }
 }
+}
+
+void compiler__codegen__CCodeGen_gen_var_elvis_init(compiler__codegen__CCodeGen* self, compiler__ast__NodeData__VarDeclStmt* vd, compiler__ast__AstNode* init_e, kobel_str ty_str) {
+compiler__codegen__CCodeGen_gen_elvis_chain(self, kobel_concat(3, ty_str, KOBEL_STR(" "), vd->name), vd->name, init_e, kobel_streq(ty_str, KOBEL_STR("kobel_str")));
 }
 
 void compiler__codegen__CCodeGen_gen_destruct_decl_stmt(compiler__codegen__CCodeGen* self, compiler__ast__AstNode* node, compiler__ast__NodeData__DestructDeclStmt* ds) {
@@ -26795,129 +26769,7 @@ std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
 
 void compiler__codegen__CCodeGen_gen_assign_elvis_stmt(compiler__codegen__CCodeGen* self, compiler__ast__NodeData__AssignExpr* asg, compiler__ast__AstNode* asg_val) {
 kobel_str tgt = compiler__codegen__CCodeGen_gen_expr(self, asg->target);
-compiler__ast__AstNode* unwrapped_val = compiler__codegen__unwrap_group_expr(asg_val);
-{
-compiler__ast__NodeData__BinaryExpr* eb = NULL;
-if (unwrapped_val != NULL && unwrapped_val != NULL && unwrapped_val->data.tag == compiler__ast__NodeData__BinaryExpr__TAG && (eb = (compiler__ast__NodeData__BinaryExpr*)(&unwrapped_val->data.u.BinaryExpr), 1) && eb->op == 38) {
-compiler__ast__AstNode* unwrapped_l = compiler__codegen__unwrap_group_expr(eb->left);
-{
-compiler__ast__NodeData__MemberExpr* mem = NULL;
-if (unwrapped_l != NULL && unwrapped_l != NULL && unwrapped_l->data.tag == compiler__ast__NodeData__MemberExpr__TAG && (mem = (compiler__ast__NodeData__MemberExpr*)(&unwrapped_l->data.u.MemberExpr), 1) && mem->is_safe && !compiler__codegen__CCodeGen_is_pointer_value(self, unwrapped_l) && !compiler__codegen__CCodeGen_is_str_value(self, unwrapped_l)) {
-compiler__ast__AstNode* unwrapped_r = compiler__codegen__unwrap_group_expr(eb->right);
-bool is_jump = unwrapped_r != NULL && compiler__codegen__is_jump_or_block(unwrapped_r);
-kobel_str obj_s = compiler__codegen__CCodeGen_gen_expr(self, mem->object);
-kobel_str obj_wrap = compiler__codegen__expr_needs_parens_for_member(mem->object) ? kobel_concat(3, KOBEL_STR("("), obj_s, KOBEL_STR(")")) : obj_s;
-if (is_jump) {
-std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("if ("));
-std__string__StringBuilder_plus_assign_2(&self->out, obj_wrap);
-std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" == NULL) {\n"));
-compiler__codegen__CCodeGen_gen_statement(self, unwrapped_r);
-std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("}\n"));
-std__string__StringBuilder_plus_assign_2(&self->out, tgt);
-std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" = "));
-std__string__StringBuilder_plus_assign_2(&self->out, obj_wrap);
-std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("->"));
-std__string__StringBuilder_plus_assign_2(&self->out, mem->member);
-std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
-return;
-}
-kobel_str r_s = compiler__codegen__CCodeGen_gen_expr(self, eb->right);
-std__string__StringBuilder_plus_assign_2(&self->out, tgt);
-std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" = "));
-std__string__StringBuilder_plus_assign_2(&self->out, obj_wrap);
-std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" != NULL ? "));
-std__string__StringBuilder_plus_assign_2(&self->out, obj_wrap);
-std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("->"));
-std__string__StringBuilder_plus_assign_2(&self->out, mem->member);
-std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" : "));
-std__string__StringBuilder_plus_assign_2(&self->out, r_s);
-std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
-return;
-}
-}
-}
-}
-bool is_str_tgt = compiler__codegen__CCodeGen_is_str_value(self, asg->target);
-{
-compiler__ast__NodeData__BinaryExpr* eb2 = NULL;
-if (unwrapped_val != NULL && unwrapped_val->data.tag == compiler__ast__NodeData__BinaryExpr__TAG && (eb2 = (compiler__ast__NodeData__BinaryExpr*)(&unwrapped_val->data.u.BinaryExpr), 1)) {
-if (compiler__codegen__CCodeGen_is_str_value(self, eb2->left)) {
-is_str_tgt = true;
-}
-}
-}
-kobel_str null_chk = is_str_tgt ? KOBEL_STR(".data == NULL") : KOBEL_STR(" == NULL");
-compiler__ast__AstNode* cur = asg_val;
-bool first = true;
-while (cur != NULL) {
-while (cur != NULL) {
-{
-compiler__ast__NodeData__GroupExpr* g = NULL;
-if (cur != NULL && cur->data.tag == compiler__ast__NodeData__GroupExpr__TAG && (g = (compiler__ast__NodeData__GroupExpr*)(&cur->data.u.GroupExpr), 1)) {
-cur = g->expr;
-} else {
-break;
-}
-}
-}
-if (cur == NULL) {
-break;
-}
-{
-compiler__ast__NodeData__BinaryExpr* b = NULL;
-if (cur != NULL && cur->data.tag == compiler__ast__NodeData__BinaryExpr__TAG && (b = (compiler__ast__NodeData__BinaryExpr*)(&cur->data.u.BinaryExpr), 1)) {
-if (b->op == 38) {
-if (first) {
-std__string__StringBuilder_plus_assign_2(&self->out, tgt);
-std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" = "));
-std__string__StringBuilder_plus_assign_2(&self->out, compiler__codegen__CCodeGen_gen_expr(self, b->left));
-std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
-first = false;
-} else {
-std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("if ("));
-std__string__StringBuilder_plus_assign_2(&self->out, tgt);
-std__string__StringBuilder_plus_assign_2(&self->out, null_chk);
-std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(") "));
-std__string__StringBuilder_plus_assign_2(&self->out, tgt);
-std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" = "));
-std__string__StringBuilder_plus_assign_2(&self->out, compiler__codegen__CCodeGen_gen_expr(self, b->left));
-std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
-}
-cur = b->right;
-} else {
-std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("if ("));
-std__string__StringBuilder_plus_assign_2(&self->out, tgt);
-std__string__StringBuilder_plus_assign_2(&self->out, null_chk);
-std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(") "));
-std__string__StringBuilder_plus_assign_2(&self->out, tgt);
-std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" = "));
-std__string__StringBuilder_plus_assign_2(&self->out, compiler__codegen__CCodeGen_gen_expr(self, cur));
-std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
-break;
-}
-} else {
-bool is_jump = compiler__codegen__is_jump_or_block(cur);
-if (is_jump) {
-std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("if ("));
-std__string__StringBuilder_plus_assign_2(&self->out, tgt);
-std__string__StringBuilder_plus_assign_2(&self->out, null_chk);
-std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(") {\n"));
-compiler__codegen__CCodeGen_gen_statement(self, cur);
-std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("}\n"));
-} else {
-std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("if ("));
-std__string__StringBuilder_plus_assign_2(&self->out, tgt);
-std__string__StringBuilder_plus_assign_2(&self->out, null_chk);
-std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(") "));
-std__string__StringBuilder_plus_assign_2(&self->out, tgt);
-std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" = "));
-std__string__StringBuilder_plus_assign_2(&self->out, compiler__codegen__CCodeGen_gen_expr(self, cur));
-std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(";\n"));
-}
-break;
-}
-}
-}
+compiler__codegen__CCodeGen_gen_elvis_chain(self, tgt, tgt, asg_val, compiler__codegen__CCodeGen_is_str_value(self, asg->target));
 }
 
 void compiler__codegen__CCodeGen_gen_elvis_jump_stmt(compiler__codegen__CCodeGen* self, compiler__ast__NodeData__BinaryExpr* bin) {
@@ -26925,8 +26777,7 @@ compiler__ast__AstNode* unwrapped_l = compiler__codegen__unwrap_group_expr(bin->
 {
 compiler__ast__NodeData__MemberExpr* mem = NULL;
 if (unwrapped_l != NULL && unwrapped_l != NULL && unwrapped_l->data.tag == compiler__ast__NodeData__MemberExpr__TAG && (mem = (compiler__ast__NodeData__MemberExpr*)(&unwrapped_l->data.u.MemberExpr), 1) && mem->is_safe && !compiler__codegen__CCodeGen_is_pointer_value(self, unwrapped_l) && !compiler__codegen__CCodeGen_is_str_value(self, unwrapped_l)) {
-kobel_str obj_s = compiler__codegen__CCodeGen_gen_expr(self, mem->object);
-kobel_str obj_wrap = compiler__codegen__expr_needs_parens_for_member(mem->object) ? kobel_concat(3, KOBEL_STR("("), obj_s, KOBEL_STR(")")) : obj_s;
+kobel_str obj_wrap = compiler__codegen__CCodeGen_gen_expr_prec(self, mem->object, compiler__codegen__PREC_POSTFIX);
 std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("if ("));
 std__string__StringBuilder_plus_assign_2(&self->out, obj_wrap);
 std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" == NULL) {\n"));
@@ -26935,14 +26786,12 @@ std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("}\n"));
 return;
 }
 }
-kobel_str l_s = compiler__codegen__CCodeGen_gen_expr(self, bin->left);
 std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("if ("));
 if (compiler__codegen__CCodeGen_is_str_value(self, bin->left)) {
-kobel_str l_wrap = compiler__codegen__expr_needs_parens_for_member(bin->left) ? kobel_concat(3, KOBEL_STR("("), l_s, KOBEL_STR(")")) : l_s;
-std__string__StringBuilder_plus_assign_2(&self->out, l_wrap);
+std__string__StringBuilder_plus_assign_2(&self->out, compiler__codegen__CCodeGen_gen_expr_prec(self, bin->left, compiler__codegen__PREC_POSTFIX));
 std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(".data == NULL) {\n"));
 } else {
-std__string__StringBuilder_plus_assign_2(&self->out, l_s);
+std__string__StringBuilder_plus_assign_2(&self->out, compiler__codegen__CCodeGen_gen_expr(self, bin->left));
 std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR(" == NULL) {\n"));
 }
 compiler__codegen__CCodeGen_gen_statement(self, bin->right);
@@ -27873,10 +27722,14 @@ kobel_str fmt__Formatter_to_str(fmt__Formatter* self) {
     return fmt__FormatBuffer_to_str(&self->buf);
 }
 
-size_t fmt__Formatter_measure_expr(fmt__Formatter* self, compiler__ast__AstNode* node) {
-fmt__Formatter scratch = fmt__Formatter_init(self->options, (fmt__CommentTable){ std__collections__List_fmt__Comment_init(NULL, 0), 0 }, KOBEL_STR(""));
+kobel_str fmt__Formatter_render_expr(fmt__Formatter* self, compiler__ast__AstNode* node) {
+fmt__Formatter scratch = fmt__Formatter_init(self->options, (fmt__CommentTable){ std__collections__List_fmt__Comment_init(NULL, 0), 0 }, self->source);
 fmt__Formatter_format_expr(&scratch, node);
-return fmt__FormatBuffer_to_str(&scratch.buf).len;
+return fmt__FormatBuffer_to_str(&scratch.buf);
+}
+
+size_t fmt__Formatter_measure_expr(fmt__Formatter* self, compiler__ast__AstNode* node) {
+    return fmt__Formatter_render_expr(self, node).len;
 }
 
 size_t fmt__Formatter_measure_param(fmt__Formatter* self, compiler__ast__Param p) {
@@ -28335,9 +28188,20 @@ fmt__FormatBuffer_dedent(&self->buf);
 fmt__FormatBuffer_newline(&self->buf);
 fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR("}"));
 } else {
+kobel_str rendered = fmt__Formatter_render_expr(self, lam->body);
+bool wraps = str_index_of(rendered, KOBEL_STR("\n")) >= 0 || self->buf.current_col + 1 + rendered.len + 2 > self->options.max_width;
+if (wraps) {
+fmt__FormatBuffer_indent(&self->buf);
+fmt__FormatBuffer_newline(&self->buf);
+fmt__Formatter_format_expr(self, lam->body);
+fmt__FormatBuffer_dedent(&self->buf);
+fmt__FormatBuffer_newline(&self->buf);
+fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR("}"));
+} else {
 fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR(" "));
 fmt__Formatter_format_expr(self, lam->body);
 fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR(" }"));
+}
 }
 }
 } else if (node != NULL && node->data.tag == compiler__ast__NodeData__MemberExpr__TAG) {

@@ -147,15 +147,15 @@ impl CCodeGen {
 		self.out += ";\n";
 	}
 
-	// Emit a `a ?: b ?: c` initializer chain as a run of NULL checks.
-	fn gen_var_elvis_init(
-		&self, vd: *VarDeclStmt, init_e: *AstNode,
-		ty_str: str
+	// Emit a `lhs = a ?: b ?: c` initializer or assignment chain as NULL checks.
+	fn gen_elvis_chain(
+		&self, decl_lhs: str, target_lhs: str,
+		val_expr: *AstNode, is_str_initial: bool
 	) {
-		val unwrapped_init = unwrap_group_expr(init_e);
+		val unwrapped_val = unwrap_group_expr(val_expr);
 		if (
-			unwrapped_init != null &&
-			unwrapped_init is BinaryExpr as eb &&
+			unwrapped_val != null &&
+			unwrapped_val is BinaryExpr as eb &&
 			eb.op == TokenType.QUESTION_COLON
 		) {
 			val unwrapped_l = unwrap_group_expr(eb.left);
@@ -168,17 +168,14 @@ impl CCodeGen {
 			) {
 				val unwrapped_r = unwrap_group_expr(eb.right);
 				val is_jump = unwrapped_r != null && is_jump_or_block(unwrapped_r);
-				val obj_s = self.gen_expr(mem.object);
-				val obj_wrap = if (expr_needs_parens_for_member(mem.object)) "(${obj_s})" else obj_s;
+				val obj_wrap = self.gen_expr_prec(mem.object, PREC_POSTFIX);
 				if (is_jump) {
 					self.out += "if (";
 					self.out += obj_wrap;
 					self.out += " == NULL) {\n";
 					self.gen_statement(unwrapped_r!);
 					self.out += "}\n";
-					self.out += ty_str;
-					self.out += ' ';
-					self.out += vd.name;
+					self.out += decl_lhs;
 					self.out += " = ";
 					self.out += obj_wrap;
 					self.out += "->";
@@ -187,9 +184,7 @@ impl CCodeGen {
 					return;
 				}
 				val r_s = self.gen_expr(eb.right);
-				self.out += ty_str;
-				self.out += ' ';
-				self.out += vd.name;
+				self.out += decl_lhs;
 				self.out += " = ";
 				self.out += obj_wrap;
 				self.out += " != NULL ? ";
@@ -203,76 +198,60 @@ impl CCodeGen {
 			}
 		}
 
-		var is_str_var = ty_str == "kobel_str";
-		if (unwrapped_init is BinaryExpr as eb2) {
-			if (self.is_str_value(eb2.left)) {
-				is_str_var = true;
-			}
+		var is_str_tgt = is_str_initial;
+		if (unwrapped_val is BinaryExpr as eb2 && self.is_str_value(eb2.left)) {
+			is_str_tgt = true;
 		}
-		val null_chk = if (is_str_var) ".data == NULL" else " == NULL";
+		val null_chk = if (is_str_tgt) ".data == NULL" else " == NULL";
 
-		var cur = init_e;
+		var cur: ?*AstNode = val_expr;
 		var first = true;
 		while (cur != null) {
-			while (cur != null) {
-				if (cur is GroupExpr as g) cur = g.expr;
-				else break;
-			}
+			cur = unwrap_group_expr(cur);
 			if (cur == null) break;
-			if (cur is BinaryExpr as b) {
-				if (b.op == TokenType.QUESTION_COLON) {
-					if (first) {
-						self.out += ty_str;
-						self.out += ' ';
-						self.out += vd.name;
-						self.out += " = ";
-						self.out += self.gen_expr(b.left);
-						self.out += ";\n";
-						first = false;
-					} else {
-						self.out += "if (";
-						self.out += vd.name;
-						self.out += null_chk;
-						self.out += ") ";
-						self.out += vd.name;
-						self.out += " = ";
-						self.out += self.gen_expr(b.left);
-						self.out += ";\n";
-					}
-					cur = b.right;
+			if (cur is BinaryExpr as b && b.op == TokenType.QUESTION_COLON) {
+				if (first) {
+					self.out += decl_lhs;
+					self.out += " = ";
+					self.out += self.gen_expr(b.left);
+					self.out += ";\n";
+					first = false;
 				} else {
 					self.out += "if (";
-					self.out += vd.name;
+					self.out += target_lhs;
 					self.out += null_chk;
 					self.out += ") ";
-					self.out += vd.name;
+					self.out += target_lhs;
 					self.out += " = ";
-					self.out += self.gen_expr(cur);
+					self.out += self.gen_expr(b.left);
 					self.out += ";\n";
-					break;
 				}
+				cur = b.right;
+			} else if (is_jump_or_block(cur)) {
+				self.out += "if (";
+				self.out += target_lhs;
+				self.out += null_chk;
+				self.out += ") {\n";
+				self.gen_statement(cur);
+				self.out += "}\n";
+				break;
 			} else {
-				val is_jump = is_jump_or_block(cur);
-				if (is_jump) {
-					self.out += "if (";
-					self.out += vd.name;
-					self.out += null_chk;
-					self.out += ") {\n";
-					self.gen_statement(cur);
-					self.out += "}\n";
-				} else {
-					self.out += "if (";
-					self.out += vd.name;
-					self.out += null_chk;
-					self.out += ") ";
-					self.out += vd.name;
-					self.out += " = ";
-					self.out += self.gen_expr(cur);
-					self.out += ";\n";
-				}
+				self.out += "if (";
+				self.out += target_lhs;
+				self.out += null_chk;
+				self.out += ") ";
+				self.out += target_lhs;
+				self.out += " = ";
+				self.out += self.gen_expr(cur);
+				self.out += ";\n";
 				break;
 			}
 		}
+	}
+
+	// Emit a `a ?: b ?: c` initializer chain as a run of NULL checks.
+	fn gen_var_elvis_init(&self, vd: *VarDeclStmt, init_e: *AstNode, ty_str: str) {
+		self.gen_elvis_chain("${ty_str} ${vd.name}", vd.name, init_e, ty_str == "kobel_str");
 	}
 
 	fn gen_destruct_decl_stmt(&self, node: *AstNode, ds: *DestructDeclStmt) {
@@ -672,121 +651,7 @@ impl CCodeGen {
 	// `x = a ?: b ?: c` assigns the first non-NULL value through a chain of NULL checks.
 	fn gen_assign_elvis_stmt(&self, asg: *AssignExpr, asg_val: *AstNode) {
 		val tgt = self.gen_expr(asg.target);
-		val unwrapped_val = unwrap_group_expr(asg_val);
-		if (
-			unwrapped_val != null &&
-			unwrapped_val is BinaryExpr as eb &&
-			eb.op == TokenType.QUESTION_COLON
-		) {
-			val unwrapped_l = unwrap_group_expr(eb.left);
-			if (
-				unwrapped_l != null &&
-				unwrapped_l is MemberExpr as mem &&
-				mem.is_safe &&
-				!self.is_pointer_value(unwrapped_l) &&
-				!self.is_str_value(unwrapped_l)
-			) {
-				val unwrapped_r = unwrap_group_expr(eb.right);
-				val is_jump = unwrapped_r != null && is_jump_or_block(unwrapped_r);
-				val obj_s = self.gen_expr(mem.object);
-				val obj_wrap = if (expr_needs_parens_for_member(mem.object)) "(${obj_s})" else obj_s;
-				if (is_jump) {
-					self.out += "if (";
-					self.out += obj_wrap;
-					self.out += " == NULL) {\n";
-					self.gen_statement(unwrapped_r!);
-					self.out += "}\n";
-					self.out += tgt;
-					self.out += " = ";
-					self.out += obj_wrap;
-					self.out += "->";
-					self.out += mem.member;
-					self.out += ";\n";
-					return;
-				}
-				val r_s = self.gen_expr(eb.right);
-				self.out += tgt;
-				self.out += " = ";
-				self.out += obj_wrap;
-				self.out += " != NULL ? ";
-				self.out += obj_wrap;
-				self.out += "->";
-				self.out += mem.member;
-				self.out += " : ";
-				self.out += r_s;
-				self.out += ";\n";
-				return;
-			}
-		}
-
-		var is_str_tgt = self.is_str_value(asg.target);
-		if (unwrapped_val is BinaryExpr as eb2) {
-			if (self.is_str_value(eb2.left)) {
-				is_str_tgt = true;
-			}
-		}
-		val null_chk = if (is_str_tgt) ".data == NULL" else " == NULL";
-
-		var cur = asg_val;
-		var first = true;
-		while (cur != null) {
-			while (cur != null) {
-				if (cur is GroupExpr as g) cur = g.expr;
-				else break;
-			}
-			if (cur == null) break;
-			if (cur is BinaryExpr as b) {
-				if (b.op == TokenType.QUESTION_COLON) {
-					if (first) {
-						self.out += tgt;
-						self.out += " = ";
-						self.out += self.gen_expr(b.left);
-						self.out += ";\n";
-						first = false;
-					} else {
-						self.out += "if (";
-						self.out += tgt;
-						self.out += null_chk;
-						self.out += ") ";
-						self.out += tgt;
-						self.out += " = ";
-						self.out += self.gen_expr(b.left);
-						self.out += ";\n";
-					}
-					cur = b.right;
-				} else {
-					self.out += "if (";
-					self.out += tgt;
-					self.out += null_chk;
-					self.out += ") ";
-					self.out += tgt;
-					self.out += " = ";
-					self.out += self.gen_expr(cur);
-					self.out += ";\n";
-					break;
-				}
-			} else {
-				val is_jump = is_jump_or_block(cur);
-				if (is_jump) {
-					self.out += "if (";
-					self.out += tgt;
-					self.out += null_chk;
-					self.out += ") {\n";
-					self.gen_statement(cur);
-					self.out += "}\n";
-				} else {
-					self.out += "if (";
-					self.out += tgt;
-					self.out += null_chk;
-					self.out += ") ";
-					self.out += tgt;
-					self.out += " = ";
-					self.out += self.gen_expr(cur);
-					self.out += ";\n";
-				}
-				break;
-			}
-		}
+		self.gen_elvis_chain(tgt, tgt, asg_val, self.is_str_value(asg.target));
 	}
 
 	// A `cond ?: jump` statement emits a NULL guard that runs the jump statement.
@@ -799,8 +664,7 @@ impl CCodeGen {
 			!self.is_pointer_value(unwrapped_l) &&
 			!self.is_str_value(unwrapped_l)
 		) {
-			val obj_s = self.gen_expr(mem.object);
-			val obj_wrap = if (expr_needs_parens_for_member(mem.object)) "(${obj_s})" else obj_s;
+			val obj_wrap = self.gen_expr_prec(mem.object, PREC_POSTFIX);
 			self.out += "if (";
 			self.out += obj_wrap;
 			self.out += " == NULL) {\n";
@@ -808,14 +672,12 @@ impl CCodeGen {
 			self.out += "}\n";
 			return;
 		}
-		val l_s = self.gen_expr(bin.left);
 		self.out += "if (";
 		if (self.is_str_value(bin.left)) {
-			val l_wrap = if (expr_needs_parens_for_member(bin.left)) "(${l_s})" else l_s;
-			self.out += l_wrap;
+			self.out += self.gen_expr_prec(bin.left, PREC_POSTFIX);
 			self.out += ".data == NULL) {\n";
 		} else {
-			self.out += l_s;
+			self.out += self.gen_expr(bin.left);
 			self.out += " == NULL) {\n";
 		}
 		self.gen_statement(bin.right);
