@@ -43,7 +43,7 @@ pub struct Symbol {
 	pub public: bool,
 	pub line: usz,
 	pub col: usz,
-	pub ast_node: ?*AstNode = null,
+	pub ast_node: ?&AstNode = null,
 	pub orig_type: ?*Type = null,
 	pub mutated: bool = false,
 	pub is_moved: bool = false,
@@ -69,10 +69,15 @@ impl Symbol {
 // Lexical Scope
 // ============================================================================
 
+pub struct ScopeEntry {
+	pub sym: &Symbol
+}
+
 pub struct Scope {
-	pub parent: ?*Scope = null,
+	pub parent: ?&Scope = null,
 	pub symbols: List<*Symbol> = List(),
-	pub is_fn_boundary: bool = false
+	pub is_fn_boundary: bool = false,
+	pub entries: List<ScopeEntry> = List()
 }
 
 impl Scope {
@@ -82,11 +87,19 @@ impl Scope {
 		return null;
 	}
 
+	pub fn lookup_mut(*self, name: str): ?&Symbol {
+		for (e in self.entries) if (e.sym.name == name) return e.sym;
+		return null;
+	}
+
 	pub op get(*self, name: str) => self.lookup(name);
 
 	pub op contains(*self, name: str) => self.lookup(name) != null;
 
-	pub op plus_assign(&self, sym: *Symbol) => self.symbols += sym;
+	pub op plus_assign(&self, sym: &Symbol) {
+		self.symbols += sym;
+		self.entries += ScopeEntry(sym);
+	}
 
 }
 

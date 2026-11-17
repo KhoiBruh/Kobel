@@ -150,7 +150,7 @@ fn test_hash_map(): bool {
 		val key = "key_${i}";
 		if (!(key in map)) return false;
 		val p = map[key];
-		if (p == null || *p != i as i32 * 10) return false;
+		if (p == null || *p! != i as i32 * 10) return false;
 	}
 
 	// Remove even numbered keys (0, 2, 4, ... 58 -> 30 items)
@@ -172,7 +172,7 @@ fn test_hash_map(): bool {
 		} else {
 			if (!(key in map)) return false;
 			val p = map[key];
-			if (p == null || *p != i as i32 * 10) return false;
+			if (p == null || *p! != i as i32 * 10) return false;
 		}
 	}
 
@@ -204,7 +204,7 @@ fn test_generic_hash_map(): bool {
 	if (int_map.len != 3) return false;
 	if (!(1 in int_map) || !(42 in int_map) || (99 in int_map)) return false;
 	val ans = int_map[42];
-	if (ans == null || *ans != "answer") return false;
+	if (ans == null || *ans! != "answer") return false;
 	if (int_map.get_or(1, "") != "one") return false;
 	if (int_map.get_or(99, "none") != "none") return false;
 
@@ -225,12 +225,12 @@ fn test_generic_hash_map(): bool {
 	if (pt_map.len != 2) return false;
 	if (!(p3 in pt_map)) return false;
 	val v = pt_map[p3];
-	if (v == null || *v != 100) return false;
+	if (v == null || *v! != 100) return false;
 
 	pt_map[p3] = 999;
 	if (pt_map.len != 2) return false;
 	val v2 = pt_map[p1];
-	if (v2 == null || *v2 != 999) return false;
+	if (v2 == null || *v2! != 999) return false;
 
 	if (!pt_map.remove(p1)) return false;
 	if (pt_map.len != 1) return false;

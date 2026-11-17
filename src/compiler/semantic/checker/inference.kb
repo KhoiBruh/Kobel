@@ -21,12 +21,12 @@ impl BodyChecker {
 	pub fn infer_type_args_for_fn(
 		&self,
 		fn_decl: *FnDecl,
-		call_args: List<*AstNode>,
+		call_args: List<&AstNode>,
 		is_method: bool,
 		self_ty: ?*Type = null
-	): List<*AstNode> {
+	): List<&AstNode> {
 		val type_params = fn_decl.type_params;
-		if (type_params.empty()) return List<*AstNode>();
+		if (type_params.empty()) return List<&AstNode>();
 
 		val num_tparams = type_params.len;
 		var inferred = List<*Type>();
@@ -79,10 +79,10 @@ impl BodyChecker {
 		}
 
 		for (k in 0..<num_tparams) {
-			if (inferred[k].kind == DataType.NONE) return List<*AstNode>();
+			if (inferred[k].kind == DataType.NONE) return List<&AstNode>();
 		}
 
-		var result = List<*AstNode>();
+		var result = List<&AstNode>();
 		for (k in 0..<num_tparams) {
 			result += self.arena.ast_type_from_type(inferred[k]);
 		}
@@ -91,7 +91,7 @@ impl BodyChecker {
 
 	fn resolve_type_with_partial_tparams(
 		&self,
-		node: *AstNode,
+		node: &AstNode,
 		type_params: List<GenericParam>,
 		inferred: List<*Type>,
 		self_ty: ?*Type
@@ -110,8 +110,8 @@ impl BodyChecker {
 					}
 				}
 			}
-			if (self_ty?.kind == DataType.STRUCT) {
-				val st = self_ty.as_struct();
+			if (self_ty != null && self_ty.kind == DataType.STRUCT) {
+				val st = self_ty.as_struct()!;
 				val rec = self.symtab.gen.find_record_by_cname(st.c_name);
 				if (rec != null) {
 					val tnames = rec.template.param_names();
@@ -140,10 +140,10 @@ impl BodyChecker {
 	pub fn infer_type_args_for_struct(
 		&self,
 		decl: *StructDecl,
-		call_args: List<*AstNode>
-	): List<*AstNode> {
+		call_args: List<&AstNode>
+	): List<&AstNode> {
 		val type_params = decl.type_params;
-		if (type_params.empty()) return List<*AstNode>();
+		if (type_params.empty()) return List<&AstNode>();
 
 		val num_tparams = type_params.len;
 		var inferred = List<*Type>();
@@ -163,10 +163,10 @@ impl BodyChecker {
 		}
 
 		for (k in 0..<num_tparams) {
-			if (inferred[k].kind == DataType.NONE) return List<*AstNode>();
+			if (inferred[k].kind == DataType.NONE) return List<&AstNode>();
 		}
 
-		var result = List<*AstNode>();
+		var result = List<&AstNode>();
 		for (k in 0..<num_tparams) {
 			result += self.arena.ast_type_from_type(inferred[k]);
 		}
@@ -210,19 +210,19 @@ impl BodyChecker {
 			}
 			is PointerType as pt -> {
 				if (arg_ty.kind == DataType.POINTER) {
-					self.match_type_param(pt.pointee, arg_ty.as_pointer().pointee, type_params, inferred);
+					self.match_type_param(pt.pointee, arg_ty.as_pointer()!.pointee, type_params, inferred);
 				} else if (!pt.nullable) {
 					self.match_type_param(pt.pointee, arg_ty, type_params, inferred);
 				}
 			}
 			is ArrayType as at -> {
 				if (arg_ty.kind == DataType.ARRAY) {
-					self.match_type_param(at.element_type, arg_ty.as_array().elem, type_params, inferred);
+					self.match_type_param(at.element_type, arg_ty.as_array()!.elem, type_params, inferred);
 				}
 			}
 			is FnType as ft -> {
 				if (arg_ty.kind == DataType.FN) {
-					val fn_info = arg_ty.as_fn();
+					val fn_info = arg_ty.as_fn()!;
 					if (fn_info.param_types.len == ft.param_types.len) {
 						for (j in 0..<ft.param_types.len) {
 							self.match_type_param(ft.param_types[j], fn_info.param_types[j], type_params, inferred);

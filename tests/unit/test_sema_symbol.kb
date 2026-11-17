@@ -23,10 +23,10 @@ fn test_global_scope() {
 
 	val sym = symtab.lookup("global_var");
 	assert_true(sym != null, "global_var must be found in symbol table");
-	assert_eq_str(sym.name, "global_var", "Symbol name must be 'global_var'");
-	assert_true(sym.kind == SymbolKind.VAR, "Symbol kind must be VAR");
-	assert_true(sym.public, "Symbol must be pub");
-	assert_true(sym.type_ptr.kind == DataType.I32, "Symbol type must be i32");
+	assert_eq_str(sym!.name, "global_var", "Symbol name must be 'global_var'");
+	assert_true(sym!.kind == SymbolKind.VAR, "Symbol kind must be VAR");
+	assert_true(sym!.public, "Symbol must be pub");
+	assert_true(sym!.type_ptr.kind == DataType.I32, "Symbol type must be i32");
 
 	val not_found = symtab.lookup("unknown_var");
 	assert_true(not_found == null, "Non-existent symbol must return null");
@@ -92,7 +92,7 @@ fn test_scoping_and_shadowing() {
 	// Look up 'x' before shadowing -> must see 'x: i32' from the parent
 	val outer_x = symtab.lookup("x");
 	assert_true(outer_x != null, "Parent 'x' must be visible in child scope");
-	assert_true(outer_x.type_ptr.kind == DataType.I32, "Parent 'x' must be i32");
+	assert_true(outer_x!.type_ptr.kind == DataType.I32, "Parent 'x' must be i32");
 
 	// Scope 1 does not yet have 'x'
 	val cur_x1 = symtab.lookup_current("x");
@@ -105,7 +105,7 @@ fn test_scoping_and_shadowing() {
 	// Now looking up 'x' must yield 'x: str'
 	val shadowed_x = symtab.lookup("x");
 	assert_true(shadowed_x != null, "Shadowed 'x' must be found");
-	assert_true(shadowed_x.type_ptr.kind == DataType.STR, "Shadowed 'x' must be str");
+	assert_true(shadowed_x!.type_ptr.kind == DataType.STR, "Shadowed 'x' must be str");
 
 	// Exit Scope 1 back to Scope 0
 	symtab.exit_scope();
@@ -113,7 +113,7 @@ fn test_scoping_and_shadowing() {
 	// Now looking up 'x' must return 'x: i32' again
 	val restored_x = symtab.lookup("x");
 	assert_true(restored_x != null, "Global 'x' must be restored");
-	assert_true(restored_x.type_ptr.kind == DataType.I32, "Global 'x' must be i32 again");
+	assert_true(restored_x!.type_ptr.kind == DataType.I32, "Global 'x' must be i32 again");
 
 	println("  [PASS] test_scoping_and_shadowing");
 }
@@ -160,7 +160,7 @@ fn test_symbol_table_oop() {
 
 	val s = symtab.lookup("oop_var");
 	assert_true(s != null, "symtab.lookup must find oop_var");
-	assert_eq_str(s.name, "oop_var", "Symbol name must match");
+	assert_eq_str(s!.name, "oop_var", "Symbol name must match");
 
 	// Test scope OOP lookup & operators
 	val sc = symtab.current_scope;

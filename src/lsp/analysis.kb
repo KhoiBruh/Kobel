@@ -318,7 +318,7 @@ pub fn keyword_hover(kw: str): str => when (kw) {
 	else -> "";
 };
 
-fn add_completion_item(arr: *JsonValue, label: str, kind: i64, detail: str) {
+fn add_completion_item(arr: &JsonValue, label: str, kind: i64, detail: str) {
 	val item = JsonValue.obj();
 	item["label"] = JsonValue.str(label);
 	item["kind"] = JsonValue.num(kind);
@@ -429,7 +429,7 @@ impl AnalysisResult {
 		if (loader.find_module("std.string").found) loader.ensure_module("std.string");
 		if (loader.find_module("std.range").found) loader.ensure_module("std.range");
 
-		var full_prog: ?*AstNode = null;
+		var full_prog: ?&AstNode = null;
 		val was_known = loader.is_known(doc_mod);
 		var use_in_place = was_known;
 		val pkg_files = loader.find_module_files(doc_mod);
@@ -521,12 +521,13 @@ impl AnalysisResult {
 		}
 		seen_deps.free();
 
-		if (full_prog != null) {
+		val prog_ast = full_prog;
+		if (prog_ast != null) {
 			// Pre-index declarations and original unmangled names BEFORE DeclarationCollector mangles AST nodes in-place
 			var index = prepare_semantic_index(&loader, path, source);
 
 			var decl_p = DeclarationCollector(arena);
-			decl_p.collect_program(full_prog);
+			decl_p.collect_program(prog_ast);
 			if (decl_p.errors.len > 0) {
 				for (d in decl_p.errors) {
 					if (is_error_for_doc(d, doc_mod, path)) diagnostics += LspDiagnostic(d, source);
@@ -534,7 +535,7 @@ impl AnalysisResult {
 			}
 
 			var body_p = BodyChecker(decl_p.symtab, decl_p);
-			body_p.check_program(full_prog);
+			body_p.check_program(prog_ast);
 			if (body_p.errors.len > 0) {
 				for (d in body_p.errors) {
 					if (is_error_for_doc(d, doc_mod, path)) diagnostics += LspDiagnostic(d, source);

@@ -905,8 +905,305 @@ fn test_is_pointer_mutability_propagation_and_no_new_ctor() {
 	println("  [PASS] test_is_pointer_mutability_propagation_and_no_new_ctor");
 }
 
+fn check_valid_body(src: str, desc: str) {
+	var l = Lexer(src);
+	var p = Parser(l.tokenize());
+	val prog = p.parse_program();
+	assert_eq_usz(p.errors.len, 0, "${desc}: parser must accept snippet");
+	var bp = BodyChecker();
+	bp.check_program(prog);
+	assert_eq_usz(bp.errors.len, 0, desc);
+}
+
+fn test_nullable_pointer_restrictions() {
+	val pair_def = """
+	struct Pair { pub x: i32, pub y: i32 }
+	impl Pair {
+	    pub fn get_x(*self): i32 => self.x;
+	    pub op get(*self, i: i32): i32 => self.x + i;
+	    pub op set(&self, i: i32, v: i32) { self.x = v; }
+	}
+	""";
+
+	check_single_error(
+		"fn f(p: ?*i32): i32 => *p;",
+		"Direct deref on nullable ?*i32 must be rejected"
+	);
+	check_single_error(
+		"fn f(p: ?&i32): i32 => *p;",
+		"Direct deref on nullable ?&i32 must be rejected"
+	);
+	check_single_error(
+		"${pair_def}\nfn f(p: ?*Pair): i32 => p.x;",
+		"Direct field access on nullable ?*Pair must be rejected"
+	);
+	check_single_error(
+		"fn f(p: ?*i32): i32 => p[0];",
+		"Direct index read on nullable ?*i32 must be rejected"
+	);
+	check_single_error(
+		"${pair_def}\nfn f(p: ?*Pair): i32 => p[0];",
+		"Direct overloaded index read on nullable ?*Pair must be rejected"
+	);
+	check_single_error(
+		"fn f(p: ?&i32) { p[0] = 1; }",
+		"Direct index write on nullable ?&i32 must be rejected"
+	);
+	check_single_error(
+		"${pair_def}\nfn f(p: ?&Pair) { p[0] = 1; }",
+		"Direct overloaded index write on nullable ?&Pair must be rejected"
+	);
+	check_single_error(
+		"${pair_def}\nfn f(p: ?*Pair): i32 => p.get_x();",
+		"Direct method call on nullable ?*Pair must be rejected"
+	);
+	check_single_error(
+		"fn f(p: ?*i32): i32 => p.read();",
+		"Direct read() on nullable ?*i32 must be rejected"
+	);
+	check_single_error(
+		"fn f(p: ?&i32) { p.write(1); }",
+		"Direct write() on nullable ?&i32 must be rejected"
+	);
+	check_single_error(
+		"fn f(p: ?*i32) { p?.write(1); }",
+		"Safe write() on immutable nullable ?*i32 must be rejected"
+	);
+
+	// Allowed nullable operations: addr(), is, ?., ?:, smart-cast after != null
+	check_valid_body(
+		"""
+		struct Base { pub tag: i32 }
+		struct Sub { pub tag: i32, pub v: i32 }
+		impl Sub { pub const TAG: i32 = 1; }
+		${pair_def}
+		fn f(p: ?*i32, q: ?&i32, pr: ?*Pair, qw: ?&Pair, b: ?*Base): bool {
+		    val a1 = p.addr();
+		    val a2 = q.addr();
+		    val x = pr?.x ?: 0;
+		    val gx = pr?.get_x() ?: 0;
+		    q?.write(1);
+		    val is_sub = b is Sub;
+		    var res: i32 = x + gx + (a1 as i32) + (a2 as i32);
+		    if (p != null) { res = res + *p; }
+		    if (q != null) { q.write(42); }
+		    val has_x = (pr?.get_x() == 1);
+		    return is_sub && has_x && (qw != null || res >= 0);
+		}
+		""",
+		"Allowed nullable ops (addr, is, ?., ?:, smart-cast) must typecheck"
+	);
+
+	check_valid_body(
+		"fn f(q: ?&i32) { if (q != null) { q[0] = 1; q.write(2); } }",
+		"Smart-cast after q != null allows q[0] = 1 and q.write(2)"
+	);
+
+	println("  [PASS] test_nullable_pointer_restrictions");
+}
+
+fn test_address_of_and_auto_ref_mutability() {
+	check_single_error(
+		"fn f() { val x: i32 = 1; val p: &i32 = &x; }",
+		"&val_var must produce *T, not assignable to &T"
+	);
+	check_single_error(
+		"fn f() { val x: i32 = 1; (&x).write(2); }",
+		"&val_var must not allow .write()"
+	);
+	check_single_error(
+		"""
+		struct Box { pub v: i32 }
+		fn take_mut(b: &Box) { b.v = 2; }
+		fn f() { val b = Box { v: 1 }; take_mut(b); }
+		""",
+		"Auto-ref of val struct to &Struct parameter must be rejected"
+	);
+	check_single_error(
+		"""
+		struct Box { pub v: i32 }
+		fn take_mut(b: &Box) { b.v = 2; }
+		fn make(): Box => Box { v: 1 };
+		fn f() { take_mut(make()); }
+		""",
+		"Auto-ref of rvalue struct to &Struct parameter must be rejected"
+	);
+
+	check_valid_body(
+		"""
+		struct Box { pub v: i32 }
+		fn take_ro(b: *Box): i32 => b.v;
+		fn take_mut(b: &Box) { b.v = 2; }
+		fn f(): i32 {
+		    val x: i32 = 1;
+		    val p: *i32 = &x;
+		    var y: i32 = 2;
+		    val mp: &i32 = &y;
+		    mp.write(3);
+		    val vb = Box { v: 4 };
+		    var mb = Box { v: 5 };
+		    take_mut(mb);
+		    return *p + take_ro(vb) + mb.v;
+		}
+		""",
+		"&val -> *T, &var -> &T, var -> &Struct, and val -> *Struct must be allowed"
+	);
+
+	println("  [PASS] test_address_of_and_auto_ref_mutability");
+}
+
+fn test_lvalue_and_pointer_write_mutability() {
+	val box_def = """
+	struct Box { pub v: i32 }
+	impl Box {
+	    pub fn mut_m(&self) { self.v = self.v + 1; }
+	    pub op set(&self, i: i32, val_in: i32) { self.v = val_in + i; }
+	    pub op plus_assign(&self, d: i32) { self.v = self.v + d; }
+	}
+	""";
+
+	check_single_error(
+		"struct Box { pub v: i32 }\nfn f(p: *Box) { p.v = 2; }",
+		"Field write through non-self *T must be rejected"
+	);
+	check_single_error(
+		"fn f(p: *i32) { *p = 2; }",
+		"Dereference write through non-self *i32 must be rejected"
+	);
+	check_single_error(
+		"fn f(p: *i32) { p[0] = 2; }",
+		"Raw index write through *i32 must be rejected"
+	);
+	check_single_error(
+		"${box_def}\nfn f(p: *Box) { p[0] = 2; }",
+		"Overloaded index write through *Box must be rejected"
+	);
+	check_single_error(
+		"${box_def}\nfn f(p: *Box) { p += 1; }",
+		"Compound assignment operator through *Box must be rejected"
+	);
+	check_single_error(
+		"${box_def}\nfn f(p: ?&Box) { p += 1; }",
+		"Compound assignment operator on nullable ?&Box must be rejected"
+	);
+	check_single_error(
+		"${box_def}\nfn f(p: *Box) { p.mut_m(); }",
+		"Mutating method call through *Box must be rejected"
+	);
+	check_single_error(
+		"""
+		struct Inner { pub v: i32 }
+		struct Outer { pub inner: Inner }
+		fn f() {
+		    val o = Outer { inner: Inner { v: 1 } };
+		    o.inner.v = 2;
+		}
+		""",
+		"Nested member write through val struct must be rejected"
+	);
+	check_single_error(
+		"""
+		struct Inner { pub v: i32 }
+		struct Outer { pub inner: Inner }
+		impl Outer {
+		    pub fn bad(*self) { self.inner.v = 2; }
+		}
+		""",
+		"Nested member write through *self must be rejected"
+	);
+	check_single_error(
+		"fn f() { var s = \"abc\"; s[0] = 'x'; }",
+		"Index assignment on str must be rejected"
+	);
+
+	// Mutating pointee through immutable binding `val p: &T` is allowed
+	check_valid_body(
+		"""
+		${box_def}
+		fn f() {
+		    var b = Box { v: 1 };
+		    val pb: &Box = &b;
+		    pb.v = 2;
+		    pb[0] = 3;
+		    pb += 4;
+		    pb.mut_m();
+		    var x: i32 = 10;
+		    val pi: &i32 = &x;
+		    *pi = 20;
+		    pi[0] = 30;
+		    pi.write(40);
+		}
+		""",
+		"Mutating pointee through val p: &T must be allowed"
+	);
+
+	println("  [PASS] test_lvalue_and_pointer_write_mutability");
+}
+
+fn test_pointer_cast_and_implicit_conv_restrictions() {
+	check_single_error(
+		"fn f(p: *i32): &i32 => p as &i32;",
+		"Cast *i32 as &i32 must be rejected"
+	);
+	check_single_error(
+		"fn f(p: *i32): &u8 => p as &u8;",
+		"Cast *i32 as &u8 must be rejected"
+	);
+	check_single_error(
+		"fn f(p: *none): &u8 => p as &u8;",
+		"Cast *none as &u8 must be rejected"
+	);
+	check_single_error(
+		"fn f() { val p: &u8 = \"hi\"; }",
+		"Implicit conversion from str to &u8 must be rejected"
+	);
+	check_single_error(
+		"fn f() { val p: &char = \"hi\"; }",
+		"Implicit conversion from str to &char must be rejected"
+	);
+	check_single_error(
+		"fn f() { val p: &none = \"hi\"; }",
+		"Implicit conversion from str to &none must be rejected"
+	);
+	check_single_error(
+		"fn f(p: *i32) { val q: &u8 = p; }",
+		"Implicit conversion from *i32 to &u8 must be rejected"
+	);
+	check_single_error(
+		"fn f(p: *i32) { val q: &none = p; }",
+		"Implicit conversion from *i32 to &none must be rejected"
+	);
+
+	check_valid_body(
+		"""
+		fn f(p: *i32, q: &i32) {
+		    val n1: ?&i32 = null as ?&i32;
+		    val n2: ?&u8 = null as ?&u8;
+		    val m1: &u8 = q as &u8;
+		    val r1: *u8 = q as *u8;
+		    val s1: *u8 = "hi";
+		    val s2: *char = "hi";
+		    val s3: *none = "hi";
+		    val op: *none = p;
+		    val m2: &none = q;
+		    if (n1 != null && n2 != null) {
+		        val x = m1 as *u8;
+		        val y = (r1 as *none) == op && (m2 as *none) == (s3 as *none) && (s1 != null) && (s2 != null);
+		    }
+		}
+		""",
+		"Valid null/?&T casts, &T -> &U casts, and str/const-ptr -> *char/*u8/*none must be allowed"
+	);
+
+	println("  [PASS] test_pointer_cast_and_implicit_conv_restrictions");
+}
+
 fn main(): i32 {
 	println("[RUNNING] Bootstrap Semantic BodyChecker tests...");
+	test_nullable_pointer_restrictions();
+	test_address_of_and_auto_ref_mutability();
+	test_lvalue_and_pointer_write_mutability();
+	test_pointer_cast_and_implicit_conv_restrictions();
 	test_when_subject_and_implicit_dot_restrictions();
 	test_lambda_body_and_call_restrictions();
 	test_in_candidate_list_restrictions();

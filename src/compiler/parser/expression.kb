@@ -301,19 +301,19 @@ impl Parser {
 		else -> Precedence.NONE;
 	};
 
-	fn parse_is_type_item(&self): *AstNode {
+	fn parse_is_type_item(&self): &AstNode {
 		if (self.match_token(TokenType.DOT)) {
 			val (line, col) = self.previous();
 			val mem = self.consume(TokenType.IDENTIFIER, "Expected variant name after '.'");
-			return self.node(NodeData.NamedType(".${mem.text}", List<*AstNode>()), line, col);
+			return self.node(NodeData.NamedType(".${mem.text}", List<&AstNode>()), line, col);
 		}
 		return self.parse_type();
 	}
 
-	fn parse_is_target(&self): *AstNode {
+	fn parse_is_target(&self): &AstNode {
 		if (self.match_token(TokenType.OPEN_BRACKET)) {
 			val (lb_line, lb_col) = self.previous();
-			var types = List<*AstNode>();
+			var types = List<&AstNode>();
 			if (!self.check(TokenType.CLOSE_BRACKET)) {
 				types += self.parse_is_type_item();
 				while (self.match_token(TokenType.COMMA)) {
@@ -327,7 +327,7 @@ impl Parser {
 		return self.parse_is_type_item();
 	}
 
-	fn parse_is_pattern(&self, left: ?*AstNode, line: usz, col: usz): *AstNode {
+	fn parse_is_pattern(&self, left: ?&AstNode, line: usz, col: usz): &AstNode {
 		val target_type = self.parse_is_target();
 
 		var alias = "";
@@ -346,8 +346,8 @@ impl Parser {
 		return self.node(NodeData.IsExpr(left, target_type, alias), line, col);
 	}
 
-	pub fn parse_when_patterns(&self): List<*AstNode> {
-		var patterns = List<*AstNode>();
+	pub fn parse_when_patterns(&self): List<&AstNode> {
+		var patterns = List<&AstNode>();
 		val first = self.parse_expression(Precedence.NONE);
 		patterns += first;
 		val is_type_group = (first is IsExpr);
@@ -362,8 +362,8 @@ impl Parser {
 		return patterns;
 	}
 
-	fn parse_call_args(&self): List<*AstNode> {
-		var args = List<*AstNode>();
+	fn parse_call_args(&self): List<&AstNode> {
+		var args = List<&AstNode>();
 		if (!self.check(TokenType.CLOSE_PAREN)) {
 			args += self.parse_expression(Precedence.NONE);
 			while (self.match_token(TokenType.COMMA)) {
@@ -446,7 +446,7 @@ impl Parser {
 		return false;
 	}
 
-	pub fn parse_lambda_expr(&self, is_trailing: bool, had_empty_parens: bool): *AstNode {
+	pub fn parse_lambda_expr(&self, is_trailing: bool, had_empty_parens: bool): &AstNode {
 		val open_tok = self.consume(TokenType.OPEN_BRACE, "Expected '{' to start lambda");
 		val (line, col) = open_tok;
 
@@ -454,7 +454,7 @@ impl Parser {
 		if (!self.check(TokenType.ARROW)) {
 			while (!self.is_end()) {
 				val name_tok = self.consume(TokenType.IDENTIFIER, "Expected lambda parameter name before '->'");
-				var type_node: ?*AstNode = null;
+				var type_node: ?&AstNode = null;
 				if (self.match_token(TokenType.COLON)) {
 					type_node = self.parse_type();
 				}
@@ -469,9 +469,9 @@ impl Parser {
 
 		self.consume(TokenType.ARROW, "Expected '->' after lambda parameters");
 
-		var body: ?*AstNode = null;
+		var body: ?&AstNode = null;
 		if (self.is_lambda_body_block()) {
-			var stmts = List<*AstNode>();
+			var stmts = List<&AstNode>();
 			while (!self.check(TokenType.CLOSE_BRACE) && !self.is_end()) {
 				stmts += self.parse_statement();
 			}
@@ -488,7 +488,7 @@ impl Parser {
 	// Pratt Expression Parser
 	// ============================================================================
 
-	pub fn parse_prefix(&self): *AstNode {
+	pub fn parse_prefix(&self): &AstNode {
 		val tok = self.advance();
 		val (line, col) = tok;
 
@@ -502,7 +502,7 @@ impl Parser {
 			}
 			TokenType.STRING -> {
 				// Keep the token span so the formatter can re-emit a `"""` literal verbatim.
-				val lit_node = self.parse_string_literal(tok, line, col);
+				var lit_node = self.parse_string_literal(tok, line, col);
 				lit_node.span = tok.span;
 				yield lit_node;
 			}
@@ -521,7 +521,7 @@ impl Parser {
 
 			// Candidate list: [a, b, c] (contextually valid on RHS of 'in' / '!in')
 			TokenType.OPEN_BRACKET -> {
-				var elements = List<*AstNode>();
+				var elements = List<&AstNode>();
 				if (!self.check(TokenType.CLOSE_BRACKET)) {
 					elements += self.parse_expression(Precedence.NONE);
 					while (self.match_token(TokenType.COMMA)) {
@@ -578,7 +578,7 @@ impl Parser {
 			// When Expression: when (cond) { val1 -> expr1, else -> expr2 }
 			TokenType.KW_WHEN -> {
 				// `when (cond) { ... }` or the boolean form `when { cond -> ... }`.
-				var condition: ?*AstNode = null;
+				var condition: ?&AstNode = null;
 				if (self.match_token(TokenType.OPEN_PAREN)) {
 					condition = self.parse_expression(Precedence.NONE);
 					self.consume(TokenType.CLOSE_PAREN, "Expected ')' after when condition");
@@ -589,7 +589,7 @@ impl Parser {
 				while (!self.check(TokenType.CLOSE_BRACE) && !self.is_end()) {
 					val (arm_line, arm_col) = self.peek();
 					var is_else = false;
-					var patterns = List<*AstNode>();
+					var patterns = List<&AstNode>();
 
 					if (self.match_token(TokenType.KW_ELSE)) is_else = true;
 					else patterns = self.parse_when_patterns();
@@ -633,7 +633,7 @@ impl Parser {
 		};
 	}
 
-	pub fn parse_infix(&self, left: *AstNode, prec: Precedence): *AstNode {
+	pub fn parse_infix(&self, left: &AstNode, prec: Precedence): &AstNode {
 		val (tok_type, line, col) = self.peek();
 
 		when (tok_type) {
@@ -768,13 +768,13 @@ impl Parser {
 			.check(TokenType.LESS) &&
 			.is_generic_args_ahead() -> {
 				self.advance(); // consume '<'
-				var type_args = List<*AstNode>();
+				var type_args = List<&AstNode>();
 				type_args += self.parse_type();
 				while (self.match_token(TokenType.COMMA)) type_args += self.parse_type();
 				self.consume(TokenType.GREATER, "Expected '>' after generic call type arguments");
 
 				if (self.check(TokenType.OPEN_BRACE) && self.is_lambda_brace_ahead()) {
-					var args = List<*AstNode>();
+					var args = List<&AstNode>();
 					args += self.parse_lambda_expr(true, false);
 					yield self.node(NodeData.CallExpr(left, args, type_args), line, col);
 				}
@@ -787,7 +787,7 @@ impl Parser {
 			// 6. Normal Call: left(arg1, arg2)
 			.match_token(TokenType.OPEN_PAREN) -> {
 				val args = self.parse_call_args();
-				yield self.node(NodeData.CallExpr(left, args, List<*AstNode>()), line, col);
+				yield self.node(NodeData.CallExpr(left, args, List<&AstNode>()), line, col);
 			}
 
 			// 6b. Trailing Lambda Call: left { x -> ... } or left(a) { x -> ... }
@@ -798,9 +798,9 @@ impl Parser {
 					call.args += self.parse_lambda_expr(true, had_empty);
 					yield left;
 				}
-				var args = List<*AstNode>();
+				var args = List<&AstNode>();
 				args += self.parse_lambda_expr(true, false);
-				yield self.node(NodeData.CallExpr(left, args, List<*AstNode>()), line, col);
+				yield self.node(NodeData.CallExpr(left, args, List<&AstNode>()), line, col);
 			}
 
 			// 7. Binary Operators: +, -, *, /, %, ==, !=, <, <=, >, >=, &&, ||
@@ -812,7 +812,7 @@ impl Parser {
 		};
 	}
 
-	pub fn parse_expression(&self, min_prec: Precedence): *AstNode {
+	pub fn parse_expression(&self, min_prec: Precedence): &AstNode {
 		var left = self.parse_prefix();
 
 		while (!self.is_end()) {
@@ -826,7 +826,7 @@ impl Parser {
 	}
 
 	// Branch of an if expression: either a plain expression or a `{ expr }` block.
-	pub fn parse_if_expr_branch(&self): *AstNode {
+	pub fn parse_if_expr_branch(&self): &AstNode {
 		if (self.match_token(TokenType.OPEN_BRACE)) {
 			val e = self.parse_expression(Precedence.NONE);
 			self.consume(TokenType.CLOSE_BRACE, "Expected '}' after if expression branch");
@@ -835,7 +835,7 @@ impl Parser {
 		return self.parse_expression(Precedence.NONE);
 	}
 
-	pub fn parse_string_literal(&self, token: Token, line: usz, col: usz): *AstNode {
+	pub fn parse_string_literal(&self, token: Token, line: usz, col: usz): &AstNode {
 		val text = token.text;
 		if (text.starts_with("\"\"\"")) return self.parse_multiline_string(text, line, col);
 
@@ -863,7 +863,7 @@ impl Parser {
 		);
 	}
 
-	pub fn parse_multiline_string(&self, text: str, line: usz, col: usz): *AstNode {
+	pub fn parse_multiline_string(&self, text: str, line: usz, col: usz): &AstNode {
 		if (text.len < 6) return self.node(NodeData.LiteralExpr(Literal.STRING, "\"\""), line, col);
 		val inner = text.slice(3, text.len - 3);
 		val trimmed = inner.multiline_trim_indent();
@@ -874,7 +874,7 @@ impl Parser {
 		return self.node(NodeData.LiteralExpr(Literal.STRING, c_literal), line, col);
 	}
 
-	pub fn parse_interp_multiline(&self, text: str, line: usz, col: usz): *AstNode {
+	pub fn parse_interp_multiline(&self, text: str, line: usz, col: usz): &AstNode {
 		var parts = List<InterpPart>();
 		val end = text.len;
 		var i: usz = 0;
@@ -967,7 +967,7 @@ impl Parser {
 		return self.node(NodeData.InterpExpr(parts), line, col);
 	}
 
-	pub fn parse_interp_string(&self, text: str, line: usz, col: usz): *AstNode {
+	pub fn parse_interp_string(&self, text: str, line: usz, col: usz): &AstNode {
 		var parts = List<InterpPart>();
 		val end = text.len - 1;   // index of the closing quote
 		var i: usz = 1;           // skip the opening quote

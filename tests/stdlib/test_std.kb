@@ -107,7 +107,7 @@ fn test_collections(): bool {
 		if (list.first_or(-1) { x -> x > 25 } != 40) return false;
 		if (list.first_or(-1) { x -> x > 100 } != -1) return false;
 		val p40 = list.find_ptr { x -> x == 40 };
-		if (p40 == null || p40.read() != 40) return false;
+		if (p40 == null || p40!.read() != 40) return false;
 		if (list.find_ptr { x -> x == 999 } != null) return false;
 		if (!list.remove(40) || (40 in list) || list.len != 3) return false;
 		list.reverse(); // [50, 20, 10]
@@ -138,9 +138,9 @@ fn test_collections(): bool {
 
 	// test get and get_or
 	val p_first = map["first"];
-	if (p_first == null || *p_first != 100) return false;
+	if (p_first == null || *p_first! != 100) return false;
 	val p_sec = map["second"];
-	if (p_sec == null || *p_sec != 200) return false;
+	if (p_sec == null || *p_sec! != 200) return false;
 	if (map["missing"] != null) return false;
 
 	if (map.get_or("first", 0) != 100) return false;
@@ -151,7 +151,7 @@ fn test_collections(): bool {
 	map["first"] = 101;
 	if (map.len != 3) return false;
 	val p_first_upd = map["first"];
-	if (p_first_upd == null || *p_first_upd != 101) return false;
+	if (p_first_upd == null || *p_first_upd! != 101) return false;
 
 	// test keys and values
 	{

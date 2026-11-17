@@ -22,9 +22,9 @@ pub enum Literal {
  * Unified branch arm for both `when` expressions and `when` statements.
  */
 pub struct WhenArm {
-	pub patterns: List<*AstNode>,
+	pub patterns: List<&AstNode>,
 	pub is_else: bool,
-	pub body: *AstNode,
+	pub body: &AstNode,
 	pub line: usz,
 	pub col: usz
 }
@@ -34,6 +34,6 @@ pub struct WhenArm {
  * or a `${...}` hole expression.
  */
 pub enum InterpPart {
-	Literal(node: *AstNode),
-	Hole(node: *AstNode)
+	Literal(node: &AstNode),
+	Hole(node: &AstNode)
 }

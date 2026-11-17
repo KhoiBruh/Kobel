@@ -87,7 +87,7 @@ fn test_range_open(t: &Tally) {
 fn test_range_bound_type(t: &Tally, n: usz) {
 	var total: usz = 0;
 	for (i in 0..n) {
-		val same: &usz = &i;
+		val same: *usz = &i;
 		total = total + i;
 	}
 	check(total == 15, "0..5(usz) sum must be 15", t);
@@ -264,7 +264,7 @@ fn test_range_half_open_index(t: &Tally) {
 fn test_range_half_open_empty(t: &Tally, n: usz) {
 	var count: i32 = 0;
 	for (i in 0..<n) {
-		val same: &usz = &i;
+		val same: *usz = &i;
 		count = count + 1;
 	}
 	check(count == 0, "half-open 0..<0 must be empty", t);

@@ -29,7 +29,7 @@ pub enum TemplateKind {
 pub struct GenericTemplate {
 	pub name: str,
 	pub module: str,
-	pub node: *AstNode,
+	pub node: &AstNode,
 	pub is_method: bool,
 	pub self_type: str = ""
 }
@@ -52,12 +52,12 @@ impl GenericTemplate {
 
 pub struct GenericSubst {
 	pub names: List<str>,
-	pub args: List<*AstNode>
+	pub args: List<&AstNode>
 }
 
 impl GenericSubst {
 
-	pub fn lookup(*self, name: str): ?*AstNode {
+	pub fn lookup(*self, name: str): ?&AstNode {
 		val idx = self.names.index_of(name);
 		if (idx >= 0) return self.args[idx as usz];
 		return null;
@@ -81,14 +81,14 @@ pub struct InstanceRecord {
 	pub template: *GenericTemplate,
 	pub args: List<*Type>,
 	pub c_name: str,
-	pub decl: *AstNode,
-	pub ann_map: ?*HashMap<usz, *AnnotationEntry> = null,
+	pub decl: &AstNode,
+	pub ann_map: ?&HashMap<usz, &AnnotationEntry> = null,
 	pub sig: ?*Type = null
 }
 
 impl InstanceRecord {
 
-	pub fn find_ann(*self, node: *AstNode): ?*AnnotationEntry {
+	pub fn find_ann(*self, node: *AstNode): ?&AnnotationEntry {
 		if (self.ann_map == null) return null;
 		val p = self.ann_map!.get(node.addr()) ?: return null;
 		return p.read();
@@ -105,9 +105,9 @@ pub struct GenericRegistry {
 	pub fn_templates: List<*GenericTemplate> = List(),
 	pub impl_templates: List<*GenericTemplate> = List(),
 	pub inst_map: HashMap<str, *Symbol> = HashMap(),
-	pub records: List<*InstanceRecord> = List(),
-	pub record_map: HashMap<str, *InstanceRecord> = HashMap(),
-	pub instances: List<*AstNode> = List()
+	pub records: List<&InstanceRecord> = List(),
+	pub record_map: HashMap<str, &InstanceRecord> = HashMap(),
+	pub instances: List<&AstNode> = List()
 }
 
 impl GenericRegistry {
@@ -121,7 +121,7 @@ impl GenericRegistry {
 		return p.read();
 	}
 
-	pub fn add_record(&self, rec: *InstanceRecord) {
+	pub fn add_record(&self, rec: &InstanceRecord) {
 		self.records += rec;
 		if (!rec.c_name.empty()) self.record_map[rec.c_name] = rec;
 	}
@@ -129,7 +129,7 @@ impl GenericRegistry {
 	pub fn find_instance_record(
 		*self, template: *GenericTemplate,
 		args: List<*Type>, kind: InstanceKind
-	): ?*InstanceRecord {
+	): ?&InstanceRecord {
 		for (record in self.records) {
 			if (record.template != template || record.kind != kind) continue;
 			if (record.args.len != args.len) continue;
@@ -143,7 +143,7 @@ impl GenericRegistry {
 		return null;
 	}
 
-	pub fn find_record_by_cname(*self, cname: str): ?*InstanceRecord {
+	pub fn find_record_by_cname(*self, cname: str): ?&InstanceRecord {
 		val p = self.record_map.get(cname) ?: return null;
 		return p.read();
 	}

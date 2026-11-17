@@ -469,7 +469,7 @@ impl SemanticIndex {
 		return "";
 	}
 
-	fn resolve_visible_symbol_key(*self, file_path: str, cur_mod: str, name: str): str {
+	fn resolve_visible_symbol_key(&self, file_path: str, cur_mod: str, name: str): str {
 		// 1. Same module
 		val local_mod_key = self.resolve_module_symbol_key(cur_mod, name);
 		if (!local_mod_key.empty()) return local_mod_key;
@@ -533,7 +533,7 @@ impl SemanticIndex {
 // ============================================================================
 
 struct IndexWalker {
-	pub index: *SemanticIndex,
+	pub index: &SemanticIndex,
 	pub cur_file: str,
 	pub cur_mod: str,
 	pub tokens: List<Token>,
@@ -589,7 +589,7 @@ impl IndexWalker {
 		return LocalBinding("", "", 0);
 	}
 
-	fn mark_mutated(&self, node: ?*AstNode) {
+	fn mark_mutated(*self, node: ?*AstNode) {
 		if (node == null) return;
 		if (node is IdentifierExpr as id) {
 			val lb = self.lookup_local(id.name);
@@ -609,8 +609,8 @@ impl IndexWalker {
 
 	fn walk_type_node(&self, node: ?*AstNode) {
 		if (node == null) return;
-		val nl = node.line;
-		val nc = node.col;
+		val nl = node!.line;
+		val nc = node!.col;
 		when (node) {
 			is NamedType -> {
 				var key = self.index.resolve_visible_symbol_key(self.cur_file, self.cur_mod, node.name);
@@ -910,7 +910,7 @@ impl IndexWalker {
 		}
 	}
 
-	fn check_missing_trait_methods(&self, impl_node: *AstNode, imp_line: usz, imp_col: usz) {
+	fn check_missing_trait_methods(*self, impl_node: *AstNode, imp_line: usz, imp_col: usz) {
 		if (!self.index.has_symtab) return;
 		if (impl_node is ImplDecl as imp) {
 		val orig_sname = self.index.orig_node_names.get_or(impl_node.addr(), imp.struct_name);
@@ -965,8 +965,8 @@ impl IndexWalker {
 
 	fn walk_stmt(&self, node: ?*AstNode) {
 		if (node == null) return;
-		val nl = node.line;
-		val nc = node.col;
+		val nl = node!.line;
+		val nc = node!.col;
 		when (node) {
 			is BlockStmt -> {
 				self.push_scope();
@@ -1043,8 +1043,8 @@ impl IndexWalker {
 	fn walk_expr(&self, node: ?*AstNode) {
 		if (node == null) return;
 		val raw_node = node;
-		val nl = node.line;
-		val nc = node.col;
+		val nl = node!.line;
+		val nc = node!.col;
 		val ty_s = self.node_type_str(node);
 		when (node) {
 			is IdentifierExpr -> {
@@ -1220,7 +1220,7 @@ impl IndexWalker {
 
 }
 
-fn register_c_name_mapping(index: *SemanticIndex, prog: *AstNode) {
+fn register_c_name_mapping(index: &SemanticIndex, prog: *AstNode) {
 	if (prog is Program as p) {
 		for (decl in p) {
 			val raw_decl = decl;
@@ -1286,7 +1286,7 @@ pub fn prepare_semantic_index(
 }
 
 pub fn finish_semantic_index(
-	index: *SemanticIndex,
+	index: &SemanticIndex,
 	loader: *ModuleLoader,
 	symtab: SymbolTable,
 	has_symtab: bool,

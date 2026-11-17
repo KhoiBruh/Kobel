@@ -910,7 +910,7 @@ tests__features__test_pattern_matching__Literal* safe_lit = tests__features__tes
 tests__features__test_pattern_matching__Literal* safe_not_lit = tests__features__test_pattern_matching__cast_to_literal((tests__features__test_pattern_matching__Node*)&bin);
 tests__features__test_pattern_matching__Binary* safe_bin = tests__features__test_pattern_matching__cast_to_binary((tests__features__test_pattern_matching__Node*)&bin);
 tests__features__test_pattern_matching__Literal* safe_null = tests__features__test_pattern_matching__cast_to_literal(null_node);
-if (safe_lit == NULL || safe_lit->value != 10) {
+if (safe_lit == NULL || (*safe_lit).value != 10) {
 std__io__println(KOBEL_STR("FAIL: safe cast literal match"));
 return 1;
 }
@@ -918,7 +918,7 @@ if (safe_not_lit != NULL) {
 std__io__println(KOBEL_STR("FAIL: safe cast mismatch should be null"));
 return 1;
 }
-if (safe_bin == NULL || safe_bin->tag != 2) {
+if (safe_bin == NULL || (*safe_bin).tag != 2) {
 std__io__println(KOBEL_STR("FAIL: safe cast binary match"));
 return 1;
 }

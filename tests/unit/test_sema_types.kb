@@ -65,26 +65,26 @@ fn test_pointer_and_array_types() {
 
 	assert_eq_usz(ptr_mut.size, 8, "Pointer size must be 8 on x64");
 	assert_eq_usz(ptr_mut.align, 8, "Pointer align must be 8 on x64");
-	assert_true(ptr_mut.as_pointer().mutable, "ptr_mut must be mutable");
-	assert_true(!ptr_const.as_pointer().mutable, "ptr_const must not be mutable");
-	assert_true(ptr_mut.as_pointer().mutable, "ptr_mut.as_pointer() must be mutable");
+	assert_true(ptr_mut.as_pointer()!.mutable, "ptr_mut must be mutable");
+	assert_true(!ptr_const.as_pointer()!.mutable, "ptr_const must not be mutable");
+	assert_true(ptr_mut.as_pointer()!.mutable, "ptr_mut.as_pointer() must be mutable");
 
 	// Test nullable pointer
 	val ptr_null = arena.nullable_pointer_type(&t_i32, false);
-	assert_true(ptr_null.as_pointer().nullable, "ptr_null must be nullable");
+	assert_true(ptr_null.as_pointer()!.nullable, "ptr_null must be nullable");
 
 	// Array [i32; 10]
 	val arr = arena.array_type(&t_i32, 10);
 	assert_eq_usz(arr.size, 40, "Array [i32; 10] size must be 40");
 	assert_eq_usz(arr.align, 4, "Array [i32; 10] align must be 4");
-	assert_eq_usz(arr.as_array().length, 10, "Array length must be 10");
-	assert_eq_usz(arr.as_array().length, 10, "arr.as_array() length must be 10");
+	assert_eq_usz(arr.as_array()!.length, 10, "Array length must be 10");
+	assert_eq_usz(arr.as_array()!.length, 10, "arr.as_array() length must be 10");
 
 	// Test fn_type
 	var params = List<*Type>();
 	params += &t_i32;
 	val fn_ty = arena.fn_type(params, &t_i32);
-	assert_eq_usz(fn_ty.as_fn().param_types.len, 1, "fn_ty param count must be 1");
+	assert_eq_usz(fn_ty.as_fn()!.param_types.len, 1, "fn_ty param count must be 1");
 
 	// Payloads are read back through the typed accessors; a wrong-kind accessor
 	// yields null instead of reinterpreting another payload.
@@ -92,7 +92,7 @@ fn test_pointer_and_array_types() {
 	assert_true(payload_ptr.as_pointer() != null, "pointer payload must be present");
 	assert_true(payload_ptr.as_struct() == null, "a pointer type has no struct payload");
 	val payload_arr = arena.array_type(&t_i32, 7);
-	assert_eq_usz(payload_arr.as_array().length, 7, "array payload length must be 7");
+	assert_eq_usz(payload_arr.as_array()!.length, 7, "array payload length must be 7");
 
 	println("  [PASS] test_pointer_and_array_types");
 }
@@ -124,10 +124,10 @@ fn test_struct_layout() {
 	assert_eq_usz(s_ty.align, 8, "Struct max align must be 8");
 	assert_eq_usz(s_ty.size, 16, "Struct size with padding must be 16");
 
-	val s_info = s_ty.as_struct();
+	val s_info = s_ty.as_struct()!;
 	assert_eq_str(s_info.name, "Sample", "Struct name must match");
-	assert_eq_str(s_ty.as_struct().name, "Sample", "s_ty.as_struct() name must match");
-	assert_eq_usz(s_ty.as_struct().fields.len, 3, "s_ty.as_struct() fields len must be 3");
+	assert_eq_str(s_ty.as_struct()!.name, "Sample", "s_ty.as_struct() name must match");
+	assert_eq_usz(s_ty.as_struct()!.fields.len, 3, "s_ty.as_struct() fields len must be 3");
 	assert_eq_usz(s_info.fields.len, 3, "Field count must be 3");
 
 	assert_eq_usz(s_info.fields[0].offset, 0, "Field a offset must be 0");

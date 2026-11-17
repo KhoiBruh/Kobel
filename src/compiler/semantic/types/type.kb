@@ -33,12 +33,18 @@ pub enum DataType {
  * Variant payload carried by a `Type` in addition to `kind`, `size`, and `align`.
  * `NONE` covers primitive types; composite variants carry typed pointers.
  */
+pub struct FnTypeInfo {
+	pub param_types: List<*Type>,
+	pub return_type: *Type,
+	pub is_variadic: bool = false
+}
+
 pub enum TypePayload {
 	NONE,
 	Pointer(pointee: *Type, mutable: bool, nullable: bool),
 	Array(elem: *Type, length: usz),
-	Struct(inner: *StructType),
-	Fn(param_types: List<*Type>, return_type: *Type, is_variadic: bool),
+	Struct(inner: &StructType),
+	Fn(inner: &FnTypeInfo),
 	Enum(inner: *EnumInfo)
 }
 
@@ -49,7 +55,7 @@ pub struct Type {
 	pub data: TypePayload,
 	// Methods registered on a built-in primitive type (`impl i32 { ... }`).
 	// Null for non-primitive types and non-canonical primitive values.
-	pub methods: ?*PrimMethods = null
+	pub methods: ?&PrimMethods = null
 }
 
 // ============================================================================
@@ -124,7 +130,10 @@ impl Arena {
 		=> self.type_payload(DataType.ARRAY, elem.size * length, elem.align, TypePayload.Array(elem, length));
 
 	pub fn fn_type(&self, param_types: List<*Type>, return_type: *Type, is_variadic: bool = false): *Type
-		=> self.type_payload(DataType.FN, 16, 8, TypePayload.Fn(param_types, return_type, is_variadic));
+		=> self.type_payload(
+			DataType.FN, 16, 8,
+			TypePayload.Fn(self.create_val(FnTypeInfo(param_types, return_type, is_variadic)))
+		);
 
 }
 
@@ -148,7 +157,7 @@ impl Type {
 		};
 	}
 
-	pub fn as_struct(*self): ?*StructType {
+	pub fn as_struct(*self): ?&StructType {
 		val data = self.data;
 		return when (data) {
 			is TypePayload.Struct as p -> p.inner;
@@ -156,9 +165,10 @@ impl Type {
 		};
 	}
 
-	pub fn as_fn(*self): ?*TypePayload.Fn {
-		return when (self.data) {
-			is TypePayload.Fn as p -> p;
+	pub fn as_fn(*self): ?&FnTypeInfo {
+		val data = self.data;
+		return when (data) {
+			is TypePayload.Fn as p -> p.inner;
 			else -> null;
 		};
 	}
@@ -173,13 +183,13 @@ impl Type {
 
 	// Appends a method to a canonical built-in primitive type from `PrimTypes`.
 	pub fn add_method(*self, mi: *MethodInfo) {
-		if (self.methods == null) return;
-		self.methods.list += mi;
+		val pm = self.methods ?: return;
+		pm.list += mi;
 	}
 
 	pub fn method_list(*self): List<*MethodInfo> {
-		if (self.methods == null) return List();
-		return self.methods.list;
+		val pm = self.methods ?: return List();
+		return pm.list;
 	}
 
 	pub fn method_named(*self, name: str): ?*MethodInfo {
@@ -193,7 +203,7 @@ impl Type {
 		for (m in list) {
 			if (
 				m.name == name
-				&& m.fn_type.as_fn().param_types.len == argc
+				&& m.fn_type.as_fn()!.param_types.len == argc
 			) return m;
 		}
 		return null;
@@ -229,16 +239,16 @@ impl Type {
 	pub fn is_list(*self): bool {
 		if (self.kind != DataType.STRUCT) return false;
 		val s = self.as_struct();
-		if (s.module !in ["std.collections.list", "std.collections"]) return false;
+		if (s!.module !in ["std.collections.list", "std.collections"]) return false;
 
-		return s.name.starts_with("std__collections__list__List")
-			|| s.c_name.starts_with("std__collections__list__List")
-			|| s.name.starts_with("std__collections__List")
-			|| s.c_name.starts_with("std__collections__List");
+		return s!.name.starts_with("std__collections__list__List")
+			|| s!.c_name.starts_with("std__collections__list__List")
+			|| s!.name.starts_with("std__collections__List")
+			|| s!.c_name.starts_with("std__collections__List");
 	}
 
 	pub fn layout_struct(&self) {
-		val st = self.as_struct();
+		val st = self.as_struct()!;
 		var max_align = 1;
 		var offset = 0;
 
@@ -268,8 +278,8 @@ impl Type {
 
 		if (self.is_enum() || b.is_enum()) {
 			if (!self.is_enum() || !b.is_enum()) return false;
-			val ea = self.as_enum();
-			val eb = b.as_enum();
+			val ea = self.as_enum()!;
+			val eb = b.as_enum()!;
 			val n_a = if (ea.c_name.empty()) ea.name else ea.c_name;
 			val n_b = if (eb.c_name.empty()) eb.name else eb.c_name;
 			return n_a == n_b;
@@ -277,28 +287,28 @@ impl Type {
 
 		return when (self.kind) {
 			DataType.POINTER -> {
-				val p_a = self.as_pointer();
-				val p_b = b.as_pointer();
+				val p_a = self.as_pointer()!;
+				val p_b = b.as_pointer()!;
 				yield p_a.mutable == p_b.mutable
 					&& p_a.nullable == p_b.nullable
 					&& p_a.pointee.equals(p_b.pointee);
 			}
 			DataType.ARRAY -> {
-				val arr_a = self.as_array();
-				val arr_b = b.as_array();
+				val arr_a = self.as_array()!;
+				val arr_b = b.as_array()!;
 				yield arr_a.length == arr_b.length
 					&& arr_a.elem.equals(arr_b.elem);
 			}
 			DataType.STRUCT -> {
-				val s_a = self.as_struct();
-				val s_b = b.as_struct();
+				val s_a = self.as_struct()!;
+				val s_b = b.as_struct()!;
 				val n_a = if (s_a.c_name.empty()) s_a.name else s_a.c_name;
 				val n_b = if (s_b.c_name.empty()) s_b.name else s_b.c_name;
 				yield n_a == n_b;
 			}
 			DataType.FN -> {
-				val f_a = self.as_fn();
-				val f_b = b.as_fn();
+				val f_a = self.as_fn()!;
+				val f_b = b.as_fn()!;
 				if (f_a.is_variadic != f_b.is_variadic) yield false;
 				if (f_a.param_types.len != f_b.param_types.len) yield false;
 				if (!f_a.return_type.equals(f_b.return_type)) yield false;
@@ -316,11 +326,11 @@ impl Type {
 		if (self.equals(source)) return true;
 
 		// Enum raw-value coercion to/from its underlying primitive type.
-		if (self.is_enum() && !self.as_enum().is_payload) {
-			if (!source.is_enum() && self.as_enum().underlying.can_assign(source)) return true;
+		if (self.is_enum() && !self.as_enum()!.is_payload) {
+			if (!source.is_enum() && self.as_enum()!.underlying.can_assign(source)) return true;
 		}
-		if (source.is_enum() && !source.as_enum().is_payload) {
-			if (!self.is_enum() && self.can_assign(source.as_enum().underlying)) return true;
+		if (source.is_enum() && !source.as_enum()!.is_payload) {
+			if (!self.is_enum() && self.can_assign(source.as_enum()!.underlying)) return true;
 		}
 
 		// 1. Integer coercion
@@ -330,23 +340,26 @@ impl Type {
 		if (self.is_float() && source.is_float()) return true;
 		if (self.is_float() && source.is_integer()) return true;
 
-		// 3. Passing/assigning str to *char, &char, *u8, &u8, *none
+		// 3. Passing/assigning str to read-only *char, *u8, *none
 		if (self.kind == DataType.POINTER && source.kind == DataType.STR) {
-			val t_ptr = self.as_pointer();
-			if (t_ptr.pointee.kind in [DataType.CHAR, DataType.U8, DataType.NONE]) return true;
+			val t_ptr = self.as_pointer()!;
+			if (
+				!t_ptr.mutable &&
+				t_ptr.pointee.kind in [DataType.CHAR, DataType.U8, DataType.NONE]
+			) return true;
 		}
 
 		// 4. Assigning a non-nullable char/u8 pointer to str
 		if (self.kind == DataType.STR && source.kind == DataType.POINTER) {
-			val s_ptr = source.as_pointer();
+			val s_ptr = source.as_pointer()!;
 			if (s_ptr.nullable) return false;
 			if (s_ptr.pointee.kind in [DataType.CHAR, DataType.U8]) return true;
 		}
 
 		// 5. Pointer mutability (&T -> *T), nullability (*T -> ?*T), and raw byte pointers
 		if (self.kind == DataType.POINTER && source.kind == DataType.POINTER) {
-			val t_ptr = self.as_pointer();
-			val s_ptr = source.as_pointer();
+			val t_ptr = self.as_pointer()!;
+			val s_ptr = source.as_pointer()!;
 
 			if (s_ptr.nullable && !t_ptr.nullable) return false;
 
@@ -357,7 +370,10 @@ impl Type {
 
 			if (s_ptr.pointee.kind == DataType.NONE) return t_ptr.nullable;
 
-			if (t_ptr.pointee.kind in [DataType.U8, DataType.NONE]) return true;
+			if (
+				(!t_ptr.mutable || s_ptr.mutable) &&
+				t_ptr.pointee.kind in [DataType.U8, DataType.NONE]
+			) return true;
 		}
 
 		return false;
@@ -385,21 +401,21 @@ impl Stringer for Type {
 		DataType.F64 -> "f64";
 		DataType.STR -> "str";
 		DataType.POINTER -> {
-			val ptr = self.as_pointer();
+			val ptr = self.as_pointer()!;
 			val q = if (ptr.nullable) "?" else "";
 			if (ptr.mutable) yield "${q}&${ptr.pointee.to_str()}";
 			yield "${q}*${ptr.pointee.to_str()}";
 		}
 		DataType.ARRAY -> {
-			val arr = self.as_array();
+			val arr = self.as_array()!;
 			yield "[${arr.elem.to_str()}]";
 		}
 		DataType.STRUCT -> {
-			val s = self.as_struct();
+			val s = self.as_struct()!;
 			yield s.name;
 		}
 		DataType.FN -> {
-			val fn_info = self.as_fn();
+			val fn_info = self.as_fn()!;
 			var res = "(";
 			for (i in 0..<fn_info.param_types.len) {
 				if (i > 0) res = "${res}, ";

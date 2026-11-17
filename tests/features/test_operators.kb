@@ -180,15 +180,15 @@ fn test_hash_map_ops() {
 	// Test op get: map[key]
 	val apple_ptr = map["apple"];
 	assert_true(apple_ptr != null, "apple_ptr != null");
-	assert_eq_i32(*apple_ptr, 100, "*map['apple']");
+	assert_eq_i32(*apple_ptr!, 100, "*map['apple']");
 
 	val banana_ptr = map["banana"];
 	assert_true(banana_ptr != null, "banana_ptr != null");
-	assert_eq_i32(*banana_ptr, 200, "*map['banana']");
+	assert_eq_i32(*banana_ptr!, 200, "*map['banana']");
 
 	// Overwrite via [] =
 	map["apple"] = 999;
-	assert_eq_i32(*map["apple"], 999, "*map['apple'] after update");
+	assert_eq_i32(*map["apple"]!, 999, "*map['apple'] after update");
 }
 
 fn test_hash_set_ops() {
@@ -265,7 +265,7 @@ fn test_pointer_receiver_ops() {
 	assert_true("ptr_key" in &set, "'ptr_key' in &set");
 	assert_true("ptr_k" in &map, "'ptr_k' in &map");
 	val map_ptr = &map;
-	assert_eq_i32(*map_ptr["ptr_k"], 123, "*(&map)['ptr_k'] == 123");
+	assert_eq_i32(*map_ptr["ptr_k"]!, 123, "*(&map)['ptr_k'] == 123");
 }
 
 pub fn main(): i32 {

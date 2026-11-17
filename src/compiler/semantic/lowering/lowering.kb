@@ -40,7 +40,7 @@ impl LoweringPass {
 
 	pub init(symtab: SymbolTable, arena: Arena, decl: DeclarationCollector) => Self(symtab, arena, decl);
 
-	pub fn lower_program(&self, program_node: *AstNode) {
+	pub fn lower_program(&self, program_node: &AstNode) {
 		if (program_node is Program as prog) {
 			for (decl in prog) {
 				when (decl) {
@@ -79,7 +79,7 @@ impl LoweringPass {
 	// Statements
 	// ============================================================================
 
-	pub fn lower_stmt(&self, node: *AstNode): *AstNode {
+	pub fn lower_stmt(&self, node: &AstNode): &AstNode {
 		val res_stmt = self.symtab.get_resolved_node(node);
 		if (res_stmt != null) return self.lower_stmt(res_stmt);
 
@@ -143,7 +143,7 @@ impl LoweringPass {
 	// Expressions
 	// ============================================================================
 
-	pub fn lower_expr(&self, node: *AstNode): *AstNode {
+	pub fn lower_expr(&self, node: &AstNode): &AstNode {
 		val res_expr = self.symtab.get_resolved_node(node);
 		if (res_expr != null) return self.lowered(node, self.lower_expr(res_expr));
 
@@ -244,13 +244,13 @@ impl LoweringPass {
 	// Rewrite rules
 	// ============================================================================
 
-	fn lower_arm_body(&self, body: *AstNode): *AstNode {
+	fn lower_arm_body(&self, body: &AstNode): &AstNode {
 		val t = body;
 		if (t is BlockStmt) return self.lower_stmt(body);
 		return self.lower_expr(body);
 	}
 
-	fn lowered(*self, original: *AstNode, replacement: *AstNode): *AstNode {
+	fn lowered(*self, original: *AstNode, replacement: &AstNode): &AstNode {
 		val orig_ty = self.symtab.get_node_type(original);
 		if (orig_ty != null) self.symtab.set_node_type(replacement, orig_ty);
 		val rm = self.symtab.get_resolved_method(original);
@@ -270,7 +270,7 @@ impl LoweringPass {
 		return replacement;
 	}
 
-	fn lower_binary(&self, node: *AstNode, bin: *BinaryExpr): *AstNode {
+	fn lower_binary(&self, node: &AstNode, bin: &BinaryExpr): &AstNode {
 		if (bin.op == TokenType.QUESTION_COLON) {
 			if (self.is_stmt_node(bin.right)) bin.right = self.lower_stmt(bin.right);
 			return node;
@@ -293,34 +293,37 @@ impl LoweringPass {
 
 		if (bin.op == TokenType.KW_IN && bin.right is ArrayLiteralExpr as al) {
 			val lt = self.type_of(bin.left);
-			if (lt?.kind == DataType.STRUCT && !al.elements.empty() && al.elements.first() !is IsExpr) {
-				val s_info = lt.as_struct();
+			if (lt != null && lt.kind == DataType.STRUCT && !al.elements.empty() && al.elements.first() !is IsExpr) {
+				val s_info = lt.as_struct()!;
 				var arg_types = List<*Type>();
 				arg_types += lt;
 				arg_types += lt;
 				val eq_mi = s_info.find_operator("equals", arg_types);
-				var acc: ?*AstNode = null;
+				val prims = self.symtab.prims!;
+				var acc: ?&AstNode = null;
 				for (el in al.elements) {
 					var eq_bin = BinaryExpr(bin.left, TokenType.EQUAL_EQUAL, el);
 					val eq_node = self.arena.node(
 						NodeData.BinaryExpr(bin.left, TokenType.EQUAL_EQUAL, el),
 						el.line, el.col
 					);
-					self.symtab.set_node_type(eq_node, self.symtab.prims.t_bool());
+					self.symtab.set_node_type(eq_node, prims.t_bool());
 					if (eq_mi != null) self.symtab.set_resolved_method(eq_node, eq_mi);
 					val low_eq = self.lower_binary(eq_node, &eq_bin);
-					if (acc == null) {
-						acc = low_eq;
-					} else {
+					val acc_prev = acc;
+					if (acc_prev != null) {
 						val or_node = self.arena.node(
-							NodeData.BinaryExpr(acc, TokenType.OR_OR, low_eq),
+							NodeData.BinaryExpr(acc_prev, TokenType.OR_OR, low_eq),
 							node.line, node.col
 						);
-						self.symtab.set_node_type(or_node, self.symtab.prims.t_bool());
+						self.symtab.set_node_type(or_node, prims.t_bool());
 						acc = or_node;
+					} else {
+						acc = low_eq;
 					}
 				}
-				if (acc != null) return self.lowered(node, acc);
+				val acc_final = acc;
+				if (acc_final != null) return self.lowered(node, acc_final);
 			}
 			return node;
 		}
@@ -329,7 +332,7 @@ impl LoweringPass {
 			val mi = self.symtab.get_resolved_method(node)!;
 			val right_ty = self.type_of(bin.right);
 			val r_is_ptr = right_ty?.kind == DataType.POINTER;
-			var args = List<*AstNode>();
+			var args = List<&AstNode>();
 			if (r_is_ptr) args += bin.right;
 			else {
 				val ref_arg = self.arena.node(
@@ -341,7 +344,7 @@ impl LoweringPass {
 			args += bin.left;
 			val callee = self.arena.node(NodeData.IdentifierExpr(mi.c_name), node.line, node.col);
 			val call = self.arena.node(
-				NodeData.CallExpr(callee, args, List<*AstNode>()),
+				NodeData.CallExpr(callee, args, List<&AstNode>()),
 				node.line, node.col
 			);
 			return self.lowered(node, call);
@@ -349,7 +352,7 @@ impl LoweringPass {
 
 		if (self.symtab.get_resolved_method(node) != null) {
 			val mi = self.symtab.get_resolved_method(node)!;
-			var args = List<*AstNode>();
+			var args = List<&AstNode>();
 			val ref_arg = self.arena.node(
 				NodeData.UnaryExpr(TokenType.AMPERSAND, bin.left, false),
 				node.line, node.col
@@ -358,7 +361,7 @@ impl LoweringPass {
 			args += bin.right;
 			val callee = self.arena.node(NodeData.IdentifierExpr(mi.c_name), node.line, node.col);
 			val call = self.arena.node(
-				NodeData.CallExpr(callee, args, List<*AstNode>()),
+				NodeData.CallExpr(callee, args, List<&AstNode>()),
 				node.line, node.col
 			);
 			if (bin.op == TokenType.BANG_EQUAL) {
@@ -373,7 +376,7 @@ impl LoweringPass {
 
 		if (bin.op in [TokenType.EQUAL_EQUAL, TokenType.BANG_EQUAL]) {
 			val lt = self.type_of(bin.left);
-			if (lt?.kind == DataType.STRUCT) {
+			if (lt != null && lt.kind == DataType.STRUCT) {
 				val is_neq = bin.op == TokenType.BANG_EQUAL;
 				val eq = self.arena.make_mem_eq(
 					is_neq, bin.left, bin.right, lt.size, node.line, node.col
@@ -384,12 +387,12 @@ impl LoweringPass {
 		return node;
 	}
 
-	fn lower_assign(&self, node: *AstNode, asgn: *AssignExpr): *AstNode {
+	fn lower_assign(&self, node: &AstNode, asgn: &AssignExpr): &AstNode {
 		if (self.symtab.get_resolved_method(node) != null) {
 			val mi = self.symtab.get_resolved_method(node)!;
 			val target_ty = self.type_of(asgn.target);
 			val t_is_ptr = target_ty?.kind == DataType.POINTER;
-			var args = List<*AstNode>();
+			var args = List<&AstNode>();
 			if (t_is_ptr) args += asgn.target;
 			else {
 				val ref_arg = self.arena.node(
@@ -401,7 +404,7 @@ impl LoweringPass {
 			args += asgn.value;
 			val callee = self.arena.node(NodeData.IdentifierExpr(mi.c_name), node.line, node.col);
 			val call = self.arena.node(
-				NodeData.CallExpr(callee, args, List<*AstNode>()),
+				NodeData.CallExpr(callee, args, List<&AstNode>()),
 				node.line, node.col
 			);
 			return self.lowered(node, call);
@@ -417,9 +420,9 @@ impl LoweringPass {
 		return node;
 	}
 
-	fn lower_interp(&self, node: *AstNode, ie: *InterpExpr): *AstNode {
+	fn lower_interp(&self, node: &AstNode, ie: &InterpExpr): &AstNode {
 		val (line, col) = node;
-		var pieces = List<*AstNode>();
+		var pieces = List<&AstNode>();
 		defer pieces.free();
 		for (i in 0..<ie.parts.len) {
 			val part = ie.parts[i];
@@ -433,16 +436,13 @@ impl LoweringPass {
 				}
 			}
 		}
-		var acc = self.arena.interp_concat_many(pieces, line, col);
-		if (acc == null) {
-			acc = self.arena.node(NodeData.LiteralExpr(Literal.STRING, "\"\""), line, col);
-		}
-		return self.lowered(node, acc!);
+		val acc = self.arena.interp_concat_many(pieces, line, col)
+			?: self.arena.node(NodeData.LiteralExpr(Literal.STRING, "\"\""), line, col);
+		return self.lowered(node, acc);
 	}
 
-	fn to_str_expr(&self, expr: *AstNode, line: usz, col: usz): ?*AstNode {
-		val ty = self.type_of(expr);
-		if (ty == null) return null;
+	fn to_str_expr(&self, expr: &AstNode, line: usz, col: usz): ?&AstNode {
+		val ty = self.type_of(expr) ?: return null;
 		if (ty.kind == DataType.STR) return expr;
 
 		val pmi = self.symtab.find_prim_method(ty.kind, "to_str");
@@ -452,10 +452,10 @@ impl LoweringPass {
 		var is_ptr = false;
 		if (cur_ty.kind == DataType.POINTER) {
 			is_ptr = true;
-			cur_ty = cur_ty.as_pointer().pointee;
+			cur_ty = cur_ty.as_pointer()!.pointee;
 		}
 		if (cur_ty.kind == DataType.STRUCT) {
-			val mi = cur_ty.as_struct().find_method("to_str");
+			val mi = cur_ty.as_struct()!.find_method("to_str");
 			if (mi != null) {
 				var arg = expr;
 				if (!is_ptr) {
@@ -470,8 +470,8 @@ impl LoweringPass {
 		return null;
 	}
 
-	fn lower_member(&self, node: *AstNode, mem: *MemberExpr): *AstNode {
-		val obj = mem.object ?: return node;
+	fn lower_member(&self, node: &AstNode, mem: &MemberExpr): &AstNode {
+		val obj = mem.object;
 
 		val obj_ty = self.type_of(obj);
 		if (obj_ty?.is_enum() && mem.member == "value") return self.lowered(node, obj);
@@ -488,7 +488,7 @@ impl LoweringPass {
 		}
 
 		if (self.is_array_expr(obj)) {
-			val arr = self.type_of(obj).as_array();
+			val arr = self.type_of(obj)!.as_array()!;
 			if (arr.length == 0 && obj is IdentifierExpr as id) {
 				if (mem.member in ["len", "size"]) {
 					val id_node = self.arena.node(
@@ -518,10 +518,10 @@ impl LoweringPass {
 		return node;
 	}
 
-	fn lower_unary(&self, node: *AstNode, un: *UnaryExpr): *AstNode {
+	fn lower_unary(&self, node: &AstNode, un: &UnaryExpr): &AstNode {
 		if (self.symtab.get_resolved_method(node) == null) return node;
 		val mi = self.symtab.get_resolved_method(node)!;
-		var args = List<*AstNode>();
+		var args = List<&AstNode>();
 		val ref_arg = self.arena.node(
 			NodeData.UnaryExpr(TokenType.AMPERSAND, un.operand, false),
 			node.line, node.col
@@ -529,16 +529,16 @@ impl LoweringPass {
 		args += ref_arg;
 		val callee = self.arena.node(NodeData.IdentifierExpr(mi.c_name), node.line, node.col);
 		val call = self.arena.node(
-			NodeData.CallExpr(callee, args, List<*AstNode>()),
+			NodeData.CallExpr(callee, args, List<&AstNode>()),
 			node.line, node.col
 		);
 		return self.lowered(node, call);
 	}
 
-	fn lower_index(&self, node: *AstNode, idx: *IndexExpr): *AstNode {
+	fn lower_index(&self, node: &AstNode, idx: &IndexExpr): &AstNode {
 		if (idx.target is IdentifierExpr as id) {
 			val target_arr = self.type_of(idx.target);
-			if (target_arr?.kind == DataType.ARRAY && target_arr.as_array().length == 0) {
+			if (target_arr != null && target_arr.kind == DataType.ARRAY && target_arr.as_array()!.length == 0) {
 				val data_id = self.arena.node(
 					NodeData.IdentifierExpr("${id.name}_data"),
 					node.line, node.col
@@ -554,7 +554,7 @@ impl LoweringPass {
 		val mi = self.symtab.get_resolved_method(node)!;
 		val target_ty = self.type_of(idx.target);
 		val t_is_ptr = target_ty?.kind == DataType.POINTER;
-		var args = List<*AstNode>();
+		var args = List<&AstNode>();
 		if (t_is_ptr) args += idx.target;
 		else {
 			val ref_arg = self.arena.node(
@@ -566,23 +566,22 @@ impl LoweringPass {
 		args += idx.index;
 		val callee = self.arena.node(NodeData.IdentifierExpr(mi.c_name), node.line, node.col);
 		val call = self.arena.node(
-			NodeData.CallExpr(callee, args, List<*AstNode>()),
+			NodeData.CallExpr(callee, args, List<&AstNode>()),
 			node.line, node.col
 		);
 		return self.lowered(node, call);
 	}
 
-	fn lower_bound_call(&self, node: *AstNode, call: *CallExpr): *AstNode {
+	fn lower_bound_call(&self, node: &AstNode, call: &CallExpr): &AstNode {
 		val callee = call.callee;
-		if (callee == null) return node;
 
 		if (callee is IdentifierExpr) {
 			val new_mi = self.symtab.get_resolved_method(node)!;
-			var ctor_args = List<*AstNode>();
+			var ctor_args = List<&AstNode>();
 			for (arg in call.args) ctor_args += arg;
 			val fn_id = self.arena.node(NodeData.IdentifierExpr(new_mi.c_name), node.line, node.col);
 			val ctor_call = self.arena.node(
-				NodeData.CallExpr(fn_id, ctor_args, List<*AstNode>()),
+				NodeData.CallExpr(fn_id, ctor_args, List<&AstNode>()),
 				node.line, node.col
 			);
 			return self.lowered(node, ctor_call);
@@ -592,14 +591,14 @@ impl LoweringPass {
 			val mi = self.symtab.get_resolved_method(node)!;
 
 			if (mi.is_static) {
-				var static_args = List<*AstNode>();
+				var static_args = List<&AstNode>();
 				for (arg in call.args) static_args += arg;
 				val fn_id = self.arena.node(
 					NodeData.IdentifierExpr(mi.c_name),
 					node.line, node.col
 				);
 				val direct = self.arena.node(
-					NodeData.CallExpr(fn_id, static_args, List<*AstNode>()),
+					NodeData.CallExpr(fn_id, static_args, List<&AstNode>()),
 					node.line, node.col
 				);
 				return self.lowered(node, direct);
@@ -609,10 +608,10 @@ impl LoweringPass {
 			val recv_ty = self.type_of(recv);
 			val obj_is_ptr = recv_ty?.kind == DataType.POINTER;
 			var inner_ty = recv_ty;
-			if (obj_is_ptr) inner_ty = recv_ty.as_pointer().pointee;
+			if (obj_is_ptr) inner_ty = recv_ty!.as_pointer()!.pointee;
 			val is_by_value = mi.is_move;
 
-			var new_args = List<*AstNode>();
+			var new_args = List<&AstNode>();
 			if (is_by_value) {
 				val val_arg = if (obj_is_ptr) self.arena.node(NodeData.UnaryExpr(TokenType.STAR, recv, false), node.line, node.col) else recv;
 				new_args += val_arg;
@@ -632,7 +631,7 @@ impl LoweringPass {
 
 			val fn_id = self.arena.node(NodeData.IdentifierExpr(mi.c_name), node.line, node.col);
 			val direct = self.arena.node(
-				NodeData.CallExpr(fn_id, new_args, List<*AstNode>()),
+				NodeData.CallExpr(fn_id, new_args, List<&AstNode>()),
 				node.line, node.col
 			);
 			if (!mem.is_safe) return self.lowered(node, direct);
@@ -662,7 +661,7 @@ impl LoweringPass {
 							NodeData.IdentifierExpr("kobel_null_str"),
 							node.line, node.col
 						),
-						List<*AstNode>(), List<*AstNode>()
+						List<&AstNode>(), List<&AstNode>()
 					),
 					node.line, node.col
 				);
@@ -688,13 +687,13 @@ impl LoweringPass {
 		return node;
 	}
 
-	fn lower_call(&self, node: *AstNode, call: *CallExpr): *AstNode {
-		val callee = call.callee ?: return node;
+	fn lower_call(&self, node: &AstNode, call: &CallExpr): &AstNode {
+		val callee = call.callee;
 		if (callee is MemberExpr as mem) {
 			if (mem.member != "slice") return node;
 			if (!self.is_str_expr(mem.object)) return node;
 
-			var args = List<*AstNode>();
+			var args = List<&AstNode>();
 			args += mem.object;
 			if (!call.args.empty()) args += call.args.first();
 			else {
@@ -712,7 +711,7 @@ impl LoweringPass {
 					node.line, node.col
 				);
 				val slice_call = self.arena.node(
-					NodeData.CallExpr(callee_id, args, List<*AstNode>()),
+					NodeData.CallExpr(callee_id, args, List<&AstNode>()),
 					node.line, node.col
 				);
 				return self.lowered(node, slice_call);
@@ -723,7 +722,7 @@ impl LoweringPass {
 				node.line, node.col
 			);
 			val slice1_call = self.arena.node(
-				NodeData.CallExpr(callee_id, args, List<*AstNode>()),
+				NodeData.CallExpr(callee_id, args, List<&AstNode>()),
 				node.line, node.col
 			);
 			return self.lowered(node, slice1_call);

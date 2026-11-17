@@ -82,7 +82,7 @@ fn test_statement_nodes(): bool {
 	defer arena.free();
 
 	// var count: i32 = 42;
-	val ty_i32 = arena.node(NodeData.NamedType("i32", List<*AstNode>()), 1, 12);
+	val ty_i32 = arena.node(NodeData.NamedType("i32", List<&AstNode>()), 1, 12);
 	val lit42 = arena.node(NodeData.LiteralExpr(Literal.INTEGER, "42"), 1, 18);
 	val var_stmt = arena.node(NodeData.VarDeclStmt(true, "count", ty_i32, lit42), 1, 1);
 
@@ -98,7 +98,7 @@ fn test_statement_nodes(): bool {
 	if (ret_stmt !is ReturnStmt) return false;
 
 	// { return count; }
-	var stmts = List<*AstNode>();
+	var stmts = List<&AstNode>();
 	stmts += ret_stmt;
 	val block = arena.node(NodeData.BlockStmt(stmts), 2, 1);
 	if (block is BlockStmt as blk) {
@@ -124,7 +124,7 @@ fn test_declaration_nodes(): bool {
 
 	// fn add(a: i32, b: i32): i32 { return a + b; }
 	var params = List<Param>();
-	val ty_i32 = arena.node(NodeData.NamedType("i32", List<*AstNode>()), 1, 1);
+	val ty_i32 = arena.node(NodeData.NamedType("i32", List<&AstNode>()), 1, 1);
 	params += Param("a", ty_i32, ReceiverKind.NONE, null);
 	params += Param("b", ty_i32, ReceiverKind.NONE, null);
 
@@ -133,7 +133,7 @@ fn test_declaration_nodes(): bool {
 	val add_expr = arena.node(NodeData.BinaryExpr(id_a, TokenType.PLUS, id_b), 1, 1);
 	val ret_stmt = arena.node(NodeData.ReturnStmt(add_expr), 1, 1);
 
-	var body_stmts = List<*AstNode>();
+	var body_stmts = List<&AstNode>();
 	body_stmts += ret_stmt;
 	val body = arena.node(NodeData.BlockStmt(body_stmts), 1, 1);
 
@@ -157,7 +157,7 @@ fn test_declaration_nodes(): bool {
 fn test_program_iterable(): bool {
 	var arena = Arena();
 	defer arena.free();
-	var decls = List<*AstNode>();
+	var decls = List<&AstNode>();
 	val d1 = arena.node(NodeData.FnDecl("f1", List<GenericParam>(), List<Param>(), null, null, true, false, false, ""), 1, 1);
 	val d2 = arena.node(NodeData.FnDecl("f2", List<GenericParam>(), List<Param>(), null, null, true, false, false, ""), 2, 1);
 	decls += d1;

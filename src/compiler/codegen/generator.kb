@@ -47,7 +47,7 @@ pub struct CCodeGen {
 	pub yield_exit_label: str = "",
 	pub when_label_counter: usz = 0,
 	pub destruct_counter: usz = 0,
-	pub defer_nodes: List<*AstNode> = List(),
+	pub defer_nodes: List<&AstNode> = List(),
 	pub scope_starts: List<usz> = List(),
 	pub scope_jumped: List<bool> = List(),
 	pub loop_defer_depths: List<usz> = List(),
@@ -88,7 +88,7 @@ impl CCodeGen {
 		self.scope_jumped += false;
 	}
 
-	pub fn add_defer(&self, stmt: *AstNode) => self.defer_nodes += stmt;
+	pub fn add_defer(&self, stmt: &AstNode) => self.defer_nodes += stmt;
 
 	pub fn mark_current_scope_jumped(&self) {
 		if (!self.scope_jumped.empty()) {

@@ -22,7 +22,7 @@ use compiler.semantic.lowering.*;
 
 impl BodyChecker {
 
-	pub fn check_block_stmt(&self, node: *AstNode) {
+	pub fn check_block_stmt(&self, node: &AstNode) {
 		if (node is BlockStmt as blk) {
 			self.symtab.enter_scope(false);
 			defer self.symtab.exit_scope();
@@ -32,7 +32,7 @@ impl BodyChecker {
 		}
 	}
 
-	pub fn check_var_decl_stmt(&self, node: *AstNode) {
+	pub fn check_var_decl_stmt(&self, node: &AstNode) {
 		if (node is VarDeclStmt as vd) {
 			var var_ty = self.prims().t_none();
 			var has_init = false;
@@ -87,14 +87,14 @@ impl BodyChecker {
 		}
 	}
 
-	pub fn check_destruct_decl_stmt(&self, node: *AstNode) {
+	pub fn check_destruct_decl_stmt(&self, node: &AstNode) {
 		if (node is DestructDeclStmt as ds) {
 			val init_ty = self.check_expr_stmt(ds.initializer);
 			self.ensure(init_ty.kind != DataType.NONE, node, "Cannot destructure void expression");
 
 			var struct_ty = init_ty;
 			if (struct_ty.kind == DataType.POINTER) {
-				val ptr_ty = struct_ty.as_pointer();
+				val ptr_ty = struct_ty.as_pointer()!;
 				if (ptr_ty.nullable) {
 					self.report_error(node, "Cannot destructure nullable pointer '${self.type_display(init_ty)}'. Use '!' or null-check first");
 					return;
@@ -117,7 +117,7 @@ impl BodyChecker {
 			// Every unpacked parameter in Form A must be a pointer type (&T or *T).
 			for (m in s_info.methods) {
 				if (m.operator && m.name == "unpack") {
-					val fn_t = m.fn_type.as_fn();
+					val fn_t = m.fn_type.as_fn()!;
 					if (fn_t.param_types.len == ds.names.len + 1) {
 						var all_ptrs = true;
 						for (i in 1..<fn_t.param_types.len) {
@@ -139,7 +139,7 @@ impl BodyChecker {
 			if (found_mi == null) {
 				for (m in s_info.methods) {
 					if (m.operator && m.name == "unpack") {
-						val fn_t = m.fn_type.as_fn();
+						val fn_t = m.fn_type.as_fn()!;
 						if (
 							fn_t.param_types.len == 2 &&
 							fn_t.param_types[1].is_integer() &&
@@ -165,7 +165,7 @@ impl BodyChecker {
 			self.set_method(node, mi);
 
 			if (is_indexed) {
-				val elem_t = mi.fn_type.as_fn().return_type;
+				val elem_t = mi.fn_type.as_fn()!.return_type;
 				for (i in 0..<ds.names.len) {
 					if (ds.names[i] != "_") {
 						val sym = Symbol(
@@ -177,11 +177,11 @@ impl BodyChecker {
 					}
 				}
 			} else {
-				val fn_t = mi.fn_type.as_fn();
+				val fn_t = mi.fn_type.as_fn()!;
 				for (i in 0..<ds.names.len) {
 					if (ds.names[i] != "_") {
 						val param_t = fn_t.param_types[i + 1];
-						val var_t = if (param_t.kind == DataType.POINTER) param_t.as_pointer().pointee else param_t;
+						val var_t = if (param_t.kind == DataType.POINTER) param_t.as_pointer()!.pointee else param_t;
 						val sym = Symbol(
 							ds.names[i], ds.names[i], SymbolKind.VAR,
 							var_t, ds.mutable, false, node.line, node.col, null
@@ -194,10 +194,10 @@ impl BodyChecker {
 		}
 	}
 
-	fn collect_and_conditions(&self, expr: *AstNode): List<*AstNode> {
-		var res = List<*AstNode>();
-		if (expr == null) return res;
-		val cur = self.unwrap_group(expr) ?: return res;
+	fn collect_and_conditions(&self, expr: ?&AstNode): List<&AstNode> {
+		var res = List<&AstNode>();
+		val target = expr ?: return res;
+		val cur = self.unwrap_group_mut(target);
 
 		if (cur is BinaryExpr as bin && bin.op == TokenType.AND_AND) {
 			val left = self.collect_and_conditions(bin.left);
@@ -224,7 +224,7 @@ impl BodyChecker {
 		val sym = self.symtab.lookup(var_name) ?: return;
 		val type_ptr = sym.type_ptr ?: return;
 		if (type_ptr.kind != DataType.POINTER) return;
-		val ptr_ty = type_ptr.as_pointer();
+		val ptr_ty = type_ptr.as_pointer()!;
 		if (!ptr_ty.nullable) return;
 
 		val non_null_ty = self.arena.pointer_type(ptr_ty.pointee, ptr_ty.mutable);
@@ -302,7 +302,7 @@ impl BodyChecker {
 		}
 	}
 
-	pub fn check_if_stmt(&self, node: *AstNode) {
+	pub fn check_if_stmt(&self, node: &AstNode) {
 		if (node is IfStmt as if_s) {
 			val conds = self.collect_and_conditions(if_s.condition);
 
@@ -319,7 +319,7 @@ impl BodyChecker {
 				self.in_safe_nav_context = prev_sn;
 				self.ensure(c_ty.kind == DataType.BOOL, c, "If statement condition must be bool");
 
-				val unwrapped_c = self.unwrap_group(c);
+				val unwrapped_c = self.unwrap_group_mut(c);
 				if (unwrapped_c is IsExpr as is_e) {
 					val prev_sn = self.in_safe_nav_context;
 					self.in_safe_nav_context = true;
@@ -373,7 +373,7 @@ impl BodyChecker {
 					neg_un.op == TokenType.BANG &&
 					!neg_un.is_postfix
 				) {
-					val inner_is = self.unwrap_group(neg_un.operand);
+					val inner_is = self.unwrap_group_mut(neg_un.operand);
 					if (inner_is is IsExpr as is_e && is_e.alias.empty() && is_e.expr is IdentifierExpr as id) {
 						val prev_sn = self.in_safe_nav_context;
 						self.in_safe_nav_context = true;
@@ -402,7 +402,7 @@ impl BodyChecker {
 		}
 	}
 
-	pub fn check_while_stmt(&self, node: *AstNode) {
+	pub fn check_while_stmt(&self, node: &AstNode) {
 		if (node is WhileStmt as wh) {
 			val conds = self.collect_and_conditions(wh.condition);
 
@@ -418,7 +418,7 @@ impl BodyChecker {
 				self.in_safe_nav_context = prev_sn;
 				self.ensure(c_ty.kind == DataType.BOOL, c, "While statement condition must be bool");
 
-				val unwrapped_c = self.unwrap_group(c);
+				val unwrapped_c = self.unwrap_group_mut(c);
 				if (unwrapped_c is BinaryExpr as bin && bin.op == TokenType.BANG_EQUAL) {
 					self.check_null_guard(bin.left, bin.right);
 				}
@@ -430,7 +430,7 @@ impl BodyChecker {
 		}
 	}
 
-	pub fn check_for_stmt(&self, node: *AstNode) {
+	pub fn check_for_stmt(&self, node: &AstNode) {
 		if (node is ForStmt as fs) {
 			self.ensure(
 				fs.is_range || for_is_lvalue(fs.iterable),
@@ -446,13 +446,13 @@ impl BodyChecker {
 			var pending = List<PendingResolve>();
 			var lowerer = LoopLowerer(self.arena);
 			val block = lowerer.desugar_for(node, fs, use_iter_trait, &pending);
-			for ((p_node, target) in pending) self.set_resolved(p_node, target);
+			for (pr in pending) self.set_resolved(pr.node, pr.target);
 			self.set_resolved(node, block);
 			self.check_statement(block);
 		}
 	}
 
-	pub fn check_return_stmt(&self, node: *AstNode) {
+	pub fn check_return_stmt(&self, node: &AstNode) {
 		if (self.in_lambda) {
 			self.report_error(node, "Cannot use 'return' inside a lambda; use 'yield' to return a value from the lambda");
 			if (node is ReturnStmt as r && r.value != null) {
@@ -467,7 +467,7 @@ impl BodyChecker {
 			if (ret.value != null) {
 				val needs_infer = self.inferring_fn_return && (
 					self.current_fn_return_type == null ||
-					self.current_fn_return_type.kind == DataType.NONE
+					self.current_fn_return_type!.kind == DataType.NONE
 				);
 				if (needs_infer) {
 					val val_ty = self.check_expr(ret.value!);
@@ -478,14 +478,14 @@ impl BodyChecker {
 				} else {
 					val val_ty = self.check_expr(ret.value!, self.current_fn_return_type);
 					self.ensure(
-						self.current_fn_return_type.can_assign(val_ty),
+						self.current_fn_return_type!.can_assign(val_ty),
 						node,
 						"Return value type does not match function return type"
 					);
 				}
 			} else {
 				self.ensure(
-					self.current_fn_return_type.kind == DataType.NONE,
+					self.current_fn_return_type!.kind == DataType.NONE,
 					node,
 					"Non-none function must return a value"
 				);
@@ -493,7 +493,7 @@ impl BodyChecker {
 		}
 	}
 
-	pub fn check_when_stmt(&self, node: *AstNode) {
+	pub fn check_when_stmt(&self, node: &AstNode) {
 		if (node is WhenStmt as ws) {
 			if (ws.condition != null && self.expr_has_call(ws.condition)) {
 				self.report_error(
@@ -537,9 +537,9 @@ impl BodyChecker {
 		}
 		if (target is MemberExpr as mem) {
 			var obj = self.for_iterable_type(mem.object) ?: return null;
-			if (obj.kind == DataType.POINTER) obj = obj.as_pointer().pointee;
+			if (obj.kind == DataType.POINTER) obj = obj.as_pointer()!.pointee;
 			if (obj.kind != DataType.STRUCT) return null;
-			val s_mem = obj.as_struct();
+			val s_mem = obj.as_struct()!;
 			for (f in s_mem.fields) {
 				if (f.name == mem.member) return f.type_ptr;
 			}
@@ -548,10 +548,10 @@ impl BodyChecker {
 		return null;
 	}
 
-	fn propagate_instance_init(&self, init_node: *AstNode, var_ty: *Type): ?*AstNode {
+	fn propagate_instance_init(&self, init_node: &AstNode, var_ty: *Type): ?&AstNode {
 		if (var_ty == null || var_ty.kind != DataType.STRUCT) return null;
 		var cur = init_node;
-		while (cur != null) {
+		while (true) {
 			if (cur is GroupExpr as g) cur = g.expr;
 			else break;
 		}
@@ -560,11 +560,11 @@ impl BodyChecker {
 			if (call.callee is IdentifierExpr as cid) {
 				val tmpl = self.find_struct_template_for(cid.name) ?: return null;
 				val prefix = "${tmpl.module.mangle_symbol(tmpl.name)}_";
-				val s = var_ty.as_struct();
+				val s = var_ty.as_struct()!;
 				if (!s.c_name.starts_with(prefix)) return null;
 				val callee = self.arena.node(NodeData.IdentifierExpr(s.c_name), init_node.line, init_node.col);
 				return self.arena.node(
-					NodeData.CallExpr(callee, call.args, List<*AstNode>()),
+					NodeData.CallExpr(callee, call.args, List<&AstNode>()),
 					init_node.line, init_node.col
 				);
 			}
@@ -574,10 +574,11 @@ impl BodyChecker {
 
 	fn struct_implements_iterable(*self, ty: ?*Type): bool {
 		var cur = ty;
-		if (cur?.kind == DataType.POINTER) cur = cur.as_pointer().pointee;
-		if (cur == null || cur.kind != DataType.STRUCT) return false;
+		if (cur != null && cur.kind == DataType.POINTER) cur = cur.as_pointer()!.pointee;
+		val base = cur ?: return false;
+		if (base.kind != DataType.STRUCT) return false;
 		val t = self.symtab.find_trait("Iterable") ?: return false;
-		return t.has_impl(cur.as_struct().name);
+		return t.has_impl(base.as_struct()!.name);
 	}
 
 }

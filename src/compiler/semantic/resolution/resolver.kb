@@ -30,13 +30,13 @@ pub struct TypeResolver {
 	pub is_extern: bool = false,
 	pub current_self_type: ?*Type = null,
 	pub subst: TypeSubst = TypeSubst(),
-	pub current_fn_return_type: ?*AstNode = null,
+	pub current_fn_return_type: ?&AstNode = null,
 	pub mat_rec: ?*InstanceRecord = null
 }
 
 impl TypeResolver {
 
-	pub fn prims(*self) => self.symtab.prims;
+	pub fn prims(*self): *PrimTypes => self.symtab.prims!;
 
 	pub fn enter_module(&self, module: str): str {
 		val prev = self.current_module;
@@ -61,7 +61,7 @@ impl TypeResolver {
 		self.errors += Diagnostic.error(node.span, self.current_module, msg);
 	}
 
-	pub fn resolve_ast_type(&self, node: *AstNode): *Type {
+	pub fn resolve_ast_type(&self, node: &AstNode): *Type {
 		if (node == null) return self.prims().t_none();
 
 		return when (node) {
@@ -73,26 +73,28 @@ impl TypeResolver {
 
 				if (name == "Self" && self.current_self_type != null) {
 					if (self.subst.empty()) {
-						val sinfo = self.current_self_type.as_struct();
-						if (!sinfo.c_name.empty()) named.name = sinfo.c_name;
-						else named.name = sinfo.name;
+						val sinfo = self.current_self_type!.as_struct()!;
+						if (sinfo != null) {
+							if (!sinfo.c_name.empty()) named.name = sinfo.c_name;
+							else named.name = sinfo.name;
+						}
 					}
 					yield self.current_self_type;
 				}
 
 				if (name.starts_with("Self.")) {
 					val assoc = name.slice(5, name.len);
-					if (self.current_self_type == null || self.current_self_type.kind != DataType.STRUCT) {
+					if (self.current_self_type == null || self.current_self_type!.kind != DataType.STRUCT) {
 						self.report_error(node, "Associated type '${name}' used outside of an impl");
 						yield self.prims().t_none();
 					}
-					val self_name = self.current_self_type.as_struct().name;
+					val self_name = self.current_self_type!.as_struct()!.name;
 					val bound = self.symtab.find_assoc_type(self_name, assoc);
 					if (bound == null) {
 						self.report_error(node, "Trait associated type '${assoc}' is not bound for '${self_name}'");
 						yield self.prims().t_none();
 					}
-					if (bound.kind in [DataType.POINTER, DataType.ARRAY]) {
+					if (bound != null && bound.kind in [DataType.POINTER, DataType.ARRAY]) {
 						self.report_error(node, "Associated type '${assoc}' must be a named type (struct, enum or primitive)");
 						yield self.prims().t_none();
 					}
@@ -108,8 +110,8 @@ impl TypeResolver {
 					if (tmpl != null) {
 						val cty = self.instantiate_struct(tmpl, named.type_args);
 						if (self.subst.empty()) {
-							named.name = cty.as_struct().name;
-							named.type_args = List<*AstNode>();
+							named.name = cty.as_struct()!.name;
+							named.type_args = List<&AstNode>();
 						}
 						yield cty;
 					}
@@ -166,12 +168,12 @@ impl TypeResolver {
 
 	fn ast_type_name_of(*self, ty: *Type): str {
 		if (ty.kind == DataType.STRUCT) {
-			val s_info = ty.as_struct();
+			val s_info = ty.as_struct()!;
 			if (!s_info.c_name.empty()) return s_info.c_name;
 			return s_info.name;
 		}
 
-		if (ty.is_enum()) return ty.as_enum().c_name;
+		if (ty.is_enum()) return ty.as_enum()!.c_name;
 
 		return primitive_type_name(ty);
 	}

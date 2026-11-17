@@ -246,16 +246,16 @@ fn elvis_chained_ret(p1: ?*i32, p2: ?*i32): i32 {
 	return *unwrapped;
 }
 
-fn track_ptr(p: ?*i32, c: *Counter): ?*i32 {
+fn track_ptr(p: ?*i32, c: &Counter): ?*i32 {
 	c.count++;
 	return p;
 }
 
-fn ret_elvis(p: ?*i32, fallback: *i32, c: *Counter): *i32 {
+fn ret_elvis(p: ?*i32, fallback: *i32, c: &Counter): *i32 {
 	return track_ptr(p, c) ?: fallback;
 }
 
-fn arrow_elvis(p: ?*i32, fallback: *i32, c: *Counter): *i32 => track_ptr(p, c) ?: fallback;
+fn arrow_elvis(p: ?*i32, fallback: *i32, c: &Counter): *i32 => track_ptr(p, c) ?: fallback;
 
 fn test_null_safety(): bool {
 	val p_null: ?*i32 = null;

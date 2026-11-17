@@ -50,7 +50,7 @@ pub struct DeclarationCollector {
 	pub current_self_type: ?*Type = null,
 	pub subst_names: List<str> = List(),
 	pub subst_types: List<*Type> = List(),
-	pub current_fn_return_type: ?*AstNode = null,
+	pub current_fn_return_type: ?&AstNode = null,
 	pub mat_rec: ?*InstanceRecord = null
 }
 
@@ -63,7 +63,7 @@ impl DeclarationCollector {
 
 	pub init(arena: Arena) => Self(SymbolTable(arena), arena, "", List<Diagnostic>());
 
-	pub fn prims(*self) => self.symtab.prims;
+	pub fn prims(*self): *PrimTypes => self.symtab.prims!;
 
 	pub fn enter_module(&self, module: str): str {
 		val prev = self.current_module;
@@ -117,21 +117,21 @@ impl DeclarationCollector {
 		self.subst_types = r.subst.types;
 	}
 
-	pub fn resolve_ast_type(&self, node: *AstNode): *Type {
+	pub fn resolve_ast_type(&self, node: &AstNode): *Type {
 		var r = self.to_resolver();
 		val res = r.resolve_ast_type(node);
 		self.apply_resolver(r);
 		return res;
 	}
 
-	pub fn instantiate_struct(&self, tmpl: *GenericTemplate, arg_asts: List<*AstNode>): *Type {
+	pub fn instantiate_struct(&self, tmpl: *GenericTemplate, arg_asts: List<&AstNode>): *Type {
 		var r = self.to_resolver();
 		val res = r.instantiate_struct(tmpl, arg_asts);
 		self.apply_resolver(r);
 		return res;
 	}
 
-	pub fn instantiate_fn(&self, tmpl: *GenericTemplate, arg_asts: List<*AstNode>): str {
+	pub fn instantiate_fn(&self, tmpl: *GenericTemplate, arg_asts: List<&AstNode>): str {
 		var r = self.to_resolver();
 		val res = r.instantiate_fn(tmpl, arg_asts);
 		self.apply_resolver(r);
@@ -165,7 +165,7 @@ impl DeclarationCollector {
 		self.apply_resolver(r);
 	}
 
-	pub fn register_template(&self, node: *AstNode) {
+	pub fn register_template(&self, node: &AstNode) {
 		var r = self.to_resolver();
 		r.register_template(node);
 		self.apply_resolver(r);
@@ -189,47 +189,47 @@ impl DeclarationCollector {
 		self.apply_resolver(r);
 	}
 
-	pub fn rewrite_generics(&self, node: ?*AstNode) {
+	pub fn rewrite_generics(&self, node: ?&AstNode) {
 		var r = self.to_resolver();
 		r.rewrite_generics(node);
 		self.apply_resolver(r);
 	}
 
-	pub fn propagate_target_type(&self, target_type_node: ?*AstNode, init_node: ?*AstNode) {
+	pub fn propagate_target_type(&self, target_type_node: ?*AstNode, init_node: ?&AstNode) {
 		var r = self.to_resolver();
 		r.propagate_target_type(target_type_node, init_node);
 		self.apply_resolver(r);
 	}
 
-	pub fn materialize_body(&self, rec: *InstanceRecord): *AstNode {
+	pub fn materialize_body(&self, rec: *InstanceRecord): &AstNode {
 		var r = self.to_resolver();
 		val res = r.materialize_body(rec);
 		self.apply_resolver(r);
 		return res;
 	}
 
-	pub fn clone_expr(&self, node: *AstNode, subst: ?*GenericSubst = null): *AstNode {
+	pub fn clone_expr(&self, node: *AstNode, subst: ?*GenericSubst = null): &AstNode {
 		var r = self.to_resolver();
 		val res = r.clone_expr(node, subst);
 		self.apply_resolver(r);
 		return res;
 	}
 
-	pub fn clone_fn(&self, node: *AstNode, subst: ?*GenericSubst = null, new_name: str = ""): *AstNode {
+	pub fn clone_fn(&self, node: *AstNode, subst: ?*GenericSubst = null, new_name: str = ""): &AstNode {
 		var r = self.to_resolver();
 		val res = r.clone_fn(node, subst, new_name);
 		self.apply_resolver(r);
 		return res;
 	}
 
-	pub fn clone_stmt(&self, node: *AstNode, subst: ?*GenericSubst = null): *AstNode {
+	pub fn clone_stmt(&self, node: *AstNode, subst: ?*GenericSubst = null): &AstNode {
 		var r = self.to_resolver();
 		val res = r.clone_stmt(node, subst);
 		self.apply_resolver(r);
 		return res;
 	}
 
-	pub fn clone_type(&self, node: *AstNode, subst: ?*GenericSubst = null): *AstNode {
+	pub fn clone_type(&self, node: *AstNode, subst: ?*GenericSubst = null): &AstNode {
 		var r = self.to_resolver();
 		val res = r.clone_type(node, subst);
 		self.apply_resolver(r);
@@ -286,20 +286,21 @@ impl DeclarationCollector {
 	// Registers a struct's name with an opaque type, without resolving its fields.
 	// Every struct gets one before the definition pass, so a field may mention a
 	// type from a module that imports us back (import cycles). Idempotent.
-	fn declare_struct_shell(&self, node: *AstNode, s: *StructDecl) {
+	fn declare_struct_shell(&self, node: &AstNode, s: *StructDecl) {
 		val c_name = self.c_name_for(s.name);
 		val s_type = self.arena.struct_type(s.name, List<StructField>());
 		val st = s_type.as_struct()!;
 		st.c_name = c_name;
 		st.module = self.current_module;
 		st.is_defined = false;
+		self.symtab.register_struct_type(s_type);
 		val ok = self.symtab.define_global(
 			Symbol(s.name, c_name, SymbolKind.STRUCT, s_type, false, s.public, node.line, node.col, node)
 		);
 		if (!ok) self.report_error(node, "Duplicate struct declaration '${s.name}'");
 	}
 
-	pub fn collect_struct(&self, node: *AstNode) {
+	pub fn collect_struct(&self, node: &AstNode) {
 		if (node is StructDecl as s) {
 			// Generic structs are registered as templates and instantiated on use.
 			if (s.type_params.len > 0) return;
@@ -326,7 +327,7 @@ impl DeclarationCollector {
 				!existing.type_ptr.as_struct()!.is_defined
 			) {
 				// Definition of a forward-declared struct: complete the same type.
-				val fwd_type = existing.type_ptr;
+				val fwd_type = self.symtab.find_mut_struct_type(existing.c_name) ?: return;
 				val fwd_st = fwd_type.as_struct()!;
 				fwd_st.is_defined = true;
 				// A forward declaration elsewhere already emits this type's typedef.
@@ -358,6 +359,7 @@ impl DeclarationCollector {
 			val s_type = self.arena.struct_type(s.name, List<StructField>());
 			val s_info = s_type.as_struct()!;
 			s_info.c_name = c_name;
+			self.symtab.register_struct_type(s_type);
 			val ok = self.symtab.define_global(
 				Symbol(s.name, c_name, SymbolKind.STRUCT, s_type, false, s.public, node.line, node.col, node)
 			);
@@ -380,7 +382,7 @@ impl DeclarationCollector {
 		}
 	}
 
-	pub fn collect_fn(&self, node: *AstNode) {
+	pub fn collect_fn(&self, node: &AstNode) {
 		if (node is FnDecl as f) {
 			// Generic functions are registered as templates and instantiated on use.
 			if (f.type_params.len > 0) return;
@@ -412,7 +414,7 @@ impl DeclarationCollector {
 		}
 	}
 
-	pub fn collect_enum(&self, node: *AstNode) {
+	pub fn collect_enum(&self, node: &AstNode) {
 		if (node is EnumDecl as e) {
 			val under_type = if (e.underlying_type != null) self.resolve_ast_type(e.underlying_type!)
 			else self.prims().t_prim(Type.i32());
@@ -535,7 +537,7 @@ impl DeclarationCollector {
 	// A payload enum becomes a struct: a `tag` field plus a union of per-variant
 	// payload structs. Each variant gets its own struct type named `Enum.Variant`
 	// (so an `is` pattern can name it) and an `Enum.Variant__TAG` constant symbol.
-	fn collect_payload_enum(&self, node: *AstNode, e: *EnumDecl, under_type: *Type) {
+	fn collect_payload_enum(&self, node: &AstNode, e: &EnumDecl, under_type: *Type) {
 		if (e.underlying_type != null) {
 			self.report_error(node, "A payload enum cannot declare an underlying type");
 		}
@@ -613,7 +615,7 @@ impl DeclarationCollector {
 		e.name = c_name;
 	}
 
-	pub fn collect_const(&self, node: *AstNode) {
+	pub fn collect_const(&self, node: &AstNode) {
 		if (node is ConstDecl as c) {
 			val c_type = if (c.type_node != null) self.resolve_ast_type(c.type_node!)
 			else self.infer_const_type(c.value) ?: self.prims().t_prim(Type.i32());
@@ -685,7 +687,7 @@ impl DeclarationCollector {
 		}
 	}
 
-	pub fn collect_declaration(&self, node: *AstNode) {
+	pub fn collect_declaration(&self, node: &AstNode) {
 		val target = node;
 		when (target) {
 			is ModuleDecl -> self.collect_module(node);
@@ -700,7 +702,7 @@ impl DeclarationCollector {
 		}
 	}
 
-	pub fn collect_program(&self, program_node: *AstNode) {
+	pub fn collect_program(&self, program_node: &AstNode) {
 		if (program_node is Program as prog) {
 			self.pass0_register_templates(prog);
 			self.pass0_wildcard_imports(prog);
@@ -808,9 +810,9 @@ impl DeclarationCollector {
 		}
 	}
 
-	fn append_monomorphized_instances(*self, prog: *Program) {
+	fn append_monomorphized_instances(*self, prog: &Program) {
 		if (self.symtab.gen.instances.empty()) return;
-		var combined = List<*AstNode>();
+		var combined = List<&AstNode>();
 		for (d in prog.declarations) combined += d;
 		for (pn in self.symtab.gen.instances) combined += pn;
 		prog.declarations = combined;

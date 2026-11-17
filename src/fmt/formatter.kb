@@ -634,7 +634,7 @@ impl Formatter {
 		}
 	}
 
-	fn format_when_patterns(&self, patterns: List<*AstNode>) {
+	fn format_when_patterns(&self, patterns: List<&AstNode>) {
 		var prev_was_prefix_is = false;
 		for (p in 0..<patterns.len) {
 			if (p > 0) self.buf += ", ";

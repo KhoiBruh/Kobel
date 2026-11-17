@@ -21,7 +21,16 @@ use compiler.semantic.lowering.*;
 
 impl BodyChecker {
 
-	pub fn check_member_expr(&self, node: *AstNode): *Type {
+	pub fn unwrap_group_mut(*self, node: &AstNode): &AstNode {
+		var cur = node;
+		while (true) {
+			if (cur is GroupExpr as g) cur = g.expr;
+			else break;
+		}
+		return cur;
+	}
+
+	pub fn check_member_expr(&self, node: &AstNode): *Type {
 		if (node is MemberExpr as mem) {
 			val const_ty = self.check_const_member(node, mem);
 			if (const_ty != null) return const_ty;
@@ -35,7 +44,13 @@ impl BodyChecker {
 			}
 			var obj_ty = self.check_expr(obj_expr);
 
-			if (!mem.is_safe && obj_ty.kind == DataType.POINTER && obj_expr !is IdentifierExpr) {
+			if (!mem.is_safe && obj_ty.kind == DataType.POINTER && obj_ty.as_pointer()!.nullable) {
+				self.report_error(
+					node,
+					"Cannot access member '${mem.member}' on nullable pointer " +
+					"'${self.type_display(obj_ty)}'; use '?.' or unwrap with '!' first"
+				);
+			} else if (!mem.is_safe && obj_ty.kind == DataType.POINTER && obj_expr !is IdentifierExpr) {
 				val deref = self.arena.node(
 					NodeData.UnaryExpr(TokenType.STAR, obj_expr, false),
 					node.line, node.col
@@ -49,7 +64,7 @@ impl BodyChecker {
 			var obj_was_ptr = false;
 			if (obj_ty.kind == DataType.POINTER) {
 				obj_was_ptr = true;
-				obj_ty = obj_ty.as_pointer().pointee;
+				obj_ty = obj_ty.as_pointer()!.pointee;
 			}
 
 			if (mem.is_safe && !obj_was_ptr) {
@@ -58,7 +73,7 @@ impl BodyChecker {
 			}
 
 			if (mem.member == "value" && !obj_was_ptr && obj_ty.is_enum()) {
-				return obj_ty.as_enum().underlying;
+				return obj_ty.as_enum()!.underlying;
 			}
 
 			var ret_ty = self.prims().t_none();
@@ -79,7 +94,7 @@ impl BodyChecker {
 			if (mem.is_safe) {
 				if (ret_ty.kind == DataType.POINTER) {
 					val pt = ret_ty.as_pointer();
-					ret_ty = self.arena.nullable_pointer_type(pt.pointee, pt.mutable);
+					ret_ty = self.arena.nullable_pointer_type(pt!.pointee, pt!.mutable);
 				} else if (ret_ty.kind != DataType.STR) {
 					self.ensure(
 						self.in_safe_nav_context,
@@ -95,7 +110,7 @@ impl BodyChecker {
 		return self.prims().t_none();
 	}
 
-	fn check_const_member(&self, node: *AstNode, mem: *MemberExpr): ?*Type {
+	fn check_const_member(&self, node: &AstNode, mem: &MemberExpr): ?*Type {
 		val obj = mem.object;
 		if (obj is IdentifierExpr as enum_id) {
 			val ei = self.symtab.find_enum_info(enum_id.name);
@@ -108,7 +123,7 @@ impl BodyChecker {
 
 				if (ei.is_payload) {
 					val e_sym = self.symtab.lookup(ei.name) ?: return self.prims().t_none();
-					if (mi.payload_ty != null && !mi.payload_ty.as_struct().fields.empty()) {
+					if (mi!.payload_ty != null && !mi!.payload_ty!.as_struct()!.fields.empty()) {
 						self.report_error(
 							node,
 							"Variant '${enum_id.name}.${mem.member}' carries data; " +
@@ -117,13 +132,13 @@ impl BodyChecker {
 						return self.prims().t_none();
 					}
 					self.set_resolved(node, self.arena.node(NodeData.EnumCtorExpr(
-						ei.c_name, ei.tag_field, mi.value, "",
-						List<*AstNode>()
+						ei.c_name, ei.tag_field, mi!.value, "",
+						List<&AstNode>()
 					), node.line, node.col));
 					return e_sym.type_ptr;
 				}
 
-				val lit = self.arena.node(NodeData.LiteralExpr(mi.lit_kind, mi.raw_text), node.line, node.col);
+				val lit = self.arena.node(NodeData.LiteralExpr(mi!.lit_kind, mi!.raw_text), node.line, node.col);
 				self.set_resolved(node, lit);
 				val carrier = self.arena.create_val(
 					Type(ei.underlying.kind, ei.underlying.size, ei.underlying.align, TypePayload.Enum(ei))
@@ -170,13 +185,13 @@ impl BodyChecker {
 	fn member_on_array(&self, node: *AstNode, mem: *MemberExpr, obj_ty: *Type): *Type {
 		val arr = obj_ty.as_array();
 		if (mem.member in ["len", "size"]) return self.prims().t_usz();
-		if (mem.member == "data") return self.arena.pointer_type(arr.elem, true);
+		if (mem.member == "data") return self.arena.pointer_type(arr!.elem, true);
 		self.report_error(node, "Member access on non-struct type");
 		return self.prims().t_none();
 	}
 
 	fn member_on_struct(&self, node: *AstNode, mem: *MemberExpr, obj_ty: *Type): *Type {
-		val s_info = obj_ty.as_struct();
+		val s_info = obj_ty.as_struct() ?: return self.prims().t_none();
 		for (f in s_info.fields) {
 			if (f.name != mem.member) continue;
 			if (!f.public && s_info.module != self.symtab.current_module) {
@@ -191,10 +206,18 @@ impl BodyChecker {
 		return self.prims().t_none();
 	}
 
-	pub fn check_index_expr(&self, node: *AstNode): *Type {
+	pub fn check_index_expr(&self, node: &AstNode): *Type {
 		if (node is IndexExpr as idx) {
 			val target_ty = self.check_expr(idx.target);
 			val index_ty = self.check_expr(idx.index);
+
+			if (target_ty.kind == DataType.POINTER && target_ty.as_pointer()!.nullable) {
+				self.report_error(
+					node,
+					"Cannot index nullable pointer '${self.type_display(target_ty)}'; " +
+					"check for null or unwrap with '!' first"
+				);
+			}
 
 			if (
 				target_ty.kind in [DataType.ARRAY, DataType.STR] ||
@@ -202,39 +225,39 @@ impl BodyChecker {
 			) {
 				self.ensure(index_ty.is_integer(), node, "Index must be integer");
 				return when (target_ty.kind) {
-					DataType.ARRAY -> target_ty.as_array().elem;
+					DataType.ARRAY -> target_ty.as_array()!.elem;
 					DataType.STR -> self.prims().t_char();
-					DataType.POINTER -> target_ty.as_pointer().pointee;
+					DataType.POINTER -> target_ty.as_pointer()!.pointee;
 					else -> self.prims().t_none();
 				};
 			}
 
 			val t_is_ptr = target_ty.kind == DataType.POINTER;
-			val t_struct_ty = if (t_is_ptr) target_ty.as_pointer().pointee else target_ty;
+			val t_struct_ty = if (t_is_ptr) target_ty.as_pointer()!.pointee else target_ty;
 			if (t_struct_ty?.kind == DataType.STRUCT) {
 				val s_info = t_struct_ty.as_struct();
 				var arg_types = List<*Type>();
 				arg_types += t_struct_ty;
 				arg_types += index_ty;
-				val mi = s_info.find_operator("get", arg_types)
-					?: s_info.find_method_arity("get", 2)
-					?: s_info.find_method("get");
+				val mi = s_info!.find_operator("get", arg_types)
+					?: s_info!.find_method_arity("get", 2)
+					?: s_info!.find_method("get");
 
 				if (mi != null) {
 					val fn_info = mi.fn_type.as_fn();
-					val param_ty = fn_info.param_types[1];
+					val param_ty = fn_info!.param_types[1];
 					if (self.is_untyped_literal(idx.index)) self.check_expr(idx.index, param_ty);
 					self.ensure(param_ty.can_assign(index_ty), node, "Argument type mismatch in index access");
 
 					if (self.arrow_pending(mi.ast_node)) self.infer_blocked = true;
 					self.set_method(node, mi);
-					return fn_info.return_type;
+					return fn_info!.return_type;
 				}
 			}
 
 			if (target_ty.kind == DataType.POINTER) {
 				self.ensure(index_ty.is_integer(), node, "Index must be integer");
-				return target_ty.as_pointer().pointee;
+				return target_ty.as_pointer()!.pointee;
 			}
 
 			self.report_error(node, "Index access on non-indexable type");
@@ -244,7 +267,7 @@ impl BodyChecker {
 	}
 
 	pub fn mark_symbol_mutated(*self, name: str) {
-		val sym = self.symtab.lookup(name);
+		val sym = self.symtab.lookup_local_mut(name);
 		if (sym != null) sym.mutated = true;
 	}
 
@@ -276,50 +299,90 @@ impl BodyChecker {
 				if (cur.is_safe) {
 					self.report_error(op_node, "Cannot assign to safe navigation expression");
 				}
-				if (self.is_immutable_self(cur.object)) {
-					self.report_error(
-						op_node,
-						"Cannot mutate field '${cur.member}' on immutable receiver 'self' in '*self' method"
-					);
-				} else {
-					val obj_expr = self.unwrap_group(cur.object);
-					if (obj_expr is IdentifierExpr as id) {
-						val sym = self.symtab.lookup(id.name);
-						if (sym != null && sym.type_ptr.kind != DataType.POINTER && !sym.mutable) {
-							self.report_error(
-								op_node,
-								"Cannot mutate field '${cur.member}' on immutable variable " +
-								"'${id.name}' declared with 'val'. Use 'var' instead."
-							);
-						}
-					}
-				}
+				self.check_lvalue_base_mutability(
+					cur.object, op_node, "field '${cur.member}'", false, is_update
+				);
 				self.mark_node_mutated(cur.object);
 			}
 			is IndexExpr -> {
-				if (self.is_immutable_self(cur.target)) {
-					val act = if (is_update) "update" else "mutate";
-					self.report_error(
-						op_node,
-						"Cannot ${act} through index on immutable receiver 'self' in '*self' method"
-					);
-				} else {
-					val target_expr = self.unwrap_group(cur.target);
-					if (target_expr is IdentifierExpr as id) {
-						val sym = self.symtab.lookup(id.name);
-						if (sym != null && sym.type_ptr.kind != DataType.POINTER && !sym.mutable) {
-							val act = if (is_update) "update" else "mutate";
-							self.report_error(
-								op_node,
-								"Cannot ${act} through index on immutable variable '${id.name}' declared with 'val'. " +
-								"Use 'var' instead."
-							);
-						}
-					}
-				}
+				self.check_lvalue_base_mutability(
+					cur.target, op_node, "through index", true, is_update
+				);
 				self.mark_node_mutated(cur.target);
 			}
 			else -> self.report_error(op_node, "Invalid target for ${self.target_word(is_update)}");
+		}
+	}
+
+	fn check_ro_pointer_write(
+		&self,
+		ptr_node: *AstNode,
+		ptr_ty: *Type,
+		op_node: *AstNode,
+		target_desc: str,
+		act: str
+	) {
+		if (!ptr_ty.as_pointer()!.mutable) {
+			if (self.is_immutable_self(ptr_node)) {
+				self.report_error(
+					op_node,
+					"Cannot ${act} ${target_desc} on immutable receiver 'self' in '*self' method"
+				);
+			} else if (!ptr_ty.as_pointer()!.nullable) {
+				self.report_error(
+					op_node,
+					"Cannot ${act} ${target_desc} through read-only pointer '${self.type_display(ptr_ty)}'"
+				);
+			}
+		}
+	}
+
+	fn check_lvalue_base_mutability(
+		&self,
+		expr_node: *AstNode,
+		op_node: *AstNode,
+		target_desc: str,
+		is_index: bool,
+		is_update: bool
+	) {
+		val cur = self.unwrap_group(expr_node) ?: return;
+		val act = if (is_update) "update" else "mutate";
+
+		if (cur is UnaryExpr as un && un.op == TokenType.STAR) {
+			val ptr_ty = self.node_type_of(un.operand);
+			if (ptr_ty?.kind == DataType.POINTER) {
+				self.check_ro_pointer_write(un.operand, ptr_ty, op_node, target_desc, act);
+			}
+			return;
+		}
+
+		val expr_ty = self.node_type_of(cur);
+		if (is_index && expr_ty?.kind == DataType.STR) {
+			self.report_error(op_node, "Cannot ${act} through index on immutable string type 'str'");
+			return;
+		}
+		if (expr_ty?.kind == DataType.POINTER) {
+			self.check_ro_pointer_write(cur, expr_ty, op_node, target_desc, act);
+			return;
+		}
+
+		when (cur) {
+			is IdentifierExpr as id -> {
+				val sym = self.symtab.lookup(id.name);
+				if (sym != null && sym.type_ptr.kind == DataType.POINTER) {
+					self.check_ro_pointer_write(cur, sym.type_ptr, op_node, target_desc, act);
+				} else if (sym != null && !sym.mutable) {
+					self.report_error(
+						op_node,
+						"Cannot ${act} ${target_desc} on immutable variable '${id.name}' " +
+						"declared with 'val'. Use 'var' instead."
+					);
+				}
+			}
+			is MemberExpr as mem ->
+				self.check_lvalue_base_mutability(mem.object, op_node, target_desc, false, is_update);
+			is IndexExpr as idx ->
+				self.check_lvalue_base_mutability(idx.target, op_node, target_desc, false, is_update);
 		}
 	}
 
@@ -339,7 +402,7 @@ impl BodyChecker {
 		val obj = self.unwrap_group(obj_node);
 		if (obj is IdentifierExpr as obj_id && obj_id.name == "self") {
 			val self_sym = self.symtab.lookup("self");
-			return self_sym != null && !self_sym.mutable;
+			return self_sym != null && !self_sym!.mutable;
 		}
 		return false;
 	}
@@ -347,15 +410,15 @@ impl BodyChecker {
 	fn check_ident_assignable(&self, op_node: *AstNode, name: str, sym: ?*Symbol, is_update: bool) {
 		if (sym == null) return;
 		val act = if (is_update) "update" else "assign to";
-		when (sym.kind) {
+		when (sym!.kind) {
 			SymbolKind.CONST -> self.report_error(op_node, "Cannot ${act} constant '${name}'");
 			SymbolKind.VAR -> {
-				if (!sym.mutable) {
+				if (!sym!.mutable) {
 					self.report_error(op_node, "Cannot ${act} immutable variable '${name}' declared with 'val'");
 				}
 			}
 			SymbolKind.PARAM -> {
-				if (!sym.mutable) {
+				if (!sym!.mutable) {
 					self.report_error(op_node, "Cannot ${act} immutable parameter '${name}'");
 				}
 			}
@@ -363,28 +426,30 @@ impl BodyChecker {
 		}
 	}
 
-	pub fn check_assign_expr(&self, node: *AstNode): *Type {
+	pub fn check_assign_expr(&self, node: &AstNode): *Type {
 		if (node is AssignExpr as asgn) {
 			val was_stmt = self.is_stmt_level;
 			self.is_stmt_level = false;
-			val target_expr = self.unwrap_group(asgn.target);
+			val target_expr = self.unwrap_group_mut(asgn.target);
 
 			if (target_expr is IndexExpr as idx) {
-				self.check_lvalue_mutability(target_expr, node, false);
 				val lowered = self.lower_index_assign(node, asgn, idx);
-				if (lowered != null) return lowered;
+				if (lowered != null) {
+					self.check_lvalue_mutability(target_expr, node, false);
+					return lowered;
+				}
 			}
 
 			val prev_asgn_target = self.is_assign_target;
 			if (asgn.op == TokenType.EQUAL) self.is_assign_target = true;
 			var target_ty = self.check_expr(asgn.target);
 			self.is_assign_target = prev_asgn_target;
-			var sym_to_update: ?*Symbol = null;
+			var sym_to_update: ?&Symbol = null;
 			if (target_expr is IdentifierExpr as id) {
-				val sym = self.symtab.lookup(id.name);
+				val sym = self.symtab.lookup_local_mut(id.name);
 				if (sym != null) {
 					if (asgn.op == TokenType.EQUAL) sym.is_moved = false;
-					if (sym.orig_type != null) {
+					if (asgn.op == TokenType.EQUAL && sym.orig_type != null) {
 						target_ty = sym.orig_type!;
 						sym_to_update = sym;
 					}
@@ -397,7 +462,7 @@ impl BodyChecker {
 
 			if (asgn.op != TokenType.EQUAL) {
 				val t_is_ptr = target_ty.kind == DataType.POINTER;
-				val t_struct_ty = if (t_is_ptr) target_ty.as_pointer().pointee else target_ty;
+				val t_struct_ty = if (t_is_ptr) target_ty.as_pointer()!.pointee else target_ty;
 				if (t_struct_ty?.kind == DataType.STRUCT) {
 					val op_name = when (asgn.op) {
 						TokenType.PLUS_EQUAL -> "plus_assign";
@@ -412,15 +477,21 @@ impl BodyChecker {
 						var arg_types = List<*Type>();
 						arg_types += t_struct_ty;
 						arg_types += val_ty;
-						val mi = s_info.find_operator(op_name, arg_types);
+						val mi = s_info!.find_operator(op_name, arg_types);
 						if (mi != null) {
 							if (!t_is_ptr) self.check_lvalue_mutability(target_expr, node, false);
-							else if (self.is_immutable_self(target_expr)) {
-								self.report_error(node, "Cannot mutate immutable receiver 'self' in '*self' method");
+							else if (target_ty.as_pointer()!.nullable) {
+								self.report_error(
+									node,
+									"Cannot call operator '${op_name}' on nullable pointer " +
+									"'${self.type_display(target_ty)}'; check for null or unwrap with '!' first"
+								);
+							} else {
+								self.check_ro_pointer_write(target_expr, target_ty, node, "value", "mutate");
 							}
 							self.mark_node_mutated(target_expr);
 							self.set_method(node, mi);
-							return mi.fn_type.as_fn().return_type;
+							return mi.fn_type.as_fn()!.return_type;
 						}
 					}
 				}
@@ -448,7 +519,7 @@ impl BodyChecker {
 		return self.prims().t_none();
 	}
 
-	fn lower_index_assign(&self, node: *AstNode, asgn: *AssignExpr, idx: *IndexExpr): ?*Type {
+	fn lower_index_assign(&self, node: &AstNode, asgn: &AssignExpr, idx: &IndexExpr): ?*Type {
 		val bin_op = when (asgn.op) {
 			TokenType.PLUS_EQUAL -> TokenType.PLUS;
 			TokenType.MINUS_EQUAL -> TokenType.MINUS;
@@ -462,15 +533,15 @@ impl BodyChecker {
 
 	fn lower_index_write(
 		&self,
-		node: *AstNode,
+		node: &AstNode,
 		idx: *IndexExpr,
 		op: TokenType,
-		rhs: ?*AstNode,
+		rhs: ?&AstNode,
 		what: str
 	): ?*Type {
 		val target_raw_ty = self.check_expr(idx.target);
 		val t_is_ptr = target_raw_ty.kind == DataType.POINTER;
-		val t_struct_ty = if (t_is_ptr) target_raw_ty.as_pointer().pointee else target_raw_ty;
+		val t_struct_ty = if (t_is_ptr) target_raw_ty.as_pointer()!.pointee else target_raw_ty;
 		if (t_struct_ty == null || t_struct_ty.kind != DataType.STRUCT) return null;
 
 		val idx_ty_raw = self.check_expr(idx.index);
@@ -484,16 +555,24 @@ impl BodyChecker {
 		arg_types += idx_ty_raw;
 		if (val_ty_raw != null) arg_types += val_ty_raw;
 
-		val mi = s_info.find_operator("set", arg_types)
-			?: s_info.find_method_arity("set", 3)
-			?: s_info.find_method("set")
+		val mi = s_info!.find_operator("set", arg_types)
+			?: s_info!.find_method_arity("set", 3)
+			?: s_info!.find_method("set")
 			?: return null;
 
-		val fn_info = mi.fn_type.as_fn();
-		val idx_param_ty = fn_info.param_types[1];
-		val val_param_ty = fn_info.param_types[2];
+		if (t_is_ptr && target_raw_ty.as_pointer()!.nullable && op == TokenType.EQUAL) {
+			self.report_error(
+				node,
+				"Cannot index nullable pointer '${self.type_display(target_raw_ty)}'; " +
+				"check for null or unwrap with '!' first"
+			);
+		}
 
-		var operand: *AstNode = if (rhs != null) rhs!
+		val fn_info = mi.fn_type.as_fn();
+		val idx_param_ty = fn_info!.param_types[1];
+		val val_param_ty = fn_info!.param_types[2];
+
+		var operand: &AstNode = if (rhs != null) rhs!
 			else if (val_param_ty.is_float()) self.arena.node(
 				NodeData.LiteralExpr(Literal.FLOAT, "1.0"),
 				node.line, node.col
@@ -502,7 +581,7 @@ impl BodyChecker {
 				node.line, node.col
 			);
 
-		var val_expr: *AstNode = operand;
+		var val_expr: &AstNode = operand;
 		if (op != TokenType.EQUAL) {
 			val get_expr = self.arena.node(NodeData.IndexExpr(idx.target, idx.index), node.line, node.col);
 			val_expr = self.arena.node(NodeData.BinaryExpr(get_expr, op, operand), node.line, node.col);
@@ -520,7 +599,7 @@ impl BodyChecker {
 			"Value type mismatch in index ${what}"
 		);
 
-		var new_args = List<*AstNode>();
+		var new_args = List<&AstNode>();
 		val target_arg = if (t_is_ptr) idx.target else self.arena.node(
 			NodeData.UnaryExpr(TokenType.AMPERSAND, idx.target, false),
 			node.line, node.col
@@ -531,25 +610,28 @@ impl BodyChecker {
 
 		val callee = self.arena.node(NodeData.IdentifierExpr(mi.c_name), node.line, node.col);
 		val call_node = self.arena.node(
-			NodeData.CallExpr(callee, new_args, List<*AstNode>()),
+			NodeData.CallExpr(callee, new_args, List<&AstNode>()),
 			node.line, node.col
 		);
 		self.set_resolved(node, call_node);
 		return val_param_ty;
 	}
 
-	pub fn check_update_expr(&self, node: *AstNode): *Type {
+	pub fn check_update_expr(&self, node: &AstNode): *Type {
 		if (node is UpdateExpr as u) {
 			val target_expr = self.unwrap_group(u.target);
-			self.check_lvalue_mutability(target_expr, node, true);
 
 			if (target_expr is IndexExpr as idx) {
 				val op = if (u.op == TokenType.PLUS_PLUS) TokenType.PLUS else TokenType.MINUS;
 				val lowered = self.lower_index_write(node, idx, op, null, "update");
-				if (lowered != null) return lowered;
+				if (lowered != null) {
+					self.check_lvalue_mutability(target_expr, node, true);
+					return lowered;
+				}
 			}
 
 			val target_ty = self.check_expr(u.target);
+			self.check_lvalue_mutability(target_expr, node, true);
 			self.ensure(
 				target_ty.is_numeric(),
 				node,
@@ -560,7 +642,7 @@ impl BodyChecker {
 		return self.prims().t_none();
 	}
 
-	pub fn check_cast_expr(&self, node: *AstNode): *Type {
+	pub fn check_cast_expr(&self, node: &AstNode): *Type {
 		if (node is CastExpr as cst) {
 			val src_ty = if (cst.expr != null) self.check_expr(cst.expr!) else self.prims().t_none();
 			val ty = self.resolve_type(cst.target_type);
@@ -569,15 +651,15 @@ impl BodyChecker {
 			if (src_ty?.is_enum()) {
 				self.report_error(
 					node,
-					"Cannot cast enum '${src_ty.as_enum().name}' with 'as'. " +
+					"Cannot cast enum '${src_ty.as_enum()!.name}' with 'as'. " +
 					"Use '.value' to access its underlying value"
 				);
 			}
 			if (ty?.is_enum()) {
 				self.report_error(
 					node,
-					"Cannot cast to enum type '${ty.as_enum().name}' with 'as'. " +
-					"Use constructor '${ty.as_enum().name}(value)' instead"
+					"Cannot cast to enum type '${ty.as_enum()!.name}' with 'as'. " +
+					"Use constructor '${ty.as_enum()!.name}(value)' instead"
 				);
 			}
 			if (src_ty?.kind == DataType.POINTER && ty?.is_integer()) {
@@ -592,13 +674,28 @@ impl BodyChecker {
 			if (src_ty?.is_integer() && ty?.kind == DataType.CHAR) {
 				self.report_error(node, "Cannot cast integer to 'char' with 'as'. Use 'char(code)' instead");
 			}
-			if (src_ty?.kind == DataType.POINTER && src_ty.as_pointer()!.nullable) {
-				if (ty?.kind == DataType.POINTER && !ty.as_pointer()!.nullable) {
+			if (src_ty?.kind == DataType.POINTER && ty?.kind == DataType.POINTER) {
+				val src_ptr = src_ty.as_pointer()!;
+				val dst_ptr = ty.as_pointer()!;
+				var is_null_lit = false;
+				if (cst.expr != null) {
+					val raw_src = self.unwrap_group(cst.expr!);
+					if (raw_src is LiteralExpr as lit) {
+						is_null_lit = lit.literal_kind == Literal.NULL_VAL;
+					}
+				}
+				if (src_ptr.nullable && !dst_ptr.nullable) {
 					self.report_error(
 						node,
 						"Cannot cast nullable pointer or 'null' to non-nullable pointer " +
 						"'${self.type_display(ty)}'. Use nullable pointer type " +
 						"'?${self.type_display(ty)}' or force unwrap '!' instead"
+					);
+				} else if (!is_null_lit && !src_ptr.mutable && dst_ptr.mutable) {
+					self.report_error(
+						node,
+						"Cannot cast read-only pointer '${self.type_display(src_ty)}' " +
+						"to mutable pointer '${self.type_display(ty)}'"
 					);
 				}
 			}

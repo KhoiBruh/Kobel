@@ -255,13 +255,12 @@ impl CCodeGen {
 	}
 
 	fn gen_destruct_decl_stmt(&self, node: *AstNode, ds: *DestructDeclStmt) {
-		val mi = self.symtab?.get_resolved_method(node);
-		if (mi == null) return;
+		val mi = self.symtab?.get_resolved_method(node) ?: return;
 
 		self.destruct_counter++;
 		val destruct_id = self.destruct_counter;
 
-		val fn_t = mi.fn_type.as_fn();
+		val fn_t = mi.fn_type.as_fn()!;
 		val is_indexed = (
 			fn_t.param_types.len == 2 &&
 			fn_t.param_types[1].is_integer() &&
@@ -280,7 +279,7 @@ impl CCodeGen {
 
 		if (!is_simple_id) {
 			val st_param = fn_t.param_types[0];
-			val st_pointee = if (st_param.kind == DataType.POINTER) st_param.as_pointer().pointee else st_param;
+			val st_pointee = if (st_param.kind == DataType.POINTER) st_param.as_pointer()!.pointee else st_param;
 			val st_c_name = c_type_from_type(st_pointee);
 			val init_ty_str = if (init_is_ptr) "${st_c_name}*" else st_c_name;
 			recv_name = "__destruct_tmp_${destruct_id}";
@@ -302,7 +301,7 @@ impl CCodeGen {
 				val raw_name = ds.names[i];
 				val vname = if (raw_name == "_") "__destruct_unused_${destruct_id}_${i}" else raw_name;
 				val param_t = fn_t.param_types[i + 1];
-				val var_t = if (param_t.kind == DataType.POINTER) param_t.as_pointer().pointee else param_t;
+				val var_t = if (param_t.kind == DataType.POINTER) param_t.as_pointer()!.pointee else param_t;
 				val vtype_str = c_type_from_type(var_t);
 				self.out += "${vtype_str} ${vname};\n";
 			}
@@ -744,7 +743,7 @@ impl CCodeGen {
 
 	// Name an arm binds: its alias, or the subject's own name for a plain
 	// identifier subject. Empty when the arm binds nothing.
-	fn when_arm_binding(*self, patterns: List<*AstNode>, cond: ?*AstNode): str {
+	fn when_arm_binding(*self, patterns: List<&AstNode>, cond: ?*AstNode): str {
 		if (cond == null || patterns.len != 1) return "";
 		val pat = patterns.first();
 		if (pat is IsExpr as is_e) {

@@ -13,7 +13,7 @@ use compiler.ast.*;
 
 impl Parser {
 
-	pub fn parse_single_type(&self): *AstNode {
+	pub fn parse_single_type(&self): &AstNode {
 		val (line, col) = self.peek();
 
 		// 1. Variadic type: ..T
@@ -48,7 +48,7 @@ impl Parser {
 
 		// 3. Function type: (T1, T2) -> R
 		if (self.match_token(TokenType.OPEN_PAREN)) {
-			var param_types = List<*AstNode>();
+			var param_types = List<&AstNode>();
 			if (!self.check(TokenType.CLOSE_PAREN)) {
 				param_types += self.parse_type();
 				while (self.match_token(TokenType.COMMA)) {
@@ -70,7 +70,7 @@ impl Parser {
 			full_name = "${full_name}.${seg.text}";
 		}
 
-		var type_args = List<*AstNode>();
+		var type_args = List<&AstNode>();
 		if (self.match_token(TokenType.LESS)) {
 			if (!self.check(TokenType.GREATER)) {
 				type_args += self.parse_type();
@@ -82,6 +82,6 @@ impl Parser {
 		return self.node(NodeData.NamedType(full_name, type_args), line, col);
 	}
 
-	pub fn parse_type(&self): *AstNode => self.parse_single_type();
+	pub fn parse_type(&self): &AstNode => self.parse_single_type();
 
 }

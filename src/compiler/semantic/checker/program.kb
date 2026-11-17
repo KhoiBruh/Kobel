@@ -24,7 +24,7 @@ use compiler.semantic.lowering.*;
  * the context its body has to be checked in (defining module and `Self` type).
  */
 struct ArrowCandidate {
-	pub node: *AstNode,
+	pub node: &AstNode,
 	pub fn_type: *Type,
 	pub self_ty: ?*Type = null,
 	pub module: str
@@ -32,7 +32,7 @@ struct ArrowCandidate {
 
 impl BodyChecker {
 
-	pub fn check_fn(&self, fn_node: *AstNode) {
+	pub fn check_fn(&self, fn_node: &AstNode) {
 		if (fn_node is FnDecl as f) {
 			val sym = self.symtab.lookup(f.name) ?: return;
 			if (sym.type_ptr.kind != DataType.FN) return;
@@ -41,15 +41,15 @@ impl BodyChecker {
 			if (!f.module.empty()) self.symtab.set_current_module(f.module);
 
 			var self_ty: ?*Type = null;
-			val fn_info = sym.type_ptr.as_fn();
+			val fn_info = sym.type_ptr.as_fn()!;
 			if (
 				f.params.len > 0 &&
 				f.params[0].name == "self" &&
 				fn_info.param_types.len > 0
 			) {
 				val p0 = fn_info.param_types[0];
-				if (p0?.kind == DataType.POINTER && p0.as_pointer().pointee?.kind == DataType.STRUCT) {
-					self_ty = p0.as_pointer().pointee;
+				if (p0 != null && p0.kind == DataType.POINTER && p0.as_pointer()!.pointee.kind == DataType.STRUCT) {
+					self_ty = p0.as_pointer()!.pointee;
 				}
 			}
 
@@ -70,12 +70,12 @@ impl BodyChecker {
 		}
 	}
 
-	pub fn check_fn_body(&self, fn_node: *AstNode, fn_type: *Type) {
+	pub fn check_fn_body(&self, fn_node: &AstNode, fn_type: *Type) {
 		if (fn_node in self.checked_fns) return;
 		if (fn_node is FnDecl as f) {
 			self.checked_fns += fn_node;
 
-			val fn_info = fn_type.as_fn();
+			val fn_info = fn_type.as_fn()!;
 			val saved_ret = self.current_fn_return_type;
 			val saved_inferring = self.inferring_fn_return;
 			self.current_fn_return_type = fn_info.return_type;
@@ -119,7 +119,7 @@ impl BodyChecker {
 					}
 					if (f.return_type == null && self.current_fn_return_type != null) {
 						val cur_ret = self.current_fn_return_type!;
-						val fn_info_mut = fn_type.as_fn();
+						val fn_info_mut = fn_type.as_fn()!;
 						fn_info_mut.return_type = cur_ret;
 						f.return_type = self.arena.ast_type_from_type(cur_ret);
 					}
@@ -130,11 +130,11 @@ impl BodyChecker {
 						self.report_error(fn_node, "Function cannot return a lambda/closure");
 					}
 					if (f.return_type == null) {
-						val fn_info_mut = fn_type.as_fn();
+						val fn_info_mut = fn_type.as_fn()!;
 						fn_info_mut.return_type = body_ty;
 						self.current_fn_return_type = body_ty;
 						f.return_type = self.arena.ast_type_from_type(body_ty);
-					} else if (!self.current_fn_return_type.can_assign(body_ty)) {
+					} else if (!self.current_fn_return_type!.can_assign(body_ty)) {
 						self.report_error(fn_node, "Expression body type does not match function return type");
 					}
 				}
@@ -162,7 +162,7 @@ impl BodyChecker {
 		}
 	}
 
-	pub fn check_impl(&self, node: *AstNode) {
+	pub fn check_impl(&self, node: &AstNode) {
 		if (node is ImplDecl as im) {
 			if (im.struct_name.empty()) {
 				for (m_node in im.methods) {
@@ -177,7 +177,7 @@ impl BodyChecker {
 
 			val st_sym = self.symtab.lookup(im.struct_name) ?: return;
 			if (st_sym.type_ptr.kind != DataType.STRUCT) return;
-			val st_info = st_sym.type_ptr.as_struct();
+			val st_info = st_sym.type_ptr.as_struct()!;
 
 			val prev_trait = self.current_trait_name;
 			self.current_trait_name = im.trait_name;
@@ -190,7 +190,7 @@ impl BodyChecker {
 					if (mi == null) continue;
 					val rec = self.symtab.get_node_instance(m_node);
 					val saved_rec = self.push_instance(rec);
-					self.check_fn_body(m_node, mi.fn_type);
+					self.check_fn_body(m_node, mi!.fn_type);
 					self.pop_instance(saved_rec, rec);
 				}
 			}
@@ -199,7 +199,7 @@ impl BodyChecker {
 		}
 	}
 
-	pub fn check_program(&self, program_node: *AstNode) {
+	pub fn check_program(&self, program_node: &AstNode) {
 		if (!self.has_symtab) {
 			var decl_p = DeclarationCollector(self.arena);
 			decl_p.collect_program(program_node);
@@ -233,9 +233,9 @@ impl BodyChecker {
 		self.flush_instances(program_node, inst_mark);
 	}
 
-	pub fn flush_instances(&self, program_node: *AstNode, from: usz) {
+	pub fn flush_instances(&self, program_node: &AstNode, from: usz) {
 		if (program_node is Program as prog) {
-			var added = List<*AstNode>();
+			var added = List<&AstNode>();
 			var i = from;
 			while (i + 1 < self.symtab.gen.instances.len) {
 				val marker = self.symtab.gen.instances[i];
@@ -260,12 +260,12 @@ impl BodyChecker {
 		}
 	}
 
-	pub fn infer_arrow_returns(&self, program_node: *AstNode) {
+	pub fn infer_arrow_returns(&self, program_node: &AstNode) {
 		if (program_node is Program as prog) {
 			val saved_mod = self.symtab.current_module;
 			self.inferring = true;
 			var pending = List<*ArrowCandidate>();
-			var seen = List<*AstNode>();
+			var seen = List<&AstNode>();
 
 			for (decl in prog) {
 				if (decl is ModuleDecl as m) {
@@ -308,7 +308,7 @@ impl BodyChecker {
 	fn collect_instance_arrow_candidates(
 		&self,
 		pending: &List<*ArrowCandidate>,
-		seen: &List<*AstNode>,
+		seen: &List<&AstNode>,
 		from: usz
 	): usz {
 		var i = from;
@@ -330,7 +330,7 @@ impl BodyChecker {
 
 	fn arrow_candidate(
 		&self,
-		node: *AstNode,
+		node: &AstNode,
 		fn_type: *Type,
 		self_ty: ?*Type = null,
 		module: str
@@ -338,10 +338,10 @@ impl BodyChecker {
 
 	fn add_fn_arrow_candidate(
 		&self,
-		decl: *AstNode,
+		decl: &AstNode,
 		module: str,
 		pending: &List<*ArrowCandidate>,
-		seen: &List<*AstNode>
+		seen: &List<&AstNode>
 	) {
 		val ast_node = decl;
 		if (decl is FnDecl as f) {
@@ -356,10 +356,10 @@ impl BodyChecker {
 
 	fn add_impl_arrow_candidates(
 		&self,
-		im: *ImplDecl,
+		im: &ImplDecl,
 		module: str,
 		pending: &List<*ArrowCandidate>,
-		seen: &List<*AstNode>
+		seen: &List<&AstNode>
 	) {
 		if (im.type_params.len > 0) return;
 		if (im.struct_name.empty()) {
@@ -368,7 +368,7 @@ impl BodyChecker {
 				if (!self.arrow_pending(m_node)) continue;
 				if (m_node is FnDecl as mf) {
 					val mi = self.symtab.find_prim_method_c(mf.name) ?: continue;
-					val self_ty = mi.fn_type.as_fn().param_types[0];
+					val self_ty = mi.fn_type.as_fn()!.param_types[0];
 					seen += m_node;
 					pending += self.arrow_candidate(m_node, mi.fn_type, self_ty, module);
 				}
@@ -377,7 +377,7 @@ impl BodyChecker {
 		}
 		val st_sym = self.symtab.lookup(im.struct_name) ?: return;
 		if (st_sym.type_ptr.kind != DataType.STRUCT) return;
-		val st_info = st_sym.type_ptr.as_struct();
+		val st_info = st_sym.type_ptr.as_struct()!;
 		for (m_node in im.methods) {
 			if (m_node in seen) continue;
 			if (!self.arrow_pending(m_node)) continue;
@@ -393,7 +393,7 @@ impl BodyChecker {
 		if (c.node is FnDecl as f) {
 			if (f.return_type != null) return true;
 			if (c.fn_type == null) return true;
-			val fn_info = c.fn_type.as_fn();
+			val fn_info = c.fn_type.as_fn()!;
 
 			val err_mark = self.errors.len;
 			val saved_blocked = self.infer_blocked;
@@ -416,7 +416,7 @@ impl BodyChecker {
 			}
 			val rec = self.symtab.get_node_instance(c.node);
 			val saved_rec = self.push_instance(rec);
-			var body_expr: ?*AstNode = null;
+			var body_expr: ?&AstNode = null;
 			if (f.body is ExprStmt as es) {
 				body_expr = es.expr;
 			}
@@ -443,7 +443,7 @@ impl BodyChecker {
 			}
 			self.infer_blocked = saved_blocked;
 
-			val fn_mut = c.fn_type.as_fn();
+			val fn_mut = c.fn_type.as_fn()!;
 			fn_mut.return_type = body_ty;
 			f.return_type = self.arena.ast_type_from_type(body_ty);
 			self.checked_fns += c.node;

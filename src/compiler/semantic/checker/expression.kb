@@ -82,7 +82,7 @@ impl BodyChecker {
 		self.lambda_captures += LambdaCapture(sym.name, cap_ty, sym.mutable);
 	}
 
-	pub fn check_ident_expr(&self, node: *AstNode): *Type {
+	pub fn check_ident_expr(&self, node: &AstNode): *Type {
 		if (node is IdentifierExpr as id) {
 			if (id.name.empty()) {
 				if (self.when_subject == null) {
@@ -96,7 +96,7 @@ impl BodyChecker {
 
 			if (id.name == "Self" && self.current_self_type != null) {
 				val cur_self = self.current_self_type!;
-				if (self.current_rec == null) id.name = cur_self.as_struct().c_name;
+				if (self.current_rec == null) id.name = cur_self.as_struct()!.c_name;
 				return cur_self;
 			}
 
@@ -106,14 +106,14 @@ impl BodyChecker {
 				return self.prims().t_none();
 			}
 
-			if (sym.is_moved && !self.is_assign_target) {
+			if (sym!.is_moved && !self.is_assign_target) {
 				self.report_error(node, "Use of moved value '${id.name}'");
 				return self.prims().t_none();
 			}
 
 			if (
-				sym.type_ptr.kind == DataType.FN
-				&& sym.kind in [SymbolKind.PARAM, SymbolKind.VAR]
+				sym!.type_ptr.kind == DataType.FN
+				&& sym!.kind in [SymbolKind.PARAM, SymbolKind.VAR]
 				&& !self.allowing_fn_param_ref
 			) {
 				self.report_error(
@@ -129,15 +129,15 @@ impl BodyChecker {
 				}
 			}
 
-			if (!sym.c_name.empty() && sym.c_name != id.name) {
-				self.set_ident_name(node, sym.c_name);
+			if (!sym!.c_name.empty() && sym!.c_name != id.name) {
+				self.set_ident_name(node, sym!.c_name);
 			}
-			return sym.type_ptr;
+			return sym!.type_ptr;
 		}
 		return self.prims().t_none();
 	}
 
-	pub fn check_binary_expr(&self, node: *AstNode, expected: ?*Type = null): *Type {
+	pub fn check_binary_expr(&self, node: &AstNode, expected: ?*Type = null): *Type {
 		if (node is BinaryExpr as bin) {
 			val was_stmt = self.is_stmt_level;
 			self.is_stmt_level = false;
@@ -161,7 +161,7 @@ impl BodyChecker {
 
 			var lt_num = self.check_expr(bin.left, num_expected);
 			var lt = lt_num;
-			if (bin.op == TokenType.KW_IN && self.unwrap_group(bin.right) is ArrayLiteralExpr as al) {
+			if (bin.op == TokenType.KW_IN && self.unwrap_group_mut(bin.right) is ArrayLiteralExpr as al) {
 				self.in_safe_nav_context = prev_sn;
 				return self.check_in_list_op(node, bin, lt, al);
 			}
@@ -202,7 +202,7 @@ impl BodyChecker {
 		return false;
 	}
 
-	fn check_elvis_expr(&self, node: *AstNode, bin: *BinaryExpr, was_stmt: bool): *Type {
+	fn check_elvis_expr(&self, node: &AstNode, bin: &BinaryExpr, was_stmt: bool): *Type {
 		val num_expected: ?*Type = null;
 		val prev_sn = self.in_safe_nav_context;
 		self.in_safe_nav_context = true;
@@ -232,7 +232,7 @@ impl BodyChecker {
 			rt = self.check_expr(bin.right, lt);
 			self.is_stmt_level = false;
 			val lt_is_null_lit = lt.kind == DataType.POINTER &&
-				lt.as_pointer().pointee.kind == DataType.NONE;
+				lt.as_pointer()!.pointee.kind == DataType.NONE;
 			self.ensure(
 				lt.can_assign(rt!) || lt_is_null_lit || rt!.can_assign(lt),
 				bin.right,
@@ -245,10 +245,11 @@ impl BodyChecker {
 		}
 
 		if (lt.kind == DataType.POINTER) {
-			val pt = lt.as_pointer();
+			val pt = lt.as_pointer()!;
 			if (pt.pointee.kind == DataType.NONE && !is_jump && rt != null) return rt;
 			if (pt.nullable) {
-				if (is_jump || (rt != null && rt.kind == DataType.POINTER && !rt.as_pointer().nullable)) {
+				val r_non_null_ptr = rt != null && rt!.kind == DataType.POINTER && !rt!.as_pointer()!.nullable;
+				if (is_jump || r_non_null_ptr) {
 					return self.arena.pointer_type(pt.pointee, pt.mutable);
 				}
 			}
@@ -291,10 +292,10 @@ impl BodyChecker {
 				var arg_types = List<*Type>();
 				arg_types += lt;
 				arg_types += rt;
-				val mi = s_info.find_operator(op_name, arg_types);
+				val mi = s_info!.find_operator(op_name, arg_types);
 				if (mi != null) {
 					self.set_method(node, mi);
-					return mi.fn_type.as_fn().return_type;
+					return mi.fn_type.as_fn()!.return_type;
 				}
 			}
 		}
@@ -312,7 +313,7 @@ impl BodyChecker {
 			var arg_types = List<*Type>();
 			arg_types += lt;
 			arg_types += rt;
-			val mi = s_info.find_operator("equals", arg_types);
+			val mi = s_info!.find_operator("equals", arg_types);
 			if (mi != null) self.set_method(node, mi);
 			return self.prims().t_bool();
 		}
@@ -337,12 +338,12 @@ impl BodyChecker {
 		return self.prims().t_bool();
 	}
 
-	fn check_in_op(&self, node: *AstNode, bin: *BinaryExpr, lt: *Type, rt: *Type): *Type {
+	fn check_in_op(&self, node: &AstNode, bin: &BinaryExpr, lt: *Type, rt: *Type): *Type {
 		var l_ty = lt;
 		val r_is_ptr = rt.kind == DataType.POINTER;
-		val r_struct_ty = if (r_is_ptr) rt.as_pointer().pointee else rt;
+		val r_struct_ty = if (r_is_ptr) rt.as_pointer()!.pointee else rt;
 		if (r_struct_ty?.kind == DataType.STRUCT) {
-			val s_info = r_struct_ty.as_struct();
+			val s_info = r_struct_ty.as_struct()!;
 			if (self.is_untyped_literal(bin.left) && s_info.fields.len > 0) {
 				val elem_ty = s_info.fields[0].type_ptr;
 				if (elem_ty != null && (elem_ty.is_numeric() || elem_ty.kind == DataType.CHAR)) {
@@ -360,22 +361,22 @@ impl BodyChecker {
 		}
 
 		if (rt.is_list()) {
-			val s = rt.as_struct();
+			val s = rt.as_struct()!;
 			if (
 				s.fields.len > 0 &&
 				s.fields[0].type_ptr != null &&
 				s.fields[0].type_ptr.kind == DataType.POINTER
 			) {
-				val elem_t = s.fields[0].type_ptr.as_pointer().pointee;
+				val elem_t = s.fields[0].type_ptr.as_pointer()!.pointee;
 				if (elem_t != null && elem_t.kind == DataType.STR && lt.kind == DataType.STR) {
-					var args = List<*AstNode>();
+					var args = List<&AstNode>();
 					args += bin.right;
 					val mem = self.arena.node(
 						NodeData.MemberExpr(bin.left, "in_list", false),
 						node.line, node.col
 					);
 					val call_node = self.arena.node(
-						NodeData.CallExpr(mem, args, List<*AstNode>()),
+						NodeData.CallExpr(mem, args, List<&AstNode>()),
 						node.line, node.col
 					);
 					self.set_resolved(node, call_node);
@@ -384,18 +385,18 @@ impl BodyChecker {
 			}
 		}
 
-		var args = List<*AstNode>();
+		var args = List<&AstNode>();
 		args += bin.left;
 		val mem = self.arena.node(NodeData.MemberExpr(bin.right, "contains", false), node.line, node.col);
 		val call_node = self.arena.node(
-			NodeData.CallExpr(mem, args, List<*AstNode>()),
+			NodeData.CallExpr(mem, args, List<&AstNode>()),
 			node.line, node.col
 		);
 		self.set_resolved(node, call_node);
 		return self.check_expr(call_node);
 	}
 
-	fn check_in_list_op(&self, node: *AstNode, bin: *BinaryExpr, lt: *Type, al: *ArrayLiteralExpr): *Type {
+	fn check_in_list_op(&self, node: &AstNode, bin: &BinaryExpr, lt: *Type, al: &ArrayLiteralExpr): *Type {
 		if (al.elements.empty()) {
 			self.report_error(bin.right, "Candidate list in 'in' operator cannot be empty");
 			return self.prims().t_bool();
@@ -406,14 +407,14 @@ impl BodyChecker {
 		var is_ptr = false;
 		if (base_ty.kind == DataType.POINTER) {
 			is_ptr = true;
-			base_ty = base_ty.as_pointer().pointee;
+			base_ty = base_ty.as_pointer()!.pointee;
 		}
 
 		var enum_info: ?*EnumInfo = null;
 		if (base_ty.is_enum()) {
 			enum_info = base_ty.as_enum();
 		} else if (base_ty.kind == DataType.STRUCT) {
-			enum_info = self.symtab.find_enum_info(base_ty.as_struct().name);
+			enum_info = self.symtab.find_enum_info(base_ty.as_struct()!.name);
 		}
 
 		for (el in al.elements) {
@@ -426,7 +427,7 @@ impl BodyChecker {
 				self.check_in_list_elem(rbin.right, bin, subj_ty, base_ty, is_ptr, enum_info);
 				val is_valid_range_subj = subj_ty.is_numeric() ||
 					subj_ty.kind == DataType.CHAR ||
-					(subj_ty.is_enum() && (subj_ty.as_enum().underlying.is_numeric() || subj_ty.as_enum().underlying.kind == DataType.CHAR));
+					(subj_ty.is_enum() && (subj_ty.as_enum()!.underlying.is_numeric() || subj_ty.as_enum()!.underlying.kind == DataType.CHAR));
 				self.ensure(
 					is_valid_range_subj,
 					unwrapped_el,
@@ -448,7 +449,7 @@ impl BodyChecker {
 
 	fn check_in_list_elem(
 		&self,
-		el: *AstNode,
+		el: &AstNode,
 		bin: *BinaryExpr,
 		subj_ty: *Type,
 		base_ty: *Type,
@@ -480,7 +481,7 @@ impl BodyChecker {
 				if (ei.is_payload) {
 					val base_s = base_ty.as_struct()!;
 					val dummy_t = self.arena.node(
-						NodeData.NamedType(base_s.c_name, List<*AstNode>()),
+						NodeData.NamedType(base_s.c_name, List<&AstNode>()),
 						unwrapped_el.line, unwrapped_el.col
 					);
 					val is_node = self.arena.node(
@@ -489,7 +490,7 @@ impl BodyChecker {
 					);
 					val pat_info = IsPatternInfo(
 						ei.tag_field, base_s.c_name, is_ptr,
-						"", false, "${mi.value}"
+						"", false, "${mi!.value}"
 					);
 					self.set_is_pattern(unwrapped_el, pat_info);
 					self.set_is_pattern(is_node, pat_info);
@@ -499,7 +500,7 @@ impl BodyChecker {
 					return subj_ty;
 				}
 				val lit = self.arena.node(
-					NodeData.LiteralExpr(mi.lit_kind, mi.raw_text),
+					NodeData.LiteralExpr(mi!.lit_kind, mi!.raw_text),
 					unwrapped_el.line, unwrapped_el.col
 				);
 				val carrier = self.arena.create_val(
@@ -528,7 +529,7 @@ impl BodyChecker {
 		return el_ty;
 	}
 
-	fn check_range_op(&self, node: *AstNode, bin: *BinaryExpr, lt: *Type, rt: *Type): *Type {
+	fn check_range_op(&self, node: &AstNode, bin: &BinaryExpr, lt: *Type, rt: *Type): *Type {
 		var l_ty = lt;
 		var r_ty = rt;
 		if (self.is_untyped_literal(bin.left) && r_ty.is_numeric() && !l_ty.equals(r_ty)) {
@@ -552,7 +553,7 @@ impl BodyChecker {
 			else if (l_ty.is_signed_integer() && r_ty.is_unsigned_integer()) elem_ty = r_ty;
 		}
 
-		var targs = List<*AstNode>();
+		var targs = List<&AstNode>();
 		targs += self.arena.ast_type_from_type(elem_ty);
 		val tmpl = self.find_struct_template_for("Range");
 		if (tmpl != null) {
@@ -564,13 +565,13 @@ impl BodyChecker {
 		return self.prims().t_none();
 	}
 
-	pub fn check_unary_expr(&self, node: *AstNode, expected: ?*Type = null): *Type {
+	pub fn check_unary_expr(&self, node: &AstNode, expected: ?*Type = null): *Type {
 		if (node is UnaryExpr as un) {
 			val op_ty = self.check_expr(un.operand, expected);
 
 			if (un.is_postfix && un.op == TokenType.BANG) {
 				if (op_ty.kind == DataType.POINTER) {
-					val pt = op_ty.as_pointer();
+					val pt = op_ty.as_pointer()!;
 					if (pt.nullable) {
 						return self.arena.pointer_type(pt.pointee, pt.mutable);
 					}
@@ -589,10 +590,10 @@ impl BodyChecker {
 					val s_info = op_ty.as_struct();
 					var arg_types = List<*Type>();
 					arg_types += op_ty;
-					val mi = s_info.find_operator(op_name, arg_types);
+					val mi = s_info!.find_operator(op_name, arg_types);
 					if (mi != null) {
 						self.set_method(node, mi);
-						return mi.fn_type.as_fn().return_type;
+						return mi.fn_type.as_fn()!.return_type;
 					}
 				}
 			}
@@ -611,16 +612,55 @@ impl BodyChecker {
 						self.report_error(node, "Cannot dereference non-pointer type");
 						yield op_ty;
 					}
-					yield op_ty.as_pointer().pointee;
+					if (op_ty.as_pointer()!.nullable) {
+						self.report_error(
+							node,
+							"Cannot dereference nullable pointer '${self.type_display(op_ty)}'; " +
+							"check for null or unwrap with '!' first"
+						);
+					}
+					yield op_ty.as_pointer()!.pointee;
 				}
-				TokenType.AMPERSAND -> self.arena.pointer_type(op_ty, true);
+				TokenType.AMPERSAND -> {
+					val is_mut = self.is_mutable_addressable(un.operand);
+					yield self.arena.pointer_type(op_ty, is_mut);
+				}
 				else -> op_ty;
 			};
 		}
 		return self.prims().t_none();
 	}
 
-	pub fn check_if_expr(&self, node: *AstNode, expected: ?*Type = null): *Type {
+	pub fn is_mutable_addressable(*self, node: *AstNode): bool {
+		val cur = self.unwrap_group(node) ?: return false;
+		return when (cur) {
+			is IdentifierExpr as id -> {
+				val sym = self.symtab.lookup(id.name);
+				yield sym != null && sym!.mutable;
+			}
+			is MemberExpr as mem -> {
+				val obj_ty = self.node_type_of(mem.object);
+				if (obj_ty?.kind == DataType.POINTER) yield obj_ty.as_pointer()!.mutable;
+				yield self.is_mutable_addressable(mem.object);
+			}
+			is IndexExpr as idx -> {
+				val tgt_ty = self.node_type_of(idx.target);
+				if (tgt_ty?.kind == DataType.POINTER) yield tgt_ty.as_pointer()!.mutable;
+				if (tgt_ty?.kind == DataType.ARRAY) yield self.is_mutable_addressable(idx.target);
+				yield false;
+			}
+			is UnaryExpr as un -> {
+				if (un.op == TokenType.STAR) {
+					val inner_ty = self.node_type_of(un.operand);
+					yield inner_ty != null && inner_ty!.kind == DataType.POINTER && inner_ty!.as_pointer()!.mutable;
+				}
+				yield false;
+			}
+			else -> false;
+		};
+	}
+
+	pub fn check_if_expr(&self, node: &AstNode, expected: ?*Type = null): *Type {
 		if (node is IfExpr as if_e) {
 			val prev_sn = self.in_safe_nav_context;
 			self.in_safe_nav_context = true;
@@ -637,8 +677,8 @@ impl BodyChecker {
 			}
 
 			if (then_ty.kind == DataType.POINTER && else_ty.kind == DataType.POINTER) {
-				val t_ptr = then_ty.as_pointer();
-				val e_ptr = else_ty.as_pointer();
+				val t_ptr = then_ty.as_pointer()!;
+				val e_ptr = else_ty.as_pointer()!;
 				if (e_ptr.pointee.kind == DataType.NONE && !t_ptr.nullable) {
 					then_ty = self.arena.nullable_pointer_type(t_ptr.pointee, t_ptr.mutable);
 				} else if (t_ptr.pointee.kind == DataType.NONE && !e_ptr.nullable) {
@@ -655,7 +695,7 @@ impl BodyChecker {
 		return self.prims().t_none();
 	}
 
-	pub fn check_array_literal_expr(&self, node: *AstNode): *Type {
+	pub fn check_array_literal_expr(&self, node: &AstNode): *Type {
 		self.report_error(
 			node,
 			"Candidate list '[...]' is only allowed on the right-hand side of 'in' or '!in'"

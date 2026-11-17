@@ -45,10 +45,10 @@ fn append_json_escaped_str(sb: &StringBuilder, s: str) {
 
 impl JsonValue {
 
-	pub fn box(v: JsonValue): *JsonValue {
+	pub fn box(v: JsonValue): &JsonValue {
 		val p = Heap.create<JsonValue>(1);
 		p.write(v);
-		return p as *JsonValue;
+		return p;
 	}
 
 	pub fn null_val() => JsonValue.box(JsonValue(JsonKind.JNULL));
@@ -68,7 +68,7 @@ impl JsonValue {
 	pub fn obj() => JsonValue.box(JsonValue(JsonKind.JOBJ));
 	pub fn object() => JsonValue.obj();
 
-	pub fn parse(src: str): *JsonValue {
+	pub fn parse(src: str): &JsonValue {
 		var parser = JsonParser(src);
 		return parser.parse_value();
 	}
@@ -306,7 +306,7 @@ impl JsonParser {
 		return val_num * sign;
 	}
 
-	pub fn parse_array(&self): *JsonValue {
+	pub fn parse_array(&self): &JsonValue {
 		self.advance(); // Skip '['
 		var res = JsonValue.arr();
 		self.skip_whitespace();
@@ -330,7 +330,7 @@ impl JsonParser {
 		return res;
 	}
 
-	pub fn parse_object(&self): *JsonValue {
+	pub fn parse_object(&self): &JsonValue {
 		self.advance(); // Skip '{'
 		var res = JsonValue.obj();
 		self.skip_whitespace();
@@ -361,7 +361,7 @@ impl JsonParser {
 		return res;
 	}
 
-	pub fn parse_value(&self): *JsonValue {
+	pub fn parse_value(&self): &JsonValue {
 		self.skip_whitespace();
 		if (self.is_end()) return JsonValue.null_val();
 

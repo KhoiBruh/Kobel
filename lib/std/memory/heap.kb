@@ -31,11 +31,11 @@ impl Heap {
 	}
 
 	// Grow/shrink `ptr` to hold `count` elements of `T`.
-	pub fn resize<T>(ptr: *T, count: usz) => realloc(ptr as &u8, count * T.size()) as &T;
+	pub fn resize<T>(ptr: &T, count: usz) => realloc(ptr as &u8, count * T.size()) as &T;
 
 	// Free a block obtained from create/alloc/resize.
-	pub fn free(ptr: *none) => free(ptr as &u8);
+	pub fn free(ptr: &none) => free(ptr as &u8);
 
-	pub fn free<T>(ptr: *T) => free(ptr as &u8);
+	pub fn free<T>(ptr: &T) => free(ptr as &u8);
 
 }

@@ -21,7 +21,7 @@ use compiler.semantic.lowering.*;
 
 impl BodyChecker {
 
-	pub fn check_interp_expr(&self, node: *AstNode): *Type {
+	pub fn check_interp_expr(&self, node: &AstNode): *Type {
 		if (node is InterpExpr as ie) {
 			for (part in ie.parts) {
 				when (part) {
@@ -42,11 +42,11 @@ impl BodyChecker {
 		val trait_to_str = self.symtab.find_trait("Stringer");
 		if (trait_to_str != null) {
 			var cur_ty = ty;
-			if (cur_ty.kind == DataType.POINTER) cur_ty = cur_ty.as_pointer().pointee;
+			if (cur_ty.kind == DataType.POINTER) cur_ty = cur_ty.as_pointer()!.pointee;
 
 			var tname = "";
 			if (cur_ty.kind == DataType.STRUCT) {
-				tname = cur_ty.as_struct().name;
+				tname = cur_ty.as_struct()!.name;
 			} else {
 				val prim = primitive_type_name(cur_ty);
 				if (prim != "none") tname = prim;

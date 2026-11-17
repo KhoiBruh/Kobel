@@ -41,13 +41,13 @@ impl ReachableSet {
 
 struct DceWalker {
 	cg: *CCodeGen,
-	fn_nodes: HashMap<str, *AstNode> = HashMap<str, *AstNode>(),
+	fn_nodes: HashMap<str, &AstNode> = HashMap<str, &AstNode>(),
 	fn_owners: HashMap<str, str> = HashMap<str, str>(),
-	struct_map: HashMap<str, *AstNode> = HashMap<str, *AstNode>(),
-	enum_map: HashMap<str, *AstNode> = HashMap<str, *AstNode>(),
+	struct_map: HashMap<str, &AstNode> = HashMap<str, &AstNode>(),
+	enum_map: HashMap<str, &AstNode> = HashMap<str, &AstNode>(),
 	all_types: HashSet<str> = HashSet<str>(),
 	variant_to_enum: HashMap<str, str> = HashMap<str, str>(),
-	const_map: HashMap<str, *AstNode> = HashMap<str, *AstNode>(),
+	const_map: HashMap<str, &AstNode> = HashMap<str, &AstNode>(),
 	fns: HashSet<str> = HashSet<str>(),
 	types: HashSet<str> = HashSet<str>(),
 	consts: HashSet<str> = HashSet<str>(),
@@ -71,7 +71,7 @@ impl DceWalker {
 		self.const_queue.free();
 	}
 
-	fn index_fn(&self, node: *AstNode, f: *FnDecl, owner: str) {
+	fn index_fn(&self, node: &AstNode, f: *FnDecl, owner: str) {
 		// Prefer keeping the definition body if a prototype and definition share a name.
 		if (!(f.name in self.fn_nodes) || f.body != null) {
 			self.fn_nodes[f.name] = node;
@@ -143,16 +143,16 @@ impl DceWalker {
 
 		val t = ty!;
 		if (t.is_enum()) {
-			self.mark_type(t.as_enum().c_name);
+			self.mark_type(t.as_enum()!.c_name);
 			return;
 		}
 
 		when (t.kind) {
-			DataType.POINTER -> self.mark_type_obj(t.as_pointer().pointee);
-			DataType.ARRAY -> self.mark_type_obj(t.as_array().elem);
-			DataType.STRUCT -> self.mark_type(t.as_struct().c_name);
+			DataType.POINTER -> self.mark_type_obj(t.as_pointer()!.pointee);
+			DataType.ARRAY -> self.mark_type_obj(t.as_array()!.elem);
+			DataType.STRUCT -> self.mark_type(t.as_struct()!.c_name);
 			DataType.FN -> {
-				val fi = t.as_fn();
+				val fi = t.as_fn()!;
 				self.mark_type_obj(fi.return_type);
 				for (pt in fi.param_types) self.mark_type_obj(pt);
 			}

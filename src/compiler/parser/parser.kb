@@ -18,7 +18,7 @@ pub struct Parser {
 	pub current: usz = 0,
 	pub arena: Arena = Arena.empty(),
 	pub errors: List<Diagnostic> = List(),
-	pub struct_consts: List<*AstNode> = List(),
+	pub struct_consts: List<&AstNode> = List(),
 	pub file_id: u32 = 0
 }
 
@@ -42,13 +42,13 @@ impl Parser {
 		return p;
 	}
 
-	pub fn node(&self, data: NodeData, line: usz = 0, col: usz = 0): *AstNode {
+	pub fn node(&self, data: NodeData, line: usz = 0, col: usz = 0): &AstNode {
 		var n = self.arena.node(data, line, col);
 		n.span.file_id = self.file_id;
 		return n;
 	}
 
-	pub fn node_at(&self, data: NodeData, tok: Token): *AstNode {
+	pub fn node_at(&self, data: NodeData, tok: Token): &AstNode {
 		var n = self.arena.node(data, tok.line, tok.col);
 		n.span = tok.span;
 		return n;

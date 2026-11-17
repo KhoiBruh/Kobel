@@ -18,29 +18,29 @@ use compiler.ast.*;
 impl Arena {
 
 	fn ast_named_type(&self, name: str)
-		=> self.node(NodeData.NamedType(name, List<*AstNode>()));
+		=> self.node(NodeData.NamedType(name, List<&AstNode>()));
 
-	pub fn ast_type_from_type(&self, ty: *Type): *AstNode {
-		if (ty.is_enum()) return self.ast_named_type(ty.as_enum().c_name);
+	pub fn ast_type_from_type(&self, ty: *Type): &AstNode {
+		if (ty.is_enum()) return self.ast_named_type(ty.as_enum()!.c_name);
 
 		return when (ty.kind) {
 			DataType.POINTER -> {
-				val pt = ty.as_pointer();
+				val pt = ty.as_pointer()!;
 				yield self.node(NodeData.PointerType(pt.mutable, pt.nullable, self.ast_type_from_type(pt.pointee)), 0, 0);
 			}
 			DataType.ARRAY -> {
-				val at = ty.as_array();
+				val at = ty.as_array()!;
 				yield self.node(NodeData.ArrayType(self.ast_type_from_type(at.elem), at.length), 0, 0);
 			}
 			DataType.STRUCT -> {
-				val st_info = ty.as_struct();
+				val st_info = ty.as_struct()!;
 				var st_name = st_info.name;
 				if (st_info.c_name.len > 0) st_name = st_info.c_name;
 				yield self.ast_named_type(st_name);
 			}
 			DataType.FN -> {
-				val fn_info = ty.as_fn();
-				var p_nodes = List<*AstNode>();
+				val fn_info = ty.as_fn()!;
+				var p_nodes = List<&AstNode>();
 				for (pt in fn_info.param_types) p_nodes += self.ast_type_from_type(pt);
 				yield self.node(NodeData.FnType(p_nodes, self.ast_type_from_type(fn_info.return_type)), 0, 0);
 			}

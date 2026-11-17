@@ -375,7 +375,7 @@ fn main(): i32 {
 	val safe_bin = cast_to_binary(&bin as *Node);
 	val safe_null = cast_to_literal(null_node);
 
-	if (safe_lit == null || safe_lit.value != 10) {
+	if (safe_lit == null || safe_lit!.value != 10) {
 		println("FAIL: safe cast literal match");
 		return 1;
 	}
@@ -383,7 +383,7 @@ fn main(): i32 {
 		println("FAIL: safe cast mismatch should be null");
 		return 1;
 	}
-	if (safe_bin == null || safe_bin.tag != 2) {
+	if (safe_bin == null || safe_bin!.tag != 2) {
 		println("FAIL: safe cast binary match");
 		return 1;
 	}

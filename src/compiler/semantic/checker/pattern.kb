@@ -21,7 +21,7 @@ use compiler.semantic.lowering.*;
 
 impl BodyChecker {
 
-	pub fn check_when_expr(&self, node: *AstNode, expected: ?*Type = null): *Type {
+	pub fn check_when_expr(&self, node: &AstNode, expected: ?*Type = null): *Type {
 		if (node is WhenExpr as we) {
 			if (we.condition != null && self.expr_has_call(we.condition)) {
 				self.report_error(
@@ -46,8 +46,8 @@ impl BodyChecker {
 					result_ty = body_ty;
 				} else {
 					if (result_ty.kind == DataType.POINTER && body_ty.kind == DataType.POINTER) {
-						val r_ptr = result_ty.as_pointer();
-						val b_ptr = body_ty.as_pointer();
+						val r_ptr = result_ty.as_pointer()!;
+						val b_ptr = body_ty.as_pointer()!;
 						if (b_ptr.pointee.kind == DataType.NONE && !r_ptr.nullable) {
 							result_ty = self.arena.nullable_pointer_type(r_ptr.pointee, r_ptr.mutable);
 						} else if (r_ptr.pointee.kind == DataType.NONE && !b_ptr.nullable) {
@@ -81,11 +81,9 @@ impl BodyChecker {
 	}
 
 	fn check_when_exhaustiveness(&self, node: *AstNode, we: *WhenExpr, cond_ty: ?*Type): bool {
-		if (cond_ty == null) return false;
-
-		var base_ty = cond_ty;
+		var base_ty: *Type = cond_ty ?: return false;
 		if (base_ty.kind == DataType.POINTER) {
-			base_ty = base_ty.as_pointer().pointee;
+			base_ty = base_ty.as_pointer()!.pointee;
 		}
 
 		if (base_ty.kind == DataType.BOOL) {
@@ -108,12 +106,13 @@ impl BodyChecker {
 
 		var enum_info: ?*EnumInfo = null;
 		if (base_ty.is_enum()) {
-			enum_info = base_ty.as_enum();
+			enum_info = base_ty.as_enum()!;
 		} else if (base_ty.kind == DataType.STRUCT) {
-			enum_info = self.symtab.find_enum_info(base_ty.as_struct().name);
+			enum_info = self.symtab.find_enum_info(base_ty.as_struct()!.name);
 		}
 
-		if (enum_info == null || enum_info.members.empty()) return false;
+		val ei = enum_info ?: return false;
+		if (ei.members.empty()) return false;
 
 		var covered = List<str>();
 		for (arm in we.arms) {
@@ -121,28 +120,28 @@ impl BodyChecker {
 			for (pat in arm.patterns) {
 				if (pat is IsExpr as is_e && is_e.target_type is ArrayLiteralExpr as al) {
 					for (el in al.elements) {
-						val vname = self.match_enum_variant_type(el, enum_info!);
+						val vname = self.match_enum_variant_type(el, ei);
 						if (!vname.empty() && vname !in covered) covered += vname;
 					}
 					continue;
 				}
-				val vname = self.match_enum_variant(pat, enum_info!);
+				val vname = self.match_enum_variant(pat, ei);
 				if (!vname.empty() && vname !in covered) covered += vname;
 			}
 		}
 
-		return covered.len == enum_info.members.len;
+		return covered.len == ei.members.len;
 	}
 
-	fn match_enum_variant_type(&self, type_node: ?*AstNode, enum_info: *EnumInfo): str {
+	fn match_enum_variant_type(&self, type_node: ?&AstNode, enum_info: *EnumInfo): str {
 		if (type_node == null) return "";
 		if (type_node is NamedType as nt && nt.name.starts_with(".")) {
 			val m = enum_info.find_member(nt.name.slice(1, nt.name.len));
 			if (m != null) return m.name;
 		}
 		val target_ty = self.resolve_type(type_node!);
-		if (target_ty?.kind == DataType.STRUCT) {
-			val target_s = target_ty.as_struct();
+		if (target_ty.kind == DataType.STRUCT) {
+			val target_s = target_ty.as_struct()!;
 			for (m in enum_info.members) {
 				val full_vname = "${enum_info.name}.${m.name}";
 				if (target_s.name in [full_vname, m.name]) return m.name;
@@ -177,7 +176,7 @@ impl BodyChecker {
 		return false;
 	}
 
-	pub fn arm_smart_cast_sym(*self, patterns: List<*AstNode>, cond: ?*AstNode): str {
+	pub fn arm_smart_cast_sym(*self, patterns: List<&AstNode>, cond: ?*AstNode): str {
 		if (cond == null || patterns.len != 1) return "";
 		val pat = patterns.first();
 		if (pat is IsExpr as is_e) {
@@ -188,7 +187,7 @@ impl BodyChecker {
 		return "";
 	}
 
-	pub fn arm_smart_cast_mutable(*self, patterns: List<*AstNode>, cond: ?*AstNode): bool {
+	pub fn arm_smart_cast_mutable(*self, patterns: List<&AstNode>, cond: ?*AstNode): bool {
 		if (cond == null || patterns.len != 1) return false;
 		val pat = patterns.first();
 		if (pat is IsExpr as is_e) {
@@ -196,7 +195,7 @@ impl BodyChecker {
 			if (!is_e.alias.empty()) return false;
 			if (cond is IdentifierExpr as cond_id) {
 				val subj_sym = self.symtab.lookup(cond_id.name);
-				return subj_sym != null && subj_sym.mutable;
+				return subj_sym != null && subj_sym!.mutable;
 			}
 		}
 		return false;
@@ -204,8 +203,8 @@ impl BodyChecker {
 
 	pub fn resolve_arm_patterns(
 		&self,
-		patterns: List<*AstNode>,
-		cond: ?*AstNode,
+		patterns: List<&AstNode>,
+		cond: ?&AstNode,
 		cond_ty: ?*Type
 	): ?*Type {
 		if (!self.arm_smart_cast_sym(patterns, cond).empty()) {
@@ -262,7 +261,7 @@ impl BodyChecker {
 		};
 	}
 
-	fn check_arm_pattern(&self, pat: *AstNode, cond: ?*AstNode, cond_ty: ?*Type): *Type {
+	fn check_arm_pattern(&self, pat: &AstNode, cond: ?&AstNode, cond_ty: ?*Type): *Type {
 		if (cond == null) return self.check_expr(pat);
 
 		if (pat is IsExpr as is_e) {
@@ -271,13 +270,13 @@ impl BodyChecker {
 			return self.prims().t_bool();
 		}
 
-		val unwrapped = self.unwrap_group(pat);
+		val unwrapped = self.unwrap_group_mut(pat);
 		if (
 			unwrapped is UnaryExpr as un &&
 			un.op == TokenType.BANG &&
 			!un.is_postfix
 		) {
-			val inner = self.unwrap_group(un.operand);
+			val inner = self.unwrap_group_mut(un.operand);
 			if (inner is IsExpr as inner_is) {
 				val subj_ty = if (inner_is.expr == null) cond_ty else self.check_expr(inner_is.expr!);
 				if (inner_is.expr == null) inner_is.expr = cond;
@@ -295,7 +294,7 @@ impl BodyChecker {
 		) {
 			val r_ty = self.check_expr(pat);
 			if (cond_ty != null && r_ty.kind == DataType.STRUCT) {
-				val s = r_ty.as_struct();
+				val s = r_ty.as_struct()!;
 				if (s.fields.len > 0) {
 					val elem_ty = s.fields[0].type_ptr;
 					self.ensure(
@@ -330,7 +329,7 @@ impl BodyChecker {
 
 	fn check_arm_body(
 		&self,
-		body: *AstNode,
+		body: &AstNode,
 		sym: str,
 		smart_cast_ty: ?*Type,
 		mutable: bool,
@@ -344,7 +343,7 @@ impl BodyChecker {
 		return self.check_when_arm_body(body, expected);
 	}
 
-	pub fn check_when_arm_body(&self, body: *AstNode, expected: ?*Type = null): *Type {
+	pub fn check_when_arm_body(&self, body: &AstNode, expected: ?*Type = null): *Type {
 		if (body is BlockStmt as blk) {
 			var yield_ty: ?*Type = null;
 			self.symtab.enter_scope(false);
@@ -374,26 +373,26 @@ impl BodyChecker {
 
 	fn check_single_is_target(
 		&self,
-		info_node: *AstNode,
-		extra_info_node: ?*AstNode,
+		info_node: &AstNode,
+		extra_info_node: ?&AstNode,
 		err_node: *AstNode,
-		target_node: *AstNode,
+		target_node: &AstNode,
 		is_e: *IsExpr,
 		base_s: *StructType,
 		is_ptr: bool,
 		subj_mutable: bool
 	): ?*Type {
 		val data_ty = self.field_type_of(base_s, "data");
-		val data_enum = if (data_ty?.kind == DataType.STRUCT)
-			self.symtab.find_enum_info(data_ty.as_struct()!.name)
+		val data_enum = if (data_ty != null && data_ty!.kind == DataType.STRUCT)
+			self.symtab.find_enum_info(data_ty!.as_struct()!.name)
 		else null;
 		val direct_enum = self.symtab.find_enum_info(base_s.name);
 
 		if (target_node is NamedType as nt && nt.name.starts_with(".")) {
 			val vname = nt.name.slice(1, nt.name.len);
-			if (data_enum?.is_payload && data_enum.find_member(vname) != null) {
+			if (data_enum != null && data_enum.is_payload && data_enum.find_member(vname) != null) {
 				nt.name = "${data_enum.name}.${vname}";
-			} else if (direct_enum?.is_payload && direct_enum.find_member(vname) != null) {
+			} else if (direct_enum != null && direct_enum.is_payload && direct_enum.find_member(vname) != null) {
 				nt.name = "${direct_enum.name}.${vname}";
 			}
 		}
@@ -404,20 +403,20 @@ impl BodyChecker {
 			return null;
 		}
 
-		val target_s = target_ty.as_struct();
+		val target_s = target_ty.as_struct()!;
 		var is_payload_data = false;
 		var tag_field_name = "";
 		var tag_const_c_name = "";
 
 		var matched_data_member: ?*EnumMemberInfo = null;
-		if (data_enum?.is_payload) {
+		if (data_enum != null && data_enum.is_payload) {
 			for (m in data_enum.members) {
 				if (target_s.name in [m.name, "${data_enum.name}.${m.name}"]) {
 					is_payload_data = true;
 					matched_data_member = m;
 					tag_field_name = "data.tag";
 					val auto_tag = self.symtab.lookup("${data_enum.name}.${m.name}__TAG");
-					tag_const_c_name = if (auto_tag != null) auto_tag.c_name
+					tag_const_c_name = if (auto_tag != null) auto_tag!.c_name
 						else "${data_enum.c_name}__${m.name}__TAG";
 				}
 			}
@@ -425,7 +424,7 @@ impl BodyChecker {
 
 		if (!is_payload_data) {
 			val tag_const_sym = self.find_tag_const(target_s.name);
-			if (tag_const_sym == null || tag_const_sym.kind != SymbolKind.CONST) {
+			if (tag_const_sym == null || tag_const_sym!.kind != SymbolKind.CONST) {
 				self.report_error(
 					err_node,
 					"Cannot smart cast to '${target_s.name}': " +
@@ -444,14 +443,14 @@ impl BodyChecker {
 			}
 
 			val tag_field_ty = self.field_type_of(base_s, tag_field_name);
-			if (!tag_field_ty.can_assign(tag_const_sym.type_ptr)) {
+			if (tag_field_ty == null || !tag_field_ty!.can_assign(tag_const_sym!.type_ptr)) {
 				self.report_error(
 					err_node,
 					"Tag type mismatch: '${base_s.name}.${tag_field_name}' does not match '${target_s.name}.TAG'"
 				);
 				return null;
 			}
-			tag_const_c_name = tag_const_sym.c_name;
+			tag_const_c_name = tag_const_sym!.c_name;
 		}
 
 		var payload_path = "";
@@ -464,7 +463,7 @@ impl BodyChecker {
 				member_name = matched_data_member.name;
 				val p_ty = matched_data_member.payload_ty;
 				if (p_ty != null && p_ty.kind == DataType.STRUCT) {
-					val s = p_ty.as_struct();
+					val s = p_ty.as_struct()!;
 					if (!s.fields.any { f -> f.name == "inner" }) is_inner_ptr = false;
 				}
 			}
@@ -480,7 +479,7 @@ impl BodyChecker {
 
 		if (direct_enum?.is_payload) {
 			for (m in direct_enum.members) {
-				if (m.payload_ty != null && m.payload_ty.equals(target_ty)) {
+				if (m.payload_ty != null && m.payload_ty!.equals(target_ty)) {
 					payload_path = m.payload_path;
 				}
 			}
@@ -503,24 +502,24 @@ impl BodyChecker {
 		return target_ty;
 	}
 
-	pub fn check_is_pattern(&self, subject: ?*AstNode, subj_ty: ?*Type, is_node: *AstNode): ?*Type {
+	pub fn check_is_pattern(&self, subject: ?&AstNode, subj_ty: ?*Type, is_node: &AstNode): ?*Type {
 		if (is_node == null) return null;
 
 		if (is_node is IsExpr as is_e) {
 			var base_ty = subj_ty;
 			var is_ptr = false;
 			var subj_mutable = false;
-			if (base_ty?.kind == DataType.POINTER) {
+			if (base_ty != null && base_ty.kind == DataType.POINTER) {
 				is_ptr = true;
-				subj_mutable = base_ty.as_pointer().mutable;
-				base_ty = base_ty.as_pointer().pointee;
+				subj_mutable = base_ty.as_pointer()!.mutable;
+				base_ty = base_ty.as_pointer()!.pointee;
 			}
-			if (base_ty == null || base_ty.kind != DataType.STRUCT) {
+			if (base_ty == null || base_ty!.kind != DataType.STRUCT) {
 				self.report_error(is_node, "Subject of 'is' must be a struct or pointer to struct");
 				return null;
 			}
 
-			val base_s = base_ty.as_struct()!;
+			val base_s = base_ty!.as_struct()!;
 
 			if (is_e.target_type is ArrayLiteralExpr as al) {
 				if (al.elements.empty()) {
@@ -566,7 +565,7 @@ impl BodyChecker {
 		return null;
 	}
 
-	pub fn check_is_expr(&self, node: *AstNode): *Type {
+	pub fn check_is_expr(&self, node: &AstNode): *Type {
 		if (node is IsExpr as is_e) {
 			if (is_e.expr == null) {
 				self.report_error(node, "'is' expression requires a subject");

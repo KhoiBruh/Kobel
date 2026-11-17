@@ -20,7 +20,7 @@ use compiler.semantic.declaration.*;
 
 impl BodyChecker {
 
-	pub fn check_call_expr(&self, node: *AstNode): *Type {
+	pub fn check_call_expr(&self, node: &AstNode): *Type {
 		if (node is CallExpr as call) {
 			// Primitive char constructor: char(code)
 			if (call.callee is IdentifierExpr as id && id.name == "char") {
@@ -92,7 +92,7 @@ impl BodyChecker {
 			}
 
 			// 3. Enum construction: HttpMethod("GET"), Status(200)
-			if (callee_ty.is_enum() && !callee_ty.as_enum().is_payload) {
+			if (callee_ty.is_enum() && !callee_ty.as_enum()!.is_payload) {
 				return self.check_enum_value_ctor(node, callee_ty, call);
 			}
 
@@ -104,8 +104,8 @@ impl BodyChecker {
 
 	fn check_explicit_generic_call(
 		&self,
-		node: *AstNode,
-		call: *CallExpr,
+		node: &AstNode,
+		call: &CallExpr,
 		cid: *IdentifierExpr
 	): ?*Type {
 		val ft = self.find_fn_template_for(cid.name);
@@ -116,7 +116,7 @@ impl BodyChecker {
 				self.ensure_callee_ready(sym);
 				val callee_id = self.arena.node(NodeData.IdentifierExpr(cname), node.line, node.col);
 				val new_call = self.arena.node(
-					NodeData.CallExpr(callee_id, call.args, List<*AstNode>()),
+					NodeData.CallExpr(callee_id, call.args, List<&AstNode>()),
 					node.line, node.col
 				);
 				if (new_call is CallExpr as new_cc) {
@@ -130,10 +130,10 @@ impl BodyChecker {
 		if (st != null) {
 			val cty = self.instantiate_template_struct(st, call.type_args);
 			if (cty.kind == DataType.STRUCT) {
-				val cname = cty.as_struct().name;
+				val cname = cty.as_struct()!.name;
 				val callee_id = self.arena.node(NodeData.IdentifierExpr(cname), node.line, node.col);
 				val new_call = self.arena.node(
-					NodeData.CallExpr(callee_id, call.args, List<*AstNode>()),
+					NodeData.CallExpr(callee_id, call.args, List<&AstNode>()),
 					node.line, node.col
 				);
 				if (new_call is CallExpr as new_cc) {
@@ -147,8 +147,8 @@ impl BodyChecker {
 
 	fn check_inferred_generic_call(
 		&self,
-		node: *AstNode,
-		call: *CallExpr,
+		node: &AstNode,
+		call: &CallExpr,
 		cid: *IdentifierExpr
 	): ?*Type {
 		val local_sym = self.symtab.lookup(cid.name);
@@ -169,7 +169,7 @@ impl BodyChecker {
 					self.ensure_callee_ready(sym);
 					val callee_id = self.arena.node(NodeData.IdentifierExpr(cname), node.line, node.col);
 					val new_call = self.arena.node(
-						NodeData.CallExpr(callee_id, call.args, List<*AstNode>()),
+						NodeData.CallExpr(callee_id, call.args, List<&AstNode>()),
 						node.line, node.col
 					);
 					if (new_call is CallExpr as new_cc) {
@@ -192,10 +192,10 @@ impl BodyChecker {
 			if (!inferred_targs.empty()) {
 				val cty = self.instantiate_template_struct(st, inferred_targs);
 				if (cty.kind == DataType.STRUCT) {
-					val cname = cty.as_struct().name;
+					val cname = cty.as_struct()!.name;
 					val callee_id = self.arena.node(NodeData.IdentifierExpr(cname), node.line, node.col);
 					val new_call = self.arena.node(
-						NodeData.CallExpr(callee_id, call.args, List<*AstNode>()),
+						NodeData.CallExpr(callee_id, call.args, List<&AstNode>()),
 						node.line, node.col
 					);
 					if (new_call is CallExpr as new_cc) {
@@ -208,8 +208,8 @@ impl BodyChecker {
 		return null;
 	}
 
-	fn check_enum_value_ctor(&self, node: *AstNode, enum_ty: *Type, call: *CallExpr): *Type {
-		val info = enum_ty.as_enum();
+	fn check_enum_value_ctor(&self, node: &AstNode, enum_ty: *Type, call: &CallExpr): *Type {
+		val info = enum_ty.as_enum()!;
 		if (call.args.len != 1) {
 			self.report_error(node, "Enum constructor '${info.name}' requires exactly 1 argument");
 			return enum_ty;
@@ -231,7 +231,7 @@ impl BodyChecker {
 		return enum_ty;
 	}
 
-	fn check_char_ctor(&self, node: *AstNode, char_ty: *Type, call: *CallExpr): *Type {
+	fn check_char_ctor(&self, node: &AstNode, char_ty: *Type, call: &CallExpr): *Type {
 		if (call.args.len != 1) {
 			self.report_error(node, "Constructor 'char' requires exactly 1 argument");
 			return char_ty;
@@ -248,7 +248,7 @@ impl BodyChecker {
 		return char_ty;
 	}
 
-	fn check_str_ctor(&self, node: *AstNode, str_ty: *Type, call: *CallExpr): *Type {
+	fn check_str_ctor(&self, node: &AstNode, str_ty: *Type, call: &CallExpr): *Type {
 		if (call.args.len != 1) {
 			self.report_error(node, "Constructor 'str' requires exactly 1 argument");
 			return str_ty;
@@ -257,7 +257,7 @@ impl BodyChecker {
 		val arg_ty = self.check_expr(arg);
 		var valid = false;
 		if (arg_ty.kind == DataType.POINTER) {
-			val pt = arg_ty.as_pointer().pointee;
+			val pt = arg_ty.as_pointer()!.pointee;
 			valid = pt.kind in [DataType.CHAR, DataType.U8, DataType.I8];
 		}
 		if (!valid) {
@@ -271,7 +271,7 @@ impl BodyChecker {
 		return str_ty;
 	}
 
-	fn lower_size_query(&self, node: *AstNode, mem: *MemberExpr): *Type {
+	fn lower_size_query(&self, node: *AstNode, mem: &MemberExpr): *Type {
 		val obj = mem.object;
 		if (obj is IdentifierExpr as id) {
 			val idx = self.type_param_index(id.name);
@@ -305,7 +305,7 @@ impl BodyChecker {
 		return self.prims().t_usz();
 	}
 
-	fn check_slice_call(&self, node: *AstNode, mem: *MemberExpr, call: *CallExpr): *Type {
+	fn check_slice_call(&self, node: &AstNode, mem: &MemberExpr, call: &CallExpr): *Type {
 		val slice_recv = self.check_expr(mem.object);
 		self.ensure(slice_recv.kind == DataType.STR, node, "slice() requires a str receiver");
 		for (arg in call.args) {
@@ -315,7 +315,7 @@ impl BodyChecker {
 		return self.prims().t_str();
 	}
 
-	fn append_defaults(&self, node: *AstNode, argc: usz, call: *CallExpr): bool {
+	fn append_defaults(&self, node: *AstNode, argc: usz, call: &CallExpr): bool {
 		if (node is FnDecl as f && argc < f.params.len) {
 			for (i in argc..<f.params.len) {
 				if (f.params[i].default_val == null) return false;
@@ -333,7 +333,7 @@ impl BodyChecker {
 		name: str,
 		argc: usz,
 		cands: List<*MethodInfo>,
-		call: *CallExpr,
+		call: &CallExpr,
 		found: ?*MethodInfo
 	): ?*MethodInfo {
 		if (found != null) return found;
@@ -344,6 +344,53 @@ impl BodyChecker {
 			return m;
 		}
 		return null;
+	}
+
+	fn check_expr_mutability_for_method(
+		&self,
+		node: *AstNode,
+		obj_node: *AstNode,
+		member: str
+	) {
+		val cur = self.unwrap_group(obj_node) ?: return;
+		val ty = self.node_type_of(cur);
+		if (ty?.kind == DataType.POINTER) {
+			if (!ty.as_pointer()!.mutable) {
+				if (self.is_immutable_self(cur)) {
+					self.report_error(
+						node,
+						"Cannot call mutating method '${member}' on immutable receiver '*self'"
+					);
+				} else {
+					self.report_error(
+						node,
+						"Cannot call mutating method '${member}' through read-only pointer " +
+						"'${self.type_display(ty)}'"
+					);
+				}
+			}
+			return;
+		}
+
+		when (cur) {
+			is IdentifierExpr as id -> {
+				val sym = self.symtab.lookup(id.name);
+				if (sym != null && !sym.mutable) {
+					self.report_error(
+						node,
+						"Cannot call mutating method '${member}' on immutable variable '${id.name}' " +
+						"declared with 'val'. Use 'var' instead."
+					);
+				}
+			}
+			is MemberExpr as m -> self.check_expr_mutability_for_method(node, m.object, member);
+			is IndexExpr as ix -> self.check_expr_mutability_for_method(node, ix.target, member);
+			is UnaryExpr as un -> {
+				if (un.op == TokenType.STAR) {
+					self.check_expr_mutability_for_method(node, un.operand, member);
+				}
+			}
+		}
 	}
 
 	fn check_receiver_mutability(
@@ -361,34 +408,18 @@ impl BodyChecker {
 			return;
 		}
 
-		if (obj_raw_ty.kind != DataType.POINTER) {
-			val cur = self.unwrap_group(obj_node);
-			when (cur) {
-				is IdentifierExpr as id -> {
-					val sym = self.symtab.lookup(id.name);
-					if (sym != null && !sym.mutable) {
-						self.report_error(
-							node,
-							"Cannot call mutating method '${member}' on immutable variable '${id.name}' " +
-							"declared with 'val'. Use 'var' instead."
-						);
-					}
-				}
-				is MemberExpr as m -> {
-					val obj_expr = self.unwrap_group(m.object);
-					if (obj_expr is IdentifierExpr as id) {
-						val sym = self.symtab.lookup(id.name);
-						if (sym != null && sym.type_ptr.kind != DataType.POINTER && !sym.mutable) {
-							self.report_error(
-								node,
-								"Cannot call mutating method '${member}' on immutable variable '${id.name}' " +
-								"declared with 'val'. Use 'var' instead."
-							);
-						}
-					}
-				}
+		if (obj_raw_ty.kind == DataType.POINTER) {
+			if (!obj_raw_ty.as_pointer()!.mutable) {
+				self.report_error(
+					node,
+					"Cannot call mutating method '${member}' through read-only pointer " +
+					"'${self.type_display(obj_raw_ty)}'"
+				);
 			}
+			return;
 		}
+
+		self.check_expr_mutability_for_method(node, obj_node, member);
 	}
 
 	fn bind_method_call(
@@ -400,10 +431,10 @@ impl BodyChecker {
 		obj_ty: *Type,
 		obj_raw_ty: *Type
 	): *Type {
-		val fn_info = mi.fn_type.as_fn();
+		val fn_info = mi.fn_type.as_fn()!;
 		if (fn_info.param_types.len > 0) {
 			val recv_ty = fn_info.param_types[0];
-			if (recv_ty?.kind == DataType.POINTER && recv_ty.as_pointer().mutable) {
+			if (recv_ty?.kind == DataType.POINTER && recv_ty.as_pointer()!.mutable) {
 				self.check_receiver_mutability(node, mem.object, mem.member, obj_raw_ty);
 				self.mark_node_mutated(mem.object);
 			} else if (mi.is_move) {
@@ -415,7 +446,7 @@ impl BodyChecker {
 				} else if (self.defer_depth == 0) {
 					val obj_expr = self.unwrap_group(mem.object);
 					if (obj_expr is IdentifierExpr as id) {
-						val sym = self.symtab.lookup(id.name);
+						val sym = self.symtab.lookup_local_mut(id.name);
 						if (sym != null) {
 							if (sym.is_moved) {
 								self.report_error(node, "Use of moved value '${id.name}'");
@@ -437,7 +468,7 @@ impl BodyChecker {
 				for (i in 0..<min_user_args) {
 					val param_ty = fn_info.param_types[i + 1];
 					val arg_n = call.args[i];
-					if (param_ty?.kind == DataType.POINTER && param_ty.as_pointer().mutable) {
+					if (param_ty?.kind == DataType.POINTER && param_ty.as_pointer()!.mutable) {
 						self.mark_node_mutated(arg_n);
 					}
 					val is_fn_forward = (
@@ -471,7 +502,7 @@ impl BodyChecker {
 			for (i in 0..<call.args.len) {
 				val param_ty = fn_info.param_types[i + 1];
 				val arg_n = call.args[i];
-				if (param_ty?.kind == DataType.POINTER && param_ty.as_pointer().mutable) {
+				if (param_ty?.kind == DataType.POINTER && param_ty.as_pointer()!.mutable) {
 					self.mark_node_mutated(arg_n);
 				}
 				val is_fn_forward = (
@@ -497,7 +528,7 @@ impl BodyChecker {
 		if (mem.is_safe) {
 			if (ret_ty.kind == DataType.POINTER) {
 				val pt = ret_ty.as_pointer();
-				ret_ty = self.arena.nullable_pointer_type(pt.pointee, pt.mutable);
+				ret_ty = self.arena.nullable_pointer_type(pt!.pointee, pt!.mutable);
 			} else if (ret_ty.kind != DataType.STR) {
 				self.ensure(
 					self.in_safe_nav_context,
@@ -514,9 +545,9 @@ impl BodyChecker {
 
 	pub fn check_static_method_call(
 		&self,
-		node: *AstNode,
-		mem: *MemberExpr,
-		call: *CallExpr
+		node: &AstNode,
+		mem: &MemberExpr,
+		call: &CallExpr
 	): ?*Type {
 		var s_info: ?*StructType = null;
 		var struct_ty: ?*Type = null;
@@ -558,15 +589,15 @@ impl BodyChecker {
 
 				val cname = self.instantiate_method(tmpl, targs, struct_ty!);
 				val sym = self.symtab.lookup(cname);
-				if (sym == null || sym.type_ptr.kind != DataType.FN) return null;
+				if (sym == null || sym!.type_ptr.kind != DataType.FN) return null;
 
-				if (sym.ast_node != null) self.append_defaults(sym.ast_node!, call.args.len, call);
+				if (sym!.ast_node != null) self.append_defaults(sym!.ast_node!, call.args.len, call);
 				self.ensure_callee_ready(sym);
-				val fn_info = sym.type_ptr.as_fn();
+				val fn_info = sym!.type_ptr.as_fn()!;
 
 				val callee = self.arena.node(NodeData.IdentifierExpr(cname), node.line, node.col);
 				val new_call = self.arena.node(
-					NodeData.CallExpr(callee, call.args, List<*AstNode>()),
+					NodeData.CallExpr(callee, call.args, List<&AstNode>()),
 					node.line, node.col
 				);
 
@@ -624,7 +655,7 @@ impl BodyChecker {
 		);
 		val mi = (mi_def ?: cand)!;
 
-		val fn_info = mi.fn_type.as_fn();
+		val fn_info = mi.fn_type.as_fn()!;
 		if (fn_info.is_variadic) {
 			val min_args = fn_info.param_types.len - 1;
 			if (call.args.len < min_args) {
@@ -634,7 +665,7 @@ impl BodyChecker {
 				for (i in 0..<min_args) {
 					val param_ty = fn_info.param_types[i];
 					val arg_n = call.args[i];
-					if (param_ty?.kind == DataType.POINTER && param_ty.as_pointer().mutable) {
+					if (param_ty?.kind == DataType.POINTER && param_ty.as_pointer()!.mutable) {
 						self.mark_node_mutated(arg_n);
 					}
 					val is_fn_forward = (
@@ -668,7 +699,7 @@ impl BodyChecker {
 			for (i in 0..<call.args.len) {
 				val param_ty = fn_info.param_types[i];
 				val arg_n = call.args[i];
-				if (param_ty?.kind == DataType.POINTER && param_ty.as_pointer().mutable) {
+				if (param_ty?.kind == DataType.POINTER && param_ty.as_pointer()!.mutable) {
 					self.mark_node_mutated(arg_n);
 				}
 				val is_fn_forward = (
@@ -693,13 +724,13 @@ impl BodyChecker {
 		return fn_info.return_type;
 	}
 
-	pub fn check_method_call(&self, node: *AstNode, mem: *MemberExpr, call: *CallExpr): ?*Type {
+	pub fn check_method_call(&self, node: &AstNode, mem: &MemberExpr, call: &CallExpr): ?*Type {
 		val obj_raw_ty = self.check_expr(mem.object);
 		var obj_ty = obj_raw_ty;
 		var obj_is_ptr = false;
 		if (obj_ty.kind == DataType.POINTER) {
 			obj_is_ptr = true;
-			obj_ty = obj_ty.as_pointer().pointee;
+			obj_ty = obj_ty.as_pointer()!.pointee;
 		}
 
 		if (obj_is_ptr && mem.member == "addr") {
@@ -720,6 +751,13 @@ impl BodyChecker {
 			self.report_error(node, "Safe call operator '?.' requires a pointer receiver");
 			return self.prims().t_none();
 		}
+		if (obj_is_ptr && obj_raw_ty.as_pointer()!.nullable && !mem.is_safe) {
+			self.report_error(
+				node,
+				"Cannot call method '${mem.member}' on nullable pointer " +
+				"'${self.type_display(obj_raw_ty)}'; use '?.' or unwrap with '!' first"
+			);
+		}
 		val argc = call.args.len + 1;
 
 		if (call.type_args.len > 0) {
@@ -729,20 +767,20 @@ impl BodyChecker {
 
 		if (obj_ty.kind == DataType.STRUCT) {
 			val s_info = obj_ty.as_struct();
-			if (s_info.count_method_arity(mem.member, argc) > 1) {
+			if (s_info!.count_method_arity(mem.member, argc) > 1) {
 				self.report_error(
 					node,
 					"Ambiguous call to '${mem.member}': overloading by parameter type is not supported"
 				);
 			}
 			val mi = self.method_with_defaults(
-				mem.member, argc, s_info.methods, call, s_info.find_method_arity(mem.member, argc)
-			) ?: s_info.find_method(mem.member);
+				mem.member, argc, s_info!.methods, call, s_info!.find_method_arity(mem.member, argc)
+			) ?: s_info!.find_method(mem.member);
 			if (mi != null) return self.bind_method_call(node, mem, call, mi, obj_ty, obj_raw_ty);
 		}
 
 		if (obj_is_ptr && mem.member == "write") {
-			if (!obj_raw_ty.as_pointer().mutable) {
+			if (!obj_raw_ty.as_pointer()!.mutable) {
 				self.report_error(
 					node,
 					"Cannot call mutating method 'write' on read-only pointer of type '${obj_raw_ty.to_str()}'"
@@ -753,7 +791,7 @@ impl BodyChecker {
 				self.report_error(node, "Method 'write' takes exactly 1 argument");
 				return self.prims().t_none();
 			}
-			val pointee_ty = obj_raw_ty.as_pointer().pointee;
+			val pointee_ty = obj_raw_ty.as_pointer()!.pointee;
 			val arg_ty = self.check_expr(call.args[0], pointee_ty);
 			if (!pointee_ty.can_assign(arg_ty)) {
 				self.report_error(
@@ -769,11 +807,11 @@ impl BodyChecker {
 			if (call.args.len != 0) {
 				self.report_error(node, "Method 'read' takes no arguments");
 			}
-			var ret_ty = obj_raw_ty.as_pointer().pointee;
+			var ret_ty = obj_raw_ty.as_pointer()!.pointee;
 			if (mem.is_safe) {
 				if (ret_ty.kind == DataType.POINTER) {
 					val pt = ret_ty.as_pointer();
-					ret_ty = self.arena.nullable_pointer_type(pt.pointee, pt.mutable);
+					ret_ty = self.arena.nullable_pointer_type(pt!.pointee, pt!.mutable);
 				} else if (ret_ty.kind != DataType.STR) {
 					self.ensure(
 						self.in_safe_nav_context,
@@ -795,7 +833,7 @@ impl BodyChecker {
 		if (obj_ty.kind == DataType.STRUCT) {
 			val g_ty = self.check_generic_method_call(node, mem, call, obj_ty, obj_is_ptr, obj_raw_ty);
 			if (g_ty != null) return g_ty;
-			self.report_error(node, "Method '${mem.member}' not found on type '${obj_ty.as_struct().name}'");
+			self.report_error(node, "Method '${mem.member}' not found on type '${obj_ty.as_struct()!.name}'");
 			return self.prims().t_none();
 		}
 
@@ -814,7 +852,7 @@ impl BodyChecker {
 		obj_is_ptr: bool,
 		obj_raw_ty: *Type
 	): ?*Type {
-		val recv_name = if (obj_ty.kind == DataType.STRUCT) obj_ty.as_struct().name
+		val recv_name = if (obj_ty.kind == DataType.STRUCT) obj_ty.as_struct()!.name
 			else primitive_type_name(obj_ty);
 		if (recv_name.empty()) return null;
 
@@ -823,26 +861,26 @@ impl BodyChecker {
 		if (tmpl == null) return null;
 
 		var targs = call.type_args;
-		if (targs.empty() && tmpl.node is FnDecl as tmpl_f) {
+		if (targs.empty() && tmpl!.node is FnDecl as tmpl_f) {
 			targs = self.infer_type_args_for_fn(tmpl_f, call.args, true, obj_ty);
 			if (targs.empty()) return null;
 		}
 
 		val cname = self.instantiate_method(tmpl!, targs, obj_ty);
 		val sym = self.symtab.lookup(cname);
-		if (sym == null || sym.type_ptr.kind != DataType.FN) return null;
+		if (sym == null || sym!.type_ptr.kind != DataType.FN) return null;
 
 		self.ensure_callee_ready(sym);
-		val fn_info = sym.type_ptr.as_fn();
+		val fn_info = sym!.type_ptr.as_fn()!;
 		if (fn_info.param_types.len > 0) {
 			val recv_ty = fn_info.param_types[0];
-			if (recv_ty?.kind == DataType.POINTER && recv_ty.as_pointer().mutable) {
+			if (recv_ty?.kind == DataType.POINTER && recv_ty.as_pointer()!.mutable) {
 				self.check_receiver_mutability(node, mem.object, mem.member, obj_raw_ty);
 				self.mark_node_mutated(mem.object);
 			}
 		}
 
-		var args = List<*AstNode>();
+		var args = List<&AstNode>();
 		if (obj_ty.kind == DataType.STRUCT && !obj_is_ptr) {
 			val ref_arg = self.arena.node(
 				NodeData.UnaryExpr(TokenType.AMPERSAND, mem.object, false),
@@ -856,19 +894,19 @@ impl BodyChecker {
 
 		val callee = self.arena.node(NodeData.IdentifierExpr(cname), node.line, node.col);
 		val new_call = self.arena.node(
-			NodeData.CallExpr(callee, args, List<*AstNode>()),
+			NodeData.CallExpr(callee, args, List<&AstNode>()),
 			node.line, node.col
 		);
 
 		if (new_call is CallExpr as new_cc) {
-			if (sym.ast_node != null) self.append_defaults(sym.ast_node!, new_cc.args.len, new_cc);
+			if (sym!.ast_node != null) self.append_defaults(sym!.ast_node!, new_cc.args.len, new_cc);
 			if (new_cc.args.len != fn_info.param_types.len) {
 				self.report_error(node, "Argument count mismatch in method call '${mem.member}'");
 			} else {
 				for (i in 1..<new_cc.args.len) {
 					val param_ty = fn_info.param_types[i];
 					val arg_n = new_cc.args[i];
-					if (param_ty?.kind == DataType.POINTER && param_ty.as_pointer().mutable) {
+					if (param_ty?.kind == DataType.POINTER && param_ty.as_pointer()!.mutable) {
 						self.mark_node_mutated(arg_n);
 					}
 					val is_fn_forward = (
@@ -917,7 +955,7 @@ impl BodyChecker {
 		return tmpl;
 	}
 
-	fn instantiate_template_fn(&self, tmpl: *GenericTemplate, arg_asts: List<*AstNode>): str {
+	fn instantiate_template_fn(&self, tmpl: *GenericTemplate, arg_asts: List<&AstNode>): str {
 		self.decl.symtab = self.symtab;
 		self.decl.current_module = self.symtab.current_module;
 		self.decl.current_self_type = self.current_self_type;
@@ -928,7 +966,7 @@ impl BodyChecker {
 		return cname;
 	}
 
-	fn instantiate_template_struct(&self, tmpl: *GenericTemplate, arg_asts: List<*AstNode>): *Type {
+	fn instantiate_template_struct(&self, tmpl: *GenericTemplate, arg_asts: List<&AstNode>): *Type {
 		self.decl.symtab = self.symtab;
 		self.decl.current_module = self.symtab.current_module;
 		self.decl.current_self_type = self.current_self_type;
@@ -950,22 +988,23 @@ impl BodyChecker {
 		if (self.arrow_pending(ast)) self.infer_blocked = true;
 	}
 
-	fn check_enum_ctor_call(&self, node: *AstNode, mem: *MemberExpr, call: *CallExpr): ?*Type {
+	fn check_enum_ctor_call(&self, node: &AstNode, mem: &MemberExpr, call: &CallExpr): ?*Type {
 		val obj = mem.object;
 		if (obj is IdentifierExpr as enum_id) {
-			val ei = self.symtab.find_enum_info(enum_id.name);
-			if (ei == null || !ei.is_payload) return null;
+			val ei = self.symtab.find_enum_info(enum_id.name) ?: return null;
+			if (!ei.is_payload) return null;
 
 			val e_sym = self.symtab.lookup(ei.name) ?: return null;
-			val mi = ei.find_member(mem.member);
-			if (mi == null) {
+			val mi_opt = ei.find_member(mem.member);
+			if (mi_opt == null) {
 				self.report_error(node, "Enum '${enum_id.name}' has no variant '${mem.member}'");
 				return self.prims().t_none();
 			}
+			val mi = mi_opt!;
 
 			var field_types = List<*Type>();
 			if (mi.payload_ty != null) {
-				field_types = mi.payload_ty.as_struct().fields.map { f -> f.type_ptr };
+				field_types = mi.payload_ty!.as_struct()!.fields.map { f -> f.type_ptr };
 			}
 
 			if (call.args.len != field_types.len) {
@@ -992,7 +1031,7 @@ impl BodyChecker {
 		return null;
 	}
 
-	pub fn check_fn_call(&self, node: *AstNode, callee_ty: *Type, call: *CallExpr): *Type {
+	pub fn check_fn_call(&self, node: &AstNode, callee_ty: *Type, call: &CallExpr): *Type {
 		val callee = call.callee;
 		if (callee is IdentifierExpr as id) {
 			val sym = self.symtab.lookup(id.name);
@@ -1001,7 +1040,7 @@ impl BodyChecker {
 				self.ensure_callee_ready(sym);
 			}
 		}
-		val fn_info = callee_ty.as_fn();
+		val fn_info = callee_ty.as_fn()!;
 		if (fn_info.is_variadic) {
 			val min_args = fn_info.param_types.len - 1;
 			if (call.args.len < min_args) {
@@ -1009,34 +1048,7 @@ impl BodyChecker {
 			} else {
 				val elem_ty = fn_info.param_types[min_args];
 				for (i in 0..<min_args) {
-					val param_ty = fn_info.param_types[i];
-					val arg_n = call.args[i];
-					if (param_ty?.kind == DataType.POINTER && param_ty.as_pointer().mutable) {
-						self.mark_node_mutated(arg_n);
-					}
-					val is_fn_forward = (
-						param_ty?.kind == DataType.FN
-						&& i == call.args.len - 1
-						&& arg_n is IdentifierExpr
-					);
-					val prev_allow = self.allowing_fn_param_ref;
-					if (is_fn_forward) self.allowing_fn_param_ref = true;
-					val arg_ty = self.check_expr(arg_n, param_ty);
-					self.allowing_fn_param_ref = prev_allow;
-					if (!param_ty.can_assign(arg_ty)) {
-						if (param_ty.kind == DataType.POINTER && arg_ty.kind == DataType.STRUCT) {
-							val p_pointee = param_ty.as_pointer().pointee;
-							if (p_pointee.equals(arg_ty)) {
-								val ref_arg = self.arena.node(
-									NodeData.UnaryExpr(TokenType.AMPERSAND, arg_n, false),
-									arg_n.line, arg_n.col
-								);
-								call.args[i] = ref_arg;
-								continue;
-							}
-						}
-						self.report_error(node, "Argument type mismatch in function call");
-					}
+					self.check_fn_arg(node, call, i, fn_info.param_types[i]);
 				}
 				for (i in min_args..<call.args.len) {
 					val arg_n = call.args[i];
@@ -1050,40 +1062,51 @@ impl BodyChecker {
 			self.report_error(node, "Argument count mismatch in function call");
 		} else {
 			for (i in 0..<call.args.len) {
-				val param_ty = fn_info.param_types[i];
-				val arg_n = call.args[i];
-				if (param_ty?.kind == DataType.POINTER && param_ty.as_pointer().mutable) {
-					self.mark_node_mutated(arg_n);
-				}
-				val is_fn_forward = (
-					param_ty?.kind == DataType.FN
-					&& i == call.args.len - 1
-					&& arg_n is IdentifierExpr
-				);
-				val prev_allow = self.allowing_fn_param_ref;
-				if (is_fn_forward) self.allowing_fn_param_ref = true;
-				val arg_ty = self.check_expr(arg_n, param_ty);
-				self.allowing_fn_param_ref = prev_allow;
-				if (!param_ty.can_assign(arg_ty)) {
-					if (param_ty.kind == DataType.POINTER && arg_ty.kind == DataType.STRUCT) {
-						val p_pointee = param_ty.as_pointer().pointee;
-						if (p_pointee.equals(arg_ty)) {
-							val ref_arg = self.arena.node(
-								NodeData.UnaryExpr(TokenType.AMPERSAND, arg_n, false),
-								arg_n.line, arg_n.col
-							);
-							call.args[i] = ref_arg;
-							continue;
-						}
-					}
-					self.report_error(node, "Argument type mismatch in function call");
-				}
+				self.check_fn_arg(node, call, i, fn_info.param_types[i]);
 			}
 		}
 		return fn_info.return_type;
 	}
 
-	pub fn check_lambda_expr(&self, node: *AstNode, expected: ?*Type = null): *Type {
+	fn check_fn_arg(&self, node: &AstNode, call: &CallExpr, i: usz, param_ty: *Type) {
+		val arg_n = call.args[i];
+		if (param_ty?.kind == DataType.POINTER && param_ty.as_pointer()!.mutable) {
+			self.mark_node_mutated(arg_n);
+		}
+		val is_fn_forward = (
+			param_ty?.kind == DataType.FN
+			&& i == call.args.len - 1
+			&& arg_n is IdentifierExpr
+		);
+		val prev_allow = self.allowing_fn_param_ref;
+		if (is_fn_forward) self.allowing_fn_param_ref = true;
+		val arg_ty = self.check_expr(arg_n, param_ty);
+		self.allowing_fn_param_ref = prev_allow;
+		if (!param_ty.can_assign(arg_ty)) {
+			if (param_ty.kind == DataType.POINTER && arg_ty.kind == DataType.STRUCT) {
+				val p_ptr = param_ty.as_pointer()!;
+				if (p_ptr.pointee.equals(arg_ty)) {
+					if (p_ptr.mutable && !self.is_mutable_addressable(arg_n)) {
+						self.report_error(
+							node,
+							"Cannot pass immutable value as mutable pointer argument " +
+							"'${self.type_display(param_ty)}'"
+						);
+						return;
+					}
+					val ref_arg = self.arena.node(
+						NodeData.UnaryExpr(TokenType.AMPERSAND, arg_n, false),
+						arg_n.line, arg_n.col
+					);
+					call.args[i] = ref_arg;
+					return;
+				}
+			}
+			self.report_error(node, "Argument type mismatch in function call");
+		}
+	}
+
+	pub fn check_lambda_expr(&self, node: &AstNode, expected: ?*Type = null): *Type {
 		if (node is LambdaExpr as lam) {
 			if (!lam.is_trailing) {
 				self.report_error(
@@ -1097,12 +1120,12 @@ impl BodyChecker {
 					"Redundant empty parentheses '()' before trailing lambda; write 'fn { ... }' instead"
 				);
 			}
-			if (expected == null || expected.kind != DataType.FN) {
+			if (expected == null || expected!.kind != DataType.FN) {
 				self.report_error(node, "Unexpected lambda expression; target parameter does not expect a function type");
 				return self.prims().t_none();
 			}
 
-			val fn_info = expected.as_fn();
+			val fn_info = expected!.as_fn()!;
 			if (lam.params.len != fn_info.param_types.len) {
 				self.report_error(
 					node,
@@ -1245,12 +1268,12 @@ impl BodyChecker {
 
 	pub fn check_struct_ctor(
 		&self,
-		node: *AstNode,
+		node: &AstNode,
 		callee_ty: *Type,
-		call: *CallExpr,
+		call: &CallExpr,
 		callee_is_self: bool
 	): *Type {
-		val s_info = callee_ty.as_struct();
+		val s_info = callee_ty.as_struct()!;
 
 		if (!callee_is_self) {
 			val init_cand = s_info.find_static_method_arity("init", call.args.len);
@@ -1258,7 +1281,7 @@ impl BodyChecker {
 				"init", call.args.len, s_info.methods, call, init_cand
 			);
 			if (nm != null) {
-				val n_info = nm.fn_type.as_fn();
+				val n_info = nm.fn_type.as_fn()!;
 				if (n_info.is_variadic) {
 					val min_args = n_info.param_types.len - 1;
 					val elem_ty = n_info.param_types[min_args];

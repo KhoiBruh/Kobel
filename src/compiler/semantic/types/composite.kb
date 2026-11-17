@@ -46,7 +46,7 @@ pub struct StructField {
 	pub type_ptr: *Type,
 	pub offset: usz,
 	pub public: bool,
-	pub default_val: ?*AstNode = null
+	pub default_val: ?&AstNode = null
 }
 
 pub struct StructType {
@@ -79,7 +79,7 @@ impl StructType {
 				!m.operator
 				&& m.is_static
 				&& m.name == name
-				&& m.fn_type.as_fn().param_types.len == argc
+				&& m.fn_type.as_fn()!.param_types.len == argc
 			) return m;
 		}
 
@@ -87,20 +87,20 @@ impl StructType {
 			if (
 				m.is_static
 				&& m.name == name
-				&& m.fn_type.as_fn().param_types.len == argc
+				&& m.fn_type.as_fn()!.param_types.len == argc
 			) return m;
 		}
 
 		for (m in self.methods) {
 			if (!m.operator && m.is_static && m.name == name) {
-				val fn_t = m.fn_type.as_fn();
+				val fn_t = m.fn_type.as_fn()!;
 				if (fn_t.is_variadic && fn_t.param_types.len > 0 && argc >= fn_t.param_types.len - 1) return m;
 			}
 		}
 
 		for (m in self.methods) {
 			if (m.is_static && m.name == name) {
-				val fn_t = m.fn_type.as_fn();
+				val fn_t = m.fn_type.as_fn()!;
 				if (fn_t.is_variadic && fn_t.param_types.len > 0 && argc >= fn_t.param_types.len - 1) return m;
 			}
 		}
@@ -110,7 +110,7 @@ impl StructType {
 
 	pub fn count_static_method_arity(*self, name: str, argc: usz): usz =>
 		self.methods.count_where { m ->
-			val fn_t = m.fn_type.as_fn();
+			val fn_t = m.fn_type.as_fn()!;
 			val arity_ok = fn_t.param_types.len == argc || (fn_t.is_variadic && fn_t.param_types.len > 0 && argc >= fn_t.param_types.len - 1);
 			yield !m.operator && m.is_static && m.name == name && arity_ok;
 		};
@@ -121,7 +121,7 @@ impl StructType {
 				!m.operator
 				&& !m.is_static
 				&& m.name == name
-				&& m.fn_type.as_fn().param_types.len == argc
+				&& m.fn_type.as_fn()!.param_types.len == argc
 			) return m;
 		}
 
@@ -129,20 +129,20 @@ impl StructType {
 			if (
 				!m.is_static
 				&& m.name == name
-				&& m.fn_type.as_fn().param_types.len == argc
+				&& m.fn_type.as_fn()!.param_types.len == argc
 			) return m;
 		}
 
 		for (m in self.methods) {
 			if (!m.operator && !m.is_static && m.name == name) {
-				val fn_t = m.fn_type.as_fn();
+				val fn_t = m.fn_type.as_fn()!;
 				if (fn_t.is_variadic && fn_t.param_types.len > 0 && argc >= fn_t.param_types.len - 1) return m;
 			}
 		}
 
 		for (m in self.methods) {
 			if (!m.is_static && m.name == name) {
-				val fn_t = m.fn_type.as_fn();
+				val fn_t = m.fn_type.as_fn()!;
 				if (fn_t.is_variadic && fn_t.param_types.len > 0 && argc >= fn_t.param_types.len - 1) return m;
 			}
 		}
@@ -152,7 +152,7 @@ impl StructType {
 
 	pub fn count_method_arity(*self, name: str, argc: usz): usz =>
 		self.methods.count_where { m ->
-			val fn_t = m.fn_type.as_fn();
+			val fn_t = m.fn_type.as_fn()!;
 			val arity_ok = fn_t.param_types.len == argc || (fn_t.is_variadic && fn_t.param_types.len > 0 && argc >= fn_t.param_types.len - 1);
 			yield !m.operator && !m.is_static && m.name == name && arity_ok;
 		};
@@ -167,7 +167,7 @@ impl StructType {
 
 		for (m in self.methods) {
 			if (!m.operator || m.name != op_name) continue;
-			val fn_t = m.fn_type.as_fn();
+			val fn_t = m.fn_type.as_fn()!;
 			if (fn_t.param_types.len != arg_types.len) continue;
 
 			var all_exact = true;
@@ -201,7 +201,7 @@ impl StructType {
 
 impl Arena {
 
-	pub fn struct_type(&self, name: str, fields: List<StructField>): *Type {
+	pub fn struct_type(&self, name: str, fields: List<StructField>): &Type {
 		var layout_fields = fields;
 		var max_align = 1;
 		var current_offset = 0;

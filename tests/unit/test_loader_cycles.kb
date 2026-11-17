@@ -49,8 +49,8 @@ fn main(): i32 {
 		return 3;
 	}
 
-	val a_info = sa.type_ptr.as_struct();
-	val b_info = sb.type_ptr.as_struct();
+	val a_info = sa!.type_ptr.as_struct()!;
+	val b_info = sb!.type_ptr.as_struct()!;
 	if (a_info.fields.len != 2 || b_info.fields.len != 2) {
 		println("ASSERTION FAILED: both structs must be filled in");
 		return 4;
@@ -61,13 +61,13 @@ fn main(): i32 {
 		println("ASSERTION FAILED: A.b must be a pointer");
 		return 5;
 	}
-	if (a_field.as_pointer().pointee.as_struct().name != "B") {
+	if (a_field.as_pointer()!.pointee.as_struct()!.name != "B") {
 		println("ASSERTION FAILED: A.b must point at B");
 		return 6;
 	}
 
 	val b_field = b_info.fields[0].type_ptr;
-	if (b_field.as_pointer().pointee.as_struct().name != "A") {
+	if (b_field.as_pointer()!.pointee.as_struct()!.name != "A") {
 		println("ASSERTION FAILED: B.a must point at A");
 		return 7;
 	}

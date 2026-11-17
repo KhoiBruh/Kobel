@@ -72,7 +72,7 @@ pub fn c_type_from_ast(node: *AstNode): str {
 pub fn c_type_from_type(ty: *Type): str {
 	if (ty == null) return "void";
 	// An enum is its carrier integer, but C knows the enum's typedef name.
-	if (ty.is_enum()) return ty.as_enum().c_name;
+	if (ty.is_enum()) return ty.as_enum()!.c_name;
 
 	return when (ty.kind) {
 		DataType.NONE -> "void";
@@ -93,14 +93,14 @@ pub fn c_type_from_type(ty: *Type): str {
 		DataType.STR -> "kobel_str";
 
 		DataType.POINTER -> {
-			val ptr = ty.as_pointer();
+			val ptr = ty.as_pointer()!;
 			val sub = c_type_from_type(ptr.pointee);
 			if (!ptr.mutable && ptr.pointee.kind == DataType.CHAR) yield "const ${sub}*";
 			yield "${sub}*";
 		}
 
-		DataType.ARRAY -> "${c_type_from_type(ty.as_array().elem)}*";
-		DataType.STRUCT -> ty.as_struct().c_name;
+		DataType.ARRAY -> "${c_type_from_type(ty.as_array()!.elem)}*";
+		DataType.STRUCT -> ty.as_struct()!.c_name;
 		DataType.FN -> "kobel_closure";
 	};
 }

@@ -85,7 +85,7 @@ impl CCodeGen {
 				val tgt = self.gen_expr_prec(node.target, PREC_POSTFIX);
 				val idx = self.gen_expr(node.index);
 				val tgt_ty = self.node_type(node.target);
-				if (tgt_ty?.kind == DataType.ARRAY && tgt_ty.as_array().length == 0 && node.target is IdentifierExpr as id) {
+				if (tgt_ty != null && tgt_ty.kind == DataType.ARRAY && tgt_ty.as_array()!.length == 0 && node.target is IdentifierExpr as id) {
 					yield "${id.name}_data[${idx}]";
 				}
 				if (node.target is IdentifierExpr as id) {
@@ -181,7 +181,7 @@ impl CCodeGen {
 			Literal.BOOLEAN -> lit.raw_text;
 			Literal.STRING -> {
 				val lit_ty = self.node_type(ast_node);
-				val is_ptr_lit = lit_ty != null && lit_ty.kind == DataType.POINTER;
+				val is_ptr_lit = lit_ty?.kind == DataType.POINTER;
 				val quoted = if (lit.raw_text.len >= 2 && lit.raw_text[0] == '"') lit.raw_text
 					else "\"${lit.raw_text}\"";
 				if (is_ptr_lit) {
@@ -442,7 +442,7 @@ impl CCodeGen {
 		var varg_fixed_count: usz = 0;
 		var varg_elem_c = "";
 
-		var fn_info: ?*TypePayload.Fn = null;
+		var fn_info: ?*FnTypeInfo = null;
 		val mi = self.symtab?.get_resolved_method(ast_node);
 		val callee_ty = self.node_type(call.callee);
 		if (mi != null && mi.fn_type.kind == DataType.FN) {
@@ -489,7 +489,7 @@ impl CCodeGen {
 			&& callee_ty.kind == DataType.FN
 			&& self.symtab?.is_closure_call(call.callee)
 		) {
-			val c_fn_info = callee_ty.as_fn();
+			val c_fn_info = callee_ty.as_fn()!;
 			val ret_c = c_type_from_type(c_fn_info.return_type);
 			var param_c = "void*";
 			for (pt in c_fn_info.param_types) {
@@ -509,7 +509,7 @@ impl CCodeGen {
 	fn gen_member_expr(&self, ast_node: *AstNode, mem: *MemberExpr, min_prec: i32): str {
 		val obj_node = mem.object;
 		val obj_ty = self.node_type(obj_node);
-		if (obj_ty?.kind == DataType.ARRAY && obj_ty.as_array().length == 0 && obj_node is IdentifierExpr as id) {
+		if (obj_ty != null && obj_ty.kind == DataType.ARRAY && obj_ty.as_array()!.length == 0 && obj_node is IdentifierExpr as id) {
 			if (mem.member in ["len", "size"]) return "${id.name}_len";
 			if (mem.member == "data") return "${id.name}_data";
 		}
@@ -549,9 +549,9 @@ impl CCodeGen {
 			val obj_ty = self.node_type(unwrapped_obj);
 			if (obj_ty != null) {
 				var inner = obj_ty;
-				if (inner.kind == DataType.POINTER) inner = inner.as_pointer().pointee;
+				if (inner.kind == DataType.POINTER) inner = inner.as_pointer()!.pointee;
 				if (inner.kind == DataType.STRUCT) {
-					val st = inner.as_struct();
+					val st = inner.as_struct()!;
 					for (f in st.fields) {
 						if (f.name == mem.member) {
 							val fk = f.type_ptr.kind;
@@ -712,11 +712,11 @@ impl CCodeGen {
 	// Builds the test expression of a `when` arm: `c == p1 || c == p2`.
 	// For the boolean form (`cond` empty) each pattern is itself the test.
 	// String patterns compare with `kobel_streq`.
-	pub fn gen_when_test(&self, cond: str, patterns: List<*AstNode>): str {
+	pub fn gen_when_test(&self, cond: str, patterns: List<&AstNode>): str {
 		return self.gen_when_test_prec(cond, patterns, PREC_NONE);
 	}
 
-	pub fn gen_when_test_prec(&self, cond: str, patterns: List<*AstNode>, min_prec: i32): str {
+	pub fn gen_when_test_prec(&self, cond: str, patterns: List<&AstNode>, min_prec: i32): str {
 		if (patterns.empty()) return "1";
 		val multi_or = patterns.len > 1;
 		var res = "";

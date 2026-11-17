@@ -38,10 +38,6 @@ impl Array<T> {
 
 	pub op get(*self, i: usz) => self.data[i];
 
-	pub op set(&self, i: usz, value: T) {
-		self.data[i] = value;
-	}
-
 	pub op contains(*self, value: T): bool {
 		for (i in 0..<self.len) {
 			if (self.data[i] == value) return true;

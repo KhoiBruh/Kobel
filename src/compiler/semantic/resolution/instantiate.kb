@@ -69,7 +69,7 @@ fn trait_put_method(out: &List<*TraitMethod>, m: *TraitMethod) {
 
 impl TypeResolver {
 
-	pub fn instantiate_struct(&self, tmpl: *GenericTemplate, arg_asts: List<*AstNode>): *Type {
+	pub fn instantiate_struct(&self, tmpl: *GenericTemplate, arg_asts: List<&AstNode>): *Type {
 		self.check_bounds(tmpl, arg_asts);
 
 		var args = List<*Type>();
@@ -99,9 +99,10 @@ impl TypeResolver {
 			val prev_mod = self.enter_module(tmpl.module);
 
 			val s_type = self.arena.struct_type(cname, List<StructField>());
-			val st = s_type.as_struct();
+			val st = s_type.as_struct()!;
 			st.c_name = cname;
 			st.module = tmpl.module;
+			self.symtab.register_struct_type(s_type);
 			self.symtab.gen.add_inst(
 				self.arena.create_val(
 					Symbol(
@@ -134,7 +135,7 @@ impl TypeResolver {
 				val target_tmpl = self.find_struct_template(impl_tmpl.name);
 				if (
 					target_tmpl?.module != tmpl.module ||
-					target_tmpl.node != tmpl.node ||
+					target_tmpl!.node != tmpl.node ||
 					impl_tmpl.param_names().len != args.len
 				) {
 					self.leave_module(prev_mod2);
@@ -145,7 +146,7 @@ impl TypeResolver {
 					self.current_self_type = s_type;
 					val mark2 = self.subst.push(impl_tmpl.param_names(), args, self.prims().t_none());
 
-					var methods = List<*AstNode>();
+					var methods = List<&AstNode>();
 					val canon_arg_asts = args.map { aty -> self.arena.ast_type_from_type(aty) };
 					for (m in im.methods) {
 						if (m is FnDecl as mf) {
@@ -154,9 +155,9 @@ impl TypeResolver {
 								val impl_subst = self.alloc_subst(impl_tmpl.param_names(), canon_arg_asts);
 								var m_params = List<Param>();
 								for (p in mf.params) {
-									var pt: ?*AstNode = null;
+									var pt: ?&AstNode = null;
 									if (p.name == "self" && p.type_node == null) {
-										val named = self.arena.node(NodeData.NamedType(cname, List<*AstNode>()), m.line, m.col);
+										val named = self.arena.node(NodeData.NamedType(cname, List<&AstNode>()), m.line, m.col);
 										pt = when (p.receiver) {
 											ReceiverKind.PTR_MUT -> self.arena.node(NodeData.PointerType(true, false, named), m.line, m.col);
 											ReceiverKind.PTR_CONST -> self.arena.node(NodeData.PointerType(false, false, named), m.line, m.col);
@@ -229,26 +230,26 @@ impl TypeResolver {
 			val sym = self.find_instance_symbol(cname) ?: return self.prims().t_none();
 			return sym.type_ptr;
 		}
-		return self.symtab.prims.t_none();
+		return self.prims().t_none();
 	}
 
 	fn make_fn_view(
-		&self, fn_node: *AstNode, tmpl: *GenericTemplate,
-		args: List<*Type>, arg_asts: List<*AstNode>, cname: str
-	): *AstNode {
+		&self, fn_node: &AstNode, tmpl: *GenericTemplate,
+		args: List<*Type>, arg_asts: List<&AstNode>, cname: str
+	): &AstNode {
 		if (fn_node is FnDecl as f) {
 			val mark = self.subst.push(tmpl.param_names(), args, self.prims().t_none());
 
 			var params = List<Param>();
 			for (p in f.params) {
-				var pt: ?*AstNode = null;
+				var pt: ?&AstNode = null;
 				if (p.type_node != null) {
 					if (p.type_node is VariadicType as vt) {
 						val ty = self.resolve_ast_type(vt.element_type);
 						val elem_ast = self.arena.ast_type_from_type(ty);
 						pt = self.arena.node(
 							NodeData.VariadicType(elem_ast),
-							p.type_node.line, p.type_node.col
+							p.type_node!.line, p.type_node!.col
 						);
 					} else {
 						val ty = self.resolve_ast_type(p.type_node!);
@@ -262,7 +263,7 @@ impl TypeResolver {
 				params += Param(p.name, pt, p.receiver, dflt);
 			}
 
-			var rt: ?*AstNode = null;
+			var rt: ?&AstNode = null;
 			if (f.return_type != null) {
 				val rty = self.resolve_ast_type(f.return_type!);
 				rt = self.arena.ast_type_from_type(rty);
@@ -317,7 +318,7 @@ impl TypeResolver {
 
 			return self.arena.fn_type(param_types, ret_type, is_vararg);
 		}
-		return self.symtab.prims.t_none();
+		return self.prims().t_none();
 	}
 
 	fn instance_receiver_type(*self, tmpl: *GenericTemplate, args: List<*Type>): ?*Type {
@@ -330,7 +331,7 @@ impl TypeResolver {
 	fn struct_decl_view(
 		&self, name: str, fields: List<StructField>,
 		public: bool, line: usz, col: usz
-	): *AstNode {
+	): &AstNode {
 		val ast_fields = fields.map { f ->
 			AstStructField(f.name, self.arena.ast_type_from_type(f.type_ptr), f.public, f.default_val)
 		};
@@ -342,17 +343,22 @@ impl TypeResolver {
 	}
 
 	fn canonical_type_token(*self, ty: *Type): str {
-		if (ty.is_enum()) return ty.as_enum().c_name;
+		if (ty.is_enum()) return ty.as_enum()!.c_name;
 
 		return when (ty.kind) {
 			DataType.STRUCT -> {
-				val s_info = ty.as_struct();
+				val s_info = ty.as_struct()!;
 				if (!s_info.c_name.empty()) yield s_info.c_name;
 				yield s_info.name;
 			}
-			DataType.POINTER -> "ptr_${self.canonical_type_token(ty.as_pointer().pointee)}";
+			DataType.POINTER -> {
+				val p = ty.as_pointer()!;
+				val q = if (p.nullable) "q" else "";
+				val m = if (p.mutable) "mut_" else "";
+				yield "${q}${m}ptr_${self.canonical_type_token(p.pointee)}";
+			}
 			DataType.ARRAY -> {
-				val a = ty.as_array();
+				val a = ty.as_array()!;
 				yield "arr${a.length}_${self.canonical_type_token(a.elem)}";
 			}
 			else -> self.type_token(ty);
@@ -368,7 +374,7 @@ impl TypeResolver {
 		return res;
 	}
 
-	pub fn instantiate_fn(&self, tmpl: *GenericTemplate, arg_asts: List<*AstNode>): str {
+	pub fn instantiate_fn(&self, tmpl: *GenericTemplate, arg_asts: List<&AstNode>): str {
 		self.check_bounds(tmpl, arg_asts);
 
 		var args = List<*Type>();
@@ -409,7 +415,7 @@ impl TypeResolver {
 		return cname;
 	}
 
-	pub fn collect_fn_as(&self, node: *AstNode, final_name: str, sig: ?*Type = null) {
+	pub fn collect_fn_as(&self, node: &AstNode, final_name: str, sig: ?*Type = null) {
 		if (node is FnDecl as f) {
 			var is_vararg = false;
 			var param_types = List<*Type>();
@@ -436,21 +442,21 @@ impl TypeResolver {
 		}
 	}
 
-	pub fn trait_record_impl(&self, t: ?*TraitInfo, struct_name: str) {
-		if (t == null) return;
-		if (t.has_impl(struct_name)) return;
+	pub fn trait_record_impl(&self, t: ?&TraitInfo, struct_name: str) {
+		val tr = t ?: return;
+		if (tr.has_impl(struct_name)) return;
 
-		t.impls += struct_name;
-		for (bname in t.bases) self.trait_record_impl(self.symtab.find_trait(bname), struct_name);
+		tr.impls += struct_name;
+		for (bname in tr.bases) self.trait_record_impl(self.symtab.find_trait(bname), struct_name);
 	}
 
 	pub fn trait_effective(&self, t: ?*TraitInfo, out: &List<*TraitMethod>, seen: &HashSet<str>) {
-		if (t == null) return;
-		if (t.name in seen) return;
+		val tr = t ?: return;
+		if (tr.name in seen) return;
 
-		seen += t.name;
-		for (bname in t.bases) self.trait_effective(self.symtab.find_trait(bname), out, seen);
-		for (m in t.methods) trait_put_method(out, m);
+		seen += tr.name;
+		for (bname in tr.bases) self.trait_effective(self.symtab.find_trait(bname), out, seen);
+		for (m in tr.methods) trait_put_method(out, m);
 	}
 
 	fn register_assoc_bindings(&self, node: *AstNode, im: *ImplDecl, st_type: *Type, struct_name: str) {
@@ -463,11 +469,11 @@ impl TypeResolver {
 			return;
 		}
 
-		val assoc_decls = trait_info.assoc_types;
+		val assoc_decls = trait_info!.assoc_types;
 		for (b in im.assoc_bindings) {
 			val declared = assoc_decls.any { a -> a == b.name };
 			if (!declared) {
-				self.report_error(node, "Trait '${trait_info.name}' has no associated type '${b.name}'");
+				self.report_error(node, "Trait '${trait_info!.name}' has no associated type '${b.name}'");
 			}
 			if (self.symtab.find_assoc_type(struct_name, b.name) != null) {
 				self.report_error(node, "Duplicate binding of associated type '${b.name}' for '${struct_name}'");
@@ -483,12 +489,12 @@ impl TypeResolver {
 
 		for (required in assoc_decls) {
 			if (self.symtab.find_assoc_type(struct_name, required) == null) {
-				self.report_error(node, "Impl of trait '${trait_info.name}' must bind associated type '${required}'");
+				self.report_error(node, "Impl of trait '${trait_info!.name}' must bind associated type '${required}'");
 			}
 		}
 	}
 
-	pub fn apply_trait(&self, node: *AstNode, im: *ImplDecl, struct_name: str) {
+	pub fn apply_trait(&self, node: *AstNode, im: &ImplDecl, struct_name: str) {
 		val t = self.symtab.find_trait(im.trait_name);
 		if (t == null) {
 			self.report_error(node, "Unknown trait '${im.trait_name}'");
@@ -509,30 +515,30 @@ impl TypeResolver {
 			if (have) continue;
 
 			if (!tm.has_default) {
-				self.report_error(node, "Struct '${struct_name}' does not implement required trait method '${tm.name}' of trait '${t.name}'");
+				self.report_error(node, "Struct '${struct_name}' does not implement required trait method '${tm.name}' of trait '${t!.name}'");
 				continue;
 			}
 			im.methods += self.clone_fn(tm.node, null, tm.name);
 		}
 	}
 
-	pub fn register_instance_impl(&self, node: *AstNode) {
+	pub fn register_instance_impl(&self, node: &AstNode) {
 		if (node is ImplDecl as im) {
 			if (im.type_params.len > 0) return;
 
 			var st_sym = self.symtab.lookup_in_module(self.current_module, im.struct_name);
 			if (st_sym == null) st_sym = self.symtab.lookup(im.struct_name);
 
-			if (st_sym == null || st_sym.kind != SymbolKind.STRUCT) {
+			if (st_sym == null || st_sym!.kind != SymbolKind.STRUCT) {
 				if (im.struct_name.empty()) {
 					self.report_error(node, "Impl block requires a target struct or trait name");
 				}
 				return;
 			}
 
-			val st_type = st_sym.type_ptr;
-			val st_c_name = st_sym.c_name;
-			val st_info = st_type.as_struct();
+			val st_type = st_sym!.type_ptr;
+			val st_c_name = st_sym!.c_name;
+			val st_info = st_type.as_struct()!;
 
 			self.current_self_type = st_type;
 			im.struct_name = st_c_name;

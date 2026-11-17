@@ -25,10 +25,10 @@ impl TypeResolver {
 
 	fn mat_ann(*self, node: ?*AstNode): ?*AnnotationEntry {
 		if (node == null || self.mat_rec == null) return null;
-		return self.mat_rec.find_ann(node!);
+		return self.mat_rec!.find_ann(node!);
 	}
 
-	pub fn clone_type(&self, node: *AstNode, subst: ?*GenericSubst = null): *AstNode {
+	pub fn clone_type(&self, node: *AstNode, subst: ?*GenericSubst = null): &AstNode {
 		val e = self.mat_ann(node);
 		if (e?.ty != null) return self.arena.ast_type_from_type(e.ty!);
 
@@ -53,7 +53,7 @@ impl TypeResolver {
 						val cty = self.instantiate_struct(tmpl, args);
 
 						yield self.arena.node(
-							NodeData.NamedType(cty.as_struct()!.name, List<*AstNode>()),
+							NodeData.NamedType(cty.as_struct()!.name, List<&AstNode>()),
 							node.line, node.col
 						);
 					}
@@ -92,13 +92,13 @@ impl TypeResolver {
 			);
 
 			else -> self.arena.node(
-				NodeData.NamedType("none", List<*AstNode>()),
+				NodeData.NamedType("none", List<&AstNode>()),
 				node.line, node.col
 			);
 		};
 	}
 
-	pub fn clone_expr(&self, node: *AstNode, subst: ?*GenericSubst = null): *AstNode {
+	pub fn clone_expr(&self, node: *AstNode, subst: ?*GenericSubst = null): &AstNode {
 		val raw_node = node;
 		if (raw_node is [ReturnStmt, BreakStmt, ContinueStmt, YieldStmt, BlockStmt]) {
 			return self.clone_stmt(node, subst);
@@ -121,7 +121,7 @@ impl TypeResolver {
 			);
 
 			is IdentifierExpr as id -> self.arena.node(
-				NodeData.IdentifierExpr(if (e?.has_ident_name) e.ident_name else id.name),
+				NodeData.IdentifierExpr(if (e != null && e!.has_ident_name) e!.ident_name else id.name),
 				node.line, node.col
 			);
 
@@ -278,21 +278,21 @@ impl TypeResolver {
 		return out;
 	}
 
-	fn clone_call_expr(&self, node: *AstNode, subst: ?*GenericSubst = null): *AstNode {
+	fn clone_call_expr(&self, node: *AstNode, subst: ?*GenericSubst = null): &AstNode {
 		val special = self.clone_size_query(node, subst) ?: self.clone_template_call(node, subst);
 		if (special != null) return special;
 
 		if (node is CallExpr as c) {
 			val args = self.clone_expr_list(c.args, subst);
 			return self.arena.node(
-				NodeData.CallExpr(self.clone_expr(c.callee, subst), args, List<*AstNode>()),
+				NodeData.CallExpr(self.clone_expr(c.callee, subst), args, List<&AstNode>()),
 				node.line, node.col
 			);
 		}
-		return node;
+		return self.arena.node(NodeData.NONE, node.line, node.col);
 	}
 
-	fn clone_size_query(&self, node: *AstNode, subst: ?*GenericSubst = null): ?*AstNode {
+	fn clone_size_query(&self, node: *AstNode, subst: ?*GenericSubst = null): ?&AstNode {
 		if (node is CallExpr as c) {
 			if (c.callee is MemberExpr as m) {
 				if (m.member == "size" && m.object is IdentifierExpr as obj_id) {
@@ -307,7 +307,7 @@ impl TypeResolver {
 		return null;
 	}
 
-	fn clone_template_call(&self, node: *AstNode, subst: ?*GenericSubst = null): ?*AstNode {
+	fn clone_template_call(&self, node: *AstNode, subst: ?*GenericSubst = null): ?&AstNode {
 		if (node is CallExpr as c) {
 			if (c.type_args.empty()) return null;
 
@@ -319,13 +319,13 @@ impl TypeResolver {
 				if (ft == null) return null;
 
 				var is_static = false;
-				if (ft.node is FnDecl as f) is_static = f.params.empty() || f.params[0].name != "self";
+				if (ft!.node is FnDecl as f) is_static = f.params.empty() || f.params[0].name != "self";
 
 				val callee_ann = self.mat_ann(callee);
 				val obj_src = callee_ann?.obj_replace ?: mem.object;
 				val mem_obj = self.clone_expr(obj_src, subst);
 				val targs = self.clone_type_args(c.type_args, subst);
-				var new_args = List<*AstNode>();
+				var new_args = List<&AstNode>();
 				if (!is_static) new_args += mem_obj;
 				for (a in c.args) new_args += self.clone_expr(a, subst);
 
@@ -336,7 +336,7 @@ impl TypeResolver {
 				);
 
 				val call_node = self.arena.node(
-					NodeData.CallExpr(callee, new_args, List<*AstNode>()),
+					NodeData.CallExpr(callee, new_args, List<&AstNode>()),
 					node.line, node.col
 				);
 
@@ -369,11 +369,11 @@ impl TypeResolver {
 				if (ft != null) {
 					val targs = self.clone_type_args(c.type_args, subst);
 					val cname = self.instantiate_fn(ft, targs);
-					var cargs = List<*AstNode>();
+					var cargs = List<&AstNode>();
 					for (a in c.args) cargs += self.clone_expr(a, subst);
 					val callee = self.arena.node(NodeData.IdentifierExpr(cname), node.line, node.col);
 					return self.arena.node(
-						NodeData.CallExpr(callee, cargs, List<*AstNode>()),
+						NodeData.CallExpr(callee, cargs, List<&AstNode>()),
 						node.line, node.col
 					);
 				}
@@ -399,7 +399,7 @@ impl TypeResolver {
 						);
 
 						return self.arena.node(
-							NodeData.CallExpr(callee, cargs, List<*AstNode>()),
+							NodeData.CallExpr(callee, cargs, List<&AstNode>()),
 							node.line, node.col
 						);
 					}
@@ -416,10 +416,10 @@ impl TypeResolver {
 		return null;
 	}
 
-	fn clone_expr_list(&self, nodes: List<*AstNode>, subst: ?*GenericSubst = null): List<*AstNode> =>
+	fn clone_expr_list(&self, nodes: List<&AstNode>, subst: ?*GenericSubst = null): List<&AstNode> =>
 		nodes.map { n -> self.clone_expr(n, subst) };
 
-	fn clone_type_args(&self, nodes: List<*AstNode>, subst: ?*GenericSubst = null): List<*AstNode> =>
+	fn clone_type_args(&self, nodes: List<&AstNode>, subst: ?*GenericSubst = null): List<&AstNode> =>
 		nodes.map { n -> self.clone_type(n, subst) };
 
 	fn clone_when_arms(&self, node: *AstNode, subst: ?*GenericSubst = null): List<WhenArm> {
@@ -453,7 +453,7 @@ impl TypeResolver {
 		return parts;
 	}
 
-	pub fn clone_stmt(&self, node: *AstNode, subst: ?*GenericSubst = null): *AstNode {
+	pub fn clone_stmt(&self, node: *AstNode, subst: ?*GenericSubst = null): &AstNode {
 		val se = self.mat_ann(node);
 		if (se?.resolved != null) return self.clone_stmt(se.resolved!, subst);
 
@@ -560,7 +560,7 @@ impl TypeResolver {
 		};
 	}
 
-	pub fn clone_fn(&self, node: *AstNode, subst: ?*GenericSubst = null, new_name: str = ""): *AstNode {
+	pub fn clone_fn(&self, node: *AstNode, subst: ?*GenericSubst = null, new_name: str = ""): &AstNode {
 		if (node is FnDecl as f) {
 			val params = f.params.map { p ->
 				val pt = if (p.type_node != null) self.clone_type(p.type_node!, subst) else null;
@@ -579,18 +579,18 @@ impl TypeResolver {
 				node.line, node.col
 			);
 		}
-		return node;
+		return self.arena.node(NodeData.NONE, node.line, node.col);
 	}
 
-	pub fn materialize_body(&self, rec: *InstanceRecord): *AstNode {
+	pub fn materialize_body(&self, rec: *InstanceRecord): &AstNode {
 		val saved = self.mat_rec;
 		self.mat_rec = rec;
-		var body: ?*AstNode = null;
+		var body: ?&AstNode = null;
 		if (rec.decl is FnDecl as f && f.body != null) {
 			body = self.clone_stmt(f.body!, null);
 		}
 		self.mat_rec = saved;
-		return body ?: self.arena.node(NodeData.BlockStmt(List<*AstNode>()), 0, 0);
+		return body ?: self.arena.node(NodeData.BlockStmt(List<&AstNode>()), 0, 0);
 	}
 
 }

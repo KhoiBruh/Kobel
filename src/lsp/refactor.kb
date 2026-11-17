@@ -130,6 +130,10 @@ pub fn prepare_rename_json(
 	return res;
 }
 
+struct JsonArrRef {
+	pub arr: &JsonValue
+}
+
 pub fn rename_symbol_json(
 	index: *SemanticIndex,
 	file_path: str,
@@ -149,19 +153,19 @@ pub fn rename_symbol_json(
 	if (refs.empty()) return JsonValue.null_val();
 
 	val changes = JsonValue.obj();
-	var by_uri = HashMap<str, *JsonValue>();
+	var by_uri = HashMap<str, JsonArrRef>();
 
 	for (r in refs) {
 		val u = path_to_uri(r.file_path);
 		val edit = make_text_edit(r.line, r.col, r.line, r.col + r.len, new_name);
 		val existing = by_uri.get(u);
 		if (existing != null) {
-			val arr = existing.read();
+			val arr = existing.read().arr;
 			arr += edit;
 		} else {
 			val arr = JsonValue.arr();
 			arr += edit;
-			by_uri[u] = arr;
+			by_uri[u] = JsonArrRef(arr);
 			changes[u] = arr;
 		}
 	}
