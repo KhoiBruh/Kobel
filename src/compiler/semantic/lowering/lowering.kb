@@ -313,7 +313,7 @@ impl LoweringPass {
 
 		if (bin.op == TokenType.KW_IN && bin.right is ArrayLiteralExpr as al) {
 			val lt = self.type_of(bin.left);
-			if (lt != null && lt.kind == DataType.STRUCT && !al.elements.empty() && al.elements.first()! !is IsExpr) {
+			if (lt?.kind == DataType.STRUCT && !al.elements.empty() && al.elements.first()! !is IsExpr) {
 				val s_info = lt.as_struct()!;
 				var arg_types = List<*Type>();
 				arg_types += lt;
@@ -396,7 +396,7 @@ impl LoweringPass {
 
 		if (bin.op in [TokenType.EQUAL_EQUAL, TokenType.BANG_EQUAL]) {
 			val lt = self.type_of(bin.left);
-			if (lt != null && lt.kind == DataType.STRUCT) {
+			if (lt?.kind == DataType.STRUCT) {
 				val is_neq = bin.op == TokenType.BANG_EQUAL;
 				val eq = self.arena.make_mem_eq(
 					is_neq, bin.left, bin.right, lt.size, node.line, node.col

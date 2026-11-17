@@ -279,6 +279,230 @@ pub fn run(ok: bool): i32 {
 	println("  [PASS] test_error_union_lsp");
 }
 
+fn test_dead_code_and_quickfixes() {
+	val src = """mod dead_code_sample;
+
+use std.io.println;
+use std.collections.List;
+use std.process.Process;
+use std.string.StringBuilder;
+
+const DEAD_CONST: i64 = 99;
+
+trait Speak {
+	fn speak(*self, target: str): str;
+}
+
+struct Dog {
+	pub name: str
+}
+
+impl Speak for Dog {
+	fn speak(*self, target: str): str => self.name;
+}
+
+struct DeadBox {
+	pub v: i64
+}
+
+impl DeadBox {
+	pub fn get(*self): i64 => self.v;
+}
+
+impl str {
+	pub fn is_nonempty_api(*self): bool => !self.empty();
+}
+
+pub struct KV {
+	pub k: str,
+	pub v: i64
+}
+
+impl KV {
+	pub op unpack(*self, ok: &str, ov: &i64) {
+		ok.write(self.k);
+		ov.write(self.v);
+	}
+}
+
+enum Kind {
+	A(v: i64),
+	B(v: i64)
+}
+
+fn used_helper(n: i64): i64 {
+	if (n <= 0) return 0;
+	return used_helper(n - 1) + 1;
+}
+
+fn dead_cycle_a(): i64 => dead_cycle_b();
+fn dead_cycle_b(): i64 => dead_cycle_a();
+
+fn test_params(used_p: i64, dead_p: i64, _ok_p: i64): i64 {
+	val unused_v = 7;
+	if (used_p > 0) {
+		return used_p;
+	} else {
+		return 0;
+	}
+	println("unreachable after if");
+}
+
+fn test_after_return_and_exit(flag: bool, k: Kind): i64 {
+	if (k is Kind.A as item && item.v > 0) {
+		println("pos");
+	}
+	if (k is Kind.A as item && item.v < 0) {
+		println("neg");
+	}
+	if (!flag) {
+		Process.exit(1);
+		println("unreachable after exit");
+	}
+	return 42;
+	println("unreachable after return");
+}
+
+pub fn main() {
+	var xs: List<i64> = List();
+	xs += 1;
+	if (xs.len > 0) println("xs ok");
+	var kvs: List<KV> = List();
+	kvs += KV("a", 1);
+	for ((u_k, u_v) in kvs) {
+		if (u_v > 0) println(u_k);
+	}
+	for ((used_k, unused_kv) in kvs) {
+		println(used_k);
+	}
+	val dog = Dog("Rex");
+	println(dog.speak("world"));
+	val k = Kind.A(3);
+	val total = used_helper(1) + test_params(1, 2, 3) + test_after_return_and_exit(true, k);
+	if (total > 0) println("total ok");
+}
+""";
+	val p = "C:/Users/Admin/CLionProjects/Kobel/tests/unit/dead_code_sample_virtual.kb";
+	val analysis = AnalysisResult(p, src, "", false);
+
+	var saw_errors: usz = 0;
+	var saw_unused_sb = false;
+	var saw_used_import_flagged = false;
+	var saw_unused_v = false;
+	var saw_unpack_false_pos = false;
+	var saw_unused_kv = false;
+	var saw_shadowed_item_flagged = false;
+	var saw_dead_p = false;
+	var saw_ignored_p_flagged = false;
+	var saw_trait_param_flagged = false;
+	var saw_dead_const = false;
+	var saw_dead_box = false;
+	var saw_str_api_flagged = false;
+	var saw_dead_a = false;
+	var saw_dead_b = false;
+	var saw_live_helper_flagged = false;
+	var saw_main_flagged = false;
+	var unreach_count: usz = 0;
+
+	val diags_json = JsonValue.arr();
+	for (d in analysis.diagnostics) {
+		if (d.severity == 1) saw_errors++;
+		diags_json += d.to_json();
+		assert_true(!d.code.empty(), "dead code diagnostic must have non-empty code");
+		assert_eq_usz(d.tags.len, 1, "dead code diagnostic must carry Unnecessary tag");
+		assert_true(d.tags[0] == 1, "dead code diagnostic tag must be 1 (Unnecessary)");
+
+		if (d.code == "unused-import") {
+			if ("StringBuilder" in d.message) saw_unused_sb = true;
+			if ("println" in d.message || "List" in d.message || "Process" in d.message) saw_used_import_flagged = true;
+		} else if (d.code == "unused-variable") {
+			if ("unused_v" in d.message) saw_unused_v = true;
+			if ("(u_k, u_v)" in d.message || "'u_k'" in d.message || "'u_v'" in d.message || "'used_k'" in d.message) saw_unpack_false_pos = true;
+			if ("unused_kv" in d.message) saw_unused_kv = true;
+			if ("'item'" in d.message) saw_shadowed_item_flagged = true;
+		} else if (d.code == "unused-parameter") {
+			if ("dead_p" in d.message) saw_dead_p = true;
+			if ("_ok_p" in d.message) saw_ignored_p_flagged = true;
+			if ("target" in d.message) saw_trait_param_flagged = true;
+		} else if (d.code == "unused-symbol") {
+			if ("DEAD_CONST" in d.message) saw_dead_const = true;
+			if ("DeadBox" in d.message) saw_dead_box = true;
+			if ("is_nonempty_api" in d.message) saw_str_api_flagged = true;
+			if ("dead_cycle_a" in d.message) saw_dead_a = true;
+			if ("dead_cycle_b" in d.message) saw_dead_b = true;
+			if ("used_helper" in d.message) saw_live_helper_flagged = true;
+			if ("main" in d.message) saw_main_flagged = true;
+		} else if (d.code == "unreachable-code") {
+			unreach_count++;
+		}
+	}
+
+	assert_eq_usz(saw_errors, 0, "dead code sample must compile cleanly with zero semantic errors");
+	assert_true(saw_unused_sb, "unused explicit import StringBuilder must be flagged");
+	assert_true(!saw_used_import_flagged, "used imports println/List/Process must not be flagged");
+	assert_true(saw_unused_v, "unused local unused_v must be flagged");
+	assert_true(!saw_unpack_false_pos, "for-loop unpacked variables used in body must not be flagged");
+	assert_true(saw_unused_kv, "genuinely unused for-loop unpacked variable unused_kv must be flagged");
+	assert_true(!saw_shadowed_item_flagged, "repeated if-is alias 'item' must resolve to inner scope");
+	assert_true(saw_dead_p, "unused parameter dead_p must be flagged");
+	assert_true(!saw_ignored_p_flagged, "_-prefixed parameter must not be flagged");
+	assert_true(!saw_trait_param_flagged, "trait impl parameter must not be flagged");
+	assert_true(saw_dead_const, "unused private const DEAD_CONST must be flagged");
+	assert_true(saw_dead_box, "unused private struct DeadBox must be flagged");
+	assert_true(!saw_str_api_flagged, "public impl str method must not be flagged as unused");
+	assert_true(saw_dead_a && saw_dead_b, "mutually recursive private dead functions must be flagged");
+	assert_true(!saw_live_helper_flagged && !saw_main_flagged, "live functions reachable from main must not be flagged");
+	assert_eq_usz(unreach_count, 3, "unreachable stmts after diverging if, Process.exit, and return must all be flagged");
+
+	// Verify serialized JSON contains `code` and `tags: [1]`
+	val json_txt = diags_json.serialize();
+	assert_true("\"code\":\"unreachable-code\"" in json_txt, "serialized diag must include code field");
+	assert_true("\"tags\":[1]" in json_txt, "serialized diag must include tags array [1]");
+
+	// Verify dead-code QuickFixes for unused import, unused param/var, and unreachable code
+	val actions = code_actions_json(
+		analysis.index, analysis.tokens, p, src, 0, 0, 100, 0, diags_json
+	);
+	var fix_import = false;
+	var fix_param = false;
+	var fix_var = false;
+	var fix_unreach = false;
+	for (act in actions.arr_val) {
+		val title = act.get_str("title", "");
+		if (title == "Remove unused import 'std.string.StringBuilder'") fix_import = true;
+		if (title == "Rename 'dead_p' to '_dead_p'") fix_param = true;
+		if (title == "Rename 'unused_v' to '_unused_v'") fix_var = true;
+		if (title == "Remove unreachable code") fix_unreach = true;
+	}
+	assert_true(fix_import, "QuickFix must remove single unused import");
+	assert_true(fix_param, "QuickFix must offer prefixing unused parameter with '_'");
+	assert_true(fix_var, "QuickFix must offer prefixing unused variable with '_'");
+	assert_true(fix_unreach, "QuickFix must offer removing unreachable code");
+
+	// Verify non-scalar safe-navigation check reports semantic error instead of emitting bad C
+	val bad_src = """mod bad_safenav_sample;
+
+use std.collections.List;
+
+struct Holder {
+	pub items: List<i64>
+}
+
+pub fn broken(h: ?*Holder): bool {
+	return h?.items.empty();
+}
+""";
+	val bad_p = "C:/Users/Admin/CLionProjects/Kobel/tests/unit/bad_safenav_virtual.kb";
+	val bad_analysis = AnalysisResult(bad_p, bad_src, "", false);
+	var saw_safenav_err = false;
+	for (d in bad_analysis.diagnostics) {
+		if (d.severity == 1 && "Safe navigation" in d.message) saw_safenav_err = true;
+	}
+	assert_true(saw_safenav_err, "non-scalar safe-navigation chain without safe default must report LSP error");
+
+	println("  [PASS] test_dead_code_and_quickfixes");
+}
+
 pub fn main() {
 	println("Running LSP unit tests...");
 	test_json_and_uri();
@@ -286,5 +510,6 @@ pub fn main() {
 	test_code_actions();
 	test_preloaded_stdlib_no_duplicate_diagnostics();
 	test_error_union_lsp();
+	test_dead_code_and_quickfixes();
 	println("All LSP unit tests passed.");
 }

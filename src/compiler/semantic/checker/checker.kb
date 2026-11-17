@@ -42,6 +42,7 @@ pub struct BodyChecker {
 	pub checked_fns: List<&AstNode> = List(),
 	pub is_stmt_level: bool = false,
 	pub in_safe_nav_context: bool = false,
+	pub in_elvis_lhs: bool = false,
 	pub defer_depth: usz = 0,
 	pub is_assign_target: bool = false,
 	pub decl: DeclarationCollector = DeclarationCollector(),
@@ -248,7 +249,7 @@ impl BodyChecker {
 		if (node == null) return null;
 		if (self.current_rec != null) {
 			val e = self.current_rec!.find_ann(node!);
-			if (e != null && e.ty != null) return e.ty;
+			if (e?.ty != null) return e.ty;
 		}
 		return self.symtab.get_node_type(node);
 	}
@@ -401,6 +402,10 @@ impl BodyChecker {
 		val n = self.type_c_size_num(ty!);
 		return "${n}";
 	}
+
+	pub fn type_has_safe_default(*self, ty: *Type): bool =>
+		ty.kind in [DataType.BOOL, DataType.CHAR, DataType.F32, DataType.F64]
+		|| ty.is_integer() || ty.is_enum();
 
 	fn arrow_pending(*self, ast: *AstNode): bool {
 		if (ast is FnDecl as f) {

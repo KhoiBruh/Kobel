@@ -958,7 +958,7 @@ bool str_empty(kobel_str self) {
 
 __kobel_eu_usz__std__string__SearchErr str_index_of(kobel_str self, kobel_str sub) {
 if (str_empty(sub)) {
-return (__kobel_eu_usz__std__string__SearchErr){ .is_ok = true, .u = { .ok = (size_t)0 } };
+return (__kobel_eu_usz__std__string__SearchErr){ .is_ok = true, .u = { .ok = 0 } };
 }
 if (self.len < sub.len) {
 return (__kobel_eu_usz__std__string__SearchErr){ .is_ok = false, .u = { .err = (std__string__SearchErr){ .tag = 0, .__err_code = 5U, .__origin = { "lib/std/string/str.kb", 159, 43, "str_index_of" } } } };

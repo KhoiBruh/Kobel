@@ -236,6 +236,26 @@ fn make_code_action(title: str, kind: str, uri: str, edits: *JsonValue, is_prefe
 	return act;
 }
 
+fn can_delete_full_lines(source: str, start_line0: usz, start_col0: usz, end_line0: usz, end_col0: usz): bool {
+	val lines = source.split('\n');
+	if (start_line0 >= lines.len || end_line0 >= lines.len) return false;
+	val first = lines[start_line0];
+	val last = lines[end_line0];
+	var i: usz = 0;
+	while (i < start_col0 && i < first.len) {
+		val ch = first[i];
+		if (ch != ' ' && ch != '\t' && ch != '\r') return false;
+		i++;
+	}
+	var j = end_col0;
+	while (j < last.len) {
+		val ch = last[j];
+		if (ch != ' ' && ch != '\t' && ch != '\r') return false;
+		j++;
+	}
+	return true;
+}
+
 pub fn code_actions_json(
 	index: *SemanticIndex,
 	tokens: List<Token>,
@@ -285,7 +305,9 @@ pub fn code_actions_json(
 		}
 	}
 
-	// 2. Source / Organize: Remove unused explicit `use` imports in current file
+	// 2. QuickFix & Organize: Remove unused explicit `use` imports in current file
+	val req_start1 = start_line0 + 1;
+	val req_end1 = end_line0 + 1;
 	val imps = index.imports_by_file.get_or(norm, List<ImportInfo>());
 	val unused_edits = JsonValue.arr();
 	var unused_count: usz = 0;
@@ -293,6 +315,14 @@ pub fn code_actions_json(
 		if (!imp.wildcard && !imp.used) {
 			unused_edits += make_text_edit(imp.line, 1, imp.line + 1, 1, "");
 			unused_count++;
+			if (imp.line >= req_start1 && imp.line <= req_end1) {
+				val single_edits = JsonValue.arr();
+				single_edits += make_text_edit(imp.line, 1, imp.line + 1, 1, "");
+				actions += make_code_action(
+					"Remove unused import '${imp.target_module}.${imp.symbol_name}'",
+					"quickfix", uri, single_edits, true
+				);
+			}
 		}
 	}
 	if (unused_count > 0) {
@@ -303,8 +333,6 @@ pub fn code_actions_json(
 	}
 
 	// 3. Refactor: Convert unmutated `var` to `val` near cursor/selection
-	val req_start1 = start_line0 + 1;
-	val req_end1 = end_line0 + 1;
 	for (def in index.defs) {
 		if (def.role != SymRole.LOCAL || !def.is_mutable || def.is_mutated) continue;
 		if (!paths_equal(def.file_path, file_path)) continue;
@@ -342,6 +370,54 @@ pub fn code_actions_json(
 			"Implement missing methods for trait '${mi.trait_name}'",
 			"quickfix", uri, edits, true
 		);
+	}
+
+	// 5. QuickFix: Prefix unused variable/parameter with '_' near cursor/selection
+	for (def in index.defs) {
+		if (def.role !in [SymRole.LOCAL, SymRole.PARAM]) continue;
+		if (!paths_equal(def.file_path, file_path)) continue;
+		if (def.name.empty() || def.name == "self" || def.name.starts_with("_")) continue;
+		if (def.line < req_start1 || def.line > req_end1) continue;
+		if (has_usage_ref(index, def.key)) continue;
+		if (def.role == SymRole.PARAM && !def.container.empty()) {
+			val owner_res = index.get_def(def.container);
+			if (owner_res is DefInfo as owner) {
+				if (!owner.has_body || owner.is_trait_impl || owner.name == "main") continue;
+			}
+		}
+
+		val edits = JsonValue.arr();
+		edits += make_text_edit(def.line, def.col, def.line, def.col + def.name.len, "_${def.name}");
+		actions += make_code_action(
+			"Rename '${def.name}' to '_${def.name}'",
+			"quickfix", uri, edits, true
+		);
+	}
+
+	// 6. QuickFix: Remove unreachable code reported by dead-code diagnostics
+	if (diags.is_arr()) {
+		for (d in diags.arr_val) {
+			if (d.get_str("code", "") != "unreachable-code") continue;
+			val dr = d.get_obj("range");
+			val ds = dr.get_obj("start");
+			val de = dr.get_obj("end");
+			val ds_line = ds.get_num("line", 0) as usz;
+			val ds_col = ds.get_num("character", 0) as usz;
+			val de_line = de.get_num("line", 0) as usz;
+			val de_col = de.get_num("character", 0) as usz;
+			if (end_line0 < ds_line || start_line0 > de_line) continue;
+
+			val edits = JsonValue.arr();
+			if (can_delete_full_lines(source, ds_line, ds_col, de_line, de_col)) {
+				edits += make_text_edit(ds_line + 1, 1, de_line + 2, 1, "");
+			} else {
+				edits += make_text_edit(ds_line + 1, ds_col + 1, de_line + 1, de_col + 1, "");
+			}
+			actions += make_code_action(
+				"Remove unreachable code",
+				"quickfix", uri, edits, true
+			);
+		}
 	}
 
 	return actions;

@@ -104,7 +104,7 @@ impl LoweringPass {
 				val val_low = self.lower_eu_expr(wrapped, &prelude, true);
 				for (ps in prelude) stmts += ps;
 				val val_ty = self.type_of(val_low) ?: self.type_of(wrapped);
-				if (val_ty != null && val_ty.is_fault()) {
+				if (val_ty?.is_fault()) {
 					val err_w = self.wrap_main_fault_expr(val_low, es.expr, &stmts);
 					stmts += self.arena.node(NodeData.ReturnStmt(err_w), es.expr.line, es.expr.col);
 				} else {
@@ -119,7 +119,7 @@ impl LoweringPass {
 				f.body = self.arena.node(NodeData.BlockStmt(stmts), body.line, body.col);
 				return;
 			}
-			if (ret_ty != null && ret_ty.kind == DataType.ERROR_UNION) {
+			if (ret_ty?.kind == DataType.ERROR_UNION) {
 				val eu = ret_ty.as_error_union()!;
 				val expr_ty = self.type_of(es.expr);
 				if (eu.ok.kind == DataType.NONE && (expr_ty?.kind ?: DataType.NONE) == DataType.NONE) {
@@ -141,7 +141,7 @@ impl LoweringPass {
 				var prelude = List<&AstNode>();
 				val val_low = self.lower_eu_expr(wrapped, &prelude, true);
 				for (ps in prelude) stmts += ps;
-				if (ret_ty != null && ret_ty.kind != DataType.NONE) {
+				if (ret_ty?.kind != DataType.NONE) {
 					stmts += self.arena.node(NodeData.ReturnStmt(val_low), es.expr.line, es.expr.col);
 				} else {
 					if (!self.is_postfix_q(wrapped)) {
@@ -232,21 +232,13 @@ impl LoweringPass {
 			return expr;
 		}
 
-		if (cur is CatchExpr as ce && cur_ty != null && cur_ty.equals(target_ty)) {
-			return expr;
-		}
+		if (cur is CatchExpr && cur_ty?.equals(target_ty)) return expr;
 
-		if (cur is ErrorUnionWrapExpr as w && cur_ty != null && cur_ty.equals(target_ty)) {
-			return expr;
-		}
+		if (cur is ErrorUnionWrapExpr && cur_ty?.equals(target_ty)) return expr;
 
-		if (cur_ty != null && cur_ty.equals(target_ty)) {
-			return expr;
-		}
+		if (cur_ty?.equals(target_ty)) return expr;
 
-		if (cur_ty != null && eu.err.equals(cur_ty)) {
-			return self.make_eu_wrap(eu.c_name, false, cur, target_ty, cur.line, cur.col);
-		}
+		if (cur_ty?.equals(eu.err)) return self.make_eu_wrap(eu.c_name, false, cur, target_ty, cur.line, cur.col);
 
 		if (eu.ok.kind == DataType.NONE && (cur_ty?.kind ?: DataType.NONE) == DataType.NONE) {
 			return self.make_eu_wrap(eu.c_name, true, null, target_ty, cur.line, cur.col);
@@ -287,7 +279,7 @@ impl LoweringPass {
 			fn_info = self.type_of(c.callee)?.as_fn();
 		} else if (c.callee is IdentifierExpr as cid) {
 			val sym = self.symtab.lookup(cid.name) ?: self.symtab.gen.find_instance_symbol(cid.name);
-			if (sym != null && sym.type_ptr.kind == DataType.FN) {
+			if (sym?.type_ptr?.kind == DataType.FN) {
 				fn_info = sym.type_ptr.as_fn();
 			}
 		}
@@ -351,7 +343,7 @@ impl LoweringPass {
 				a.target = self.wrap_expr_for_eu(a.target);
 				a.value = self.wrap_expr_for_eu(a.value);
 				val tgt_ty = self.type_of(a.target);
-				if (tgt_ty != null && tgt_ty.kind == DataType.ERROR_UNION) {
+				if (tgt_ty?.kind == DataType.ERROR_UNION) {
 					a.value = self.wrap_for_eu(a.value, tgt_ty);
 				}
 			}
@@ -366,7 +358,7 @@ impl LoweringPass {
 				ie.then_branch = self.wrap_expr_for_eu(ie.then_branch);
 				ie.else_branch = self.wrap_expr_for_eu(ie.else_branch);
 				val if_ty = self.type_of(node);
-				if (if_ty != null && if_ty.kind == DataType.ERROR_UNION) {
+				if (if_ty?.kind == DataType.ERROR_UNION) {
 					ie.then_branch = self.wrap_for_eu(ie.then_branch, if_ty);
 					ie.else_branch = self.wrap_for_eu(ie.else_branch, if_ty);
 				}
@@ -381,12 +373,12 @@ impl LoweringPass {
 					}
 					if (arm.body is BlockStmt as blk) {
 						self.lower_eu_block(blk);
-						if (we_ty != null && we_ty.kind == DataType.ERROR_UNION) {
+						if (we_ty?.kind == DataType.ERROR_UNION) {
 							self.wrap_block_yields_for_eu(blk, we_ty);
 						}
 					} else {
 						arm.body = self.wrap_expr_for_eu(arm.body);
-						if (we_ty != null && we_ty.kind == DataType.ERROR_UNION) {
+						if (we_ty?.kind == DataType.ERROR_UNION) {
 							arm.body = self.wrap_for_eu(arm.body, we_ty);
 						}
 					}
@@ -399,7 +391,7 @@ impl LoweringPass {
 			is StructCtorExpr as sc -> {
 				for (i in 0..<sc.args.len) sc.args[i] = self.wrap_expr_for_eu(sc.args[i]);
 				val s_ty = self.type_of(node);
-				if (s_ty != null && s_ty.kind == DataType.STRUCT) {
+				if (s_ty?.kind == DataType.STRUCT) {
 					val fields = s_ty.as_struct()!.fields;
 					for (i in 0..<sc.args.len) {
 						if (i < fields.len && fields[i].type_ptr.kind == DataType.ERROR_UNION) {
@@ -432,7 +424,7 @@ impl LoweringPass {
 				val h_is_stmt = self.is_stmt_node(ce.handler);
 				if (ce.handler is BlockStmt || h_is_stmt) {
 					ce.handler = self.lower_stmt_in_expr(ce.handler);
-					if (ce.handler is BlockStmt as hblk && src_ty != null && src_ty.kind == DataType.ERROR_UNION) {
+					if (ce.handler is BlockStmt as hblk && src_ty?.kind == DataType.ERROR_UNION) {
 						val ok_ty = src_ty.as_error_union()!.ok;
 						if (ok_ty.kind == DataType.ERROR_UNION) {
 							self.wrap_block_yields_for_eu(hblk, ok_ty);
@@ -440,7 +432,7 @@ impl LoweringPass {
 					}
 				} else {
 					ce.handler = self.wrap_expr_for_eu(ce.handler);
-					if (src_ty != null && src_ty.kind == DataType.ERROR_UNION) {
+					if (src_ty?.kind == DataType.ERROR_UNION) {
 						val ok_ty = src_ty.as_error_union()!.ok;
 						if (ok_ty.kind == DataType.ERROR_UNION) {
 							ce.handler = self.wrap_for_eu(ce.handler, ok_ty);
@@ -458,13 +450,13 @@ impl LoweringPass {
 				if (lam_ret != null) self.current_fn_ret_type = lam_ret;
 
 				if (lam.body is BlockStmt as lblk) {
-					if (lam_ret != null && lam_ret.kind == DataType.ERROR_UNION) {
+					if (lam_ret?.kind == DataType.ERROR_UNION) {
 						self.wrap_block_yields_for_eu(lblk, lam_ret);
 					}
 					self.lower_eu_block(lblk);
 				} else {
 					lam.body = self.wrap_expr_for_eu(lam.body);
-					if (lam_ret != null && lam_ret.kind == DataType.ERROR_UNION) {
+					if (lam_ret?.kind == DataType.ERROR_UNION) {
 						val eu = lam_ret.as_error_union()!;
 						val bty = self.type_of(lam.body);
 						if (eu.ok.kind == DataType.NONE && (bty?.kind ?: DataType.NONE) == DataType.NONE) {
@@ -484,7 +476,7 @@ impl LoweringPass {
 						var pre = List<&AstNode>();
 						val low_b = self.lower_eu_expr(lam.body, &pre, true);
 						for (ps in pre) stmts += ps;
-						if (lam_ret != null && lam_ret.kind != DataType.NONE) {
+						if (lam_ret?.kind != DataType.NONE) {
 							stmts += self.arena.node(NodeData.YieldStmt(low_b), lam.body.line, lam.body.col);
 						} else {
 							stmts += self.arena.node(NodeData.ExprStmt(low_b), lam.body.line, lam.body.col);
@@ -583,7 +575,7 @@ impl LoweringPass {
 			var astmts = List<&AstNode>();
 			for (ps in ap) astmts += ps;
 			val aty = self.type_of(arm.body);
-			if (aty != null && aty.kind != DataType.NONE) {
+			if (aty?.kind != DataType.NONE) {
 				astmts += self.arena.node(NodeData.YieldStmt(low_ab), arm.body.line, arm.body.col);
 			} else if (!self.is_postfix_q(arm.body)) {
 				astmts += self.arena.node(NodeData.ExprStmt(low_ab), arm.body.line, arm.body.col);
@@ -662,7 +654,7 @@ impl LoweringPass {
 					vd.initializer = self.wrap_expr_for_eu(vd.initializer!);
 					if (vd.type_annotation != null && vd.type_annotation! is ErrorUnionType) {
 						val var_ty = self.resolve_ast_type_via_symtab(vd.type_annotation!);
-						if (var_ty != null && var_ty.kind == DataType.ERROR_UNION) {
+						if (var_ty?.kind == DataType.ERROR_UNION) {
 							vd.initializer = self.wrap_for_eu(vd.initializer!, var_ty);
 						}
 					}
@@ -681,7 +673,7 @@ impl LoweringPass {
 						ret.value = self.wrap_expr_for_eu(ret.value!);
 						ret.value = self.lower_eu_expr(ret.value!, prelude, false);
 						val rty = self.type_of(ret.value!);
-						if (rty != null && rty.is_fault()) {
+						if (rty?.is_fault()) {
 							ret.value = self.wrap_main_fault_expr(ret.value!, node, prelude);
 						}
 					} else {
@@ -691,11 +683,11 @@ impl LoweringPass {
 				}
 				if (ret.value != null) {
 					ret.value = self.wrap_expr_for_eu(ret.value!);
-					if (self.current_fn_ret_type != null && self.current_fn_ret_type!.kind == DataType.ERROR_UNION) {
+					if (self.current_fn_ret_type?.kind == DataType.ERROR_UNION) {
 						ret.value = self.wrap_for_eu(ret.value!, self.current_fn_ret_type!);
 					}
 					ret.value = self.lower_eu_expr(ret.value!, prelude, false);
-				} else if (self.current_fn_ret_type != null && self.current_fn_ret_type!.kind == DataType.ERROR_UNION) {
+				} else if (self.current_fn_ret_type?.kind == DataType.ERROR_UNION) {
 					val eu = self.current_fn_ret_type!.as_error_union()!;
 					ret.value = self.make_eu_wrap(eu.c_name, true, null, self.current_fn_ret_type!, node.line, node.col);
 				}
@@ -877,7 +869,7 @@ impl LoweringPass {
 					val low_h = self.lower_eu_expr(ce.handler, &h_pre, true);
 					var stmts = List<&AstNode>();
 					for (ps in h_pre) stmts += ps;
-					if (res_ty != null && res_ty.kind != DataType.NONE) {
+					if (res_ty?.kind != DataType.NONE) {
 						stmts += self.arena.node(NodeData.YieldStmt(low_h), ce.handler.line, ce.handler.col);
 					} else {
 						if (!self.is_postfix_q(ce.handler)) {
@@ -887,8 +879,7 @@ impl LoweringPass {
 					ce.handler = self.arena.node(NodeData.BlockStmt(stmts), ce.handler.line, ce.handler.col);
 				}
 
-				val same_eu_wrap = res_ty != null && res_ty!.kind == DataType.ERROR_UNION
-					&& src_ty != null && src_ty!.kind == DataType.ERROR_UNION;
+				val same_eu_wrap = res_ty?.kind == DataType.ERROR_UNION && src_ty?.kind == DataType.ERROR_UNION;
 				if (same_eu_wrap) {
 					val id_n = self.next_eu_id();
 					val out_name = "__eu_catch_${id_n}";
@@ -1121,7 +1112,7 @@ impl LoweringPass {
 					kept += self.build_when_else_tail(first_tail.line, first_tail.col, tail_stmts);
 					we.arms = kept;
 				}
-				if (!allow_top_catch && self.when_has_blocks(we) && res_ty != null && res_ty.kind != DataType.NONE) {
+				if (!allow_top_catch && self.when_has_blocks(we) && res_ty?.kind != DataType.NONE) {
 					val cname = "__eu_when_${self.next_eu_id()}";
 					prelude.add(self.arena.node(
 						NodeData.VarDeclStmt(false, cname, self.arena.ast_type_from_type(res_ty), node),

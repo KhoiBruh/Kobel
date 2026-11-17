@@ -493,11 +493,7 @@ impl LanguageServer {
 					}
 				}
 
-				else -> {
-					if (id != null && !id.is_null()) {
-						send_error(id, -32601, "Method '${method}' not found");
-					}
-				}
+				else -> if (id != null && !id.is_null()) send_error(id, -32601, "Method '${method}' not found");
 			}
 		}
 

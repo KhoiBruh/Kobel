@@ -5,7 +5,6 @@ use std.memory.Arena;
 use std.filesystem.*;
 use std.collections.*;
 
-use config.ProjectConfig;
 use compiler.driver.*;
 
 /*

@@ -322,9 +322,12 @@ impl BodyChecker {
 				val unwrapped_c = self.unwrap_group_mut(c);
 				if (unwrapped_c is IsExpr as is_e) {
 					val prev_sn = self.in_safe_nav_context;
+					val prev_elvis = self.in_elvis_lhs;
 					self.in_safe_nav_context = true;
+					self.in_elvis_lhs = true;
 					val subj_ty = if (is_e.expr != null) self.check_expr(is_e.expr!) else self.prims().t_none();
 					self.in_safe_nav_context = prev_sn;
+					self.in_elvis_lhs = prev_elvis;
 					val cast_ty = self.check_is_pattern(is_e.expr, subj_ty, unwrapped_c);
 					if (cast_ty != null) {
 						if (!is_e.alias.empty()) {
@@ -492,7 +495,7 @@ impl BodyChecker {
 					}
 				} else {
 					var hint = self.current_fn_return_type;
-					if (hint != null && hint.kind == DataType.ERROR_UNION) {
+					if (hint?.kind == DataType.ERROR_UNION) {
 						val eu = hint.as_error_union()!;
 						if (eu.ok.kind != DataType.NONE) hint = eu.ok;
 					}
@@ -598,7 +601,7 @@ impl BodyChecker {
 
 	fn struct_implements_iterable(*self, ty: ?*Type): bool {
 		var cur = ty;
-		if (cur != null && cur.kind == DataType.POINTER) cur = cur.as_pointer()!.pointee;
+		if (cur?.kind == DataType.POINTER) cur = cur.as_pointer()!.pointee;
 		val base = cur ?: return false;
 		if (base.kind != DataType.STRUCT) return false;
 		val t = self.symtab.find_trait("Iterable") ?: return false;

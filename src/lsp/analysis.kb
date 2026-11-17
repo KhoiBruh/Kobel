@@ -69,7 +69,9 @@ pub struct LspDiagnostic {
 	pub end_line: usz,
 	pub end_col: usz,
 	pub severity: i64,
-	pub message: str
+	pub message: str,
+	pub code: str = "",
+	pub tags: List<i64> = List()
 }
 
 impl LspDiagnostic {
@@ -104,6 +106,12 @@ impl LspDiagnostic {
 		obj["range"] = range;
 		obj["severity"] = JsonValue.num(self.severity);
 		obj["source"] = JsonValue.str("kobel");
+		if (!self.code.empty()) obj["code"] = JsonValue.str(self.code);
+		if (!self.tags.empty()) {
+			val tag_arr = JsonValue.arr();
+			for (t in self.tags) tag_arr += JsonValue.num(t);
+			obj["tags"] = tag_arr;
+		}
 		obj["message"] = JsonValue.str(self.message);
 
 		return obj;
@@ -551,6 +559,17 @@ impl AnalysisResult {
 			}
 
 			finish_semantic_index(&index, &loader, body_p.symtab, true, path, include_workspace);
+			var doc_ast: ?*AstNode = null;
+			for (lm in loader.ordered) {
+				if (paths_equal(lm.path, path)) {
+					doc_ast = lm.program;
+					break;
+				}
+			}
+			val allow_mod_dead = loader.errors.empty() && decl_p.errors.empty();
+			collect_dead_code_diagnostics(
+				doc_ast, &index, tokens, path, doc_mod, allow_mod_dead, &diagnostics
+			);
 			loader.sources.free();
 			loader.errors.free();
 			decl_p.errors.free();

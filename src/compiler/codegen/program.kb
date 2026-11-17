@@ -352,7 +352,7 @@ impl CCodeGen {
 	}
 
 	fn gen_fault_runtime_helpers(&self, prog: *Program, live: *ReachableSet) {
-		var has_faults = !live.error_unions.empty() || (self.symtab != null && self.symtab!.sem.main_uses_any_fault);
+		var has_faults = !live.error_unions.empty() || (self.symtab?.sem?.main_uses_any_fault);
 		if (!has_faults) {
 			for (decl in prog) {
 				if (!decl_is_template(decl) && decl is FaultDecl as flt && live.has_type(flt.name)) {
@@ -465,7 +465,7 @@ impl CCodeGen {
 		if (!is_proto && f_body == null) return;
 
 		val is_any_fault_main = f.name == "main" && f.return_type == null
-			&& self.symtab != null && self.symtab!.sem.main_uses_any_fault;
+			&& self.symtab?.sem?.main_uses_any_fault;
 		val is_eu_main = f.name == "main" && !is_any_fault_main && ret_ty.starts_with("__kobel_eu_");
 		val is_plain_main = f.name == "main" && !is_any_fault_main && !is_eu_main && ret_ty == "void";
 		val is_wrapped_main = is_any_fault_main || is_eu_main || is_plain_main;

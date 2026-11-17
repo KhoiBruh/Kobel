@@ -85,12 +85,12 @@ impl CCodeGen {
 				val tgt = self.gen_expr_prec(node.target, PREC_POSTFIX);
 				val idx = self.gen_expr(node.index);
 				val tgt_ty = self.node_type(node.target);
-				if (tgt_ty != null && tgt_ty.kind == DataType.ARRAY && tgt_ty.as_array()!.length == 0 && node.target is IdentifierExpr as id) {
+				if (tgt_ty?.kind == DataType.ARRAY && tgt_ty.as_array()!.length == 0 && node.target is IdentifierExpr as id) {
 					yield "${id.name}_data[${idx}]";
 				}
 				if (node.target is IdentifierExpr as id) {
 					val sym = self.symtab?.lookup(id.name);
-					if (sym != null && sym.is_vararg) {
+					if (sym?.is_vararg) {
 						yield "${id.name}_data[${idx}]";
 					}
 				}
@@ -404,7 +404,7 @@ impl CCodeGen {
 	fn gen_unary_expr(&self, ast_node: *AstNode, un: *UnaryExpr, min_prec: i32): str {
 		if (un.is_postfix && un.op == TokenType.BANG) {
 			val opnd_ty = self.node_type(unwrap_group_expr(un.operand));
-			if (opnd_ty != null && opnd_ty.kind == DataType.ERROR_UNION) {
+			if (opnd_ty?.kind == DataType.ERROR_UNION) {
 				val eu = opnd_ty.as_error_union()!;
 				val arg = self.gen_expr(un.operand);
 				val f_esc = c_escape_str(self.node_file_path(ast_node));
@@ -494,13 +494,13 @@ impl CCodeGen {
 		var fn_info: ?*FnTypeInfo = null;
 		val mi = self.symtab?.get_resolved_method(ast_node);
 		val callee_ty = self.node_type(call.callee);
-		if (mi != null && mi.fn_type.kind == DataType.FN) {
+		if (mi?.fn_type?.kind == DataType.FN) {
 			fn_info = mi.fn_type.as_fn();
-		} else if (callee_ty != null && callee_ty.kind == DataType.FN) {
+		} else if (callee_ty?.kind == DataType.FN) {
 			fn_info = callee_ty.as_fn();
 		} else if (call.callee is IdentifierExpr as callee_id) {
 			val sym = self.symtab?.lookup(callee_id.name);
-			if (sym != null && sym.type_ptr.kind == DataType.FN) {
+			if (sym?.type_ptr?.kind == DataType.FN) {
 				fn_info = sym.type_ptr.as_fn();
 			}
 		}
@@ -558,13 +558,17 @@ impl CCodeGen {
 	fn gen_member_expr(&self, ast_node: *AstNode, mem: *MemberExpr, min_prec: i32): str {
 		val obj_node = mem.object;
 		val obj_ty = self.node_type(obj_node);
-		if (obj_ty != null && obj_ty.kind == DataType.ARRAY && obj_ty.as_array()!.length == 0 && obj_node is IdentifierExpr as id) {
+		if (
+			obj_ty?.kind == DataType.ARRAY &&
+			obj_ty.as_array()!.length == 0 &&
+			obj_node is IdentifierExpr as id
+		) {
 			if (mem.member in ["len", "size"]) return "${id.name}_len";
 			if (mem.member == "data") return "${id.name}_data";
 		}
 		if (obj_node is IdentifierExpr as id) {
 			val sym = self.symtab?.lookup(id.name);
-			if (sym != null && sym.is_vararg) {
+			if (sym?.is_vararg) {
 				if (mem.member in ["len", "size"]) return "${id.name}_len";
 				if (mem.member == "data") return "${id.name}_data";
 			}

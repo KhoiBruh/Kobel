@@ -89,7 +89,7 @@ impl DceWalker {
 
 	fn index_fn(&self, node: &AstNode, f: *FnDecl, owner: str) {
 		// Prefer keeping the definition body if a prototype and definition share a name.
-		if (!(f.name in self.fn_nodes) || f.body != null) {
+		if (f.name !in self.fn_nodes || f.body != null) {
 			self.fn_nodes[f.name] = node;
 		}
 		if (!owner.empty()) self.fn_owners[f.name] = owner;

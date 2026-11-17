@@ -47,7 +47,7 @@ fn method_c_name(base: str, argc: usz, overloaded: bool, taken: List<str>): str 
 	if (!overloaded) return base;
 
 	val cand = "${base}_${argc}";
-	if (!(cand in taken)) return cand;
+	if (cand !in taken) return cand;
 
 	var k = 2;
 	while ("${cand}_${k}" in taken) k++;

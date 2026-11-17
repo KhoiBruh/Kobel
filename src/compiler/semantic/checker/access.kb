@@ -42,6 +42,8 @@ impl BodyChecker {
 				else mem.object = subj_copy;
 				obj_expr = subj_copy;
 			}
+			val prev_elvis = self.in_elvis_lhs;
+			self.in_elvis_lhs = false;
 			var obj_ty = self.check_expr(obj_expr);
 
 			if (!mem.is_safe && obj_ty.kind == DataType.POINTER && obj_ty.as_pointer()!.nullable) {
@@ -105,14 +107,21 @@ impl BodyChecker {
 					val pt = ret_ty.as_pointer();
 					ret_ty = self.arena.nullable_pointer_type(pt!.pointee, pt!.mutable);
 				} else if (ret_ty.kind != DataType.STR) {
+					val scalar_safe = self.type_has_safe_default(ret_ty);
+					val allow_safe = prev_elvis || (self.in_safe_nav_context && scalar_safe);
 					self.ensure(
-						self.in_safe_nav_context,
+						allow_safe,
 						node,
-						"Safe navigation '?.' on non-pointer field '${mem.member}' requires " +
-						"handling null with '?:' or being used in a condition"
+						if (scalar_safe)
+							"Safe navigation '?.' on non-pointer field '${mem.member}' requires " +
+							"handling null with '?:' or being used in a condition"
+						else
+							"Safe navigation '?.' on non-pointer field '${mem.member}' of type " +
+							"'${self.type_display(ret_ty)}' requires handling null with '?:'"
 					);
 				}
 			}
+			self.in_elvis_lhs = prev_elvis;
 
 			return ret_ty;
 		}
@@ -136,7 +145,8 @@ impl BodyChecker {
 				if (ei.is_payload) {
 					val e_sym = sym ?: self.symtab.lookup(ei.c_name) ?: self.symtab.lookup(ei.name)
 						?: return self.prims().t_none();
-					if (mi!.payload_ty != null && !mi!.payload_ty!.as_struct()!.fields.empty()) {
+					val payload_st = mi?.payload_ty?.as_struct();
+					if (payload_st != null && !payload_st.fields.empty()) {
 						self.report_error(
 							node,
 							"Variant '${enum_id.name}.${mem.member}' carries data; " +
@@ -398,7 +408,7 @@ impl BodyChecker {
 		when (cur) {
 			is IdentifierExpr as id -> {
 				val sym = self.symtab.lookup(id.name);
-				if (sym != null && sym.type_ptr.kind == DataType.POINTER) {
+				if (sym?.type_ptr?.kind == DataType.POINTER) {
 					self.check_ro_pointer_write(cur, sym.type_ptr, op_node, target_desc, act);
 				} else if (sym != null && !sym.mutable) {
 					self.report_error(

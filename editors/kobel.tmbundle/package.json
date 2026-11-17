@@ -45,6 +45,10 @@
       {
         "command": "kobel.restartServer",
         "title": "Kobel: Restart Language Server"
+      },
+      {
+        "command": "kobel.showDeadCode",
+        "title": "Kobel: Show Dead Code Problems"
       }
     ],
     "keybindings": [
@@ -61,6 +65,21 @@
           "type": "string",
           "default": "",
           "description": "Absolute or workspace-relative path to the Kobel compiler executable (e.g. build/kobel.exe). When empty, auto-detects build/kobel.exe, build/seed/kobel_seed.exe, kobel_v1.exe, kobel.exe, or 'kobel' on PATH."
+        },
+        "kobel.deadCode.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Highlight and report dead code in Kobel files via LSP (unused imports, unused variables/parameters, unused private declarations, and unreachable code)."
+        },
+        "kobel.deadCode.severity": {
+          "type": "string",
+          "default": "warning",
+          "enum": [
+            "warning",
+            "information",
+            "hint"
+          ],
+          "description": "Severity level used for dead code diagnostics in VS Code (all dead code ranges are also faded via DiagnosticTag.Unnecessary)."
         }
       }
     }

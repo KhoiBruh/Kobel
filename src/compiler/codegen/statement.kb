@@ -9,7 +9,6 @@ mod compiler.codegen;
 
 use std.string.*;
 use std.collections.*;
-use std.string.StringBuilder;
 
 use compiler.lexer.*;
 use compiler.ast.*;
@@ -1047,7 +1046,7 @@ impl CCodeGen {
 		val src_ty = self.node_type(raw_e);
 		var ok_is_void = false;
 		var err_c = "int32_t";
-		if (src_ty != null && src_ty.kind == DataType.ERROR_UNION) {
+		if (src_ty?.kind == DataType.ERROR_UNION) {
 			val eu = src_ty.as_error_union()!;
 			ok_is_void = eu.ok.kind == DataType.NONE;
 			err_c = c_type_from_type(eu.err);

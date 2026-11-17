@@ -45,7 +45,7 @@ impl BodyChecker {
 				val sym = self.arm_smart_cast_sym(arm.patterns, we.condition);
 				val mutable = self.arm_smart_cast_mutable(arm.patterns, we.condition);
 				var arm_hint = result_ty;
-				if (arm_hint != null && arm_hint.kind == DataType.ERROR_UNION) {
+				if (arm_hint?.kind == DataType.ERROR_UNION) {
 					val eu = arm_hint.as_error_union()!;
 					if (eu.ok.kind != DataType.NONE) arm_hint = eu.ok;
 				}
@@ -505,7 +505,7 @@ impl BodyChecker {
 
 		if (err_ei != null) {
 			val matched_m = self.find_variant_in_enum_info(err_ei, target_node);
-			if (matched_m != null && matched_m.payload_ty != null) {
+			if (matched_m?.payload_ty != null) {
 				val v_c_name = "${err_ei.c_name}__${matched_m.name}";
 				if (target_node is NamedType as nt) {
 					if (self.current_rec != null) self.set_ann_ty(target_node, matched_m.payload_ty!);
@@ -573,7 +573,7 @@ impl BodyChecker {
 		subj_mutable: bool
 	): ?*Type {
 		val data_ty = self.field_type_of(base_s, "data");
-		val data_enum = if (data_ty != null && data_ty!.kind == DataType.STRUCT)
+		val data_enum = if (data_ty?.kind == DataType.STRUCT)
 			self.symtab.find_enum_info(data_ty!.as_struct()!.c_name)
 				?: self.symtab.find_enum_info(data_ty!.as_struct()!.name)
 		else null;
@@ -581,11 +581,11 @@ impl BodyChecker {
 			?: self.symtab.find_enum_info(base_s.name);
 
 		var direct_matched: ?*EnumMemberInfo = null;
-		if (direct_enum != null && direct_enum.is_payload) {
+		if (direct_enum?.is_payload) {
 			direct_matched = self.find_variant_in_enum_info(direct_enum, target_node);
 		}
 
-		if (direct_matched != null && direct_matched.payload_ty != null) {
+		if (direct_matched?.payload_ty != null) {
 			val m = direct_matched;
 			if (target_node is NamedType as nt) {
 				if (self.current_rec != null) self.set_ann_ty(target_node, m.payload_ty!);
@@ -602,9 +602,9 @@ impl BodyChecker {
 
 		if (target_node is NamedType as nt && nt.name.starts_with(".")) {
 			val vname = nt.name.slice(1, nt.name.len);
-			if (data_enum != null && data_enum.is_payload && data_enum.find_member(vname) != null) {
+			if (data_enum?.is_payload && data_enum.find_member(vname) != null) {
 				nt.name = "${data_enum.name}.${vname}";
-			} else if (direct_enum != null && direct_enum.is_payload && direct_enum.find_member(vname) != null) {
+			} else if (direct_enum?.is_payload && direct_enum.find_member(vname) != null) {
 				nt.name = "${direct_enum.name}.${vname}";
 			}
 		}
@@ -621,7 +621,7 @@ impl BodyChecker {
 		var tag_const_c_name = "";
 
 		var matched_data_member: ?*EnumMemberInfo = null;
-		if (data_enum != null && data_enum.is_payload) {
+		if (data_enum?.is_payload) {
 			for (m in data_enum.members) {
 				if (target_s.name in [m.name, "${data_enum.name}.${m.name}"]) {
 					is_payload_data = true;
@@ -674,7 +674,7 @@ impl BodyChecker {
 			if (matched_data_member != null) {
 				member_name = matched_data_member.name;
 				val p_ty = matched_data_member.payload_ty;
-				if (p_ty != null && p_ty.kind == DataType.STRUCT) {
+				if (p_ty?.kind == DataType.STRUCT) {
 					val s = p_ty.as_struct()!;
 					if (!s.fields.any { f -> f.name == "inner" }) is_inner_ptr = false;
 				}
@@ -691,7 +691,7 @@ impl BodyChecker {
 
 		if (direct_enum?.is_payload) {
 			for (m in direct_enum.members) {
-				if (m.payload_ty != null && m.payload_ty!.equals(target_ty)) {
+				if (m.payload_ty?.equals(target_ty)) {
 					payload_path = m.payload_path;
 				}
 			}
@@ -721,12 +721,12 @@ impl BodyChecker {
 			var base_ty = subj_ty;
 			var is_ptr = false;
 			var subj_mutable = false;
-			if (base_ty != null && base_ty.kind == DataType.POINTER) {
+			if (base_ty?.kind == DataType.POINTER) {
 				is_ptr = true;
 				subj_mutable = base_ty.as_pointer()!.mutable;
 				base_ty = base_ty.as_pointer()!.pointee;
 			}
-			if (base_ty != null && base_ty.kind == DataType.ERROR_UNION) {
+			if (base_ty?.kind == DataType.ERROR_UNION) {
 				if (is_e.target_type is ArrayLiteralExpr as al) {
 					if (al.elements.empty()) {
 						self.report_error(is_e.target_type, "Type list in 'is' operator cannot be empty");
@@ -807,9 +807,12 @@ impl BodyChecker {
 				return self.prims().t_bool();
 			}
 			val prev_sn = self.in_safe_nav_context;
+			val prev_elvis = self.in_elvis_lhs;
 			self.in_safe_nav_context = true;
+			self.in_elvis_lhs = true;
 			val subj_ty = self.check_expr(is_e.expr!);
 			self.in_safe_nav_context = prev_sn;
+			self.in_elvis_lhs = prev_elvis;
 			self.check_is_pattern(is_e.expr, subj_ty, node);
 		}
 		return self.prims().t_bool();

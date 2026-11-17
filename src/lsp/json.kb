@@ -295,7 +295,7 @@ impl JsonParser {
 			self.advance();
 		}
 
-		if (self.is_end() || !(self.peek() in '0'..'9')) return JsonErr.InvalidNumber;
+		if (self.is_end() || self.peek() !in '0'..'9') return JsonErr.InvalidNumber;
 		var val_num: i64 = 0;
 		while (!self.is_end() && self.peek() in '0'..'9') {
 			val c = self.advance();
@@ -305,7 +305,7 @@ impl JsonParser {
 
 		if (!self.is_end() && self.peek() == '.') {
 			self.advance();
-			if (self.is_end() || !(self.peek() in '0'..'9')) return JsonErr.InvalidNumber;
+			if (self.is_end() || self.peek() !in '0'..'9') return JsonErr.InvalidNumber;
 			while (!self.is_end() && self.peek() in '0'..'9') self.advance();
 		}
 
@@ -320,7 +320,7 @@ impl JsonParser {
 							'+', '-' -> self.advance();
 						}
 					}
-					if (self.is_end() || !(self.peek() in '0'..'9')) return JsonErr.InvalidNumber;
+					if (self.is_end() || self.peek() !in '0'..'9') return JsonErr.InvalidNumber;
 					while (!self.is_end() && self.peek() in '0'..'9') self.advance();
 				}
 			}

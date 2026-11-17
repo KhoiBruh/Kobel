@@ -58,7 +58,10 @@ pub struct DefInfo {
 	pub is_vararg: bool = false,
 	pub param_names: List<str> = List(),
 	pub param_types: List<str> = List(),
-	pub return_type: str = ""
+	pub return_type: str = "",
+	pub has_body: bool = true,
+	pub is_trait_impl: bool = false,
+	pub is_special_fn: bool = false
 }
 
 pub struct RefInfo {
@@ -71,7 +74,8 @@ pub struct RefInfo {
 	pub is_def: bool = false,
 	pub is_write: bool = false,
 	pub is_import: bool = false,
-	pub type_str: str = ""
+	pub type_str: str = "",
+	pub owner_key: str = ""
 }
 
 pub struct ImportInfo {
@@ -109,13 +113,13 @@ impl DepGraph {
 		if (from_mod.empty() || to_mod.empty() || from_mod == to_mod) return;
 
 		var imp_list = self.imports_of.get_or(from_mod, List<str>());
-		if (!(to_mod in imp_list)) {
+		if (to_mod !in imp_list) {
 			imp_list += to_mod;
 			self.imports_of[from_mod] = imp_list;
 		}
 
 		var dep_list = self.dependents_of.get_or(to_mod, List<str>());
-		if (!(from_mod in dep_list)) {
+		if (from_mod !in dep_list) {
 			dep_list += from_mod;
 			self.dependents_of[to_mod] = dep_list;
 		}
@@ -125,7 +129,7 @@ impl DepGraph {
 		if (mod_name.empty() || file_path.empty()) return;
 		var files = self.module_files.get_or(mod_name, List<str>());
 		val norm = file_path.normalize_path();
-		if (!(norm in files)) {
+		if (norm !in files) {
 			files += norm;
 			self.module_files[mod_name] = files;
 		}
@@ -145,7 +149,7 @@ impl DepGraph {
 			idx++;
 			val deps = self.dependents_of.get_or(cur, List<str>());
 			for (d in deps) {
-				if (!(d in result)) {
+				if (d !in result) {
 					result += d;
 					queue += d;
 				}
@@ -203,6 +207,24 @@ fn find_token_index_at_line(tokens: List<Token>, start_line: usz): usz {
 		else hi = mid;
 	}
 	return lo;
+}
+
+fn find_param_token_after(
+	tokens: List<Token>, start_line: usz, start_col: usz, name: str
+): Token {
+	var i = find_token_index_at_line(tokens, start_line);
+	val n = tokens.len;
+	while (i < n) {
+		val tok = tokens[i];
+		if (tok.line > start_line + 12) break;
+		if (tok.line > start_line || tok.col >= start_col) {
+			if (tok.type == TokenType.IDENTIFIER && tok.text == name) {
+				if (i + 1 < n && tokens[i + 1].type == TokenType.COLON) return tok;
+			}
+		}
+		i++;
+	}
+	return find_ident_token_after(tokens, start_line, start_col, name);
 }
 
 fn find_ident_token_after(
@@ -369,16 +391,17 @@ pub fn unwrap_base_type(ty: ?*Type): ?*Type {
 impl SemanticIndex {
 
 	pub fn add_def(&self, def: DefInfo): usz {
-		if (def.role == SymRole.STRUCT && !(def.name in self.struct_mod_by_name)) {
+		if (def.role == SymRole.STRUCT && def.name !in self.struct_mod_by_name) {
 			self.struct_mod_by_name[def.name] = def.module_name;
-		} else if (def.role == SymRole.ENUM && !(def.name in self.enum_mod_by_name)) {
+		} else if (def.role == SymRole.ENUM && def.name !in self.enum_mod_by_name) {
 			self.enum_mod_by_name[def.name] = def.module_name;
 		}
+
 		if (
 			def.role in [
 				SymRole.FN, SymRole.STRUCT, SymRole.ENUM,
 				SymRole.TRAIT, SymRole.CONST
-			] && !(def.name in self.top_key_by_name)
+			] && def.name !in self.top_key_by_name
 		) {
 			self.top_key_by_name[def.name] = def.key;
 		}
@@ -525,6 +548,27 @@ impl SemanticIndex {
 		return self.top_key_by_name.get_or(name, "");
 	}
 
+	fn mark_import_used(&self, file_path: str, target_mod: str, sym_name: str) {
+		if (file_path.empty() || target_mod.empty() || sym_name.empty()) return;
+		val norm = file_path.normalize_path();
+		val imps_p = self.imports_by_file[norm] ?: return;
+		var imps = imps_p.read();
+		var changed = false;
+		for (i in 0..<imps.len) {
+			val imp = imps[i];
+			if (imp.used || imp.target_module != target_mod) continue;
+			val match_explicit = !imp.wildcard && imp.symbol_name == sym_name;
+			val match_wild = imp.wildcard;
+			if (match_explicit || match_wild) {
+				var item = imp;
+				item.used = true;
+				imps[i] = item;
+				changed = true;
+			}
+		}
+		if (changed) self.imports_by_file[norm] = imps;
+	}
+
 	fn find_struct_module(*self, struct_name: str, cur_mod: str): str {
 		val same = "struct:${cur_mod}:${struct_name}";
 		if (same in self.def_by_key) return cur_mod;
@@ -550,7 +594,10 @@ struct IndexWalker {
 	pub tokens: List<Token>,
 	pub scopes: List<LocalScope> = List(),
 	pub cur_when_enum: str = "",
-	pub cur_when_enum_mod: str = ""
+	pub cur_when_enum_mod: str = "",
+	pub cur_owner_key: str = "",
+	pub cur_impl_struct: str = "",
+	pub cur_impl_mod: str = ""
 }
 
 impl IndexWalker {
@@ -561,18 +608,27 @@ impl IndexWalker {
 		if (!self.scopes.empty()) self.scopes.pop()!;
 	}
 
+	fn record_use(&self, key: str, line: usz, col: usz, len: usz, type_str: str = "") {
+		self.index.add_ref(RefInfo(
+			key, self.cur_file, self.cur_mod, line, col, len,
+			false, false, false, type_str, self.cur_owner_key
+		));
+	}
+
 	fn bind_local(&self, name: str, role: SymRole, line: usz, col: usz, type_str: str, is_mut: bool) {
 		if (name.empty() || name == "_") return;
-		val tok = find_ident_token_after(self.tokens, line, col, name);
+		val tok = if (role == SymRole.PARAM) find_param_token_after(self.tokens, line, col, name)
+			else find_ident_token_after(self.tokens, line, col, name);
 		val r_line = if (tok.line > 0) tok.line else line;
 		val r_col = if (tok.col > 0) tok.col else col;
 		val prefix = if (role == SymRole.PARAM) "param" else "local";
 		val key = "${prefix}:${self.cur_file.normalize_path()}:${r_line}:${r_col}:${name}";
 		val kw = if (role == SymRole.PARAM) "param" else if (is_mut) "var" else "val";
 		val sig = "${kw} ${name}: ${type_str}";
+		val container = if (role == SymRole.PARAM) self.cur_owner_key else "";
 
 		val def_idx = self.index.add_def(DefInfo(
-			key, name, role, self.cur_file, self.cur_mod, "",
+			key, name, role, self.cur_file, self.cur_mod, container,
 			r_line, r_col, name.len, sig, type_str, false, is_mut, false
 		));
 		self.index.add_ref(RefInfo(
@@ -593,7 +649,10 @@ impl IndexWalker {
 		while (i > 0) {
 			i--;
 			val sc = self.scopes[i];
-			for (b in sc.bindings) {
+			var j = sc.bindings.len;
+			while (j > 0) {
+				j--;
+				val b = sc.bindings[j];
 				if (b.name == name) return b;
 			}
 		}
@@ -619,7 +678,7 @@ impl IndexWalker {
 	fn resolve_variant_named_type(*self, type_name: str): Pair<str, str> ! IndexErr {
 		if (type_name.empty()) return IndexErr.NotFound;
 		// 1. BodyChecker-mangled variant type: `<c_enum>__<Variant>`
-		if (!(type_name in self.index.c_name_to_key) && type_name.len >= 3) {
+		if (type_name !in self.index.c_name_to_key && type_name.len >= 3) {
 			var split_i: isz = -1;
 			var idx = type_name.len - 2;
 			while (true) {
@@ -669,6 +728,19 @@ impl IndexWalker {
 		return IndexErr.NotFound;
 	}
 
+	fn resolve_c_inst_key(&self, cname: str): Pair<str, str> ! IndexErr {
+		val base_inst = self.index.c_inst_to_base.get_or(cname, "");
+		if (base_inst.empty()) return IndexErr.NotFound;
+		val sep = base_inst.index_of(":") !: return IndexErr.NotFound;
+		if (sep == 0 || sep + 1 >= base_inst.len) return IndexErr.NotFound;
+		val bmod = base_inst.slice(0, sep);
+		val bname = base_inst.slice(sep + 1, base_inst.len);
+		val k = self.index.resolve_module_symbol_key(bmod, bname);
+		if (k.empty()) return IndexErr.NotFound;
+		self.index.mark_import_used(self.cur_file, bmod, bname);
+		return Pair(k, bname);
+	}
+
 	fn walk_type_node(&self, node: ?*AstNode) {
 		if (node == null) return;
 		val nl = node!.line;
@@ -685,11 +757,19 @@ impl IndexWalker {
 					}
 				}
 				if (key.empty()) {
+					val inst_res = self.resolve_c_inst_key(node.name);
+					if (inst_res is Pair<str, str> as ip) {
+						key = ip.first;
+						snap_name = ip.second;
+					}
+				}
+				if (key.empty()) {
 					key = self.index.c_name_to_key.get_or(node.name, "");
 					if (!key.empty()) {
 						val def_res = self.index.get_def(key);
 						if (def_res is DefInfo as def && !def.name.empty()) {
 							snap_name = def.name;
+							self.index.mark_import_used(self.cur_file, def.module_name, def.name);
 						}
 					}
 				}
@@ -697,10 +777,7 @@ impl IndexWalker {
 					val tok = find_ident_token_after(self.tokens, nl, nc, snap_name);
 					val r_line = if (tok.line > 0) tok.line else nl;
 					val r_col = if (tok.col > 0) tok.col else nc;
-					self.index.add_ref(RefInfo(
-						key, self.cur_file, self.cur_mod, r_line, r_col, snap_name.len,
-						false, false, false, snap_name
-					));
+					self.record_use(key, r_line, r_col, snap_name.len, snap_name);
 				}
 				for (ta in node.type_args) self.walk_type_node(ta);
 			}
@@ -800,6 +877,10 @@ impl IndexWalker {
 						key, self.cur_file, self.cur_mod, r_line, r_col, decl.name.len,
 						true, false, false, decl.name
 					));
+					for (m in decl.methods) {
+						val raw_m = m;
+						if (m is FnDecl) self.register_fn_def(raw_m, decl.name, self.cur_mod, true);
+					}
 				}
 				is ConstDecl -> {
 					val key = "const:${self.cur_mod}:${decl.name}";
@@ -822,15 +903,16 @@ impl IndexWalker {
 				is ImplDecl -> {
 					self.index.orig_node_names[raw_decl.addr()] = decl.struct_name;
 					val s_mod = self.index.find_struct_module(decl.struct_name, self.cur_mod);
+					val is_tr = !decl.trait_name.empty();
 					for (m in decl.methods) {
 						val raw_m = m;
-						if (m is FnDecl) self.register_fn_def(raw_m, decl.struct_name, s_mod);
+						if (m is FnDecl) self.register_fn_def(raw_m, decl.struct_name, s_mod, is_tr);
 					}
 				}
 				is ExternBlock -> {
 					for (ed in decl.declarations) {
 						val raw_ed = ed;
-						if (ed is FnDecl) self.register_fn_def(raw_ed, "");
+						if (ed is FnDecl) self.register_fn_def(raw_ed, "", "", false, true);
 					}
 				}
 			}
@@ -838,7 +920,14 @@ impl IndexWalker {
 		}
 	}
 
-	fn register_fn_def(&self, fn_node: *AstNode, container: str, container_mod: str = "") {
+	fn register_fn_def(
+		&self,
+		fn_node: *AstNode,
+		container: str,
+		container_mod: str = "",
+		is_trait_impl: bool = false,
+		is_extern: bool = false
+	) {
 		val fl = fn_node.line;
 		val fc = fn_node.col;
 		if (fn_node is FnDecl as f) {
@@ -848,6 +937,8 @@ impl IndexWalker {
 		self.index.orig_node_names[fn_node.addr()] = f.name;
 		self.index.orig_node_keys[fn_node.addr()] = key;
 		val role = if (container.empty()) SymRole.FN else SymRole.METHOD;
+		val has_body = !is_extern && f.body != null;
+		val is_special = f.initializer || f.operator || f.name == "main";
 
 		val search_name = if (f.initializer) "init" else f.name;
 		val tok = find_ident_token_after(self.tokens, fl, fc, search_name);
@@ -870,7 +961,7 @@ impl IndexWalker {
 		self.index.add_def(DefInfo(
 			key, f.name, role, self.cur_file, self.cur_mod, container,
 			r_line, r_col, search_name.len, sig, ret_s, f.public, false, false,
-			is_vararg, p_names, p_types, ret_s
+			is_vararg, p_names, p_types, ret_s, has_body, is_trait_impl, is_special
 		));
 		if (!f.initializer && !f.operator) {
 			self.index.add_ref(RefInfo(
@@ -906,35 +997,45 @@ impl IndexWalker {
 					}
 				}
 				is StructDecl -> {
+					self.cur_owner_key = self.index.orig_node_keys.get_or(raw_decl.addr(), "");
 					for (f in decl.fields) {
 						self.walk_type_node(f.type_node);
 						if (f.default_val != null) self.walk_expr(f.default_val);
 					}
+					self.cur_owner_key = "";
 				}
 				is EnumDecl -> {
+					self.cur_owner_key = self.index.orig_node_keys.get_or(raw_decl.addr(), "");
 					if (decl.underlying_type != null) self.walk_type_node(decl.underlying_type);
 					for (m in decl.members) {
 						if (m.value != null) self.walk_expr(m.value);
 						for (pf in m.payload) self.walk_type_node(pf.type_node);
 					}
+					self.cur_owner_key = "";
 				}
 				is FaultDecl -> {
+					self.cur_owner_key = self.index.orig_node_keys.get_or(raw_decl.addr(), "");
 					for (m in decl.members) {
 						for (pf in m.payload) self.walk_type_node(pf.type_node);
 					}
+					self.cur_owner_key = "";
 				}
 				is TraitDecl -> {
+					val t_key = self.index.orig_node_keys.get_or(raw_decl.addr(), "");
+					self.cur_owner_key = t_key;
 					for (m in decl.methods) self.walk_fn_body(m);
+					self.cur_owner_key = "";
 				}
 				is ImplDecl -> {
 					val orig_sname = self.index.orig_node_names.get_or(raw_decl.addr(), decl.struct_name);
+					self.cur_owner_key = if (!decl.trait_name.empty()) "" else "__impl_hdr__";
 					if (!orig_sname.empty()) {
 						val s_key = self.index.resolve_visible_symbol_key(self.cur_file, self.cur_mod, orig_sname);
 						if (!s_key.empty()) {
 							val stok = find_ident_token_after(self.tokens, dl, dc, orig_sname);
 							val sl = if (stok.line > 0) stok.line else dl;
 							val sc = if (stok.col > 0) stok.col else dc;
-							self.index.add_ref(RefInfo(s_key, self.cur_file, self.cur_mod, sl, sc, orig_sname.len));
+							self.record_use(s_key, sl, sc, orig_sname.len);
 						}
 					}
 					if (!decl.trait_name.empty()) {
@@ -943,18 +1044,30 @@ impl IndexWalker {
 							val ttok = find_ident_token_after(self.tokens, dl, dc, decl.trait_name);
 							val tl = if (ttok.line > 0) ttok.line else dl;
 							val tc = if (ttok.col > 0) ttok.col else dc;
-							self.index.add_ref(RefInfo(t_key, self.cur_file, self.cur_mod, tl, tc, decl.trait_name.len));
+							self.record_use(t_key, tl, tc, decl.trait_name.len);
 						}
 						self.check_missing_trait_methods(raw_decl, dl, dc);
 					}
+					self.cur_owner_key = "";
+					val prev_impl_st = self.cur_impl_struct;
+					val prev_impl_mod = self.cur_impl_mod;
+					if (!orig_sname.empty()) {
+						self.cur_impl_struct = orig_sname;
+						self.cur_impl_mod = self.index.find_struct_module(orig_sname, self.cur_mod);
+					}
 					for (m in decl.methods) self.walk_fn_body(m);
+					self.cur_impl_struct = prev_impl_st;
+					self.cur_impl_mod = prev_impl_mod;
 				}
 				is ConstDecl -> {
+					self.cur_owner_key = self.index.orig_node_keys.get_or(raw_decl.addr(), "");
 					if (decl.type_node != null) self.walk_type_node(decl.type_node);
 					if (decl.value != null) self.walk_expr(decl.value);
+					self.cur_owner_key = "";
 				}
 				is FnDecl -> self.walk_fn_body(raw_decl);
 				is ExternBlock -> {
+					self.cur_owner_key = "";
 					for (ed in decl.declarations) self.walk_fn_body(ed);
 				}
 			}
@@ -979,7 +1092,7 @@ impl IndexWalker {
 
 		var stubs = List<str>();
 		for (tm in trait_info.methods) {
-			if (!tm.has_default && !(tm.name in implemented)) {
+			if (!tm.has_default && tm.name !in implemented) {
 				if (tm.node is FnDecl as tf) {
 					val sig = format_fn_signature(tf.name, tf.type_params, tf.params, tf.return_type, tf.operator, tf.initializer);
 					stubs += "\tpub ${sig} {\n\t\t\n\t}";
@@ -1000,18 +1113,42 @@ impl IndexWalker {
 		val fl = fn_node.line;
 		val fc = fn_node.col;
 		if (fn_node is FnDecl as f) {
+		val prev_owner = self.cur_owner_key;
+		val fn_key = self.index.orig_node_keys.get_or(fn_node.addr(), "");
+		if (!fn_key.empty()) self.cur_owner_key = fn_key;
 		self.push_scope();
+		var p_line = fl;
+		var p_col = fc;
+		var ti = find_token_index_at_line(self.tokens, fl);
+		while (ti < self.tokens.len) {
+			val t = self.tokens[ti];
+			if (t.line > fl + 6) break;
+			if (t.line > fl || t.col >= fc) {
+				if (t.type == TokenType.OPEN_PAREN) {
+					p_line = t.line;
+					p_col = t.col + 1;
+					break;
+				}
+			}
+			ti++;
+		}
 		for (p in f.params) {
 			if (p.type_node != null) self.walk_type_node(p.type_node);
 			if (p.default_val != null) self.walk_expr(p.default_val);
 			if (p.name != "self") {
 				val pt = format_type_node(p.type_node);
-				self.bind_local(p.name, SymRole.PARAM, fl, fc, pt, false);
+				self.bind_local(p.name, SymRole.PARAM, p_line, p_col, pt, false);
+				val p_tok = find_param_token_after(self.tokens, p_line, p_col, p.name);
+				if (p_tok.line > 0) {
+					p_line = p_tok.line;
+					p_col = p_tok.col + p.name.len;
+				}
 			}
 		}
 		if (f.return_type != null) self.walk_type_node(f.return_type);
 		if (f.body != null) self.walk_stmt(f.body);
 		self.pop_scope();
+		self.cur_owner_key = prev_owner;
 		}
 	}
 
@@ -1041,20 +1178,46 @@ impl IndexWalker {
 				}
 			}
 			is IfStmt -> {
+				self.push_scope();
 				self.walk_expr(node.condition);
 				self.walk_stmt(node.then_branch);
+				self.pop_scope();
 				if (node.else_branch != null) self.walk_stmt(node.else_branch);
 			}
 			is WhileStmt -> {
+				self.push_scope();
 				self.walk_expr(node.condition);
 				self.walk_stmt(node.body);
+				self.pop_scope();
 			}
 			is ForStmt -> {
 				self.push_scope();
 				if (node.iterable != null) self.walk_expr(node.iterable);
 				if (node.range_start != null) self.walk_expr(node.range_start);
 				if (node.range_end != null) self.walk_expr(node.range_end);
-				self.bind_local(node.var_name, SymRole.LOCAL, nl, nc, "any", false);
+				val vn = node.var_name;
+				val is_var_destruct = vn.starts_with("var (") && vn.ends_with(")");
+				val is_val_destruct = vn.starts_with("(") && vn.ends_with(")");
+				if (is_var_destruct || is_val_destruct) {
+					val raw = if (is_var_destruct) vn.slice(5, vn.len - 1) else vn.slice(1, vn.len - 1);
+					var start: isz = -1;
+					for (i in 0..<raw.len) {
+						val ch = raw[i];
+						if (ch == ',' || ch == ' ' || ch == '\t') {
+							if (start >= 0) {
+								self.bind_local(raw.slice(start as usz, i), SymRole.LOCAL, nl, nc, "any", is_var_destruct);
+								start = -1;
+							}
+						} else if (start < 0) {
+							start = i as isz;
+						}
+					}
+					if (start >= 0) {
+						self.bind_local(raw.slice(start as usz), SymRole.LOCAL, nl, nc, "any", is_var_destruct);
+					}
+				} else {
+					self.bind_local(vn, SymRole.LOCAL, nl, nc, "any", false);
+				}
 				self.walk_stmt(node.body);
 				self.pop_scope();
 			}
@@ -1103,28 +1266,30 @@ impl IndexWalker {
 			is IdentifierExpr -> {
 				val lb_res = self.lookup_local(node.name);
 				if (lb_res is LocalBinding as lb) {
-					self.index.add_ref(RefInfo(
-						lb.key, self.cur_file, self.cur_mod, nl, nc, node.name.len,
-						false, false, false, ty_s
-					));
+					self.record_use(lb.key, nl, nc, node.name.len, ty_s);
 					return;
 				}
 				var key = self.index.resolve_visible_symbol_key(self.cur_file, self.cur_mod, node.name);
 				var ref_len = node.name.len;
+				if (key.empty()) {
+					val inst_res = self.resolve_c_inst_key(node.name);
+					if (inst_res is Pair<str, str> as ip) {
+						key = ip.first;
+						ref_len = ip.second.len;
+					}
+				}
 				if (key.empty()) {
 					key = self.index.c_name_to_key.get_or(node.name, "");
 					if (!key.empty()) {
 						val def_res = self.index.get_def(key);
 						if (def_res is DefInfo as def && !def.name.empty()) {
 							ref_len = def.name.len;
+							self.index.mark_import_used(self.cur_file, def.module_name, def.name);
 						}
 					}
 				}
 				if (!key.empty()) {
-					self.index.add_ref(RefInfo(
-						key, self.cur_file, self.cur_mod, nl, nc, ref_len,
-						false, false, false, ty_s
-					));
+					self.record_use(key, nl, nc, ref_len, ty_s);
 				}
 			}
 			is MemberExpr -> {
@@ -1154,6 +1319,8 @@ impl IndexWalker {
 							val p_key = "method:${p_mod}:${type_name}:${node.member}";
 							if (p_key in self.index.def_by_key) target_key = p_key;
 						}
+					} else if (mi != null && !mi.c_name.empty()) {
+						target_key = self.index.c_name_to_key.get_or(mi.c_name, "");
 					}
 					// 2. Check object type for struct field or enum variant
 					if (target_key.empty() && rec_ty != null) {
@@ -1181,9 +1348,14 @@ impl IndexWalker {
 						}
 					}
 				}
-				// 3. Implicit Enum.VARIANT or leading-dot .VARIANT in when
+				// 3. Implicit Enum.VARIANT, Self/self on generic impl, or leading-dot .VARIANT in when
 				if (target_key.empty()) {
-					if (node.object is IdentifierExpr as id && !id.name.empty()) {
+					if (node.object is IdentifierExpr as id && id.name == "self" && !self.cur_impl_struct.empty()) {
+						val m_key = "method:${self.cur_impl_mod}:${self.cur_impl_struct}:${node.member}";
+						val f_key = "field:${self.cur_impl_mod}:${self.cur_impl_struct}:${node.member}";
+						if (m_key in self.index.def_by_key) target_key = m_key;
+						else if (f_key in self.index.def_by_key) target_key = f_key;
+					} else if (node.object is IdentifierExpr as id && !id.name.empty()) {
 						val e_mod = self.index.find_enum_module(id.name, self.cur_mod);
 						val v_key = "variant:${e_mod}:${id.name}:${node.member}";
 						if (v_key in self.index.def_by_key) target_key = v_key;
@@ -1199,10 +1371,7 @@ impl IndexWalker {
 				}
 
 				if (!target_key.empty()) {
-					self.index.add_ref(RefInfo(
-						target_key, self.cur_file, self.cur_mod, ml, mc, node.member.len,
-						false, false, false, ty_s
-					));
+					self.record_use(target_key, ml, mc, node.member.len, ty_s);
 				}
 			}
 			is CallExpr -> {
@@ -1240,8 +1409,10 @@ impl IndexWalker {
 			is GroupExpr -> self.walk_expr(node.expr);
 			is ArrayLiteralExpr -> for (el in node.elements) self.walk_expr(el);
 			is IfExpr -> {
+				self.push_scope();
 				self.walk_expr(node.condition);
 				self.walk_stmt(node.then_branch);
+				self.pop_scope();
 				self.walk_stmt(node.else_branch);
 			}
 			is WhenExpr -> self.walk_when(node.condition, node.arms);
@@ -1276,7 +1447,7 @@ impl IndexWalker {
 				if (!node.err_name.empty()) {
 					var err_ty_s = "any";
 					val src_ty = if (self.index.has_symtab) unwrap_base_type(self.index.symtab.get_node_type(node.expr)) else null;
-					if (src_ty != null && src_ty.kind == DataType.ERROR_UNION) {
+					if (src_ty?.kind == DataType.ERROR_UNION) {
 						err_ty_s = src_ty.as_error_union()!.err.to_str();
 					}
 					val e_tok = find_ident_token_after(self.tokens, nl, nc, node.err_name);
@@ -1428,9 +1599,12 @@ pub fn finish_semantic_index(
 		}
 	}
 
-	// Pass 2: walk bodies for refs & type resolution (single doc unless full workspace requested)
+	// Pass 2: walk bodies for refs & type resolution (target doc + siblings in same module, or full workspace)
+	val target_mod = if (!target_path.empty()) index.file_modules.get_or(target_path.normalize_path(), "") else "";
 	for (lm in loader.ordered) {
-		if (!include_workspace && !target_path.empty() && !paths_equal(lm.path, target_path)) continue;
+		val same_file = !target_path.empty() && paths_equal(lm.path, target_path);
+		val same_mod = !target_mod.empty() && lm.name == target_mod;
+		if (!include_workspace && !target_path.empty() && !same_file && !same_mod) continue;
 		val prog = lm.program ?: continue;
 		val norm = lm.path.normalize_path();
 		val toks = index.file_tokens.get_or(norm, List<Token>());

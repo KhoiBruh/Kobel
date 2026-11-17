@@ -49,7 +49,10 @@ impl BodyChecker {
 				fn_info.param_types.len > 0
 			) {
 				val p0 = fn_info.param_types[0];
-				if (p0 != null && p0.kind == DataType.POINTER && p0.as_pointer()!.pointee.kind == DataType.STRUCT) {
+				if (
+					p0?.kind == DataType.POINTER &&
+					p0.as_pointer()!.pointee.kind == DataType.STRUCT
+				) {
 					self_ty = p0.as_pointer()!.pointee;
 				}
 			}

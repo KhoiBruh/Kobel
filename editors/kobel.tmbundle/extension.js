@@ -197,6 +197,54 @@ const ANALYSIS_METHOD_WS = {
     'textDocument/rename': true
 };
 const MAX_SERVER_CACHE = 4;
+const DEAD_CODE_CODES = new Set([
+    'unused-import',
+    'unused-variable',
+    'unused-parameter',
+    'unused-symbol',
+    'unreachable-code'
+]);
+
+function isDeadCodeDiag(d) {
+    if (!d) return false;
+    if (typeof d.code === 'string' && DEAD_CODE_CODES.has(d.code)) return true;
+    if (Array.isArray(d.tags) && d.tags.includes(1)) return true;
+    return false;
+}
+
+function getDeadCodeSettings() {
+    const cfg = vscode.workspace && typeof vscode.workspace.getConfiguration === 'function'
+        ? vscode.workspace.getConfiguration('kobel')
+        : null;
+    const enabled = cfg ? cfg.get('deadCode.enabled', true) !== false : true;
+    const severityStr = String(cfg ? cfg.get('deadCode.severity', 'warning') : 'warning').toLowerCase();
+    return { enabled, severityStr };
+}
+
+function mapDiagnosticSeverity(rawSeverity, isDead, deadSeverityStr) {
+    if (isDead) {
+        if (deadSeverityStr === 'hint') return vscode.DiagnosticSeverity.Hint;
+        if (deadSeverityStr === 'information') return vscode.DiagnosticSeverity.Information;
+        return vscode.DiagnosticSeverity.Warning;
+    }
+    return rawSeverity === 1 ? vscode.DiagnosticSeverity.Error
+        : rawSeverity === 2 ? vscode.DiagnosticSeverity.Warning
+        : rawSeverity === 3 ? vscode.DiagnosticSeverity.Information
+        : vscode.DiagnosticSeverity.Hint;
+}
+
+function mapDiagnosticTags(rawTags) {
+    if (!Array.isArray(rawTags) || rawTags.length === 0 || !vscode.DiagnosticTag) return [];
+    const mapped = [];
+    for (const t of rawTags) {
+        if (t === 1 && vscode.DiagnosticTag.Unnecessary !== undefined) {
+            mapped.push(vscode.DiagnosticTag.Unnecessary);
+        } else if (t === 2 && vscode.DiagnosticTag.Deprecated !== undefined) {
+            mapped.push(vscode.DiagnosticTag.Deprecated);
+        }
+    }
+    return mapped;
+}
 
 /**
  * Lightweight, zero-dependency Language Server Protocol Client for Kobel.
@@ -227,6 +275,14 @@ class KobelLanguageClient {
         this.pendingAnalyzedHashes = new Map();
         this.analysisOpsCount = 0;
         this.diagnosticsCollection = vscode.languages.createDiagnosticCollection('kobel');
+        this.rawDiagnostics = new Map();
+        this.deadCodeStatusBar = (vscode.window && typeof vscode.window.createStatusBarItem === 'function' && vscode.StatusBarAlignment)
+            ? vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100)
+            : null;
+        if (this.deadCodeStatusBar) {
+            this.deadCodeStatusBar.command = 'kobel.showDeadCode';
+            this.deadCodeStatusBar.tooltip = 'Click to view Kobel dead code diagnostics in Problems';
+        }
         this.buffer = Buffer.alloc(0);
         this.process = null;
         this.isReady = false;
@@ -612,6 +668,8 @@ class KobelLanguageClient {
         this.rejectAllPending(new Error('Kobel LSP stopping'));
         if (clearDiagnostics) {
             this.diagnosticsCollection.clear();
+            this.rawDiagnostics.clear();
+            this.updateDeadCodeStatusBar();
         }
         this.buffer = Buffer.alloc(0);
         this.isReady = false;
@@ -728,23 +786,68 @@ class KobelLanguageClient {
         }
     }
 
+    buildVscodeDiagnostics(rawList) {
+        const { enabled, severityStr } = getDeadCodeSettings();
+        const diags = [];
+        for (const d of (rawList || [])) {
+            const dead = isDeadCodeDiag(d);
+            if (dead && !enabled) continue;
+            const range = toVscodeRange(d.range);
+            const sev = mapDiagnosticSeverity(d.severity, dead, severityStr);
+            const diag = new vscode.Diagnostic(range, d.message || '', sev);
+            diag.source = d.source || 'kobel';
+            if (typeof d.code === 'string' && d.code.length > 0) diag.code = d.code;
+            const tags = mapDiagnosticTags(d.tags);
+            if (tags.length > 0) diag.tags = tags;
+            diags.push(diag);
+        }
+        return diags;
+    }
+
+    refreshAllDiagnostics() {
+        for (const [key, rawList] of this.rawDiagnostics.entries()) {
+            this.diagnosticsCollection.set(vscode.Uri.parse(key), this.buildVscodeDiagnostics(rawList));
+        }
+        this.updateDeadCodeStatusBar();
+    }
+
+    updateDeadCodeStatusBar() {
+        if (!this.deadCodeStatusBar) return;
+        const editor = vscode.window && vscode.window.activeTextEditor;
+        const doc = editor && editor.document;
+        if (!isSupportedKobelDoc(doc)) {
+            this.deadCodeStatusBar.hide();
+            return;
+        }
+        const key = doc.uri.toString();
+        const { enabled } = getDeadCodeSettings();
+        if (!enabled) {
+            this.deadCodeStatusBar.hide();
+            return;
+        }
+        const rawList = this.rawDiagnostics.get(key) || [];
+        let count = 0;
+        for (const d of rawList) {
+            if (isDeadCodeDiag(d)) count++;
+        }
+        if (count > 0) {
+            this.deadCodeStatusBar.text = `$(trash) ${count} dead code`;
+            this.deadCodeStatusBar.show();
+        } else {
+            this.deadCodeStatusBar.hide();
+        }
+    }
+
     handleMessage(msg) {
         if (msg.method === 'textDocument/publishDiagnostics') {
             const params = msg.params || {};
             if (!params.uri) return;
             const uri = vscode.Uri.parse(params.uri);
             const key = uri.toString();
-            const diags = (params.diagnostics || []).map(d => {
-                const range = toVscodeRange(d.range);
-                const sev = d.severity === 1 ? vscode.DiagnosticSeverity.Error
-                    : d.severity === 2 ? vscode.DiagnosticSeverity.Warning
-                    : d.severity === 3 ? vscode.DiagnosticSeverity.Information
-                    : vscode.DiagnosticSeverity.Hint;
-                const diag = new vscode.Diagnostic(range, d.message || '', sev);
-                diag.source = d.source || 'kobel';
-                return diag;
-            });
-            this.diagnosticsCollection.set(uri, diags);
+            const rawList = Array.isArray(params.diagnostics) ? params.diagnostics : [];
+            this.rawDiagnostics.set(key, rawList);
+            this.diagnosticsCollection.set(uri, this.buildVscodeDiagnostics(rawList));
+            this.updateDeadCodeStatusBar();
 
             const st = this.getOrCreateDocState(key);
             const submittedHash = this.pendingAnalyzedHashes.get(key);
@@ -972,6 +1075,7 @@ class KobelLanguageClient {
     }
 
     async notifyActiveEditorChanged(editor) {
+        this.updateDeadCodeStatusBar();
         if (!editor || !isSupportedKobelDoc(editor.document) || this.disposed) return;
         const doc = editor.document;
         const key = doc.uri.toString();
@@ -1094,6 +1198,8 @@ class KobelLanguageClient {
             });
         }
         this.diagnosticsCollection.delete(doc.uri);
+        this.rawDiagnostics.delete(key);
+        this.updateDeadCodeStatusBar();
 
         if (this.openDocs.size === 0) {
             this.scheduleIdleSleep();
@@ -1127,6 +1233,7 @@ class KobelLanguageClient {
             this.cleanupTempHostBinary();
         }
         this.diagnosticsCollection.dispose();
+        if (this.deadCodeStatusBar) this.deadCodeStatusBar.dispose();
     }
 }
 
@@ -1164,6 +1271,9 @@ function activate(context) {
         vscode.workspace.onDidChangeConfiguration(event => {
             if (event.affectsConfiguration('kobel.compilerPath')) {
                 client.restart(resolveCompilerPath());
+            }
+            if (event.affectsConfiguration('kobel.deadCode')) {
+                client.refreshAllDiagnostics();
             }
         })
     );
@@ -1287,16 +1397,22 @@ function activate(context) {
                             return [];
                         }
                         await client.flushDidChange(document);
-                        const diags = (actionContext.diagnostics || []).map(d => ({
-                            range: {
-                                start: { line: d.range.start.line, character: d.range.start.character },
-                                end: { line: d.range.end.line, character: d.range.end.character }
-                            },
-                            message: d.message,
-                            severity: d.severity === vscode.DiagnosticSeverity.Error ? 1
-                                : d.severity === vscode.DiagnosticSeverity.Warning ? 2 : 3,
-                            source: d.source || 'kobel'
-                        }));
+                        const diags = (actionContext.diagnostics || []).map(d => {
+                            const out = {
+                                range: {
+                                    start: { line: d.range.start.line, character: d.range.start.character },
+                                    end: { line: d.range.end.line, character: d.range.end.character }
+                                },
+                                message: d.message,
+                                severity: d.severity === vscode.DiagnosticSeverity.Error ? 1
+                                    : d.severity === vscode.DiagnosticSeverity.Warning ? 2
+                                    : d.severity === vscode.DiagnosticSeverity.Information ? 3 : 4,
+                                source: d.source || 'kobel'
+                            };
+                            if (d.code !== undefined && d.code !== '') out.code = String(d.code);
+                            if (Array.isArray(d.tags) && d.tags.length > 0) out.tags = d.tags;
+                            return out;
+                        });
 
                         const res = await client.sendRequest('textDocument/codeAction', {
                             textDocument: { uri: document.uri.toString() },
@@ -1514,6 +1630,9 @@ function activate(context) {
         vscode.commands.registerCommand('kobel.restartServer', () => {
             client.restart(resolveCompilerPath());
             vscode.window.showInformationMessage('Kobel Language Server restarted.');
+        }),
+        vscode.commands.registerCommand('kobel.showDeadCode', async () => {
+            await vscode.commands.executeCommand('workbench.actions.view.problems');
         })
     );
 

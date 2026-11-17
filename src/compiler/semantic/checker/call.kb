@@ -81,7 +81,7 @@ impl BodyChecker {
 			if (callee_ty.kind == DataType.FN) {
 				if (call.callee is IdentifierExpr as cid) {
 					val c_sym = self.symtab.lookup(cid.name);
-					if (c_sym != null && c_sym.kind in [SymbolKind.PARAM, SymbolKind.VAR]) {
+					if (c_sym?.kind in [SymbolKind.PARAM, SymbolKind.VAR]) {
 						self.set_closure_call(call.callee);
 					}
 				}
@@ -279,9 +279,7 @@ impl BodyChecker {
 			if (self.type_param_index(id.name) >= 0) return true;
 			if (prim_c_size(id.name) > 0) return true;
 			val sym = self.symtab.lookup(id.name);
-			if (sym != null && (sym.kind == SymbolKind.STRUCT || sym.kind == SymbolKind.ENUM)) {
-				return true;
-			}
+			if (sym?.kind in [SymbolKind.STRUCT, SymbolKind.ENUM]) return true;
 		}
 		return false;
 	}
@@ -437,6 +435,27 @@ impl BodyChecker {
 		self.check_expr_mutability_for_method(node, obj_node, member);
 	}
 
+	fn apply_safe_call_return(&self, node: *AstNode, member: str, ret_ty: *Type): *Type {
+		if (ret_ty.kind == DataType.POINTER) {
+			val pt = ret_ty.as_pointer();
+			return self.arena.nullable_pointer_type(pt!.pointee, pt!.mutable);
+		}
+		if (ret_ty.kind !in [DataType.STR, DataType.NONE]) {
+			val scalar_safe = self.type_has_safe_default(ret_ty);
+			self.ensure(
+				self.in_safe_nav_context && scalar_safe,
+				node,
+				if (scalar_safe)
+					"Safe method call '?.' on non-pointer returning method '${member}' " +
+					"requires handling null with '?:' or being used in a condition"
+				else
+					"Safe method call '?.' returning non-pointer '${self.type_display(ret_ty)}' " +
+					"is not supported; unwrap the receiver first"
+			);
+		}
+		return ret_ty;
+	}
+
 	fn bind_method_call(
 		&self,
 		node: *AstNode,
@@ -540,19 +559,7 @@ impl BodyChecker {
 		if (self.arrow_pending(mi.ast_node)) self.infer_blocked = true;
 
 		var ret_ty = fn_info.return_type;
-		if (mem.is_safe) {
-			if (ret_ty.kind == DataType.POINTER) {
-				val pt = ret_ty.as_pointer();
-				ret_ty = self.arena.nullable_pointer_type(pt!.pointee, pt!.mutable);
-			} else if (ret_ty.kind != DataType.STR) {
-				self.ensure(
-					self.in_safe_nav_context,
-					node,
-					"Safe method call '?.' on non-pointer returning method '${mem.member}' " +
-					"requires handling null with '?:' or being used in a condition"
-				);
-			}
-		}
+		if (mem.is_safe) ret_ty = self.apply_safe_call_return(node, mem.member, ret_ty);
 
 		self.set_method(node, mi);
 		return ret_ty;
@@ -590,7 +597,7 @@ impl BodyChecker {
 
 		var tmpl = self.find_method_template_for(mem.member, st.name);
 		if (tmpl == null) tmpl = self.find_method_template_for(mem.member, "");
-		if (tmpl != null && tmpl.is_method) {
+		if (tmpl?.is_method) {
 			var is_static = false;
 			if (tmpl.node is FnDecl as f) {
 				is_static = f.params.empty() || f.params[0].name != "self";
@@ -740,7 +747,10 @@ impl BodyChecker {
 	}
 
 	pub fn check_method_call(&self, node: &AstNode, mem: &MemberExpr, call: &CallExpr): ?*Type {
+		val prev_elvis = self.in_elvis_lhs;
+		self.in_elvis_lhs = false;
 		val obj_raw_ty = self.check_expr(mem.object);
+		self.in_elvis_lhs = prev_elvis;
 		var obj_ty = obj_raw_ty;
 		var obj_is_ptr = false;
 		if (obj_ty.kind == DataType.POINTER) {
@@ -831,19 +841,7 @@ impl BodyChecker {
 				self.report_error(node, "Method 'read' takes no arguments");
 			}
 			var ret_ty = obj_raw_ty.as_pointer()!.pointee;
-			if (mem.is_safe) {
-				if (ret_ty.kind == DataType.POINTER) {
-					val pt = ret_ty.as_pointer();
-					ret_ty = self.arena.nullable_pointer_type(pt!.pointee, pt!.mutable);
-				} else if (ret_ty.kind != DataType.STR) {
-					self.ensure(
-						self.in_safe_nav_context,
-						node,
-						"Safe method call '?.' on non-pointer returning method 'read' " +
-						"requires handling null with '?:' or being used in a condition"
-					);
-				}
-			}
+			if (mem.is_safe) ret_ty = self.apply_safe_call_return(node, "read", ret_ty);
 			return ret_ty;
 		}
 

@@ -1,0 +1,539 @@
+mod lsp;
+
+use std.collections.*;
+
+use compiler.ast.*;
+use compiler.lexer.*;
+
+/*
+ * ============================================================================
+ * lsp.dead_code — Dead Code & Unreachable Statement Detector
+ *
+ * Inspects a parsed module AST + `SemanticIndex` to report high-confidence
+ * dead-code diagnostics tagged with LSP `DiagnosticTag.Unnecessary` (`1`):
+ *   - `unreachable-code`: statements after `return`/`break`/`continue`/`yield`,
+ *     `Process.exit(...)`, or exhaustive diverging `if`/`when` branches.
+ *   - `unused-import`: unreferenced explicit `use` declarations.
+ *   - `unused-variable` / `unused-parameter`: unreferenced non-`_` locals/params.
+ *   - `unused-symbol`: private module declarations unreachable from live roots.
+ * ============================================================================
+ */
+
+const DEAD_TAG_UNNECESSARY: i64 = 1;
+const DEAD_SEV_WARNING: i64 = 2;
+
+fn make_dead_diag(
+	l0: usz,
+	c0: usz,
+	end_l0: usz,
+	end_c0: usz,
+	message: str,
+	code: str
+): LspDiagnostic {
+	var tags = List<i64>();
+	tags += DEAD_TAG_UNNECESSARY;
+	return LspDiagnostic(l0, c0, end_l0, end_c0, DEAD_SEV_WARNING, message, code, tags);
+}
+
+fn is_diverging_call(expr: ?*AstNode): bool {
+	if (expr == null) return false;
+	var cur = expr!;
+	while (true) {
+		if (cur is GroupExpr as g) cur = g.expr;
+		else break;
+	}
+	if (cur is CallExpr as call) {
+		if (call.callee is MemberExpr as mem) {
+			if (mem.object is IdentifierExpr as id) {
+				if (id.name == "Process" && mem.member == "exit") return true;
+			}
+		} else if (call.callee is IdentifierExpr as fid) {
+			if (fid.name in ["exit", "abort"]) return true;
+		}
+	}
+	return false;
+}
+
+fn stmt_always_diverges_lsp(node: ?*AstNode): bool {
+	if (node == null) return false;
+	return when (node!) {
+		is ReturnStmt, BreakStmt, ContinueStmt, YieldStmt -> true;
+		is ExprStmt as es -> is_diverging_call(es.expr);
+		is BlockStmt as blk -> blk.statements.any { s -> stmt_always_diverges_lsp(s) };
+		is IfStmt as ifs -> ifs.else_branch != null
+			&& stmt_always_diverges_lsp(ifs.then_branch)
+			&& stmt_always_diverges_lsp(ifs.else_branch!);
+		is WhenStmt as ws -> !ws.arms.empty()
+			&& ws.arms.any { a -> a.is_else }
+			&& ws.arms.all { a -> stmt_always_diverges_lsp(a.body) };
+		else -> false;
+	};
+}
+
+fn node_max_line(node: ?*AstNode): usz {
+	if (node == null) return 0;
+	var best = node!.line;
+	when (node!) {
+		is BlockStmt as b -> for (s in b.statements) {
+			val sl = node_max_line(s);
+			if (sl > best) best = sl;
+		}
+		is ExprStmt as es -> {
+			val el = node_max_line(es.expr);
+			if (el > best) best = el;
+		}
+		is VarDeclStmt as vd -> {
+			val vl = node_max_line(vd.initializer);
+			if (vl > best) best = vl;
+		}
+		is DestructDeclStmt as dd -> {
+			val dl = node_max_line(dd.initializer);
+			if (dl > best) best = dl;
+		}
+		is IfStmt as ifs -> {
+			val tl = node_max_line(ifs.then_branch);
+			if (tl > best) best = tl;
+			val el = node_max_line(ifs.else_branch);
+			if (el > best) best = el;
+		}
+		is WhileStmt as ws -> {
+			val wl = node_max_line(ws.body);
+			if (wl > best) best = wl;
+		}
+		is ForStmt as fs -> {
+			val fl = node_max_line(fs.body);
+			if (fl > best) best = fl;
+		}
+		is WhenStmt as wh -> for (arm in wh.arms) {
+			val al = node_max_line(arm.body);
+			if (al > best) best = al;
+		}
+		is DeferStmt as ds -> {
+			val dl = node_max_line(ds.body);
+			if (dl > best) best = dl;
+		}
+		is ReturnStmt as rs -> {
+			val rl = node_max_line(rs.value);
+			if (rl > best) best = rl;
+		}
+		is YieldStmt as ys -> {
+			val yl = node_max_line(ys.value);
+			if (yl > best) best = yl;
+		}
+		is AssignExpr as a -> {
+			val vl = node_max_line(a.value);
+			if (vl > best) best = vl;
+		}
+		is LambdaExpr as lam -> {
+			val ll = node_max_line(lam.body);
+			if (ll > best) best = ll;
+		}
+		is CatchExpr as ce -> {
+			val hl = node_max_line(ce.handler);
+			if (hl > best) best = hl;
+		}
+		is IfExpr as ie -> {
+			val tl = node_max_line(ie.then_branch);
+			if (tl > best) best = tl;
+			val el = node_max_line(ie.else_branch);
+			if (el > best) best = el;
+		}
+		is WhenExpr as we -> for (arm in we.arms) {
+			val al = node_max_line(arm.body);
+			if (al > best) best = al;
+		}
+	}
+	return best;
+}
+
+fn stmt_end_pos(tokens: List<Token>, stmt: *AstNode): Pair<usz, usz> {
+	val sl = if (stmt.line > 0) stmt.line else 1;
+	val sc = if (stmt.col > 0) stmt.col else 1;
+	val is_compound = stmt is [BlockStmt, IfStmt, WhileStmt, ForStmt, WhenStmt, DeferStmt];
+
+	var i = find_token_index_at_line(tokens, sl);
+	val n = tokens.len;
+	var brace_depth: i32 = 0;
+	var saw_brace = false;
+	while (i < n) {
+		val tok = tokens[i];
+		if (tok.line < sl || (tok.line == sl && tok.col < sc)) {
+			i++;
+			continue;
+		}
+		if (tok.type == TokenType.OPEN_BRACE) {
+			brace_depth++;
+			saw_brace = true;
+		} else if (tok.type == TokenType.CLOSE_BRACE) {
+			if (brace_depth > 0) brace_depth--;
+			if (is_compound && saw_brace && brace_depth == 0) {
+				if (stmt is IfStmt && i + 1 < n && tokens[i + 1].type == TokenType.KW_ELSE) {
+					saw_brace = false;
+					i++;
+					continue;
+				}
+				return Pair(tok.line, tok.col + tok.text.len);
+			}
+		} else if (tok.type == TokenType.SEMI_COLON && brace_depth == 0) {
+			if (stmt is IfStmt && i + 1 < n && tokens[i + 1].type == TokenType.KW_ELSE) {
+				i++;
+				continue;
+			}
+			return Pair(tok.line, tok.col + 1);
+		}
+		i++;
+	}
+
+	val max_l = node_max_line(stmt);
+	val fallback_l = if (max_l >= sl) max_l else sl;
+	return Pair(fallback_l, find_line_end_col(tokens, fallback_l));
+}
+
+fn scan_unreachable_in_expr(node: ?*AstNode, tokens: List<Token>, out: &List<LspDiagnostic>) {
+	if (node == null) return;
+	when (node!) {
+		is BinaryExpr as b -> {
+			scan_unreachable_in_expr(b.left, tokens, out);
+			scan_unreachable_in_expr(b.right, tokens, out);
+		}
+		is UnaryExpr as u -> scan_unreachable_in_expr(u.operand, tokens, out);
+		is CallExpr as c -> {
+			scan_unreachable_in_expr(c.callee, tokens, out);
+			for (a in c.args) scan_unreachable_in_expr(a, tokens, out);
+		}
+		is MemberExpr as m -> scan_unreachable_in_expr(m.object, tokens, out);
+		is IndexExpr as ix -> {
+			scan_unreachable_in_expr(ix.target, tokens, out);
+			scan_unreachable_in_expr(ix.index, tokens, out);
+		}
+		is AssignExpr as a -> {
+			scan_unreachable_in_expr(a.target, tokens, out);
+			scan_unreachable_in_expr(a.value, tokens, out);
+		}
+		is CastExpr as cs -> scan_unreachable_in_expr(cs.expr, tokens, out);
+		is GroupExpr as g -> scan_unreachable_in_expr(g.expr, tokens, out);
+		is ArrayLiteralExpr as al -> for (el in al.elements) scan_unreachable_in_expr(el, tokens, out);
+		is IfExpr as ie -> {
+			scan_unreachable_in_expr(ie.condition, tokens, out);
+			scan_unreachable_in_stmt(ie.then_branch, tokens, out);
+			scan_unreachable_in_stmt(ie.else_branch, tokens, out);
+		}
+		is WhenExpr as we -> {
+			scan_unreachable_in_expr(we.condition, tokens, out);
+			for (arm in we.arms) scan_unreachable_in_stmt(arm.body, tokens, out);
+		}
+		is InterpExpr as ip -> {
+			for (part in ip.parts) {
+				when (part) {
+					is InterpPart.Hole -> scan_unreachable_in_expr(part.node, tokens, out);
+					else -> {}
+				}
+			}
+		}
+		is IsExpr as ise -> scan_unreachable_in_expr(ise.expr, tokens, out);
+		is LambdaExpr as lam -> scan_unreachable_in_stmt(lam.body, tokens, out);
+		is CatchExpr as ce -> {
+			scan_unreachable_in_expr(ce.expr, tokens, out);
+			scan_unreachable_in_stmt(ce.handler, tokens, out);
+		}
+		is ErrorUnionWrapExpr as eu -> scan_unreachable_in_expr(eu.value, tokens, out);
+		else -> {}
+	}
+}
+
+fn scan_unreachable_in_stmt(node: ?*AstNode, tokens: List<Token>, out: &List<LspDiagnostic>) {
+	if (node == null) return;
+	when (node!) {
+		is BlockStmt as blk -> {
+			var div_idx: isz = -1;
+			for (i in 0..<blk.statements.len) {
+				val st = blk.statements[i];
+				scan_unreachable_in_stmt(st, tokens, out);
+				if (stmt_always_diverges_lsp(st)) {
+					div_idx = i as isz;
+					break;
+				}
+			}
+			if (div_idx >= 0 && (div_idx as usz) + 1 < blk.statements.len) {
+				val first_dead = blk.statements[(div_idx as usz) + 1];
+				val last_dead = blk.statements[blk.statements.len - 1];
+				val l0 = if (first_dead.line > 0) first_dead.line - 1 else 0;
+				val c0 = if (first_dead.col > 0) first_dead.col - 1 else 0;
+				val (end_l1, end_c1) = stmt_end_pos(tokens, last_dead);
+				val end_l0 = if (end_l1 > 0) end_l1 - 1 else l0;
+				var end_c0 = if (end_c1 > 0) end_c1 - 1 else c0 + 1;
+				if (end_l0 == l0 && end_c0 <= c0) end_c0 = c0 + 1;
+				out += make_dead_diag(l0, c0, end_l0, end_c0, "Unreachable code", "unreachable-code");
+			}
+		}
+		is ExprStmt as es -> scan_unreachable_in_expr(es.expr, tokens, out);
+		is VarDeclStmt as vd -> scan_unreachable_in_expr(vd.initializer, tokens, out);
+		is DestructDeclStmt as dd -> scan_unreachable_in_expr(dd.initializer, tokens, out);
+		is IfStmt as ifs -> {
+			scan_unreachable_in_expr(ifs.condition, tokens, out);
+			scan_unreachable_in_stmt(ifs.then_branch, tokens, out);
+			if (ifs.else_branch != null) scan_unreachable_in_stmt(ifs.else_branch!, tokens, out);
+		}
+		is WhileStmt as ws -> {
+			scan_unreachable_in_expr(ws.condition, tokens, out);
+			scan_unreachable_in_stmt(ws.body, tokens, out);
+		}
+		is ForStmt as fs -> {
+			scan_unreachable_in_expr(fs.iterable, tokens, out);
+			scan_unreachable_in_expr(fs.range_start, tokens, out);
+			scan_unreachable_in_expr(fs.range_end, tokens, out);
+			scan_unreachable_in_stmt(fs.body, tokens, out);
+		}
+		is ReturnStmt as rs -> scan_unreachable_in_expr(rs.value, tokens, out);
+		is YieldStmt as ys -> scan_unreachable_in_expr(ys.value, tokens, out);
+		is DeferStmt as ds -> scan_unreachable_in_stmt(ds.body, tokens, out);
+		is WhenStmt as wh -> {
+			scan_unreachable_in_expr(wh.condition, tokens, out);
+			for (arm in wh.arms) scan_unreachable_in_stmt(arm.body, tokens, out);
+		}
+		else -> scan_unreachable_in_expr(node, tokens, out);
+	}
+}
+
+fn collect_unreachable_in_doc(doc_ast: ?*AstNode, tokens: List<Token>, out: &List<LspDiagnostic>) {
+	val root = doc_ast ?: return;
+	if (root is Program as prog) {
+		for (decl in prog) {
+			when (decl) {
+				is FnDecl as f -> if (f.body != null) scan_unreachable_in_stmt(f.body!, tokens, out);
+				is ImplDecl as im -> for (m in im.methods) {
+					if (m is FnDecl as mf && mf.body != null) {
+						scan_unreachable_in_stmt(mf.body!, tokens, out);
+					}
+				}
+				is TraitDecl as tr -> for (m in tr.methods) {
+					if (m is FnDecl as tm && tm.body != null) {
+						scan_unreachable_in_stmt(tm.body!, tokens, out);
+					}
+				}
+				is ConstDecl as c -> scan_unreachable_in_expr(c.value, tokens, out);
+				is StructDecl as st -> for (fld in st.fields) {
+					scan_unreachable_in_expr(fld.default_val, tokens, out);
+				}
+			}
+		}
+	}
+}
+
+fn has_usage_ref(index: *SemanticIndex, key: str): bool {
+	val idxs = index.refs_by_key.get_or(key, List<usz>());
+	for (idx in idxs) {
+		val r = index.refs[idx];
+		if (!r.is_def && !r.is_import) return true;
+	}
+	return false;
+}
+
+fn method_struct_key(method_key: str): str {
+	// Method key format: "method:<mod>:<Container>:<member>"
+	if (!method_key.starts_with("method:")) return "";
+	val c1 = 6;
+	var c2: isz = -1;
+	var c3: isz = -1;
+	for (i in (c1 + 1)..<method_key.len) {
+		if (method_key[i] == ':') {
+			c2 = c3;
+			c3 = i as isz;
+		}
+	}
+	if (c2 < 0 || c3 <= c2) return "";
+	return "struct:${method_key.slice(c1 + 1, c3 as usz)}";
+}
+
+fn compute_live_module_defs(index: *SemanticIndex, doc_mod: str): HashSet<str> {
+	var live = HashSet<str>();
+	var queue = List<str>();
+	var adj = HashMap<str, List<str>>();
+	var struct_methods = HashMap<str, List<str>>();
+	var private_types = HashSet<str>();
+
+	for (def in index.defs) {
+		if ((def.role == SymRole.STRUCT || def.role == SymRole.ENUM) && !def.is_public) {
+			private_types += def.key;
+		}
+		if (def.module_name == doc_mod && def.role == SymRole.METHOD && !def.container.empty()) {
+			val skey = method_struct_key(def.key);
+			if (!skey.empty()) {
+				var ml = struct_methods.get_or(skey, List<str>());
+				ml += def.key;
+				struct_methods[skey] = ml;
+			}
+		}
+	}
+
+	for (r in index.refs) {
+		if (r.is_def || r.is_import) continue;
+		val external_or_header = r.owner_key.empty() || r.module_name != doc_mod;
+		if (external_or_header) {
+			if (r.owner_key != "__impl_hdr__" && live.add(r.target_key)) {
+				queue += r.target_key;
+			}
+			continue;
+		}
+		if (r.owner_key == "__impl_hdr__") continue;
+		var list = adj.get_or(r.owner_key, List<str>());
+		if (r.target_key !in list) {
+			list += r.target_key;
+			adj[r.owner_key] = list;
+		}
+	}
+
+	for (def in index.defs) {
+		if (def.module_name != doc_mod) continue;
+		val non_decl_role = def.role in [
+			SymRole.MODULE, SymRole.FIELD, SymRole.ENUM_VARIANT,
+			SymRole.LOCAL, SymRole.PARAM
+		];
+		val method_priv_struct = "struct:${doc_mod}:${def.container}" in private_types;
+		val method_priv_enum = "enum:${doc_mod}:${def.container}" in private_types;
+		val method_of_priv_type = def.role == SymRole.METHOD
+			&& !def.container.empty()
+			&& (method_priv_struct || method_priv_enum);
+		val pub_root = def.is_public && !method_of_priv_type;
+		val special_root = def.is_special_fn && def.name != "init";
+		val is_root = non_decl_role || !def.has_body || def.is_trait_impl || pub_root || special_root;
+		if (is_root && live.add(def.key)) {
+			queue += def.key;
+		}
+	}
+
+	var qi: usz = 0;
+	while (qi < queue.len) {
+		val cur = queue[qi];
+		qi++;
+		val targets = adj.get_or(cur, List<str>());
+		for (t in targets) {
+			if (live.add(t)) queue += t;
+		}
+		if (cur in struct_methods) {
+			val mkeys = struct_methods.get_or(cur, List<str>());
+			for (mk in mkeys) {
+				val mdef_res = index.get_def(mk);
+				if (mdef_res is DefInfo as mdef) {
+					if (mdef.is_public || mdef.is_special_fn || mdef.is_trait_impl) {
+						if (live.add(mk)) queue += mk;
+					}
+				}
+			}
+		}
+	}
+
+	private_types.free();
+	adj.free();
+	struct_methods.free();
+	return live;
+}
+
+fn unused_symbol_label(role: SymRole): str => when (role) {
+	SymRole.FN -> "function";
+	SymRole.METHOD -> "method";
+	SymRole.STRUCT -> "struct";
+	SymRole.ENUM -> "enum";
+	SymRole.TRAIT -> "trait";
+	SymRole.CONST -> "constant";
+	else -> "symbol";
+};
+
+pub fn collect_dead_code_diagnostics(
+	doc_ast: ?*AstNode,
+	index: *SemanticIndex,
+	tokens: List<Token>,
+	file_path: str,
+	doc_mod: str,
+	allow_imports_and_symbols: bool,
+	out: &List<LspDiagnostic>
+) {
+	// 1. Unreachable statements inside functions/methods/lambdas
+	collect_unreachable_in_doc(doc_ast, tokens, out);
+
+	// 2. Unused explicit `use` imports in the current file
+	val norm = file_path.normalize_path();
+	if (allow_imports_and_symbols) {
+		val imps = index.imports_by_file.get_or(norm, List<ImportInfo>());
+		for (imp in imps) {
+			if (imp.wildcard || imp.used) continue;
+			val l0 = if (imp.line > 0) imp.line - 1 else 0;
+			val c0 = if (imp.col > 0) imp.col - 1 else 0;
+			val el0 = if (imp.end_line > 0) imp.end_line - 1 else l0;
+			var ec0 = if (imp.end_col > 0) imp.end_col - 1 else c0 + 1;
+			if (el0 == l0 && ec0 <= c0) ec0 = c0 + 1;
+			out += make_dead_diag(
+				l0, c0, el0, ec0,
+				"Unused import '${imp.target_module}.${imp.symbol_name}'",
+				"unused-import"
+			);
+		}
+	}
+
+	// 3. Unused local variables & parameters (ignoring `_`-prefixed names)
+	for (def in index.defs) {
+		if (!paths_equal(def.file_path, file_path)) continue;
+		if (def.name.empty() || def.name.starts_with("_")) continue;
+		if (def.role == SymRole.LOCAL) {
+			if (!has_usage_ref(index, def.key)) {
+				val l0 = if (def.line > 0) def.line - 1 else 0;
+				val c0 = if (def.col > 0) def.col - 1 else 0;
+				val len = if (def.len > 0) def.len else 1;
+				out += make_dead_diag(
+					l0, c0, l0, c0 + len,
+					"Unused variable '${def.name}'",
+					"unused-variable"
+				);
+			}
+		} else if (def.role == SymRole.PARAM) {
+			if (def.name == "self") continue;
+			var skip_param = false;
+			if (!def.container.empty()) {
+				val owner_res = index.get_def(def.container);
+				if (owner_res is DefInfo as owner) {
+					if (!owner.has_body || owner.is_trait_impl || owner.name == "main") {
+						skip_param = true;
+					}
+				}
+			}
+			if (skip_param) continue;
+			if (!has_usage_ref(index, def.key)) {
+				val l0 = if (def.line > 0) def.line - 1 else 0;
+				val c0 = if (def.col > 0) def.col - 1 else 0;
+				val len = if (def.len > 0) def.len else 1;
+				out += make_dead_diag(
+					l0, c0, l0, c0 + len,
+					"Unused parameter '${def.name}'",
+					"unused-parameter"
+				);
+			}
+		}
+	}
+
+	// 4. Unreachable / unused private module-level declarations
+	if (allow_imports_and_symbols) {
+		var live = compute_live_module_defs(index, doc_mod);
+		defer live.free();
+		for (def in index.defs) {
+			if (!paths_equal(def.file_path, file_path)) continue;
+			if (def.name.empty() || def.name.starts_with("_") || def.is_special_fn) continue;
+			if (!def.has_body || def.is_trait_impl) continue;
+			if (
+				def.role !in [
+					SymRole.FN, SymRole.METHOD, SymRole.STRUCT,
+					SymRole.ENUM, SymRole.TRAIT, SymRole.CONST
+				]
+			) continue;
+			if (def.key in live) continue;
+			val l0 = if (def.line > 0) def.line - 1 else 0;
+			val c0 = if (def.col > 0) def.col - 1 else 0;
+			val len = if (def.len > 0) def.len else 1;
+			val kind_label = unused_symbol_label(def.role);
+			out += make_dead_diag(
+				l0, c0, l0, c0 + len,
+				"Unused ${kind_label} '${def.name}'",
+				"unused-symbol"
+			);
+		}
+	}
+}

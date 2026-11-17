@@ -64,7 +64,7 @@ impl BodyChecker {
 				Literal.BOOLEAN -> self.prims().t_bool();
 				Literal.STRING -> {
 					val str_ty = self.prims().t_str();
-					if (expected != null && expected.kind == DataType.POINTER && expected.can_assign(str_ty)) {
+					if (expected?.kind == DataType.POINTER && expected.can_assign(str_ty)) {
 						yield expected;
 					}
 					yield str_ty;
@@ -157,12 +157,19 @@ impl BodyChecker {
 			];
 
 			val prev_sn = self.in_safe_nav_context;
+			val prev_elvis = self.in_elvis_lhs;
 			if (is_cmp) self.in_safe_nav_context = true;
+			self.in_elvis_lhs = (
+				bin.op == TokenType.KW_IN &&
+				self.unwrap_group_mut(bin.right) is ArrayLiteralExpr
+			);
 
 			var lt_num = self.check_expr(bin.left, num_expected);
+			self.in_elvis_lhs = false;
 			var lt = lt_num;
 			if (bin.op == TokenType.KW_IN && self.unwrap_group_mut(bin.right) is ArrayLiteralExpr as al) {
 				self.in_safe_nav_context = prev_sn;
+				self.in_elvis_lhs = prev_elvis;
 				return self.check_in_list_op(node, bin, lt, al);
 			}
 			var r_expected: ?*Type = num_expected;
@@ -170,6 +177,7 @@ impl BodyChecker {
 			var rt = self.check_expr(bin.right, r_expected);
 
 			self.in_safe_nav_context = prev_sn;
+			self.in_elvis_lhs = prev_elvis;
 
 			if (self.is_untyped_literal(bin.left) && rt.is_numeric() && !lt.equals(rt)) {
 				lt = self.check_expr(bin.left, rt);
@@ -205,9 +213,12 @@ impl BodyChecker {
 	fn check_elvis_expr(&self, node: &AstNode, bin: &BinaryExpr, was_stmt: bool): *Type {
 		val num_expected: ?*Type = null;
 		val prev_sn = self.in_safe_nav_context;
+		val prev_elvis = self.in_elvis_lhs;
 		self.in_safe_nav_context = true;
+		self.in_elvis_lhs = self.is_safe_nav_expr(bin.left);
 		var lt_num = self.check_expr(bin.left, num_expected);
 		self.in_safe_nav_context = prev_sn;
+		self.in_elvis_lhs = prev_elvis;
 		var lt = lt_num;
 		val is_safe_nav = self.is_safe_nav_expr(bin.left);
 		self.ensure(
@@ -395,7 +406,7 @@ impl BodyChecker {
 				s.fields[0].type_ptr.kind == DataType.POINTER
 			) {
 				val elem_t = s.fields[0].type_ptr.as_pointer()!.pointee;
-				if (elem_t != null && elem_t.kind == DataType.STR && lt.kind == DataType.STR) {
+				if (elem_t?.kind == DataType.STR && lt.kind == DataType.STR) {
 					var args = List<&AstNode>();
 					args += bin.right;
 					val mem = self.arena.node(
@@ -736,7 +747,7 @@ impl BodyChecker {
 			self.in_safe_nav_context = prev_sn;
 			self.ensure(cond_ty.kind == DataType.BOOL, node, "If expression condition must be bool");
 			var branch_hint = expected;
-			if (branch_hint != null && branch_hint.kind == DataType.ERROR_UNION) {
+			if (branch_hint?.kind == DataType.ERROR_UNION) {
 				val eu = branch_hint.as_error_union()!;
 				if (eu.ok.kind != DataType.NONE) branch_hint = eu.ok;
 			}
@@ -761,7 +772,7 @@ impl BodyChecker {
 					val mutable = t_ptr.mutable || e_ptr.mutable;
 					then_ty = self.arena.nullable_pointer_type(t_ptr.pointee, mutable);
 				}
-			} else if (expected != null && expected.kind == DataType.ERROR_UNION) {
+			} else if (expected?.kind == DataType.ERROR_UNION) {
 				if (expected.can_assign(then_ty) && expected.can_assign(else_ty)) {
 					return expected;
 				}
@@ -843,7 +854,7 @@ impl BodyChecker {
 				return ok_ty;
 			}
 			else -> {
-				val h_expected = if (expected != null && expected!.kind == DataType.ERROR_UNION) expected else ok_ty;
+				val h_expected = if (expected?.kind == DataType.ERROR_UNION) expected else ok_ty;
 				self.is_stmt_level = was_stmt;
 				val h_ty = self.check_expr(h, h_expected);
 				self.is_stmt_level = false;
