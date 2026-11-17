@@ -265,19 +265,43 @@ impl BodyChecker {
 			self.current_trait_name = im.trait_name;
 
 			self.current_self_type = st_sym.type_ptr;
-			for (m_node in im.methods) {
-				if (m_node is FnDecl as f) {
-					if (f.type_params.len > 0) continue;
-					val mi = st_info.find_method_c(f.name);
-					if (mi == null) continue;
-					val rec = self.symtab.get_node_instance(m_node);
-					val saved_rec = self.push_instance(rec);
-					self.check_fn_body(m_node, mi!.fn_type);
-					self.pop_instance(saved_rec, rec);
-				}
-			}
+			self.check_method_list(im.methods, st_info);
 			self.current_self_type = null;
 			self.current_trait_name = prev_trait;
+		}
+	}
+
+	fn check_const_node(&self, c: *ConstDecl) {
+		var c_expected: ?*Type = null;
+		if (c.type_node != null) c_expected = self.resolve_type(c.type_node!);
+		if (c.value != null) self.check_expr(c.value!, c_expected);
+	}
+
+	fn check_method_list(&self, methods: List<&AstNode>, st_info: *StructType) {
+		for (m_node in methods) {
+			if (m_node is FnDecl as f) {
+				if (f.type_params.len > 0) continue;
+				val mi = st_info.find_method_c(f.name) ?: continue;
+				val rec = self.symtab.get_node_instance(m_node);
+				val saved_rec = self.push_instance(rec);
+				self.check_fn_body(m_node, mi.fn_type);
+				self.pop_instance(saved_rec, rec);
+			}
+		}
+	}
+
+	pub fn check_object(&self, node: &AstNode) {
+		if (node is ObjectDecl as obj) {
+			val obj_sym = self.symtab.lookup(obj.name) ?: return;
+			if (obj_sym.type_ptr.kind != DataType.STRUCT) return;
+			val obj_info = obj_sym.type_ptr.as_struct()!;
+			val prev_self = self.current_self_type;
+			self.current_self_type = obj_sym.type_ptr;
+			for (cnode in obj.consts) {
+				if (cnode is ConstDecl as c) self.check_const_node(c);
+			}
+			self.check_method_list(obj.methods, obj_info);
+			self.current_self_type = prev_self;
 		}
 	}
 
@@ -303,11 +327,8 @@ impl BodyChecker {
 					is ModuleDecl as m -> self.symtab.set_current_module(m.full_path);
 					is FnDecl as f -> self.check_fn(decl);
 					is ImplDecl as im -> self.check_impl(decl);
-					is ConstDecl as c -> {
-						var c_expected: ?*Type = null;
-						if (c.type_node != null) c_expected = self.resolve_type(c.type_node!);
-						if (c.value != null) self.check_expr(c.value!, c_expected);
-					}
+					is ObjectDecl as obj -> self.check_object(decl);
+					is ConstDecl as c -> self.check_const_node(c);
 				}
 			}
 		}
@@ -360,6 +381,8 @@ impl BodyChecker {
 					self.add_fn_arrow_candidate(ast_node, cur_mod, &pending, &seen);
 				} else if (decl is ImplDecl as im) {
 					self.add_impl_arrow_candidates(im, cur_mod, &pending, &seen);
+				} else if (decl is ObjectDecl as obj) {
+					self.add_object_arrow_candidates(obj, cur_mod, &pending, &seen);
 				}
 			}
 
@@ -459,14 +482,41 @@ impl BodyChecker {
 		}
 		val st_sym = self.symtab.lookup(im.struct_name) ?: return;
 		if (st_sym.type_ptr.kind != DataType.STRUCT) return;
-		val st_info = st_sym.type_ptr.as_struct()!;
-		for (m_node in im.methods) {
+		self.add_struct_method_arrow_candidates(
+			im.methods, st_sym.type_ptr, st_sym.type_ptr.as_struct()!, module, pending, seen
+		);
+	}
+
+	fn add_object_arrow_candidates(
+		&self,
+		obj: &ObjectDecl,
+		module: str,
+		pending: &List<*ArrowCandidate>,
+		seen: &List<&AstNode>
+	) {
+		val obj_sym = self.symtab.lookup(obj.name) ?: return;
+		if (obj_sym.type_ptr.kind != DataType.STRUCT) return;
+		self.add_struct_method_arrow_candidates(
+			obj.methods, obj_sym.type_ptr, obj_sym.type_ptr.as_struct()!, module, pending, seen
+		);
+	}
+
+	fn add_struct_method_arrow_candidates(
+		&self,
+		methods: List<&AstNode>,
+		self_ty: *Type,
+		st_info: *StructType,
+		module: str,
+		pending: &List<*ArrowCandidate>,
+		seen: &List<&AstNode>
+	) {
+		for (m_node in methods) {
 			if (m_node in seen) continue;
 			if (!self.arrow_pending(m_node)) continue;
 			if (m_node is FnDecl as mf) {
 				val mi = st_info.find_method_c(mf.name) ?: continue;
 				seen += m_node;
-				pending += self.arrow_candidate(m_node, mi.fn_type, st_sym.type_ptr, module);
+				pending += self.arrow_candidate(m_node, mi.fn_type, self_ty, module);
 			}
 		}
 	}

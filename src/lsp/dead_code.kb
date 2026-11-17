@@ -306,6 +306,16 @@ fn collect_unreachable_in_doc(doc_ast: ?*AstNode, tokens: List<Token>, out: &Lis
 						scan_unreachable_in_stmt(mf.body!, tokens, out);
 					}
 				}
+				is ObjectDecl as obj -> {
+					for (cnode in obj.consts) {
+						if (cnode is ConstDecl as oc) scan_unreachable_in_expr(oc.value, tokens, out);
+					}
+					for (m in obj.methods) {
+						if (m is FnDecl as mf && mf.body != null) {
+							scan_unreachable_in_stmt(mf.body!, tokens, out);
+						}
+					}
+				}
 				is TraitDecl as tr -> for (m in tr.methods) {
 					if (m is FnDecl as tm && tm.body != null) {
 						scan_unreachable_in_stmt(tm.body!, tokens, out);
@@ -353,7 +363,7 @@ fn compute_live_module_defs(index: *SemanticIndex, doc_mod: str): HashSet<str> {
 	var private_types = HashSet<str>();
 
 	for (def in index.defs) {
-		if ((def.role == SymRole.STRUCT || def.role == SymRole.ENUM) && !def.is_public) {
+		if ((def.role == SymRole.STRUCT || def.role == SymRole.OBJECT || def.role == SymRole.ENUM) && !def.is_public) {
 			private_types += def.key;
 		}
 		if (def.module_name == doc_mod && def.role == SymRole.METHOD && !def.container.empty()) {
@@ -390,10 +400,12 @@ fn compute_live_module_defs(index: *SemanticIndex, doc_mod: str): HashSet<str> {
 			SymRole.LOCAL, SymRole.PARAM
 		];
 		val method_priv_struct = "struct:${doc_mod}:${def.container}" in private_types;
+		val method_priv_object = "object:${doc_mod}:${def.container}" in private_types;
 		val method_priv_enum = "enum:${doc_mod}:${def.container}" in private_types;
-		val method_of_priv_type = def.role == SymRole.METHOD
+		val is_member_role = def.role in [SymRole.METHOD, SymRole.CONST];
+		val method_of_priv_type = is_member_role
 			&& !def.container.empty()
-			&& (method_priv_struct || method_priv_enum);
+			&& (method_priv_struct || method_priv_object || method_priv_enum);
 		val pub_root = def.is_public && !method_of_priv_type;
 		val special_root = def.is_special_fn && def.name != "init";
 		val is_root = non_decl_role || !def.has_body || def.is_trait_impl || pub_root || special_root;
@@ -433,6 +445,7 @@ fn unused_symbol_label(role: SymRole): str => when (role) {
 	SymRole.FN -> "function";
 	SymRole.METHOD -> "method";
 	SymRole.STRUCT -> "struct";
+	SymRole.OBJECT -> "object";
 	SymRole.ENUM -> "enum";
 	SymRole.TRAIT -> "trait";
 	SymRole.CONST -> "constant";
@@ -520,7 +533,7 @@ pub fn collect_dead_code_diagnostics(
 			if (!def.has_body || def.is_trait_impl) continue;
 			if (
 				def.role !in [
-					SymRole.FN, SymRole.METHOD, SymRole.STRUCT,
+					SymRole.FN, SymRole.METHOD, SymRole.STRUCT, SymRole.OBJECT,
 					SymRole.ENUM, SymRole.TRAIT, SymRole.CONST
 				]
 			) continue;

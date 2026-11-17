@@ -510,9 +510,7 @@ typedef struct {
 typedef struct std__memory__MemErr std__memory__MemErr;
 typedef struct std__memory__MemErr__OutOfMemory std__memory__MemErr__OutOfMemory;
 #define std__memory__MemErr__OutOfMemory__TAG 0
-typedef struct std__memory__Heap std__memory__Heap;
 typedef struct std__string__StrRaw std__string__StrRaw;
-typedef struct std__process__Process std__process__Process;
 typedef struct testsupport__errdefs__NetErr testsupport__errdefs__NetErr;
 typedef struct testsupport__errdefs__NetErr__Timeout testsupport__errdefs__NetErr__Timeout;
 #define testsupport__errdefs__NetErr__Timeout__TAG 0
@@ -875,7 +873,7 @@ __kobel_eu_mut_ptr_u8__std__memory__MemErr std__memory__Heap_try_alloc(size_t si
 size_t req = size == 0 ? (size_t)1 : size;
 uint8_t* raw = malloc(req);
 if (raw == NULL) {
-return (__kobel_eu_mut_ptr_u8__std__memory__MemErr){ .is_ok = false, .u = { .err = (std__memory__MemErr){ .tag = 0, .__err_code = 1U, .__origin = { "lib/std/memory/heap.kb", 30, 41, "Heap_try_alloc" } } } };
+return (__kobel_eu_mut_ptr_u8__std__memory__MemErr){ .is_ok = false, .u = { .err = (std__memory__MemErr){ .tag = 0, .__err_code = 1U, .__origin = { "lib/std/memory/heap.kb", 24, 41, "Heap_try_alloc" } } } };
 }
 return (__kobel_eu_mut_ptr_u8__std__memory__MemErr){ .is_ok = true, .u = { .ok = raw } };
 }
@@ -1741,7 +1739,7 @@ return __ret_tmp;
 }
 
 uint8_t* std__memory__Heap_create_u8(size_t count) {
-    return __kobel_unwrap___kobel_eu_mut_ptr_u8__std__memory__MemErr(std__memory__Heap_try_create_u8(count), "lib/std/memory/heap.kb", 50, 67, "Heap_create_u8");
+    return __kobel_unwrap___kobel_eu_mut_ptr_u8__std__memory__MemErr(std__memory__Heap_try_create_u8(count), "lib/std/memory/heap.kb", 44, 67, "Heap_create_u8");
 }
 
 __kobel_eu_mut_ptr_u8__std__memory__MemErr std__memory__Heap_try_create_u8(size_t count) {

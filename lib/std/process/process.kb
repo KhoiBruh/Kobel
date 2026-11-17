@@ -16,9 +16,7 @@ pub fault ProcessErr {
 	SpawnFailed("Failed to launch shell or child process")
 }
 
-pub struct Process;
-
-impl Process {
+pub object Process {
 
 	pub fn exec(cmd: str): i32 ! ProcessErr {
 		if (cmd.empty()) return ProcessErr.EmptyCommand;

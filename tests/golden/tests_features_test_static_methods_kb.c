@@ -510,7 +510,6 @@ typedef struct {
 typedef struct std__memory__MemErr std__memory__MemErr;
 typedef struct std__memory__MemErr__OutOfMemory std__memory__MemErr__OutOfMemory;
 #define std__memory__MemErr__OutOfMemory__TAG 0
-typedef struct std__memory__Heap std__memory__Heap;
 typedef struct std__string__StrRaw std__string__StrRaw;
 typedef struct std__filesystem__FsErr std__filesystem__FsErr;
 typedef struct std__filesystem__FsErr__NotFound std__filesystem__FsErr__NotFound;
@@ -539,7 +538,6 @@ typedef struct std__filesystem__FsErr__IoFailed std__filesystem__FsErr__IoFailed
 #define std__filesystem__FsErr__IoFailed__TAG 11
 typedef struct std__filesystem__File std__filesystem__File;
 typedef struct std__filesystem__Path std__filesystem__Path;
-typedef struct std__process__Process std__process__Process;
 typedef struct test__static_methods__Point test__static_methods__Point;
 typedef struct __kobel_eu_none__std__filesystem__FsErr __kobel_eu_none__std__filesystem__FsErr;
 typedef struct __kobel_eu_str__std__filesystem__FsErr __kobel_eu_str__std__filesystem__FsErr;
@@ -800,7 +798,7 @@ __kobel_eu_mut_ptr_u8__std__memory__MemErr std__memory__Heap_try_alloc(size_t si
 size_t req = size == 0 ? (size_t)1 : size;
 uint8_t* raw = malloc(req);
 if (raw == NULL) {
-return (__kobel_eu_mut_ptr_u8__std__memory__MemErr){ .is_ok = false, .u = { .err = (std__memory__MemErr){ .tag = 0, .__err_code = 1U, .__origin = { "lib/std/memory/heap.kb", 30, 41, "Heap_try_alloc" } } } };
+return (__kobel_eu_mut_ptr_u8__std__memory__MemErr){ .is_ok = false, .u = { .err = (std__memory__MemErr){ .tag = 0, .__err_code = 1U, .__origin = { "lib/std/memory/heap.kb", 24, 41, "Heap_try_alloc" } } } };
 }
 return (__kobel_eu_mut_ptr_u8__std__memory__MemErr){ .is_ok = true, .u = { .ok = raw } };
 }

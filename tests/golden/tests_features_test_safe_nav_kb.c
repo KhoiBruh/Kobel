@@ -507,7 +507,6 @@ typedef struct {
 	kobel_loc origin;
 	kobel_loc fail_at;
 } __kobel_main_result;
-typedef struct std__process__Process std__process__Process;
 typedef int32_t test__safe_nav__ItemKind;
 typedef struct test__safe_nav__Inner test__safe_nav__Inner;
 typedef struct test__safe_nav__Middle test__safe_nav__Middle;

@@ -507,7 +507,6 @@ typedef struct {
 	kobel_loc origin;
 	kobel_loc fail_at;
 } __kobel_main_result;
-typedef struct std__process__Process std__process__Process;
 typedef struct test__self_move__Point test__self_move__Point;
 
 

@@ -44,6 +44,7 @@ pub enum DocSymbol: i64 {
 	FUNCTION = 12,
 	VARIABLE = 13,
 	CONSTANT = 14,
+	OBJECT = 19,
 	ENUM_MEMBER = 22,
 	STRUCT = 23
 }
@@ -762,6 +763,7 @@ impl AnalysisResult {
 				val k = when (def.role) {
 					SymRole.FIELD -> Completion.FIELD.value;
 					SymRole.METHOD -> Completion.METHOD.value;
+					SymRole.CONST -> Completion.CONSTANT.value;
 					SymRole.ENUM_VARIANT -> Completion.ENUM_MEMBER.value;
 					else -> Completion.VARIABLE.value;
 				};
@@ -794,7 +796,10 @@ impl AnalysisResult {
 			if (def.role in [SymRole.LOCAL, SymRole.PARAM]) {
 				if (!paths_equal(def.file_path, self.file_path)) continue;
 				if (def.line > line1) continue;
-			} else if (def.role in [SymRole.FIELD, SymRole.METHOD, SymRole.ENUM_VARIANT]) {
+			} else if (
+				def.role in [SymRole.FIELD, SymRole.METHOD, SymRole.ENUM_VARIANT]
+				|| (def.role == SymRole.CONST && !def.container.empty())
+			) {
 				continue;
 			}
 			if (def.name in added) continue;
@@ -802,6 +807,7 @@ impl AnalysisResult {
 			val k = when (def.role) {
 				SymRole.FN -> Completion.FUNCTION.value;
 				SymRole.STRUCT -> Completion.STRUCT.value;
+				SymRole.OBJECT -> Completion.TYPE.value;
 				SymRole.ENUM -> Completion.ENUM.value;
 				SymRole.TRAIT -> Completion.TYPE.value;
 				SymRole.CONST -> Completion.CONSTANT.value;
@@ -923,6 +929,7 @@ impl AnalysisResult {
 				SymRole.FN -> DocSymbol.FUNCTION.value;
 				SymRole.METHOD -> DocSymbol.METHOD.value;
 				SymRole.STRUCT -> DocSymbol.STRUCT.value;
+				SymRole.OBJECT -> DocSymbol.OBJECT.value;
 				SymRole.FIELD -> DocSymbol.FIELD.value;
 				SymRole.ENUM -> DocSymbol.ENUM.value;
 				SymRole.ENUM_VARIANT -> DocSymbol.ENUM_MEMBER.value;
@@ -1050,6 +1057,22 @@ impl AnalysisResult {
 						val label = if (decl.trait_name.empty()) "impl ${decl.struct_name}"
 							else "impl ${decl.trait_name} for ${decl.struct_name}";
 						arr += make_doc_symbol(label, DocSymbol.CLASS.value, dl, dc, kids);
+					}
+					is ObjectDecl -> {
+						val kids = JsonValue.arr();
+						for (cnode in decl.consts) {
+							if (cnode is ConstDecl as oc) {
+								kids += make_doc_symbol(oc.name, DocSymbol.CONSTANT.value, cnode.line, cnode.col);
+							}
+						}
+						for (m in decl.methods) {
+							val ml = m.line;
+							val mc = m.col;
+							if (m is FnDecl as mf) {
+								kids += make_doc_symbol(mf.name, DocSymbol.METHOD.value, ml, mc);
+							}
+						}
+						arr += make_doc_symbol(decl.name, DocSymbol.OBJECT.value, dl, dc, kids);
 					}
 					is ConstDecl -> {
 						arr += make_doc_symbol(decl.name, DocSymbol.CONSTANT.value, dl, dc);

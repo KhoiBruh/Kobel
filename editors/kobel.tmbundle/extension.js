@@ -79,6 +79,7 @@ function mapSymbolKind(kind) {
         case 12: return vscode.SymbolKind.Function;
         case 13: return vscode.SymbolKind.Variable;
         case 14: return vscode.SymbolKind.Constant;
+        case 19: return vscode.SymbolKind.Object;
         case 22: return vscode.SymbolKind.EnumMember;
         case 23: return vscode.SymbolKind.Struct;
         case 25: return vscode.SymbolKind.Operator;

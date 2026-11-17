@@ -513,8 +513,6 @@ typedef struct std__memory__Arena std__memory__Arena;
 typedef struct std__memory__MemErr std__memory__MemErr;
 typedef struct std__memory__MemErr__OutOfMemory std__memory__MemErr__OutOfMemory;
 #define std__memory__MemErr__OutOfMemory__TAG 0
-typedef struct std__memory__Heap std__memory__Heap;
-typedef struct std__process__Process std__process__Process;
 typedef struct test__generic_methods__A test__generic_methods__A;
 typedef struct test__generic_methods__B test__generic_methods__B;
 typedef struct test__generic_methods__Box_i32 test__generic_methods__Box_i32;
@@ -779,7 +777,7 @@ __kobel_eu_mut_ptr_u8__std__memory__MemErr std__memory__Heap_try_alloc(size_t si
 size_t req = size == 0 ? (size_t)1 : size;
 uint8_t* raw = malloc(req);
 if (raw == NULL) {
-return (__kobel_eu_mut_ptr_u8__std__memory__MemErr){ .is_ok = false, .u = { .err = (std__memory__MemErr){ .tag = 0, .__err_code = 1U, .__origin = { "lib/std/memory/heap.kb", 30, 41, "Heap_try_alloc" } } } };
+return (__kobel_eu_mut_ptr_u8__std__memory__MemErr){ .is_ok = false, .u = { .err = (std__memory__MemErr){ .tag = 0, .__err_code = 1U, .__origin = { "lib/std/memory/heap.kb", 24, 41, "Heap_try_alloc" } } } };
 }
 return (__kobel_eu_mut_ptr_u8__std__memory__MemErr){ .is_ok = true, .u = { .ok = raw } };
 }
@@ -897,11 +895,11 @@ return ptr;
 }
 
 uint8_t* std__memory__Heap_create_u8(size_t count) {
-    return __kobel_unwrap___kobel_eu_mut_ptr_u8__std__memory__MemErr(std__memory__Heap_try_create_u8(count), "lib/std/memory/heap.kb", 50, 67, "Heap_create_u8");
+    return __kobel_unwrap___kobel_eu_mut_ptr_u8__std__memory__MemErr(std__memory__Heap_try_create_u8(count), "lib/std/memory/heap.kb", 44, 67, "Heap_create_u8");
 }
 
 std__memory__ArenaBlock* std__memory__Heap_create_std__memory__ArenaBlock(size_t count) {
-    return __kobel_unwrap___kobel_eu_mut_ptr_std__memory__ArenaBlock__std__memory__MemErr(std__memory__Heap_try_create_std__memory__ArenaBlock(count), "lib/std/memory/heap.kb", 50, 67, "Heap_create_std__memory__ArenaBlock");
+    return __kobel_unwrap___kobel_eu_mut_ptr_std__memory__ArenaBlock__std__memory__MemErr(std__memory__Heap_try_create_std__memory__ArenaBlock(count), "lib/std/memory/heap.kb", 44, 67, "Heap_create_std__memory__ArenaBlock");
 }
 
 void std__memory__Heap_free_std__memory__ArenaBlock(std__memory__ArenaBlock* ptr) {
@@ -941,7 +939,7 @@ int32_t test__generic_methods__A_pick_or_i32(test__generic_methods__A* self, int
 }
 
 int32_t* std__memory__Heap_create_i32(size_t count) {
-    return __kobel_unwrap___kobel_eu_mut_ptr_i32__std__memory__MemErr(std__memory__Heap_try_create_i32(count), "lib/std/memory/heap.kb", 50, 67, "Heap_create_i32");
+    return __kobel_unwrap___kobel_eu_mut_ptr_i32__std__memory__MemErr(std__memory__Heap_try_create_i32(count), "lib/std/memory/heap.kb", 44, 67, "Heap_create_i32");
 }
 
 void std__memory__Heap_free_i32(int32_t* ptr) {
@@ -949,7 +947,7 @@ void std__memory__Heap_free_i32(int32_t* ptr) {
 }
 
 std__memory__ArenaState* std__memory__Heap_create_std__memory__ArenaState(size_t count) {
-    return __kobel_unwrap___kobel_eu_mut_ptr_std__memory__ArenaState__std__memory__MemErr(std__memory__Heap_try_create_std__memory__ArenaState(count), "lib/std/memory/heap.kb", 50, 67, "Heap_create_std__memory__ArenaState");
+    return __kobel_unwrap___kobel_eu_mut_ptr_std__memory__ArenaState__std__memory__MemErr(std__memory__Heap_try_create_std__memory__ArenaState(count), "lib/std/memory/heap.kb", 44, 67, "Heap_create_std__memory__ArenaState");
 }
 
 __kobel_eu_mut_ptr_u8__std__memory__MemErr std__memory__Heap_try_create_u8(size_t count) {

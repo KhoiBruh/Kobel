@@ -1,0 +1,24 @@
+mod testsupport.objdefs;
+
+pub fault MathErr {
+	NegativeInput("Input must be non-negative")
+}
+
+pub object MathObj {
+	pub const BASE: i32 = 10;
+	pub const DOUBLE_BASE: i32 = Self.BASE * 2;
+	const HIDDEN_STEP: i32 = 3;
+
+	pub fn scale(x: i32): i32 => x * 2;
+	pub fn scale(x: i32, factor: i32): i32 => x * factor;
+	pub fn bump(x: i32, delta: i32 = 1): i32 => x + delta;
+	pub fn base_plus(x: i32): i32 => Self.helper(x) + Self.BASE;
+	pub fn pick_first<T>(a: T, b: T): T => a;
+
+	pub fn checked_pos(x: i32): i32 ! MathErr {
+		if (x < 0) return MathErr.NegativeInput;
+		return x + Self.BASE;
+	}
+
+	fn helper(x: i32): i32 => x + Self.HIDDEN_STEP;
+}

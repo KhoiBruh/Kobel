@@ -66,13 +66,14 @@ impl CCodeGen {
 					}
 					is ConstDecl as c -> {
 						if (!live.has_const(c.name)) continue;
-						// Module-level constants become preprocessor macros.
-						val c_val_str = if (c.value != null) self.gen_expr_prec(c.value!, PREC_POSTFIX) else "0";
-						self.out += "#define ";
-						self.out += c.name;
-						self.out += ' ';
-						self.out += c_val_str;
-						self.out += '\n';
+						self.gen_const_macro(c);
+					}
+					is ObjectDecl as obj -> {
+						for (cnode in obj.consts) {
+							if (cnode is ConstDecl as c && live.has_const(c.name)) {
+								self.gen_const_macro(c);
+							}
+						}
 					}
 				}
 			}
@@ -202,6 +203,13 @@ impl CCodeGen {
 							}
 						}
 					}
+					is ObjectDecl as obj -> {
+						for (mnode in obj.methods) {
+							if (mnode is FnDecl as f && f.type_params.empty() && live.has_fn(f.name)) {
+								self.gen_fn_decl(f, true, "");
+							}
+						}
+					}
 				}
 			}
 			self.out += "\n";
@@ -220,12 +228,28 @@ impl CCodeGen {
 							}
 						}
 					}
+					is ObjectDecl as obj -> {
+						for (mnode in obj.methods) {
+							if (mnode is FnDecl as f && f.type_params.empty() && live.has_fn(f.name)) {
+								self.gen_fn_decl(f, false, "");
+							}
+						}
+					}
 				}
 			}
 
 			return self.out.to_str();
 		}
 		return "";
+	}
+
+	fn gen_const_macro(&self, c: *ConstDecl) {
+		val c_val_str = if (c.value != null) self.gen_expr_prec(c.value!, PREC_POSTFIX) else "0";
+		self.out += "#define ";
+		self.out += c.name;
+		self.out += ' ';
+		self.out += c_val_str;
+		self.out += '\n';
 	}
 
 	// C name of the struct a field embeds by value ("" for pointers, arrays and

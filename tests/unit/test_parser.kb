@@ -520,12 +520,52 @@ fn test_error_union_parsing() {
 	println("  [PASS] test_error_union_parsing");
 }
 
+fn test_object_and_empty_struct_parsing() {
+	val ok_src = """
+		pub object Calc {
+			pub const FACTOR: i32 = 2;
+			pub fn mul(x: i32): i32 => x * Self.FACTOR;
+		}
+		struct Holder { pub object: i32 }
+		fn use_ctx(): i32 {
+			val object = 5;
+			val h = Holder(object);
+			return h.object + Calc.mul(3);
+		}
+	""";
+	var l_ok = Lexer(ok_src);
+	var p_ok = Parser(l_ok.tokenize());
+	val prog_ok = p_ok.parse_program();
+	assert_eq_usz(p_ok.errors.len, 0, "Valid object declaration and contextual 'object' identifier must parse cleanly");
+	if (prog_ok is Program as pr) {
+		assert_true(pr.declarations[0] is ObjectDecl, "First declaration must parse as ObjectDecl");
+		if (pr.declarations[0] is ObjectDecl as obj) {
+			assert_eq_str(obj.name, "Calc", "ObjectDecl name must be preserved");
+			assert_eq_usz(obj.consts.len, 1, "ObjectDecl must capture consts");
+			assert_eq_usz(obj.methods.len, 1, "ObjectDecl must capture methods");
+		}
+	}
+
+	check_bad_program_syntax("struct ForwardOnly;", "Must reject semicolon forward struct declaration");
+	check_bad_program_syntax("pub struct EmptyStruct {}", "Must reject empty struct with zero fields");
+	check_bad_program_syntax("struct ConstOnlyStruct { pub const X: i32 = 1; }", "Must reject struct with constants but zero fields");
+	check_bad_program_syntax("struct EmptyGen<T> {}", "Must reject empty generic struct");
+	check_bad_program_syntax("object NoBody;", "Must reject semicolon object without body");
+	check_bad_program_syntax("object GenObj<T> { fn f() {} }", "Must reject generic type parameters on object");
+	check_bad_program_syntax("object WithField { x: i32 }", "Must reject fields inside object");
+	check_bad_program_syntax("object WithInit { init() {} }", "Must reject init constructor inside object");
+	check_bad_program_syntax("object WithOp { op plus(*self, x: i32): i32 => x; }", "Must reject operators inside object");
+
+	println("  [PASS] test_object_and_empty_struct_parsing");
+}
+
 fn main() {
 	println("[RUNNING] Bootstrap Parser tests...");
 	test_val_var_self_rejected();
 	test_not_is_parsing();
 	test_nested_lambda_in_expr_lambda();
 	test_error_union_parsing();
+	test_object_and_empty_struct_parsing();
 	test_expression_parsing();
 	test_call_and_member_parsing();
 	test_safe_member_and_elvis_parsing();

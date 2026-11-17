@@ -507,9 +507,8 @@ typedef struct {
 	kobel_loc origin;
 	kobel_loc fail_at;
 } __kobel_main_result;
-typedef struct std__process__Process std__process__Process;
-typedef struct test__forward__A test__forward__A;
 typedef struct test__forward__B test__forward__B;
+typedef struct test__forward__A test__forward__A;
 
 
 struct test__forward__B {

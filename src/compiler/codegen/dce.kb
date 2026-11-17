@@ -111,6 +111,16 @@ impl DceWalker {
 						}
 					}
 				}
+				is ObjectDecl as obj -> {
+					for (cnode in obj.consts) {
+						if (cnode is ConstDecl as c) self.const_map[c.name] = cnode;
+					}
+					for (mnode in obj.methods) {
+						if (mnode is FnDecl as mf && mf.type_params.empty()) {
+							self.index_fn(mnode, mf, "");
+						}
+					}
+				}
 				is StructDecl as s -> {
 					self.all_types += s.name;
 					if (!s.forward) self.struct_map[s.name] = decl;
@@ -444,6 +454,14 @@ impl CCodeGen {
 					is FnDecl as f -> w.mark_fn(f.name);
 					is ImplDecl as im -> {
 						for (mnode in im.methods) {
+							if (mnode is FnDecl as mf && mf.type_params.empty()) w.mark_fn(mf.name);
+						}
+					}
+					is ObjectDecl as obj -> {
+						for (cnode in obj.consts) {
+							if (cnode is ConstDecl as c) w.mark_const(c.name);
+						}
+						for (mnode in obj.methods) {
 							if (mnode is FnDecl as mf && mf.type_params.empty()) w.mark_fn(mf.name);
 						}
 					}

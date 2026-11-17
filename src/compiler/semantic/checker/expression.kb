@@ -96,13 +96,23 @@ impl BodyChecker {
 
 			if (id.name == "Self" && self.current_self_type != null) {
 				val cur_self = self.current_self_type!;
-				if (self.current_rec == null) id.name = cur_self.as_struct()!.c_name;
+				val cur_st = cur_self.as_struct();
+				if (cur_st != null && cur_st.is_object) {
+					self.report_error(node, "Object '${cur_st.name}' cannot be used as a value");
+					return self.prims().t_none();
+				}
+				if (self.current_rec == null && cur_st != null) id.name = cur_st.c_name;
 				return cur_self;
 			}
 
 			val sym = self.symtab.lookup(id.name);
 			if (sym == null) {
 				self.report_error(node, "Undeclared identifier '${id.name}'");
+				return self.prims().t_none();
+			}
+
+			if (sym!.kind == SymbolKind.OBJECT) {
+				self.report_error(node, "Object '${id.name}' cannot be used as a value");
 				return self.prims().t_none();
 			}
 

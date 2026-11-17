@@ -300,22 +300,49 @@ impl DeclarationCollector {
 		if (!ok) self.report_error(node, "Duplicate struct declaration '${s.name}'");
 	}
 
+	fn declare_object_shell(&self, node: &AstNode, obj: *ObjectDecl) {
+		val c_name = self.c_name_for(obj.name);
+		val o_type = self.arena.struct_type(obj.name, List<StructField>());
+		val st = o_type.as_struct()!;
+		st.c_name = c_name;
+		st.module = self.current_module;
+		st.is_defined = true;
+		st.is_object = true;
+		val ok = self.symtab.define_global(
+			Symbol(obj.name, c_name, SymbolKind.OBJECT, o_type, false, obj.public, node.line, node.col, node)
+		);
+		if (!ok) self.report_error(node, "Duplicate object declaration '${obj.name}'");
+	}
+
+	pub fn collect_object(&self, node: &AstNode) {
+		if (node is ObjectDecl as obj) {
+			val obj_sym = self.symtab.lookup_in_module(self.current_module, obj.name);
+			if (obj_sym == null || obj_sym!.kind != SymbolKind.OBJECT) return;
+			val obj_ty = obj_sym!.type_ptr;
+			val obj_c_name = obj_sym!.c_name;
+			val obj_info = obj_ty.as_struct()!;
+			val orig_name = obj.name;
+
+			self.current_self_type = obj_ty;
+			for (cnode in obj.consts) {
+				self.collect_const_named(cnode, orig_name);
+			}
+			self.collect_object_methods(orig_name, obj, obj_c_name, obj_info);
+			obj.name = obj_c_name;
+			self.current_self_type = null;
+		}
+	}
+
 	pub fn collect_struct(&self, node: &AstNode) {
 		if (node is StructDecl as s) {
 			// Generic structs are registered as templates and instantiated on use.
 			if (s.type_params.len > 0) return;
 
-			// A forward declaration (`struct A;`) registers an opaque type; the later
-			// definition fills that same type in, so pointers may refer to it early.
-			if (s.forward) {
-				val existing_fwd = self.symtab.lookup_in_module(self.current_module, s.name);
-				if (existing_fwd != null) {
-					s.name = existing_fwd.c_name;
-					return;
-				}
-				self.declare_struct_shell(node, s);
-				val created = self.symtab.lookup_in_module(self.current_module, s.name);
-				if (created != null) s.name = created.c_name;
+			if (s.forward || s.fields.empty()) {
+				self.report_error(
+					node,
+					"Struct '${s.name}' must declare at least one field; use 'object ${s.name} { ... }' for static functions and constants"
+				);
 				return;
 			}
 
@@ -671,7 +698,7 @@ impl DeclarationCollector {
 		}
 	}
 
-	pub fn collect_const(&self, node: &AstNode) {
+	fn collect_const_named(&self, node: &AstNode, owner_prefix: str = "") {
 		if (node is ConstDecl as c) {
 			val c_type = if (c.type_node != null) self.resolve_ast_type(c.type_node!)
 			else self.infer_const_type(c.value) ?: self.prims().t_prim(Type.i32());
@@ -680,15 +707,18 @@ impl DeclarationCollector {
 			}
 			if (c.type_node == null) c.type_node = self.arena.ast_type_from_type(c_type);
 
-			val c_name = self.c_name_for(c.name);
+			val full_name = if (owner_prefix.empty()) c.name else "${owner_prefix}__${c.name}";
+			val c_name = self.c_name_for(full_name);
 			val ok = self.symtab.define_global(
-				Symbol(c.name, c_name, SymbolKind.CONST, c_type, false, c.public, node.line, node.col, node)
+				Symbol(full_name, c_name, SymbolKind.CONST, c_type, false, c.public, node.line, node.col, node)
 			);
 			if (!ok) self.report_error(node, "Duplicate const declaration '${c.name}'");
 
 			c.name = c_name;
 		}
 	}
+
+	pub fn collect_const(&self, node: &AstNode) => self.collect_const_named(node);
 
 	pub fn collect_extern_block(&self, node: *AstNode) {
 		if (node is ExternBlock as ext) {
@@ -753,6 +783,7 @@ impl DeclarationCollector {
 			is EnumDecl -> self.collect_enum(node);
 			is FaultDecl -> self.collect_fault(node);
 			is ConstDecl -> self.collect_const(node);
+			is ObjectDecl -> self.collect_object(node);
 			is ImplDecl -> self.collect_impl(node);
 			is TraitDecl -> {} // already recorded in Pass 0
 			is ExternBlock -> self.collect_extern_block(node);
@@ -807,6 +838,10 @@ impl DeclarationCollector {
 						val existing = self.symtab.lookup_in_module(self.current_module, s.name);
 						if (existing == null) self.declare_struct_shell(d, s);
 					}
+				}
+				is ObjectDecl as obj -> {
+					val existing = self.symtab.lookup_in_module(self.current_module, obj.name);
+					if (existing == null) self.declare_object_shell(d, obj);
 				}
 			}
 		}

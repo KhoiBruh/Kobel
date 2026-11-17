@@ -179,7 +179,7 @@
           }
         },
         {
-          "match": "\\b(struct|trait)\\s+([a-zA-Z_][a-zA-Z0-9_]*)",
+          "match": "\\b(struct|trait|object)\\s+([a-zA-Z_][a-zA-Z0-9_]*)",
           "captures": {
             "1": { "name": "keyword.declaration.type.kobel" },
             "2": { "name": "entity.name.type.kobel" }

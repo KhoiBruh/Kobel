@@ -177,17 +177,55 @@ impl BodyChecker {
 			}
 
 			val s_sym = self.symtab.lookup(enum_id.name);
-			if (s_sym?.kind == SymbolKind.STRUCT) {
-				val c_sym = self.symtab.lookup("${enum_id.name}__${mem.member}")
-					?: self.symtab.lookup_struct_const(enum_id.name, mem.member)
-					?: self.symtab.lookup_struct_const(s_sym.name, mem.member);
-				if (c_sym?.kind == SymbolKind.CONST) {
+			var target_ty: ?*Type = null;
+			if (enum_id.name == "Self" && self.current_self_type != null) {
+				target_ty = self.current_self_type;
+			} else if (s_sym != null) {
+				if (s_sym.kind == SymbolKind.STRUCT || s_sym.kind == SymbolKind.OBJECT) {
+					target_ty = s_sym.type_ptr;
+				}
+			}
+			if (target_ty != null && target_ty.kind == DataType.STRUCT) {
+				val owner_st = target_ty.as_struct();
+				val owner_mod = owner_st?.module ?: "";
+				val owner_orig_name = owner_st?.name ?: enum_id.name;
+				var c_sym: ?*Symbol = null;
+				if (!owner_mod.empty()) {
+					c_sym = self.symtab.lookup_in_module(owner_mod, "${owner_orig_name}__${mem.member}");
+				}
+				if (c_sym == null) c_sym = self.symtab.lookup("${enum_id.name}__${mem.member}");
+				if (c_sym == null) c_sym = self.symtab.lookup_struct_const(enum_id.name, mem.member);
+				if (c_sym == null) c_sym = self.symtab.lookup_struct_const(owner_orig_name, mem.member);
+				if (c_sym != null && c_sym.kind == SymbolKind.CONST) {
+					if (mem.is_safe) {
+						self.report_error(node, "Safe navigation '?.' cannot be used on constant '${owner_orig_name}.${mem.member}'");
+						return self.prims().t_none();
+					}
+					if (
+						owner_st != null
+						&& owner_st.is_object
+						&& !owner_mod.empty()
+						&& owner_mod != self.symtab.current_module
+						&& !c_sym.public
+					) {
+						self.report_error(
+							node,
+							"Constant '${mem.member}' of object '${owner_orig_name}' is private to module '${owner_mod}'"
+						);
+					}
 					val id_expr = self.arena.node(
 						NodeData.IdentifierExpr(c_sym.c_name),
 						node.line, node.col
 					);
 					self.set_resolved(node, id_expr);
 					return c_sym.type_ptr;
+				}
+				if (owner_st != null && owner_st.is_object) {
+					self.report_error(
+						node,
+						"Constant or member '${mem.member}' not found on object '${owner_orig_name}'"
+					);
+					return self.prims().t_none();
 				}
 			}
 		}

@@ -1323,6 +1323,88 @@ fn test_error_union_restrictions() {
 	println("  [PASS] test_error_union_restrictions");
 }
 
+fn test_object_and_empty_struct_restrictions() {
+	check_single_error(
+		"object MyObj { fn f() {} }\nimpl MyObj { fn g() {} }",
+		"Writing impl block for an object must be rejected"
+	);
+	check_single_error(
+		"trait T { fn f(*self); }\nobject MyObj { fn a() {} }\nimpl T for MyObj { fn f(*self) {} }",
+		"Implementing a trait for an object must be rejected"
+	);
+	check_single_error(
+		"object MyObj { fn f(*self) {} }",
+		"Instance receiver *self on object function must be rejected"
+	);
+	check_single_error(
+		"object MyObj { fn f(self) {} }",
+		"Move receiver self on object function must be rejected"
+	);
+	check_single_error(
+		"object MyObj { fn f(); }",
+		"Bodyless function inside object must be rejected"
+	);
+	check_single_error(
+		"object MyObj { pub fn f(): i32 => 1; }\nfn main() { val x = MyObj(); }",
+		"Instantiating an object via call syntax must be rejected"
+	);
+	check_single_error(
+		"object MyObj { pub fn f(): i32 => 1; }\nfn main() { val x: MyObj = 1; }",
+		"Using object as variable type must be rejected"
+	);
+	check_single_error(
+		"object MyObj { pub fn f(): i32 => 1; }\nfn take(x: MyObj) {}",
+		"Using object as parameter type must be rejected"
+	);
+	check_single_error(
+		"object MyObj { pub fn f(): i32 => 1; }\nfn take(p: *MyObj) {}",
+		"Pointer to object type must be rejected"
+	);
+	check_single_error(
+		"object MyObj { pub fn f(): i32 => 1; }\nfn main() { val x = MyObj; }",
+		"Using object directly as value must be rejected"
+	);
+	check_single_error(
+		"object MyObj { fn bad() { Self(); } }",
+		"Instantiating Self inside object must be rejected"
+	);
+	check_single_error(
+		"object MyObj { fn bad(): Self { return 0; } }",
+		"Using Self as return type inside object must be rejected"
+	);
+	check_single_error(
+		"object MyObj { fn f() {} }\nfn main() { val n = MyObj.size(); }",
+		"Querying size on object without size() fn must fail"
+	);
+	check_single_error(
+		"object MyObj { pub const C: i32 = 1; }\nfn main() { val n = MyObj.MISSING; }",
+		"Accessing missing constant on object must fail"
+	);
+	check_single_error(
+		"struct ForwardOnly;\nfn main() {}",
+		"Semicolon struct declaration must be rejected"
+	);
+	check_single_error(
+		"struct Empty {}\nfn main() {}",
+		"Empty zero-field struct must be rejected"
+	);
+	check_valid_body(
+		"""
+		object Helper {
+			const A: i32 = 4;
+			pub const B: i32 = Self.A * 2;
+			pub fn size(): i32 => Self.B;
+			pub fn id<T>(x: T): T => x;
+		}
+		fn main() {
+			val s = Helper.size() + Helper.id<i32>(1);
+		}
+		""",
+		"Valid object constants, Self usage, generic function, and explicit size() function must pass"
+	);
+	println("  [PASS] test_object_and_empty_struct_restrictions");
+}
+
 fn main() {
 	println("[RUNNING] Bootstrap Semantic BodyChecker tests...");
 	test_nullable_pointer_restrictions();
@@ -1330,6 +1412,7 @@ fn main() {
 	test_lvalue_and_pointer_write_mutability();
 	test_pointer_cast_and_implicit_conv_restrictions();
 	test_error_union_restrictions();
+	test_object_and_empty_struct_restrictions();
 	test_when_subject_and_implicit_dot_restrictions();
 	test_lambda_body_and_call_restrictions();
 	test_in_candidate_list_restrictions();

@@ -25,6 +25,7 @@ pub enum SymbolKind {
 	PARAM,
 	FN,
 	STRUCT,
+	OBJECT,
 	ENUM,
 	MODULE,
 	TYPE_ALIAS

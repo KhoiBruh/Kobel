@@ -45,8 +45,11 @@ impl TypeResolver {
 					}
 					self.symtab.gen.impl_templates += self.generic_template(im.struct_name, node, true);
 				} else {
-					self.collect_generic_impl_methods(im);
+					self.collect_generic_container_methods(im.methods, im.struct_name, false);
 				}
+			}
+			is ObjectDecl as obj -> {
+				self.collect_generic_container_methods(obj.methods, obj.name, true);
 			}
 		}
 	}
@@ -72,13 +75,24 @@ impl TypeResolver {
 		}
 	}
 
-	fn collect_generic_impl_methods(&self, im: &ImplDecl) {
-		for (m in im.methods) {
+	fn collect_generic_container_methods(&self, methods: List<&AstNode>, owner_name: str, is_object: bool) {
+		for (m in methods) {
 			if (m is FnDecl as f) {
 				if (f.type_params.len == 0) continue;
 				self.validate_fn_lambda_rules(m, f);
-				self.normalize_generic_self_param(f, im.struct_name, m.line, m.col);
-				self.symtab.gen.fn_templates += self.generic_template(f.name, m, true, im.struct_name);
+				if (is_object) {
+					for (p in f.params) {
+						if (p.name == "self") {
+							self.report_error(
+								m,
+								"Function '${f.name}' inside object '${owner_name}' cannot have a 'self' parameter; all object functions are static"
+							);
+						}
+					}
+				} else {
+					self.normalize_generic_self_param(f, owner_name, m.line, m.col);
+				}
+				self.symtab.gen.fn_templates += self.generic_template(f.name, m, true, owner_name);
 			}
 		}
 	}

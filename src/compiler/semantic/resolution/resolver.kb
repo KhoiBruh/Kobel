@@ -72,8 +72,15 @@ impl TypeResolver {
 				if (subst_res != null) yield subst_res;
 
 				if (name == "Self" && self.current_self_type != null) {
+					val sinfo = self.current_self_type!.as_struct()!;
+					if (sinfo != null && sinfo.is_object) {
+						self.report_error(
+							node,
+							"Object '${sinfo.name}' cannot be used as a type; objects cannot be instantiated"
+						);
+						yield self.prims().t_none();
+					}
 					if (self.subst.empty()) {
-						val sinfo = self.current_self_type!.as_struct()!;
 						if (sinfo != null) {
 							if (!sinfo.c_name.empty()) named.name = sinfo.c_name;
 							else named.name = sinfo.name;
@@ -119,6 +126,13 @@ impl TypeResolver {
 
 				val sym = self.symtab.lookup(name);
 				if (sym != null) {
+					if (sym.kind == SymbolKind.OBJECT) {
+						self.report_error(
+							node,
+							"Object '${sym.name}' cannot be used as a type; objects cannot be instantiated"
+						);
+						yield self.prims().t_none();
+					}
 					if (sym.c_name != name) named.name = sym.c_name;
 					yield sym.type_ptr;
 				}

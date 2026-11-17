@@ -507,7 +507,6 @@ typedef struct {
 	kobel_loc origin;
 	kobel_loc fail_at;
 } __kobel_main_result;
-typedef struct std__process__Process std__process__Process;
 typedef struct test__payload_enum__Shape test__payload_enum__Shape;
 typedef struct test__payload_enum__Shape__Circle test__payload_enum__Shape__Circle;
 #define test__payload_enum__Shape__Circle__TAG 0

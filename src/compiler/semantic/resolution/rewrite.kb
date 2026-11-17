@@ -345,6 +345,14 @@ impl TypeResolver {
 				}
 				yield true;
 			}
+			is ObjectDecl as obj -> {
+				for (c in obj.consts) self.rewrite_generics(c);
+				for (m in obj.methods) {
+					if (m is FnDecl as f && f.type_params.len > 0) continue;
+					self.rewrite_generics(m);
+				}
+				yield true;
+			}
 			is ConstDecl as c -> {
 				if (c.type_node != null && c.value != null) {
 					self.propagate_target_type(c.type_node, c.value);

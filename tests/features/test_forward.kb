@@ -2,11 +2,8 @@ mod test.forward;
 
 use std.process.Process;
 
-// Forward declarations: `struct A;` makes the name usable behind a pointer
-// before the definition appears, which is how mutually referencing types are
-// written.
+// Mutually referential structs resolve across the whole module without forward declarations.
 
-struct A;
 struct B { pub a: *A }
 struct A { pub v: i32, pub b: ?*B = null }
 

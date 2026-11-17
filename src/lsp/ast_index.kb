@@ -31,6 +31,7 @@ pub enum SymRole {
 	FN,
 	METHOD,
 	STRUCT,
+	OBJECT,
 	FIELD,
 	ENUM,
 	ENUM_VARIANT,
@@ -494,6 +495,8 @@ impl SemanticIndex {
 		if (fk in self.def_by_key) return fk;
 		val sk = "struct:${mod_name}:${sym_name}";
 		if (sk in self.def_by_key) return sk;
+		val ok = "object:${mod_name}:${sym_name}";
+		if (ok in self.def_by_key) return ok;
 		val ek = "enum:${mod_name}:${sym_name}";
 		if (ek in self.def_by_key) return ek;
 		val tk = "trait:${mod_name}:${sym_name}";
@@ -572,6 +575,8 @@ impl SemanticIndex {
 	fn find_struct_module(*self, struct_name: str, cur_mod: str): str {
 		val same = "struct:${cur_mod}:${struct_name}";
 		if (same in self.def_by_key) return cur_mod;
+		val same_obj = "object:${cur_mod}:${struct_name}";
+		if (same_obj in self.def_by_key) return cur_mod;
 		return self.struct_mod_by_name.get_or(struct_name, cur_mod);
 	}
 
@@ -909,6 +914,47 @@ impl IndexWalker {
 						if (m is FnDecl) self.register_fn_def(raw_m, decl.struct_name, s_mod, is_tr);
 					}
 				}
+				is ObjectDecl -> {
+					val key = "object:${self.cur_mod}:${decl.name}";
+					self.index.orig_node_names[raw_decl.addr()] = decl.name;
+					self.index.orig_node_keys[raw_decl.addr()] = key;
+					self.index.struct_mod_by_name[decl.name] = self.cur_mod;
+					val tok = find_ident_token_after(self.tokens, dl, dc, decl.name);
+					val r_line = if (tok.line > 0) tok.line else dl;
+					val r_col = if (tok.col > 0) tok.col else dc;
+					self.index.add_def(DefInfo(
+						key, decl.name, SymRole.OBJECT, self.cur_file, self.cur_mod, "",
+						r_line, r_col, decl.name.len, "object ${decl.name}", decl.name, decl.public
+					));
+					self.index.add_ref(RefInfo(
+						key, self.cur_file, self.cur_mod, r_line, r_col, decl.name.len,
+						true, false, false, decl.name
+					));
+					for (cnode in decl.consts) {
+						val raw_c = cnode;
+						if (cnode is ConstDecl as cd) {
+							val ck = "const:${self.cur_mod}:${decl.name}__${cd.name}";
+							self.index.orig_node_names[raw_c.addr()] = cd.name;
+							self.index.orig_node_keys[raw_c.addr()] = ck;
+							val ctok = find_ident_token_after(self.tokens, raw_c.line, raw_c.col, cd.name);
+							val cl = if (ctok.line > 0) ctok.line else raw_c.line;
+							val cc = if (ctok.col > 0) ctok.col else raw_c.col;
+							val cty = format_type_node(cd.type_node);
+							self.index.add_def(DefInfo(
+								ck, cd.name, SymRole.CONST, self.cur_file, self.cur_mod, decl.name,
+								cl, cc, cd.name.len, "const ${decl.name}.${cd.name}: ${cty}", cty, cd.public
+							));
+							self.index.add_ref(RefInfo(
+								ck, self.cur_file, self.cur_mod, cl, cc, cd.name.len,
+								true, false, false, cty
+							));
+						}
+					}
+					for (m in decl.methods) {
+						val raw_m = m;
+						if (m is FnDecl) self.register_fn_def(raw_m, decl.name, self.cur_mod, false);
+					}
+				}
 				is ExternBlock -> {
 					for (ed in decl.declarations) {
 						val raw_ed = ed;
@@ -1055,6 +1101,25 @@ impl IndexWalker {
 						self.cur_impl_struct = orig_sname;
 						self.cur_impl_mod = self.index.find_struct_module(orig_sname, self.cur_mod);
 					}
+					for (m in decl.methods) self.walk_fn_body(m);
+					self.cur_impl_struct = prev_impl_st;
+					self.cur_impl_mod = prev_impl_mod;
+				}
+				is ObjectDecl -> {
+					val orig_oname = self.index.orig_node_names.get_or(raw_decl.addr(), decl.name);
+					val prev_impl_st = self.cur_impl_struct;
+					val prev_impl_mod = self.cur_impl_mod;
+					self.cur_impl_struct = orig_oname;
+					self.cur_impl_mod = self.cur_mod;
+					for (cnode in decl.consts) {
+						val raw_c = cnode;
+						if (cnode is ConstDecl as cd) {
+							self.cur_owner_key = self.index.orig_node_keys.get_or(raw_c.addr(), "");
+							if (cd.type_node != null) self.walk_type_node(cd.type_node);
+							if (cd.value != null) self.walk_expr(cd.value);
+						}
+					}
+					self.cur_owner_key = "";
 					for (m in decl.methods) self.walk_fn_body(m);
 					self.cur_impl_struct = prev_impl_st;
 					self.cur_impl_mod = prev_impl_mod;
@@ -1348,13 +1413,15 @@ impl IndexWalker {
 						}
 					}
 				}
-				// 3. Implicit Enum.VARIANT, Self/self on generic impl, or leading-dot .VARIANT in when
+				// 3. Implicit Enum.VARIANT, Self/self on impl/object, or leading-dot .VARIANT in when
 				if (target_key.empty()) {
-					if (node.object is IdentifierExpr as id && id.name == "self" && !self.cur_impl_struct.empty()) {
+					if (node.object is IdentifierExpr as id && id.name in ["self", "Self"] && !self.cur_impl_struct.empty()) {
 						val m_key = "method:${self.cur_impl_mod}:${self.cur_impl_struct}:${node.member}";
 						val f_key = "field:${self.cur_impl_mod}:${self.cur_impl_struct}:${node.member}";
+						val c_key = "const:${self.cur_impl_mod}:${self.cur_impl_struct}__${node.member}";
 						if (m_key in self.index.def_by_key) target_key = m_key;
 						else if (f_key in self.index.def_by_key) target_key = f_key;
+						else if (c_key in self.index.def_by_key) target_key = c_key;
 					} else if (node.object is IdentifierExpr as id && !id.name.empty()) {
 						val e_mod = self.index.find_enum_module(id.name, self.cur_mod);
 						val v_key = "variant:${e_mod}:${id.name}:${node.member}";
@@ -1362,7 +1429,9 @@ impl IndexWalker {
 						else {
 							val s_mod = self.index.find_struct_module(id.name, self.cur_mod);
 							val m_key = "method:${s_mod}:${id.name}:${node.member}";
+							val c_key = "const:${s_mod}:${id.name}__${node.member}";
 							if (m_key in self.index.def_by_key) target_key = m_key;
+							else if (c_key in self.index.def_by_key) target_key = c_key;
 						}
 					} else if (!self.cur_when_enum.empty()) {
 						val v_key = "variant:${self.cur_when_enum_mod}:${self.cur_when_enum}:${node.member}";
@@ -1512,6 +1581,7 @@ fn register_c_name_mapping(index: &SemanticIndex, prog: *AstNode) {
 			if (key.empty()) continue;
 			when (decl) {
 				is StructDecl -> if (!decl.name.empty()) index.c_name_to_key[decl.name] = key;
+				is ObjectDecl -> if (!decl.name.empty()) index.c_name_to_key[decl.name] = key;
 				is EnumDecl -> if (!decl.name.empty()) index.c_name_to_key[decl.name] = key;
 				is FaultDecl -> if (!decl.name.empty()) index.c_name_to_key[decl.name] = key;
 				is ConstDecl -> if (!decl.name.empty()) index.c_name_to_key[decl.name] = key;

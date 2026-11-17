@@ -60,6 +60,19 @@ impl BodyChecker {
 			var callee_is_self = false;
 			if (callee is IdentifierExpr as id) {
 				callee_is_self = (id.name == "Self");
+				val c_obj_sym = self.symtab.lookup(id.name);
+				if (c_obj_sym?.kind == SymbolKind.OBJECT) {
+					self.report_error(
+						node,
+						"Cannot instantiate object '${c_obj_sym.name}'; objects cannot have instances"
+					);
+					return self.prims().t_none();
+				}
+				if (callee_is_self && self.current_self_type?.as_struct()?.is_object == true) {
+					val oname = self.current_self_type!.as_struct()!.name;
+					self.report_error(node, "Cannot instantiate object '${oname}'; objects cannot have instances");
+					return self.prims().t_none();
+				}
 			}
 
 			if (!call.type_args.empty() && callee is IdentifierExpr as cid) {
@@ -157,7 +170,7 @@ impl BodyChecker {
 		if (
 			local_sym?.kind in [
 				SymbolKind.VAR, SymbolKind.PARAM,
-				SymbolKind.FN, SymbolKind.STRUCT
+				SymbolKind.FN, SymbolKind.STRUCT, SymbolKind.OBJECT
 			]
 		) return null;
 
@@ -580,7 +593,7 @@ impl BodyChecker {
 				s_info = self.current_self_type!.as_struct();
 			} else {
 				val sym = self.symtab.lookup(id.name);
-				if (sym?.kind == SymbolKind.STRUCT && sym.type_ptr.kind == DataType.STRUCT) {
+				if (sym?.kind in [SymbolKind.STRUCT, SymbolKind.OBJECT] && sym.type_ptr.kind == DataType.STRUCT) {
 					struct_ty = sym.type_ptr;
 					s_info = sym.type_ptr.as_struct();
 				}
@@ -603,6 +616,17 @@ impl BodyChecker {
 				is_static = f.params.empty() || f.params[0].name != "self";
 			}
 			if (is_static) {
+				if (
+					st.is_object
+					&& st.module != self.symtab.current_module
+					&& tmpl.node is FnDecl as tf
+					&& !tf.public
+				) {
+					self.report_error(
+						node,
+						"Function '${mem.member}' of object '${st.name}' is private to module '${st.module}'"
+					);
+				}
 				var targs = call.type_args;
 				if (targs.empty() && tmpl.node is FnDecl as tmpl_f) {
 					targs = self.infer_type_args_for_fn(tmpl_f, call.args, false);
@@ -653,6 +677,10 @@ impl BodyChecker {
 
 		val cand = st.find_static_method(mem.member);
 		if (cand == null) {
+			if (st.is_object) {
+				self.report_error(node, "Function '${mem.member}' not found on object '${st.name}'");
+				return self.prims().t_none();
+			}
 			val inst_cand = st.find_method(mem.member);
 			if (inst_cand != null && !inst_cand.is_static) {
 				self.report_error(
@@ -676,6 +704,12 @@ impl BodyChecker {
 			st.find_static_method_arity(mem.member, call.args.len)
 		);
 		val mi = (mi_def ?: cand)!;
+		if (st.is_object && st.module != self.symtab.current_module && !mi.public) {
+			self.report_error(
+				node,
+				"Function '${mem.member}' of object '${st.name}' is private to module '${st.module}'"
+			);
+		}
 
 		val fn_info = mi.fn_type.as_fn()!;
 		if (fn_info.is_variadic) {

@@ -2,8 +2,6 @@ mod compiler.ast;
 
 use std.collections.List;
 
-use compiler.core.Span;
-
 /*
  * ============================================================================
  * compiler.ast.expression — Expression literal kinds, pattern arms, and parts

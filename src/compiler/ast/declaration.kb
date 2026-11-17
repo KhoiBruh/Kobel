@@ -3,8 +3,6 @@ mod compiler.ast;
 use std.collections.List;
 use std.traits.Iterable;
 
-use compiler.core.Span;
-
 /*
  * ============================================================================
  * compiler.ast.declaration — AST structures for module and symbol declarations

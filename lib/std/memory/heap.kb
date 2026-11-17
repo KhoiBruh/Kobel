@@ -16,13 +16,7 @@ pub fault MemErr {
 	OutOfMemory("Memory allocation failed (out of memory)")
 }
 
-pub struct Heap;
-
-impl Allocator for Heap {
-	pub fn alloc_bytes(&self, size: usz, align: usz): &u8 => Heap.try_alloc(size)!;
-}
-
-impl Heap {
+pub object Heap {
 
 	// Raw byte allocation returning explicit OOM error on failure.
 	pub fn try_alloc(size: usz): &u8 ! MemErr {

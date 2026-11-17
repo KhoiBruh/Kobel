@@ -185,8 +185,12 @@ impl Parser {
 		val name_tok = self.consume(TokenType.IDENTIFIER, "Expected struct name");
 		val type_params = self.parse_generic_params();
 
-		// `struct Name;`: an opaque declaration whose definition may follow later.
+		// Reject empty semicolon struct declarations (`struct Name;`); use `object` instead.
 		if (self.match_token(TokenType.SEMI_COLON)) {
+			self.error(
+				name_tok,
+				"Empty or forward struct 'struct ${name_tok.text};' is not allowed; structs must declare fields inside '{ ... }', or use 'object ${name_tok.text} { ... }' for static functions and constants"
+			);
 			return self.node(
 				NodeData.StructDecl(name_tok.text, type_params, List<StructField>(), public, true, true),
 				kw.line, kw.col
@@ -235,6 +239,12 @@ impl Parser {
 		}
 
 		self.consume(TokenType.CLOSE_BRACE, "Expected '}' after struct fields");
+		if (fields.empty()) {
+			self.error(
+				name_tok,
+				"Struct '${name_tok.text}' must declare at least one field; use 'object ${name_tok.text} { ... }' for static functions and constants"
+			);
+		}
 		return self.node(
 			NodeData.StructDecl(name_tok.text, type_params, fields, public, false, true),
 			kw.line, kw.col
@@ -285,6 +295,73 @@ impl Parser {
 		self.consume(TokenType.CLOSE_BRACE, "Expected '}' after trait body");
 		return self.node(
 			NodeData.TraitDecl(name_tok.text, type_params, bases, methods, public, assoc),
+			kw.line, kw.col
+		);
+	}
+
+	pub fn parse_object_decl(&self, public: bool): &AstNode {
+		val kw = self.advance(); // 'object'
+		val name_tok = self.consume(TokenType.IDENTIFIER, "Expected object name");
+
+		if (self.check(TokenType.LESS)) {
+			val _tp = self.parse_generic_params();
+			self.error(
+				name_tok,
+				"Object '${name_tok.text}' cannot have generic type parameters; declare generic functions inside the object instead"
+			);
+		}
+
+		var consts = List<&AstNode>();
+		var methods = List<&AstNode>();
+		if (self.match_token(TokenType.SEMI_COLON)) {
+			self.error(name_tok, "Object declaration '${name_tok.text}' requires a body '{ ... }'");
+			return self.node(
+				NodeData.ObjectDecl(name_tok.text, consts, methods, public),
+				kw.line, kw.col
+			);
+		}
+
+		self.consume(TokenType.OPEN_BRACE, "Expected '{' before object body");
+		while (!self.check(TokenType.CLOSE_BRACE) && !self.is_end()) {
+			var m_pub = false;
+			if (self.match_token(TokenType.KW_PUB)) m_pub = true;
+
+			when (self) {
+				.check(TokenType.KW_FN) -> methods += self.parse_fn_decl(m_pub);
+				.check(TokenType.KW_CONST) -> consts += self.parse_const_decl(m_pub);
+				.check(TokenType.KW_INIT) -> {
+					self.error(self.peek(), "Objects cannot declare 'init' constructors; an object cannot be instantiated");
+					val _bad_init = self.parse_init_decl(m_pub);
+				}
+				.check(TokenType.KW_OP) -> {
+					self.error(self.peek(), "Objects cannot declare operators; an object cannot be instantiated");
+					val _bad_op = self.parse_op_decl(m_pub);
+				}
+				.check(TokenType.IDENTIFIER) && .peek_at(1).type == TokenType.COLON -> {
+					self.error(
+						self.peek(),
+						"Objects cannot contain fields; only 'fn' and 'const' declarations are allowed inside 'object'"
+					);
+					self.advance(); // field name
+					self.advance(); // ':'
+					val _ft = self.parse_type();
+					if (self.match_token(TokenType.EQUAL)) {
+						val _fv = self.parse_expression(Precedence.NONE);
+					}
+					self.match_token(TokenType.COMMA);
+					self.match_token(TokenType.SEMI_COLON);
+				}
+				else -> {
+					val tok = self.peek();
+					self.error(tok, "Expected 'fn' or 'const' declaration inside 'object'");
+					self.advance();
+				}
+			}
+		}
+
+		self.consume(TokenType.CLOSE_BRACE, "Expected '}' after object body");
+		return self.node(
+			NodeData.ObjectDecl(name_tok.text, consts, methods, public),
 			kw.line, kw.col
 		);
 	}
@@ -541,6 +618,13 @@ impl Parser {
 				yield null;
 			}
 			else -> {
+				if (
+					tok.type == TokenType.IDENTIFIER
+					&& tok.text == "object"
+					&& self.peek_at(1).type !in [TokenType.DOT, TokenType.OPEN_PAREN, TokenType.EQUAL]
+				) {
+					yield self.parse_object_decl(public);
+				}
 				// Top-level statement or syntax error
 				if (public) self.error(tok, "'pub' modifier is not allowed on this statement");
 				val stmt = self.parse_statement();

@@ -503,6 +503,144 @@ pub fn broken(h: ?*Holder): bool {
 	println("  [PASS] test_dead_code_and_quickfixes");
 }
 
+fn test_object_lsp_and_privacy() {
+	val src = """mod obj_lsp_sample;
+
+use testsupport.objdefs.MathObj;
+
+object DeadNs {
+	pub const UNUSED_CONST: i32 = 5;
+	pub fn dead_method(): i32 => 1;
+}
+
+pub object LiveNs {
+	pub const VAL: i32 = 2;
+
+	pub fn compute(x: i32): i32 {
+		return x + Self.VAL;
+		val after = 1;
+	}
+}
+
+pub fn run(): i32 {
+	return MathObj.BASE + MathObj.scale(3) + LiveNs.compute(4);
+}
+""";
+	val p = "C:/Users/Admin/CLionProjects/Kobel/tests/unit/obj_lsp_virtual.kb";
+	val analysis = AnalysisResult(p, src, "C:/Users/Admin/CLionProjects/Kobel/tests/features", false);
+
+	var saw_err: usz = 0;
+	var saw_dead_obj = false;
+	var saw_dead_const = false;
+	var saw_dead_method = false;
+	var saw_unreach_in_obj = false;
+	var saw_live_flagged = false;
+	for (d in analysis.diagnostics) {
+		if (d.severity == 1) saw_err++;
+		if (d.code == "unused-symbol") {
+			if ("Unused object 'DeadNs'" in d.message) saw_dead_obj = true;
+			if ("UNUSED_CONST" in d.message) saw_dead_const = true;
+			if ("dead_method" in d.message) saw_dead_method = true;
+			if ("LiveNs" in d.message || "compute" in d.message) saw_live_flagged = true;
+		} else if (d.code == "unreachable-code") {
+			saw_unreach_in_obj = true;
+		}
+	}
+	assert_eq_usz(saw_err, 0, "valid object LSP file must produce zero compile errors");
+	assert_true(saw_dead_obj, "unused private object DeadNs must be flagged");
+	assert_true(saw_dead_const, "constant inside unused private object must be flagged");
+	assert_true(saw_dead_method, "method inside unused private object must be flagged");
+	assert_true(saw_unreach_in_obj, "unreachable code inside object method must be flagged");
+	assert_true(!saw_live_flagged, "live public object and its members must not be flagged");
+
+	// Document symbols: object kind == 19 with child constant & method
+	val syms = AnalysisResult.document_symbols(src);
+	var saw_obj_sym = false;
+	for (sym in syms.arr_val) {
+		if (sym.get_str("name", "") == "LiveNs") {
+			assert_true(sym.get_num("kind", 0) == 19, "object document symbol must use LSP SymbolKind.Object (19)");
+			val kids = sym.get_arr("children");
+			assert_eq_usz(kids.arr_val.len, 2, "LiveNs outline must contain VAL and compute");
+			saw_obj_sym = true;
+		}
+	}
+	assert_true(saw_obj_sym, "document_symbols must include LiveNs object");
+
+	// Definition and dot-completion on object members
+	val call_pos = find_line_col(src, "LiveNs.compute(4)");
+	val obj_def = analysis.definition_at(path_to_uri(p), call_pos.first, call_pos.second + 8);
+	assert_true(!obj_def.is_null(), "go-to-definition on LiveNs.compute must resolve");
+	val comp_items = analysis.complete_at(call_pos.first, call_pos.second + 7);
+	var saw_comp_val = false;
+	var saw_comp_fn = false;
+	for (it in comp_items.arr_val) {
+		val lbl = it.get_str("label", "");
+		if (lbl == "VAL") saw_comp_val = true;
+		if (lbl == "compute") saw_comp_fn = true;
+	}
+	assert_true(saw_comp_val && saw_comp_fn, "dot-completion on LiveNs must list VAL and compute");
+
+	// Negative compilation assertions enforced via real test_lsp assertions
+	var bad_cases = List<str>();
+	bad_cases += "object O { fn a() {} }\nimpl O { fn b() {} }";
+	bad_cases += "object O { pub fn a(): i32 => 1; }\npub fn bad() { val x = O(); }";
+	bad_cases += "object O { pub fn a(): i32 => 1; }\npub fn bad(x: O) {}";
+	bad_cases += "struct Empty {}";
+	bad_cases += "struct ForwardOnly;";
+	for (bad_case in bad_cases) {
+		val b_ana = AnalysisResult(
+			"C:/Users/Admin/CLionProjects/Kobel/tests/unit/obj_neg_virtual.kb",
+			"mod obj_neg;\n" + bad_case,
+			"",
+			false
+		);
+		var has_err = false;
+		for (d in b_ana.diagnostics) {
+			if (d.severity == 1) has_err = true;
+		}
+		assert_true(has_err, "disallowed object/empty-struct snippet must report severity-1 error");
+	}
+
+	// Cross-module privacy checks on object private const and private function
+	val priv_fn_src = """mod priv_fn_sample;
+
+use testsupport.objdefs.MathObj;
+
+pub fn bad(): i32 => MathObj.helper(1);
+""";
+	val pf_analysis = AnalysisResult(
+		"C:/Users/Admin/CLionProjects/Kobel/tests/unit/obj_priv_fn_virtual.kb",
+		priv_fn_src,
+		"C:/Users/Admin/CLionProjects/Kobel/tests/features",
+		false
+	);
+	var saw_fn_priv_err = false;
+	for (d in pf_analysis.diagnostics) {
+		if (d.severity == 1 && "private" in d.message) saw_fn_priv_err = true;
+	}
+	assert_true(saw_fn_priv_err, "calling private object function from another module must error");
+
+	val priv_const_src = """mod priv_const_sample;
+
+use testsupport.objdefs.MathObj;
+
+pub fn bad(): i32 => MathObj.HIDDEN_STEP;
+""";
+	val pc_analysis = AnalysisResult(
+		"C:/Users/Admin/CLionProjects/Kobel/tests/unit/obj_priv_const_virtual.kb",
+		priv_const_src,
+		"C:/Users/Admin/CLionProjects/Kobel/tests/features",
+		false
+	);
+	var saw_const_priv_err = false;
+	for (d in pc_analysis.diagnostics) {
+		if (d.severity == 1 && "private" in d.message) saw_const_priv_err = true;
+	}
+	assert_true(saw_const_priv_err, "reading private object constant from another module must error");
+
+	println("  [PASS] test_object_lsp_and_privacy");
+}
+
 pub fn main() {
 	println("Running LSP unit tests...");
 	test_json_and_uri();
@@ -511,5 +649,6 @@ pub fn main() {
 	test_preloaded_stdlib_no_duplicate_diagnostics();
 	test_error_union_lsp();
 	test_dead_code_and_quickfixes();
+	test_object_lsp_and_privacy();
 	println("All LSP unit tests passed.");
 }

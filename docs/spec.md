@@ -6,7 +6,7 @@
 
 ## 1. Overview
 
-- **Paradigm:** Procedural with object-oriented and functional features. No `class` keyword: `struct` holds data, `impl` holds behavior, and `trait` provides static abstraction.
+- **Paradigm:** Procedural with object-oriented and functional features. No `class` keyword: `struct` holds data, `impl` holds behavior, `object` holds non-instantiable static functions and constants, and `trait` provides static abstraction.
 - **Dispatch:** 100% static compile-time dispatch. No virtual method tables (vtables), no runtime type overhead.
 - **Compilation model:** Kobel source (`.kb`) → C99 source → native binary via any C compiler (`cl` by default on Windows, `gcc`/`clang` on POSIX).
 - **Memory model:** Explicit ownership without garbage collection. Values have single ownership and are freed at scope end. Raw pointers (`*T` read-only, `&T` mutable) are available for low-level systems programming.
@@ -19,7 +19,7 @@
 - **Blocks:** Delimited by curly braces `{ ... }`.
 - **Comments:** Line comments `// ...` and block comments `/* ... */`.
 - **Keywords:**
-  `as`, `break`, `const`, `continue`, `defer`, `else`, `enum`, `extern`, `false`, `fault`, `fn`, `for`, `if`, `impl`, `in`, `init`, `is`, `mod`, `null`, `op`, `pub`, `return`, `self`, `Self`, `struct`, `trait`, `true`, `use`, `val`, `var`, `when`, `while`, `yield`.
+  `as`, `break`, `const`, `continue`, `defer`, `else`, `enum`, `extern`, `false`, `fault`, `fn`, `for`, `if`, `impl`, `in`, `init`, `is`, `mod`, `null`, `op`, `pub`, `return`, `self`, `Self`, `struct`, `trait`, `true`, `use`, `val`, `var`, `when`, `while`, `yield` (plus contextual declaration keywords `object` and `type`).
 - **Identifiers:** `[A-Za-z_][A-Za-z0-9_]*`. Module segments must be valid identifiers (keywords cannot be module path segments).
 
 ### Literals
@@ -129,12 +129,8 @@ impl Point {
   - Unified constructor syntax: `Point(1, 2)` calls an `init(x, y)` constructor defined in `impl Point` if present, otherwise constructs struct fields positionally.
   - Raw struct construction: `Self(1, 2)` inside `impl` constructs fields directly without calling `init`.
 
-### Forward Declarations
-
-Mutually referential structs can be forward-declared:
+- **Struct rules:** Every `struct` must declare a `{ ... }` body containing at least one field; empty structs (`struct A {}`) and semicolon declarations (`struct A;`) are not allowed. Mutually referential structs resolve order-independently across the module without forward declarations:
 ```kobel
-struct A;
-
 struct B {
     pub a: *A
 }
@@ -143,6 +139,22 @@ struct A {
     pub b: ?*B = null
 }
 ```
+
+### Objects (`object`)
+
+Use `object` (instead of an empty `struct` + `impl`) to group static functions and constants that have no runtime instance:
+
+```kobel
+pub object Math {
+    pub const PI_APPROX: f64 = 3.14159;
+
+    pub fn square(x: i32): i32 => x * x;
+    pub fn identity<T>(v: T): T => v;
+}
+```
+
+- **Allowed members:** Only `fn` (including generic functions) and `const` declarations are allowed inside `object`; fields, `init` constructors, `op` overloads, `self`/`*self`/`&self` receivers, generic parameters on the object itself (`object Foo<T>`), and external `impl ObjectName` / `impl Trait for ObjectName` blocks are forbidden.
+- **No instances:** An `object` cannot be instantiated (`Math()`), used as a type (`var x: Math`, `*Math`), or used directly as a value. Access members via `ObjectName.member` (or `Self.member` inside the object).
 
 ### Traits
 
@@ -546,8 +558,8 @@ Standard library modules live in `lib/std/`:
   - `HashMap<K: Hash, V>`: Hash table.
   - `HashSet<T: Hash>`: Set collection.
   - `StringBuilder`: Efficient string assembly.
-- `std.memory`: Memory allocation interfaces and implementations (`Allocator` trait, `MemErr`, `Heap`, `Arena`).
-  - Fallible `Heap.try_alloc`, `Heap.try_create<T>`, `Heap.try_resize<T>` returning `!MemErr`; unwrapping `Heap.create<T>`, `Heap.create_val<T>`, `Heap.alloc<T>`, `Heap.resize<T>`, `Heap.free<T>`.
+- `std.memory`: Memory allocation utilities (`Allocator` trait implemented by `Arena`, `MemErr`, `Heap` object, `Arena`).
+  - Fallible `Heap.try_alloc`, `Heap.try_create<T>`, `Heap.try_resize<T>` returning `!MemErr`; unwrapping `Heap.create<T>`, `Heap.create_val<T>`, `Heap.resize<T>`, `Heap.free<T>`.
   - Bump allocator (`Arena`) for single-point bulk deallocation.
 - `std.traits`: Core traits (`Iterable`, `Hash`, `Stringer`).
 - `std.system` / `std.process`: System and process helpers (`System.get_env` returning `str ! SysErr`, `System.has_env`, `System.is_windows`; `Process.exec` returning `i32 ! ProcessErr`, `Process.exit`).

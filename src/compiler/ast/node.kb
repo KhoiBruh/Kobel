@@ -112,6 +112,7 @@ pub enum NodeData {
 	StructDecl(name: str, type_params: List<GenericParam>, fields: List<StructField>, public: bool, forward: bool, emit_typedef: bool),
 	TraitDecl(name: str, type_params: List<GenericParam>, bases: List<str>, methods: List<&AstNode>, public: bool, assoc_types: List<str>),
 	ImplDecl(struct_name: str, type_params: List<GenericParam>, trait_name: str, methods: List<&AstNode>, assoc_bindings: List<AssocBinding>),
+	ObjectDecl(name: str, consts: List<&AstNode>, methods: List<&AstNode>, public: bool),
 	EnumDecl(name: str, underlying_type: ?&AstNode, members: List<EnumMember>, public: bool),
 	FaultDecl(name: str, members: List<EnumMember>, public: bool),
 	ConstDecl(name: str, type_node: ?&AstNode, value: ?&AstNode, public: bool),

@@ -22,19 +22,16 @@ use compiler.semantic.types.*;
 use compiler.semantic.symbols.*;
 use compiler.semantic.resolution.*;
 
-use compiler.ast.StructField as AstStructField;
-use compiler.semantic.types.StructField;
-
-// Source names carried by more than one method of an impl, i.e. overloads.
-fn overloaded_names(im: *ImplDecl): List<str> {
+// Source names carried by more than one method in a method list, i.e. overloads.
+fn overloaded_method_names(methods: List<&AstNode>): List<str> {
 	var names = List<str>();
-	for (a in 0..<im.methods.len) {
-		val ma = im.methods[a];
+	for (a in 0..<methods.len) {
+		val ma = methods[a];
 		var na = "";
 		if (ma is FnDecl as fna) na = fna.name;
 		if (na.empty() || na in names) continue;
-		for (b in (a + 1)..<im.methods.len) {
-			val mb = im.methods[b];
+		for (b in (a + 1)..<methods.len) {
+			val mb = methods[b];
 			if (mb is FnDecl as fnb && fnb.name == na) {
 				names += na;
 				break;
@@ -43,6 +40,8 @@ fn overloaded_names(im: *ImplDecl): List<str> {
 	}
 	return names;
 }
+
+fn overloaded_names(im: *ImplDecl): List<str> => overloaded_method_names(im.methods);
 
 // Distinct C name of one method: `base`, or `<base>_<argc>` when the method name
 // is overloaded, bumped to `<base>_<argc>_<k>` while that name is already taken.
@@ -111,6 +110,13 @@ impl DeclarationCollector {
 			}
 
 			val st_sym = self.symtab.lookup(im.struct_name);
+			if (st_sym?.kind == SymbolKind.OBJECT) {
+				self.report_error(
+					node,
+					"Cannot write 'impl' block for object '${im.struct_name}'; declare functions directly inside 'object ${im.struct_name}'"
+				);
+				return;
+			}
 			if (st_sym == null || st_sym!.type_ptr.kind != DataType.STRUCT) {
 				self.report_error(node, "Cannot impl methods for unknown type '${im.struct_name}'");
 				return;
@@ -195,7 +201,7 @@ impl DeclarationCollector {
 		val mi = self.arena.create_val(
 			MethodInfo(
 				f.name, m_c_name, fn_type, m_node,
-				self.current_module, f.operator, is_static, f.initializer, is_move
+				self.current_module, f.operator, is_static, f.initializer, is_move, f.public
 			)
 		);
 		st_info.methods += mi;
@@ -482,12 +488,74 @@ impl DeclarationCollector {
 		val mi = self.arena.create_val(
 			MethodInfo(
 				f.name, m_c_name, fn_type, m_node,
-				self.current_module, f.operator, false, false
+				self.current_module, f.operator, false, false, false, f.public
 			)
 		);
 		self.symtab.register_prim_method(prim, mi);
 
 		f.name = m_c_name;
+	}
+
+	pub fn collect_object_methods(
+		&self, orig_name: str, obj: &ObjectDecl, obj_c_name: str, obj_info: &StructType
+	) {
+		val overloaded = overloaded_method_names(obj.methods);
+		var used_names = obj_info.methods.map { m -> m.c_name };
+
+		for (m_node in obj.methods) {
+			if (m_node is FnDecl as f) {
+				if (f.initializer || f.operator) {
+					self.report_error(
+						m_node,
+						"Object '${orig_name}' cannot declare constructors or operators"
+					);
+				}
+				if (f.type_params.len > 0) continue;
+
+				self.validate_fn_lambda_rules(m_node, f);
+				if (f.body == null) {
+					self.report_error(
+						m_node,
+						"Function '${f.name}' inside object '${orig_name}' must have a body"
+					);
+				}
+
+				var param_types = List<*Type>();
+				var is_vararg = false;
+				for (p in f.params) {
+					if (p.name == "self") {
+						self.report_error(
+							m_node,
+							"Function '${f.name}' inside object '${orig_name}' cannot have a 'self' parameter; all object functions are static"
+						);
+					}
+					if (p.type_node is VariadicType) is_vararg = true;
+					val pt = if (p.type_node != null) self.resolve_ast_type(p.type_node!)
+						else self.prims().t_none();
+					param_types += pt;
+				}
+
+				val ret_type = if (f.return_type != null) self.resolve_ast_type(f.return_type!)
+					else self.infer_decl_return_type(f) ?: self.prims().t_none();
+
+				val rec_sig = self.symtab.get_node_instance(m_node)?.sig;
+				val fn_type = rec_sig ?: self.arena.fn_type(param_types, ret_type, is_vararg);
+
+				val m_c_name = method_c_name(
+					"${obj_c_name}_${f.name}", param_types.len, f.name in overloaded, used_names
+				);
+				used_names += m_c_name;
+
+				val mi = self.arena.create_val(
+					MethodInfo(
+						f.name, m_c_name, fn_type, m_node,
+						self.current_module, false, true, false, false, f.public
+					)
+				);
+				obj_info.methods += mi;
+				f.name = m_c_name;
+			}
+		}
 	}
 
 	pub fn trait_record_impl(&self, t: ?&TraitInfo, struct_name: str) {

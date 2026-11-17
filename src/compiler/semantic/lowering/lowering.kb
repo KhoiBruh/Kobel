@@ -62,22 +62,16 @@ impl LoweringPass {
 					is ImplDecl as im -> {
 						if (im.type_params.len > 0) continue;
 						val im_sym = self.symtab.lookup(im.struct_name);
-						val prev_self = self.current_eu_self_ty;
-						self.current_eu_self_ty = im_sym?.type_ptr;
-						for (i in 0..<im.methods.len) {
-							val m = im.methods[i];
-							if (m is FnDecl as mf) {
-								if (mf.type_params.len > 0) continue;
-								val rec = self.symtab.get_node_instance(m);
-								if (rec != null) {
-									mf.body = self.lower_stmt(self.decl.materialize_body(rec));
-								} else if (mf.body != null) {
-									mf.body = self.lower_stmt(mf.body!);
-								}
-								self.lower_eu_fn_decl(mf);
+						self.lower_method_container(im.methods, im_sym?.type_ptr);
+					}
+					is ObjectDecl as obj -> {
+						val obj_sym = self.symtab.lookup(obj.name);
+						for (cnode in obj.consts) {
+							if (cnode is ConstDecl as c && c.value != null) {
+								c.value = self.lower_expr(c.value!);
 							}
 						}
-						self.current_eu_self_ty = prev_self;
+						self.lower_method_container(obj.methods, obj_sym?.type_ptr);
 					}
 					is ConstDecl as c -> {
 						if (c.value != null) c.value = self.lower_expr(c.value!);
@@ -85,6 +79,25 @@ impl LoweringPass {
 				}
 			}
 		}
+	}
+
+	fn lower_method_container(&self, methods: List<&AstNode>, self_ty: ?*Type) {
+		val prev_self = self.current_eu_self_ty;
+		self.current_eu_self_ty = self_ty;
+		for (i in 0..<methods.len) {
+			val m = methods[i];
+			if (m is FnDecl as mf) {
+				if (mf.type_params.len > 0) continue;
+				val rec = self.symtab.get_node_instance(m);
+				if (rec != null) {
+					mf.body = self.lower_stmt(self.decl.materialize_body(rec));
+				} else if (mf.body != null) {
+					mf.body = self.lower_stmt(mf.body!);
+				}
+				self.lower_eu_fn_decl(mf);
+			}
+		}
+		self.current_eu_self_ty = prev_self;
 	}
 
 	// ============================================================================

@@ -15,9 +15,7 @@ pub fault SysErr {
 	EnvNotSet("Environment variable is not set")
 }
 
-pub struct System;
-
-impl System {
+pub object System {
 
 	pub fn is_windows() => getenv("SystemRoot".c_str()) != null || getenv("WINDIR".c_str()) != null;
 

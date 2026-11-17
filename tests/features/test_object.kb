@@ -1,0 +1,71 @@
+mod test.object;
+
+use std.memory.Heap;
+use std.process.Process;
+use std.system.System;
+
+use testsupport.objdefs.MathErr;
+use testsupport.objdefs.MathObj;
+use testsupport.objdefs.MathObj as M;
+
+object LocalOps {
+	const STEP: i32 = 4;
+
+	pub fn inc_step(v: i32): i32 => Self.add_internal(v);
+
+	pub fn sum_varargs(first: i32, rest: ..i32): i32 {
+		var total = first;
+		for (r in rest) total += r;
+		return total;
+	}
+
+	fn add_internal(v: i32): i32 => v + Self.STEP;
+}
+
+struct ObjectFieldHolder {
+	pub object: i32
+}
+
+fn run_tests(): i32 {
+	if (MathObj.BASE != 10) return 1;
+	if (M.DOUBLE_BASE != 20) return 2;
+
+	if (MathObj.scale(5) != 10) return 3;
+	if (M.scale(5, 3) != 15) return 4;
+	if (MathObj.bump(7) != 8) return 5;
+	if (MathObj.bump(7, 4) != 11) return 6;
+	if (MathObj.base_plus(2) != 15) return 7;
+
+	if (MathObj.pick_first<i32>(42, 99) != 42) return 8;
+	if (M.pick_first(11, 22) != 11) return 9;
+
+	val ok_val = MathObj.checked_pos(5) !: _ -> return 10;
+	if (ok_val != 15) return 11;
+
+	val bad_val = MathObj.checked_pos(-1) !: err -> {
+		if (err !is MathErr.NegativeInput) return 12;
+		yield 99;
+	};
+	if (bad_val != 99) return 13;
+
+	if (LocalOps.inc_step(6) != 10) return 14;
+	if (LocalOps.sum_varargs(1, 2, 3, 4) != 10) return 15;
+
+	// Contextual 'object' remains valid as variable and struct field name.
+	val object = 7;
+	val holder = ObjectFieldHolder(object);
+	if (holder.object != 7) return 16;
+
+	// Standard library objects (`Heap`, `System`).
+	val ptr = Heap.create_val<i32>(123);
+	val read_v = ptr.read();
+	Heap.free(ptr);
+	if (read_v != 123) return 17;
+	if (System.has_env("__KOBEL_NON_EXISTENT_ENV_VAR_OBJ_TEST__")) return 18;
+
+	return 0;
+}
+
+fn main() {
+	if (run_tests() != 0) Process.exit(1);
+}
