@@ -537,26 +537,36 @@ impl DeclarationCollector {
 	// A payload enum becomes a struct: a `tag` field plus a union of per-variant
 	// payload structs. Each variant gets its own struct type named `Enum.Variant`
 	// (so an `is` pattern can name it) and an `Enum.Variant__TAG` constant symbol.
-	fn collect_payload_enum(&self, node: &AstNode, e: &EnumDecl, under_type: *Type) {
-		if (e.underlying_type != null) {
-			self.report_error(node, "A payload enum cannot declare an underlying type");
-		}
-
-		val c_name = self.c_name_for(e.name);
+	fn collect_tagged_union(
+		&self, node: &AstNode, name: str,
+		decl_members: List<EnumMember>, public: bool,
+		under_type: *Type, is_fault: bool
+	): str {
+		val c_name = self.c_name_for(name);
 		val tag_ty = self.prims().t_prim(Type.i32());
-		val enum_ty = self.arena.struct_type(e.name, List<StructField>());
+		val enum_ty = self.arena.struct_type(name, List<StructField>());
 		val enum_st = enum_ty.as_struct()!;
 		enum_st.c_name = c_name;
 		enum_st.module = self.current_module;
+		enum_st.is_fault = is_fault;
 		enum_st.fields += StructField("tag", tag_ty, 0, true, null);
 
 		var members = List<*EnumMemberInfo>();
+		var seen_names = HashSet<str>();
+		defer seen_names.free();
 		var max_payload: usz = 1;
 		var max_align: usz = tag_ty.align;
 		var idx: i64 = 0;
 
-		for (m in e.members) {
-			val v_name = "${e.name}.${m.name}";
+		for (m in decl_members) {
+			if (m.name in seen_names) {
+				val kind_lbl = if (is_fault) "fault" else "enum";
+				self.report_error(node, "Duplicate variant '${m.name}' in ${kind_lbl} '${name}'");
+				continue;
+			}
+			seen_names += m.name;
+
+			val v_name = "${name}.${m.name}";
 			val v_c = "${c_name}__${m.name}";
 			val v_ty = self.arena.struct_type(v_name, List<StructField>());
 			val v_st = v_ty.as_struct()!;
@@ -565,7 +575,8 @@ impl DeclarationCollector {
 			for (f in m.payload) {
 				val f_ty = self.resolve_ast_type(f.type_node);
 				if (f_ty.kind == DataType.FN) {
-					self.report_error(f.type_node, "Enum payload field '${f.name}' cannot have a lambda/closure type");
+					val lbl = if (is_fault) "Fault" else "Enum";
+					self.report_error(f.type_node, "${lbl} payload field '${f.name}' cannot have a lambda/closure type");
 				}
 				v_st.fields += StructField(f.name, f_ty, 0, true, null);
 			}
@@ -576,11 +587,11 @@ impl DeclarationCollector {
 			}
 
 			self.symtab.define_global(
-				Symbol(v_name, v_c, SymbolKind.STRUCT, v_ty, false, e.public, m.line, m.col, node)
+				Symbol(v_name, v_c, SymbolKind.STRUCT, v_ty, false, public, m.line, m.col, node)
 			);
 			if (self.symtab.lookup(m.name) == null) {
 				self.symtab.define_global(
-					Symbol(m.name, v_c, SymbolKind.STRUCT, v_ty, false, e.public, m.line, m.col, node)
+					Symbol(m.name, v_c, SymbolKind.STRUCT, v_ty, false, public, m.line, m.col, node)
 				);
 			}
 			self.symtab.define_global(
@@ -605,14 +616,31 @@ impl DeclarationCollector {
 		enum_ty.align = max_align;
 		enum_ty.size = body_off + pay;
 
-		val info = self.arena.create_val(EnumInfo(e.name, c_name, under_type, members, true, "tag"));
+		val info = self.arena.create_val(EnumInfo(name, c_name, under_type, members, true, "tag", is_fault));
 		self.symtab.register_enum_info(info);
 
 		val ok = self.symtab.define_global(
-			Symbol(e.name, c_name, SymbolKind.STRUCT, enum_ty, false, e.public, node.line, node.col, node)
+			Symbol(name, c_name, SymbolKind.STRUCT, enum_ty, false, public, node.line, node.col, node)
 		);
-		if (!ok) self.report_error(node, "Duplicate enum declaration '${e.name}'");
-		e.name = c_name;
+		if (!ok) {
+			val kind_lbl = if (is_fault) "fault" else "enum";
+			self.report_error(node, "Duplicate ${kind_lbl} declaration '${name}'");
+		}
+		return c_name;
+	}
+
+	fn collect_payload_enum(&self, node: &AstNode, e: &EnumDecl, under_type: *Type) {
+		if (e.underlying_type != null) {
+			self.report_error(node, "A payload enum cannot declare an underlying type");
+		}
+		e.name = self.collect_tagged_union(node, e.name, e.members, e.public, under_type, false);
+	}
+
+	pub fn collect_fault(&self, node: &AstNode) {
+		if (node is FaultDecl as flt) {
+			val under_type = self.prims().t_prim(Type.i32());
+			flt.name = self.collect_tagged_union(node, flt.name, flt.members, flt.public, under_type, true);
+		}
 	}
 
 	pub fn collect_const(&self, node: &AstNode) {
@@ -695,6 +723,7 @@ impl DeclarationCollector {
 			is StructDecl -> self.collect_struct(node);
 			is FnDecl -> self.collect_fn(node);
 			is EnumDecl -> self.collect_enum(node);
+			is FaultDecl -> self.collect_fault(node);
 			is ConstDecl -> self.collect_const(node);
 			is ImplDecl -> self.collect_impl(node);
 			is TraitDecl -> {} // already recorded in Pass 0
@@ -779,13 +808,14 @@ impl DeclarationCollector {
 					val has_p = e.members.any { m -> !m.payload.empty() };
 					if (has_p == want_payload) self.collect_enum(d);
 				}
+				is FaultDecl -> if (want_payload) self.collect_fault(d);
 			}
 		}
 	}
 
 	fn pass1_declarations(&self, prog: *Program) {
 		for (d in prog) {
-			if (d !is [ImplDecl, EnumDecl]) self.collect_declaration(d);
+			if (d !is [ImplDecl, EnumDecl, FaultDecl]) self.collect_declaration(d);
 		}
 	}
 

@@ -1,0 +1,972 @@
+mod compiler.semantic.lowering;
+
+/*
+ * ============================================================================
+ * Error Union Lowering (Implicit Wrapping & Sub-Expression Hoisting)
+ *
+ * Runs right after sugar desugaring inside `LoweringPass`:
+ *   1. Wraps naked `T` and `Fault` values into `ErrorUnionWrapExpr` wherever
+ *      an `ErrorUnion` (`T ! E` or `!E`) is expected (returns, var decls,
+ *      assignments, call/ctor arguments, yields, `if`/`when` branches).
+ *   2. Hoists error propagation (`expr?`) and nested catch (`expr !: ...`)
+ *      out of sub-expressions and loop/short-circuit conditions into prelude
+ *      statements so generated C99 remains portable and single-evaluation.
+ * ============================================================================
+ */
+
+use std.memory.*;
+use std.collections.*;
+
+use compiler.core.*;
+use compiler.ast.*;
+use compiler.lexer.*;
+use compiler.semantic.types.*;
+use compiler.semantic.symbols.*;
+use compiler.semantic.resolution.*;
+use compiler.semantic.declaration.*;
+
+impl LoweringPass {
+
+	fn next_eu_id(&self): usz {
+		self.current_eu_id++;
+		return self.current_eu_id;
+	}
+
+	fn is_postfix_q(*self, node: ?&AstNode): bool {
+		val raw = self.unwrap_eu_group(node);
+		if (raw != null && raw is UnaryExpr as u) return u.is_postfix && u.op == TokenType.QUESTION;
+		return false;
+	}
+
+	fn when_has_blocks(*self, we: *WhenExpr): bool => we.arms.any { arm ->
+		arm.body is BlockStmt || arm.patterns.any { p -> p is IsExpr }
+	};
+
+	fn single_stmt_block(&self, s: &AstNode): &AstNode {
+		var stmts = List<&AstNode>();
+		stmts += s;
+		return self.arena.node(NodeData.BlockStmt(stmts), s.line, s.col);
+	}
+
+	pub fn unwrap_eu_group(*self, node: ?&AstNode): ?&AstNode {
+		var cur = node;
+		while (cur != null) {
+			if (cur is GroupExpr as g) cur = g.expr;
+			else break;
+		}
+		return cur;
+	}
+
+	fn resolve_ast_type_via_symtab(*self, node: ?&AstNode): ?*Type {
+		val n = node ?: return null;
+		var r = TypeResolver(self.symtab, self.arena, self.symtab.current_module, List<Diagnostic>(), false, self.current_eu_self_ty);
+		return r.resolve_ast_type(n);
+	}
+
+	fn fn_decl_ret_type(*self, f: *FnDecl): ?*Type {
+		if (f.return_type != null) return self.resolve_ast_type_via_symtab(f.return_type!);
+		val sym = self.symtab.lookup(f.name) ?: self.symtab.gen.find_instance_symbol(f.name) ?: return null;
+		if (sym.type_ptr.kind == DataType.FN) return sym.type_ptr.as_fn()!.return_type;
+		return null;
+	}
+
+	pub fn lower_eu_fn_decl(&self, f: &FnDecl) {
+		val prev_mod = self.symtab.current_module;
+		if (!f.module.empty()) self.symtab.set_current_module(f.module);
+		defer self.symtab.set_current_module(prev_mod);
+
+		val prev_ret = self.current_fn_ret_type;
+		self.current_fn_ret_type = self.fn_decl_ret_type(f);
+		defer self.current_fn_ret_type = prev_ret;
+
+		if (f.body == null) return;
+		val body = f.body!;
+
+		if (body is BlockStmt as blk) {
+			self.lower_eu_block(blk);
+			return;
+		}
+
+		if (body is ExprStmt as es) {
+			val ret_ty = self.current_fn_ret_type;
+			if (ret_ty != null && ret_ty.kind == DataType.ERROR_UNION) {
+				val eu = ret_ty.as_error_union()!;
+				val expr_ty = self.type_of(es.expr);
+				if (eu.ok.kind == DataType.NONE && (expr_ty?.kind ?: DataType.NONE) == DataType.NONE) {
+					val ok_wrap = self.make_eu_wrap(eu.c_name, true, null, ret_ty, es.expr.line, es.expr.col);
+					var stmts = List<&AstNode>();
+					stmts += body;
+					stmts += self.arena.node(NodeData.ReturnStmt(ok_wrap), es.expr.line, es.expr.col);
+					val wrapped_blk = self.arena.node(NodeData.BlockStmt(stmts), body.line, body.col);
+					if (wrapped_blk is BlockStmt as nblk) self.lower_eu_block(nblk);
+					f.body = wrapped_blk;
+					return;
+				}
+				es.expr = self.wrap_for_eu(es.expr, ret_ty);
+			}
+
+			var wrapped = self.wrap_expr_for_eu(es.expr);
+			if (self.expr_needs_eu_lower(wrapped)) {
+				var stmts = List<&AstNode>();
+				var prelude = List<&AstNode>();
+				val val_low = self.lower_eu_expr(wrapped, &prelude, true);
+				for (ps in prelude) stmts += ps;
+				if (ret_ty != null && ret_ty.kind != DataType.NONE) {
+					stmts += self.arena.node(NodeData.ReturnStmt(val_low), es.expr.line, es.expr.col);
+				} else {
+					if (!self.is_postfix_q(wrapped)) {
+						stmts += self.arena.node(NodeData.ExprStmt(val_low), es.expr.line, es.expr.col);
+					}
+				}
+				val hoisted_blk = self.arena.node(NodeData.BlockStmt(stmts), body.line, body.col);
+				f.body = hoisted_blk;
+				return;
+			}
+			es.expr = wrapped;
+		}
+	}
+
+	fn make_eu_wrap(
+		&self, c_type: str, is_ok: bool, value: ?&AstNode,
+		eu_ty: *Type, line: usz, col: usz
+	): &AstNode {
+		val w = self.arena.node(NodeData.ErrorUnionWrapExpr(c_type, is_ok, value), line, col);
+		self.symtab.set_node_type(w, eu_ty);
+		return w;
+	}
+
+	fn wrap_for_eu(&self, expr: &AstNode, target_ty: *Type): &AstNode {
+		if (target_ty.kind != DataType.ERROR_UNION) return expr;
+		val eu = target_ty.as_error_union()!;
+		val cur = self.unwrap_eu_group(expr) ?: return expr;
+		val cur_ty = self.type_of(cur);
+
+		if (cur is IfExpr as ie) {
+			ie.then_branch = self.wrap_for_eu(ie.then_branch, target_ty);
+			ie.else_branch = self.wrap_for_eu(ie.else_branch, target_ty);
+			self.symtab.set_node_type(cur, target_ty);
+			return expr;
+		}
+
+		if (cur is WhenExpr as we) {
+			for (i in 0..<we.arms.len) {
+				var arm = we.arms[i];
+				if (arm.body is BlockStmt as blk) {
+					self.wrap_block_yields_for_eu(blk, target_ty);
+				} else {
+					arm.body = self.wrap_for_eu(arm.body, target_ty);
+				}
+				we.arms[i] = arm;
+			}
+			self.symtab.set_node_type(cur, target_ty);
+			return expr;
+		}
+
+		if (cur is CatchExpr as ce && cur_ty != null && cur_ty.equals(target_ty)) {
+			return expr;
+		}
+
+		if (cur is ErrorUnionWrapExpr as w && cur_ty != null && cur_ty.equals(target_ty)) {
+			return expr;
+		}
+
+		if (cur_ty != null && cur_ty.equals(target_ty)) {
+			return expr;
+		}
+
+		if (cur_ty != null && eu.err.equals(cur_ty)) {
+			return self.make_eu_wrap(eu.c_name, false, cur, target_ty, cur.line, cur.col);
+		}
+
+		if (eu.ok.kind == DataType.NONE && (cur_ty?.kind ?: DataType.NONE) == DataType.NONE) {
+			return self.make_eu_wrap(eu.c_name, true, null, target_ty, cur.line, cur.col);
+		}
+
+		return self.make_eu_wrap(eu.c_name, true, cur, target_ty, cur.line, cur.col);
+	}
+
+	fn wrap_block_yields_for_eu(&self, blk: &BlockStmt, target_ty: *Type) {
+		for (s in blk.statements) {
+			when (s) {
+				is YieldStmt as ys -> {
+					if (ys.value != null) ys.value = self.wrap_for_eu(ys.value!, target_ty);
+				}
+				is BlockStmt as sub -> self.wrap_block_yields_for_eu(sub, target_ty);
+				is IfStmt as ifs -> {
+					if (ifs.then_branch is BlockStmt as tb) self.wrap_block_yields_for_eu(tb, target_ty);
+					else if (ifs.then_branch is YieldStmt as tys && tys.value != null) {
+						tys.value = self.wrap_for_eu(tys.value!, target_ty);
+					}
+					if (ifs.else_branch != null) {
+						if (ifs.else_branch! is BlockStmt as eb) self.wrap_block_yields_for_eu(eb, target_ty);
+						else if (ifs.else_branch! is YieldStmt as eys && eys.value != null) {
+							eys.value = self.wrap_for_eu(eys.value!, target_ty);
+						}
+					}
+				}
+			}
+		}
+	}
+
+	fn wrap_call_args(&self, node: &AstNode, c: &CallExpr) {
+		val mi = self.symtab.get_resolved_method(node);
+		var fn_info: ?*FnTypeInfo = null;
+		if (mi != null) {
+			fn_info = mi.fn_type.as_fn();
+		} else if (self.symtab.is_closure_call(node)) {
+			fn_info = self.type_of(c.callee)?.as_fn();
+		} else if (c.callee is IdentifierExpr as cid) {
+			val sym = self.symtab.lookup(cid.name) ?: self.symtab.gen.find_instance_symbol(cid.name);
+			if (sym != null && sym.type_ptr.kind == DataType.FN) {
+				fn_info = sym.type_ptr.as_fn();
+			}
+		}
+
+		val fi = fn_info ?: return;
+		if (fi.param_types.empty()) return;
+
+		for (i in 0..<c.args.len) {
+			val p_idx = if (fi.is_variadic && i >= fi.param_types.len - 1) fi.param_types.len - 1 else i;
+			if (p_idx < fi.param_types.len) {
+				val p_ty = fi.param_types[p_idx];
+				if (p_ty.kind == DataType.ERROR_UNION) {
+					c.args[i] = self.wrap_for_eu(c.args[i], p_ty);
+				}
+			}
+		}
+	}
+
+	fn wrap_expr_for_eu(&self, node: &AstNode): &AstNode {
+		when (node) {
+			is GroupExpr as g -> g.expr = self.wrap_expr_for_eu(g.expr);
+			is BinaryExpr as b -> {
+				b.left = self.wrap_expr_for_eu(b.left);
+				b.right = self.wrap_expr_for_eu(b.right);
+			}
+			is UnaryExpr as u -> u.operand = self.wrap_expr_for_eu(u.operand);
+			is CallExpr as c -> {
+				c.callee = self.wrap_expr_for_eu(c.callee);
+				for (i in 0..<c.args.len) c.args[i] = self.wrap_expr_for_eu(c.args[i]);
+				self.wrap_call_args(node, c);
+			}
+			is MemberExpr as m -> m.object = self.wrap_expr_for_eu(m.object);
+			is IndexExpr as ix -> {
+				ix.target = self.wrap_expr_for_eu(ix.target);
+				ix.index = self.wrap_expr_for_eu(ix.index);
+			}
+			is AssignExpr as a -> {
+				a.target = self.wrap_expr_for_eu(a.target);
+				a.value = self.wrap_expr_for_eu(a.value);
+				val tgt_ty = self.type_of(a.target);
+				if (tgt_ty != null && tgt_ty.kind == DataType.ERROR_UNION) {
+					a.value = self.wrap_for_eu(a.value, tgt_ty);
+				}
+			}
+			is CastExpr as cst -> {
+				if (cst.expr != null) cst.expr = self.wrap_expr_for_eu(cst.expr!);
+			}
+			is ArrayLiteralExpr as al -> {
+				for (i in 0..<al.elements.len) al.elements[i] = self.wrap_expr_for_eu(al.elements[i]);
+			}
+			is IfExpr as ie -> {
+				ie.condition = self.wrap_expr_for_eu(ie.condition);
+				ie.then_branch = self.wrap_expr_for_eu(ie.then_branch);
+				ie.else_branch = self.wrap_expr_for_eu(ie.else_branch);
+				val if_ty = self.type_of(node);
+				if (if_ty != null && if_ty.kind == DataType.ERROR_UNION) {
+					ie.then_branch = self.wrap_for_eu(ie.then_branch, if_ty);
+					ie.else_branch = self.wrap_for_eu(ie.else_branch, if_ty);
+				}
+			}
+			is WhenExpr as we -> {
+				if (we.condition != null) we.condition = self.wrap_expr_for_eu(we.condition!);
+				val we_ty = self.type_of(node);
+				for (i in 0..<we.arms.len) {
+					var arm = we.arms[i];
+					if (arm.body is BlockStmt as blk) {
+						self.lower_eu_block(blk);
+						if (we_ty != null && we_ty.kind == DataType.ERROR_UNION) {
+							self.wrap_block_yields_for_eu(blk, we_ty);
+						}
+					} else {
+						arm.body = self.wrap_expr_for_eu(arm.body);
+						if (we_ty != null && we_ty.kind == DataType.ERROR_UNION) {
+							arm.body = self.wrap_for_eu(arm.body, we_ty);
+						}
+					}
+					we.arms[i] = arm;
+				}
+			}
+			is IsExpr as ise -> {
+				if (ise.expr != null) ise.expr = self.wrap_expr_for_eu(ise.expr!);
+			}
+			is StructCtorExpr as sc -> {
+				for (i in 0..<sc.args.len) sc.args[i] = self.wrap_expr_for_eu(sc.args[i]);
+				val s_ty = self.type_of(node);
+				if (s_ty != null && s_ty.kind == DataType.STRUCT) {
+					val fields = s_ty.as_struct()!.fields;
+					for (i in 0..<sc.args.len) {
+						if (i < fields.len && fields[i].type_ptr.kind == DataType.ERROR_UNION) {
+							sc.args[i] = self.wrap_for_eu(sc.args[i], fields[i].type_ptr);
+						}
+					}
+				}
+			}
+			is EnumCtorExpr as ec -> {
+				for (i in 0..<ec.args.len) ec.args[i] = self.wrap_expr_for_eu(ec.args[i]);
+				val ei = self.symtab.find_enum_info(ec.c_name);
+				if (ei != null) {
+					val members = ei.members;
+					for (m in members) {
+						if (m.value == ec.tag_value && m.payload_ty != null) {
+							val fields = m.payload_ty!.as_struct()!.fields;
+							for (i in 0..<ec.args.len) {
+								if (i < fields.len && fields[i].type_ptr.kind == DataType.ERROR_UNION) {
+									ec.args[i] = self.wrap_for_eu(ec.args[i], fields[i].type_ptr);
+								}
+							}
+							break;
+						}
+					}
+				}
+			}
+			is CatchExpr as ce -> {
+				ce.expr = self.wrap_expr_for_eu(ce.expr);
+				val src_ty = self.type_of(ce.expr);
+				val h_is_stmt = self.is_stmt_node(ce.handler);
+				if (ce.handler is BlockStmt as hblk) {
+					self.lower_eu_block(hblk);
+					if (src_ty != null && src_ty.kind == DataType.ERROR_UNION) {
+						val ok_ty = src_ty.as_error_union()!.ok;
+						if (ok_ty.kind == DataType.ERROR_UNION) {
+							self.wrap_block_yields_for_eu(hblk, ok_ty);
+						}
+					}
+				} else if (h_is_stmt) {
+					var h_pre = List<&AstNode>();
+					val low_h = self.lower_eu_stmt_single(ce.handler, &h_pre);
+					if (!h_pre.empty()) {
+						var stmts = List<&AstNode>();
+						for (ps in h_pre) stmts += ps;
+						stmts += low_h;
+						ce.handler = self.arena.node(NodeData.BlockStmt(stmts), ce.handler.line, ce.handler.col);
+					} else {
+						ce.handler = low_h;
+					}
+				} else {
+					ce.handler = self.wrap_expr_for_eu(ce.handler);
+					if (src_ty != null && src_ty.kind == DataType.ERROR_UNION) {
+						val ok_ty = src_ty.as_error_union()!.ok;
+						if (ok_ty.kind == DataType.ERROR_UNION) {
+							ce.handler = self.wrap_for_eu(ce.handler, ok_ty);
+						}
+					}
+				}
+			}
+			is ErrorUnionWrapExpr as w -> {
+				if (w.value != null) w.value = self.wrap_expr_for_eu(w.value!);
+			}
+			is LambdaExpr as lam -> {
+				val linfo = self.symtab.get_lambda_info(node);
+				val lam_ret = linfo.fn_type?.as_fn()?.return_type;
+				val prev_ret = self.current_fn_ret_type;
+				if (lam_ret != null) self.current_fn_ret_type = lam_ret;
+
+				if (lam.body is BlockStmt as lblk) {
+					if (lam_ret != null && lam_ret.kind == DataType.ERROR_UNION) {
+						self.wrap_block_yields_for_eu(lblk, lam_ret);
+					}
+					self.lower_eu_block(lblk);
+				} else {
+					lam.body = self.wrap_expr_for_eu(lam.body);
+					if (lam_ret != null && lam_ret.kind == DataType.ERROR_UNION) {
+						val eu = lam_ret.as_error_union()!;
+						val bty = self.type_of(lam.body);
+						if (eu.ok.kind == DataType.NONE && (bty?.kind ?: DataType.NONE) == DataType.NONE) {
+							val ok_wrap = self.make_eu_wrap(eu.c_name, true, null, lam_ret, lam.body.line, lam.body.col);
+							var stmts = List<&AstNode>();
+							stmts += self.arena.node(NodeData.ExprStmt(lam.body), lam.body.line, lam.body.col);
+							stmts += self.arena.node(NodeData.YieldStmt(ok_wrap), lam.body.line, lam.body.col);
+							val lblk = self.arena.node(NodeData.BlockStmt(stmts), lam.body.line, lam.body.col);
+							if (lblk is BlockStmt as lblk_s) self.lower_eu_block(lblk_s);
+							lam.body = lblk;
+						} else {
+							lam.body = self.wrap_for_eu(lam.body, lam_ret);
+						}
+					}
+					if (lam.body !is BlockStmt && self.expr_needs_eu_lower(lam.body)) {
+						var stmts = List<&AstNode>();
+						var pre = List<&AstNode>();
+						val low_b = self.lower_eu_expr(lam.body, &pre, true);
+						for (ps in pre) stmts += ps;
+						if (lam_ret != null && lam_ret.kind != DataType.NONE) {
+							stmts += self.arena.node(NodeData.YieldStmt(low_b), lam.body.line, lam.body.col);
+						} else {
+							stmts += self.arena.node(NodeData.ExprStmt(low_b), lam.body.line, lam.body.col);
+						}
+						lam.body = self.arena.node(NodeData.BlockStmt(stmts), lam.body.line, lam.body.col);
+					}
+				}
+				self.current_fn_ret_type = prev_ret;
+			}
+		}
+		return node;
+	}
+
+	fn expr_needs_eu_lower(&self, node: ?*AstNode): bool {
+		if (node == null) return false;
+		return when (node!) {
+			is CatchExpr -> true;
+			is UnaryExpr as u -> (u.is_postfix && u.op == TokenType.QUESTION) || self.expr_needs_eu_lower(u.operand);
+			is GroupExpr as g -> self.expr_needs_eu_lower(g.expr);
+			is BinaryExpr as b -> self.expr_needs_eu_lower(b.left) || self.expr_needs_eu_lower(b.right);
+			is CallExpr as c -> {
+				if (self.expr_needs_eu_lower(c.callee)) yield true;
+				for (a in c.args) if (self.expr_needs_eu_lower(a)) yield true;
+				yield false;
+			}
+			is MemberExpr as m -> self.expr_needs_eu_lower(m.object);
+			is IndexExpr as ix -> self.expr_needs_eu_lower(ix.target) || self.expr_needs_eu_lower(ix.index);
+			is AssignExpr as a -> self.expr_needs_eu_lower(a.target) || self.expr_needs_eu_lower(a.value);
+			is UpdateExpr as u -> self.expr_needs_eu_lower(u.target);
+			is CastExpr as cst -> self.expr_needs_eu_lower(cst.expr);
+			is ArrayLiteralExpr as al -> al.elements.any { el -> self.expr_needs_eu_lower(el) };
+			is IfExpr as ie -> self.expr_needs_eu_lower(ie.condition)
+				|| self.expr_needs_eu_lower(ie.then_branch)
+				|| self.expr_needs_eu_lower(ie.else_branch);
+			is WhenExpr as we -> {
+				if (self.expr_needs_eu_lower(we.condition)) yield true;
+				for (arm in we.arms) {
+					if (arm.body !is BlockStmt && self.expr_needs_eu_lower(arm.body)) yield true;
+				}
+				yield false;
+			}
+			is IsExpr as ise -> self.expr_needs_eu_lower(ise.expr);
+			is StructCtorExpr as sc -> sc.args.any { a -> self.expr_needs_eu_lower(a) };
+			is EnumCtorExpr as ec -> ec.args.any { a -> self.expr_needs_eu_lower(a) };
+			is ErrorUnionWrapExpr as w -> self.expr_needs_eu_lower(w.value);
+			else -> false;
+		};
+	}
+
+	fn ensure_block_for_prelude(&self, prelude: List<&AstNode>, stmt: &AstNode): &AstNode {
+		if (prelude.empty()) return stmt;
+		var stmts = List<&AstNode>();
+		for (ps in prelude) stmts += ps;
+		stmts += stmt;
+		return self.arena.node(NodeData.BlockStmt(stmts), stmt.line, stmt.col);
+	}
+
+	fn lower_eu_block(&self, blk: &BlockStmt) {
+		var out = List<&AstNode>();
+		for (st in blk.statements) {
+			var pre = List<&AstNode>();
+			if (st is ExprStmt as es) {
+				val unwrapped_es = self.unwrap_eu_group(es.expr);
+				if (unwrapped_es != null && unwrapped_es is UnaryExpr as pu && pu.is_postfix && pu.op == TokenType.QUESTION) {
+					val op_wrapped = self.wrap_expr_for_eu(pu.operand);
+					val low_op = self.lower_eu_expr(op_wrapped, &pre, false);
+					self.emit_propagate_to_prelude(st, low_op, pu, &pre);
+					for (ps in pre) out += ps;
+					continue;
+				}
+			}
+			val lowered_st = self.lower_eu_stmt_single(st, &pre);
+			for (ps in pre) out += ps;
+			out += lowered_st;
+		}
+		blk.statements = out;
+	}
+
+	fn lower_eu_branch(&self, stmt: &AstNode): &AstNode {
+		if (stmt is BlockStmt as blk) {
+			self.lower_eu_block(blk);
+			return stmt;
+		}
+		var pre = List<&AstNode>();
+		if (stmt is ExprStmt as es) {
+			val unwrapped_es = self.unwrap_eu_group(es.expr);
+			if (unwrapped_es != null && unwrapped_es is UnaryExpr as pu && pu.is_postfix && pu.op == TokenType.QUESTION) {
+				val op_wrapped = self.wrap_expr_for_eu(pu.operand);
+				val low_op = self.lower_eu_expr(op_wrapped, &pre, false);
+				self.emit_propagate_to_prelude(stmt, low_op, pu, &pre);
+				return self.arena.node(NodeData.BlockStmt(pre), stmt.line, stmt.col);
+			}
+		}
+		val low_st = self.lower_eu_stmt_single(stmt, &pre);
+		return self.ensure_block_for_prelude(pre, low_st);
+	}
+
+	fn lower_eu_stmt_single(&self, node: &AstNode, prelude: &List<&AstNode>): &AstNode {
+		when (node) {
+			is BlockStmt as blk -> {
+				self.lower_eu_block(blk);
+				return node;
+			}
+			is ExprStmt as es -> {
+				es.expr = self.wrap_expr_for_eu(es.expr);
+				val raw = self.unwrap_eu_group(es.expr);
+				if (raw is AssignExpr as asgn && asgn.op == TokenType.EQUAL) {
+					asgn.target = self.lower_eu_expr(asgn.target, prelude, false);
+					asgn.value = self.lower_eu_expr(asgn.value, prelude, true);
+					return node;
+				}
+				es.expr = self.lower_eu_expr(es.expr, prelude, true);
+				return node;
+			}
+			is VarDeclStmt as vd -> {
+				if (vd.initializer != null) {
+					vd.initializer = self.wrap_expr_for_eu(vd.initializer!);
+					if (vd.type_annotation != null && vd.type_annotation! is ErrorUnionType) {
+						val var_ty = self.resolve_ast_type_via_symtab(vd.type_annotation!);
+						if (var_ty != null && var_ty.kind == DataType.ERROR_UNION) {
+							vd.initializer = self.wrap_for_eu(vd.initializer!, var_ty);
+						}
+					}
+					vd.initializer = self.lower_eu_expr(vd.initializer!, prelude, true);
+				}
+				return node;
+			}
+			is DestructDeclStmt as ds -> {
+				ds.initializer = self.wrap_expr_for_eu(ds.initializer);
+				ds.initializer = self.lower_eu_expr(ds.initializer, prelude, false);
+				return node;
+			}
+			is ReturnStmt as ret -> {
+				if (ret.value != null) {
+					ret.value = self.wrap_expr_for_eu(ret.value!);
+					if (self.current_fn_ret_type != null && self.current_fn_ret_type!.kind == DataType.ERROR_UNION) {
+						ret.value = self.wrap_for_eu(ret.value!, self.current_fn_ret_type!);
+					}
+					ret.value = self.lower_eu_expr(ret.value!, prelude, false);
+				} else if (self.current_fn_ret_type != null && self.current_fn_ret_type!.kind == DataType.ERROR_UNION) {
+					val eu = self.current_fn_ret_type!.as_error_union()!;
+					ret.value = self.make_eu_wrap(eu.c_name, true, null, self.current_fn_ret_type!, node.line, node.col);
+				}
+				return node;
+			}
+			is YieldStmt as ys -> {
+				if (ys.value != null) {
+					ys.value = self.wrap_expr_for_eu(ys.value!);
+					ys.value = self.lower_eu_expr(ys.value!, prelude, false);
+				}
+				return node;
+			}
+			is IfStmt as ifs -> {
+				ifs.condition = self.wrap_expr_for_eu(ifs.condition);
+				ifs.condition = self.lower_eu_expr(ifs.condition, prelude, false);
+				ifs.then_branch = self.lower_eu_branch(ifs.then_branch);
+				if (ifs.else_branch != null) {
+					if (ifs.else_branch! is IfStmt) {
+						var elif_pre = List<&AstNode>();
+						val low_elif = self.lower_eu_stmt_single(ifs.else_branch!, &elif_pre);
+						ifs.else_branch = self.ensure_block_for_prelude(elif_pre, low_elif);
+					} else {
+						ifs.else_branch = self.lower_eu_branch(ifs.else_branch!);
+					}
+				}
+				return node;
+			}
+			is WhileStmt as wh -> {
+				wh.condition = self.wrap_expr_for_eu(wh.condition);
+				if (self.expr_needs_eu_lower(wh.condition)) {
+					var cond_pre = List<&AstNode>();
+					val low_c = self.lower_eu_expr(wh.condition, &cond_pre, false);
+					val neg_c = self.arena.node(NodeData.UnaryExpr(TokenType.BANG, low_c, false), wh.condition.line, wh.condition.col);
+					val brk = self.arena.node(NodeData.BreakStmt, wh.condition.line, wh.condition.col);
+					val exit_if = self.arena.node(NodeData.IfStmt(neg_c, self.single_stmt_block(brk), null), wh.condition.line, wh.condition.col);
+					var loop_stmts = List<&AstNode>();
+					for (ps in cond_pre) loop_stmts += ps;
+					loop_stmts += exit_if;
+					val low_body = self.lower_eu_branch(wh.body);
+					if (low_body is BlockStmt as lblk) {
+						for (bs in lblk.statements) loop_stmts += bs;
+					} else {
+						loop_stmts += low_body;
+					}
+					wh.condition = self.arena.node(NodeData.LiteralExpr(Literal.BOOLEAN, "true"), wh.condition.line, wh.condition.col);
+					wh.body = self.arena.node(NodeData.BlockStmt(loop_stmts), wh.body.line, wh.body.col);
+					return node;
+				}
+				wh.body = self.lower_eu_branch(wh.body);
+				return node;
+			}
+			is WhenStmt as ws -> {
+				if (ws.condition != null) {
+					ws.condition = self.wrap_expr_for_eu(ws.condition!);
+					ws.condition = self.lower_eu_expr(ws.condition!, prelude, false);
+				}
+				for (i in 0..<ws.arms.len) {
+					var arm = ws.arms[i];
+					arm.body = self.lower_eu_branch(arm.body);
+					ws.arms[i] = arm;
+				}
+				return node;
+			}
+			is DeferStmt as ds -> {
+				ds.body = self.lower_eu_branch(ds.body);
+				return node;
+			}
+			else -> return node;
+		}
+	}
+
+	fn emit_propagate_to_prelude(
+		&self, node: *AstNode, op_low: &AstNode, un: *UnaryExpr, prelude: &List<&AstNode>
+	): ?&AstNode {
+		val eu_ty = self.type_of(un.operand) ?: return null;
+		if (eu_ty.kind != DataType.ERROR_UNION) return null;
+		val eu = eu_ty.as_error_union()!;
+		val ret_ty = self.current_fn_ret_type ?: return null;
+		if (ret_ty.kind != DataType.ERROR_UNION) return null;
+		val ret_eu = ret_ty.as_error_union()!;
+
+		val id_n = self.next_eu_id();
+		val tmp_name = "__eu_prop_${id_n}";
+		val tmp_decl = self.arena.node(
+			NodeData.VarDeclStmt(false, tmp_name, self.arena.ast_type_from_type(eu_ty), op_low),
+			node.line, node.col
+		);
+		prelude.add(tmp_decl);
+
+		val tmp_id = self.arena.node(NodeData.IdentifierExpr(tmp_name), node.line, node.col);
+		self.symtab.set_node_type(tmp_id, eu_ty);
+
+		val is_ok_mem = self.arena.node(NodeData.MemberExpr(tmp_id, "is_ok", false), node.line, node.col);
+		self.symtab.set_node_type(is_ok_mem, self.symtab.prims!.t_bool());
+		val cond = self.arena.node(NodeData.UnaryExpr(TokenType.BANG, is_ok_mem, false), node.line, node.col);
+		self.symtab.set_node_type(cond, self.symtab.prims!.t_bool());
+
+		val u_err_mem = self.arena.node(NodeData.MemberExpr(tmp_id, "u", false), node.line, node.col);
+		val err_mem = self.arena.node(NodeData.MemberExpr(u_err_mem, "err", false), node.line, node.col);
+		self.symtab.set_node_type(err_mem, eu.err);
+		val wrap_err = self.make_eu_wrap(ret_eu.c_name, false, err_mem, ret_ty, node.line, node.col);
+		val ret_stmt = self.arena.node(NodeData.ReturnStmt(wrap_err), node.line, node.col);
+		val then_blk = self.single_stmt_block(ret_stmt);
+		prelude.add(self.arena.node(NodeData.IfStmt(cond, then_blk, null), node.line, node.col));
+
+		if (eu.ok.kind == DataType.NONE) return null;
+		val u_ok_mem = self.arena.node(NodeData.MemberExpr(tmp_id, "u", false), node.line, node.col);
+		val ok_mem = self.arena.node(NodeData.MemberExpr(u_ok_mem, "ok", false), node.line, node.col);
+		self.symtab.set_node_type(ok_mem, eu.ok);
+		return ok_mem;
+	}
+
+	fn lower_eu_expr(
+		&self, node: &AstNode, prelude: &List<&AstNode>, allow_top_catch: bool
+	): &AstNode {
+		if (!self.expr_needs_eu_lower(node)) return node;
+		when (node) {
+			is GroupExpr as g -> {
+				g.expr = self.lower_eu_expr(g.expr, prelude, allow_top_catch);
+				return node;
+			}
+			is UnaryExpr as u -> {
+				if (u.is_postfix && u.op == TokenType.QUESTION) {
+					val low_op = self.lower_eu_expr(u.operand, prelude, false);
+					val ok_expr = self.emit_propagate_to_prelude(node, low_op, u, prelude);
+					if (ok_expr != null) return ok_expr;
+					return node;
+				}
+				u.operand = self.lower_eu_expr(u.operand, prelude, false);
+				return node;
+			}
+			is CatchExpr as ce -> {
+				ce.expr = self.lower_eu_expr(ce.expr, prelude, false);
+				val res_ty = self.type_of(node);
+				val src_ty = self.type_of(ce.expr);
+
+				// Ensure non-block expression handlers containing `?` or `!:` run lazily inside `else`.
+				if (ce.handler !is BlockStmt && !self.is_stmt_node(ce.handler) && self.expr_needs_eu_lower(ce.handler)) {
+					var h_pre = List<&AstNode>();
+					val low_h = self.lower_eu_expr(ce.handler, &h_pre, true);
+					var stmts = List<&AstNode>();
+					for (ps in h_pre) stmts += ps;
+					if (res_ty != null && res_ty.kind != DataType.NONE) {
+						stmts += self.arena.node(NodeData.YieldStmt(low_h), ce.handler.line, ce.handler.col);
+					} else {
+						if (!self.is_postfix_q(ce.handler)) {
+							stmts += self.arena.node(NodeData.ExprStmt(low_h), ce.handler.line, ce.handler.col);
+						}
+					}
+					ce.handler = self.arena.node(NodeData.BlockStmt(stmts), ce.handler.line, ce.handler.col);
+				}
+
+				val same_eu_wrap = res_ty != null && res_ty!.kind == DataType.ERROR_UNION
+					&& src_ty != null && src_ty!.kind == DataType.ERROR_UNION;
+				if (same_eu_wrap) {
+					val id_n = self.next_eu_id();
+					val out_name = "__eu_catch_${id_n}";
+					val eu_decl = self.arena.node(
+						NodeData.VarDeclStmt(true, out_name, self.arena.ast_type_from_type(res_ty!), null),
+						node.line, node.col
+					);
+					prelude.add(eu_decl);
+					val tmp_src = "__eu_src_${id_n}";
+					prelude.add(self.arena.node(
+						NodeData.VarDeclStmt(false, tmp_src, self.arena.ast_type_from_type(src_ty!), ce.expr),
+						node.line, node.col
+					));
+					val src_id = self.arena.node(NodeData.IdentifierExpr(tmp_src), node.line, node.col);
+					self.symtab.set_node_type(src_id, src_ty!);
+					val ok_cond = self.arena.node(NodeData.MemberExpr(src_id, "is_ok", false), node.line, node.col);
+					val ok_mem = self.arena.node(
+						NodeData.MemberExpr(self.arena.node(NodeData.MemberExpr(src_id, "u", false), node.line, node.col), "ok", false),
+						node.line, node.col
+					);
+					val ok_eu = res_ty!.as_error_union()!;
+					self.symtab.set_node_type(ok_mem, ok_eu.ok);
+					val out_id_t = self.arena.node(NodeData.IdentifierExpr(out_name), node.line, node.col);
+					self.symtab.set_node_type(out_id_t, res_ty!);
+					val wrapped_ok = self.wrap_for_eu(ok_mem, res_ty!);
+					val ok_asgn = self.arena.node(
+						NodeData.ExprStmt(self.arena.node(NodeData.AssignExpr(out_id_t, TokenType.EQUAL, wrapped_ok), node.line, node.col)),
+						node.line, node.col
+					);
+					var else_stmts = List<&AstNode>();
+					if (!ce.err_name.empty()) {
+						val err_ty = src_ty!.as_error_union()!.err;
+						val err_mem = self.arena.node(
+							NodeData.MemberExpr(self.arena.node(NodeData.MemberExpr(src_id, "u", false), node.line, node.col), "err", false),
+							node.line, node.col
+						);
+						self.symtab.set_node_type(err_mem, err_ty);
+						else_stmts += self.arena.node(
+							NodeData.VarDeclStmt(false, ce.err_name, self.arena.ast_type_from_type(err_ty), err_mem),
+							node.line, node.col
+						);
+					}
+					val out_id_e = self.arena.node(NodeData.IdentifierExpr(out_name), node.line, node.col);
+					self.symtab.set_node_type(out_id_e, res_ty!);
+					else_stmts += self.arena.node(
+						NodeData.ExprStmt(self.arena.node(NodeData.AssignExpr(out_id_e, TokenType.EQUAL, ce.handler), node.line, node.col)),
+						node.line, node.col
+					);
+					val if_st = self.arena.node(
+						NodeData.IfStmt(
+							ok_cond,
+							self.single_stmt_block(ok_asgn),
+							self.arena.node(NodeData.BlockStmt(else_stmts), node.line, node.col)
+						),
+						node.line, node.col
+					);
+					var wrap_blk = self.single_stmt_block(if_st);
+					if (wrap_blk is BlockStmt as wb) self.lower_eu_block(wb);
+					prelude.add(wrap_blk);
+					val out_id_r = self.arena.node(NodeData.IdentifierExpr(out_name), node.line, node.col);
+					self.symtab.set_node_type(out_id_r, res_ty!);
+					return out_id_r;
+				}
+
+				if (allow_top_catch) return node;
+
+				if (res_ty == null || res_ty!.kind == DataType.NONE) {
+					prelude.add(self.arena.node(NodeData.ExprStmt(node), node.line, node.col));
+					return node;
+				}
+				val cname = "__eu_catch_${self.next_eu_id()}";
+				val hoisted = self.arena.node(
+					NodeData.VarDeclStmt(true, cname, self.arena.ast_type_from_type(res_ty!), node),
+					node.line, node.col
+				);
+				prelude.add(hoisted);
+				val cid = self.arena.node(NodeData.IdentifierExpr(cname), node.line, node.col);
+				self.symtab.set_node_type(cid, res_ty!);
+				return cid;
+			}
+			is BinaryExpr as b -> {
+				if (b.op in [TokenType.AND_AND, TokenType.OR_OR] && self.expr_needs_eu_lower(b.right)) {
+					b.left = self.lower_eu_expr(b.left, prelude, false);
+					val cname = "__eu_sc_${self.next_eu_id()}";
+					val bool_ty = self.symtab.prims!.t_bool();
+					val def_val = self.arena.node(
+						NodeData.LiteralExpr(Literal.BOOLEAN, if (b.op == TokenType.OR_OR) "true" else "false"),
+						node.line, node.col
+					);
+					prelude.add(self.arena.node(
+						NodeData.VarDeclStmt(true, cname, self.arena.ast_type_from_type(bool_ty), def_val),
+						node.line, node.col
+					));
+					var r_pre = List<&AstNode>();
+					val low_r = self.lower_eu_expr(b.right, &r_pre, false);
+					val cid_t = self.arena.node(NodeData.IdentifierExpr(cname), node.line, node.col);
+					self.symtab.set_node_type(cid_t, bool_ty);
+					var r_stmts = List<&AstNode>();
+					for (ps in r_pre) r_stmts += ps;
+					r_stmts += self.arena.node(
+						NodeData.ExprStmt(self.arena.node(NodeData.AssignExpr(cid_t, TokenType.EQUAL, low_r), node.line, node.col)),
+						node.line, node.col
+					);
+					val cond = if (b.op == TokenType.AND_AND) b.left
+						else self.arena.node(NodeData.UnaryExpr(TokenType.BANG, b.left, false), node.line, node.col);
+					prelude.add(self.arena.node(
+						NodeData.IfStmt(cond, self.arena.node(NodeData.BlockStmt(r_stmts), node.line, node.col), null),
+						node.line, node.col
+					));
+					val cid_res = self.arena.node(NodeData.IdentifierExpr(cname), node.line, node.col);
+					self.symtab.set_node_type(cid_res, bool_ty);
+					return cid_res;
+				}
+				b.left = self.lower_eu_expr(b.left, prelude, false);
+				b.right = self.lower_eu_expr(b.right, prelude, false);
+				return node;
+			}
+			is IfExpr as ie -> {
+				if (self.expr_needs_eu_lower(ie.then_branch) || self.expr_needs_eu_lower(ie.else_branch)) {
+					ie.condition = self.lower_eu_expr(ie.condition, prelude, false);
+					val res_ty = self.type_of(node);
+					if (res_ty == null || res_ty!.kind == DataType.NONE) {
+						var t_stmts = List<&AstNode>();
+						var t_pre = List<&AstNode>();
+						val lt = self.lower_eu_expr(ie.then_branch, &t_pre, true);
+						for (ps in t_pre) t_stmts += ps;
+						if (!self.is_postfix_q(ie.then_branch)) {
+							t_stmts += self.arena.node(NodeData.ExprStmt(lt), ie.then_branch.line, ie.then_branch.col);
+						}
+						var e_stmts = List<&AstNode>();
+						var e_pre = List<&AstNode>();
+						val le = self.lower_eu_expr(ie.else_branch, &e_pre, true);
+						for (ps in e_pre) e_stmts += ps;
+						if (!self.is_postfix_q(ie.else_branch)) {
+							e_stmts += self.arena.node(NodeData.ExprStmt(le), ie.else_branch.line, ie.else_branch.col);
+						}
+						prelude.add(self.arena.node(
+							NodeData.IfStmt(
+								ie.condition,
+								self.arena.node(NodeData.BlockStmt(t_stmts), ie.then_branch.line, ie.then_branch.col),
+								self.arena.node(NodeData.BlockStmt(e_stmts), ie.else_branch.line, ie.else_branch.col)
+							),
+							node.line, node.col
+						));
+						return node;
+					}
+					val cname = "__eu_if_${self.next_eu_id()}";
+					prelude.add(self.arena.node(
+						NodeData.VarDeclStmt(true, cname, self.arena.ast_type_from_type(res_ty!), null),
+						node.line, node.col
+					));
+					var t_pre = List<&AstNode>();
+					val lt = self.lower_eu_expr(ie.then_branch, &t_pre, true);
+					val cid_t = self.arena.node(NodeData.IdentifierExpr(cname), node.line, node.col);
+					self.symtab.set_node_type(cid_t, res_ty!);
+					var t_stmts = List<&AstNode>();
+					for (ps in t_pre) t_stmts += ps;
+					t_stmts += self.arena.node(
+						NodeData.ExprStmt(self.arena.node(NodeData.AssignExpr(cid_t, TokenType.EQUAL, lt), node.line, node.col)),
+						ie.then_branch.line, ie.then_branch.col
+					);
+					var e_pre = List<&AstNode>();
+					val le = self.lower_eu_expr(ie.else_branch, &e_pre, true);
+					val cid_e = self.arena.node(NodeData.IdentifierExpr(cname), node.line, node.col);
+					self.symtab.set_node_type(cid_e, res_ty!);
+					var e_stmts = List<&AstNode>();
+					for (ps in e_pre) e_stmts += ps;
+					e_stmts += self.arena.node(
+						NodeData.ExprStmt(self.arena.node(NodeData.AssignExpr(cid_e, TokenType.EQUAL, le), node.line, node.col)),
+						ie.else_branch.line, ie.else_branch.col
+					);
+					prelude.add(self.arena.node(
+						NodeData.IfStmt(
+							ie.condition,
+							self.arena.node(NodeData.BlockStmt(t_stmts), ie.then_branch.line, ie.then_branch.col),
+							self.arena.node(NodeData.BlockStmt(e_stmts), ie.else_branch.line, ie.else_branch.col)
+						),
+						node.line, node.col
+					));
+					val cid_res = self.arena.node(NodeData.IdentifierExpr(cname), node.line, node.col);
+					self.symtab.set_node_type(cid_res, res_ty!);
+					return cid_res;
+				}
+				ie.condition = self.lower_eu_expr(ie.condition, prelude, false);
+				return node;
+			}
+			is WhenExpr as we -> {
+				if (we.condition != null) we.condition = self.lower_eu_expr(we.condition!, prelude, false);
+				for (i in 0..<we.arms.len) {
+					var arm = we.arms[i];
+					if (arm.body is BlockStmt as ablk) {
+						self.lower_eu_block(ablk);
+					} else if (self.expr_needs_eu_lower(arm.body)) {
+						var ap = List<&AstNode>();
+						val low_ab = self.lower_eu_expr(arm.body, &ap, true);
+						var astmts = List<&AstNode>();
+						for (ps in ap) astmts += ps;
+						val aty = self.type_of(arm.body);
+						if (aty != null && aty.kind != DataType.NONE) {
+							astmts += self.arena.node(NodeData.YieldStmt(low_ab), arm.body.line, arm.body.col);
+						} else {
+							if (!self.is_postfix_q(arm.body)) {
+								astmts += self.arena.node(NodeData.ExprStmt(low_ab), arm.body.line, arm.body.col);
+							}
+						}
+						arm.body = self.arena.node(NodeData.BlockStmt(astmts), arm.body.line, arm.body.col);
+					}
+					we.arms[i] = arm;
+				}
+				if (!allow_top_catch && self.when_has_blocks(we)) {
+					val res_ty = self.type_of(node);
+					if (res_ty != null && res_ty.kind != DataType.NONE) {
+						val cname = "__eu_when_${self.next_eu_id()}";
+						prelude.add(self.arena.node(
+							NodeData.VarDeclStmt(false, cname, self.arena.ast_type_from_type(res_ty), node),
+							node.line, node.col
+						));
+						val cid = self.arena.node(NodeData.IdentifierExpr(cname), node.line, node.col);
+						self.symtab.set_node_type(cid, res_ty);
+						return cid;
+					}
+				}
+				return node;
+			}
+			is CallExpr as c -> {
+				c.callee = self.lower_eu_expr(c.callee, prelude, false);
+				for (i in 0..<c.args.len) c.args[i] = self.lower_eu_expr(c.args[i], prelude, false);
+				return node;
+			}
+			is MemberExpr as m -> {
+				m.object = self.lower_eu_expr(m.object, prelude, false);
+				return node;
+			}
+			is IndexExpr as ix -> {
+				ix.target = self.lower_eu_expr(ix.target, prelude, false);
+				ix.index = self.lower_eu_expr(ix.index, prelude, false);
+				return node;
+			}
+			is AssignExpr as a -> {
+				a.target = self.lower_eu_expr(a.target, prelude, false);
+				a.value = self.lower_eu_expr(a.value, prelude, false);
+				return node;
+			}
+			is UpdateExpr as up -> {
+				up.target = self.lower_eu_expr(up.target, prelude, false);
+				return node;
+			}
+			is CastExpr as cst -> {
+				if (cst.expr != null) cst.expr = self.lower_eu_expr(cst.expr!, prelude, false);
+				return node;
+			}
+			is ArrayLiteralExpr as al -> {
+				for (i in 0..<al.elements.len) al.elements[i] = self.lower_eu_expr(al.elements[i], prelude, false);
+				return node;
+			}
+			is IsExpr as ise -> {
+				if (ise.expr != null) ise.expr = self.lower_eu_expr(ise.expr!, prelude, false);
+				return node;
+			}
+			is StructCtorExpr as sc -> {
+				for (i in 0..<sc.args.len) sc.args[i] = self.lower_eu_expr(sc.args[i], prelude, false);
+				return node;
+			}
+			is EnumCtorExpr as ec -> {
+				for (i in 0..<ec.args.len) ec.args[i] = self.lower_eu_expr(ec.args[i], prelude, false);
+				return node;
+			}
+			is ErrorUnionWrapExpr as w -> {
+				if (w.value != null) w.value = self.lower_eu_expr(w.value!, prelude, false);
+				return node;
+			}
+			else -> return node;
+		}
+	}
+
+}

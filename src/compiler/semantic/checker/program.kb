@@ -76,10 +76,23 @@ impl BodyChecker {
 			self.checked_fns += fn_node;
 
 			val fn_info = fn_type.as_fn()!;
+			if (f.name == "main" && fn_info.return_type.kind == DataType.ERROR_UNION) {
+				val eu = fn_info.return_type.as_error_union()!;
+				if (eu.ok.kind !in [DataType.NONE, DataType.I32]) {
+					self.report_error(
+						fn_node,
+						"Entry point 'main' returning an error union must have 'none' or 'i32' success type"
+					);
+				}
+			}
 			val saved_ret = self.current_fn_return_type;
 			val saved_inferring = self.inferring_fn_return;
+			val saved_catch_exp = self.catch_yield_expected;
+			val saved_catch_seen = self.catch_yield_seen;
 			self.current_fn_return_type = fn_info.return_type;
 			self.inferring_fn_return = (f.return_type == null);
+			self.catch_yield_expected = null;
+			self.catch_yield_seen = false;
 
 			var saved_names = List<str>();
 			var saved_types = List<*Type>();
@@ -125,7 +138,13 @@ impl BodyChecker {
 					}
 				}
 				is ExprStmt as es -> {
-					val body_ty = self.check_expr(es.expr);
+					val eu_ret = if (f.return_type != null && self.current_fn_return_type!.kind == DataType.ERROR_UNION)
+						self.current_fn_return_type!.as_error_union() else null;
+					var hint: ?*Type = null;
+					if (eu_ret != null) {
+						hint = if (eu_ret.ok.kind != DataType.NONE) eu_ret.ok else self.current_fn_return_type;
+					}
+					val body_ty = self.check_expr(es.expr, hint);
 					if (body_ty.kind == DataType.FN) {
 						self.report_error(fn_node, "Function cannot return a lambda/closure");
 					}
@@ -134,6 +153,8 @@ impl BodyChecker {
 						fn_info_mut.return_type = body_ty;
 						self.current_fn_return_type = body_ty;
 						f.return_type = self.arena.ast_type_from_type(body_ty);
+					} else if (eu_ret != null && eu_ret.ok.kind == DataType.NONE && body_ty.kind == DataType.NONE) {
+						// Valid: arrow body returning `none` for `: !E` wraps as Ok.
 					} else if (!self.current_fn_return_type!.can_assign(body_ty)) {
 						self.report_error(fn_node, "Expression body type does not match function return type");
 					}
@@ -159,6 +180,8 @@ impl BodyChecker {
 
 			self.current_fn_return_type = saved_ret;
 			self.inferring_fn_return = saved_inferring;
+			self.catch_yield_expected = saved_catch_exp;
+			self.catch_yield_seen = saved_catch_seen;
 		}
 	}
 

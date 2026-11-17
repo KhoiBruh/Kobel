@@ -22,7 +22,10 @@ use compiler.semantic.declaration.*;
 pub struct LoweringPass {
 	pub symtab: SymbolTable = SymbolTable(),
 	pub arena: Arena = Arena(),
-	pub decl: DeclarationCollector = DeclarationCollector()
+	pub decl: DeclarationCollector = DeclarationCollector(),
+	pub current_fn_ret_type: ?*Type = null,
+	pub current_eu_self_ty: ?*Type = null,
+	pub current_eu_id: usz = 0
 }
 
 impl LoweringPass {
@@ -44,6 +47,7 @@ impl LoweringPass {
 		if (program_node is Program as prog) {
 			for (decl in prog) {
 				when (decl) {
+					is ModuleDecl as m -> self.symtab.set_current_module(m.full_path);
 					is FnDecl as f -> {
 						if (f.type_params.len > 0) continue;
 						val rec = self.symtab.get_node_instance(decl);
@@ -52,8 +56,13 @@ impl LoweringPass {
 						} else if (f.body != null) {
 							f.body = self.lower_stmt(f.body!);
 						}
+						self.lower_eu_fn_decl(f);
 					}
 					is ImplDecl as im -> {
+						if (im.type_params.len > 0) continue;
+						val im_sym = self.symtab.lookup(im.struct_name);
+						val prev_self = self.current_eu_self_ty;
+						self.current_eu_self_ty = im_sym?.type_ptr;
 						for (i in 0..<im.methods.len) {
 							val m = im.methods[i];
 							if (m is FnDecl as mf) {
@@ -64,8 +73,10 @@ impl LoweringPass {
 								} else if (mf.body != null) {
 									mf.body = self.lower_stmt(mf.body!);
 								}
+								self.lower_eu_fn_decl(mf);
 							}
 						}
+						self.current_eu_self_ty = prev_self;
 					}
 					is ConstDecl as c -> {
 						if (c.value != null) c.value = self.lower_expr(c.value!);
@@ -235,6 +246,14 @@ impl LoweringPass {
 			is LambdaExpr as lam -> {
 				if (lam.body is BlockStmt) lam.body = self.lower_stmt(lam.body);
 				else lam.body = self.lower_expr(lam.body);
+			}
+			is CatchExpr as ce -> {
+				ce.expr = self.lower_expr(ce.expr);
+				if (self.is_stmt_node(ce.handler)) ce.handler = self.lower_stmt(ce.handler);
+				else ce.handler = self.lower_expr(ce.handler);
+			}
+			is ErrorUnionWrapExpr as w -> {
+				if (w.value != null) w.value = self.lower_expr(w.value!);
 			}
 		}
 		return out;
@@ -465,6 +484,15 @@ impl LoweringPass {
 					);
 				}
 				return self.arena.interp_call(mi.c_name, arg, line, col);
+			}
+			if (cur_ty.is_fault()) {
+				val arg = if (is_ptr) self.arena.node(
+					NodeData.UnaryExpr(TokenType.STAR, expr, false),
+					line, col
+				) else expr;
+				return self.arena.interp_call(
+					"__kobel_fault_str_${cur_ty.as_struct()!.c_name}", arg, line, col
+				);
 			}
 		}
 		return null;

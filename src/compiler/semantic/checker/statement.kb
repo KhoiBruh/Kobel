@@ -476,7 +476,12 @@ impl BodyChecker {
 					}
 					self.current_fn_return_type = val_ty;
 				} else {
-					val val_ty = self.check_expr(ret.value!, self.current_fn_return_type);
+					var hint = self.current_fn_return_type;
+					if (hint != null && hint.kind == DataType.ERROR_UNION) {
+						val eu = hint.as_error_union()!;
+						if (eu.ok.kind != DataType.NONE) hint = eu.ok;
+					}
+					val val_ty = self.check_expr(ret.value!, hint);
 					self.ensure(
 						self.current_fn_return_type!.can_assign(val_ty),
 						node,
@@ -484,8 +489,12 @@ impl BodyChecker {
 					);
 				}
 			} else {
+				val ret_ok = self.current_fn_return_type!.kind == DataType.NONE || (
+					self.current_fn_return_type!.kind == DataType.ERROR_UNION &&
+					self.current_fn_return_type!.as_error_union()!.ok.kind == DataType.NONE
+				);
 				self.ensure(
-					self.current_fn_return_type!.kind == DataType.NONE,
+					ret_ok,
 					node,
 					"Non-none function must return a value"
 				);

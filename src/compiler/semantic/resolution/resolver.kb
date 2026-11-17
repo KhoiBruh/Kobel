@@ -162,6 +162,25 @@ impl TypeResolver {
 
 			is VariadicType as var_ast -> self.resolve_ast_type(var_ast.element_type);
 
+			is ErrorUnionType as eu -> {
+				val ok_ty = if (eu.ok_type != null) self.resolve_ast_type(eu.ok_type!) else self.prims().t_none();
+				if (ok_ty.kind == DataType.FN) {
+					self.report_error(node, "Error union value type cannot be a lambda/closure");
+				}
+				if (ok_ty.kind == DataType.ERROR_UNION) {
+					self.report_error(node, "Nested error union types are not allowed");
+				}
+				val err_ty = self.resolve_ast_type(eu.err_type);
+				if (!err_ty.is_fault()) {
+					self.report_error(eu.err_type, "Error type '${err_ty.to_str()}' in error union must be a fault");
+					yield self.prims().t_none();
+				}
+				if (ok_ty.equals(err_ty)) {
+					self.report_error(node, "Success and error types in error union cannot be identical");
+				}
+				yield self.arena.error_union_type(ok_ty, err_ty);
+			}
+
 			else -> self.prims().t_none();
 		};
 	}

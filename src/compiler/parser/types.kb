@@ -18,7 +18,7 @@ impl Parser {
 
 		// 1. Variadic type: ..T
 		if (self.match_token(TokenType.DOT_DOT)) {
-			val elem_type = self.parse_single_type();
+			val elem_type = self.parse_type();
 			return self.node(NodeData.VariadicType(elem_type), line, col);
 		}
 
@@ -82,6 +82,18 @@ impl Parser {
 		return self.node(NodeData.NamedType(full_name, type_args), line, col);
 	}
 
-	pub fn parse_type(&self): &AstNode => self.parse_single_type();
+	pub fn parse_type(&self): &AstNode {
+		val (line, col) = self.peek();
+		if (self.match_token(TokenType.BANG)) {
+			val err_type = self.parse_single_type();
+			return self.node(NodeData.ErrorUnionType(null, err_type), line, col);
+		}
+		val ok_type = self.parse_single_type();
+		if (self.match_token(TokenType.BANG)) {
+			val err_type = self.parse_single_type();
+			return self.node(NodeData.ErrorUnionType(ok_type, err_type), line, col);
+		}
+		return ok_type;
+	}
 
 }

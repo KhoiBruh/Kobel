@@ -225,12 +225,64 @@ fn test_minimal_parens_precedence() {
 	println("  [PASS] test_minimal_parens_precedence");
 }
 
+fn test_error_union_codegen_and_dce() {
+	val src = """
+		fault LiveErr {
+		    Bad(code: i32),
+		    Other
+		}
+		fault DeadErr {
+		    NeverUsed
+		}
+		fn helper(ok: bool): i32 ! LiveErr {
+		    if (!ok) return LiveErr.Bad(42);
+		    return 7;
+		}
+		fn main(): !LiveErr {
+		    val v = helper(true)?;
+		    if (v != 7) return LiveErr.Other;
+		}
+	""";
+
+	var arena = Arena(65536);
+	defer arena.free();
+
+	var lexer = Lexer(src);
+	var parser = Parser(lexer.tokenize());
+	val prog = parser.parse_program();
+	assert_eq_usz(parser.errors.len, 0, "EU codegen test must parse cleanly");
+
+	var dp = DeclarationCollector(arena);
+	dp.collect_program(prog);
+	assert_eq_usz(dp.errors.len, 0, "EU codegen test must collect decls cleanly");
+
+	var bp = BodyChecker(dp.symtab, dp);
+	bp.check_program(prog);
+	assert_eq_usz(bp.errors.len, 0, "EU codegen test must typecheck cleanly");
+
+	bp.decl.symtab = bp.symtab;
+	var lp = LoweringPass(bp.symtab, arena, bp.decl);
+	lp.lower_program(prog);
+
+	var codegen = CCodeGen(&lp.symtab);
+	val c_code = codegen.gen_program(prog);
+
+	assert_true(c_code.contains("__kobel_eu_"), "Emitted C must declare ErrorUnion structs");
+	assert_true(c_code.contains("__kobel_fault_str_LiveErr"), "Live fault string helper must be emitted");
+	assert_true(c_code.contains("__kobel_unwrap_"), "ErrorUnion unwrap helper must be emitted");
+	assert_true(c_code.contains("__kobel_user_main"), "main returning !E must generate C main wrapper");
+	assert_true(!c_code.contains("DeadErr"), "DCE must prune unused FaultDecl");
+
+	println("  [PASS] test_error_union_codegen_and_dce");
+}
+
 fn main(): i32 {
 	println("[RUNNING] Bootstrap C CodeGen tests...");
 	test_end_to_end_codegen();
 	test_dce_prunes_unused_and_keeps_reachable();
 	test_dce_keeps_all_without_main();
 	test_minimal_parens_precedence();
+	test_error_union_codegen_and_dce();
 	println("[ALL PASSED] Bootstrap C CodeGen passed all tests successfully!");
 	return 0;
 }

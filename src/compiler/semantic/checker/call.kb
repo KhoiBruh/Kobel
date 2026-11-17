@@ -758,6 +758,14 @@ impl BodyChecker {
 				"'${self.type_display(obj_raw_ty)}'; use '?.' or unwrap with '!' first"
 			);
 		}
+		if (obj_raw_ty.kind == DataType.ERROR_UNION) {
+			self.report_error(
+				node,
+				"Cannot call method '${mem.member}' on unhandled error union " +
+				"'${self.type_display(obj_raw_ty)}'; handle with '!:', '?', or '!'"
+			);
+			return self.prims().t_none();
+		}
 		val argc = call.args.len + 1;
 
 		if (call.type_args.len > 0) {
@@ -991,13 +999,16 @@ impl BodyChecker {
 	fn check_enum_ctor_call(&self, node: &AstNode, mem: &MemberExpr, call: &CallExpr): ?*Type {
 		val obj = mem.object;
 		if (obj is IdentifierExpr as enum_id) {
-			val ei = self.symtab.find_enum_info(enum_id.name) ?: return null;
+			val sym = self.symtab.lookup(enum_id.name);
+			val ei = (if (sym != null) self.symtab.find_enum_info(sym!.c_name)
+				else self.symtab.find_enum_info(enum_id.name)) ?: return null;
 			if (!ei.is_payload) return null;
 
-			val e_sym = self.symtab.lookup(ei.name) ?: return null;
+			val e_sym = sym ?: self.symtab.lookup(ei.c_name) ?: self.symtab.lookup(ei.name) ?: return null;
 			val mi_opt = ei.find_member(mem.member);
 			if (mi_opt == null) {
-				self.report_error(node, "Enum '${enum_id.name}' has no variant '${mem.member}'");
+				val kind_lbl = if (ei.is_fault) "Fault" else "Enum";
+				self.report_error(node, "${kind_lbl} '${enum_id.name}' has no variant '${mem.member}'");
 				return self.prims().t_none();
 			}
 			val mi = mi_opt!;
@@ -1172,6 +1183,8 @@ impl BodyChecker {
 			val outer_when_depth = self.when_depth;
 			val outer_defer_depth = self.defer_depth;
 			val outer_when_subj = self.when_subject;
+			val outer_catch_exp = self.catch_yield_expected;
+			val outer_catch_seen = self.catch_yield_seen;
 
 			self.in_lambda = true;
 			self.lambda_scope = self.symtab.current_scope;
@@ -1182,6 +1195,8 @@ impl BodyChecker {
 			self.when_depth = 0;
 			self.defer_depth = 0;
 			self.when_subject = null;
+			self.catch_yield_expected = null;
+			self.catch_yield_seen = false;
 
 			self.symtab.enter_scope(false);
 			for (i in 0..<lam.params.len) {
@@ -1210,7 +1225,12 @@ impl BodyChecker {
 					self.report_error(lam.body, "Lambda cannot return another lambda/closure");
 				}
 				if (inferred_ret != null && inferred_ret.kind != DataType.NONE) {
-					val body_ty = self.check_expr(lam.body, inferred_ret);
+					var lam_hint = inferred_ret;
+					if (lam_hint.kind == DataType.ERROR_UNION) {
+						val eu = lam_hint.as_error_union()!;
+						if (eu.ok.kind != DataType.NONE) lam_hint = eu.ok;
+					}
+					val body_ty = self.check_expr(lam.body, lam_hint);
 					if (body_ty.kind == DataType.FN) {
 						self.report_error(lam.body, "Lambda cannot return another lambda/closure");
 					}
@@ -1223,6 +1243,12 @@ impl BodyChecker {
 					val body_ty = self.check_expr_stmt(lam.body);
 					if (body_ty.kind == DataType.FN) {
 						self.report_error(lam.body, "Lambda cannot return another lambda/closure");
+					}
+					if (!self.lambda_inferring_return && body_ty.kind == DataType.ERROR_UNION) {
+						self.report_error(
+							lam.body,
+							"Unhandled error union result of type '${self.type_display(body_ty)}'; handle with '!:' or unwrap with '!'"
+						);
 					}
 					if (self.lambda_inferring_return && fn_info.return_type.kind == DataType.NONE) {
 						inferred_ret = body_ty;
@@ -1246,6 +1272,8 @@ impl BodyChecker {
 			self.when_depth = outer_when_depth;
 			self.defer_depth = outer_defer_depth;
 			self.when_subject = outer_when_subj;
+			self.catch_yield_expected = outer_catch_exp;
+			self.catch_yield_seen = outer_catch_seen;
 
 			// If this lambda is nested inside an outer lambda, propagate captures that belong
 			// outside the outer lambda's boundary scope so the outer lambda also captures them.

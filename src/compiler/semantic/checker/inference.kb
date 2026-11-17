@@ -123,6 +123,13 @@ impl BodyChecker {
 				}
 			}
 		}
+		if (node is ErrorUnionType as eu) {
+			val ok_t = if (eu.ok_type != null)
+				self.resolve_type_with_partial_tparams(eu.ok_type!, type_params, inferred, self_ty)
+			else self.prims().t_none();
+			val err_t = self.resolve_type_with_partial_tparams(eu.err_type, type_params, inferred, self_ty);
+			if (err_t.is_fault()) return self.arena.error_union_type(ok_t, err_t);
+		}
 		val saved_errs = self.errors.len;
 		val saved_self = self.current_self_type;
 		if (self_ty != null) self.current_self_type = self_ty;
@@ -229,6 +236,15 @@ impl BodyChecker {
 						}
 					}
 					self.match_type_param(ft.return_type, fn_info.return_type, type_params, inferred);
+				}
+			}
+			is ErrorUnionType as eu -> {
+				if (arg_ty.kind == DataType.ERROR_UNION) {
+					val a_eu = arg_ty.as_error_union()!;
+					if (eu.ok_type != null) {
+						self.match_type_param(eu.ok_type!, a_eu.ok, type_params, inferred);
+					}
+					self.match_type_param(eu.err_type, a_eu.err, type_params, inferred);
 				}
 			}
 		}

@@ -212,6 +212,22 @@ fn test_question_operators(): bool {
 	return true;
 }
 
+fn test_fault_and_catch_tokens(): bool {
+	val code: str = "fault !: != ! ?";
+	var lex = Lexer(code);
+	var tokens = lex.tokenize();
+	defer tokens.free();
+	if (tokens.len != 6) return false;
+	val tok0 = tokens[0];
+	if (tok0.type != TokenType.KW_FAULT || !tok0.is_keyword()) return false;
+	if (tokens[1].type != TokenType.BANG_COLON) return false;
+	if (tokens[2].type != TokenType.BANG_EQUAL) return false;
+	if (tokens[3].type != TokenType.BANG) return false;
+	if (tokens[4].type != TokenType.QUESTION) return false;
+	if (tokens[5].type != TokenType.END_OF_FILE) return false;
+	return true;
+}
+
 fn test_token_spans_and_helpers(): bool {
 	val code = "val msg = \"\"\"\nline1\nline2\n\"\"\";\nvar n = 42;";
 	var lex = Lexer(code, 7);
@@ -315,6 +331,11 @@ fn main(): i32 {
 		return 1;
 	}
 	println("  [PASS] test_lexical_diagnostics");
+	if (!test_fault_and_catch_tokens()) {
+		println("  [FAIL] test_fault_and_catch_tokens");
+		return 1;
+	}
+	println("  [PASS] test_fault_and_catch_tokens");
 	println("[ALL PASSED] Bootstrap Lexer passed all tests successfully!");
 	return 0;
 }

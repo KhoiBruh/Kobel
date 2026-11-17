@@ -227,12 +227,58 @@ fn test_preloaded_stdlib_no_duplicate_diagnostics() {
 	println("  [PASS] test_preloaded_stdlib_no_duplicate_diagnostics");
 }
 
+fn test_error_union_lsp() {
+	val src = """mod err_lsp_sample;
+
+fault NetErr {
+	Timeout,
+	Closed(code: i32)
+}
+
+fn connect(ok: bool): i32 ! NetErr {
+	if (!ok) return NetErr.Closed(500);
+	return 1;
+}
+
+pub fn run(ok: bool): i32 {
+	val r = connect(ok);
+	val code = when (r) {
+		is i32 as v -> *v;
+		is .Timeout -> -1;
+		is .Closed as c -> c.code;
+	};
+	val fallback = connect(false) !: err -> {
+		if (err is NetErr.Timeout) yield -2;
+		yield code;
+	};
+	return fallback;
+}
+""";
+	val p = "C:/Users/Admin/CLionProjects/Kobel/tests/unit/err_lsp_virtual.kb";
+	val analysis = AnalysisResult(p, src, "", false);
+	assert_eq_usz(analysis.diagnostics.len, 0, "clean fault & error union file must produce zero LSP diagnostics");
+
+	val syms = AnalysisResult.document_symbols(src);
+	var saw_fault = false;
+	for (sym in syms.arr_val) {
+		if (sym.get_str("name", "") == "NetErr") saw_fault = true;
+	}
+	assert_true(saw_fault, "document_symbols must include NetErr fault");
+
+	val dot_pos = find_line_col(src, ".Timeout ->");
+	val dot_def = analysis.definition_at(path_to_uri(p), dot_pos.first, dot_pos.second + 2);
+	assert_true(!dot_def.is_null(), "go-to-definition on .Timeout in error union when-arm must resolve to NetErr.Timeout");
+
+	println("  [PASS] test_error_union_lsp");
+}
+
 pub fn main(): i32 {
 	println("Running LSP unit tests...");
 	test_json_and_uri();
 	test_new_features_and_semantics();
 	test_code_actions();
 	test_preloaded_stdlib_no_duplicate_diagnostics();
+	test_error_union_lsp();
 	println("All LSP unit tests passed.");
 	return 0;
 }

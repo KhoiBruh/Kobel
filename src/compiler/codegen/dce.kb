@@ -16,11 +16,20 @@ use compiler.ast.*;
 use compiler.semantic.types.*;
 use compiler.semantic.symbols.*;
 
+pub struct ErrorUnionDesc {
+	pub c_name: str,
+	pub ok_c: str,
+	pub err_c: str,
+	pub ok_is_void: bool,
+	pub deps: List<str>
+}
+
 pub struct ReachableSet {
 	pub active: bool = false,
 	pub fns: HashSet<str> = HashSet<str>(),
 	pub types: HashSet<str> = HashSet<str>(),
-	pub consts: HashSet<str> = HashSet<str>()
+	pub consts: HashSet<str> = HashSet<str>(),
+	pub error_unions: List<ErrorUnionDesc> = List<ErrorUnionDesc>()
 }
 
 impl ReachableSet {
@@ -35,6 +44,8 @@ impl ReachableSet {
 		self.fns.free();
 		self.types.free();
 		self.consts.free();
+		for (eu in self.error_unions) eu.deps.free();
+		self.error_unions.free();
 	}
 
 }
@@ -45,12 +56,15 @@ struct DceWalker {
 	fn_owners: HashMap<str, str> = HashMap<str, str>(),
 	struct_map: HashMap<str, &AstNode> = HashMap<str, &AstNode>(),
 	enum_map: HashMap<str, &AstNode> = HashMap<str, &AstNode>(),
+	fault_map: HashMap<str, &AstNode> = HashMap<str, &AstNode>(),
 	all_types: HashSet<str> = HashSet<str>(),
 	variant_to_enum: HashMap<str, str> = HashMap<str, str>(),
 	const_map: HashMap<str, &AstNode> = HashMap<str, &AstNode>(),
 	fns: HashSet<str> = HashSet<str>(),
 	types: HashSet<str> = HashSet<str>(),
 	consts: HashSet<str> = HashSet<str>(),
+	eu_seen: HashSet<str> = HashSet<str>(),
+	error_unions: List<ErrorUnionDesc> = List<ErrorUnionDesc>(),
 	fn_queue: List<str> = List<str>(),
 	type_queue: List<str> = List<str>(),
 	const_queue: List<str> = List<str>()
@@ -63,9 +77,11 @@ impl DceWalker {
 		self.fn_owners.free();
 		self.struct_map.free();
 		self.enum_map.free();
+		self.fault_map.free();
 		self.all_types.free();
 		self.variant_to_enum.free();
 		self.const_map.free();
+		self.eu_seen.free();
 		self.fn_queue.free();
 		self.type_queue.free();
 		self.const_queue.free();
@@ -110,6 +126,15 @@ impl DceWalker {
 						}
 					}
 				}
+				is FaultDecl as flt -> {
+					self.all_types += flt.name;
+					self.fault_map[flt.name] = decl;
+					for (m in flt.members) {
+						val v_name = "${flt.name}__${m.name}";
+						self.variant_to_enum[v_name] = flt.name;
+						self.variant_to_enum["${v_name}__TAG"] = flt.name;
+					}
+				}
 				is ConstDecl as c -> self.const_map[c.name] = decl;
 			}
 		}
@@ -138,6 +163,25 @@ impl DceWalker {
 		self.const_queue += name;
 	}
 
+	fn record_eu_desc(&self, c_name: str, ok_c: str, err_c: str, ok_is_void: bool, deps: List<str>) {
+		self.eu_seen += c_name;
+		self.error_unions += ErrorUnionDesc(c_name, ok_c, err_c, ok_is_void, deps);
+	}
+
+	fn eu_dep_of_type(*self, t: *Type): str {
+		if (t.is_enum()) return t.as_enum()!.c_name;
+		if (t.kind == DataType.STRUCT) return t.as_struct()!.c_name;
+		if (t.kind == DataType.ERROR_UNION) return t.as_error_union()!.c_name;
+		return "";
+	}
+
+	fn eu_dep_of_ast(*self, n: ?*AstNode): str {
+		if (n == null) return "";
+		if (n! is NamedType as nt) return nt.name;
+		if (n! is ErrorUnionType as eu) return eu_c_name_from_ast(eu);
+		return "";
+	}
+
 	fn mark_type_obj(&self, ty: ?*Type) {
 		if (ty == null) return;
 
@@ -156,6 +200,22 @@ impl DceWalker {
 				self.mark_type_obj(fi.return_type);
 				for (pt in fi.param_types) self.mark_type_obj(pt);
 			}
+			DataType.ERROR_UNION -> {
+				val eu = t.as_error_union()!;
+				self.mark_type_obj(eu.ok);
+				self.mark_type_obj(eu.err);
+				if (eu.c_name !in self.eu_seen) {
+					var deps = List<str>();
+					val od = self.eu_dep_of_type(eu.ok);
+					if (!od.empty()) deps += od;
+					val ed = self.eu_dep_of_type(eu.err);
+					if (!ed.empty()) deps += ed;
+					self.record_eu_desc(
+						eu.c_name, c_type_from_type(eu.ok), c_type_from_type(eu.err),
+						eu.ok.kind == DataType.NONE, deps
+					);
+				}
+			}
 		}
 	}
 
@@ -169,6 +229,21 @@ impl DceWalker {
 			is FnType as ft -> {
 				for (pt in ft.param_types) self.mark_type_ast(pt);
 				self.mark_type_ast(ft.return_type);
+			}
+			is ErrorUnionType as eu -> {
+				if (eu.ok_type != null) self.mark_type_ast(eu.ok_type!);
+				self.mark_type_ast(eu.err_type);
+				val cname = eu_c_name_from_ast(eu);
+				if (cname !in self.eu_seen) {
+					val ok_c = if (eu.ok_type != null) c_type_from_ast(eu.ok_type!) else "void";
+					val err_c = c_type_from_ast(eu.err_type);
+					var deps = List<str>();
+					val od = self.eu_dep_of_ast(eu.ok_type);
+					if (!od.empty()) deps += od;
+					val ed = self.eu_dep_of_ast(eu.err_type);
+					if (!ed.empty()) deps += ed;
+					self.record_eu_desc(cname, ok_c, err_c, ok_c == "void", deps);
+				}
 			}
 		}
 	}
@@ -188,7 +263,7 @@ impl DceWalker {
 				self.mark_const(id.name);
 				self.mark_type(id.name);
 			}
-			is NamedType, PointerType, ArrayType, VariadicType, FnType -> self.mark_type_ast(cur);
+			is NamedType, PointerType, ArrayType, VariadicType, FnType, ErrorUnionType -> self.mark_type_ast(cur);
 			is StructCtorExpr as sc -> {
 				self.mark_type(sc.c_name);
 				for (a in sc.args) self.walk_node(a);
@@ -298,6 +373,11 @@ impl DceWalker {
 					if (pt is InterpPart.Hole as h) self.walk_node(h.node);
 				}
 			}
+			is CatchExpr as ce -> {
+				self.walk_node(ce.expr);
+				self.walk_node(ce.handler);
+			}
+			is ErrorUnionWrapExpr as w -> self.walk_node(w.value);
 		}
 	}
 
@@ -332,6 +412,12 @@ impl DceWalker {
 						self.mark_type_ast(e.underlying_type);
 					}
 				}
+				val fptr_ptr = self.fault_map[tname];
+				if (fptr_ptr != null && (*fptr_ptr) is FaultDecl as flt) {
+					for (m in flt.members) {
+						for (f in m.payload) self.mark_type_ast(f.type_node);
+					}
+				}
 			}
 			while (!self.const_queue.empty()) {
 				val cname = self.const_queue.pop();
@@ -351,19 +437,38 @@ impl CCodeGen {
 	pub fn compute_reachable(*self, prog: *Program): ReachableSet {
 		var w = DceWalker(self);
 		if (!w.index_program(prog)) {
+			// Walk all indexed items anyway so `error_unions` descriptors stay complete.
+			for (decl in prog) {
+				if (decl_is_template(decl)) continue;
+				when (decl) {
+					is FnDecl as f -> w.mark_fn(f.name);
+					is ImplDecl as im -> {
+						for (mnode in im.methods) {
+							if (mnode is FnDecl as mf && mf.type_params.empty()) w.mark_fn(mf.name);
+						}
+					}
+					is StructDecl as s -> w.mark_type(s.name);
+					is EnumDecl as e -> w.mark_type(e.name);
+					is FaultDecl as flt -> w.mark_type(flt.name);
+					is ConstDecl as c -> w.mark_const(c.name);
+				}
+			}
+			w.drain();
+			val eus = w.error_unions;
 			w.fns.free();
 			w.types.free();
 			w.consts.free();
 			w.free();
-			return ReachableSet();
+			return ReachableSet(false, HashSet<str>(), HashSet<str>(), HashSet<str>(), eus);
 		}
 		w.mark_fn("main");
 		w.drain();
 		val fns = w.fns;
 		val types = w.types;
 		val consts = w.consts;
+		val eus = w.error_unions;
 		w.free();
-		return ReachableSet(true, fns, types, consts);
+		return ReachableSet(true, fns, types, consts, eus);
 	}
 
 }

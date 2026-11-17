@@ -989,6 +989,13 @@ impl AnalysisResult {
 						}
 						arr += make_doc_symbol(decl.name, DocSymbol.ENUM.value, dl, dc, kids);
 					}
+					is FaultDecl -> {
+						val kids = JsonValue.arr();
+						for (m in decl.members) {
+							kids += make_doc_symbol(m.name, DocSymbol.ENUM_MEMBER.value, m.line, m.col);
+						}
+						arr += make_doc_symbol(decl.name, DocSymbol.ENUM.value, dl, dc, kids);
+					}
 					is TraitDecl -> {
 						val kids = JsonValue.arr();
 						for (m in decl.methods) {

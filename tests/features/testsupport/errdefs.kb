@@ -1,0 +1,16 @@
+mod testsupport.errdefs;
+
+pub fault NetErr {
+	Timeout,
+	Closed(code: i32)
+}
+
+pub fn ping(id: i32): i32 ! NetErr {
+	if (id == 0) return NetErr.Timeout;
+	if (id < 0) return NetErr.Closed(id);
+	return id * 10;
+}
+
+pub fn ping_void(ok: bool): !NetErr {
+	if (!ok) return NetErr.Timeout;
+}

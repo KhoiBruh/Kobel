@@ -345,45 +345,69 @@ impl Parser {
 		);
 	}
 
-	pub fn parse_enum_decl(&self, public: bool): &AstNode {
-		val kw = self.advance(); // 'enum'
-		val name_tok = self.consume(TokenType.IDENTIFIER, "Expected enum name");
-		val underlying_type = if (self.match_token(TokenType.COLON)) self.parse_type()
-		else null;
-
-		self.consume(TokenType.OPEN_BRACE, "Expected '{' before enum members");
+	fn parse_variant_members(&self, allow_value: bool, kind_label: str): List<EnumMember> {
+		self.consume(TokenType.OPEN_BRACE, "Expected '{' before ${kind_label} members");
 		var members = List<EnumMember>();
 
 		while (!self.check(TokenType.CLOSE_BRACE) && !self.is_end()) {
-			val m_tok = self.consume(TokenType.IDENTIFIER, "Expected enum member name");
+			val m_tok = self.consume(TokenType.IDENTIFIER, "Expected ${kind_label} variant name");
 
-			// `Variant(field: Type, ...)` makes this a payload enum.
+			// `Variant(field: Type, ...)` attaches payload fields to this variant.
 			var payload = List<EnumField>();
 			if (self.match_token(TokenType.OPEN_PAREN)) {
 				while (!self.check(TokenType.CLOSE_PAREN) && !self.is_end()) {
-					val f_tok = self.consume(TokenType.IDENTIFIER, "Expected field name in enum variant");
+					val f_tok = self.consume(TokenType.IDENTIFIER, "Expected field name in ${kind_label} variant");
 					self.consume(TokenType.COLON, "Expected ':' after field name");
 					payload += EnumField(f_tok.text, self.parse_type());
 					if (!self.match_token(TokenType.COMMA)) break;
 				}
-				self.consume(TokenType.CLOSE_PAREN, "Expected ')' after enum variant fields");
+				self.consume(TokenType.CLOSE_PAREN, "Expected ')' after ${kind_label} variant fields");
 			}
 
 			var m_val: ?&AstNode = null;
 			if (self.match_token(TokenType.EQUAL)) {
-				if (!payload.empty()) {
+				if (!allow_value) {
+					self.error(m_tok, "Fault variants cannot specify explicit integer values");
+				} else if (!payload.empty()) {
 					self.error(m_tok, "A payload enum variant cannot have an explicit value");
 				}
-				m_val = self.parse_expression(Precedence.NONE);
+				val parsed_val = self.parse_expression(Precedence.NONE);
+				if (allow_value) m_val = parsed_val;
 			}
 			members += EnumMember(m_tok.text, m_val, m_tok.line, m_tok.col, payload);
 
 			self.match_token(TokenType.COMMA);
 		}
 
-		self.consume(TokenType.CLOSE_BRACE, "Expected '}' after enum members");
+		self.consume(TokenType.CLOSE_BRACE, "Expected '}' after ${kind_label} members");
+		return members;
+	}
+
+	pub fn parse_enum_decl(&self, public: bool): &AstNode {
+		val kw = self.advance(); // 'enum'
+		val name_tok = self.consume(TokenType.IDENTIFIER, "Expected enum name");
+		val underlying_type = if (self.match_token(TokenType.COLON)) self.parse_type()
+		else null;
+		val members = self.parse_variant_members(true, "enum");
 		return self.node(
 			NodeData.EnumDecl(name_tok.text, underlying_type, members, public),
+			kw.line, kw.col
+		);
+	}
+
+	pub fn parse_fault_decl(&self, public: bool): &AstNode {
+		val kw = self.advance(); // 'fault'
+		val name_tok = self.consume(TokenType.IDENTIFIER, "Expected fault name");
+		if (self.match_token(TokenType.COLON)) {
+			self.error(self.previous(), "Fault declarations cannot specify an underlying type");
+			self.parse_type();
+		}
+		val members = self.parse_variant_members(false, "fault");
+		if (members.empty()) {
+			self.error(name_tok, "Fault declaration '${name_tok.text}' must define at least one variant");
+		}
+		return self.node(
+			NodeData.FaultDecl(name_tok.text, members, public),
 			kw.line, kw.col
 		);
 	}
@@ -480,6 +504,7 @@ impl Parser {
 			TokenType.KW_TRAIT -> self.parse_trait_decl(public);
 			TokenType.KW_IMPL -> self.parse_impl_decl();
 			TokenType.KW_ENUM -> self.parse_enum_decl(public);
+			TokenType.KW_FAULT -> self.parse_fault_decl(public);
 			TokenType.KW_CONST -> self.parse_const_decl(public);
 			TokenType.KW_MOD -> self.parse_module_decl();
 			TokenType.KW_USE -> self.parse_use_decl();

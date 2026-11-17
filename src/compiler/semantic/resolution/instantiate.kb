@@ -361,6 +361,10 @@ impl TypeResolver {
 				val a = ty.as_array()!;
 				yield "arr${a.length}_${self.canonical_type_token(a.elem)}";
 			}
+			DataType.ERROR_UNION -> {
+				val eu = ty.as_error_union()!;
+				yield "eu_${self.canonical_type_token(eu.ok)}_${self.canonical_type_token(eu.err)}";
+			}
 			else -> self.type_token(ty);
 		};
 	}

@@ -74,7 +74,8 @@ src/compiler/semantic/
 └── lowering/              # Syntactic sugar lowering
     ├── lowering.kb        # AST lowering visitor and driver
     ├── loop.kb            # 'for' loop translation
-    └── string.kb          # String interpolation desugaring
+    ├── string.kb          # String interpolation desugaring
+    └── error.kb           # Fault & error union lowering (catch, '?', wrappers)
 ```
 
 ---

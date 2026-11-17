@@ -460,11 +460,67 @@ fn test_nested_lambda_in_expr_lambda() {
 	println("  [PASS] test_nested_lambda_in_expr_lambda");
 }
 
+fn test_error_union_parsing() {
+	val src = """
+		fault IoErr {
+			NotFound,
+			Code(n: i32)
+		}
+		fn f(a: i32 ! IoErr): !IoErr {
+			val x = a !: err -> {
+				yield 0;
+			};
+			val y = a !: return IoErr.NotFound;
+			val z = a?;
+			val w = a!;
+		}
+	""";
+	var lexer = Lexer(src);
+	var parser = Parser(lexer.tokenize());
+	val prog = parser.parse_program();
+	assert_eq_usz(parser.errors.len, 0, "Fault, error union types, !:, ?, and ! must parse cleanly");
+	if (prog is Program as pr) {
+		assert_eq_usz(pr.declarations.len, 2, "Program must have FaultDecl and FnDecl");
+		assert_true(pr.declarations[0] is FaultDecl, "First decl must be FaultDecl");
+		if (pr.declarations[1] is FnDecl as f) {
+			assert_true(f.params[0].type_node is ErrorUnionType, "Param must parse as ErrorUnionType");
+			if (f.params[0].type_node is ErrorUnionType as peu) {
+				assert_true(peu.ok_type != null, "T ! E must have non-null ok_type");
+			}
+			assert_true(f.return_type != null && f.return_type! is ErrorUnionType, "Return !E must parse as ErrorUnionType");
+			if (f.return_type != null && f.return_type! is ErrorUnionType as reu) {
+				assert_true(reu.ok_type == null, "Void !E must have null ok_type");
+			}
+			if (f.body is BlockStmt as blk) {
+				if (blk.statements[0] is VarDeclStmt as v0) {
+					assert_true(v0.initializer is CatchExpr, "!: must parse as CatchExpr");
+					if (v0.initializer is CatchExpr as ce) {
+						assert_eq_str(ce.err_name, "err", "err -> must bind err_name");
+						assert_true(ce.handler is BlockStmt, "Block catch handler must parse as BlockStmt");
+					}
+				}
+				if (blk.statements[1] is VarDeclStmt as v1 && v1.initializer is CatchExpr as ce1) {
+					assert_true(ce1.handler is ReturnStmt, "return inside !: must parse as ReturnStmt");
+				}
+				if (blk.statements[2] is VarDeclStmt as v2 && v2.initializer is UnaryExpr as q_un) {
+					assert_true(q_un.is_postfix && q_un.op == TokenType.QUESTION, "? must parse as postfix UnaryExpr");
+				}
+			}
+		}
+	}
+
+	check_bad_program_syntax("fault Bad: u8 { A }", "Must reject fault with underlying type");
+	check_bad_program_syntax("fault Bad { A = 1 }", "Must reject fault variant with explicit integer value");
+	check_bad_program_syntax("fault Empty {}", "Must reject empty fault declaration");
+	println("  [PASS] test_error_union_parsing");
+}
+
 fn main(): i32 {
 	println("[RUNNING] Bootstrap Parser tests...");
 	test_val_var_self_rejected();
 	test_not_is_parsing();
 	test_nested_lambda_in_expr_lambda();
+	test_error_union_parsing();
 	test_expression_parsing();
 	test_call_and_member_parsing();
 	test_safe_member_and_elvis_parsing();

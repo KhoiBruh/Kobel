@@ -26,7 +26,8 @@ pub enum DataType {
 	POINTER,
 	ARRAY,
 	STRUCT,
-	FN
+	FN,
+	ERROR_UNION
 }
 
 /*
@@ -45,7 +46,8 @@ pub enum TypePayload {
 	Array(elem: *Type, length: usz),
 	Struct(inner: &StructType),
 	Fn(inner: &FnTypeInfo),
-	Enum(inner: *EnumInfo)
+	Enum(inner: *EnumInfo),
+	ErrorUnion(ok: *Type, err: *Type, c_name: str)
 }
 
 pub struct Type {
@@ -135,6 +137,54 @@ impl Arena {
 			TypePayload.Fn(self.create_val(FnTypeInfo(param_types, return_type, is_variadic)))
 		);
 
+	pub fn error_union_type(&self, ok: *Type, err: *Type): *Type {
+		val c_name = "__kobel_eu_${eu_type_token(ok)}__${eu_type_token(err)}";
+		var u_size = err.size;
+		var u_align = err.align;
+		if (ok.kind != DataType.NONE) {
+			if (ok.size > u_size) u_size = ok.size;
+			if (ok.align > u_align) u_align = ok.align;
+		}
+		if (u_align == 0) u_align = 1;
+		val u_rem = u_size % u_align;
+		if (u_rem != 0) u_size += u_align - u_rem;
+		val body_off = u_align;
+		var total = body_off + u_size;
+		val t_rem = total % u_align;
+		if (t_rem != 0) total += u_align - t_rem;
+		return self.type_payload(
+			DataType.ERROR_UNION, total, u_align,
+			TypePayload.ErrorUnion(ok, err, c_name)
+		);
+	}
+
+}
+
+pub fn eu_type_token(ty: *Type): str {
+	if (ty.is_enum()) return ty.as_enum()!.c_name;
+	return when (ty.kind) {
+		DataType.POINTER -> {
+			val p = ty.as_pointer()!;
+			val q = if (p.nullable) "q" else "";
+			val m = if (p.mutable) "mut_" else "";
+			yield "${q}${m}ptr_${eu_type_token(p.pointee)}";
+		}
+		DataType.ARRAY -> {
+			val a = ty.as_array()!;
+			yield "arr${a.length}_${eu_type_token(a.elem)}";
+		}
+		DataType.STRUCT -> {
+			val s = ty.as_struct()!;
+			if (!s.c_name.empty()) yield s.c_name;
+			yield s.name;
+		}
+		DataType.ERROR_UNION -> {
+			val eu = ty.as_error_union()!;
+			yield "eu_${eu_type_token(eu.ok)}__${eu_type_token(eu.err)}";
+		}
+		DataType.FN -> "fn";
+		else -> primitive_type_name(ty);
+	};
 }
 
 // ============================================================================
@@ -177,6 +227,13 @@ impl Type {
 		val data = self.data;
 		return when (data) {
 			is TypePayload.Enum as p -> p.inner;
+			else -> null;
+		};
+	}
+
+	pub fn as_error_union(*self): ?*TypePayload.ErrorUnion {
+		return when (self.data) {
+			is TypePayload.ErrorUnion as p -> p;
 			else -> null;
 		};
 	}
@@ -233,6 +290,9 @@ impl Type {
 		is TypePayload.Enum -> true;
 		else -> false;
 	};
+
+	pub fn is_fault(*self): bool
+		=> self.kind == DataType.STRUCT && self.as_struct()!.is_fault;
 
 	pub fn is_numeric(*self) => self.is_integer() || self.is_float();
 
@@ -318,12 +378,25 @@ impl Type {
 				}
 				yield true;
 			}
+			DataType.ERROR_UNION -> {
+				val eu_a = self.as_error_union()!;
+				val eu_b = b.as_error_union()!;
+				yield eu_a.ok.equals(eu_b.ok) && eu_a.err.equals(eu_b.err);
+			}
 			else -> true;
 		};
 	}
 
 	pub fn can_assign(*self, source: *Type): bool {
 		if (self.equals(source)) return true;
+
+		if (self.kind == DataType.ERROR_UNION) {
+			val eu = self.as_error_union()!;
+			if (source.kind == DataType.ERROR_UNION) return self.equals(source);
+			if (eu.err.equals(source)) return true;
+			if (eu.ok.kind != DataType.NONE && eu.ok.can_assign(source)) return true;
+			return false;
+		}
 
 		// Enum raw-value coercion to/from its underlying primitive type.
 		if (self.is_enum() && !self.as_enum()!.is_payload) {
@@ -425,6 +498,11 @@ impl Stringer for Type {
 				res = "${res}${fn_info.param_types[i].to_str()}";
 			}
 			yield "${res}) -> ${fn_info.return_type.to_str()}";
+		}
+		DataType.ERROR_UNION -> {
+			val eu = self.as_error_union()!;
+			if (eu.ok.kind == DataType.NONE) yield "!${eu.err.to_str()}";
+			yield "${eu.ok.to_str()} ! ${eu.err.to_str()}";
 		}
 	};
 

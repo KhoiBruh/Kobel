@@ -300,6 +300,10 @@ pub fn format_type_node(node: ?*AstNode): str {
 			sb += format_type_node(node.return_type);
 			return sb.to_str();
 		}
+		is ErrorUnionType -> {
+			if (node.ok_type != null) return "${format_type_node(node.ok_type!)} ! ${format_type_node(node.err_type)}";
+			return "!${format_type_node(node.err_type)}";
+		}
 		else -> return "any";
 	}
 }
@@ -607,6 +611,60 @@ impl IndexWalker {
 		return ty.to_str();
 	}
 
+	fn resolve_variant_named_type(*self, type_name: str): Pair<str, str> {
+		if (type_name.empty()) return Pair<str, str>("", "");
+		// 1. BodyChecker-mangled variant type: `<c_enum>__<Variant>`
+		if (!(type_name in self.index.c_name_to_key) && type_name.len >= 3) {
+			var split_i: isz = -1;
+			var idx = type_name.len - 2;
+			while (true) {
+				if (type_name[idx] == '_' && type_name[idx + 1] == '_') {
+					split_i = idx as isz;
+					break;
+				}
+				if (idx == 0) break;
+				idx--;
+			}
+			if (split_i > 0) {
+				val s_u = split_i as usz;
+				val prefix = type_name.slice(0, s_u);
+				val vname = type_name.slice(s_u + 2, type_name.len);
+				val e_key = self.index.c_name_to_key.get_or(prefix, "");
+				if (!e_key.empty() && !vname.empty()) {
+					val edef = self.index.get_def(e_key);
+					if (!edef.name.empty()) {
+						val v_key = "variant:${edef.module_name}:${edef.name}:${vname}";
+						if (v_key in self.index.def_by_key) return Pair<str, str>(v_key, vname);
+					}
+				}
+			}
+		}
+		// 2. Unmangled shorthand `.Variant` inside `when` on enum / error union
+		if (type_name.starts_with(".") && !self.cur_when_enum.empty()) {
+			val vname = type_name.slice(1, type_name.len);
+			val v_key = "variant:${self.cur_when_enum_mod}:${self.cur_when_enum}:${vname}";
+			if (v_key in self.index.def_by_key) return Pair<str, str>(v_key, vname);
+		}
+		// 3. Unmangled `Enum.Variant` / `Fault.Variant`
+		val dot_pos = type_name.index_of(".");
+		if (dot_pos > 0) {
+			val di = dot_pos as usz;
+			val ename = type_name.slice(0, di);
+			val vname = type_name.slice(di + 1, type_name.len);
+			if (!vname.empty()) {
+				val e_key = self.index.resolve_visible_symbol_key(self.cur_file, self.cur_mod, ename);
+				if (!e_key.empty()) {
+					val edef = self.index.get_def(e_key);
+					if (!edef.name.empty()) {
+						val v_key = "variant:${edef.module_name}:${edef.name}:${vname}";
+						if (v_key in self.index.def_by_key) return Pair<str, str>(v_key, vname);
+					}
+				}
+			}
+		}
+		return Pair<str, str>("", "");
+	}
+
 	fn walk_type_node(&self, node: ?*AstNode) {
 		if (node == null) return;
 		val nl = node!.line;
@@ -615,6 +673,13 @@ impl IndexWalker {
 			is NamedType -> {
 				var key = self.index.resolve_visible_symbol_key(self.cur_file, self.cur_mod, node.name);
 				var snap_name = node.name;
+				if (key.empty()) {
+					val vpair = self.resolve_variant_named_type(node.name);
+					if (!vpair.first.empty()) {
+						key = vpair.first;
+						snap_name = vpair.second;
+					}
+				}
 				if (key.empty()) {
 					key = self.index.c_name_to_key.get_or(node.name, "");
 					if (!key.empty()) {
@@ -640,6 +705,10 @@ impl IndexWalker {
 			is FnType -> {
 				for (pt in node.param_types) self.walk_type_node(pt);
 				self.walk_type_node(node.return_type);
+			}
+			is ErrorUnionType -> {
+				if (node.ok_type != null) self.walk_type_node(node.ok_type);
+				self.walk_type_node(node.err_type);
 			}
 		}
 	}
@@ -708,36 +777,8 @@ impl IndexWalker {
 						));
 					}
 				}
-				is EnumDecl -> {
-					val key = "enum:${self.cur_mod}:${decl.name}";
-					self.index.orig_node_names[raw_decl.addr()] = decl.name;
-					self.index.orig_node_keys[raw_decl.addr()] = key;
-					val tok = find_ident_token_after(self.tokens, dl, dc, decl.name);
-					val r_line = if (tok.line > 0) tok.line else dl;
-					val r_col = if (tok.col > 0) tok.col else dc;
-					self.index.add_def(DefInfo(
-						key, decl.name, SymRole.ENUM, self.cur_file, self.cur_mod, "",
-						r_line, r_col, decl.name.len, "enum ${decl.name}", decl.name, decl.public
-					));
-					self.index.add_ref(RefInfo(
-						key, self.cur_file, self.cur_mod, r_line, r_col, decl.name.len,
-						true, false, false, decl.name
-					));
-					for (m in decl.members) {
-						val m_key = "variant:${self.cur_mod}:${decl.name}:${m.name}";
-						val m_tok = find_ident_token_after(self.tokens, m.line, m.col, m.name);
-						val ml = if (m_tok.line > 0) m_tok.line else m.line;
-						val mc = if (m_tok.col > 0) m_tok.col else m.col;
-						self.index.add_def(DefInfo(
-							m_key, m.name, SymRole.ENUM_VARIANT, self.cur_file, self.cur_mod, decl.name,
-							ml, mc, m.name.len, "${decl.name}.${m.name}", decl.name, decl.public
-						));
-						self.index.add_ref(RefInfo(
-							m_key, self.cur_file, self.cur_mod, ml, mc, m.name.len,
-							true, false, false, decl.name
-						));
-					}
-				}
+				is EnumDecl -> self.add_tagged_decl_def(decl.name, "enum", decl.public, decl.members, raw_decl, dl, dc);
+				is FaultDecl -> self.add_tagged_decl_def(decl.name, "fault", decl.public, decl.members, raw_decl, dl, dc);
 				is TraitDecl -> {
 					val key = "trait:${self.cur_mod}:${decl.name}";
 					self.index.orig_node_names[raw_decl.addr()] = decl.name;
@@ -868,6 +909,11 @@ impl IndexWalker {
 					if (decl.underlying_type != null) self.walk_type_node(decl.underlying_type);
 					for (m in decl.members) {
 						if (m.value != null) self.walk_expr(m.value);
+						for (pf in m.payload) self.walk_type_node(pf.type_node);
+					}
+				}
+				is FaultDecl -> {
+					for (m in decl.members) {
 						for (pf in m.payload) self.walk_type_node(pf.type_node);
 					}
 				}
@@ -1022,7 +1068,8 @@ impl IndexWalker {
 			if (self.index.has_symtab) {
 				val c_ty = unwrap_base_type(self.index.symtab.get_node_type(cond));
 				if (c_ty != null) {
-					val e_info = c_ty.as_enum();
+					val e_info = if (c_ty.kind == DataType.ERROR_UNION) c_ty.as_error_union()!.err.as_enum()
+						else c_ty.as_enum();
 					if (e_info != null) {
 						self.cur_when_enum = e_info.name;
 						self.cur_when_enum_mod = self.index.find_enum_module(e_info.name, self.cur_mod);
@@ -1215,6 +1262,64 @@ impl IndexWalker {
 				self.walk_stmt(node.body);
 				self.pop_scope();
 			}
+			is CatchExpr -> {
+				self.walk_expr(node.expr);
+				self.push_scope();
+				if (!node.err_name.empty()) {
+					var err_ty_s = "any";
+					val src_ty = if (self.index.has_symtab) unwrap_base_type(self.index.symtab.get_node_type(node.expr)) else null;
+					if (src_ty != null && src_ty.kind == DataType.ERROR_UNION) {
+						err_ty_s = src_ty.as_error_union()!.err.to_str();
+					}
+					val e_tok = find_ident_token_after(self.tokens, nl, nc, node.err_name);
+					val el = if (e_tok.line > 0) e_tok.line else nl;
+					val ec = if (e_tok.col > 0) e_tok.col else nc;
+					self.bind_local(node.err_name, SymRole.LOCAL, el, ec, err_ty_s, false);
+				}
+				self.walk_stmt(node.handler);
+				self.pop_scope();
+			}
+			is ErrorUnionWrapExpr -> if (node.value != null) self.walk_expr(node.value);
+		}
+	}
+
+	fn add_tagged_decl_def(
+		&self,
+		name: str,
+		kw: str,
+		is_public: bool,
+		members: List<EnumMember>,
+		raw_decl: *AstNode,
+		dl: usz,
+		dc: usz
+	) {
+		val key = "enum:${self.cur_mod}:${name}";
+		self.index.orig_node_names[raw_decl.addr()] = name;
+		self.index.orig_node_keys[raw_decl.addr()] = key;
+		val tok = find_ident_token_after(self.tokens, dl, dc, name);
+		val r_line = if (tok.line > 0) tok.line else dl;
+		val r_col = if (tok.col > 0) tok.col else dc;
+		self.index.add_def(DefInfo(
+			key, name, SymRole.ENUM, self.cur_file, self.cur_mod, "",
+			r_line, r_col, name.len, "${kw} ${name}", name, is_public
+		));
+		self.index.add_ref(RefInfo(
+			key, self.cur_file, self.cur_mod, r_line, r_col, name.len,
+			true, false, false, name
+		));
+		for (m in members) {
+			val m_key = "variant:${self.cur_mod}:${name}:${m.name}";
+			val m_tok = find_ident_token_after(self.tokens, m.line, m.col, m.name);
+			val ml = if (m_tok.line > 0) m_tok.line else m.line;
+			val mc = if (m_tok.col > 0) m_tok.col else m.col;
+			self.index.add_def(DefInfo(
+				m_key, m.name, SymRole.ENUM_VARIANT, self.cur_file, self.cur_mod, name,
+				ml, mc, m.name.len, "${name}.${m.name}", name, is_public
+			));
+			self.index.add_ref(RefInfo(
+				m_key, self.cur_file, self.cur_mod, ml, mc, m.name.len,
+				true, false, false, name
+			));
 		}
 	}
 
@@ -1229,6 +1334,7 @@ fn register_c_name_mapping(index: &SemanticIndex, prog: *AstNode) {
 			when (decl) {
 				is StructDecl -> if (!decl.name.empty()) index.c_name_to_key[decl.name] = key;
 				is EnumDecl -> if (!decl.name.empty()) index.c_name_to_key[decl.name] = key;
+				is FaultDecl -> if (!decl.name.empty()) index.c_name_to_key[decl.name] = key;
 				is ConstDecl -> if (!decl.name.empty()) index.c_name_to_key[decl.name] = key;
 				is FnDecl -> if (!decl.name.empty()) index.c_name_to_key[decl.name] = key;
 			}

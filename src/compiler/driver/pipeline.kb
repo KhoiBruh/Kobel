@@ -125,7 +125,8 @@ impl CompileOptions {
 
 		// Sugar that needs no further checking is lowered in a separate pass, so
 		// the checker never rewrites a node's kind in place.
-		var lower_p = LoweringPass(body_p.symtab, arena, decl_p);
+		body_p.decl.symtab = body_p.symtab;
+		var lower_p = LoweringPass(body_p.symtab, arena, body_p.decl);
 		lower_p.lower_program(prog);
 
 		if (!self.quiet) println("[4/4] Generating C99 code...");

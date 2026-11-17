@@ -45,31 +45,7 @@ impl CCodeGen {
 					is EnumDecl as e -> {
 						if (!live.has_type(e.name)) continue;
 						if (self.enum_has_payload(e)) {
-							// A payload enum is a struct: tag + union of variant payloads.
-							self.out += "typedef struct ";
-							self.out += e.name;
-							self.out += ' ';
-							self.out += e.name;
-							self.out += ";\n";
-							for (i in 0..<e.members.len) {
-								val m = e.members[i];
-								self.out += "typedef struct ";
-								self.out += e.name;
-								self.out += "__";
-								self.out += m.name;
-								self.out += ' ';
-								self.out += e.name;
-								self.out += "__";
-								self.out += m.name;
-								self.out += ";\n";
-								self.out += "#define ";
-								self.out += e.name;
-								self.out += "__";
-								self.out += m.name;
-								self.out += "__TAG ";
-								self.out += i;
-								self.out += '\n';
-							}
+							self.gen_tagged_typedefs(e.name, e.members);
 						} else {
 							// Enums lower to their underlying integer type; member access becomes
 							// an integer literal during semantic analysis.
@@ -83,6 +59,10 @@ impl CCodeGen {
 							self.out += ";\n";
 						}
 					}
+					is FaultDecl as flt -> {
+						if (!live.has_type(flt.name)) continue;
+						self.gen_tagged_typedefs(flt.name, flt.members);
+					}
 					is ConstDecl as c -> {
 						if (!live.has_const(c.name)) continue;
 						// Module-level constants become preprocessor macros.
@@ -95,13 +75,21 @@ impl CCodeGen {
 					}
 				}
 			}
+			for (eu in live.error_unions) {
+				self.out += "typedef struct ";
+				self.out += eu.c_name;
+				self.out += ' ';
+				self.out += eu.c_name;
+				self.out += ";\n";
+			}
 			self.out += "\n\n";
 
 			// 3. Struct bodies, in dependency order: a by-value field needs its struct
 			// complete first, and a monomorphized instance may embed a struct that is
-			// declared later in the program. A payload enum emits its variant structs
-			// together with its tag/union struct, and may itself be embedded by value.
+			// declared later in the program. A payload enum / fault emits its variant
+			// structs together with its tag/union struct, and ErrorUnions emit after their ok/err types.
 			var items = List<&AstNode>();
+			var eu_items = List<ErrorUnionDesc>();
 			var pending = HashSet<str>();
 			defer pending.free();
 			for (decl in prog) {
@@ -116,14 +104,24 @@ impl CCodeGen {
 						items += decl;
 						pending += e.name;
 					}
+				} else if (decl is FaultDecl as flt) {
+					if (live.has_type(flt.name)) {
+						items += decl;
+						pending += flt.name;
+					}
 				}
+			}
+			for (eu in live.error_unions) {
+				eu_items += eu;
+				pending += eu.c_name;
 			}
 			var order = List<&AstNode>();
 			defer order.free();
 			var emitted = HashSet<str>();
 			defer emitted.free();
-			while (!items.empty()) {
+			while (!items.empty() || !eu_items.empty()) {
 				var next = List<&AstNode>();
+				var next_eu = List<ErrorUnionDesc>();
 				var progressed = false;
 				for (item in items) {
 					val item_name = self.body_item_name(item);
@@ -145,16 +143,47 @@ impl CCodeGen {
 					}
 				}
 				items.free();
+				for (eu in eu_items) {
+					var ready = true;
+					for (dep in eu.deps) {
+						if (dep.empty() || dep == eu.c_name) continue;
+						if (dep in emitted) continue;
+						if (dep in pending) ready = false;
+					}
+					if (ready) {
+						for (em in order) {
+							if (em is StructDecl as s) self.gen_struct_decl(s);
+							else if (em is EnumDecl as e) self.gen_payload_enum(e);
+							else if (em is FaultDecl as flt) self.gen_fault_decl(flt);
+						}
+						order.clear();
+						self.gen_error_union_decl(eu);
+						emitted += eu.c_name;
+						pending.remove(eu.c_name);
+						progressed = true;
+					} else {
+						next_eu += eu;
+					}
+				}
+				eu_items.free();
+				items = next;
+				eu_items = next_eu;
 				if (!progressed) {
-					// A by-value cycle cannot exist in C; keep the program order.
-					for (item in next) order += item;
+					for (item in items) {
+						if (item is StructDecl as s) self.gen_struct_decl(s);
+						else if (item is EnumDecl as e) self.gen_payload_enum(e);
+						else if (item is FaultDecl as flt) self.gen_fault_decl(flt);
+					}
+					for (eu in eu_items) self.gen_error_union_decl(eu);
+					items.free();
+					eu_items.free();
 					break;
 				}
-				items = next;
 			}
 			for (item in order) {
 				if (item is StructDecl as s) self.gen_struct_decl(s);
 				else if (item is EnumDecl as e) self.gen_payload_enum(e);
+				else if (item is FaultDecl as flt) self.gen_fault_decl(flt);
 			}
 
 			// 4. Function Prototypes
@@ -202,12 +231,14 @@ impl CCodeGen {
 	fn by_value_struct_name(*self, node: *AstNode): str {
 		if (node == null) return "";
 		if (node is NamedType as nt) return nt.name;
+		if (node is ErrorUnionType as eu) return eu_c_name_from_ast(eu);
 		return "";
 	}
 
 	fn body_item_name(*self, item: *AstNode) => when (item) {
 		is StructDecl -> item.name;
 		is EnumDecl -> item.name;
+		is FaultDecl -> item.name;
 		else -> "";
 	};
 
@@ -218,6 +249,10 @@ impl CCodeGen {
 			for (f in s.fields) deps += self.by_value_struct_name(f.type_node);
 		} else if (item is EnumDecl as e) {
 			for (m in e.members) {
+				for (f in m.payload) deps += self.by_value_struct_name(f.type_node);
+			}
+		} else if (item is FaultDecl as flt) {
+			for (m in flt.members) {
 				for (f in m.payload) deps += self.by_value_struct_name(f.type_node);
 			}
 		}
@@ -243,14 +278,37 @@ impl CCodeGen {
 		self.out += "};\n\n";
 	}
 
-	// A payload enum is emitted as a tag plus a union of one payload struct per
-	// variant, so a pattern binding can point straight at the active payload.
-	pub fn gen_payload_enum(&self, e: *EnumDecl) {
-		if (!self.enum_has_payload(e)) return;
+	fn gen_tagged_typedefs(&self, name: str, members: List<EnumMember>) {
+		self.out += "typedef struct ";
+		self.out += name;
+		self.out += ' ';
+		self.out += name;
+		self.out += ";\n";
+		for (i in 0..<members.len) {
+			val m = members[i];
+			self.out += "typedef struct ";
+			self.out += name;
+			self.out += "__";
+			self.out += m.name;
+			self.out += ' ';
+			self.out += name;
+			self.out += "__";
+			self.out += m.name;
+			self.out += ";\n";
+			self.out += "#define ";
+			self.out += name;
+			self.out += "__";
+			self.out += m.name;
+			self.out += "__TAG ";
+			self.out += i;
+			self.out += '\n';
+		}
+	}
 
-		for (m in e.members) {
+	fn gen_tagged_struct(&self, name: str, members: List<EnumMember>) {
+		for (m in members) {
 			self.out += "struct ";
-			self.out += e.name;
+			self.out += name;
 			self.out += "__";
 			self.out += m.name;
 			self.out += " {\n";
@@ -266,11 +324,11 @@ impl CCodeGen {
 		}
 
 		self.out += "struct ";
-		self.out += e.name;
+		self.out += name;
 		self.out += " {\n    int32_t tag;\n    union {\n";
-		for (m in e.members) {
+		for (m in members) {
 			self.out += "        struct ";
-			self.out += e.name;
+			self.out += name;
 			self.out += "__";
 			self.out += m.name;
 			self.out += ' ';
@@ -280,12 +338,78 @@ impl CCodeGen {
 		self.out += "    } u;\n};\n\n";
 	}
 
+	// A payload enum is emitted as a tag plus a union of one payload struct per
+	// variant, so a pattern binding can point straight at the active payload.
+	pub fn gen_payload_enum(&self, e: *EnumDecl) {
+		if (!self.enum_has_payload(e)) return;
+		self.gen_tagged_struct(e.name, e.members);
+	}
+
+	fn fault_short_name(*self, c_name: str): str {
+		var pos: usz = 0;
+		var i: usz = 0;
+		while (i + 1 < c_name.len) {
+			if (c_name[i] == '_' && c_name[i + 1] == '_') pos = i + 2;
+			i++;
+		}
+		if (pos > 0 && pos < c_name.len) return c_name.slice(pos, c_name.len);
+		return c_name;
+	}
+
+	pub fn gen_fault_decl(&self, flt: *FaultDecl) {
+		self.gen_tagged_struct(flt.name, flt.members);
+		val short_name = self.fault_short_name(flt.name);
+		self.out += "static inline kobel_str __kobel_fault_str_${flt.name}(${flt.name} e) {\n";
+		self.out += "    switch (e.tag) {\n";
+		for (i in 0..<flt.members.len) {
+			val m = flt.members[i];
+			self.out += "        case ${i}: return KOBEL_STR(\"${short_name}.${m.name}\");\n";
+		}
+		self.out += "        default: return KOBEL_STR(\"${short_name}\");\n";
+		self.out += "    }\n}\n\n";
+
+		self.out += "static inline void __kobel_print_fault_${flt.name}(${flt.name} e) {\n";
+		self.out += "    kobel_str s = __kobel_fault_str_${flt.name}(e);\n";
+		self.out += "    if (s.data && s.len > 0) fwrite(s.data, 1, s.len, stderr);\n";
+		self.out += "    fputc(10, stderr);\n}\n\n";
+	}
+
+	pub fn gen_error_union_decl(&self, eu: ErrorUnionDesc) {
+		self.out += "struct ${eu.c_name} {\n    bool is_ok;\n    union {\n";
+		if (!eu.ok_is_void) {
+			self.out += "        ${eu.ok_c} ok;\n";
+		}
+		self.out += "        ${eu.err_c} err;\n    } u;\n};\n\n";
+
+		val unwrap_ret = if (eu.ok_is_void) "void" else eu.ok_c;
+		self.out += "static inline ${unwrap_ret} __kobel_unwrap_${eu.c_name}(${eu.c_name} r) {\n";
+		self.out += "    if (!r.is_ok) {\n";
+		self.out += "        fprintf(stderr, \"panic: unwrapped error \");\n";
+		self.out += "        __kobel_print_fault_${eu.err_c}(r.u.err);\n";
+		self.out += "        exit(1);\n";
+		self.out += "    }\n";
+		if (!eu.ok_is_void) {
+			self.out += "    return r.u.ok;\n";
+		}
+		self.out += "}\n\n";
+	}
+
+	fn ast_is_none_or_null(*self, node: ?*AstNode): bool {
+		if (node == null) return true;
+		if (node is NamedType as nt) return nt.name == "none";
+		return false;
+	}
+
 	// `self_c_type` is the C name of the enclosing struct when generating an impl
 	// method ("" for free functions). It types the untyped `self` receiver.
 	pub fn gen_fn_decl(&self, f: *FnDecl, is_proto: bool, self_c_type: str) {
 		val ret_ty = self.fn_ret_c_type(f);
 		val f_body = f.body;
 		if (!is_proto && f_body == null) return;
+
+		val is_eu_main = f.name == "main" && ret_ty.starts_with("__kobel_eu_");
+		val c_fn_name = if (is_eu_main) "__kobel_user_main" else f.name;
+		if (is_eu_main) self.out += "static ";
 
 		if (!is_proto && f_body != null) {
 			var lambdas = List<&AstNode>();
@@ -298,7 +422,7 @@ impl CCodeGen {
 
 		self.out += ret_ty;
 		self.out += ' ';
-		self.out += f.name;
+		self.out += c_fn_name;
 		self.out += '(';
 		if (f.params.empty()) self.out += "void";
 		else {
@@ -408,7 +532,31 @@ impl CCodeGen {
 			}
 		}
 
+		if (
+			f_body is BlockStmt &&
+			f.return_type != null &&
+			f.return_type! is ErrorUnionType as eu &&
+			self.ast_is_none_or_null(eu.ok_type)
+		) {
+			self.out += "    return (${ret_ty}){ .is_ok = true };\n";
+		}
+
 		self.out += "}\n\n";
+
+		if (is_eu_main && f.return_type != null && f.return_type! is ErrorUnionType as meu) {
+			val ok_is_void = self.ast_is_none_or_null(meu.ok_type);
+			val err_c = c_type_from_ast(meu.err_type);
+			val ok_ret = if (ok_is_void) "0" else "(int)__eu_main.u.ok";
+			self.out += "int main(void) {\n";
+			self.out += "    ${ret_ty} __eu_main = __kobel_user_main();\n";
+			self.out += "    if (!__eu_main.is_ok) {\n";
+			self.out += "        fprintf(stderr, \"panic: unhandled error in main: \");\n";
+			self.out += "        __kobel_print_fault_${err_c}(__eu_main.u.err);\n";
+			self.out += "        return 1;\n";
+			self.out += "    }\n";
+			self.out += "    return ${ok_ret};\n";
+			self.out += "}\n\n";
+		}
 	}
 
 // ============================================================================
@@ -509,6 +657,11 @@ impl CCodeGen {
 			is EnumCtorExpr as ec -> {
 				for (a in ec.args) self.collect_lambdas_in_node(a, out);
 			}
+			is CatchExpr as ce -> {
+				self.collect_lambdas_in_node(ce.expr, out);
+				self.collect_lambdas_in_node(ce.handler, out);
+			}
+			is ErrorUnionWrapExpr as w -> self.collect_lambdas_in_node(w.value, out);
 		}
 	}
 

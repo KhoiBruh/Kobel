@@ -59,6 +59,7 @@ pub enum TokenType {
 	PERCENT_EQUAL, // %=
 	QUESTION_COLON,// ?:
 	QUESTION_DOT,  // ?.
+	BANG_COLON,    // !:
 
 	// Literals & identifiers
 	CHAR,
@@ -97,6 +98,7 @@ pub enum TokenType {
 	KW_DEFER,
 	KW_IS,
 	KW_INIT,
+	KW_FAULT,
 
 	// Specials
 	END_OF_FILE,
@@ -151,7 +153,8 @@ impl Token {
 		TokenType.KW_MOD, TokenType.KW_USE, TokenType.KW_PUB,
 		TokenType.KW_TRAIT, TokenType.KW_IMPL, TokenType.KW_FOR,
 		TokenType.KW_IN, TokenType.KW_YIELD, TokenType.KW_OP,
-		TokenType.KW_DEFER, TokenType.KW_IS, TokenType.KW_INIT
+		TokenType.KW_DEFER, TokenType.KW_IS, TokenType.KW_INIT,
+		TokenType.KW_FAULT
 	];
 
 	pub fn is_literal(*self) => self.type in [

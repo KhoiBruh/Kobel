@@ -59,6 +59,7 @@ pub fn op_to_str(op: TokenType) => when (op) {
 	TokenType.DOT_DOT -> "..";
 	TokenType.DOT_DOT_LESS -> "..<";
 	TokenType.BANG -> "!";
+	TokenType.BANG_COLON -> "!:";
 	TokenType.PLUS_PLUS -> "++";
 	TokenType.MINUS_MINUS -> "--";
 	TokenType.AMPERSAND -> "&";
@@ -190,6 +191,15 @@ impl Formatter {
 				}
 				self.buf += ") -> ";
 				self.format_type(ft.return_type);
+			}
+			is ErrorUnionType as eu -> {
+				if (eu.ok_type != null) {
+					self.format_type(eu.ok_type!);
+					self.buf += " ! ";
+				} else {
+					self.buf += "!";
+				}
+				self.format_type(eu.err_type);
 			}
 			is ArrayLiteralExpr as al -> {
 				self.buf += "[";
@@ -453,6 +463,34 @@ impl Formatter {
 				}
 				self.buf += "\"";
 			}
+			is CatchExpr as ce -> {
+				self.format_expr(ce.expr);
+				self.buf += " !: ";
+				if (!ce.err_name.empty()) {
+					self.buf += ce.err_name;
+					self.buf += " -> ";
+				}
+				when (ce.handler) {
+					is BlockStmt -> self.format_stmt(ce.handler);
+					is ReturnStmt as r -> {
+						self.buf += "return";
+						if (r.value != null) {
+							self.buf.space();
+							self.format_expr(r.value!);
+						}
+					}
+					is YieldStmt as y -> {
+						self.buf += "yield";
+						if (y.value != null) {
+							self.buf.space();
+							self.format_expr(y.value!);
+						}
+					}
+					is BreakStmt -> self.buf += "break";
+					is ContinueStmt -> self.buf += "continue";
+					else -> self.format_expr(ce.handler);
+				}
+			}
 		}
 	}
 
@@ -679,6 +717,55 @@ impl Formatter {
 		self.buf += ">";
 	}
 
+	fn format_tagged_decl(
+		&self,
+		line: usz,
+		is_public: bool,
+		kw: str,
+		name: str,
+		underlying_type: ?&AstNode,
+		members: List<EnumMember>
+	) {
+		if (is_public) self.buf += "pub ";
+		self.buf += kw;
+		self.buf += " ";
+		self.buf += name;
+		if (underlying_type != null) {
+			self.buf += ": ";
+			self.format_type(underlying_type);
+		}
+		self.buf += " {";
+
+		if (members.len > 0) {
+			self.buf.indent();
+			for (i in 0..<members.len) {
+				self.buf.newline();
+				val mem = members[i];
+				self.buf += mem.name;
+				if (mem.payload.len > 0) {
+					self.buf += "(";
+					for (j in 0..<mem.payload.len) {
+						if (j > 0) self.buf += ", ";
+						val pf = mem.payload[j];
+						self.buf += pf.name;
+						self.buf += ": ";
+						self.format_type(pf.type_node);
+					}
+					self.buf += ")";
+				}
+				if (mem.value != null) {
+					self.buf += " = ";
+					self.format_expr(mem.value!);
+				}
+				if (i + 1 < members.len) self.buf += ",";
+			}
+			self.buf.dedent();
+			self.buf.newline();
+		}
+		self.buf += "}";
+		self.comments.emit_trailing_on_line(&self.buf, line);
+	}
+
 	// ------------------------------------------------------------------------
 	// Declarations
 	// ------------------------------------------------------------------------
@@ -858,45 +945,8 @@ impl Formatter {
 				self.buf += "}";
 				self.comments.emit_trailing_on_line(&self.buf, node.line);
 			}
-			is EnumDecl as en -> {
-				if (en.public) self.buf += "pub ";
-				self.buf += "enum ";
-				self.buf += en.name;
-				if (en.underlying_type != null) {
-					self.buf += ": ";
-					self.format_type(en.underlying_type!);
-				}
-				self.buf += " {";
-
-				if (en.members.len > 0) {
-					self.buf.indent();
-					for (i in 0..<en.members.len) {
-						self.buf.newline();
-						val mem = en.members[i];
-						self.buf += mem.name;
-						if (mem.payload.len > 0) {
-							self.buf += "(";
-							for (j in 0..<mem.payload.len) {
-								if (j > 0) self.buf += ", ";
-								val pf = mem.payload[j];
-								self.buf += pf.name;
-								self.buf += ": ";
-								self.format_type(pf.type_node);
-							}
-							self.buf += ")";
-						}
-						if (mem.value != null) {
-							self.buf += " = ";
-							self.format_expr(mem.value!);
-						}
-						if (i + 1 < en.members.len) self.buf += ",";
-					}
-					self.buf.dedent();
-					self.buf.newline();
-				}
-				self.buf += "}";
-				self.comments.emit_trailing_on_line(&self.buf, node.line);
-			}
+			is EnumDecl as en -> self.format_tagged_decl(node.line, en.public, "enum", en.name, en.underlying_type, en.members);
+			is FaultDecl as flt -> self.format_tagged_decl(node.line, flt.public, "fault", flt.name, null, flt.members);
 			is ConstDecl as c -> {
 				if (c.public) self.buf += "pub ";
 				self.buf += "const ";

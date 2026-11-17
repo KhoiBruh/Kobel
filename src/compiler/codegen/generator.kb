@@ -45,6 +45,7 @@ pub struct CCodeGen {
 	pub is_yield_return: bool = false,
 	pub current_fn_ret_type: str = "",
 	pub yield_exit_label: str = "",
+	pub yield_defer_depth: usz = 0,
 	pub when_label_counter: usz = 0,
 	pub destruct_counter: usz = 0,
 	pub defer_nodes: List<&AstNode> = List(),

@@ -272,7 +272,7 @@ impl Parser {
 		TokenType.EQUAL, TokenType.PLUS_EQUAL,
 		TokenType.MINUS_EQUAL, TokenType.STAR_EQUAL,
 		TokenType.SLASH_EQUAL, TokenType.PERCENT_EQUAL -> Precedence.ASSIGN;
-		TokenType.QUESTION_COLON -> Precedence.ELVIS;
+		TokenType.QUESTION_COLON, TokenType.BANG_COLON -> Precedence.ELVIS;
 		TokenType.OR_OR -> Precedence.OR;
 		TokenType.AND_AND -> Precedence.AND;
 		TokenType.EQUAL_EQUAL, TokenType.BANG_EQUAL -> Precedence.EQUALITY;
@@ -293,7 +293,7 @@ impl Parser {
 		TokenType.KW_AS -> Precedence.UNARY;
 		TokenType.DOT, TokenType.QUESTION_DOT, TokenType.OPEN_PAREN,
 		TokenType.OPEN_BRACKET, TokenType.PLUS_PLUS,
-		TokenType.MINUS_MINUS -> Precedence.CALL;
+		TokenType.MINUS_MINUS, TokenType.QUESTION -> Precedence.CALL;
 		TokenType.OPEN_BRACE -> {
 			if (self.is_lambda_brace_ahead()) yield Precedence.CALL;
 			yield Precedence.NONE;
@@ -633,6 +633,47 @@ impl Parser {
 		};
 	}
 
+	fn parse_recovery_stmt(&self): ?&AstNode => when (self) {
+		.match_token(TokenType.KW_RETURN) -> {
+			val (kw_line, kw_col) = self.previous();
+			val value = if (
+				!self.check(TokenType.SEMI_COLON)
+				&& !self.check(TokenType.CLOSE_BRACE)
+				&& !self.check(TokenType.CLOSE_PAREN)
+			) self.parse_expression(Precedence.NONE) else null;
+
+			yield self.node(NodeData.ReturnStmt(value), kw_line, kw_col);
+		}
+		.match_token(TokenType.KW_BREAK) -> {
+			val (kw_line, kw_col) = self.previous();
+			yield self.node(NodeData.BreakStmt, kw_line, kw_col);
+		}
+		.match_token(TokenType.KW_CONTINUE) -> {
+			val (kw_line, kw_col) = self.previous();
+			yield self.node(NodeData.ContinueStmt, kw_line, kw_col);
+		}
+		.match_token(TokenType.KW_YIELD) -> {
+			val (kw_line, kw_col) = self.previous();
+			val value = if (
+				!self.check(TokenType.SEMI_COLON)
+				&& !self.check(TokenType.CLOSE_BRACE)
+				&& !self.check(TokenType.CLOSE_PAREN)
+			) self.parse_expression(Precedence.NONE) else null;
+
+			yield self.node(NodeData.YieldStmt(value), kw_line, kw_col);
+		}
+		else -> null;
+	};
+
+	fn parse_catch_body(&self): &AstNode {
+		val stmt = self.parse_recovery_stmt();
+		if (stmt != null) return stmt;
+		if (self.check(TokenType.OPEN_BRACE) && !self.is_lambda_brace_ahead()) {
+			return self.parse_block_stmt();
+		}
+		return self.parse_expression(Precedence.ASSIGN);
+	}
+
 	pub fn parse_infix(&self, left: &AstNode, prec: Precedence): &AstNode {
 		val (tok_type, line, col) = self.peek();
 
@@ -653,6 +694,11 @@ impl Parser {
 					return self.node(NodeData.UnaryExpr(TokenType.BANG, left, true), line, col);
 				}
 			}
+			// Postfix error propagation: left?
+			TokenType.QUESTION -> {
+				self.advance();
+				return self.node(NodeData.UnaryExpr(TokenType.QUESTION, left, true), line, col);
+			}
 			// 2. Assignment: left = right, left += right, ... (right-associative)
 			TokenType.EQUAL, TokenType.PLUS_EQUAL,
 			TokenType.MINUS_EQUAL, TokenType.STAR_EQUAL,
@@ -668,41 +714,23 @@ impl Parser {
 		return when (self) {
 			// 2. Elvis operator: left ?: right (right can be expression or jump statement)
 			.match_token(TokenType.QUESTION_COLON) -> {
-				val right = when (self) {
-					.match_token(TokenType.KW_RETURN) -> {
-						val (kw_line, kw_col) = self.previous();
-						val value = if (
-							!self.check(TokenType.SEMI_COLON)
-							&& !self.check(TokenType.CLOSE_BRACE)
-							&& !self.check(TokenType.CLOSE_PAREN)
-						) self.parse_expression(Precedence.NONE) else null;
-
-						yield self.node(NodeData.ReturnStmt(value), kw_line, kw_col);
-					}
-					.match_token(TokenType.KW_BREAK) -> {
-						val (kw_line, kw_col) = self.previous();
-						yield self.node(NodeData.BreakStmt, kw_line, kw_col);
-					}
-					.match_token(TokenType.KW_CONTINUE) -> {
-						val (kw_line, kw_col) = self.previous();
-						yield self.node(NodeData.ContinueStmt, kw_line, kw_col);
-					}
-					.match_token(TokenType.KW_YIELD) -> {
-						val (kw_line, kw_col) = self.previous();
-						val value = if (
-							!self.check(TokenType.SEMI_COLON)
-							&& !self.check(TokenType.CLOSE_BRACE)
-							&& !self.check(TokenType.CLOSE_PAREN)
-						) self.parse_expression(Precedence.NONE) else null;
-
-						yield self.node(NodeData.YieldStmt(value), kw_line, kw_col);
-					}
-					// One level below ELVIS keeps `?:` right-associative.
-					else -> self.parse_expression(Precedence.ASSIGN);
-				};
-
+				val right = self.parse_recovery_stmt() ?: self.parse_expression(Precedence.ASSIGN);
 				yield self.node(
 					NodeData.BinaryExpr(left, TokenType.QUESTION_COLON, right),
+					line, col
+				);
+			}
+
+			// 2b. Error catch operator: left !: [err ->] handler
+			.match_token(TokenType.BANG_COLON) -> {
+				var err_name = "";
+				if (self.check(TokenType.IDENTIFIER) && self.peek_at(1).type == TokenType.ARROW) {
+					err_name = self.advance().text;
+					self.advance(); // consume '->'
+				}
+				val handler = self.parse_catch_body();
+				yield self.node(
+					NodeData.CatchExpr(left, err_name, handler),
 					line, col
 				);
 			}

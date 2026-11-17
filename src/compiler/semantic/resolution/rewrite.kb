@@ -112,6 +112,11 @@ impl TypeResolver {
 				self.rewrite_generics(ft.return_type);
 				yield true;
 			}
+			is ErrorUnionType as eu -> {
+				if (eu.ok_type != null) self.rewrite_generics(eu.ok_type!);
+				self.rewrite_generics(eu.err_type);
+				yield true;
+			}
 			else -> false;
 		};
 	}
@@ -233,6 +238,12 @@ impl TypeResolver {
 				self.rewrite_generics(lam.body);
 				yield true;
 			}
+			is CatchExpr as ce -> {
+				self.rewrite_generics(ce.expr);
+				self.rewrite_generics(ce.handler);
+				yield true;
+			}
+			is ErrorUnionWrapExpr as w -> self.rewrite_child(w.value);
 			else -> false;
 		};
 	}

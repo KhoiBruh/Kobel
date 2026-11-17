@@ -174,10 +174,60 @@ fn test_lambda_declaration_restrictions() {
 	println("  [PASS] test_lambda_declaration_restrictions");
 }
 
+fn test_fault_and_error_union_decl() {
+	val ok_src = """
+		fault IoErr {
+			NotFound,
+			Fail(code: i32)
+		}
+		fn read(): i32 ! IoErr { return 1; }
+		fn ping(): !IoErr { return; }
+	""";
+	var l_ok = Lexer(ok_src);
+	var p_ok = Parser(l_ok.tokenize());
+	val prog_ok = p_ok.parse_program();
+	var d_ok = DeclarationCollector();
+	d_ok.collect_program(prog_ok);
+	assert_eq_usz(d_ok.errors.len, 0, "Valid fault & error union decls must collect cleanly");
+	val sym_flt = d_ok.symtab.lookup("IoErr");
+	assert_true(sym_flt != null, "IoErr symbol must exist");
+	if (sym_flt != null) {
+		assert_true(sym_flt.type_ptr.is_fault(), "IoErr symbol must be marked as fault");
+	}
+	val sym_read = d_ok.symtab.lookup("read");
+	assert_true(sym_read != null, "read symbol must exist");
+	if (sym_read != null) {
+		val rfn = sym_read.type_ptr.as_fn();
+		assert_true(rfn != null, "read must have FnType");
+		if (rfn != null) {
+			assert_true(rfn.return_type.kind == DataType.ERROR_UNION, "read return type must be ERROR_UNION");
+		}
+	}
+
+	val bad_src = """
+		enum NotAFault { A, B }
+		fault RealFault { Err }
+		fn bad_non_fault(x: i32 ! NotAFault) {}
+		fn bad_prim_err(x: i32 ! i32) {}
+		fn bad_nested(x: (i32 ! RealFault) ! RealFault) {}
+		fn bad_same(x: RealFault ! RealFault) {}
+		fn bad_fn_ok(x: ((i32) -> i32) ! RealFault) {}
+		fn good_var_param(x: i32 ! NotAFault) {}
+	""";
+	var l_bad = Lexer(bad_src);
+	var p_bad = Parser(l_bad.tokenize());
+	val prog_bad = p_bad.parse_program();
+	var d_bad = DeclarationCollector();
+	d_bad.collect_program(prog_bad);
+	assert_true(d_bad.errors.len >= 5, "Must reject non-fault error, nested error union, identical ok/err, and fn ok type");
+	println("  [PASS] test_fault_and_error_union_decl");
+}
+
 fn main(): i32 {
 	println("[RUNNING] Bootstrap Semantic DeclarationCollector tests...");
 	test_generic_bounds_checking();
 	test_lambda_declaration_restrictions();
+	test_fault_and_error_union_decl();
 	test_collect_program();
 	test_duplicate_declarations();
 	println("[ALL PASSED] Bootstrap Semantic DeclarationCollector passed all tests successfully!");

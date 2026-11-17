@@ -1173,29 +1173,122 @@ fn test_pointer_cast_and_implicit_conv_restrictions() {
 		"fn f(p: *i32) { val q: &none = p; }",
 		"Implicit conversion from *i32 to &none must be rejected"
 	);
+	check_single_error(
+		"fn f() { val n = null as ?*i32; }",
+		"Casting null to ?*i32 must be rejected"
+	);
+	check_single_error(
+		"fn f() { val n = null as ?&i32; }",
+		"Casting null to ?&i32 must be rejected"
+	);
+	check_single_error(
+		"fn f() { val n = (null) as ?*u8; }",
+		"Casting parenthesized null to ?*u8 must be rejected"
+	);
+	check_single_error(
+		"fn f() { val n = null as &u8; }",
+		"Casting null to &u8 must be rejected"
+	);
+	check_single_error(
+		"fn f() { val n = null as i32; }",
+		"Casting null to i32 must be rejected"
+	);
 
 	check_valid_body(
 		"""
 		fn f(p: *i32, q: &i32) {
-		    val n1: ?&i32 = null as ?&i32;
-		    val n2: ?&u8 = null as ?&u8;
+		    val n1: ?&i32 = null;
+		    val n2: ?&u8 = null;
 		    val m1: &u8 = q as &u8;
+		    val m_null: ?&u8 = q as ?&u8;
 		    val r1: *u8 = q as *u8;
 		    val s1: *u8 = "hi";
 		    val s2: *char = "hi";
 		    val s3: *none = "hi";
 		    val op: *none = p;
 		    val m2: &none = q;
-		    if (n1 != null && n2 != null) {
+		    if (n1 != null && n2 != null && m_null != null) {
 		        val x = m1 as *u8;
 		        val y = (r1 as *none) == op && (m2 as *none) == (s3 as *none) && (s1 != null) && (s2 != null);
 		    }
 		}
 		""",
-		"Valid null/?&T casts, &T -> &U casts, and str/const-ptr -> *char/*u8/*none must be allowed"
+		"Typed null initialization, ?&T casts, &T -> &U casts, and str/const-ptr -> *char/*u8/*none must be allowed"
 	);
 
 	println("  [PASS] test_pointer_cast_and_implicit_conv_restrictions");
+}
+
+fn test_error_union_restrictions() {
+	check_single_error(
+		"fault E { Fail }\nfn f(): i32 ! E => 1;\nfn main(): i32 { f(); return 0; }",
+		"Discarding T ! E as bare statement must fail"
+	);
+	check_single_error(
+		"fault E { Fail }\nfn f(): !E {}\nfn main(): i32 { f(); return 0; }",
+		"Discarding !E as bare statement must fail"
+	);
+	check_single_error(
+		"fault E { Fail }\nstruct S { pub x: i32 }\nfn f(): S ! E => S(1);\nfn main(): i32 { val y = f().x; return y; }",
+		"Member access on unhandled error union must fail"
+	);
+	check_single_error(
+		"fault E { Fail }\nfn f(): i32 ! E => 1;\nfn main(): i32 { val a: i32 = f(); return a; }",
+		"Implicit conversion from T ! E to T must fail"
+	);
+	check_single_error(
+		"fault E { Fail }\nfn f(): i32 ! E => 1;\nfn g(r: i32 ! E): bool => f() == r;",
+		"Direct == on error union must fail"
+	);
+	check_single_error(
+		"fault E { A, B }\nfn eq(a: E, b: E): bool => a == b;",
+		"Direct == on fault must fail"
+	);
+	check_single_error(
+		"fault E { Fail }\nfn f(): i32 ! E => 1;\nfn g(): i32 { val x = f()?; return x; }",
+		"Using ? in non-error-union function must fail"
+	);
+	check_single_error(
+		"fault E1 { A }\nfault E2 { B }\nfn f(): i32 ! E1 => 1;\nfn g(): i32 ! E2 { val x = f()?; return x; }",
+		"Using ? with mismatched fault type must fail"
+	);
+	check_single_error(
+		"fault E { A }\nfn f(): i32 ! E => 1;\nfn run_cb(cb: () -> i32): i32 => cb();\nfn g(): i32 ! E => run_cb { f()? };",
+		"Using ? inside lambda must fail"
+	);
+	check_single_error(
+		"fault E { A }\nfn f(): !E {}\nfn g(x: i32 ! E): bool => x is none;",
+		"Checking is none on T ! E (non-none ok) must fail"
+	);
+	check_single_error(
+		"fault E { A }\nfn f(): !E {}\nfn g(): bool { val r = f(); return r is none as n; }",
+		"Binding alias to none in is must fail"
+	);
+	check_single_error(
+		"fault E { A, B }\nfn f(): i32 ! E => 1;\nfn g(): i32 { val r = f(); return when (r) { is i32 as n -> *n; is .A -> -1; }; }",
+		"Non-exhaustive when on T ! E must fail"
+	);
+	check_single_error(
+		"fault E { A }\nfn main(): str ! E => \"ok\";",
+		"Entry point main with non-i32/non-none success error union must fail"
+	);
+	check_single_error(
+		"fault E { A }\nfn f(): i32 ! E => 1;\nfn main(): i32 { val x = f() !: \"bad\"; return 0; }",
+		"Recovery handler type mismatch in !: must fail"
+	);
+	check_single_error(
+		"fault E { A }\nfn f(): i32 ! E => 1;\nfn g(cb: () -> none) { cb(); }\nfn main(): i32 { g { f(); }; return 0; }",
+		"Discarded error union in none-returning lambda must fail"
+	);
+	check_single_error(
+		"fault E { A }\nfn f(): i32 ! E => 1;\nfn g(): i32 { val r = f(); val y = r as i32 ! E; return 0; }",
+		"Casting error union with 'as' must fail"
+	);
+	check_valid_body(
+		"fault E { A, B }\nfn f(ok: bool): !E { if (!ok) return E.A; }\nfn main(): !E { f(true)?; return; }",
+		"main returning !E with ? propagation and empty return must pass"
+	);
+	println("  [PASS] test_error_union_restrictions");
 }
 
 fn main(): i32 {
@@ -1204,6 +1297,7 @@ fn main(): i32 {
 	test_address_of_and_auto_ref_mutability();
 	test_lvalue_and_pointer_write_mutability();
 	test_pointer_cast_and_implicit_conv_restrictions();
+	test_error_union_restrictions();
 	test_when_subject_and_implicit_dot_restrictions();
 	test_lambda_body_and_call_restrictions();
 	test_in_candidate_list_restrictions();

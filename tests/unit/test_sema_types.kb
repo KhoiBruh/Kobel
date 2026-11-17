@@ -166,12 +166,50 @@ fn test_type_equality_and_assignability() {
 	println("  [PASS] test_type_equality_and_assignability");
 }
 
+fn test_error_union_type() {
+	var arena = Arena(16384);
+	defer arena.free();
+
+	var t_i32 = Type.i32();
+	var t_none = Type.none();
+	var t_bool = Type.bool();
+
+	val f1 = arena.struct_type("Err1", List<StructField>());
+	f1.as_struct()!.is_fault = true;
+	val f2 = arena.struct_type("Err2", List<StructField>());
+	f2.as_struct()!.is_fault = true;
+
+	assert_true(f1.is_fault(), "Err1 struct with is_fault=true must report is_fault");
+	assert_true(!t_i32.is_fault(), "i32 must not report is_fault");
+
+	val eu1 = arena.error_union_type(&t_i32, f1);
+	val eu1_dup = arena.error_union_type(&t_i32, f1);
+	val eu2 = arena.error_union_type(&t_i32, f2);
+	val eu_void = arena.error_union_type(&t_none, f1);
+
+	assert_true(eu1.kind == DataType.ERROR_UNION, "ErrorUnion kind must be ERROR_UNION");
+	assert_true(eu1.equals(eu1_dup), "Same ok/err error unions must be equal");
+	assert_true(!eu1.equals(eu2), "Different fault error unions must not be equal");
+	assert_true(eu1.can_assign(&t_i32), "T must assign to T ! E");
+	assert_true(eu1.can_assign(f1), "E must assign to T ! E");
+	assert_true(!t_i32.can_assign(eu1), "T ! E must NOT assign to T");
+	assert_true(!eu1.can_assign(eu2), "T ! E2 must NOT assign to T ! E1");
+	assert_true(!eu1.can_assign(&t_bool), "bool must NOT assign to i32 ! E1");
+	assert_true(eu_void.can_assign(f1), "E must assign to !E");
+	assert_true(!eu_void.can_assign(&t_none), "none must NOT implicitly assign to !E via generic can_assign");
+	assert_eq_str(eu_void.to_str(), "!Err1", "Void error union to_str");
+	assert_eq_str(eu1.to_str(), "i32 ! Err1", "Value error union to_str");
+
+	println("  [PASS] test_error_union_type");
+}
+
 fn main(): i32 {
 	println("[RUNNING] Bootstrap Semantic Types tests...");
 	test_primitive_types();
 	test_pointer_and_array_types();
 	test_struct_layout();
 	test_type_equality_and_assignability();
+	test_error_union_type();
 	println("[ALL PASSED] Bootstrap Semantic Types passed all tests successfully!");
 	return 0;
 }

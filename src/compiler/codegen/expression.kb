@@ -138,6 +138,20 @@ impl CCodeGen {
 					".${node.payload_path} = { ${joined} } }";
 			}
 
+			is ErrorUnionWrapExpr -> {
+				var wrap_res = "";
+				if (!node.is_ok) {
+					val err_s = self.gen_expr(node.value!);
+					wrap_res = "(${node.c_type}){ .is_ok = false, .u = { .err = ${err_s} } }";
+				} else if (node.value == null) {
+					wrap_res = "(${node.c_type}){ .is_ok = true }";
+				} else {
+					val ok_s = self.gen_expr(node.value!);
+					wrap_res = "(${node.c_type}){ .is_ok = true, .u = { .ok = ${ok_s} } }";
+				}
+				yield wrap_res;
+			}
+
 			// `T.size()`: the checker folded the concrete argument's C size into
 			// the node; emit it as an integer constant (same spelling as the
 			// literal path, so generated C stays byte-identical).
@@ -365,6 +379,12 @@ impl CCodeGen {
 	// Unary operators lower to a C prefix operator (- guards a negative operand).
 	fn gen_unary_expr(&self, un: *UnaryExpr, min_prec: i32): str {
 		if (un.is_postfix && un.op == TokenType.BANG) {
+			val opnd_ty = self.node_type(unwrap_group_expr(un.operand));
+			if (opnd_ty != null && opnd_ty.kind == DataType.ERROR_UNION) {
+				val eu = opnd_ty.as_error_union()!;
+				val arg = self.gen_expr(un.operand);
+				return wrap_prec("__kobel_unwrap_${eu.c_name}(${arg})", PREC_POSTFIX, min_prec);
+			}
 			return self.gen_expr_prec(un.operand, min_prec);
 		}
 		val opnd = self.gen_expr_prec(un.operand, PREC_UNARY);
@@ -642,12 +662,27 @@ impl CCodeGen {
 		return wrap_prec("(${ty})${self.gen_expr_prec(cst.expr, PREC_UNARY)}", PREC_UNARY, min_prec);
 	}
 
+	fn pat_has_and(*self, node: ?*AstNode): bool {
+		val info = self.is_pattern_info(node);
+		return info.is_ptr || !info.prefix_tag_field.empty();
+	}
+
 	fn gen_is_single_test(*self, obj_str: str, info_node: *AstNode, target_node: *AstNode): str {
 		val pat_info = self.is_pattern_info(info_node);
 		val target_name = c_type_from_ast(target_node);
 		var tag_field = pat_info.tag_field;
 		if (tag_field.empty()) tag_field = "tag";
 		val tag_const = if (pat_info.tag_const.empty()) "${target_name}__TAG" else pat_info.tag_const;
+		if (!pat_info.prefix_tag_field.empty()) {
+			val pfx = self.gen_tag_test(
+				obj_str, pat_info.is_ptr, pat_info.prefix_tag_field, pat_info.prefix_tag_const
+			);
+			if (pat_info.is_ptr) {
+				return "${pfx} && ${obj_str}->${tag_field} == ${tag_const}";
+			}
+			val sfx = self.gen_tag_test(obj_str, false, tag_field, tag_const);
+			return "${pfx} && ${sfx}";
+		}
 		return self.gen_tag_test(obj_str, pat_info.is_ptr, tag_field, tag_const);
 	}
 
@@ -670,8 +705,8 @@ impl CCodeGen {
 			for (i in 0..<al.elements.len) {
 				val t_node = al.elements[i];
 				val raw_t = self.gen_is_single_test(obj_str, t_node, t_node);
-				val t_is_ptr = self.is_pattern_info(t_node).is_ptr;
-				val t_str = if (al.elements.len > 1 && t_is_ptr) "(${raw_t})" else raw_t;
+				val t_has_and = self.pat_has_and(t_node);
+				val t_str = if (al.elements.len > 1 && t_has_and) "(${raw_t})" else raw_t;
 				res = if (i == 0) t_str else "${res} || ${t_str}";
 			}
 			if (!prefix.empty()) {
@@ -679,7 +714,7 @@ impl CCodeGen {
 				return wrap_prec("${prefix}${inner}", PREC_AND, min_prec);
 			}
 			val r_prec = if (al.elements.len > 1) PREC_OR
-				else if (!al.elements.empty() && self.is_pattern_info(al.elements[0]).is_ptr) PREC_AND
+				else if (!al.elements.empty() && self.pat_has_and(al.elements[0])) PREC_AND
 				else PREC_EQ;
 			return wrap_prec(res, r_prec, min_prec);
 		}
@@ -705,7 +740,7 @@ impl CCodeGen {
 			};
 			return wrap_prec("${prefix}${tag_test} && (${is_e.alias} = ${cast_val}, 1)", PREC_AND, min_prec);
 		}
-		val r_prec = if (!prefix.empty() || pat_info.is_ptr) PREC_AND else PREC_EQ;
+		val r_prec = if (!prefix.empty() || self.pat_has_and(ast_node)) PREC_AND else PREC_EQ;
 		return wrap_prec("${prefix}${tag_test}", r_prec, min_prec);
 	}
 
@@ -735,16 +770,16 @@ impl CCodeGen {
 					for (k in 0..<al.elements.len) {
 						val el = al.elements[k];
 						val raw_el = self.gen_is_single_test(cond, el, el);
-						val el_ptr = self.is_pattern_info(el).is_ptr;
-						val el_test = if (al.elements.len > 1 && el_ptr) "(${raw_el})" else raw_el;
+						val el_has_and = self.pat_has_and(el);
+						val el_test = if (al.elements.len > 1 && el_has_and) "(${raw_el})" else raw_el;
 						test = if (k == 0) el_test else "${test} || ${el_test}";
 					}
 					test_prec = if (al.elements.len > 1) PREC_OR
-						else if (!al.elements.empty() && self.is_pattern_info(al.elements[0]).is_ptr) PREC_AND
+						else if (!al.elements.empty() && self.pat_has_and(al.elements[0])) PREC_AND
 						else PREC_EQ;
 				} else {
 					test = self.gen_is_single_test(cond, p, is_e.target_type);
-					test_prec = if (self.is_pattern_info(p).is_ptr) PREC_AND else PREC_EQ;
+					test_prec = if (self.pat_has_and(p)) PREC_AND else PREC_EQ;
 				}
 			} else if (unwrapped_p is BinaryExpr as bin && bin.op in [TokenType.DOT_DOT, TokenType.DOT_DOT_LESS]) {
 				val s = self.gen_expr_prec(bin.left, PREC_REL + 1);

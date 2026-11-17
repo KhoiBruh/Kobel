@@ -127,8 +127,9 @@ impl Parser {
 					TokenType.KW_WHILE, TokenType.KW_FOR,
 					TokenType.KW_RETURN, TokenType.KW_PUB,
 					TokenType.KW_MOD, TokenType.KW_USE,
-					TokenType.KW_ENUM, TokenType.KW_TRAIT,
-					TokenType.KW_IMPL, TokenType.KW_EXTERN
+					TokenType.KW_ENUM, TokenType.KW_FAULT,
+					TokenType.KW_TRAIT, TokenType.KW_IMPL,
+					TokenType.KW_EXTERN
 				]
 			) return;
 			self.advance();

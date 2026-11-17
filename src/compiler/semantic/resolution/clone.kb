@@ -91,6 +91,14 @@ impl TypeResolver {
 				node.line, node.col
 			);
 
+			is ErrorUnionType as eu -> self.arena.node(
+				NodeData.ErrorUnionType(
+					if (eu.ok_type != null) self.clone_type(eu.ok_type!, subst) else null,
+					self.clone_type(eu.err_type, subst)
+				),
+				node.line, node.col
+			);
+
 			else -> self.arena.node(
 				NodeData.NamedType("none", List<&AstNode>()),
 				node.line, node.col
@@ -218,6 +226,23 @@ impl TypeResolver {
 				NodeData.EnumCtorExpr(
 					ec.c_name, ec.tag_field, ec.tag_value, ec.payload_path,
 					self.clone_expr_list(ec.args, subst)
+				),
+				node.line, node.col
+			);
+
+			is CatchExpr as ce -> self.arena.node(
+				NodeData.CatchExpr(
+					self.clone_expr(ce.expr, subst),
+					ce.err_name,
+					self.clone_expr(ce.handler, subst)
+				),
+				node.line, node.col
+			);
+
+			is ErrorUnionWrapExpr as w -> self.arena.node(
+				NodeData.ErrorUnionWrapExpr(
+					w.c_type, w.is_ok,
+					if (w.value != null) self.clone_expr(w.value!, subst) else null
 				),
 				node.line, node.col
 			);

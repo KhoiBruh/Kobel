@@ -10,7 +10,7 @@
 - **Dispatch:** 100% static compile-time dispatch. No virtual method tables (vtables), no runtime type overhead.
 - **Compilation model:** Kobel source (`.kb`) → C99 source → native binary via any C compiler (`cl` by default on Windows, `gcc`/`clang` on POSIX).
 - **Memory model:** Explicit ownership without garbage collection. Values have single ownership and are freed at scope end. Raw pointers (`*T` read-only, `&T` mutable) are available for low-level systems programming.
-- **Error model:** Return values and null-safety operators (`?.` and `?:`). Rich fault/error union types are planned for a future release (see §13).
+- **Error model:** Explicit error union types (`T ! E` and `!E`) backed by `fault` declarations, propagation (`?`), catch/recovery (`!:`), force-unwrap (`!`), and null-safety operators (`?.` and `?:`).
 
 ---
 
@@ -19,7 +19,7 @@
 - **Blocks:** Delimited by curly braces `{ ... }`.
 - **Comments:** Line comments `// ...` and block comments `/* ... */`.
 - **Keywords:**
-  `as`, `break`, `const`, `continue`, `defer`, `else`, `enum`, `extern`, `false`, `fn`, `for`, `if`, `impl`, `in`, `init`, `is`, `mod`, `null`, `op`, `pub`, `return`, `self`, `Self`, `struct`, `trait`, `true`, `use`, `val`, `var`, `when`, `while`, `yield`.
+  `as`, `break`, `const`, `continue`, `defer`, `else`, `enum`, `extern`, `false`, `fault`, `fn`, `for`, `if`, `impl`, `in`, `init`, `is`, `mod`, `null`, `op`, `pub`, `return`, `self`, `Self`, `struct`, `trait`, `true`, `use`, `val`, `var`, `when`, `while`, `yield`.
 - **Identifiers:** `[A-Za-z_][A-Za-z0-9_]*`. Module segments must be valid identifiers (keywords cannot be module path segments).
 
 ### Literals
@@ -85,7 +85,7 @@
   val next = node?.next ?: return false;
   ```
 - **Casts:**
-  - `x as T`: Casts `x` to type `T`. Type checking and downcasting are performed via pattern matching and smart casting with `is` / `!is` (`if (x is T)`, `if (x is [A, B])`, `if (x !is T) ... else ...`, or `when (x) { is T -> ...; is [A, B] -> ...; !is U -> ... }`).
+  - `x as T`: Casts `x` to type `T`. Type checking and downcasting are performed via pattern matching and smart casting with `is` / `!is` (`if (x is T)`, `if (x is [A, B])`, `if (x !is T) ... else ...`, or `when (x) { is T -> ...; is [A, B] -> ...; !is U -> ... }`). Untyped `null` literals and `fault` / error union values cannot be cast with `as`.
 
 ---
 
@@ -220,6 +220,40 @@ val area = when (c) {
 - `is Enum.Variant as alias` binds a pointer to the variant payload.
 - `!is Enum.Variant` tests the negation of a type or variant pattern (desugared to `!(x is Variant)`); `else` branches of `if (x !is Variant)` smart-cast `x`, and `as` alias binding is rejected with `!is`.
 - `is [A, B, ...]` and `!is [A, B, ...]` test whether a subject matches (or does not match) any type or variant in the list (with optional `.Variant` shorthand for payload enums and single-element smart casting); `as` alias binding and empty `[]` lists are rejected.
+
+### Faults and Error Unions
+
+Kobel uses `fault` declarations and explicit error union types (`T ! E` and `!E`) instead of exceptions:
+
+```kobel
+fault ParseErr {
+    Empty,
+    BadByte(pos: usz, byte: u8)
+}
+
+fn parse_byte(s: str): u8 ! ParseErr {
+    if (s.empty()) return ParseErr.Empty;
+    if (s[0] == '\0') return ParseErr.BadByte(0, s[0]);
+    return s[0];
+}
+
+fn first_or_default(s: str): u8 {
+    val b = parse_byte(s) !: err -> when (err) {
+        is .Empty -> 0;
+        is .BadByte -> 255;
+    };
+    return b;
+}
+```
+
+- **`fault` declarations:** Define a closed tagged union of error variants (`>= 1` variant; unit or payload variants). Underlying integer types (`: i32`) and explicit discriminant values (`= 0`) are not allowed. Every `fault` automatically implements `Stringer` (for `${err}` formatting) unless a custom `impl Stringer` is supplied.
+- **Error union types (`T ! E` / `!E`):** `E` must resolve to a `fault` type. `T ! E` pairs an ok value `T` with `E`; `!E` carries no ok payload (`none`). Function types, nested error unions, and `E ! E` are disallowed as the ok type. Error unions may be used in function returns, parameters, locals, struct fields, function types `(A) -> T ! E`, and generic type arguments.
+- **Handling rules:** Produced error union values must be explicitly handled (`?`, `!:`, `!`, `is`, exhaustive `when`, or propagated via `return`) and cannot be ignored or cast with `as` or compared directly with `==`/`!=`.
+- **Propagation (`expr?`):** Unwraps the ok value or immediately returns the fault from the enclosing function returning a compatible error union. Forbidden inside lambdas.
+- **Recovery (`expr !: fallback`):** Right-associative catch operator evaluated only on error; supports fallback expressions, `err -> expr`, multi-statement `err -> { ...; yield v; }`, and control-flow transfers (`return`, `break`, `continue`, `yield`).
+- **Force-unwrap (`expr!`):** Extracts the ok value or aborts execution with a diagnostic message if the value holds a fault.
+- **Matching (`is`, `!is`, `when`):** Matches the ok type (`is T as v` binding `*T`, or `is none` for `!E`), fault type (`is Fault`), variant (`is Fault.Var`, `is .Var`), or variant list (`is [.V1, .V2]`).
+- **Program entry point:** `pub fn main(): !E` and `pub fn main(): i32 ! E` are supported; if `main` returns a fault, the fault is printed via `Stringer` and the process exits non-zero.
 
 ---
 
@@ -558,6 +592,5 @@ pub fn main(): i32 {
 
 The following features are designed for future language versions:
 
-- **Error Union Types & Faults:** A planned error handling model with `fault` definitions and recovery operators (`!:`) to replace plain status returns.
 - **Freestanding Target:** Direct syscall / no-libc compilation mode.
 - **Concurrency:** Structured concurrency and lightweight threading abstractions.

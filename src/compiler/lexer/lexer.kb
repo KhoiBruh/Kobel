@@ -20,6 +20,7 @@ pub fn lookup_keyword(text: str) => when (text) {
 	"extern" -> TokenType.KW_EXTERN;
 	"struct" -> TokenType.KW_STRUCT;
 	"enum" -> TokenType.KW_ENUM;
+	"fault" -> TokenType.KW_FAULT;
 	"fn" -> TokenType.KW_FN;
 	"return" -> TokenType.KW_RETURN;
 	"const" -> TokenType.KW_CONST;
@@ -617,6 +618,7 @@ impl Lexer {
 
 				'!' -> {
 					if (self.match('=')) yield self.make_token(TokenType.BANG_EQUAL, start_cursor, start_col);
+					if (self.match(':')) yield self.make_token(TokenType.BANG_COLON, start_cursor, start_col);
 					yield self.make_token(TokenType.BANG, start_cursor, start_col);
 				}
 

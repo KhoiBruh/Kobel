@@ -305,6 +305,33 @@ impl BodyChecker {
 	}
 
 	fn check_equality_op(&self, node: *AstNode, bin: *BinaryExpr, lt: *Type, rt: *Type): *Type {
+		if (lt.kind == DataType.ERROR_UNION || rt.kind == DataType.ERROR_UNION) {
+			self.report_error(
+				node,
+				"Cannot compare error union with '==' or '!=' directly; " +
+				"handle with '!:', '!', or match with 'is' / 'when'"
+			);
+			return self.prims().t_bool();
+		}
+		if (lt.is_fault() || rt.is_fault()) {
+			val flt_ty = if (lt.is_fault()) lt else rt;
+			val s_info = flt_ty.as_struct()!;
+			var eq_args = List<*Type>();
+			eq_args += flt_ty;
+			eq_args += if (lt.is_fault()) rt else lt;
+			val mi = s_info.find_operator("equals", eq_args);
+			if (mi != null) {
+				self.set_method(node, mi);
+				return self.prims().t_bool();
+			}
+			self.report_error(
+				node,
+				"Cannot compare fault '${self.type_display(flt_ty)}' with '==' or '!=' directly; " +
+				"use 'is' or 'when' pattern matching"
+			);
+			return self.prims().t_bool();
+		}
+
 		if (lt.kind == DataType.STR && rt.kind == DataType.STR) return self.prims().t_bool();
 
 		if (lt.kind == DataType.STRUCT) {
@@ -567,16 +594,53 @@ impl BodyChecker {
 
 	pub fn check_unary_expr(&self, node: &AstNode, expected: ?*Type = null): *Type {
 		if (node is UnaryExpr as un) {
-			val op_ty = self.check_expr(un.operand, expected);
+			self.is_stmt_level = false;
+			val op_expected = if (un.is_postfix && un.op == TokenType.QUESTION) null else expected;
+			val op_ty = self.check_expr(un.operand, op_expected);
+
+			if (un.is_postfix && un.op == TokenType.QUESTION) {
+				if (op_ty.kind != DataType.ERROR_UNION) {
+					self.report_error(node, "Error propagation operator '?' requires an error union operand");
+					return op_ty;
+				}
+				if (self.in_lambda) {
+					self.report_error(
+						node,
+						"Error propagation operator '?' cannot be used inside a lambda; use '!:', '!', or match with 'is'"
+					);
+					return op_ty.as_error_union()!.ok;
+				}
+				val op_eu = op_ty.as_error_union()!;
+				val ret_ty = self.current_fn_return_type;
+				if (ret_ty == null || ret_ty!.kind != DataType.ERROR_UNION) {
+					val ret_desc = if (ret_ty != null) self.type_display(ret_ty!) else "none";
+					self.report_error(
+						node,
+						"Cannot propagate error '${self.type_display(op_eu.err)}' with '?' inside function returning '${ret_desc}'"
+					);
+					return op_eu.ok;
+				}
+				val ret_eu = ret_ty!.as_error_union()!;
+				if (!ret_eu.err.equals(op_eu.err)) {
+					self.report_error(
+						node,
+						"Cannot propagate error '${self.type_display(op_eu.err)}' inside function returning '${self.type_display(ret_ty!)}'"
+					);
+				}
+				return op_eu.ok;
+			}
 
 			if (un.is_postfix && un.op == TokenType.BANG) {
+				if (op_ty.kind == DataType.ERROR_UNION) {
+					return op_ty.as_error_union()!.ok;
+				}
 				if (op_ty.kind == DataType.POINTER) {
 					val pt = op_ty.as_pointer()!;
 					if (pt.nullable) {
 						return self.arena.pointer_type(pt.pointee, pt.mutable);
 					}
 				}
-				self.report_error(node, "Force unwrap operator '!' requires a nullable pointer");
+				self.report_error(node, "Force unwrap operator '!' requires a nullable pointer or error union");
 				return op_ty;
 			}
 
@@ -667,8 +731,14 @@ impl BodyChecker {
 			val cond_ty = self.check_expr(if_e.condition);
 			self.in_safe_nav_context = prev_sn;
 			self.ensure(cond_ty.kind == DataType.BOOL, node, "If expression condition must be bool");
-			var then_ty = self.check_expr(if_e.then_branch, expected);
-			val else_ty = self.check_expr(if_e.else_branch, if (expected != null) expected else then_ty);
+			var branch_hint = expected;
+			if (branch_hint != null && branch_hint.kind == DataType.ERROR_UNION) {
+				val eu = branch_hint.as_error_union()!;
+				if (eu.ok.kind != DataType.NONE) branch_hint = eu.ok;
+			}
+			var then_ty = self.check_expr(if_e.then_branch, branch_hint);
+			val else_hint = if (branch_hint != null) branch_hint else then_ty;
+			val else_ty = self.check_expr(if_e.else_branch, else_hint);
 
 			val can_widen = self.is_untyped_literal(if_e.then_branch) &&
 				else_ty.is_numeric() && !then_ty.equals(else_ty);
@@ -687,10 +757,127 @@ impl BodyChecker {
 					val mutable = t_ptr.mutable || e_ptr.mutable;
 					then_ty = self.arena.nullable_pointer_type(t_ptr.pointee, mutable);
 				}
+			} else if (expected != null && expected.kind == DataType.ERROR_UNION) {
+				if (expected.can_assign(then_ty) && expected.can_assign(else_ty)) {
+					return expected;
+				}
+			} else if (!then_ty.equals(else_ty)) {
+				if (then_ty.kind == DataType.ERROR_UNION && then_ty.can_assign(else_ty)) {
+					// then_ty already covers else_ty
+				} else if (else_ty.kind == DataType.ERROR_UNION && else_ty.can_assign(then_ty)) {
+					then_ty = else_ty;
+				} else if (then_ty.is_fault() && !else_ty.is_fault() && else_ty.kind !in [DataType.NONE, DataType.FN, DataType.ERROR_UNION]) {
+					then_ty = self.arena.error_union_type(else_ty, then_ty);
+				} else if (else_ty.is_fault() && !then_ty.is_fault() && then_ty.kind !in [DataType.NONE, DataType.FN, DataType.ERROR_UNION]) {
+					then_ty = self.arena.error_union_type(then_ty, else_ty);
+				}
 			}
 
 			self.ensure(then_ty.can_assign(else_ty), node, "If expression branches have incompatible types");
 			return then_ty;
+		}
+		return self.prims().t_none();
+	}
+
+	fn stmt_always_diverges(&self, node: ?*AstNode): bool {
+		if (node == null) return false;
+		return when (node!) {
+			is ReturnStmt, BreakStmt, ContinueStmt -> true;
+			is BlockStmt as blk -> blk.statements.any { s -> self.stmt_always_diverges(s) };
+			is IfStmt as ifs -> ifs.else_branch != null
+				&& self.stmt_always_diverges(ifs.then_branch)
+				&& self.stmt_always_diverges(ifs.else_branch!);
+			is WhenStmt as ws -> {
+				if (ws.arms.empty()) yield false;
+				val cond_ty = if (ws.condition != null) self.node_type_of(ws.condition!) else null;
+				val has_else = ws.arms.any { a -> a.is_else };
+				val covered = has_else || self.is_when_arms_exhaustive(ws.arms, cond_ty);
+				yield covered && ws.arms.all { a -> self.stmt_always_diverges(a.body) };
+			}
+			else -> false;
+		};
+	}
+
+	fn check_catch_handler(
+		&self, node: &AstNode, ce: &CatchExpr,
+		ok_ty: *Type, err_ty: *Type, expected: ?*Type, was_stmt: bool
+	): *Type {
+		if (!ce.err_name.empty()) {
+			self.symtab.enter_scope(false);
+			self.symtab.define(
+				Symbol(ce.err_name, ce.err_name, SymbolKind.VAR, err_ty, false, false, node.line, node.col, null)
+			);
+		}
+		defer {
+			if (!ce.err_name.empty()) self.symtab.exit_scope();
+		}
+
+		val h = ce.handler;
+		when (h) {
+			is ReturnStmt, BreakStmt, ContinueStmt, YieldStmt -> {
+				self.check_statement(h);
+				return ok_ty;
+			}
+			is BlockStmt as blk -> {
+				val saved_exp = self.catch_yield_expected;
+				val saved_seen = self.catch_yield_seen;
+				self.catch_yield_expected = ok_ty;
+				self.catch_yield_seen = false;
+				self.symtab.enter_scope(false);
+				for (st in blk.statements) self.check_statement(st);
+				self.symtab.exit_scope();
+				val saw_yield = self.catch_yield_seen;
+				self.catch_yield_expected = saved_exp;
+				self.catch_yield_seen = saved_seen;
+
+				if (ok_ty.kind != DataType.NONE && !saw_yield && !self.stmt_always_diverges(h)) {
+					self.report_error(
+						h,
+						"Recovery block in '!:' must yield a value of type '${self.type_display(ok_ty)}' or diverge"
+					);
+				}
+				return ok_ty;
+			}
+			else -> {
+				val h_expected = if (expected != null && expected!.kind == DataType.ERROR_UNION) expected else ok_ty;
+				self.is_stmt_level = was_stmt;
+				val h_ty = self.check_expr(h, h_expected);
+				self.is_stmt_level = false;
+
+				if (ok_ty.kind == DataType.NONE) {
+					self.ensure(
+						h_ty.kind == DataType.NONE,
+						h,
+						"Recovery handler for '!${self.type_display(err_ty)}' must evaluate to 'none'"
+					);
+					return ok_ty;
+				}
+				if (h_ty.kind == DataType.ERROR_UNION && h_ty.as_error_union()!.ok.equals(ok_ty)) {
+					return h_ty;
+				}
+				self.ensure(
+					ok_ty.can_assign(h_ty),
+					h,
+					"Recovery handler type '${self.type_display(h_ty)}' does not match expected type '${self.type_display(ok_ty)}'"
+				);
+				return ok_ty;
+			}
+		}
+	}
+
+	pub fn check_catch_expr(&self, node: &AstNode, expected: ?*Type = null): *Type {
+		if (node is CatchExpr as ce) {
+			val was_stmt = self.is_stmt_level;
+			self.is_stmt_level = false;
+
+			val src_ty = self.check_expr(ce.expr);
+			if (src_ty.kind != DataType.ERROR_UNION) {
+				self.report_error(ce.expr, "Catch operator '!:' requires an error union on the left-hand side");
+				return src_ty;
+			}
+
+			val eu = src_ty.as_error_union()!;
+			return self.check_catch_handler(node, ce, eu.ok, eu.err, expected, was_stmt);
 		}
 		return self.prims().t_none();
 	}

@@ -62,7 +62,9 @@ pub struct BodyChecker {
 	pub lambda_has_yield: bool = false,
 	pub lambda_inferring_return: bool = false,
 	pub lambda_captures: List<LambdaCapture> = List(),
-	pub allowing_fn_param_ref: bool = false
+	pub allowing_fn_param_ref: bool = false,
+	pub catch_yield_expected: ?*Type = null,
+	pub catch_yield_seen: bool = false
 }
 
 impl BodyChecker {
@@ -98,6 +100,11 @@ impl BodyChecker {
 			return "${q}${sym}${self.type_display(ptr.pointee)}";
 		}
 		if (ty.kind == DataType.ARRAY) return "[${self.type_display(ty.as_array()!.elem)}]";
+		if (ty.kind == DataType.ERROR_UNION) {
+			val eu = ty.as_error_union()!;
+			if (eu.ok.kind == DataType.NONE) return "!${self.type_display(eu.err)}";
+			return "${self.type_display(eu.ok)} ! ${self.type_display(eu.err)}";
+		}
 		if (ty.is_enum()) return ty.as_enum()!.c_name;
 		return primitive_type_name(ty);
 	}
@@ -212,7 +219,7 @@ impl BodyChecker {
 		if (node == null) return self.prims().t_none();
 		if (node is GroupExpr as g) return self.check_expr(g.expr, expected);
 
-		if (node !is [BinaryExpr, AssignExpr]) {
+		if (node !is [BinaryExpr, AssignExpr, CatchExpr, UnaryExpr]) {
 			self.is_stmt_level = false;
 		}
 
@@ -377,7 +384,7 @@ impl BodyChecker {
 			DataType.STR -> 16;
 			DataType.POINTER -> 8;
 			DataType.ARRAY -> ty.as_array()!.length * self.type_c_size_num(ty.as_array()!.elem);
-			DataType.STRUCT -> ty.size;
+			DataType.STRUCT, DataType.ERROR_UNION -> ty.size;
 			DataType.FN -> 16;
 		};
 	}
@@ -414,6 +421,7 @@ impl BodyChecker {
 			is ArrayLiteralExpr -> self.check_array_literal_expr(node);
 			is InterpExpr -> self.check_interp_expr(node);
 			is IsExpr -> self.check_is_expr(node);
+			is CatchExpr -> self.check_catch_expr(node, expected);
 			is LambdaExpr -> self.check_lambda_expr(node, expected);
 			else -> self.prims().t_none();
 		};
@@ -424,7 +432,15 @@ impl BodyChecker {
 		val target = node;
 		when (target) {
 			is ExprStmt as es -> {
-				self.check_expr_stmt(es.expr);
+				val expr_ty = self.check_expr_stmt(es.expr);
+				val raw = self.unwrap_group(es.expr);
+				if (raw !is AssignExpr && raw !is UpdateExpr && expr_ty.kind == DataType.ERROR_UNION) {
+					self.report_error(
+						es.expr,
+						"Unhandled error union result of type '${self.type_display(expr_ty)}'; " +
+						"handle with '!:', propagate with '?', or unwrap with '!'"
+					);
+				}
 				return;
 			}
 
@@ -441,6 +457,34 @@ impl BodyChecker {
 			is YieldStmt as ys -> {
 				if (self.defer_depth > 0)
 					self.report_error(node, "Yield statement is not allowed inside defer");
+
+				if (self.catch_yield_expected != null) {
+					self.catch_yield_seen = true;
+					val exp = self.catch_yield_expected!;
+					if (ys.value != null) {
+						if (ys.value is LambdaExpr)
+							self.report_error(ys.value!, "Cannot yield a lambda/closure from a catch block");
+						val val_ty = self.check_expr(ys.value!, exp);
+						if (val_ty.kind == DataType.FN)
+							self.report_error(node, "Cannot yield a lambda/closure from a catch block");
+						if (exp.kind == DataType.NONE) {
+							self.ensure(
+								val_ty.kind == DataType.NONE,
+								node,
+								"Catch block returning 'none' cannot yield a value"
+							);
+						} else {
+							self.ensure(
+								exp.can_assign(val_ty),
+								node,
+								"Catch block 'yield' value type does not match expected type"
+							);
+						}
+					} else if (exp.kind != DataType.NONE) {
+						self.report_error(node, "Catch block must yield a value of type '${self.type_display(exp)}'");
+					}
+					return;
+				}
 
 				if (self.when_depth == 0 && !self.in_lambda)
 					self.report_error(node, "Yield statement outside of when expression or lambda");

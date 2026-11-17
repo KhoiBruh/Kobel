@@ -44,6 +44,11 @@ impl Arena {
 				for (pt in fn_info.param_types) p_nodes += self.ast_type_from_type(pt);
 				yield self.node(NodeData.FnType(p_nodes, self.ast_type_from_type(fn_info.return_type)), 0, 0);
 			}
+			DataType.ERROR_UNION -> {
+				val eu = ty.as_error_union()!;
+				val ok_n = if (eu.ok.kind == DataType.NONE) null else self.ast_type_from_type(eu.ok);
+				yield self.node(NodeData.ErrorUnionType(ok_n, self.ast_type_from_type(eu.err)), 0, 0);
+			}
 			DataType.NONE -> self.ast_named_type("none");
 			DataType.STR -> self.ast_named_type("str");
 			DataType.BOOL -> self.ast_named_type("bool");
@@ -64,3 +69,22 @@ impl Arena {
 	}
 
 }
+
+pub fn eu_ast_type_token(node: ?*AstNode): str {
+	if (node == null) return "none";
+	return when (node!) {
+		is NamedType as nt -> nt.name;
+		is PointerType as pt -> {
+			val q = if (pt.nullable) "q" else "";
+			val m = if (pt.mutable) "mut_" else "";
+			yield "${q}${m}ptr_${eu_ast_type_token(pt.pointee)}";
+		}
+		is ArrayType as at -> "arr${at.size}_${eu_ast_type_token(at.element_type)}";
+		is ErrorUnionType as eu -> "eu_${eu_ast_type_token(eu.ok_type)}__${eu_ast_type_token(eu.err_type)}";
+		is FnType -> "fn";
+		else -> "none";
+	};
+}
+
+pub fn eu_c_name_from_ast(eu: *ErrorUnionType): str
+	=> "__kobel_eu_${eu_ast_type_token(eu.ok_type)}__${eu_ast_type_token(eu.err_type)}";

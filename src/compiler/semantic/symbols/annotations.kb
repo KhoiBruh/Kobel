@@ -26,7 +26,9 @@ pub struct IsPatternInfo {
 	pub is_ptr: bool = false,
 	pub payload_path: str = "",
 	pub payload_ptr: bool = false,
-	pub tag_const: str = ""
+	pub tag_const: str = "",
+	pub prefix_tag_field: str = "",
+	pub prefix_tag_const: str = ""
 }
 
 // Captured outer local variable or parameter in a non-escaping stack lambda.

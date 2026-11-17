@@ -212,6 +212,7 @@ impl LoopLowerer {
 				val block = self.loop_block(stmts, n_line, n_col);
 				pending += PendingResolve(orig_node, block);
 			}
+			else -> self.for_inject_step_expr(target, step, pending);
 		}
 	}
 
@@ -230,8 +231,16 @@ impl LoopLowerer {
 		if (cur == null) return;
 		if (cur is BinaryExpr as bin && bin.op == TokenType.QUESTION_COLON) {
 			self.for_inject_step(bin.right, step, pending);
+		} else if (cur is CatchExpr as ce) {
+			self.for_inject_step_expr(ce.expr, step, pending);
+			self.for_inject_step(ce.handler, step, pending);
 		} else if (cur is AssignExpr as asg) {
 			self.for_inject_step_expr(asg.value, step, pending);
+		} else if (cur is IfExpr as ie) {
+			self.for_inject_step(ie.then_branch, step, pending);
+			self.for_inject_step(ie.else_branch, step, pending);
+		} else if (cur is WhenExpr as we) {
+			for (arm in we.arms) self.for_inject_step(arm.body, step, pending);
 		}
 	}
 

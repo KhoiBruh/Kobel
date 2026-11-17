@@ -61,6 +61,15 @@ impl BodyChecker {
 				obj_ty = self.check_expr(obj_expr);
 			}
 
+			if (obj_ty.kind == DataType.ERROR_UNION) {
+				self.report_error(
+					node,
+					"Cannot access member '${mem.member}' on unhandled error union " +
+					"'${self.type_display(obj_ty)}'; handle with '!:', '?', or '!'"
+				);
+				return self.prims().t_none();
+			}
+
 			var obj_was_ptr = false;
 			if (obj_ty.kind == DataType.POINTER) {
 				obj_was_ptr = true;
@@ -113,16 +122,20 @@ impl BodyChecker {
 	fn check_const_member(&self, node: &AstNode, mem: &MemberExpr): ?*Type {
 		val obj = mem.object;
 		if (obj is IdentifierExpr as enum_id) {
-			val ei = self.symtab.find_enum_info(enum_id.name);
+			val sym = self.symtab.lookup(enum_id.name);
+			val ei = if (sym != null) self.symtab.find_enum_info(sym!.c_name)
+				else self.symtab.find_enum_info(enum_id.name);
 			if (ei != null) {
 				val mi = ei.find_member(mem.member);
 				if (mi == null) {
-					self.report_error(node, "Enum '${enum_id.name}' has no member '${mem.member}'");
+					val kind_lbl = if (ei.is_fault) "Fault" else "Enum";
+					self.report_error(node, "${kind_lbl} '${enum_id.name}' has no member '${mem.member}'");
 					return self.prims().t_none();
 				}
 
 				if (ei.is_payload) {
-					val e_sym = self.symtab.lookup(ei.name) ?: return self.prims().t_none();
+					val e_sym = sym ?: self.symtab.lookup(ei.c_name) ?: self.symtab.lookup(ei.name)
+						?: return self.prims().t_none();
 					if (mi!.payload_ty != null && !mi!.payload_ty!.as_struct()!.fields.empty()) {
 						self.report_error(
 							node,
@@ -210,6 +223,15 @@ impl BodyChecker {
 		if (node is IndexExpr as idx) {
 			val target_ty = self.check_expr(idx.target);
 			val index_ty = self.check_expr(idx.index);
+
+			if (target_ty.kind == DataType.ERROR_UNION) {
+				self.report_error(
+					node,
+					"Cannot index unhandled error union '${self.type_display(target_ty)}'; " +
+					"handle with '!:', '?', or '!'"
+				);
+				return self.prims().t_none();
+			}
 
 			if (target_ty.kind == DataType.POINTER && target_ty.as_pointer()!.nullable) {
 				self.report_error(
@@ -648,12 +670,23 @@ impl BodyChecker {
 			val ty = self.resolve_type(cst.target_type);
 			if (self.current_rec != null) self.set_ann_ty(cst.target_type, ty);
 
+			if (cst.expr != null && self.is_null_literal(cst.expr!)) {
+				self.report_error(
+					node,
+					"Cannot cast 'null' with 'as'. Use an explicit type annotation instead"
+				);
+				return ty;
+			}
+
 			if (src_ty?.is_enum()) {
 				self.report_error(
 					node,
 					"Cannot cast enum '${src_ty.as_enum()!.name}' with 'as'. " +
 					"Use '.value' to access its underlying value"
 				);
+			}
+			if (src_ty?.kind == DataType.ERROR_UNION || ty?.kind == DataType.ERROR_UNION || src_ty?.is_fault() || ty?.is_fault()) {
+				self.report_error(node, "Cannot cast fault or error union with 'as'");
 			}
 			if (ty?.is_enum()) {
 				self.report_error(
@@ -677,21 +710,14 @@ impl BodyChecker {
 			if (src_ty?.kind == DataType.POINTER && ty?.kind == DataType.POINTER) {
 				val src_ptr = src_ty.as_pointer()!;
 				val dst_ptr = ty.as_pointer()!;
-				var is_null_lit = false;
-				if (cst.expr != null) {
-					val raw_src = self.unwrap_group(cst.expr!);
-					if (raw_src is LiteralExpr as lit) {
-						is_null_lit = lit.literal_kind == Literal.NULL_VAL;
-					}
-				}
 				if (src_ptr.nullable && !dst_ptr.nullable) {
 					self.report_error(
 						node,
-						"Cannot cast nullable pointer or 'null' to non-nullable pointer " +
+						"Cannot cast nullable pointer '${self.type_display(src_ty)}' to non-nullable pointer " +
 						"'${self.type_display(ty)}'. Use nullable pointer type " +
 						"'?${self.type_display(ty)}' or force unwrap '!' instead"
 					);
-				} else if (!is_null_lit && !src_ptr.mutable && dst_ptr.mutable) {
+				} else if (!src_ptr.mutable && dst_ptr.mutable) {
 					self.report_error(
 						node,
 						"Cannot cast read-only pointer '${self.type_display(src_ty)}' " +

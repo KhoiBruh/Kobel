@@ -25,13 +25,13 @@ impl AstNode {
 	pub fn is_declaration(*self) => when (self) {
 		is ModuleDecl, UseDecl, FnDecl,
 		StructDecl, TraitDecl, ImplDecl,
-		EnumDecl, ConstDecl, ExternBlock,
+		EnumDecl, FaultDecl, ConstDecl, ExternBlock,
 		Program -> true;
 		else -> false;
 	};
 
 	pub fn is_type_node(*self) => when (self) {
-		is NamedType, PointerType, ArrayType, VariadicType, FnType -> true;
+		is NamedType, PointerType, ArrayType, VariadicType, FnType, ErrorUnionType -> true;
 		else -> false;
 	};
 

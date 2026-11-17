@@ -45,6 +45,7 @@ pub enum NodeData {
 	ArrayType(element_type: &AstNode, size: usz),
 	VariadicType(element_type: &AstNode),
 	FnType(param_types: List<&AstNode>, return_type: &AstNode),
+	ErrorUnionType(ok_type: ?&AstNode, err_type: &AstNode),
 
 	// Expressions
 	LiteralExpr(literal_kind: Literal, raw_text: str),
@@ -66,6 +67,8 @@ pub enum NodeData {
 	LambdaExpr(params: List<Param>, body: &AstNode, is_trailing: bool, had_empty_parens: bool),
 	StructCtorExpr(c_name: str, args: List<&AstNode>),
 	EnumCtorExpr(c_name: str, tag_field: str, tag_value: i64, payload_path: str, args: List<&AstNode>),
+	CatchExpr(expr: &AstNode, err_name: str, handler: &AstNode),
+	ErrorUnionWrapExpr(c_type: str, is_ok: bool, value: ?&AstNode),
 	SizeOfParam(param_index: usz, size_text: str),
 
 	// Statements
@@ -91,6 +94,7 @@ pub enum NodeData {
 	TraitDecl(name: str, type_params: List<GenericParam>, bases: List<str>, methods: List<&AstNode>, public: bool, assoc_types: List<str>),
 	ImplDecl(struct_name: str, type_params: List<GenericParam>, trait_name: str, methods: List<&AstNode>, assoc_bindings: List<AssocBinding>),
 	EnumDecl(name: str, underlying_type: ?&AstNode, members: List<EnumMember>, public: bool),
+	FaultDecl(name: str, members: List<EnumMember>, public: bool),
 	ConstDecl(name: str, type_node: ?&AstNode, value: ?&AstNode, public: bool),
 	ExternBlock(abi: str, declarations: List<&AstNode>),
 	Program(declarations: List<&AstNode>)

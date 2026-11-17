@@ -56,7 +56,8 @@ pub struct StructType {
 	pub methods: List<*MethodInfo>,
 	pub module: str,
 	pub has_private: bool,
-	pub is_defined: bool = true
+	pub is_defined: bool = true,
+	pub is_fault: bool = false
 }
 
 impl StructType {
@@ -247,7 +248,8 @@ pub struct EnumInfo {
 	pub underlying: *Type,
 	pub members: List<*EnumMemberInfo>,
 	pub is_payload: bool = false,
-	pub tag_field: str = "tag"
+	pub tag_field: str = "tag",
+	pub is_fault: bool = false
 }
 
 impl EnumInfo {

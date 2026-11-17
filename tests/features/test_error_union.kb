@@ -1,0 +1,287 @@
+mod test.error_union;
+
+use std.io.*;
+use std.traits.*;
+use testsupport.assert.*;
+use testsupport.errdefs.*;
+use testsupport.errdefs.NetErr as ExtNetErr;
+
+fault IoErr {
+	NotFound,
+	PermissionDenied
+}
+
+fault ParseErr {
+	Empty,
+	BadChar(pos: usz, ch: char),
+	TooLarge(msg: str)
+}
+
+fault CustomFmt {
+	Code(n: i32)
+}
+
+impl Stringer for CustomFmt {
+	pub fn to_str(*self): str {
+		if (self is CustomFmt.Code as p) return "CustomCode(${p.n})";
+		return "CustomFmt";
+	}
+}
+
+struct Holder<T> {
+	pub item: T
+}
+
+impl Holder<T> {
+	pub fn get_item(*self): T => self.item;
+}
+
+struct Wrapper {
+	pub res: i32 ! IoErr
+}
+
+fn unwrap_or_generic<T>(r: T ! IoErr, d: T): T => r !: d;
+
+fn parse_pos(s: str): i32 ! ParseErr {
+	if (s.empty()) return ParseErr.Empty;
+	if (s == "big") return ParseErr.TooLarge("overflow");
+	for (i in 0..<s.len) {
+		val ch = s[i];
+		if (ch < '0' || ch > '9') return ParseErr.BadChar(i, ch);
+	}
+	if (s == "42") return 42;
+	return 7;
+}
+
+fn half_arrow(x: i32): i32 ! IoErr => if (x < 0) IoErr.PermissionDenied else x / 2;
+
+fn fail_io(): i32 ! IoErr => IoErr.NotFound;
+
+fn check_void_block(flag: i32): !IoErr {
+	if (flag < 0) return IoErr.NotFound;
+	if (flag == 0) return;
+}
+
+fn check_void_arrow(log_flag: &i32): !IoErr =>
+	log_flag.write(log_flag.read() + 1);
+
+fn check_void_arrow_pass(ok: bool): !IoErr =>
+	check_void_block(if (ok) 0 else -1);
+
+fn accept_eu(r: i32 ! IoErr): i32 => r !: -50;
+
+fn propagate_basic(s: str): i32 ! ParseErr {
+	val n = parse_pos(s)?;
+	return n + 10;
+}
+
+fn propagate_map(s: str, flag: i32): i32 ! ParseErr {
+	if (flag < 0) return ParseErr.Empty;
+	val a = parse_pos(s)?;
+	val b = parse_pos("42")?;
+	return a + b;
+}
+
+fn void_inner(ok: bool): !IoErr {
+	if (!ok) return IoErr.NotFound;
+}
+
+fn void_outer(ok: bool): i32 ! IoErr {
+	void_inner(ok)?;
+	return 123;
+}
+
+fn step_val(n: i32, steps: &i32): i32 ! IoErr {
+	steps.write(steps.read() + 1);
+	if (n <= 0) return IoErr.NotFound;
+	return n;
+}
+
+fn propagate_while(): i32 ! IoErr {
+	var total = 0;
+	var cur = 3;
+	var calls = 0;
+	while (step_val(cur, &calls)? > 1) {
+		total += cur;
+		cur--;
+	}
+	// cur=3 (+3), cur=2 (+2), cur=1 (returns 1, loop stops) => total = 5, calls = 3
+	if (total != 5 || calls != 3) return IoErr.PermissionDenied;
+	return total;
+}
+
+fn ok_bool(b: bool): bool ! IoErr => b;
+
+fn propagate_short_circuit(fail_rhs: bool): bool ! IoErr {
+	var called = 0;
+	val a = ok_bool(false)? && (step_val(if (fail_rhs) 0 else 1, &called)? > 0);
+	if (a || called != 0) return IoErr.PermissionDenied;
+
+	val b = ok_bool(true)? || (step_val(0, &called)? > 0);
+	if (!b || called != 0) return IoErr.PermissionDenied;
+
+	val c = ok_bool(true)? && (step_val(5, &called)? > 0);
+	return c && called == 1;
+}
+
+fn catch_with_defers(should_fail: bool, early_yield: bool): i32 {
+	var trace = 0;
+	defer trace += 1000;
+	val v = (if (should_fail) IoErr.NotFound else 10) !: err -> {
+		defer trace += 10;
+		if (early_yield) {
+			trace += 1;
+			yield 77;
+		}
+		trace += 2;
+		yield 88;
+	};
+	return v + trace;
+}
+
+fn main(): i32 {
+	// 1. Implicit wrapping & local variables
+	val ok_r: i32 ! IoErr = 42;
+	var err_r: i32 ! IoErr = IoErr.NotFound;
+	assert_eq_i32(ok_r !: -1, 42, "ok_r recovers to 42");
+	assert_eq_i32(err_r !: -1, -1, "err_r recovers to -1");
+	err_r = 99;
+	assert_eq_i32(err_r !: -1, 99, "reassigned err_r recovers to 99");
+	err_r = IoErr.PermissionDenied;
+
+	// 2. Argument wrapping, struct fields, arrow functions, void error unions
+	assert_eq_i32(accept_eu(17), 17, "naked ok wraps into call arg");
+	assert_eq_i32(accept_eu(IoErr.NotFound), -50, "naked fault wraps into call arg");
+	val w = Wrapper(8);
+	assert_eq_i32(w.res !: 0, 8, "struct field error union wraps ok");
+	assert_eq_i32(half_arrow(20) !: -1, 10, "arrow fn ok branch");
+	assert_eq_i32(half_arrow(-2) !: -9, -9, "arrow fn fault branch");
+
+	var arrow_hits = 0;
+	check_void_arrow(&arrow_hits) !: { arrow_hits = -100; };
+	assert_eq_i32(arrow_hits, 1, "void arrow ok runs expr and succeeds");
+	check_void_arrow_pass(false) !: { arrow_hits += 10; };
+	assert_eq_i32(arrow_hits, 11, "void arrow fault invokes catch block");
+
+	var void_hits = 0;
+	check_void_block(1) !: { void_hits += 1; };
+	check_void_block(0) !: { void_hits += 1; };
+	assert_eq_i32(void_hits, 0, "void block fallthrough and empty return succeed");
+	check_void_block(-1) !: err -> {
+		if (err is IoErr.NotFound) void_hits += 5;
+	};
+	assert_eq_i32(void_hits, 5, "void block fault binds err in catch");
+
+	// 3. Recovery operators: !:, err -> ..., yield block, diverge, chaining
+	val r_chain = fail_io() !: half_arrow(-1) !: 321;
+	assert_eq_i32(r_chain, 321, "chained !: falls through to final fallback");
+
+	val r_evolve = parse_pos("") !: half_arrow(12);
+	assert_eq_i32(r_evolve !: -1, 6, "recovery returning different error union works");
+
+	val r_yield_block = parse_pos("big") !: err -> {
+		if (err is ParseErr.TooLarge as p) {
+			assert_eq_str(p.msg, "overflow", "payload accessed inside catch");
+			yield 700;
+		}
+		yield -1;
+	};
+	assert_eq_i32(r_yield_block, 700, "catch block yields value cleanly");
+
+	// Break/continue recovery in loop
+	var loop_sum = 0;
+	for (k in 0..<5) {
+		val x = half_arrow(if (k == 2) -1 else k * 2) !: continue;
+		loop_sum += x;
+	}
+	assert_eq_i32(loop_sum, 0 + 1 + 3 + 4, "continue inside !: skips failed iteration");
+
+	var break_sum = 0;
+	for (k in 0..<5) {
+		val x = half_arrow(if (k == 3) -1 else k * 2) !: break;
+		break_sum += x;
+	}
+	assert_eq_i32(break_sum, 0 + 1 + 2, "break inside !: exits loop");
+
+	// Defer ordering inside catch yield block
+	assert_eq_i32(catch_with_defers(false, false), 10, "ok catch skips handler defer");
+	assert_eq_i32(catch_with_defers(true, true), 77 + 1 + 10, "early yield runs inner defer only once");
+	assert_eq_i32(catch_with_defers(true, false), 88 + 2 + 10, "final yield runs inner defer cleanly");
+
+	// 4. Error propagation `?` & force unwrap `!`
+	assert_eq_i32(propagate_basic("42") !: -1, 52, "? unwraps ok and continues");
+	assert_eq_i32(propagate_map("42", 1) !: -1, 84, "multiple ? in same fn");
+	assert_eq_i32(void_outer(true) !: -1, 123, "!E ? statement propagation ok");
+	assert_eq_i32(void_outer(false) !: -99, -99, "!E ? statement propagation propagates fault");
+	assert_eq_i32(propagate_while() !: -1, 5, "while condition with ? re-evaluates properly");
+	assert_true(propagate_short_circuit(true) !: false, "&& and || with ? preserve short-circuit");
+
+	assert_eq_i32((half_arrow(18))!, 9, "postfix ! force-unwraps grouped T ! E ok value");
+	check_void_block(1)!;
+
+	// 5. Pattern matching: is, !is, when exhaustiveness, payload binding, Stringer
+	val bad_c = parse_pos("1a3");
+	assert_true(bad_c is ParseErr, "fault type match with is");
+	assert_true(bad_c !is i32, "!is checks fault non-ok");
+	assert_true(bad_c is ParseErr.BadChar, "payload fault variant check");
+	if (bad_c is ParseErr.BadChar as p) {
+		assert_eq_usz(p.pos, 1, "payload pos field");
+		assert_eq_i32(p.ch.code(), 'a'.code(), "payload ch field");
+	}
+
+	val v_void = check_void_block(-1);
+	assert_true(v_void !is none, "!is none on failed !E");
+	val v_ok = check_void_block(0);
+	assert_true(v_ok is none, "is none on succeeded !E");
+
+	val pp = parse_pos("42");
+	val matched_val = when (pp) {
+		is i32 as n -> (*n) * 2;
+		is .Empty -> -1;
+		is .BadChar -> -2;
+		is .TooLarge -> -3;
+	};
+	assert_eq_i32(matched_val, 84, "exhaustive when covering ok and all fault variants");
+
+	val matched_err_group = when (ok_r) {
+		is i32 as n -> *n;
+		is [IoErr.NotFound, IoErr.PermissionDenied] -> -10;
+	};
+	assert_eq_i32(matched_err_group, 42, "exhaustive when using fault variant list");
+
+	val void_when = when (v_ok) {
+		is none -> 1;
+		is IoErr -> 2;
+	};
+	assert_eq_i32(void_when, 1, "exhaustive when covering none + FaultType on !E");
+
+	// 6. Auto-Stringer interpolation vs custom Stringer
+	val f_plain = IoErr.PermissionDenied;
+	assert_eq_str("${f_plain}", "IoErr.PermissionDenied", "default fault interpolation shows Name.Variant");
+	val f_payload = ParseErr.BadChar(2, 'x');
+	assert_eq_str("${f_payload}", "ParseErr.BadChar", "payload fault default interpolation shows Name.Variant");
+	val f_custom = CustomFmt.Code(77);
+	assert_eq_str("${f_custom}", "CustomCode(77)", "custom Stringer impl overrides default fault interpolation");
+
+	// 7. Cross-module faults & generics
+	val ext_ok = ping(5);
+	val ext_err = ping(-3);
+	assert_eq_i32(ext_ok !: -1, 50, "cross-module fault fn ok");
+	assert_true(ext_err is ExtNetErr.Closed, "aliased cross-module fault match in is");
+	val ext_when = when (ext_err) {
+		is i32 as v -> *v;
+		is ExtNetErr.Timeout -> -1;
+		is ExtNetErr.Closed as c -> c.code;
+	};
+	assert_eq_i32(ext_when, -3, "cross-module aliased fault payload in exhaustive when");
+	ping_void(false) !: err -> {
+		assert_true(err is ExtNetErr.Timeout, "cross-module payloadless fault matches in is");
+	};
+
+	val hb = Holder<i32 ! IoErr>(half_arrow(14));
+	assert_eq_i32(hb.get_item() !: -1, 7, "generic struct holding T ! E");
+	assert_eq_i32(unwrap_or_generic<i32>(IoErr.NotFound, 55), 55, "generic fn with T ! E parameter");
+
+	println("[PASS] test_error_union passed all assertions!");
+	return 0;
+}

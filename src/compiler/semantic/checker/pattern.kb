@@ -31,6 +31,10 @@ impl BodyChecker {
 			}
 			val cond_ty = if (we.condition != null) self.check_expr(we.condition!) else null;
 
+			val saved_catch_exp = self.catch_yield_expected;
+			val saved_catch_seen = self.catch_yield_seen;
+			self.catch_yield_expected = null;
+			self.catch_yield_seen = false;
 			self.when_depth++;
 			var result_ty: ?*Type = expected;
 			var has_else = false;
@@ -40,7 +44,12 @@ impl BodyChecker {
 				val smart_cast_ty = self.resolve_arm_patterns(arm.patterns, we.condition, cond_ty);
 				val sym = self.arm_smart_cast_sym(arm.patterns, we.condition);
 				val mutable = self.arm_smart_cast_mutable(arm.patterns, we.condition);
-				val body_ty = self.check_arm_body(arm.body, sym, smart_cast_ty, mutable, result_ty);
+				var arm_hint = result_ty;
+				if (arm_hint != null && arm_hint.kind == DataType.ERROR_UNION) {
+					val eu = arm_hint.as_error_union()!;
+					if (eu.ok.kind != DataType.NONE) arm_hint = eu.ok;
+				}
+				val body_ty = self.check_arm_body(arm.body, sym, smart_cast_ty, mutable, arm_hint);
 
 				if (result_ty == null) {
 					result_ty = body_ty;
@@ -56,6 +65,16 @@ impl BodyChecker {
 							val mutable = r_ptr.mutable || b_ptr.mutable;
 							result_ty = self.arena.nullable_pointer_type(r_ptr.pointee, mutable);
 						}
+					} else if (expected == null && !result_ty.equals(body_ty)) {
+						if (result_ty.kind == DataType.ERROR_UNION && result_ty.can_assign(body_ty)) {
+							// result_ty already unifies this arm
+						} else if (body_ty.kind == DataType.ERROR_UNION && body_ty.can_assign(result_ty)) {
+							result_ty = body_ty;
+						} else if (result_ty.is_fault() && !body_ty.is_fault() && body_ty.kind !in [DataType.NONE, DataType.FN, DataType.ERROR_UNION]) {
+							result_ty = self.arena.error_union_type(body_ty, result_ty);
+						} else if (body_ty.is_fault() && !result_ty.is_fault() && result_ty.kind !in [DataType.NONE, DataType.FN, DataType.ERROR_UNION]) {
+							result_ty = self.arena.error_union_type(result_ty, body_ty);
+						}
 					}
 					self.ensure(
 						result_ty.can_assign(body_ty),
@@ -65,6 +84,8 @@ impl BodyChecker {
 				}
 			}
 			self.when_depth--;
+			self.catch_yield_expected = saved_catch_exp;
+			self.catch_yield_seen = saved_catch_seen;
 
 			val is_exhaustive = self.check_when_exhaustiveness(node, we, cond_ty);
 			if (has_else && is_exhaustive) {
@@ -80,16 +101,77 @@ impl BodyChecker {
 		return self.prims().t_none();
 	}
 
-	fn check_when_exhaustiveness(&self, node: *AstNode, we: *WhenExpr, cond_ty: ?*Type): bool {
+	fn mark_eu_arm_target(
+		&self, type_node: ?&AstNode, ok_ty: *Type, err_ty: *Type,
+		err_ei: ?*EnumInfo, has_ok: &bool, has_all_err: &bool, covered: &List<str>
+	) {
+		if (type_node == null) return;
+		if (err_ei != null && type_node is NamedType as nt && nt.name.starts_with(".")) {
+			val m = err_ei.find_member(nt.name.slice(1, nt.name.len));
+			if (m != null && m.name !in (*covered)) {
+				covered.add(m.name);
+				return;
+			}
+		}
+		if (err_ei != null) {
+			val resolved_v = self.find_variant_in_enum_info(err_ei, type_node!);
+			if (resolved_v != null && resolved_v.name !in (*covered)) {
+				covered.add(resolved_v.name);
+				return;
+			}
+		}
+		val target_ty = self.resolve_type(type_node!);
+		if (target_ty.equals(ok_ty)) {
+			has_ok.write(true);
+			return;
+		}
+		if (target_ty.equals(err_ty)) {
+			has_all_err.write(true);
+			return;
+		}
+		if (err_ei != null) {
+			val vname = self.match_enum_variant_type(type_node!, err_ei);
+			if (!vname.empty() && vname !in (*covered)) covered.add(vname);
+		}
+	}
+
+	pub fn is_when_arms_exhaustive(&self, arms: List<WhenArm>, cond_ty: ?*Type): bool {
 		var base_ty: *Type = cond_ty ?: return false;
 		if (base_ty.kind == DataType.POINTER) {
 			base_ty = base_ty.as_pointer()!.pointee;
 		}
 
+		if (base_ty.kind == DataType.ERROR_UNION) {
+			val eu = base_ty.as_error_union()!;
+			val err_s = eu.err.as_struct();
+			val err_ei = if (err_s != null) {
+				self.symtab.find_enum_info(err_s!.c_name) ?: self.symtab.find_enum_info(err_s!.name)
+			} else null;
+			var has_ok = false;
+			var has_all_err = false;
+			var covered = List<str>();
+			for (arm in arms) {
+				if (arm.is_else) continue;
+				for (pat in arm.patterns) {
+					if (pat is IsExpr as is_e) {
+						if (is_e.target_type is ArrayLiteralExpr as al) {
+							for (el in al.elements) {
+								self.mark_eu_arm_target(el, eu.ok, eu.err, err_ei, &has_ok, &has_all_err, &covered);
+							}
+						} else {
+							self.mark_eu_arm_target(is_e.target_type, eu.ok, eu.err, err_ei, &has_ok, &has_all_err, &covered);
+						}
+					}
+				}
+			}
+			val err_ok = has_all_err || (err_ei != null && !err_ei!.members.empty() && covered.len == err_ei!.members.len);
+			return has_ok && err_ok;
+		}
+
 		if (base_ty.kind == DataType.BOOL) {
 			var has_true = false;
 			var has_false = false;
-			for (arm in we.arms) {
+			for (arm in arms) {
 				if (arm.is_else) continue;
 				for (pat in arm.patterns) {
 					if (pat is LiteralExpr as lit && lit.literal_kind == Literal.BOOLEAN) {
@@ -108,14 +190,15 @@ impl BodyChecker {
 		if (base_ty.is_enum()) {
 			enum_info = base_ty.as_enum()!;
 		} else if (base_ty.kind == DataType.STRUCT) {
-			enum_info = self.symtab.find_enum_info(base_ty.as_struct()!.name);
+			val st = base_ty.as_struct()!;
+			enum_info = self.symtab.find_enum_info(st.c_name) ?: self.symtab.find_enum_info(st.name);
 		}
 
 		val ei = enum_info ?: return false;
 		if (ei.members.empty()) return false;
 
 		var covered = List<str>();
-		for (arm in we.arms) {
+		for (arm in arms) {
 			if (arm.is_else) continue;
 			for (pat in arm.patterns) {
 				if (pat is IsExpr as is_e && is_e.target_type is ArrayLiteralExpr as al) {
@@ -132,6 +215,9 @@ impl BodyChecker {
 
 		return covered.len == ei.members.len;
 	}
+
+	fn check_when_exhaustiveness(&self, node: *AstNode, we: *WhenExpr, cond_ty: ?*Type): bool
+		=> self.is_when_arms_exhaustive(we.arms, cond_ty);
 
 	fn match_enum_variant_type(&self, type_node: ?&AstNode, enum_info: *EnumInfo): str {
 		if (type_node == null) return "";
@@ -371,6 +457,105 @@ impl BodyChecker {
 		return self.check_expr(body, expected);
 	}
 
+	fn find_variant_in_enum_info(*self, ei: *EnumInfo, type_node: &AstNode): ?*EnumMemberInfo {
+		if (type_node is NamedType as nt) {
+			val mangled_pfx = "${ei.c_name}__";
+			if (nt.name.starts_with(mangled_pfx)) {
+				return ei.find_member(nt.name.slice(mangled_pfx.len, nt.name.len));
+			}
+			val dot_pos = nt.name.index_of(".");
+			if (dot_pos >= 0) {
+				val prefix = nt.name.slice(0, dot_pos);
+				val vname = nt.name.slice(dot_pos + 1, nt.name.len);
+				if (prefix.empty()) return ei.find_member(vname);
+				val sym = self.symtab.lookup(prefix);
+				val matches_ei = prefix in [ei.name, ei.c_name] || (sym?.c_name ?: "") == ei.c_name;
+				if (matches_ei) return ei.find_member(vname);
+				return null;
+			}
+			if (ei.find_member(nt.name) != null) {
+				val v_sym = self.symtab.lookup("${ei.name}.${nt.name}") ?: self.symtab.lookup(nt.name);
+				if (v_sym != null && v_sym.c_name.starts_with("${ei.c_name}__")) {
+					return ei.find_member(nt.name);
+				}
+			}
+		}
+		return null;
+	}
+
+	fn check_single_eu_is_target(
+		&self,
+		info_node: &AstNode,
+		extra_info_node: ?&AstNode,
+		err_node: *AstNode,
+		target_node: &AstNode,
+		is_e: *IsExpr,
+		eu_ty: *Type,
+		is_ptr: bool,
+		subj_mutable: bool
+	): ?*Type {
+		val eu = eu_ty.as_error_union()!;
+		val err_s = eu.err.as_struct()!;
+		val err_ei = self.symtab.find_enum_info(err_s.c_name) ?: self.symtab.find_enum_info(err_s.name);
+
+		if (err_ei != null) {
+			val matched_m = self.find_variant_in_enum_info(err_ei, target_node);
+			if (matched_m != null && matched_m.payload_ty != null) {
+				val v_c_name = "${err_ei.c_name}__${matched_m.name}";
+				if (target_node is NamedType as nt) {
+					if (self.current_rec != null) self.set_ann_ty(target_node, matched_m.payload_ty!);
+					else nt.name = v_c_name;
+				}
+				val tag_c = "${v_c_name}__TAG";
+				val info = IsPatternInfo(
+					"u.err.tag", eu.c_name, is_ptr,
+					"u.err.u.${matched_m.name}", false, tag_c,
+					"is_ok", "false"
+				);
+				self.set_is_pattern(info_node, info);
+				if (extra_info_node != null) self.set_is_pattern(extra_info_node, info);
+				return self.arena.pointer_type(matched_m.payload_ty!, is_ptr && subj_mutable);
+			}
+		}
+
+		val target_ty = self.resolve_type(target_node);
+		if (target_ty.equals(eu.err)) {
+			val info = IsPatternInfo(
+				"is_ok", eu.c_name, is_ptr,
+				"u.err", false, "false"
+			);
+			self.set_is_pattern(info_node, info);
+			if (extra_info_node != null) self.set_is_pattern(extra_info_node, info);
+			return self.arena.pointer_type(eu.err, is_ptr && subj_mutable);
+		}
+
+		if (eu.ok.kind == DataType.NONE && target_ty.kind == DataType.NONE) {
+			if (!is_e.alias.empty()) {
+				self.report_error(err_node, "Cannot bind 'as' alias to 'none'");
+			}
+			val info = IsPatternInfo("is_ok", eu.c_name, is_ptr, "", false, "true");
+			self.set_is_pattern(info_node, info);
+			if (extra_info_node != null) self.set_is_pattern(extra_info_node, info);
+			return null;
+		}
+
+		if (eu.ok.kind != DataType.NONE && target_ty.equals(eu.ok)) {
+			val info = IsPatternInfo(
+				"is_ok", eu.c_name, is_ptr,
+				"u.ok", false, "true"
+			);
+			self.set_is_pattern(info_node, info);
+			if (extra_info_node != null) self.set_is_pattern(extra_info_node, info);
+			return self.arena.pointer_type(eu.ok, is_ptr && subj_mutable);
+		}
+
+		self.report_error(
+			err_node,
+			"Pattern type '${self.type_display(target_ty)}' does not match error union '${self.type_display(eu_ty)}'"
+		);
+		return null;
+	}
+
 	fn check_single_is_target(
 		&self,
 		info_node: &AstNode,
@@ -384,9 +569,31 @@ impl BodyChecker {
 	): ?*Type {
 		val data_ty = self.field_type_of(base_s, "data");
 		val data_enum = if (data_ty != null && data_ty!.kind == DataType.STRUCT)
-			self.symtab.find_enum_info(data_ty!.as_struct()!.name)
+			self.symtab.find_enum_info(data_ty!.as_struct()!.c_name)
+				?: self.symtab.find_enum_info(data_ty!.as_struct()!.name)
 		else null;
-		val direct_enum = self.symtab.find_enum_info(base_s.name);
+		val direct_enum = self.symtab.find_enum_info(base_s.c_name)
+			?: self.symtab.find_enum_info(base_s.name);
+
+		var direct_matched: ?*EnumMemberInfo = null;
+		if (direct_enum != null && direct_enum.is_payload) {
+			direct_matched = self.find_variant_in_enum_info(direct_enum, target_node);
+		}
+
+		if (direct_matched != null && direct_matched.payload_ty != null) {
+			val m = direct_matched;
+			if (target_node is NamedType as nt) {
+				if (self.current_rec != null) self.set_ann_ty(target_node, m.payload_ty!);
+				else nt.name = "${direct_enum!.c_name}__${m.name}";
+			}
+			val info = IsPatternInfo(
+				direct_enum!.tag_field, base_s.c_name, is_ptr,
+				m.payload_path, false, "${direct_enum!.c_name}__${m.name}__TAG"
+			);
+			self.set_is_pattern(info_node, info);
+			if (extra_info_node != null) self.set_is_pattern(extra_info_node, info);
+			return self.arena.pointer_type(m.payload_ty!, is_ptr && subj_mutable);
+		}
 
 		if (target_node is NamedType as nt && nt.name.starts_with(".")) {
 			val vname = nt.name.slice(1, nt.name.len);
@@ -514,6 +721,29 @@ impl BodyChecker {
 				subj_mutable = base_ty.as_pointer()!.mutable;
 				base_ty = base_ty.as_pointer()!.pointee;
 			}
+			if (base_ty != null && base_ty.kind == DataType.ERROR_UNION) {
+				if (is_e.target_type is ArrayLiteralExpr as al) {
+					if (al.elements.empty()) {
+						self.report_error(is_e.target_type, "Type list in 'is' operator cannot be empty");
+						return null;
+					}
+					var single_cast: ?*Type = null;
+					for (i in 0..<al.elements.len) {
+						val t_node = al.elements[i];
+						val extra = if (al.elements.len == 1) is_node else null;
+						val cty = self.check_single_eu_is_target(
+							t_node, extra, t_node, t_node, is_e, base_ty, is_ptr, subj_mutable
+						);
+						if (al.elements.len == 1 && i == 0) single_cast = cty;
+					}
+					if (al.elements.len == 1) return single_cast;
+					return null;
+				}
+				return self.check_single_eu_is_target(
+					is_node, null, is_node, is_e.target_type, is_e, base_ty, is_ptr, subj_mutable
+				);
+			}
+
 			if (base_ty == null || base_ty!.kind != DataType.STRUCT) {
 				self.report_error(is_node, "Subject of 'is' must be a struct or pointer to struct");
 				return null;

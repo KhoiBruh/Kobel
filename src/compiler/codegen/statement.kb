@@ -122,6 +122,16 @@ impl CCodeGen {
 			return;
 		}
 
+		val unwrapped_init = unwrap_group_expr(init_e);
+		if (unwrapped_init is CatchExpr as ce) {
+			self.out += ty_str;
+			self.out += ' ';
+			self.out += vd.name;
+			self.out += ";\n";
+			self.gen_catch_with_target(ce, vd.name);
+			return;
+		}
+
 		if (
 			init_e is BinaryExpr as bin &&
 			bin.op == TokenType.QUESTION_COLON
@@ -525,6 +535,31 @@ impl CCodeGen {
 			return;
 		}
 
+		val unwrapped_ret = unwrap_group_expr(ret_val);
+		if (unwrapped_ret is WhenExpr as we2 && we2.has_blocks()) {
+			self.gen_when_with_target(we2, "", true);
+			return;
+		}
+		if (unwrapped_ret is CatchExpr as ce) {
+			var ret_ty = self.current_fn_ret_type;
+			if (ret_ty.empty() || ret_ty == "void") ret_ty = self.c_type_or(ret_val!, "int32_t");
+			if (self.has_active_defers()) self.mark_current_scope_jumped();
+			if (ret_ty == "void") {
+				self.gen_catch_with_target(ce, "");
+				self.gen_defers_unwind(0);
+				self.out += "return;\n";
+			} else {
+				self.out += "{\n";
+				self.out += ret_ty;
+				self.out += " __ret_tmp;\n";
+				self.gen_catch_with_target(ce, "__ret_tmp");
+				self.gen_defers_unwind(0);
+				self.out += "return __ret_tmp;\n";
+				self.out += "}\n";
+			}
+			return;
+		}
+
 		if (!self.has_active_defers()) {
 			if (ret_val != null) {
 				var ret_candidate = ret_val;
@@ -622,6 +657,14 @@ impl CCodeGen {
 					self.gen_assign_elvis_stmt(asg, asg_val);
 					return;
 				}
+				if (asg.op == TokenType.EQUAL && asg_val is WhenExpr as we && we.has_blocks()) {
+					self.gen_when_with_target(we, self.gen_expr(asg.target), false);
+					return;
+				}
+				if (asg.op == TokenType.EQUAL && asg_val is CatchExpr as ce) {
+					self.gen_catch_with_target(ce, self.gen_expr(asg.target));
+					return;
+				}
 			}
 
 			var bin_candidate = e;
@@ -640,6 +683,15 @@ impl CCodeGen {
 					self.gen_elvis_jump_stmt(bin);
 					return;
 				}
+			}
+
+			if (asg_candidate is CatchExpr as ce) {
+				self.gen_catch_with_target(ce, "");
+				return;
+			}
+			if (asg_candidate is WhenExpr as we && we.has_blocks()) {
+				self.gen_when_with_target(we, "", false);
+				return;
 			}
 		}
 
@@ -684,7 +736,27 @@ impl CCodeGen {
 	}
 
 	fn gen_yield_stmt(&self, ys: *YieldStmt) {
+		val raw_y = unwrap_group_expr(ys.value);
 		if (self.is_yield_return) {
+			if (raw_y is CatchExpr as yce) {
+				var ret_ty = self.current_fn_ret_type;
+				if (ret_ty.empty() || ret_ty == "void") ret_ty = self.c_type_or(ys.value!, "int32_t");
+				if (self.has_active_defers()) self.mark_current_scope_jumped();
+				if (ret_ty == "void") {
+					self.gen_catch_with_target(yce, "");
+					self.gen_defers_unwind(0);
+					self.out += "return;\n";
+				} else {
+					self.out += "{\n";
+					self.out += ret_ty;
+					self.out += " __ret_tmp;\n";
+					self.gen_catch_with_target(yce, "__ret_tmp");
+					self.gen_defers_unwind(0);
+					self.out += "return __ret_tmp;\n";
+					self.out += "}\n";
+				}
+				return;
+			}
 			if (self.has_active_defers()) {
 				self.mark_current_scope_jumped();
 				if (ys.value != null) {
@@ -713,7 +785,9 @@ impl CCodeGen {
 			self.out += "return;\n";
 			return;
 		}
-		if (!self.yield_target.empty()) {
+		if (raw_y is CatchExpr as yce) {
+			self.gen_catch_with_target(yce, self.yield_target);
+		} else if (!self.yield_target.empty()) {
 			val val_str = if (ys.value != null) self.gen_expr(ys.value!) else "";
 			if (!val_str.empty()) {
 				self.out += self.yield_target;
@@ -721,15 +795,17 @@ impl CCodeGen {
 				self.out += val_str;
 				self.out += ";\n";
 			}
-			if (!self.yield_exit_label.empty()) {
-				self.out += "goto ";
-				self.out += self.yield_exit_label;
-				self.out += ";\n";
-			}
-			return;
-		}
-		if (ys.value != null) {
+		} else if (ys.value != null) {
 			self.out += self.gen_expr(ys.value!);
+			self.out += ";\n";
+		}
+		if (!self.yield_exit_label.empty()) {
+			if (self.scope_starts.len > self.yield_defer_depth) {
+				self.mark_current_scope_jumped();
+				self.gen_defers_unwind(self.yield_defer_depth);
+			}
+			self.out += "goto ";
+			self.out += self.yield_exit_label;
 			self.out += ";\n";
 		}
 	}
@@ -851,6 +927,7 @@ impl CCodeGen {
 		val prev_target = self.yield_target;
 		val prev_is_ret = self.is_yield_return;
 		val prev_exit = self.yield_exit_label;
+		val prev_defer_depth = self.yield_defer_depth;
 
 		self.when_label_counter++;
 		val when_id = self.when_label_counter;
@@ -859,6 +936,7 @@ impl CCodeGen {
 
 		self.yield_target = target_name;
 		self.is_yield_return = is_ret;
+		self.yield_defer_depth = self.scope_starts.len;
 
 		var has_else = false;
 		for (arm in we.arms) {
@@ -899,8 +977,33 @@ impl CCodeGen {
 					self.gen_statement(s);
 				}
 			} else {
-				if (is_ret) {
+				val raw_arm = unwrap_group_expr(arm_b);
+				if (raw_arm is CatchExpr as ace) {
+					if (is_ret) {
+						var ret_ty = self.current_fn_ret_type;
+						if (ret_ty.empty() || ret_ty == "void") ret_ty = self.c_type_or(arm_b, "int32_t");
+						if (self.has_active_defers()) self.mark_current_scope_jumped();
+						if (ret_ty == "void") {
+							self.gen_catch_with_target(ace, "");
+							self.gen_defers_unwind(0);
+							self.out += "return;\n";
+						} else {
+							self.out += "{\n";
+							self.out += ret_ty;
+							self.out += " __ret_tmp;\n";
+							self.gen_catch_with_target(ace, "__ret_tmp");
+							self.gen_defers_unwind(0);
+							self.out += "return __ret_tmp;\n";
+							self.out += "}\n";
+						}
+					} else {
+						self.gen_catch_with_target(ace, target_name);
+					}
+				} else if (is_ret) {
 					self.out += "return ";
+					self.out += self.gen_expr(arm_b);
+					self.out += ";\n";
+				} else if (target_name.empty()) {
 					self.out += self.gen_expr(arm_b);
 					self.out += ";\n";
 				} else {
@@ -924,6 +1027,81 @@ impl CCodeGen {
 		self.yield_target = prev_target;
 		self.is_yield_return = prev_is_ret;
 		self.yield_exit_label = prev_exit;
+		self.yield_defer_depth = prev_defer_depth;
+	}
+
+	// Emits a `expr !: [err ->] handler` catch block assigning to `target_name` when non-empty.
+	pub fn gen_catch_with_target(&self, ce: *CatchExpr, target_name: str) {
+		self.when_label_counter++;
+		val cid = self.when_label_counter;
+		val tmp = "__eu_src_${cid}";
+		val raw_e = unwrap_group_expr(ce.expr) ?: ce.expr;
+		val src_c = self.c_type_or(raw_e, "int32_t");
+		val src_ty = self.node_type(raw_e);
+		var ok_is_void = false;
+		var err_c = "int32_t";
+		if (src_ty != null && src_ty.kind == DataType.ERROR_UNION) {
+			val eu = src_ty.as_error_union()!;
+			ok_is_void = eu.ok.kind == DataType.NONE;
+			err_c = c_type_from_type(eu.err);
+		}
+		val raw_h = unwrap_group_expr(ce.handler);
+		val has_block = raw_h != null && raw_h! is BlockStmt;
+		val end_label = "__catch_end_${cid}";
+
+		self.out += "{\n";
+		self.out += "${src_c} ${tmp} = ";
+		self.out += self.gen_expr(ce.expr);
+		self.out += ";\n";
+
+		val assign_ok = !ok_is_void && !target_name.empty();
+		if (assign_ok) {
+			self.out += "if (${tmp}.is_ok) {\n";
+			self.out += "${target_name} = ${tmp}.u.ok;\n";
+			self.out += "} else {\n";
+		} else {
+			self.out += "if (!${tmp}.is_ok) {\n";
+		}
+
+		if (!ce.err_name.empty()) {
+			self.out += "${err_c} ${ce.err_name} = ${tmp}.u.err;\n";
+			self.out += "(void)${ce.err_name};\n";
+		}
+
+		if (has_block) {
+			val prev_target = self.yield_target;
+			val prev_is_ret = self.is_yield_return;
+			val prev_exit = self.yield_exit_label;
+			val prev_defer_depth = self.yield_defer_depth;
+			self.yield_target = target_name;
+			self.is_yield_return = false;
+			self.yield_exit_label = end_label;
+			self.yield_defer_depth = self.scope_starts.len;
+			self.gen_block_body(raw_h!);
+			self.yield_target = prev_target;
+			self.is_yield_return = prev_is_ret;
+			self.yield_exit_label = prev_exit;
+			self.yield_defer_depth = prev_defer_depth;
+		} else if (raw_h is ReturnStmt || raw_h is BreakStmt || raw_h is ContinueStmt || raw_h is YieldStmt) {
+			self.gen_statement(raw_h!);
+		} else if (raw_h is CatchExpr as inner_ce) {
+			self.gen_catch_with_target(inner_ce, target_name);
+		} else if (raw_h is WhenExpr as we && we.has_blocks()) {
+			self.gen_when_with_target(we, target_name, false);
+		} else if (!target_name.empty()) {
+			self.out += "${target_name} = ";
+			self.out += self.gen_expr(ce.handler);
+			self.out += ";\n";
+		} else {
+			self.out += self.gen_expr(ce.handler);
+			self.out += ";\n";
+		}
+
+		self.out += "}\n";
+		if (has_block) {
+			self.out += "${end_label}:;\n";
+		}
+		self.out += "}\n";
 	}
 
 }

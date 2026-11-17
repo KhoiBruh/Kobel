@@ -54,6 +54,7 @@ impl BodyChecker {
 			}
 
 			if (trait_to_str.has_impl(tname)) return;
+			if (cur_ty.is_fault()) return;
 		}
 
 		self.report_error(node, "Interpolated value must implement Stringer");
