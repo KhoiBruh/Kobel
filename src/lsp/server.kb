@@ -80,7 +80,7 @@ impl LanguageServer {
 	);
 
 	fn get_analysis(&self, uri: str, doc_path: str, doc_text: str, need_ws: bool = false): *AnalysisResult {
-		val doc = self.docs[uri];
+		val doc = self.docs.get_doc(uri) !: Document(uri, doc_path, doc_text, -1);
 		var hit_idx: isz = -1;
 		for (i in 0..<self.cache.len) {
 			val entry = &self.cache.data[i];
@@ -93,7 +93,7 @@ impl LanguageServer {
 			val idx = hit_idx as usz;
 			if (idx + 1 < self.cache.len) {
 				val item = self.cache.data[idx];
-				self.cache.remove_at(idx);
+				self.cache.remove_at(idx)!;
 				self.cache.add(item);
 			}
 			return &self.cache.data[self.cache.len - 1].analysis;
@@ -103,7 +103,7 @@ impl LanguageServer {
 		// Keep at most 4 recent analyses resident so tab switching stays hot without unbounded growth.
 		while (self.cache.len >= 4) {
 			self.cache.data[0].analysis.free();
-			self.cache.remove_at(0);
+			self.cache.remove_at(0)!;
 		}
 		val created = AnalysisResult(doc_path, doc_text, self.workspace_root, need_ws);
 		var entry = AnalysisCacheEntry();
@@ -120,7 +120,7 @@ impl LanguageServer {
 		while (i < self.cache.len) {
 			if (self.cache.data[i].uri == uri) {
 				self.cache.data[i].analysis.free();
-				self.cache.remove_at(i);
+				self.cache.remove_at(i)!;
 			} else {
 				i++;
 			}
@@ -139,10 +139,12 @@ impl LanguageServer {
 		init_stdio();
 
 		while (true) {
-			val raw_msg = read_message();
-			if (raw_msg.empty()) break; // EOF: editor closed pipe
+			val raw_msg = read_message() !: err -> {
+				if (err is ProtocolErr.EndOfStream) break;
+				continue;
+			};
 
-			val msg = JsonValue.parse(raw_msg);
+			val msg = JsonValue.parse(raw_msg) !: continue;
 			if (!msg.is_obj()) continue;
 
 			val method = msg.get_str("method", "");
@@ -238,9 +240,11 @@ impl LanguageServer {
 
 					self.docs.set(uri, text, version);
 					self.invalidate_uri(uri);
-					val doc = self.docs[uri];
-					val analysis = self.get_analysis(uri, doc.path, text);
-					publish_diagnostics_for(uri, analysis);
+					val doc_res = self.docs.get_doc(uri);
+					if (doc_res is Document as doc) {
+						val analysis = self.get_analysis(uri, doc.path, text);
+						publish_diagnostics_for(uri, analysis);
+					}
 				}
 
 				Method.DID_CHANGE.value -> {
@@ -252,9 +256,11 @@ impl LanguageServer {
 						val new_text = changes.at(0)?.get_str("text", "") ?: "";
 						self.docs.set(uri, new_text, version);
 						self.invalidate_cache();
-						val doc = self.docs[uri];
-						val analysis = self.get_analysis(uri, doc.path, new_text);
-						publish_diagnostics_for(uri, analysis);
+						val doc_res = self.docs.get_doc(uri);
+						if (doc_res is Document as doc) {
+							val analysis = self.get_analysis(uri, doc.path, new_text);
+							publish_diagnostics_for(uri, analysis);
+						}
 					}
 				}
 
@@ -262,9 +268,9 @@ impl LanguageServer {
 					val text_doc = params.get_obj("textDocument");
 					val uri = text_doc.get_str("uri", "");
 					self.invalidate_cache();
-					val (doc_path, doc_text) = self.docs[uri];
-					if (!doc_text.empty()) {
-						val analysis = self.get_analysis(uri, doc_path, doc_text);
+					val doc_res = self.docs.get_doc(uri);
+					if (doc_res is Document as doc) {
+						val analysis = self.get_analysis(uri, doc.path, doc.text);
 						publish_diagnostics_for(uri, analysis);
 					}
 				}
@@ -288,9 +294,9 @@ impl LanguageServer {
 					val line = pos.get_num("line", 0) as usz;
 					val char_col = pos.get_num("character", 0) as usz;
 
-					val (doc_path, doc_text) = self.docs[uri];
-					if (!doc_text.empty()) {
-						val analysis = self.get_analysis(uri, doc_path, doc_text);
+					val doc_res = self.docs.get_doc(uri);
+					if (doc_res is Document as doc && !doc.text.empty()) {
+						val analysis = self.get_analysis(uri, doc.path, doc.text);
 						send_response(id, analysis.hover_at(line, char_col));
 					} else {
 						send_response(id, JsonValue.null_val());
@@ -304,9 +310,9 @@ impl LanguageServer {
 					val line = pos.get_num("line", 0) as usz;
 					val char_col = pos.get_num("character", 0) as usz;
 
-					val (doc_path, doc_text) = self.docs[uri];
-					if (!doc_text.empty()) {
-						val analysis = self.get_analysis(uri, doc_path, doc_text);
+					val doc_res = self.docs.get_doc(uri);
+					if (doc_res is Document as doc && !doc.text.empty()) {
+						val analysis = self.get_analysis(uri, doc.path, doc.text);
 						send_response(id, analysis.definition_at(uri, line, char_col));
 					} else {
 						send_response(id, JsonValue.null_val());
@@ -322,10 +328,10 @@ impl LanguageServer {
 					val ctx = params.get_obj("context");
 					val include_decl = ctx["includeDeclaration"]?.bool_val ?: true;
 
-					val (doc_path, doc_text) = self.docs[uri];
-					if (!doc_text.empty()) {
-						val analysis = self.get_analysis(uri, doc_path, doc_text, true);
-						send_response(id, find_references_json(&analysis.index, doc_path, line, char_col, include_decl));
+					val doc_res = self.docs.get_doc(uri);
+					if (doc_res is Document as doc && !doc.text.empty()) {
+						val analysis = self.get_analysis(uri, doc.path, doc.text, true);
+						send_response(id, find_references_json(&analysis.index, doc.path, line, char_col, include_decl));
 					} else {
 						send_response(id, JsonValue.arr());
 					}
@@ -338,9 +344,9 @@ impl LanguageServer {
 					val line = pos.get_num("line", 0) as usz;
 					val char_col = pos.get_num("character", 0) as usz;
 
-					val (doc_path, doc_text) = self.docs[uri];
-					if (!doc_text.empty()) {
-						val analysis = self.get_analysis(uri, doc_path, doc_text);
+					val doc_res = self.docs.get_doc(uri);
+					if (doc_res is Document as doc && !doc.text.empty()) {
+						val analysis = self.get_analysis(uri, doc.path, doc.text);
 						send_response(id, analysis.document_highlights(line, char_col));
 					} else {
 						send_response(id, JsonValue.arr());
@@ -354,10 +360,10 @@ impl LanguageServer {
 					val line = pos.get_num("line", 0) as usz;
 					val char_col = pos.get_num("character", 0) as usz;
 
-					val (doc_path, doc_text) = self.docs[uri];
-					if (!doc_text.empty()) {
-						val analysis = self.get_analysis(uri, doc_path, doc_text, true);
-						send_response(id, prepare_rename_json(&analysis.index, doc_path, line, char_col));
+					val doc_res = self.docs.get_doc(uri);
+					if (doc_res is Document as doc && !doc.text.empty()) {
+						val analysis = self.get_analysis(uri, doc.path, doc.text, true);
+						send_response(id, prepare_rename_json(&analysis.index, doc.path, line, char_col));
 					} else {
 						send_response(id, JsonValue.null_val());
 					}
@@ -371,10 +377,10 @@ impl LanguageServer {
 					val char_col = pos.get_num("character", 0) as usz;
 					val new_name = params.get_str("newName", "");
 
-					val (doc_path, doc_text) = self.docs[uri];
-					if (!doc_text.empty() && !new_name.empty()) {
-						val analysis = self.get_analysis(uri, doc_path, doc_text, true);
-						send_response(id, rename_symbol_json(&analysis.index, doc_path, line, char_col, new_name));
+					val doc_res = self.docs.get_doc(uri);
+					if (doc_res is Document as doc && !doc.text.empty() && !new_name.empty()) {
+						val analysis = self.get_analysis(uri, doc.path, doc.text, true);
+						send_response(id, rename_symbol_json(&analysis.index, doc.path, line, char_col, new_name));
 					} else {
 						send_response(id, JsonValue.null_val());
 					}
@@ -393,13 +399,13 @@ impl LanguageServer {
 					val ctx = params.get_obj("context");
 					val diags = ctx.get_arr("diagnostics");
 
-					val (doc_path, doc_text) = self.docs[uri];
-					if (!doc_text.empty()) {
-						val analysis = self.get_analysis(uri, doc_path, doc_text);
+					val doc_res = self.docs.get_doc(uri);
+					if (doc_res is Document as doc && !doc.text.empty()) {
+						val analysis = self.get_analysis(uri, doc.path, doc.text);
 						send_response(
 							id,
 							code_actions_json(
-								&analysis.index, analysis.tokens, doc_path, doc_text,
+								&analysis.index, analysis.tokens, doc.path, doc.text,
 								s_line, s_col, e_line, e_col, diags
 							)
 						);
@@ -415,9 +421,9 @@ impl LanguageServer {
 					val line = pos.get_num("line", 0) as usz;
 					val char_col = pos.get_num("character", 0) as usz;
 
-					val (doc_path, doc_text) = self.docs[uri];
-					if (!doc_text.empty()) {
-						val analysis = self.get_analysis(uri, doc_path, doc_text);
+					val doc_res = self.docs.get_doc(uri);
+					if (doc_res is Document as doc && !doc.text.empty()) {
+						val analysis = self.get_analysis(uri, doc.path, doc.text);
 						send_response(id, analysis.signature_help_at(line, char_col));
 					} else {
 						send_response(id, JsonValue.null_val());
@@ -427,9 +433,9 @@ impl LanguageServer {
 				Method.FORMATTING.value -> {
 					val text_doc = params.get_obj("textDocument");
 					val uri = text_doc.get_str("uri", "");
-					val (_, doc_text) = self.docs[uri];
-					if (!doc_text.empty()) {
-						send_response(id, AnalysisResult.format_document_with_arena(doc_text, self.arena));
+					val doc_res = self.docs.get_doc(uri);
+					if (doc_res is Document as doc) {
+						send_response(id, AnalysisResult.format_document_with_arena(doc.text, self.arena));
 						self.arena.reset();
 					} else {
 						send_response(id, JsonValue.arr());
@@ -439,9 +445,9 @@ impl LanguageServer {
 				Method.DOCUMENT_SYMBOL.value -> {
 					val text_doc = params.get_obj("textDocument");
 					val uri = text_doc.get_str("uri", "");
-					val (_, doc_text) = self.docs[uri];
-					if (!doc_text.empty()) {
-						send_response(id, AnalysisResult.document_symbols_with_arena(doc_text, self.arena));
+					val doc_res = self.docs.get_doc(uri);
+					if (doc_res is Document as doc) {
+						send_response(id, AnalysisResult.document_symbols_with_arena(doc.text, self.arena));
 						self.arena.reset();
 					} else {
 						send_response(id, JsonValue.arr());
@@ -456,7 +462,7 @@ impl LanguageServer {
 					} else {
 						val entry = resolve_project_entry(self.workspace_root);
 						if (!entry.empty()) {
-							val src = Path(entry).read_text();
+							val src = Path(entry).read_text() !: "";
 							if (!src.empty()) {
 								var a = AnalysisResult(entry, src, self.workspace_root, true);
 								defer a.free();
@@ -476,9 +482,9 @@ impl LanguageServer {
 					val pos = params.get_obj("position");
 					val line = pos.get_num("line", 0) as usz;
 					val char_col = pos.get_num("character", 0) as usz;
-					val (doc_path, doc_text) = self.docs[uri];
-					if (!doc_text.empty()) {
-						val analysis = self.get_analysis(uri, doc_path, doc_text);
+					val doc_res = self.docs.get_doc(uri);
+					if (doc_res is Document as doc) {
+						val analysis = self.get_analysis(uri, doc.path, doc.text);
 						send_response(id, analysis.complete_at(line, char_col));
 					} else {
 						var empty_analysis = AnalysisResult("", "", self.workspace_root);

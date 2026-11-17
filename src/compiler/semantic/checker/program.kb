@@ -517,7 +517,7 @@ impl BodyChecker {
 
 			if (self.infer_blocked) {
 				self.infer_blocked = saved_blocked;
-				while (self.errors.len > err_mark) self.errors.pop();
+				while (self.errors.len > err_mark) self.errors.pop()!;
 				return false;
 			}
 			self.infer_blocked = saved_blocked;

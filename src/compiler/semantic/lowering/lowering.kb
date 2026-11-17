@@ -313,7 +313,7 @@ impl LoweringPass {
 
 		if (bin.op == TokenType.KW_IN && bin.right is ArrayLiteralExpr as al) {
 			val lt = self.type_of(bin.left);
-			if (lt != null && lt.kind == DataType.STRUCT && !al.elements.empty() && al.elements.first() !is IsExpr) {
+			if (lt != null && lt.kind == DataType.STRUCT && !al.elements.empty() && al.elements.first()! !is IsExpr) {
 				val s_info = lt.as_struct()!;
 				var arg_types = List<*Type>();
 				arg_types += lt;
@@ -724,7 +724,7 @@ impl LoweringPass {
 
 			var args = List<&AstNode>();
 			args += mem.object;
-			if (!call.args.empty()) args += call.args.first();
+			if (!call.args.empty()) args += call.args.first()!;
 			else {
 				val zero = self.arena.node(
 					NodeData.LiteralExpr(Literal.INTEGER, "0"),

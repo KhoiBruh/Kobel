@@ -95,18 +95,18 @@ impl CCodeGen {
 
 	pub fn mark_current_scope_jumped(&self) {
 		if (!self.scope_jumped.empty()) {
-			self.scope_jumped.pop();
+			self.scope_jumped.pop()!;
 			self.scope_jumped += true;
 		}
 	}
 
 	pub fn exit_defer_scope(&self) {
 		if (self.scope_starts.empty()) return;
-		val start_idx = self.scope_starts.pop();
-		val jumped = self.scope_jumped.pop();
+		val start_idx = self.scope_starts.pop()!;
+		val jumped = self.scope_jumped.pop()!;
 		if (jumped || self.defer_nodes.len <= start_idx) {
 			while (self.defer_nodes.len > start_idx) {
-				self.defer_nodes.pop();
+				self.defer_nodes.pop()!;
 			}
 			return;
 		}
@@ -116,7 +116,7 @@ impl CCodeGen {
 			self.gen_statement(self.defer_nodes[i]);
 		}
 		while (self.defer_nodes.len > start_idx) {
-			self.defer_nodes.pop();
+			self.defer_nodes.pop()!;
 		}
 	}
 

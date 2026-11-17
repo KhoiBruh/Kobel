@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
+#include <errno.h>
 
 #ifdef _WIN32
 #include <io.h>
@@ -141,77 +142,6 @@ static inline void kobel_path_buf_free(kobel_path_buf* pb) {
 	}
 }
 
-/* Directory listing helper — returns newline-separated filenames */
-static kobel_str kobel_list_dir(kobel_str dir_path) {
-#ifdef _WIN32
-	if (!dir_path.data || dir_path.len == 0) return (kobel_str){ NULL, 0 };
-	char stack_pat[1024];
-	char* pattern = stack_pat;
-	if (dir_path.len + 3 > sizeof(stack_pat)) {
-		pattern = (char*)malloc(dir_path.len + 3);
-		if (!pattern) return (kobel_str){ NULL, 0 };
-	}
-	memcpy(pattern, dir_path.data, dir_path.len);
-	pattern[dir_path.len] = 92;
-	pattern[dir_path.len + 1] = '*';
-	pattern[dir_path.len + 2] = 0;
-
-	struct _finddata_t data;
-	intptr_t handle = _findfirst(pattern, &data);
-	if (pattern != stack_pat) free(pattern);
-	if (handle == -1) return (kobel_str){ NULL, 0 };
-
-	size_t cap = 1024;
-	size_t len = 0;
-	char* buf = (char*)malloc(cap);
-
-	do {
-		if (strcmp(data.name, ".") == 0 || strcmp(data.name, "..") == 0) continue;
-		size_t nlen = strlen(data.name);
-		while (len + nlen + 2 > cap) {
-			cap *= 2;
-			buf = (char*)realloc(buf, cap);
-		}
-		memcpy(buf + len, data.name, nlen);
-		len += nlen;
-		buf[len++] = 10;
-	} while (_findnext(handle, &data) == 0);
-
-	_findclose(handle);
-	buf[len] = 0;
-	return (kobel_str){ buf, len };
-#else
-	if (!dir_path.data || dir_path.len == 0) return (kobel_str){ NULL, 0 };
-	kobel_path_buf pb;
-	char* path = kobel_path_buf_init(&pb, dir_path);
-	if (!path) return (kobel_str){ NULL, 0 };
-
-	DIR* d = opendir(path);
-	kobel_path_buf_free(&pb);
-	if (!d) return (kobel_str){ NULL, 0 };
-
-	size_t cap = 1024;
-	size_t len = 0;
-	char* buf = (char*)malloc(cap);
-
-	struct dirent* ent;
-	while ((ent = readdir(d)) != NULL) {
-		if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0) continue;
-		size_t nlen = strlen(ent->d_name);
-		while (len + nlen + 2 > cap) {
-			cap *= 2;
-			buf = (char*)realloc(buf, cap);
-		}
-		memcpy(buf + len, ent->d_name, nlen);
-		len += nlen;
-		buf[len++] = 10;
-	}
-	closedir(d);
-	buf[len] = 0;
-	return (kobel_str){ buf, len };
-#endif
-}
-
 /* Platform-abstracted stat & mkdir helpers */
 #ifdef _WIN32
 typedef struct _stat kobel_stat_t;
@@ -258,24 +188,146 @@ static int kobel_path_is_file(kobel_str p) {
 #endif
 }
 
-static int kobel_create_dir(kobel_str dir_path) {
-	if (!dir_path.data || dir_path.len == 0) return 0;
-	kobel_path_buf pb;
-	char* path = kobel_path_buf_init(&pb, dir_path);
-	if (!path) return 0;
-	int res = kobel_mkdir(path);
-	kobel_path_buf_free(&pb);
-	if (res == 0) return 1;
-	return kobel_path_is_dir(dir_path);
+/* Maps C errno values to std.filesystem error kind codes (0 = none/unknown). */
+static inline int32_t kobel_errno_kind(void) {
+	switch (errno) {
+		case 0: return 0;
+#ifdef ENOENT
+		case ENOENT: return 1;
+#endif
+#ifdef EACCES
+		case EACCES: return 2;
+#endif
+#ifdef EPERM
+		case EPERM: return 2;
+#endif
+#ifdef EEXIST
+		case EEXIST: return 3;
+#endif
+#ifdef ENOTDIR
+		case ENOTDIR: return 4;
+#endif
+#ifdef EISDIR
+		case EISDIR: return 5;
+#endif
+#ifdef EINVAL
+		case EINVAL: return 6;
+#endif
+#ifdef ENAMETOOLONG
+		case ENAMETOOLONG: return 6;
+#endif
+#ifdef ENOMEM
+		case ENOMEM: return 7;
+#endif
+		default: return 8;
+	}
 }
 
-static int kobel_create_dir_all(kobel_str dir_path) {
-	if (!dir_path.data || dir_path.len == 0) return 1;
-	if (kobel_path_is_dir(dir_path)) return 1;
+static void* kobel_fs_fopen(kobel_str path, kobel_str mode, int32_t* err_out) {
+	if (!path.data || path.len == 0 || !mode.data || mode.len == 0) {
+		if (err_out) *err_out = 6;
+		return NULL;
+	}
+	kobel_path_buf pb;
+	kobel_path_buf mb;
+	char* p = kobel_path_buf_init(&pb, path);
+	if (!p) {
+		if (err_out) *err_out = 7;
+		return NULL;
+	}
+	char* m = kobel_path_buf_init(&mb, mode);
+	if (!m) {
+		kobel_path_buf_free(&pb);
+		if (err_out) *err_out = 7;
+		return NULL;
+	}
+	errno = 0;
+	FILE* f = fopen(p, m);
+	int saved_err = errno;
+	kobel_path_buf_free(&pb);
+	kobel_path_buf_free(&mb);
+	if (!f) {
+		errno = saved_err;
+		if (kobel_path_is_dir(path)) {
+			if (err_out) *err_out = 5;
+		} else {
+			int32_t k = kobel_errno_kind();
+			if (err_out) *err_out = k != 0 ? k : 8;
+		}
+		return NULL;
+	}
+	if (err_out) *err_out = 0;
+	return (void*)f;
+}
+
+static inline int32_t kobel_fs_stream_err(void* f) {
+	if (!f) return 9;
+	return ferror((FILE*)f) ? 8 : 0;
+}
+
+static int32_t kobel_fs_remove(kobel_str p) {
+	if (!p.data || p.len == 0) return 6;
+	kobel_path_buf pb;
+	char* path = kobel_path_buf_init(&pb, p);
+	if (!path) return 7;
+	errno = 0;
+	int rc = remove(path);
+	int saved_err = errno;
+	kobel_path_buf_free(&pb);
+	if (rc == 0) return 0;
+	errno = saved_err;
+	int32_t k = kobel_errno_kind();
+	return k != 0 ? k : 8;
+}
+
+static int32_t kobel_fs_rename(kobel_str old_p, kobel_str new_p) {
+	if (!old_p.data || old_p.len == 0 || !new_p.data || new_p.len == 0) return 6;
+	kobel_path_buf ob;
+	kobel_path_buf nb;
+	char* os = kobel_path_buf_init(&ob, old_p);
+	if (!os) return 7;
+	char* ns = kobel_path_buf_init(&nb, new_p);
+	if (!ns) {
+		kobel_path_buf_free(&ob);
+		return 7;
+	}
+	errno = 0;
+	int rc = rename(os, ns);
+	int saved_err = errno;
+	kobel_path_buf_free(&ob);
+	kobel_path_buf_free(&nb);
+	if (rc == 0) return 0;
+	errno = saved_err;
+	int32_t k = kobel_errno_kind();
+	return k != 0 ? k : 8;
+}
+
+static int32_t kobel_fs_mkdir(kobel_str dir_path) {
+	if (!dir_path.data || dir_path.len == 0) return 6;
 	kobel_path_buf pb;
 	char* path = kobel_path_buf_init(&pb, dir_path);
-	if (!path) return 0;
+	if (!path) return 7;
+	errno = 0;
+	int res = kobel_mkdir(path);
+	int saved_err = errno;
+	kobel_path_buf_free(&pb);
+	if (res == 0) return 0;
+	if (kobel_path_is_dir(dir_path)) return 0;
+	if (kobel_path_exists(dir_path)) return 3;
+	errno = saved_err;
+	int32_t k = kobel_errno_kind();
+	return k != 0 ? k : 8;
+}
 
+static int32_t kobel_fs_mkdir_all(kobel_str dir_path) {
+	if (!dir_path.data || dir_path.len == 0) return 6;
+	if (kobel_path_is_dir(dir_path)) return 0;
+	if (kobel_path_exists(dir_path)) return 4;
+	kobel_path_buf pb;
+	char* path = kobel_path_buf_init(&pb, dir_path);
+	if (!path) return 7;
+
+	int saved_err = 0;
 	for (size_t i = 1; i < dir_path.len; i++) {
 		if (path[i] == '/' || path[i] == 92) {
 			char saved = path[i];
@@ -284,13 +336,156 @@ static int kobel_create_dir_all(kobel_str dir_path) {
 				path[i] = saved;
 				continue;
 			}
-			kobel_mkdir(path);
+			errno = 0;
+			if (kobel_mkdir(path) != 0 && saved_err == 0) saved_err = errno;
 			path[i] = saved;
 		}
 	}
-	kobel_mkdir(path);
+	errno = 0;
+	int final_rc = kobel_mkdir(path);
+	if (final_rc != 0) saved_err = errno;
 	kobel_path_buf_free(&pb);
-	return kobel_path_is_dir(dir_path);
+	if (kobel_path_is_dir(dir_path)) return 0;
+	if (kobel_path_exists(dir_path)) return 4;
+	errno = saved_err;
+	int32_t k = kobel_errno_kind();
+	return k != 0 ? k : 8;
+}
+
+static kobel_str kobel_fs_list_dir(kobel_str dir_path, int32_t* err_out) {
+	if (err_out) *err_out = 0;
+	if (!dir_path.data || dir_path.len == 0) {
+		if (err_out) *err_out = 6;
+		return (kobel_str){ NULL, 0 };
+	}
+	kobel_stat_t st;
+	errno = 0;
+	if (!kobel_path_stat(dir_path, &st)) {
+		int32_t k = kobel_errno_kind();
+		if (err_out) *err_out = k != 0 ? k : 1;
+		return (kobel_str){ NULL, 0 };
+	}
+#ifdef _WIN32
+	if ((st.st_mode & _S_IFDIR) == 0) {
+#else
+	if (!S_ISDIR(st.st_mode)) {
+#endif
+		if (err_out) *err_out = 4;
+		return (kobel_str){ NULL, 0 };
+	}
+#ifdef _WIN32
+	char stack_pat[1024];
+	char* pattern = stack_pat;
+	if (dir_path.len + 3 > sizeof(stack_pat)) {
+		pattern = (char*)malloc(dir_path.len + 3);
+		if (!pattern) {
+			if (err_out) *err_out = 7;
+			return (kobel_str){ NULL, 0 };
+		}
+	}
+	memcpy(pattern, dir_path.data, dir_path.len);
+	pattern[dir_path.len] = 92;
+	pattern[dir_path.len + 1] = '*';
+	pattern[dir_path.len + 2] = 0;
+
+	struct _finddata_t data;
+	errno = 0;
+	intptr_t handle = _findfirst(pattern, &data);
+	int saved_err = errno;
+	if (pattern != stack_pat) free(pattern);
+	if (handle == -1) {
+		errno = saved_err;
+		if (saved_err == ENOENT) {
+			if (err_out) *err_out = 0;
+			return (kobel_str){ NULL, 0 };
+		}
+		int32_t k = kobel_errno_kind();
+		if (err_out) *err_out = k != 0 ? k : 8;
+		return (kobel_str){ NULL, 0 };
+	}
+
+	size_t cap = 1024;
+	size_t len = 0;
+	char* buf = (char*)malloc(cap);
+	if (!buf) {
+		_findclose(handle);
+		if (err_out) *err_out = 7;
+		return (kobel_str){ NULL, 0 };
+	}
+
+	do {
+		if (strcmp(data.name, ".") == 0 || strcmp(data.name, "..") == 0) continue;
+		size_t nlen = strlen(data.name);
+		while (len + nlen + 2 > cap) {
+			cap *= 2;
+			char* next_buf = (char*)realloc(buf, cap);
+			if (!next_buf) {
+				free(buf);
+				_findclose(handle);
+				if (err_out) *err_out = 7;
+				return (kobel_str){ NULL, 0 };
+			}
+			buf = next_buf;
+		}
+		memcpy(buf + len, data.name, nlen);
+		len += nlen;
+		buf[len++] = 10;
+	} while (_findnext(handle, &data) == 0);
+
+	_findclose(handle);
+	buf[len] = 0;
+	return (kobel_str){ buf, len };
+#else
+	kobel_path_buf pb;
+	char* path = kobel_path_buf_init(&pb, dir_path);
+	if (!path) {
+		if (err_out) *err_out = 7;
+		return (kobel_str){ NULL, 0 };
+	}
+
+	errno = 0;
+	DIR* d = opendir(path);
+	int saved_err = errno;
+	kobel_path_buf_free(&pb);
+	if (!d) {
+		errno = saved_err;
+		int32_t k = kobel_errno_kind();
+		if (err_out) *err_out = k != 0 ? k : 8;
+		return (kobel_str){ NULL, 0 };
+	}
+
+	size_t cap = 1024;
+	size_t len = 0;
+	char* buf = (char*)malloc(cap);
+	if (!buf) {
+		closedir(d);
+		if (err_out) *err_out = 7;
+		return (kobel_str){ NULL, 0 };
+	}
+
+	struct dirent* ent;
+	while ((ent = readdir(d)) != NULL) {
+		if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0) continue;
+		size_t nlen = strlen(ent->d_name);
+		while (len + nlen + 2 > cap) {
+			cap *= 2;
+			char* next_buf = (char*)realloc(buf, cap);
+			if (!next_buf) {
+				free(buf);
+				closedir(d);
+				if (err_out) *err_out = 7;
+				return (kobel_str){ NULL, 0 };
+			}
+			buf = next_buf;
+		}
+		memcpy(buf + len, ent->d_name, nlen);
+		len += nlen;
+		buf[len++] = 10;
+	}
+	closedir(d);
+	buf[len] = 0;
+	return (kobel_str){ buf, len };
+#endif
 }
 
 typedef struct {
@@ -312,15 +507,194 @@ typedef struct {
 	kobel_loc origin;
 	kobel_loc fail_at;
 } __kobel_main_result;
+typedef struct std__memory__MemErr std__memory__MemErr;
+typedef struct std__memory__MemErr__OutOfMemory std__memory__MemErr__OutOfMemory;
+#define std__memory__MemErr__OutOfMemory__TAG 0
+typedef struct std__memory__Heap std__memory__Heap;
 typedef struct std__string__StrRaw std__string__StrRaw;
+typedef struct std__filesystem__FsErr std__filesystem__FsErr;
+typedef struct std__filesystem__FsErr__NotFound std__filesystem__FsErr__NotFound;
+#define std__filesystem__FsErr__NotFound__TAG 0
+typedef struct std__filesystem__FsErr__PermissionDenied std__filesystem__FsErr__PermissionDenied;
+#define std__filesystem__FsErr__PermissionDenied__TAG 1
+typedef struct std__filesystem__FsErr__AlreadyExists std__filesystem__FsErr__AlreadyExists;
+#define std__filesystem__FsErr__AlreadyExists__TAG 2
+typedef struct std__filesystem__FsErr__NotDirectory std__filesystem__FsErr__NotDirectory;
+#define std__filesystem__FsErr__NotDirectory__TAG 3
+typedef struct std__filesystem__FsErr__IsDirectory std__filesystem__FsErr__IsDirectory;
+#define std__filesystem__FsErr__IsDirectory__TAG 4
+typedef struct std__filesystem__FsErr__InvalidPath std__filesystem__FsErr__InvalidPath;
+#define std__filesystem__FsErr__InvalidPath__TAG 5
+typedef struct std__filesystem__FsErr__NotOpen std__filesystem__FsErr__NotOpen;
+#define std__filesystem__FsErr__NotOpen__TAG 6
+typedef struct std__filesystem__FsErr__ReadFailed std__filesystem__FsErr__ReadFailed;
+#define std__filesystem__FsErr__ReadFailed__TAG 7
+typedef struct std__filesystem__FsErr__WriteFailed std__filesystem__FsErr__WriteFailed;
+#define std__filesystem__FsErr__WriteFailed__TAG 8
+typedef struct std__filesystem__FsErr__SeekFailed std__filesystem__FsErr__SeekFailed;
+#define std__filesystem__FsErr__SeekFailed__TAG 9
+typedef struct std__filesystem__FsErr__OutOfMemory std__filesystem__FsErr__OutOfMemory;
+#define std__filesystem__FsErr__OutOfMemory__TAG 10
+typedef struct std__filesystem__FsErr__IoFailed std__filesystem__FsErr__IoFailed;
+#define std__filesystem__FsErr__IoFailed__TAG 11
+typedef struct std__filesystem__File std__filesystem__File;
 typedef struct std__filesystem__Path std__filesystem__Path;
 typedef struct std__process__Process std__process__Process;
 typedef struct test__static_methods__Point test__static_methods__Point;
+typedef struct __kobel_eu_none__std__filesystem__FsErr __kobel_eu_none__std__filesystem__FsErr;
+typedef struct __kobel_eu_str__std__filesystem__FsErr __kobel_eu_str__std__filesystem__FsErr;
+typedef struct __kobel_eu_std__filesystem__File__std__filesystem__FsErr __kobel_eu_std__filesystem__File__std__filesystem__FsErr;
+typedef struct __kobel_eu_mut_ptr_u8__std__memory__MemErr __kobel_eu_mut_ptr_u8__std__memory__MemErr;
 
+
+static inline kobel_fault_meta __kobel_lookup_fault(uint32_t code) {
+    switch (code) {
+        case 1U: return (kobel_fault_meta){ 1U, "MemErr.OutOfMemory", "Memory allocation failed (out of memory)" };
+        case 6U: return (kobel_fault_meta){ 6U, "FsErr.NotFound", "File or directory not found" };
+        case 7U: return (kobel_fault_meta){ 7U, "FsErr.PermissionDenied", "Permission denied" };
+        case 8U: return (kobel_fault_meta){ 8U, "FsErr.AlreadyExists", "Target path already exists" };
+        case 9U: return (kobel_fault_meta){ 9U, "FsErr.NotDirectory", "Path is not a directory" };
+        case 10U: return (kobel_fault_meta){ 10U, "FsErr.IsDirectory", "Path is a directory" };
+        case 11U: return (kobel_fault_meta){ 11U, "FsErr.InvalidPath", "Path or mode is empty or invalid" };
+        case 12U: return (kobel_fault_meta){ 12U, "FsErr.NotOpen", "File stream is closed or not open" };
+        case 13U: return (kobel_fault_meta){ 13U, "FsErr.ReadFailed", "Failed to read from file" };
+        case 14U: return (kobel_fault_meta){ 14U, "FsErr.WriteFailed", "Failed to write all bytes to file" };
+        case 15U: return (kobel_fault_meta){ 15U, "FsErr.SeekFailed", "Failed to seek or query file position" };
+        case 16U: return (kobel_fault_meta){ 16U, "FsErr.OutOfMemory", "Insufficient memory to allocate file buffer" };
+        case 17U: return (kobel_fault_meta){ 17U, "FsErr.IoFailed", "I/O operation failed" };
+        default: return (kobel_fault_meta){ code, "UnknownFault", "Unknown error" };
+    }
+}
+
+static inline void __kobel_report_fault(
+    const char* kind,
+    uint32_t code,
+    kobel_loc origin,
+    kobel_loc fail_at
+) {
+    kobel_fault_meta meta = __kobel_lookup_fault(code);
+    if (meta.desc && meta.name && strcmp(meta.desc, meta.name) != 0) {
+        fprintf(stderr, "panic: %s E%04u (%s): %s\n", kind, (unsigned)code, meta.name, meta.desc);
+    } else if (meta.name) {
+        fprintf(stderr, "panic: %s E%04u (%s)\n", kind, (unsigned)code, meta.name);
+    } else {
+        fprintf(stderr, "panic: %s E%04u\n", kind, (unsigned)code);
+    }
+    if (origin.file && origin.file[0] != 0) {
+        fprintf(stderr, "  origin: %s:%zu:%zu", origin.file, origin.line, origin.col);
+        if (origin.fn && origin.fn[0] != 0) fprintf(stderr, " in %s", origin.fn);
+        fputc(10, stderr);
+    }
+    if (fail_at.file && fail_at.file[0] != 0) {
+        bool same = origin.file && strcmp(origin.file, fail_at.file) == 0
+            && origin.line == fail_at.line && origin.col == fail_at.col;
+        if (!same) {
+            fprintf(stderr, "  at:     %s:%zu:%zu", fail_at.file, fail_at.line, fail_at.col);
+            if (fail_at.fn && fail_at.fn[0] != 0) fprintf(stderr, " in %s", fail_at.fn);
+            fputc(10, stderr);
+        }
+    }
+}
+struct std__memory__MemErr__OutOfMemory {
+    char __empty;
+};
+struct std__memory__MemErr {
+    int32_t tag;
+    uint32_t __err_code;
+    kobel_loc __origin;
+    union {
+        struct std__memory__MemErr__OutOfMemory OutOfMemory;
+    } u;
+};
+
+static inline kobel_str __kobel_fault_str_std__memory__MemErr(std__memory__MemErr e) {
+    switch (e.tag) {
+        case 0: return KOBEL_STR("MemErr.OutOfMemory");
+        default: return KOBEL_STR("MemErr");
+    }
+}
 
 struct std__string__StrRaw {
     const char* data;
     size_t len;
+};
+
+struct std__filesystem__FsErr__NotFound {
+    char __empty;
+};
+struct std__filesystem__FsErr__PermissionDenied {
+    char __empty;
+};
+struct std__filesystem__FsErr__AlreadyExists {
+    char __empty;
+};
+struct std__filesystem__FsErr__NotDirectory {
+    char __empty;
+};
+struct std__filesystem__FsErr__IsDirectory {
+    char __empty;
+};
+struct std__filesystem__FsErr__InvalidPath {
+    char __empty;
+};
+struct std__filesystem__FsErr__NotOpen {
+    char __empty;
+};
+struct std__filesystem__FsErr__ReadFailed {
+    char __empty;
+};
+struct std__filesystem__FsErr__WriteFailed {
+    char __empty;
+};
+struct std__filesystem__FsErr__SeekFailed {
+    char __empty;
+};
+struct std__filesystem__FsErr__OutOfMemory {
+    char __empty;
+};
+struct std__filesystem__FsErr__IoFailed {
+    char __empty;
+};
+struct std__filesystem__FsErr {
+    int32_t tag;
+    uint32_t __err_code;
+    kobel_loc __origin;
+    union {
+        struct std__filesystem__FsErr__NotFound NotFound;
+        struct std__filesystem__FsErr__PermissionDenied PermissionDenied;
+        struct std__filesystem__FsErr__AlreadyExists AlreadyExists;
+        struct std__filesystem__FsErr__NotDirectory NotDirectory;
+        struct std__filesystem__FsErr__IsDirectory IsDirectory;
+        struct std__filesystem__FsErr__InvalidPath InvalidPath;
+        struct std__filesystem__FsErr__NotOpen NotOpen;
+        struct std__filesystem__FsErr__ReadFailed ReadFailed;
+        struct std__filesystem__FsErr__WriteFailed WriteFailed;
+        struct std__filesystem__FsErr__SeekFailed SeekFailed;
+        struct std__filesystem__FsErr__OutOfMemory OutOfMemory;
+        struct std__filesystem__FsErr__IoFailed IoFailed;
+    } u;
+};
+
+static inline kobel_str __kobel_fault_str_std__filesystem__FsErr(std__filesystem__FsErr e) {
+    switch (e.tag) {
+        case 0: return KOBEL_STR("FsErr.NotFound");
+        case 1: return KOBEL_STR("FsErr.PermissionDenied");
+        case 2: return KOBEL_STR("FsErr.AlreadyExists");
+        case 3: return KOBEL_STR("FsErr.NotDirectory");
+        case 4: return KOBEL_STR("FsErr.IsDirectory");
+        case 5: return KOBEL_STR("FsErr.InvalidPath");
+        case 6: return KOBEL_STR("FsErr.NotOpen");
+        case 7: return KOBEL_STR("FsErr.ReadFailed");
+        case 8: return KOBEL_STR("FsErr.WriteFailed");
+        case 9: return KOBEL_STR("FsErr.SeekFailed");
+        case 10: return KOBEL_STR("FsErr.OutOfMemory");
+        case 11: return KOBEL_STR("FsErr.IoFailed");
+        default: return KOBEL_STR("FsErr");
+    }
+}
+
+struct std__filesystem__File {
+    void* handle;
 };
 
 struct std__filesystem__Path {
@@ -332,11 +706,83 @@ struct test__static_methods__Point {
     int32_t y;
 };
 
+struct __kobel_eu_none__std__filesystem__FsErr {
+    bool is_ok;
+    union {
+        std__filesystem__FsErr err;
+    } u;
+};
+
+static inline void __kobel_unwrap___kobel_eu_none__std__filesystem__FsErr(__kobel_eu_none__std__filesystem__FsErr r, const char* file, size_t line, size_t col, const char* fn) {
+    if (!r.is_ok) {
+        kobel_loc at = { file, line, col, fn };
+        __kobel_report_fault("unwrapped error", r.u.err.__err_code, r.u.err.__origin, at);
+        exit(1);
+    }
+}
+
+struct __kobel_eu_str__std__filesystem__FsErr {
+    bool is_ok;
+    union {
+        kobel_str ok;
+        std__filesystem__FsErr err;
+    } u;
+};
+
+static inline kobel_str __kobel_unwrap___kobel_eu_str__std__filesystem__FsErr(__kobel_eu_str__std__filesystem__FsErr r, const char* file, size_t line, size_t col, const char* fn) {
+    if (!r.is_ok) {
+        kobel_loc at = { file, line, col, fn };
+        __kobel_report_fault("unwrapped error", r.u.err.__err_code, r.u.err.__origin, at);
+        exit(1);
+    }
+    return r.u.ok;
+}
+
+struct __kobel_eu_std__filesystem__File__std__filesystem__FsErr {
+    bool is_ok;
+    union {
+        std__filesystem__File ok;
+        std__filesystem__FsErr err;
+    } u;
+};
+
+static inline std__filesystem__File __kobel_unwrap___kobel_eu_std__filesystem__File__std__filesystem__FsErr(__kobel_eu_std__filesystem__File__std__filesystem__FsErr r, const char* file, size_t line, size_t col, const char* fn) {
+    if (!r.is_ok) {
+        kobel_loc at = { file, line, col, fn };
+        __kobel_report_fault("unwrapped error", r.u.err.__err_code, r.u.err.__origin, at);
+        exit(1);
+    }
+    return r.u.ok;
+}
+
+struct __kobel_eu_mut_ptr_u8__std__memory__MemErr {
+    bool is_ok;
+    union {
+        uint8_t* ok;
+        std__memory__MemErr err;
+    } u;
+};
+
+static inline uint8_t* __kobel_unwrap___kobel_eu_mut_ptr_u8__std__memory__MemErr(__kobel_eu_mut_ptr_u8__std__memory__MemErr r, const char* file, size_t line, size_t col, const char* fn) {
+    if (!r.is_ok) {
+        kobel_loc at = { file, line, col, fn };
+        __kobel_report_fault("unwrapped error", r.u.err.__err_code, r.u.err.__origin, at);
+        exit(1);
+    }
+    return r.u.ok;
+}
+
+__kobel_eu_mut_ptr_u8__std__memory__MemErr std__memory__Heap_try_alloc(size_t size);
 kobel_str std__string__str_from_bytes(uint8_t* buf, size_t len);
+std__filesystem__FsErr std__filesystem__fs_err_from_code(int32_t code);
+__kobel_eu_std__filesystem__File__std__filesystem__FsErr std__filesystem__File_open(kobel_str path, kobel_str mode);
+void std__filesystem__File_close(std__filesystem__File* self);
+__kobel_eu_none__std__filesystem__FsErr std__filesystem__File_write_all(std__filesystem__File* self, kobel_str content);
+__kobel_eu_str__std__filesystem__FsErr std__filesystem__File_read_all(std__filesystem__File* self);
 bool std__filesystem__Path_exists(std__filesystem__Path* self);
-bool std__filesystem__Path_remove(std__filesystem__Path* self);
-kobel_str std__filesystem__Path_read_text(std__filesystem__Path* self);
-bool std__filesystem__Path_write_text(std__filesystem__Path* self, kobel_str content);
+__kobel_eu_none__std__filesystem__FsErr std__filesystem__Path_remove(std__filesystem__Path* self);
+__kobel_eu_str__std__filesystem__FsErr std__filesystem__Path_read_text(std__filesystem__Path* self);
+__kobel_eu_none__std__filesystem__FsErr std__filesystem__Path_write_text(std__filesystem__Path* self, kobel_str content);
 void std__process__Process_exit(int32_t code);
 test__static_methods__Point test__static_methods__Point_init(int32_t x, int32_t y);
 test__static_methods__Point test__static_methods__Point_create(int32_t x, int32_t y);
@@ -347,7 +793,17 @@ test__static_methods__Point test__static_methods__Point_make_zero(void);
 int32_t test__static_methods__Point_length_squared(test__static_methods__Point* self);
 int32_t test__static_methods__run_tests(void);
 static void __kobel_user_main(void);
-uint8_t* std__memory__Heap_create_u8(size_t count);
+void std__memory__Heap_free_u8(uint8_t* ptr);
+__kobel_eu_mut_ptr_u8__std__memory__MemErr std__memory__Heap_try_create_u8(size_t count);
+
+__kobel_eu_mut_ptr_u8__std__memory__MemErr std__memory__Heap_try_alloc(size_t size) {
+size_t req = size == 0 ? (size_t)1 : size;
+uint8_t* raw = malloc(req);
+if (raw == NULL) {
+return (__kobel_eu_mut_ptr_u8__std__memory__MemErr){ .is_ok = false, .u = { .err = (std__memory__MemErr){ .tag = 0, .__err_code = 1U, .__origin = { "lib/std/memory/heap.kb", 30, 41, "Heap_try_alloc" } } } };
+}
+return (__kobel_eu_mut_ptr_u8__std__memory__MemErr){ .is_ok = true, .u = { .ok = raw } };
+}
 
 kobel_str std__string__str_from_bytes(uint8_t* buf, size_t len) {
 std__string__StrRaw r = (std__string__StrRaw){ (const char*)buf, len };
@@ -355,46 +811,130 @@ kobel_str* sp = (kobel_str*)&r;
 return *sp;
 }
 
+std__filesystem__FsErr std__filesystem__fs_err_from_code(int32_t code) {
+    return code == 1 ? (std__filesystem__FsErr){ .tag = 0, .__err_code = 6U, .__origin = { "lib/std/filesystem/file.kb", 42, 12, "fs_err_from_code" } } : code == 2 ? (std__filesystem__FsErr){ .tag = 1, .__err_code = 7U, .__origin = { "lib/std/filesystem/file.kb", 43, 12, "fs_err_from_code" } } : code == 3 ? (std__filesystem__FsErr){ .tag = 2, .__err_code = 8U, .__origin = { "lib/std/filesystem/file.kb", 44, 12, "fs_err_from_code" } } : code == 4 ? (std__filesystem__FsErr){ .tag = 3, .__err_code = 9U, .__origin = { "lib/std/filesystem/file.kb", 45, 12, "fs_err_from_code" } } : code == 5 ? (std__filesystem__FsErr){ .tag = 4, .__err_code = 10U, .__origin = { "lib/std/filesystem/file.kb", 46, 12, "fs_err_from_code" } } : code == 6 ? (std__filesystem__FsErr){ .tag = 5, .__err_code = 11U, .__origin = { "lib/std/filesystem/file.kb", 47, 12, "fs_err_from_code" } } : code == 7 ? (std__filesystem__FsErr){ .tag = 10, .__err_code = 16U, .__origin = { "lib/std/filesystem/file.kb", 48, 12, "fs_err_from_code" } } : (std__filesystem__FsErr){ .tag = 11, .__err_code = 17U, .__origin = { "lib/std/filesystem/file.kb", 49, 15, "fs_err_from_code" } };
+}
+
+__kobel_eu_std__filesystem__File__std__filesystem__FsErr std__filesystem__File_open(kobel_str path, kobel_str mode) {
+int32_t err_code = 0;
+void* f = kobel_fs_fopen(path, mode, &err_code);
+if (f == NULL) {
+return (__kobel_eu_std__filesystem__File__std__filesystem__FsErr){ .is_ok = false, .u = { .err = std__filesystem__fs_err_from_code(err_code) } };
+}
+return (__kobel_eu_std__filesystem__File__std__filesystem__FsErr){ .is_ok = true, .u = { .ok = (std__filesystem__File){ f } } };
+}
+
+void std__filesystem__File_close(std__filesystem__File* self) {
+if (self->handle != NULL) {
+fclose(self->handle);
+self->handle = NULL;
+}
+}
+
+__kobel_eu_none__std__filesystem__FsErr std__filesystem__File_write_all(std__filesystem__File* self, kobel_str content) {
+if (self->handle == NULL) {
+return (__kobel_eu_none__std__filesystem__FsErr){ .is_ok = false, .u = { .err = (std__filesystem__FsErr){ .tag = 6, .__err_code = 12U, .__origin = { "lib/std/filesystem/file.kb", 110, 40, "File_write_all" } } } };
+}
+if (content.len == 0) {
+return (__kobel_eu_none__std__filesystem__FsErr){ .is_ok = true };
+}
+size_t written = fwrite(content.data, 1, content.len, self->handle);
+if (written != content.len) {
+return (__kobel_eu_none__std__filesystem__FsErr){ .is_ok = false, .u = { .err = (std__filesystem__FsErr){ .tag = 8, .__err_code = 14U, .__origin = { "lib/std/filesystem/file.kb", 113, 43, "File_write_all" } } } };
+}
+    return (__kobel_eu_none__std__filesystem__FsErr){ .is_ok = true };
+}
+
+__kobel_eu_str__std__filesystem__FsErr std__filesystem__File_read_all(std__filesystem__File* self) {
+if (self->handle == NULL) {
+return (__kobel_eu_str__std__filesystem__FsErr){ .is_ok = false, .u = { .err = (std__filesystem__FsErr){ .tag = 6, .__err_code = 12U, .__origin = { "lib/std/filesystem/file.kb", 117, 40, "File_read_all" } } } };
+}
+int64_t cur = ftell(self->handle);
+if (cur < 0) {
+return (__kobel_eu_str__std__filesystem__FsErr){ .is_ok = false, .u = { .err = (std__filesystem__FsErr){ .tag = 9, .__err_code = 15U, .__origin = { "lib/std/filesystem/file.kb", 120, 28, "File_read_all" } } } };
+}
+if (fseek(self->handle, 0, 2) != 0) {
+return (__kobel_eu_str__std__filesystem__FsErr){ .is_ok = false, .u = { .err = (std__filesystem__FsErr){ .tag = 9, .__err_code = 15U, .__origin = { "lib/std/filesystem/file.kb", 121, 50, "File_read_all" } } } };
+}
+int64_t end_pos = ftell(self->handle);
+if (end_pos < 0) {
+fseek(self->handle, cur, 0);
+return (__kobel_eu_str__std__filesystem__FsErr){ .is_ok = false, .u = { .err = (std__filesystem__FsErr){ .tag = 9, .__err_code = 15U, .__origin = { "lib/std/filesystem/file.kb", 125, 16, "File_read_all" } } } };
+}
+if (fseek(self->handle, cur, 0) != 0) {
+return (__kobel_eu_str__std__filesystem__FsErr){ .is_ok = false, .u = { .err = (std__filesystem__FsErr){ .tag = 9, .__err_code = 15U, .__origin = { "lib/std/filesystem/file.kb", 127, 52, "File_read_all" } } } };
+}
+if (end_pos <= cur) {
+return (__kobel_eu_str__std__filesystem__FsErr){ .is_ok = true, .u = { .ok = KOBEL_STR("") } };
+}
+size_t sz = (size_t)(end_pos - cur);
+uint8_t* buf;
+{
+__kobel_eu_mut_ptr_u8__std__memory__MemErr __eu_src_1 = std__memory__Heap_try_create_u8(sz + 1);
+if (__eu_src_1.is_ok) {
+buf = __eu_src_1.u.ok;
+} else {
+return (__kobel_eu_str__std__filesystem__FsErr){ .is_ok = false, .u = { .err = (std__filesystem__FsErr){ .tag = 10, .__err_code = 16U, .__origin = { "lib/std/filesystem/file.kb", 131, 56, "File_read_all" } } } };
+}
+}
+size_t read_bytes = fread(buf, 1, sz, self->handle);
+if (kobel_fs_stream_err(self->handle) != 0) {
+std__memory__Heap_free_u8(buf);
+return (__kobel_eu_str__std__filesystem__FsErr){ .is_ok = false, .u = { .err = (std__filesystem__FsErr){ .tag = 7, .__err_code = 13U, .__origin = { "lib/std/filesystem/file.kb", 136, 16, "File_read_all" } } } };
+}
+buf[read_bytes] = 0;
+return (__kobel_eu_str__std__filesystem__FsErr){ .is_ok = true, .u = { .ok = std__string__str_from_bytes(buf, read_bytes) } };
+}
+
 bool std__filesystem__Path_exists(std__filesystem__Path* self) {
     return kobel_path_exists(self->raw) != 0;
 }
 
-bool std__filesystem__Path_remove(std__filesystem__Path* self) {
-    return remove(kobel_cstr(self->raw)) == 0;
+__kobel_eu_none__std__filesystem__FsErr std__filesystem__Path_remove(std__filesystem__Path* self) {
+int32_t rc = kobel_fs_remove(self->raw);
+if (rc != 0) {
+return (__kobel_eu_none__std__filesystem__FsErr){ .is_ok = false, .u = { .err = std__filesystem__fs_err_from_code(rc) } };
+}
+    return (__kobel_eu_none__std__filesystem__FsErr){ .is_ok = true };
 }
 
-kobel_str std__filesystem__Path_read_text(std__filesystem__Path* self) {
-void* f = fopen(kobel_cstr(self->raw), "rb");
-if (f == NULL) {
-return KOBEL_STR("");
+__kobel_eu_str__std__filesystem__FsErr std__filesystem__Path_read_text(std__filesystem__Path* self) {
+__kobel_eu_std__filesystem__File__std__filesystem__FsErr __eu_prop_3 = std__filesystem__File_open(self->raw, KOBEL_STR("rb"));
+if (!__eu_prop_3.is_ok) {
+return (__kobel_eu_str__std__filesystem__FsErr){ .is_ok = false, .u = { .err = __eu_prop_3.u.err } };
 }
-fseek(f, 0, 2);
-int64_t size_i64 = ftell(f);
-if (size_i64 <= 0) {
-fclose(f);
-return KOBEL_STR("");
+std__filesystem__File f = __eu_prop_3.u.ok;
+__kobel_eu_str__std__filesystem__FsErr __eu_prop_4 = std__filesystem__File_read_all(&f);
+if (!__eu_prop_4.is_ok) {
+{
+__kobel_eu_str__std__filesystem__FsErr __ret_tmp = (__kobel_eu_str__std__filesystem__FsErr){ .is_ok = false, .u = { .err = __eu_prop_4.u.err } };
+std__filesystem__File_close(&f);
+return __ret_tmp;
 }
-fseek(f, 0, 0);
-size_t sz = (size_t)size_i64;
-uint8_t* buf = std__memory__Heap_create_u8(sz + 1);
-if (buf == NULL) {
-fclose(f);
-return KOBEL_STR("");
 }
-size_t read_bytes = fread(buf, 1, sz, f);
-fclose(f);
-buf[read_bytes] = 0;
-return std__string__str_from_bytes(buf, read_bytes);
+{
+__kobel_eu_str__std__filesystem__FsErr __ret_tmp = (__kobel_eu_str__std__filesystem__FsErr){ .is_ok = true, .u = { .ok = __eu_prop_4.u.ok } };
+std__filesystem__File_close(&f);
+return __ret_tmp;
+}
 }
 
-bool std__filesystem__Path_write_text(std__filesystem__Path* self, kobel_str content) {
-void* f = fopen(kobel_cstr(self->raw), "wb");
-if (f == NULL) {
-return false;
+__kobel_eu_none__std__filesystem__FsErr std__filesystem__Path_write_text(std__filesystem__Path* self, kobel_str content) {
+__kobel_eu_std__filesystem__File__std__filesystem__FsErr __eu_prop_5 = std__filesystem__File_open(self->raw, KOBEL_STR("wb"));
+if (!__eu_prop_5.is_ok) {
+return (__kobel_eu_none__std__filesystem__FsErr){ .is_ok = false, .u = { .err = __eu_prop_5.u.err } };
 }
-size_t written = fwrite(content.data, 1, content.len, f);
-fclose(f);
-return written == content.len;
+std__filesystem__File f = __eu_prop_5.u.ok;
+__kobel_eu_none__std__filesystem__FsErr __eu_prop_6 = std__filesystem__File_write_all(&f, content);
+if (!__eu_prop_6.is_ok) {
+{
+__kobel_eu_none__std__filesystem__FsErr __ret_tmp = (__kobel_eu_none__std__filesystem__FsErr){ .is_ok = false, .u = { .err = __eu_prop_6.u.err } };
+std__filesystem__File_close(&f);
+return __ret_tmp;
+}
+}
+std__filesystem__File_close(&f);
+    return (__kobel_eu_none__std__filesystem__FsErr){ .is_ok = true };
 }
 
 void std__process__Process_exit(int32_t code) {
@@ -460,22 +1000,39 @@ return 7;
 kobel_str tmp_test = KOBEL_STR("build/test_static_file.tmp");
 std__filesystem__Path p = (std__filesystem__Path){ tmp_test };
 if (std__filesystem__Path_exists(&p)) {
-std__filesystem__Path_remove(&p);
+{
+__kobel_eu_none__std__filesystem__FsErr __eu_src_2 = std__filesystem__Path_remove(&p);
+if (!__eu_src_2.is_ok) {
+return 7;
 }
-bool w_ok = std__filesystem__Path_write_text(&p, KOBEL_STR("hello static file"));
-if (!w_ok) {
+}
+}
+{
+__kobel_eu_none__std__filesystem__FsErr __eu_src_3 = std__filesystem__Path_write_text(&p, KOBEL_STR("hello static file"));
+if (!__eu_src_3.is_ok) {
 return 8;
+}
 }
 if (!std__filesystem__Path_exists(&p)) {
 return 9;
 }
-kobel_str read_str = std__filesystem__Path_read_text(&p);
+kobel_str read_str;
+{
+__kobel_eu_str__std__filesystem__FsErr __eu_src_4 = std__filesystem__Path_read_text(&p);
+if (__eu_src_4.is_ok) {
+read_str = __eu_src_4.u.ok;
+} else {
+return 10;
+}
+}
 if (!kobel_streq(read_str, KOBEL_STR("hello static file"))) {
 return 10;
 }
-bool rem_ok = std__filesystem__Path_remove(&p);
-if (!rem_ok) {
+{
+__kobel_eu_none__std__filesystem__FsErr __eu_src_5 = std__filesystem__Path_remove(&p);
+if (!__eu_src_5.is_ok) {
 return 11;
+}
 }
 if (std__filesystem__Path_exists(&p)) {
 return 12;
@@ -494,7 +1051,17 @@ int main(void) {
     return 0;
 }
 
-uint8_t* std__memory__Heap_create_u8(size_t count) {
-    return (uint8_t*)malloc(count * 1);
+void std__memory__Heap_free_u8(uint8_t* ptr) {
+    free((uint8_t*)ptr);
+}
+
+__kobel_eu_mut_ptr_u8__std__memory__MemErr std__memory__Heap_try_create_u8(size_t count) {
+size_t bytes = count * 1;
+__kobel_eu_mut_ptr_u8__std__memory__MemErr __eu_prop_9 = std__memory__Heap_try_alloc(bytes);
+if (!__eu_prop_9.is_ok) {
+return (__kobel_eu_mut_ptr_u8__std__memory__MemErr){ .is_ok = false, .u = { .err = __eu_prop_9.u.err } };
+}
+uint8_t* raw = __eu_prop_9.u.ok;
+return (__kobel_eu_mut_ptr_u8__std__memory__MemErr){ .is_ok = true, .u = { .ok = (uint8_t*)raw } };
 }
 

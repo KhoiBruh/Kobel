@@ -85,9 +85,12 @@ impl CompileOptions {
 	pub fn compile_with_arena(*self, arena: Arena): !CompilerErr {
 		val input_path = self.input_path;
 		val in_p = Path(input_path);
-		val src = in_p.read_text();
+		val src = in_p.read_text() !: err -> {
+			println("Error: Could not read source file '${input_path}' (${err})");
+			return CompilerErr.SourceReadFailed;
+		};
 		if (src.empty()) {
-			println("Error: Could not read source file or file is empty: ${input_path}");
+			println("Error: Source file is empty: ${input_path}");
 			return CompilerErr.SourceReadFailed;
 		}
 
@@ -99,21 +102,22 @@ impl CompileOptions {
 		 * implementations live in `std.traits`. Load `std.traits` and `std.string`
 		 * whenever available so primitive formatting methods exist automatically.
 		 */
-		if (loader.find_module("std.traits").found) loader.ensure_module("std.traits");
-		if (loader.find_module("std.string").found) loader.ensure_module("std.string");
-		if (loader.find_module("std.range").found) loader.ensure_module("std.range");
+		if (loader.has_module("std.traits")) loader.ensure_module("std.traits");
+		if (loader.has_module("std.string")) loader.ensure_module("std.string");
+		if (loader.has_module("std.range")) loader.ensure_module("std.range");
 
-		val loaded_prog = loader.load_program(input_path, src);
+		val prog = loader.load_program(input_path, src) !: {
+			if (!loader.errors.empty()) {
+				print_diagnostics(loader.errors, input_path, &loader);
+			} else {
+				println("Error: Could not parse source file: ${input_path}");
+			}
+			return CompilerErr.LexParseFailed;
+		};
 		if (!loader.errors.empty()) {
 			print_diagnostics(loader.errors, input_path, &loader);
 			return CompilerErr.LexParseFailed;
 		}
-		if (loaded_prog == null) {
-			println("Error: Could not parse source file: ${input_path}");
-			return CompilerErr.LexParseFailed;
-		}
-
-		val prog = loaded_prog!;
 		val mod_count = loader.count();
 		if (!self.quiet) println("  ${mod_count} module(s) loaded");
 		loader.cleanup();
@@ -150,11 +154,10 @@ impl CompileOptions {
 
 		if (self.only_emit_c) {
 			val emit_p = Path(self.emit_c_path);
-			val ok = emit_p.write_text(c_code);
-			if (!ok) {
-				println("Error: Failed to write output file: ${self.emit_c_path}");
+			emit_p.write_text(c_code) !: err -> {
+				println("Error: Failed to write output file '${self.emit_c_path}' (${err})");
 				return CompilerErr.OutputWriteFailed;
-			}
+			};
 			if (!self.quiet) println("[SUCCESS] C99 source written to ${self.emit_c_path}");
 			return;
 		}
@@ -165,22 +168,31 @@ impl CompileOptions {
 
 		val out_p = Path(out_path);
 		val out_dir = out_p.parent();
-		if (!out_dir.empty() && !out_dir.exists()) out_dir.create_dir_all();
+		if (!out_dir.empty() && !out_dir.exists()) {
+			out_dir.create_dir_all() !: err -> {
+				println("Error: Failed to create output directory '${out_dir.raw}' (${err})");
+				return CompilerErr.OutputWriteFailed;
+			};
+		}
 
 		val build_dir = Path("build");
-		if (!build_dir.exists()) build_dir.create_dir_all();
+		if (!build_dir.exists()) {
+			build_dir.create_dir_all() !: err -> {
+				println("Error: Failed to create build directory (${err})");
+				return CompilerErr.OutputWriteFailed;
+			};
+		}
 
 		val base_name = out_p.file_name();
 		val c_tmp_p = build_dir.join("${base_name}.tmp.c");
 		val obj_tmp_p = build_dir.join("${base_name}.tmp.obj");
 		val stage_p = Path("${out_path}.new");
-		if (stage_p.exists()) stage_p.remove();
+		if (stage_p.exists()) stage_p.remove() !: {};
 
-		val write_ok = c_tmp_p.write_text(c_code);
-		if (!write_ok) {
-			println("Error: Failed to write temporary C file: ${c_tmp_p.raw}");
+		c_tmp_p.write_text(c_code) !: err -> {
+			println("Error: Failed to write temporary C file '${c_tmp_p.raw}' (${err})");
 			return CompilerErr.OutputWriteFailed;
-		}
+		};
 
 		if (!self.quiet) println("[BUILDING] Invoking backend compiler (${self.c_compiler})...");
 
@@ -188,9 +200,14 @@ impl CompileOptions {
 		// executable, and the linker must not have to overwrite a running image.
 		var compile_cmd = c_compile_cmd(c_tmp_p.raw, stage_p.raw, self.c_compiler, self.quiet);
 
-		val exit_code = Process.exec(compile_cmd);
+		val exit_code = Process.exec(compile_cmd) !: err -> {
+			if (stage_p.exists()) stage_p.remove() !: {};
+			println("Error: Could not launch backend C compiler '${self.c_compiler}' (${err})");
+			println("  cmd was '${compile_cmd}'");
+			return CompilerErr.BackendFailed;
+		};
 		if (exit_code != 0 || !stage_p.exists()) {
-			stage_p.remove();
+			if (stage_p.exists()) stage_p.remove() !: {};
 			if (exit_code != 0) {
 				println("Error: Backend C compiler failed with exit code ${exit_code}:");
 			} else {
@@ -204,18 +221,21 @@ impl CompileOptions {
 		// previous image; if the swap fails the old executable is restored.
 		val old_p = Path("${out_path}.old");
 		if (out_p.exists()) {
-			if (old_p.exists()) old_p.remove();
-			out_p.rename_to(old_p);
+			if (old_p.exists()) old_p.remove() !: {};
+			out_p.rename_to(old_p) !: err -> {
+				println("Error: Could not back up existing executable '${out_path}' (${err})");
+				return CompilerErr.ExecutableInstallFailed;
+			};
 		}
-		if (!stage_p.rename_to(out_p)) {
-			if (old_p.exists() && !out_p.exists()) old_p.rename_to(out_p);
-			println("Error: Could not move the new executable into place: ${out_path}");
+		stage_p.rename_to(out_p) !: err -> {
+			if (old_p.exists() && !out_p.exists()) old_p.rename_to(out_p) !: {};
+			println("Error: Could not move the new executable into place: ${out_path} (${err})");
 			return CompilerErr.ExecutableInstallFailed;
-		}
+		};
 
-		c_tmp_p.remove();
-		obj_tmp_p.remove();
-		old_p.remove();
+		if (c_tmp_p.exists()) c_tmp_p.remove() !: {};
+		if (obj_tmp_p.exists()) obj_tmp_p.remove() !: {};
+		if (old_p.exists()) old_p.remove() !: {};
 
 		if (!self.quiet) println("[SUCCESS] Executable created: ${out_path}");
 	}

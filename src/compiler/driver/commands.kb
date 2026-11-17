@@ -25,7 +25,8 @@ fn str_before(a: str, b: str): bool {
 
 pub fn collect_kb_files(dir: str, prefix: str, out: &List<str>) {
 	val dir_p = Path(dir);
-	val entries = dir_p.list_dir();
+	if (!dir_p.is_dir()) return;
+	val entries = dir_p.list_dir() !: return;
 	defer entries.free();
 
 	if (entries.empty()) return;
@@ -56,7 +57,7 @@ pub fn collect_kb_files(dir: str, prefix: str, out: &List<str>) {
 
 pub fn compute_project_stamp(cfg: ProjectConfig, manifest_path: str): str {
 	val man_p = Path(manifest_path);
-	var stamp_seed = man_p.read_text();
+	var stamp_seed = man_p.read_text() !: "";
 	val entry_p = Path(cfg.entry);
 	val entry_dir = entry_p.parent();
 	val root_dir = if (!entry_dir.empty()) entry_dir.raw else "src";
@@ -67,25 +68,35 @@ pub fn compute_project_stamp(cfg: ProjectConfig, manifest_path: str): str {
 	if (!files.empty()) {
 		for (fpath in files) {
 			val fp = Path(fpath);
-			val content = fp.read_text();
+			val content = fp.read_text() !: "";
 			stamp_seed = "${stamp_seed}:${content.hash_stamp()}";
 		}
 	} else {
 		val entry_p = Path(cfg.entry);
-		stamp_seed += entry_p.read_text();
+		stamp_seed += entry_p.read_text() !: "";
 	}
 
 	return stamp_seed.hash_stamp();
 }
 
-pub fn cmd_build(manifest_path: str): !CompilerErr {
-	val man_p = Path(manifest_path);
-	if (!man_p.exists()) {
-		println("Error: Project manifest '${manifest_path}' not found.");
+pub fn load_project_config_required(manifest_path: str): ProjectConfig ! CompilerErr {
+	return ProjectConfig.load(manifest_path) !: err -> {
+		println("Error: Could not load '${manifest_path}' (${err}).");
 		return CompilerErr.ManifestNotFound;
-	}
+	};
+}
 
-	val cfg = ProjectConfig(manifest_path);
+pub fn load_project_config_optional(manifest_path: str): ProjectConfig ! CompilerErr {
+	val man_p = Path(manifest_path);
+	if (!man_p.exists()) return ProjectConfig();
+	return ProjectConfig.load(manifest_path) !: err -> {
+		println("Error: Invalid '${manifest_path}' (${err}).");
+		return CompilerErr.ManifestNotFound;
+	};
+}
+
+pub fn cmd_build(manifest_path: str): !CompilerErr {
+	val cfg = load_project_config_required(manifest_path)?;
 	println("Building ${cfg.name} v${cfg.version} [${cfg.entry} -> ${cfg.output}]...");
 
 	var opts = CompileOptions();
@@ -95,23 +106,30 @@ pub fn cmd_build(manifest_path: str): !CompilerErr {
 
 	opts.compile()?;
 	val build_dir = Path("build");
-	if (!build_dir.exists()) build_dir.create_dir_all();
+	if (!build_dir.exists()) {
+		build_dir.create_dir_all() !: err -> {
+			println("Error: Failed to create build directory (${err}).");
+			return CompilerErr.OutputWriteFailed;
+		};
+	}
 	val stamp_p = build_dir.join(".kobel_stamp");
 	val stamp = compute_project_stamp(cfg, manifest_path);
-	stamp_p.write_text(stamp);
+	stamp_p.write_text(stamp) !: err -> {
+		println("Error: Failed to write build stamp (${err}).");
+		return CompilerErr.OutputWriteFailed;
+	};
 	println("[SUCCESS] Build complete: ${cfg.output}");
 }
 
 pub fn cmd_run(manifest_path: str, extra_args: List<str>): !CompilerErr {
-	val man_p = Path(manifest_path);
-	if (!man_p.exists()) {
-		println("Error: Project manifest '${manifest_path}' not found.");
-		return CompilerErr.ManifestNotFound;
-	}
-
-	val cfg = ProjectConfig(manifest_path);
+	val cfg = load_project_config_required(manifest_path)?;
 	val build_dir = Path("build");
-	if (!build_dir.exists()) build_dir.create_dir_all();
+	if (!build_dir.exists()) {
+		build_dir.create_dir_all() !: err -> {
+			println("Error: Failed to create build directory (${err}).");
+			return CompilerErr.OutputWriteFailed;
+		};
+	}
 	val stamp_p = build_dir.join(".kobel_stamp");
 	val current_stamp = compute_project_stamp(cfg, manifest_path);
 
@@ -126,7 +144,8 @@ pub fn cmd_run(manifest_path: str, extra_args: List<str>): !CompilerErr {
 			yield true;
 		}
 		else -> {
-			val saved_stamp = stamp_p.read_text().trim();
+			val saved_raw = stamp_p.read_text() !: "";
+			val saved_stamp = saved_raw.trim();
 			if (saved_stamp != current_stamp) {
 				println("Source changes detected. Rebuilding...");
 				yield true;
@@ -147,7 +166,7 @@ pub fn cmd_run(manifest_path: str, extra_args: List<str>): !CompilerErr {
 		System.is_windows()
 		&& !out_bin.starts_with(".")
 		&& !out_bin.starts_with("\\")
-		&& out_bin.index_of(":") < 0
+		&& ":" !in out_bin
 	) out_bin = ".\\${out_bin}";
 	else if (
 		!out_bin.starts_with(".")
@@ -160,7 +179,10 @@ pub fn cmd_run(manifest_path: str, extra_args: List<str>): !CompilerErr {
 		else "${run_cmd} ${arg}";
 	}
 
-	val run_res = Process.exec(run_cmd);
+	val run_res = Process.exec(run_cmd) !: err -> {
+		println("Error: Failed to launch target '${cfg.output}' (${err}).");
+		return CompilerErr.SubprocessFailed;
+	};
 	if (run_res != 0) return CompilerErr.SubprocessFailed;
 }
 
@@ -171,9 +193,7 @@ pub fn discover_test_files(test_dir: str): List<str> {
 }
 
 pub fn cmd_test(manifest_path: str, filter: str): !CompilerErr {
-	val man_p = Path(manifest_path);
-	val cfg = if (man_p.exists()) ProjectConfig(manifest_path)
-			else ProjectConfig();
+	val cfg = load_project_config_optional(manifest_path)?;
 
 	val all_tests = discover_test_files(cfg.test_dir);
 	val active_tests = all_tests.filter { t -> filter.empty() || filter in t };
@@ -193,7 +213,12 @@ pub fn cmd_test(manifest_path: str, filter: str): !CompilerErr {
 	var failed_names = List<str>();
 
 	val build_dir = Path("build");
-	if (!build_dir.exists()) build_dir.create_dir_all();
+	if (!build_dir.exists()) {
+		build_dir.create_dir_all() !: err -> {
+			println("Error: Failed to create build directory (${err}).");
+			return CompilerErr.OutputWriteFailed;
+		};
+	}
 
 	for (tpath in active_tests) {
 		print("[*] ${tpath} ... ");
@@ -231,12 +256,16 @@ pub fn cmd_test(manifest_path: str, filter: str): !CompilerErr {
 			val bin_str = if (" " in posix_bin) "\"${posix_bin}\"" else posix_bin;
 			run_cmd = "${bin_str} >/dev/null 2>&1";
 		}
-		val test_res = Process.exec(run_cmd);
+		var spawn_ok = true;
+		val test_res = Process.exec(run_cmd) !: {
+			spawn_ok = false;
+			yield -1;
+		};
 
 		// Clean up the temporary test binary
-		test_bin_p.remove();
+		if (test_bin_p.exists()) test_bin_p.remove() !: {};
 
-		if (test_res == 0) {
+		if (spawn_ok && test_res == 0) {
 			println("PASS");
 			pass_count++;
 		} else {
@@ -248,7 +277,7 @@ pub fn cmd_test(manifest_path: str, filter: str): !CompilerErr {
 
 	println("""
 		============================================================
-		                      TEST SUMMARY                          
+		                      TEST SUMMARY
 		============================================================
 		Passed: ${pass_count}
 		Failed: ${fail_count}
@@ -302,12 +331,11 @@ pub fn snap_name(path: str): str => path.map_chars { c ->
 pub fn snapshot_as_text(src: str): bool => src.starts_with("tests/features/");
 
 pub fn cmd_snap(manifest_path: str, update: bool): !CompilerErr {
-	val man_p = Path(manifest_path);
-	val cfg = if (man_p.exists()) ProjectConfig(manifest_path) else ProjectConfig();
+	val cfg = load_project_config_optional(manifest_path)?;
 	val golden_dir = Path("tests/golden");
 	val tmp_dir = Path("build/snap");
-	if (!golden_dir.exists()) golden_dir.create_dir_all();
-	if (!tmp_dir.exists()) tmp_dir.create_dir_all();
+	if (!golden_dir.exists()) golden_dir.create_dir_all() !: return CompilerErr.OutputWriteFailed;
+	if (!tmp_dir.exists()) tmp_dir.create_dir_all() !: return CompilerErr.OutputWriteFailed;
 
 	val corpus = snap_corpus(cfg.test_dir);
 	println("============================================================");
@@ -337,7 +365,11 @@ pub fn cmd_snap(manifest_path: str, update: bool): !CompilerErr {
 			continue;
 		}
 
-		val c_text = c_p.read_text();
+		val c_text = c_p.read_text() !: {
+			println("FAIL (could not read emitted C)");
+			fail_count++;
+			continue;
+		};
 		val digest = c_text.hash_stamp();
 		val as_text = snapshot_as_text(src);
 		val golden_txt_p = golden_dir.join("${flat}.txt");
@@ -346,11 +378,11 @@ pub fn cmd_snap(manifest_path: str, update: bool): !CompilerErr {
 
 		if (update) {
 			if (as_text) {
-				golden_c_p.write_text(c_text);
-				if (golden_txt_p.exists()) golden_txt_p.remove();
+				golden_c_p.write_text(c_text) !: return CompilerErr.OutputWriteFailed;
+				if (golden_txt_p.exists()) golden_txt_p.remove() !: {};
 			} else {
-				golden_txt_p.write_text("${digest}\n");
-				if (golden_c_p.exists()) golden_c_p.remove();
+				golden_txt_p.write_text("${digest}\n") !: return CompilerErr.OutputWriteFailed;
+				if (golden_c_p.exists()) golden_c_p.remove() !: {};
 			}
 			println("UPDATED");
 			continue;
@@ -362,7 +394,12 @@ pub fn cmd_snap(manifest_path: str, update: bool): !CompilerErr {
 			continue;
 		}
 
-		val expected = if (as_text) golden_c_p.read_text() else golden_txt_p.read_text().trim();
+		val expected_raw = golden_p.read_text() !: {
+			println("FAIL (could not read golden)");
+			fail_count++;
+			continue;
+		};
+		val expected = if (as_text) expected_raw else expected_raw.trim();
 		val actual = if (as_text) c_text else digest;
 		if (expected == actual) println("PASS");
 		else {
@@ -386,10 +423,9 @@ pub fn cmd_snap(manifest_path: str, update: bool): !CompilerErr {
 }
 
 pub fn cmd_fixpoint(manifest_path: str): !CompilerErr {
-	val man_p = Path(manifest_path);
-	val cfg = if (man_p.exists()) ProjectConfig(manifest_path) else ProjectConfig();
+	val cfg = load_project_config_optional(manifest_path)?;
 	val dir = Path("build/fixpoint");
-	if (!dir.exists()) dir.create_dir_all();
+	if (!dir.exists()) dir.create_dir_all() !: return CompilerErr.OutputWriteFailed;
 
 	val s1_p = dir.join("stage1.c");
 	val s2_p = dir.join("stage2.c");
@@ -411,8 +447,11 @@ pub fn cmd_fixpoint(manifest_path: str): !CompilerErr {
 	}
 
 	println("[2/3] Building the second-generation compiler...");
-	s2_exe_p.remove();
-	val compile_res = Process.exec(c_compile_cmd(s1_p.raw, s2_exe_p.raw, cfg.cc, true));
+	if (s2_exe_p.exists()) s2_exe_p.remove() !: {};
+	val compile_res = Process.exec(c_compile_cmd(s1_p.raw, s2_exe_p.raw, cfg.cc, true)) !: {
+		println("[ERROR] Failed to launch backend compiler '${cfg.cc}'.");
+		return CompilerErr.BackendFailed;
+	};
 	if (compile_res != 0 || !s2_exe_p.exists()) {
 		println("[ERROR] Backend compiler did not produce '${s2_exe_p.raw}'.");
 		return CompilerErr.BackendFailed;
@@ -424,14 +463,17 @@ pub fn cmd_fixpoint(manifest_path: str): !CompilerErr {
 		run_exe = "./${run_exe}";
 	}
 	if (" " in run_exe) run_exe = "\"${run_exe}\"";
-	val exit_code = Process.exec("${run_exe} ${cfg.entry} -emit-c ${s2_p.raw}");
+	val exit_code = Process.exec("${run_exe} ${cfg.entry} -emit-c ${s2_p.raw}") !: {
+		println("[ERROR] Failed to launch second-generation compiler '${s2_exe_p.raw}'.");
+		return CompilerErr.SubprocessFailed;
+	};
 	if (exit_code != 0) {
 		println("[ERROR] Second-generation compiler failed (exit ${exit_code}).");
 		return CompilerErr.SubprocessFailed;
 	}
 
-	val first = s1_p.read_text();
-	val second = s2_p.read_text();
+	val first = s1_p.read_text() !: return CompilerErr.SourceReadFailed;
+	val second = s2_p.read_text() !: return CompilerErr.SourceReadFailed;
 	if (first == second) {
 		println("[SUCCESS] Fixpoint reached: stage1.c == stage2.c (${first.len} bytes).");
 		return;

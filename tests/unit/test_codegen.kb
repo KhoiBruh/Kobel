@@ -55,8 +55,10 @@ fn test_end_to_end_codegen() {
 
 	// Write the C code to a file so it can be compiled natively
 	val out_p = Path("build/sample_pipeline_output.c");
-	val ok_write = out_p.write_text(c_code);
-	assert_true(ok_write, "Must write generated C code to file");
+	out_p.write_text(c_code) !: {
+		assert_true(false, "Must write generated C code to file");
+		return;
+	};
 
 	println("  [PASS] test_end_to_end_codegen");
 }

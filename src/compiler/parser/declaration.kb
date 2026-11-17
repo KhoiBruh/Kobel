@@ -88,7 +88,7 @@ impl Parser {
 			params += Param(pname.text, ptype, receiver, p_default);
 
 			while (self.match_token(TokenType.COMMA)) {
-				if (params.last().type_node is VariadicType) {
+				if (params.last()!.type_node is VariadicType) {
 					self.error(self.peek(), "Variadic parameter '..T' must be the last parameter in the function declaration");
 				}
 

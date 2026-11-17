@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
+#include <errno.h>
 
 #ifdef _WIN32
 #include <io.h>
@@ -141,77 +142,6 @@ static inline void kobel_path_buf_free(kobel_path_buf* pb) {
 	}
 }
 
-/* Directory listing helper — returns newline-separated filenames */
-static kobel_str kobel_list_dir(kobel_str dir_path) {
-#ifdef _WIN32
-	if (!dir_path.data || dir_path.len == 0) return (kobel_str){ NULL, 0 };
-	char stack_pat[1024];
-	char* pattern = stack_pat;
-	if (dir_path.len + 3 > sizeof(stack_pat)) {
-		pattern = (char*)malloc(dir_path.len + 3);
-		if (!pattern) return (kobel_str){ NULL, 0 };
-	}
-	memcpy(pattern, dir_path.data, dir_path.len);
-	pattern[dir_path.len] = 92;
-	pattern[dir_path.len + 1] = '*';
-	pattern[dir_path.len + 2] = 0;
-
-	struct _finddata_t data;
-	intptr_t handle = _findfirst(pattern, &data);
-	if (pattern != stack_pat) free(pattern);
-	if (handle == -1) return (kobel_str){ NULL, 0 };
-
-	size_t cap = 1024;
-	size_t len = 0;
-	char* buf = (char*)malloc(cap);
-
-	do {
-		if (strcmp(data.name, ".") == 0 || strcmp(data.name, "..") == 0) continue;
-		size_t nlen = strlen(data.name);
-		while (len + nlen + 2 > cap) {
-			cap *= 2;
-			buf = (char*)realloc(buf, cap);
-		}
-		memcpy(buf + len, data.name, nlen);
-		len += nlen;
-		buf[len++] = 10;
-	} while (_findnext(handle, &data) == 0);
-
-	_findclose(handle);
-	buf[len] = 0;
-	return (kobel_str){ buf, len };
-#else
-	if (!dir_path.data || dir_path.len == 0) return (kobel_str){ NULL, 0 };
-	kobel_path_buf pb;
-	char* path = kobel_path_buf_init(&pb, dir_path);
-	if (!path) return (kobel_str){ NULL, 0 };
-
-	DIR* d = opendir(path);
-	kobel_path_buf_free(&pb);
-	if (!d) return (kobel_str){ NULL, 0 };
-
-	size_t cap = 1024;
-	size_t len = 0;
-	char* buf = (char*)malloc(cap);
-
-	struct dirent* ent;
-	while ((ent = readdir(d)) != NULL) {
-		if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0) continue;
-		size_t nlen = strlen(ent->d_name);
-		while (len + nlen + 2 > cap) {
-			cap *= 2;
-			buf = (char*)realloc(buf, cap);
-		}
-		memcpy(buf + len, ent->d_name, nlen);
-		len += nlen;
-		buf[len++] = 10;
-	}
-	closedir(d);
-	buf[len] = 0;
-	return (kobel_str){ buf, len };
-#endif
-}
-
 /* Platform-abstracted stat & mkdir helpers */
 #ifdef _WIN32
 typedef struct _stat kobel_stat_t;
@@ -258,24 +188,146 @@ static int kobel_path_is_file(kobel_str p) {
 #endif
 }
 
-static int kobel_create_dir(kobel_str dir_path) {
-	if (!dir_path.data || dir_path.len == 0) return 0;
-	kobel_path_buf pb;
-	char* path = kobel_path_buf_init(&pb, dir_path);
-	if (!path) return 0;
-	int res = kobel_mkdir(path);
-	kobel_path_buf_free(&pb);
-	if (res == 0) return 1;
-	return kobel_path_is_dir(dir_path);
+/* Maps C errno values to std.filesystem error kind codes (0 = none/unknown). */
+static inline int32_t kobel_errno_kind(void) {
+	switch (errno) {
+		case 0: return 0;
+#ifdef ENOENT
+		case ENOENT: return 1;
+#endif
+#ifdef EACCES
+		case EACCES: return 2;
+#endif
+#ifdef EPERM
+		case EPERM: return 2;
+#endif
+#ifdef EEXIST
+		case EEXIST: return 3;
+#endif
+#ifdef ENOTDIR
+		case ENOTDIR: return 4;
+#endif
+#ifdef EISDIR
+		case EISDIR: return 5;
+#endif
+#ifdef EINVAL
+		case EINVAL: return 6;
+#endif
+#ifdef ENAMETOOLONG
+		case ENAMETOOLONG: return 6;
+#endif
+#ifdef ENOMEM
+		case ENOMEM: return 7;
+#endif
+		default: return 8;
+	}
 }
 
-static int kobel_create_dir_all(kobel_str dir_path) {
-	if (!dir_path.data || dir_path.len == 0) return 1;
-	if (kobel_path_is_dir(dir_path)) return 1;
+static void* kobel_fs_fopen(kobel_str path, kobel_str mode, int32_t* err_out) {
+	if (!path.data || path.len == 0 || !mode.data || mode.len == 0) {
+		if (err_out) *err_out = 6;
+		return NULL;
+	}
+	kobel_path_buf pb;
+	kobel_path_buf mb;
+	char* p = kobel_path_buf_init(&pb, path);
+	if (!p) {
+		if (err_out) *err_out = 7;
+		return NULL;
+	}
+	char* m = kobel_path_buf_init(&mb, mode);
+	if (!m) {
+		kobel_path_buf_free(&pb);
+		if (err_out) *err_out = 7;
+		return NULL;
+	}
+	errno = 0;
+	FILE* f = fopen(p, m);
+	int saved_err = errno;
+	kobel_path_buf_free(&pb);
+	kobel_path_buf_free(&mb);
+	if (!f) {
+		errno = saved_err;
+		if (kobel_path_is_dir(path)) {
+			if (err_out) *err_out = 5;
+		} else {
+			int32_t k = kobel_errno_kind();
+			if (err_out) *err_out = k != 0 ? k : 8;
+		}
+		return NULL;
+	}
+	if (err_out) *err_out = 0;
+	return (void*)f;
+}
+
+static inline int32_t kobel_fs_stream_err(void* f) {
+	if (!f) return 9;
+	return ferror((FILE*)f) ? 8 : 0;
+}
+
+static int32_t kobel_fs_remove(kobel_str p) {
+	if (!p.data || p.len == 0) return 6;
+	kobel_path_buf pb;
+	char* path = kobel_path_buf_init(&pb, p);
+	if (!path) return 7;
+	errno = 0;
+	int rc = remove(path);
+	int saved_err = errno;
+	kobel_path_buf_free(&pb);
+	if (rc == 0) return 0;
+	errno = saved_err;
+	int32_t k = kobel_errno_kind();
+	return k != 0 ? k : 8;
+}
+
+static int32_t kobel_fs_rename(kobel_str old_p, kobel_str new_p) {
+	if (!old_p.data || old_p.len == 0 || !new_p.data || new_p.len == 0) return 6;
+	kobel_path_buf ob;
+	kobel_path_buf nb;
+	char* os = kobel_path_buf_init(&ob, old_p);
+	if (!os) return 7;
+	char* ns = kobel_path_buf_init(&nb, new_p);
+	if (!ns) {
+		kobel_path_buf_free(&ob);
+		return 7;
+	}
+	errno = 0;
+	int rc = rename(os, ns);
+	int saved_err = errno;
+	kobel_path_buf_free(&ob);
+	kobel_path_buf_free(&nb);
+	if (rc == 0) return 0;
+	errno = saved_err;
+	int32_t k = kobel_errno_kind();
+	return k != 0 ? k : 8;
+}
+
+static int32_t kobel_fs_mkdir(kobel_str dir_path) {
+	if (!dir_path.data || dir_path.len == 0) return 6;
 	kobel_path_buf pb;
 	char* path = kobel_path_buf_init(&pb, dir_path);
-	if (!path) return 0;
+	if (!path) return 7;
+	errno = 0;
+	int res = kobel_mkdir(path);
+	int saved_err = errno;
+	kobel_path_buf_free(&pb);
+	if (res == 0) return 0;
+	if (kobel_path_is_dir(dir_path)) return 0;
+	if (kobel_path_exists(dir_path)) return 3;
+	errno = saved_err;
+	int32_t k = kobel_errno_kind();
+	return k != 0 ? k : 8;
+}
 
+static int32_t kobel_fs_mkdir_all(kobel_str dir_path) {
+	if (!dir_path.data || dir_path.len == 0) return 6;
+	if (kobel_path_is_dir(dir_path)) return 0;
+	if (kobel_path_exists(dir_path)) return 4;
+	kobel_path_buf pb;
+	char* path = kobel_path_buf_init(&pb, dir_path);
+	if (!path) return 7;
+
+	int saved_err = 0;
 	for (size_t i = 1; i < dir_path.len; i++) {
 		if (path[i] == '/' || path[i] == 92) {
 			char saved = path[i];
@@ -284,13 +336,156 @@ static int kobel_create_dir_all(kobel_str dir_path) {
 				path[i] = saved;
 				continue;
 			}
-			kobel_mkdir(path);
+			errno = 0;
+			if (kobel_mkdir(path) != 0 && saved_err == 0) saved_err = errno;
 			path[i] = saved;
 		}
 	}
-	kobel_mkdir(path);
+	errno = 0;
+	int final_rc = kobel_mkdir(path);
+	if (final_rc != 0) saved_err = errno;
 	kobel_path_buf_free(&pb);
-	return kobel_path_is_dir(dir_path);
+	if (kobel_path_is_dir(dir_path)) return 0;
+	if (kobel_path_exists(dir_path)) return 4;
+	errno = saved_err;
+	int32_t k = kobel_errno_kind();
+	return k != 0 ? k : 8;
+}
+
+static kobel_str kobel_fs_list_dir(kobel_str dir_path, int32_t* err_out) {
+	if (err_out) *err_out = 0;
+	if (!dir_path.data || dir_path.len == 0) {
+		if (err_out) *err_out = 6;
+		return (kobel_str){ NULL, 0 };
+	}
+	kobel_stat_t st;
+	errno = 0;
+	if (!kobel_path_stat(dir_path, &st)) {
+		int32_t k = kobel_errno_kind();
+		if (err_out) *err_out = k != 0 ? k : 1;
+		return (kobel_str){ NULL, 0 };
+	}
+#ifdef _WIN32
+	if ((st.st_mode & _S_IFDIR) == 0) {
+#else
+	if (!S_ISDIR(st.st_mode)) {
+#endif
+		if (err_out) *err_out = 4;
+		return (kobel_str){ NULL, 0 };
+	}
+#ifdef _WIN32
+	char stack_pat[1024];
+	char* pattern = stack_pat;
+	if (dir_path.len + 3 > sizeof(stack_pat)) {
+		pattern = (char*)malloc(dir_path.len + 3);
+		if (!pattern) {
+			if (err_out) *err_out = 7;
+			return (kobel_str){ NULL, 0 };
+		}
+	}
+	memcpy(pattern, dir_path.data, dir_path.len);
+	pattern[dir_path.len] = 92;
+	pattern[dir_path.len + 1] = '*';
+	pattern[dir_path.len + 2] = 0;
+
+	struct _finddata_t data;
+	errno = 0;
+	intptr_t handle = _findfirst(pattern, &data);
+	int saved_err = errno;
+	if (pattern != stack_pat) free(pattern);
+	if (handle == -1) {
+		errno = saved_err;
+		if (saved_err == ENOENT) {
+			if (err_out) *err_out = 0;
+			return (kobel_str){ NULL, 0 };
+		}
+		int32_t k = kobel_errno_kind();
+		if (err_out) *err_out = k != 0 ? k : 8;
+		return (kobel_str){ NULL, 0 };
+	}
+
+	size_t cap = 1024;
+	size_t len = 0;
+	char* buf = (char*)malloc(cap);
+	if (!buf) {
+		_findclose(handle);
+		if (err_out) *err_out = 7;
+		return (kobel_str){ NULL, 0 };
+	}
+
+	do {
+		if (strcmp(data.name, ".") == 0 || strcmp(data.name, "..") == 0) continue;
+		size_t nlen = strlen(data.name);
+		while (len + nlen + 2 > cap) {
+			cap *= 2;
+			char* next_buf = (char*)realloc(buf, cap);
+			if (!next_buf) {
+				free(buf);
+				_findclose(handle);
+				if (err_out) *err_out = 7;
+				return (kobel_str){ NULL, 0 };
+			}
+			buf = next_buf;
+		}
+		memcpy(buf + len, data.name, nlen);
+		len += nlen;
+		buf[len++] = 10;
+	} while (_findnext(handle, &data) == 0);
+
+	_findclose(handle);
+	buf[len] = 0;
+	return (kobel_str){ buf, len };
+#else
+	kobel_path_buf pb;
+	char* path = kobel_path_buf_init(&pb, dir_path);
+	if (!path) {
+		if (err_out) *err_out = 7;
+		return (kobel_str){ NULL, 0 };
+	}
+
+	errno = 0;
+	DIR* d = opendir(path);
+	int saved_err = errno;
+	kobel_path_buf_free(&pb);
+	if (!d) {
+		errno = saved_err;
+		int32_t k = kobel_errno_kind();
+		if (err_out) *err_out = k != 0 ? k : 8;
+		return (kobel_str){ NULL, 0 };
+	}
+
+	size_t cap = 1024;
+	size_t len = 0;
+	char* buf = (char*)malloc(cap);
+	if (!buf) {
+		closedir(d);
+		if (err_out) *err_out = 7;
+		return (kobel_str){ NULL, 0 };
+	}
+
+	struct dirent* ent;
+	while ((ent = readdir(d)) != NULL) {
+		if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0) continue;
+		size_t nlen = strlen(ent->d_name);
+		while (len + nlen + 2 > cap) {
+			cap *= 2;
+			char* next_buf = (char*)realloc(buf, cap);
+			if (!next_buf) {
+				free(buf);
+				closedir(d);
+				if (err_out) *err_out = 7;
+				return (kobel_str){ NULL, 0 };
+			}
+			buf = next_buf;
+		}
+		memcpy(buf + len, ent->d_name, nlen);
+		len += nlen;
+		buf[len++] = 10;
+	}
+	closedir(d);
+	buf[len] = 0;
+	return (kobel_str){ buf, len };
+#endif
 }
 
 typedef struct {

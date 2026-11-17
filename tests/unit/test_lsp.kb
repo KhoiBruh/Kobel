@@ -8,7 +8,7 @@ use lsp.*;
 use testsupport.assert.*;
 
 fn test_json_and_uri() {
-	val doc = JsonValue.parse("{\"name\":\"Kobel\",\"ver\":2,\"arr\":[true,\"\\u0041\"]}");
+	val doc = JsonValue.parse("{\"name\":\"Kobel\",\"ver\":2,\"arr\":[true,\"\\u0041\"]}")!;
 	assert_true(doc.is_obj(), "parsed JSON should be object");
 	assert_eq_str(doc.get_str("name", ""), "Kobel", "JSON string field");
 	assert_true(doc.get_num("ver", 0) == 2, "JSON num field");
@@ -17,6 +17,13 @@ fn test_json_and_uri() {
 	assert_true(arr.is_arr(), "JSON arr field");
 	assert_eq_usz(arr.arr_val.len, 2, "JSON arr length");
 	assert_eq_str(arr.at(1).str_val, "A", "JSON unicode escape \\u0041");
+
+	val bad_empty = JsonValue.parse("");
+	assert_true(bad_empty is JsonErr.EmptyInput, "empty JSON fails with EmptyInput");
+	val bad_str = JsonValue.parse("\"unterminated");
+	assert_true(bad_str is JsonErr.UnterminatedString, "unterminated JSON string fails");
+	val bad_obj = JsonValue.parse("{\"a\":}");
+	assert_true(bad_obj is JsonErr.UnexpectedToken, "invalid JSON value fails");
 
 	val raw_path = "C:/Users/Admin/CLionProjects/Kobel/src/main.kb";
 	val uri = path_to_uri(raw_path);
@@ -30,8 +37,8 @@ fn test_json_and_uri() {
 fn find_line_col(text: str, needle: str): Pair<usz, usz> {
 	val lines = text.split('\n');
 	for (i in 0..<lines.len) {
-		val idx = lines[i].index_of(needle);
-		if (idx >= 0) return Pair(i, idx as usz);
+		val idx = lines[i].index_of(needle) !: continue;
+		return Pair(i, idx);
 	}
 	return Pair(0, 0);
 }
@@ -207,7 +214,7 @@ fn test_preloaded_stdlib_no_duplicate_diagnostics() {
 		println("  [SKIP] test_preloaded_stdlib_no_duplicate_diagnostics");
 		return;
 	}
-	val list_src = Path(list_rel).read_text();
+	val list_src = Path(list_rel).read_text()!;
 	val list_analysis = AnalysisResult(list_rel, list_src, ".", false);
 	assert_eq_usz(
 		list_analysis.diagnostics.len,
@@ -216,7 +223,7 @@ fn test_preloaded_stdlib_no_duplicate_diagnostics() {
 	);
 	val node_rel = "src/compiler/ast/node.kb";
 	if (Path(node_rel).exists()) {
-		val node_src = Path(node_rel).read_text();
+		val node_src = Path(node_rel).read_text()!;
 		val node_analysis = AnalysisResult(node_rel, node_src, ".", false);
 		assert_eq_usz(
 			node_analysis.diagnostics.len,

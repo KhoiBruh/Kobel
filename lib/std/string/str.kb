@@ -21,6 +21,10 @@ struct StrRaw {
 	len: usz
 }
 
+pub fault SearchErr {
+	NotFound("Pattern or matching character not found in string")
+}
+
 // Wraps a heap byte buffer of `len` bytes into a `str` value without copying.
 pub fn str_from_bytes(buf: &u8, len: usz): str {
 	var r = StrRaw(buf as *char, len);
@@ -85,13 +89,13 @@ impl str {
 		return n;
 	}
 
-	pub fn index_where(*self, predicate: (char) -> bool): isz {
+	pub fn index_where(*self, predicate: (char) -> bool): usz ! SearchErr {
 		for (i in 0..<self.len) if (predicate(self[i])) return i;
-		return -1;
+		return SearchErr.NotFound;
 	}
 
-	pub fn last_index_where(*self, predicate: (char) -> bool): isz {
-		if (self.len == 0) return -1;
+	pub fn last_index_where(*self, predicate: (char) -> bool): usz ! SearchErr {
+		if (self.len == 0) return SearchErr.NotFound;
 
 		var i = self.len - 1;
 		while (true) {
@@ -100,7 +104,7 @@ impl str {
 			i--;
 		}
 
-		return -1;
+		return SearchErr.NotFound;
 	}
 
 	pub fn filter(*self, predicate: (char) -> bool): str {
@@ -150,9 +154,9 @@ impl str {
 		return true;
 	}
 
-	pub fn index_of(*self, sub: str): isz {
+	pub fn index_of(*self, sub: str): usz ! SearchErr {
 		if (sub.empty()) return 0;
-		if (self.len < sub.len) return -1;
+		if (self.len < sub.len) return SearchErr.NotFound;
 
 		val max_start = self.len - sub.len;
 		for (i in 0..max_start) {
@@ -167,7 +171,7 @@ impl str {
 			if (matched) return i;
 		}
 
-		return -1;
+		return SearchErr.NotFound;
 	}
 
 	pub fn strip_suffix(*self, n: usz) => if (self.len <= n) ""
@@ -383,7 +387,7 @@ impl str {
 	// Overloaded Operators
 	// ============================================================================
 
-	pub op contains(*self, sub: str) => self.index_of(sub) >= 0;
+	pub op contains(*self, sub: str) => self.index_of(sub) is usz;
 
 }
 

@@ -137,7 +137,7 @@ impl BodyChecker {
 		self.current_self_type = saved_self;
 		if (self.errors.len > saved_errs) {
 			while (self.errors.len > saved_errs) {
-				self.errors.pop();
+				self.errors.pop()!;
 			}
 			return self.prims().t_none();
 		}

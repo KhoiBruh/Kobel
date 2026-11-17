@@ -28,8 +28,10 @@ fn resolve_file_path(target: str, default_file: str, loader: ?*ModuleLoader): st
 	) return target.to_posix_path();
 
 	if (loader != null) {
-		val resolved = loader.find_module(target);
-		if (resolved.found) return resolved.path.to_posix_path();
+		val resolved_res = loader.find_module(target);
+		if (resolved_res is ModuleFile as resolved) {
+			return resolved.path.to_posix_path();
+		}
 	}
 
 	val rel = "${target.module_to_rel()}.kb";

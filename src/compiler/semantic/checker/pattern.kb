@@ -264,7 +264,7 @@ impl BodyChecker {
 
 	pub fn arm_smart_cast_sym(*self, patterns: List<&AstNode>, cond: ?*AstNode): str {
 		if (cond == null || patterns.len != 1) return "";
-		val pat = patterns.first();
+		val pat = patterns.first()!;
 		if (pat is IsExpr as is_e) {
 			if (self.is_multi_target_list(is_e)) return "";
 			if (!is_e.alias.empty()) return is_e.alias;
@@ -275,7 +275,7 @@ impl BodyChecker {
 
 	pub fn arm_smart_cast_mutable(*self, patterns: List<&AstNode>, cond: ?*AstNode): bool {
 		if (cond == null || patterns.len != 1) return false;
-		val pat = patterns.first();
+		val pat = patterns.first()!;
 		if (pat is IsExpr as is_e) {
 			if (self.is_multi_target_list(is_e)) return false;
 			if (!is_e.alias.empty()) return false;
@@ -294,7 +294,7 @@ impl BodyChecker {
 		cond_ty: ?*Type
 	): ?*Type {
 		if (!self.arm_smart_cast_sym(patterns, cond).empty()) {
-			val pat = patterns.first();
+			val pat = patterns.first()!;
 			if (pat is IsExpr as is_e) {
 				if (is_e.expr == null) is_e.expr = cond;
 				return self.check_is_pattern(cond, cond_ty, pat);
@@ -343,6 +343,11 @@ impl BodyChecker {
 			is IndexExpr as ix -> self.expr_has_implicit_subject(ix.target) || self.expr_has_implicit_subject(ix.index);
 			is CastExpr as c -> self.expr_has_implicit_subject(c.expr);
 			is IsExpr as ise -> self.expr_has_implicit_subject(ise.expr);
+			is CatchExpr as ce -> self.expr_has_implicit_subject(ce.expr)
+				|| self.expr_has_implicit_subject(ce.handler);
+			is IfExpr as ie -> self.expr_has_implicit_subject(ie.condition)
+				|| self.expr_has_implicit_subject(ie.then_branch)
+				|| self.expr_has_implicit_subject(ie.else_branch);
 			else -> false;
 		};
 	}
@@ -463,8 +468,8 @@ impl BodyChecker {
 			if (nt.name.starts_with(mangled_pfx)) {
 				return ei.find_member(nt.name.slice(mangled_pfx.len, nt.name.len));
 			}
-			val dot_pos = nt.name.index_of(".");
-			if (dot_pos >= 0) {
+			val dot_pos = nt.name.index_of(".") !: 999999 as usz;
+			if (dot_pos < nt.name.len) {
 				val prefix = nt.name.slice(0, dot_pos);
 				val vname = nt.name.slice(dot_pos + 1, nt.name.len);
 				if (prefix.empty()) return ei.find_member(vname);

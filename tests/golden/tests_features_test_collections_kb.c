@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
+#include <errno.h>
 
 #ifdef _WIN32
 #include <io.h>
@@ -141,77 +142,6 @@ static inline void kobel_path_buf_free(kobel_path_buf* pb) {
 	}
 }
 
-/* Directory listing helper — returns newline-separated filenames */
-static kobel_str kobel_list_dir(kobel_str dir_path) {
-#ifdef _WIN32
-	if (!dir_path.data || dir_path.len == 0) return (kobel_str){ NULL, 0 };
-	char stack_pat[1024];
-	char* pattern = stack_pat;
-	if (dir_path.len + 3 > sizeof(stack_pat)) {
-		pattern = (char*)malloc(dir_path.len + 3);
-		if (!pattern) return (kobel_str){ NULL, 0 };
-	}
-	memcpy(pattern, dir_path.data, dir_path.len);
-	pattern[dir_path.len] = 92;
-	pattern[dir_path.len + 1] = '*';
-	pattern[dir_path.len + 2] = 0;
-
-	struct _finddata_t data;
-	intptr_t handle = _findfirst(pattern, &data);
-	if (pattern != stack_pat) free(pattern);
-	if (handle == -1) return (kobel_str){ NULL, 0 };
-
-	size_t cap = 1024;
-	size_t len = 0;
-	char* buf = (char*)malloc(cap);
-
-	do {
-		if (strcmp(data.name, ".") == 0 || strcmp(data.name, "..") == 0) continue;
-		size_t nlen = strlen(data.name);
-		while (len + nlen + 2 > cap) {
-			cap *= 2;
-			buf = (char*)realloc(buf, cap);
-		}
-		memcpy(buf + len, data.name, nlen);
-		len += nlen;
-		buf[len++] = 10;
-	} while (_findnext(handle, &data) == 0);
-
-	_findclose(handle);
-	buf[len] = 0;
-	return (kobel_str){ buf, len };
-#else
-	if (!dir_path.data || dir_path.len == 0) return (kobel_str){ NULL, 0 };
-	kobel_path_buf pb;
-	char* path = kobel_path_buf_init(&pb, dir_path);
-	if (!path) return (kobel_str){ NULL, 0 };
-
-	DIR* d = opendir(path);
-	kobel_path_buf_free(&pb);
-	if (!d) return (kobel_str){ NULL, 0 };
-
-	size_t cap = 1024;
-	size_t len = 0;
-	char* buf = (char*)malloc(cap);
-
-	struct dirent* ent;
-	while ((ent = readdir(d)) != NULL) {
-		if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0) continue;
-		size_t nlen = strlen(ent->d_name);
-		while (len + nlen + 2 > cap) {
-			cap *= 2;
-			buf = (char*)realloc(buf, cap);
-		}
-		memcpy(buf + len, ent->d_name, nlen);
-		len += nlen;
-		buf[len++] = 10;
-	}
-	closedir(d);
-	buf[len] = 0;
-	return (kobel_str){ buf, len };
-#endif
-}
-
 /* Platform-abstracted stat & mkdir helpers */
 #ifdef _WIN32
 typedef struct _stat kobel_stat_t;
@@ -258,24 +188,146 @@ static int kobel_path_is_file(kobel_str p) {
 #endif
 }
 
-static int kobel_create_dir(kobel_str dir_path) {
-	if (!dir_path.data || dir_path.len == 0) return 0;
-	kobel_path_buf pb;
-	char* path = kobel_path_buf_init(&pb, dir_path);
-	if (!path) return 0;
-	int res = kobel_mkdir(path);
-	kobel_path_buf_free(&pb);
-	if (res == 0) return 1;
-	return kobel_path_is_dir(dir_path);
+/* Maps C errno values to std.filesystem error kind codes (0 = none/unknown). */
+static inline int32_t kobel_errno_kind(void) {
+	switch (errno) {
+		case 0: return 0;
+#ifdef ENOENT
+		case ENOENT: return 1;
+#endif
+#ifdef EACCES
+		case EACCES: return 2;
+#endif
+#ifdef EPERM
+		case EPERM: return 2;
+#endif
+#ifdef EEXIST
+		case EEXIST: return 3;
+#endif
+#ifdef ENOTDIR
+		case ENOTDIR: return 4;
+#endif
+#ifdef EISDIR
+		case EISDIR: return 5;
+#endif
+#ifdef EINVAL
+		case EINVAL: return 6;
+#endif
+#ifdef ENAMETOOLONG
+		case ENAMETOOLONG: return 6;
+#endif
+#ifdef ENOMEM
+		case ENOMEM: return 7;
+#endif
+		default: return 8;
+	}
 }
 
-static int kobel_create_dir_all(kobel_str dir_path) {
-	if (!dir_path.data || dir_path.len == 0) return 1;
-	if (kobel_path_is_dir(dir_path)) return 1;
+static void* kobel_fs_fopen(kobel_str path, kobel_str mode, int32_t* err_out) {
+	if (!path.data || path.len == 0 || !mode.data || mode.len == 0) {
+		if (err_out) *err_out = 6;
+		return NULL;
+	}
+	kobel_path_buf pb;
+	kobel_path_buf mb;
+	char* p = kobel_path_buf_init(&pb, path);
+	if (!p) {
+		if (err_out) *err_out = 7;
+		return NULL;
+	}
+	char* m = kobel_path_buf_init(&mb, mode);
+	if (!m) {
+		kobel_path_buf_free(&pb);
+		if (err_out) *err_out = 7;
+		return NULL;
+	}
+	errno = 0;
+	FILE* f = fopen(p, m);
+	int saved_err = errno;
+	kobel_path_buf_free(&pb);
+	kobel_path_buf_free(&mb);
+	if (!f) {
+		errno = saved_err;
+		if (kobel_path_is_dir(path)) {
+			if (err_out) *err_out = 5;
+		} else {
+			int32_t k = kobel_errno_kind();
+			if (err_out) *err_out = k != 0 ? k : 8;
+		}
+		return NULL;
+	}
+	if (err_out) *err_out = 0;
+	return (void*)f;
+}
+
+static inline int32_t kobel_fs_stream_err(void* f) {
+	if (!f) return 9;
+	return ferror((FILE*)f) ? 8 : 0;
+}
+
+static int32_t kobel_fs_remove(kobel_str p) {
+	if (!p.data || p.len == 0) return 6;
+	kobel_path_buf pb;
+	char* path = kobel_path_buf_init(&pb, p);
+	if (!path) return 7;
+	errno = 0;
+	int rc = remove(path);
+	int saved_err = errno;
+	kobel_path_buf_free(&pb);
+	if (rc == 0) return 0;
+	errno = saved_err;
+	int32_t k = kobel_errno_kind();
+	return k != 0 ? k : 8;
+}
+
+static int32_t kobel_fs_rename(kobel_str old_p, kobel_str new_p) {
+	if (!old_p.data || old_p.len == 0 || !new_p.data || new_p.len == 0) return 6;
+	kobel_path_buf ob;
+	kobel_path_buf nb;
+	char* os = kobel_path_buf_init(&ob, old_p);
+	if (!os) return 7;
+	char* ns = kobel_path_buf_init(&nb, new_p);
+	if (!ns) {
+		kobel_path_buf_free(&ob);
+		return 7;
+	}
+	errno = 0;
+	int rc = rename(os, ns);
+	int saved_err = errno;
+	kobel_path_buf_free(&ob);
+	kobel_path_buf_free(&nb);
+	if (rc == 0) return 0;
+	errno = saved_err;
+	int32_t k = kobel_errno_kind();
+	return k != 0 ? k : 8;
+}
+
+static int32_t kobel_fs_mkdir(kobel_str dir_path) {
+	if (!dir_path.data || dir_path.len == 0) return 6;
 	kobel_path_buf pb;
 	char* path = kobel_path_buf_init(&pb, dir_path);
-	if (!path) return 0;
+	if (!path) return 7;
+	errno = 0;
+	int res = kobel_mkdir(path);
+	int saved_err = errno;
+	kobel_path_buf_free(&pb);
+	if (res == 0) return 0;
+	if (kobel_path_is_dir(dir_path)) return 0;
+	if (kobel_path_exists(dir_path)) return 3;
+	errno = saved_err;
+	int32_t k = kobel_errno_kind();
+	return k != 0 ? k : 8;
+}
 
+static int32_t kobel_fs_mkdir_all(kobel_str dir_path) {
+	if (!dir_path.data || dir_path.len == 0) return 6;
+	if (kobel_path_is_dir(dir_path)) return 0;
+	if (kobel_path_exists(dir_path)) return 4;
+	kobel_path_buf pb;
+	char* path = kobel_path_buf_init(&pb, dir_path);
+	if (!path) return 7;
+
+	int saved_err = 0;
 	for (size_t i = 1; i < dir_path.len; i++) {
 		if (path[i] == '/' || path[i] == 92) {
 			char saved = path[i];
@@ -284,13 +336,156 @@ static int kobel_create_dir_all(kobel_str dir_path) {
 				path[i] = saved;
 				continue;
 			}
-			kobel_mkdir(path);
+			errno = 0;
+			if (kobel_mkdir(path) != 0 && saved_err == 0) saved_err = errno;
 			path[i] = saved;
 		}
 	}
-	kobel_mkdir(path);
+	errno = 0;
+	int final_rc = kobel_mkdir(path);
+	if (final_rc != 0) saved_err = errno;
 	kobel_path_buf_free(&pb);
-	return kobel_path_is_dir(dir_path);
+	if (kobel_path_is_dir(dir_path)) return 0;
+	if (kobel_path_exists(dir_path)) return 4;
+	errno = saved_err;
+	int32_t k = kobel_errno_kind();
+	return k != 0 ? k : 8;
+}
+
+static kobel_str kobel_fs_list_dir(kobel_str dir_path, int32_t* err_out) {
+	if (err_out) *err_out = 0;
+	if (!dir_path.data || dir_path.len == 0) {
+		if (err_out) *err_out = 6;
+		return (kobel_str){ NULL, 0 };
+	}
+	kobel_stat_t st;
+	errno = 0;
+	if (!kobel_path_stat(dir_path, &st)) {
+		int32_t k = kobel_errno_kind();
+		if (err_out) *err_out = k != 0 ? k : 1;
+		return (kobel_str){ NULL, 0 };
+	}
+#ifdef _WIN32
+	if ((st.st_mode & _S_IFDIR) == 0) {
+#else
+	if (!S_ISDIR(st.st_mode)) {
+#endif
+		if (err_out) *err_out = 4;
+		return (kobel_str){ NULL, 0 };
+	}
+#ifdef _WIN32
+	char stack_pat[1024];
+	char* pattern = stack_pat;
+	if (dir_path.len + 3 > sizeof(stack_pat)) {
+		pattern = (char*)malloc(dir_path.len + 3);
+		if (!pattern) {
+			if (err_out) *err_out = 7;
+			return (kobel_str){ NULL, 0 };
+		}
+	}
+	memcpy(pattern, dir_path.data, dir_path.len);
+	pattern[dir_path.len] = 92;
+	pattern[dir_path.len + 1] = '*';
+	pattern[dir_path.len + 2] = 0;
+
+	struct _finddata_t data;
+	errno = 0;
+	intptr_t handle = _findfirst(pattern, &data);
+	int saved_err = errno;
+	if (pattern != stack_pat) free(pattern);
+	if (handle == -1) {
+		errno = saved_err;
+		if (saved_err == ENOENT) {
+			if (err_out) *err_out = 0;
+			return (kobel_str){ NULL, 0 };
+		}
+		int32_t k = kobel_errno_kind();
+		if (err_out) *err_out = k != 0 ? k : 8;
+		return (kobel_str){ NULL, 0 };
+	}
+
+	size_t cap = 1024;
+	size_t len = 0;
+	char* buf = (char*)malloc(cap);
+	if (!buf) {
+		_findclose(handle);
+		if (err_out) *err_out = 7;
+		return (kobel_str){ NULL, 0 };
+	}
+
+	do {
+		if (strcmp(data.name, ".") == 0 || strcmp(data.name, "..") == 0) continue;
+		size_t nlen = strlen(data.name);
+		while (len + nlen + 2 > cap) {
+			cap *= 2;
+			char* next_buf = (char*)realloc(buf, cap);
+			if (!next_buf) {
+				free(buf);
+				_findclose(handle);
+				if (err_out) *err_out = 7;
+				return (kobel_str){ NULL, 0 };
+			}
+			buf = next_buf;
+		}
+		memcpy(buf + len, data.name, nlen);
+		len += nlen;
+		buf[len++] = 10;
+	} while (_findnext(handle, &data) == 0);
+
+	_findclose(handle);
+	buf[len] = 0;
+	return (kobel_str){ buf, len };
+#else
+	kobel_path_buf pb;
+	char* path = kobel_path_buf_init(&pb, dir_path);
+	if (!path) {
+		if (err_out) *err_out = 7;
+		return (kobel_str){ NULL, 0 };
+	}
+
+	errno = 0;
+	DIR* d = opendir(path);
+	int saved_err = errno;
+	kobel_path_buf_free(&pb);
+	if (!d) {
+		errno = saved_err;
+		int32_t k = kobel_errno_kind();
+		if (err_out) *err_out = k != 0 ? k : 8;
+		return (kobel_str){ NULL, 0 };
+	}
+
+	size_t cap = 1024;
+	size_t len = 0;
+	char* buf = (char*)malloc(cap);
+	if (!buf) {
+		closedir(d);
+		if (err_out) *err_out = 7;
+		return (kobel_str){ NULL, 0 };
+	}
+
+	struct dirent* ent;
+	while ((ent = readdir(d)) != NULL) {
+		if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0) continue;
+		size_t nlen = strlen(ent->d_name);
+		while (len + nlen + 2 > cap) {
+			cap *= 2;
+			char* next_buf = (char*)realloc(buf, cap);
+			if (!next_buf) {
+				free(buf);
+				closedir(d);
+				if (err_out) *err_out = 7;
+				return (kobel_str){ NULL, 0 };
+			}
+			buf = next_buf;
+		}
+		memcpy(buf + len, ent->d_name, nlen);
+		len += nlen;
+		buf[len++] = 10;
+	}
+	closedir(d);
+	buf[len] = 0;
+	return (kobel_str){ buf, len };
+#endif
 }
 
 typedef struct {
@@ -312,6 +507,17 @@ typedef struct {
 	kobel_loc origin;
 	kobel_loc fail_at;
 } __kobel_main_result;
+typedef struct std__memory__MemErr std__memory__MemErr;
+typedef struct std__memory__MemErr__OutOfMemory std__memory__MemErr__OutOfMemory;
+#define std__memory__MemErr__OutOfMemory__TAG 0
+typedef struct std__memory__Heap std__memory__Heap;
+typedef struct std__collections__CollectionErr std__collections__CollectionErr;
+typedef struct std__collections__CollectionErr__NotFound std__collections__CollectionErr__NotFound;
+#define std__collections__CollectionErr__NotFound__TAG 0
+typedef struct std__collections__CollectionErr__Empty std__collections__CollectionErr__Empty;
+#define std__collections__CollectionErr__Empty__TAG 1
+typedef struct std__collections__CollectionErr__OutOfBounds std__collections__CollectionErr__OutOfBounds;
+#define std__collections__CollectionErr__OutOfBounds__TAG 2
 typedef struct std__string__StrRaw std__string__StrRaw;
 typedef struct std__process__Process std__process__Process;
 typedef struct tests__features__test_collections__Point2D tests__features__test_collections__Point2D;
@@ -323,7 +529,103 @@ typedef struct std__collections__HashMap_str_i32 std__collections__HashMap_str_i
 typedef struct std__collections__HashMap_i32_str std__collections__HashMap_i32_str;
 typedef struct std__collections__List_tests__features__test_collections__Point2D std__collections__List_tests__features__test_collections__Point2D;
 typedef struct std__collections__HashMap_tests__features__test_collections__Point2D_i32 std__collections__HashMap_tests__features__test_collections__Point2D_i32;
+typedef struct __kobel_eu_usz__std__collections__CollectionErr __kobel_eu_usz__std__collections__CollectionErr;
+typedef struct __kobel_eu_i32__std__collections__CollectionErr __kobel_eu_i32__std__collections__CollectionErr;
+typedef struct __kobel_eu_mut_ptr_tests__features__test_collections__Point2D__std__memory__MemErr __kobel_eu_mut_ptr_tests__features__test_collections__Point2D__std__memory__MemErr;
+typedef struct __kobel_eu_mut_ptr_u8__std__memory__MemErr __kobel_eu_mut_ptr_u8__std__memory__MemErr;
+typedef struct __kobel_eu_mut_ptr_i32__std__memory__MemErr __kobel_eu_mut_ptr_i32__std__memory__MemErr;
+typedef struct __kobel_eu_mut_ptr_bool__std__memory__MemErr __kobel_eu_mut_ptr_bool__std__memory__MemErr;
+typedef struct __kobel_eu_mut_ptr_usz__std__memory__MemErr __kobel_eu_mut_ptr_usz__std__memory__MemErr;
+typedef struct __kobel_eu_mut_ptr_str__std__memory__MemErr __kobel_eu_mut_ptr_str__std__memory__MemErr;
+typedef struct __kobel_eu_mut_ptr_std__collections__List_i32__std__memory__MemErr __kobel_eu_mut_ptr_std__collections__List_i32__std__memory__MemErr;
 
+
+static inline kobel_fault_meta __kobel_lookup_fault(uint32_t code) {
+    switch (code) {
+        case 1U: return (kobel_fault_meta){ 1U, "MemErr.OutOfMemory", "Memory allocation failed (out of memory)" };
+        case 2U: return (kobel_fault_meta){ 2U, "CollectionErr.NotFound", "Element not found in collection" };
+        case 3U: return (kobel_fault_meta){ 3U, "CollectionErr.Empty", "Collection is empty" };
+        case 4U: return (kobel_fault_meta){ 4U, "CollectionErr.OutOfBounds", "Collection index out of range" };
+        default: return (kobel_fault_meta){ code, "UnknownFault", "Unknown error" };
+    }
+}
+
+static inline void __kobel_report_fault(
+    const char* kind,
+    uint32_t code,
+    kobel_loc origin,
+    kobel_loc fail_at
+) {
+    kobel_fault_meta meta = __kobel_lookup_fault(code);
+    if (meta.desc && meta.name && strcmp(meta.desc, meta.name) != 0) {
+        fprintf(stderr, "panic: %s E%04u (%s): %s\n", kind, (unsigned)code, meta.name, meta.desc);
+    } else if (meta.name) {
+        fprintf(stderr, "panic: %s E%04u (%s)\n", kind, (unsigned)code, meta.name);
+    } else {
+        fprintf(stderr, "panic: %s E%04u\n", kind, (unsigned)code);
+    }
+    if (origin.file && origin.file[0] != 0) {
+        fprintf(stderr, "  origin: %s:%zu:%zu", origin.file, origin.line, origin.col);
+        if (origin.fn && origin.fn[0] != 0) fprintf(stderr, " in %s", origin.fn);
+        fputc(10, stderr);
+    }
+    if (fail_at.file && fail_at.file[0] != 0) {
+        bool same = origin.file && strcmp(origin.file, fail_at.file) == 0
+            && origin.line == fail_at.line && origin.col == fail_at.col;
+        if (!same) {
+            fprintf(stderr, "  at:     %s:%zu:%zu", fail_at.file, fail_at.line, fail_at.col);
+            if (fail_at.fn && fail_at.fn[0] != 0) fprintf(stderr, " in %s", fail_at.fn);
+            fputc(10, stderr);
+        }
+    }
+}
+struct std__memory__MemErr__OutOfMemory {
+    char __empty;
+};
+struct std__memory__MemErr {
+    int32_t tag;
+    uint32_t __err_code;
+    kobel_loc __origin;
+    union {
+        struct std__memory__MemErr__OutOfMemory OutOfMemory;
+    } u;
+};
+
+static inline kobel_str __kobel_fault_str_std__memory__MemErr(std__memory__MemErr e) {
+    switch (e.tag) {
+        case 0: return KOBEL_STR("MemErr.OutOfMemory");
+        default: return KOBEL_STR("MemErr");
+    }
+}
+
+struct std__collections__CollectionErr__NotFound {
+    char __empty;
+};
+struct std__collections__CollectionErr__Empty {
+    char __empty;
+};
+struct std__collections__CollectionErr__OutOfBounds {
+    char __empty;
+};
+struct std__collections__CollectionErr {
+    int32_t tag;
+    uint32_t __err_code;
+    kobel_loc __origin;
+    union {
+        struct std__collections__CollectionErr__NotFound NotFound;
+        struct std__collections__CollectionErr__Empty Empty;
+        struct std__collections__CollectionErr__OutOfBounds OutOfBounds;
+    } u;
+};
+
+static inline kobel_str __kobel_fault_str_std__collections__CollectionErr(std__collections__CollectionErr e) {
+    switch (e.tag) {
+        case 0: return KOBEL_STR("CollectionErr.NotFound");
+        case 1: return KOBEL_STR("CollectionErr.Empty");
+        case 2: return KOBEL_STR("CollectionErr.OutOfBounds");
+        default: return KOBEL_STR("CollectionErr");
+    }
+}
 
 struct std__string__StrRaw {
     const char* data;
@@ -391,10 +693,164 @@ struct std__collections__HashMap_tests__features__test_collections__Point2D_i32 
     size_t cap;
 };
 
+struct __kobel_eu_usz__std__collections__CollectionErr {
+    bool is_ok;
+    union {
+        size_t ok;
+        std__collections__CollectionErr err;
+    } u;
+};
+
+static inline size_t __kobel_unwrap___kobel_eu_usz__std__collections__CollectionErr(__kobel_eu_usz__std__collections__CollectionErr r, const char* file, size_t line, size_t col, const char* fn) {
+    if (!r.is_ok) {
+        kobel_loc at = { file, line, col, fn };
+        __kobel_report_fault("unwrapped error", r.u.err.__err_code, r.u.err.__origin, at);
+        exit(1);
+    }
+    return r.u.ok;
+}
+
+struct __kobel_eu_i32__std__collections__CollectionErr {
+    bool is_ok;
+    union {
+        int32_t ok;
+        std__collections__CollectionErr err;
+    } u;
+};
+
+static inline int32_t __kobel_unwrap___kobel_eu_i32__std__collections__CollectionErr(__kobel_eu_i32__std__collections__CollectionErr r, const char* file, size_t line, size_t col, const char* fn) {
+    if (!r.is_ok) {
+        kobel_loc at = { file, line, col, fn };
+        __kobel_report_fault("unwrapped error", r.u.err.__err_code, r.u.err.__origin, at);
+        exit(1);
+    }
+    return r.u.ok;
+}
+
+struct __kobel_eu_mut_ptr_tests__features__test_collections__Point2D__std__memory__MemErr {
+    bool is_ok;
+    union {
+        tests__features__test_collections__Point2D* ok;
+        std__memory__MemErr err;
+    } u;
+};
+
+static inline tests__features__test_collections__Point2D* __kobel_unwrap___kobel_eu_mut_ptr_tests__features__test_collections__Point2D__std__memory__MemErr(__kobel_eu_mut_ptr_tests__features__test_collections__Point2D__std__memory__MemErr r, const char* file, size_t line, size_t col, const char* fn) {
+    if (!r.is_ok) {
+        kobel_loc at = { file, line, col, fn };
+        __kobel_report_fault("unwrapped error", r.u.err.__err_code, r.u.err.__origin, at);
+        exit(1);
+    }
+    return r.u.ok;
+}
+
+struct __kobel_eu_mut_ptr_u8__std__memory__MemErr {
+    bool is_ok;
+    union {
+        uint8_t* ok;
+        std__memory__MemErr err;
+    } u;
+};
+
+static inline uint8_t* __kobel_unwrap___kobel_eu_mut_ptr_u8__std__memory__MemErr(__kobel_eu_mut_ptr_u8__std__memory__MemErr r, const char* file, size_t line, size_t col, const char* fn) {
+    if (!r.is_ok) {
+        kobel_loc at = { file, line, col, fn };
+        __kobel_report_fault("unwrapped error", r.u.err.__err_code, r.u.err.__origin, at);
+        exit(1);
+    }
+    return r.u.ok;
+}
+
+struct __kobel_eu_mut_ptr_i32__std__memory__MemErr {
+    bool is_ok;
+    union {
+        int32_t* ok;
+        std__memory__MemErr err;
+    } u;
+};
+
+static inline int32_t* __kobel_unwrap___kobel_eu_mut_ptr_i32__std__memory__MemErr(__kobel_eu_mut_ptr_i32__std__memory__MemErr r, const char* file, size_t line, size_t col, const char* fn) {
+    if (!r.is_ok) {
+        kobel_loc at = { file, line, col, fn };
+        __kobel_report_fault("unwrapped error", r.u.err.__err_code, r.u.err.__origin, at);
+        exit(1);
+    }
+    return r.u.ok;
+}
+
+struct __kobel_eu_mut_ptr_bool__std__memory__MemErr {
+    bool is_ok;
+    union {
+        bool* ok;
+        std__memory__MemErr err;
+    } u;
+};
+
+static inline bool* __kobel_unwrap___kobel_eu_mut_ptr_bool__std__memory__MemErr(__kobel_eu_mut_ptr_bool__std__memory__MemErr r, const char* file, size_t line, size_t col, const char* fn) {
+    if (!r.is_ok) {
+        kobel_loc at = { file, line, col, fn };
+        __kobel_report_fault("unwrapped error", r.u.err.__err_code, r.u.err.__origin, at);
+        exit(1);
+    }
+    return r.u.ok;
+}
+
+struct __kobel_eu_mut_ptr_usz__std__memory__MemErr {
+    bool is_ok;
+    union {
+        size_t* ok;
+        std__memory__MemErr err;
+    } u;
+};
+
+static inline size_t* __kobel_unwrap___kobel_eu_mut_ptr_usz__std__memory__MemErr(__kobel_eu_mut_ptr_usz__std__memory__MemErr r, const char* file, size_t line, size_t col, const char* fn) {
+    if (!r.is_ok) {
+        kobel_loc at = { file, line, col, fn };
+        __kobel_report_fault("unwrapped error", r.u.err.__err_code, r.u.err.__origin, at);
+        exit(1);
+    }
+    return r.u.ok;
+}
+
+struct __kobel_eu_mut_ptr_str__std__memory__MemErr {
+    bool is_ok;
+    union {
+        kobel_str* ok;
+        std__memory__MemErr err;
+    } u;
+};
+
+static inline kobel_str* __kobel_unwrap___kobel_eu_mut_ptr_str__std__memory__MemErr(__kobel_eu_mut_ptr_str__std__memory__MemErr r, const char* file, size_t line, size_t col, const char* fn) {
+    if (!r.is_ok) {
+        kobel_loc at = { file, line, col, fn };
+        __kobel_report_fault("unwrapped error", r.u.err.__err_code, r.u.err.__origin, at);
+        exit(1);
+    }
+    return r.u.ok;
+}
+
+struct __kobel_eu_mut_ptr_std__collections__List_i32__std__memory__MemErr {
+    bool is_ok;
+    union {
+        std__collections__List_i32* ok;
+        std__memory__MemErr err;
+    } u;
+};
+
+static inline std__collections__List_i32* __kobel_unwrap___kobel_eu_mut_ptr_std__collections__List_i32__std__memory__MemErr(__kobel_eu_mut_ptr_std__collections__List_i32__std__memory__MemErr r, const char* file, size_t line, size_t col, const char* fn) {
+    if (!r.is_ok) {
+        kobel_loc at = { file, line, col, fn };
+        __kobel_report_fault("unwrapped error", r.u.err.__err_code, r.u.err.__origin, at);
+        exit(1);
+    }
+    return r.u.ok;
+}
+
 size_t std__traits__hash_int(size_t n);
 size_t std__traits__hash_str(kobel_str s);
 size_t str_hash(kobel_str self);
 size_t i32_hash(int32_t self);
+__kobel_eu_mut_ptr_u8__std__memory__MemErr std__memory__Heap_try_alloc(size_t size);
 kobel_str std__string__str_from_bytes(uint8_t* buf, size_t len);
 kobel_str std__traits__fmt_u64(uint64_t n0);
 kobel_str std__traits__fmt_i64(int64_t v);
@@ -432,17 +888,19 @@ void std__collections__List_str_plus_assign(std__collections__List_str* self, ko
 size_t std__collections__List_i32_count(std__collections__List_i32* self);
 int32_t std__collections__List_i32_at(std__collections__List_i32* self, size_t i);
 std__collections__List_i32 std__collections__List_i32_init(int32_t* items_data, size_t items_len);
+__kobel_eu_i32__std__collections__CollectionErr std__collections__List_i32_first(std__collections__List_i32* self);
+__kobel_eu_i32__std__collections__CollectionErr std__collections__List_i32_last(std__collections__List_i32* self);
 void std__collections__List_i32_add(std__collections__List_i32* self, int32_t value);
-int32_t std__collections__List_i32_pop(std__collections__List_i32* self);
+__kobel_eu_i32__std__collections__CollectionErr std__collections__List_i32_pop(std__collections__List_i32* self);
 void std__collections__List_i32_extend(std__collections__List_i32* self, std__collections__List_i32 other);
 void std__collections__List_i32_grow(std__collections__List_i32* self);
-int32_t std__collections__List_i32_remove_at(std__collections__List_i32* self, size_t index);
+__kobel_eu_i32__std__collections__CollectionErr std__collections__List_i32_remove_at(std__collections__List_i32* self, size_t index);
 int32_t std__collections__List_i32_pop_or(std__collections__List_i32* self, int32_t value);
 void std__collections__List_i32_swap(std__collections__List_i32* self, size_t a, size_t b);
 void std__collections__List_i32_reverse(std__collections__List_i32* self);
 std__collections__List_i32 std__collections__List_i32_sub(std__collections__List_i32* self, size_t start, size_t count);
-intptr_t std__collections__List_i32_index_of(std__collections__List_i32* self, int32_t value);
-intptr_t std__collections__List_i32_last_index_of(std__collections__List_i32* self, int32_t value);
+__kobel_eu_usz__std__collections__CollectionErr std__collections__List_i32_index_of(std__collections__List_i32* self, int32_t value);
+__kobel_eu_usz__std__collections__CollectionErr std__collections__List_i32_last_index_of(std__collections__List_i32* self, int32_t value);
 bool std__collections__List_i32_remove(std__collections__List_i32* self, int32_t value);
 size_t std__collections__List_i32_remove_all(std__collections__List_i32* self, int32_t value);
 size_t std__collections__List_i32_remove_where(std__collections__List_i32* self, kobel_closure predicate);
@@ -475,7 +933,7 @@ void std__collections__HashMap_i32_str_set(std__collections__HashMap_i32_str* se
 kobel_str* std__collections__HashMap_i32_str_get(std__collections__HashMap_i32_str* self, int32_t key);
 bool std__collections__HashMap_i32_str_contains(std__collections__HashMap_i32_str* self, int32_t key);
 std__collections__List_tests__features__test_collections__Point2D std__collections__List_tests__features__test_collections__Point2D_init(tests__features__test_collections__Point2D* items_data, size_t items_len);
-intptr_t std__collections__List_tests__features__test_collections__Point2D_index_of(std__collections__List_tests__features__test_collections__Point2D* self, tests__features__test_collections__Point2D value);
+__kobel_eu_usz__std__collections__CollectionErr std__collections__List_tests__features__test_collections__Point2D_index_of(std__collections__List_tests__features__test_collections__Point2D* self, tests__features__test_collections__Point2D value);
 bool std__collections__List_tests__features__test_collections__Point2D_contains(std__collections__List_tests__features__test_collections__Point2D* self, tests__features__test_collections__Point2D value);
 std__collections__HashMap_tests__features__test_collections__Point2D_i32 std__collections__HashMap_tests__features__test_collections__Point2D_i32_init(size_t init_cap);
 size_t std__collections__HashMap_tests__features__test_collections__Point2D_i32_dist(std__collections__HashMap_tests__features__test_collections__Point2D_i32* self, size_t from, size_t to);
@@ -499,6 +957,15 @@ bool* std__memory__Heap_create_bool(size_t count);
 void std__memory__Heap_free_usz(size_t* ptr);
 void std__memory__Heap_free_bool(bool* ptr);
 tests__features__test_collections__Point2D* std__memory__Heap_create_tests__features__test_collections__Point2D(size_t count);
+__kobel_eu_mut_ptr_u8__std__memory__MemErr std__memory__Heap_try_create_u8(size_t count);
+__kobel_eu_mut_ptr_str__std__memory__MemErr std__memory__Heap_try_create_str(size_t count);
+__kobel_eu_mut_ptr_str__std__memory__MemErr std__memory__Heap_try_resize_str(kobel_str* ptr, size_t count);
+__kobel_eu_mut_ptr_i32__std__memory__MemErr std__memory__Heap_try_create_i32(size_t count);
+__kobel_eu_mut_ptr_i32__std__memory__MemErr std__memory__Heap_try_resize_i32(int32_t* ptr, size_t count);
+__kobel_eu_mut_ptr_std__collections__List_i32__std__memory__MemErr std__memory__Heap_try_create_std__collections__List_i32(size_t count);
+__kobel_eu_mut_ptr_usz__std__memory__MemErr std__memory__Heap_try_create_usz(size_t count);
+__kobel_eu_mut_ptr_bool__std__memory__MemErr std__memory__Heap_try_create_bool(size_t count);
+__kobel_eu_mut_ptr_tests__features__test_collections__Point2D__std__memory__MemErr std__memory__Heap_try_create_tests__features__test_collections__Point2D(size_t count);
 
 size_t std__traits__hash_int(size_t n) {
 size_t x = (n + n / 8) * 2654435761;
@@ -546,6 +1013,15 @@ size_t str_hash(kobel_str self) {
 
 size_t i32_hash(int32_t self) {
     return std__traits__hash_int(self);
+}
+
+__kobel_eu_mut_ptr_u8__std__memory__MemErr std__memory__Heap_try_alloc(size_t size) {
+size_t req = size == 0 ? (size_t)1 : size;
+uint8_t* raw = malloc(req);
+if (raw == NULL) {
+return (__kobel_eu_mut_ptr_u8__std__memory__MemErr){ .is_ok = false, .u = { .err = (std__memory__MemErr){ .tag = 0, .__err_code = 1U, .__origin = { "lib/std/memory/heap.kb", 30, 41, "Heap_try_alloc" } } } };
+}
+return (__kobel_eu_mut_ptr_u8__std__memory__MemErr){ .is_ok = true, .u = { .ok = raw } };
 }
 
 kobel_str std__string__str_from_bytes(uint8_t* buf, size_t len) {
@@ -1240,25 +1716,72 @@ return __ret_tmp;
 
 bool tests__features__test_collections__test_list_utilities(void) {
 std__collections__List_i32 l = std__collections__List_i32_init((int32_t[]){ 10, 20, 30, 20, 50 }, 5);
-if (std__collections__List_i32_index_of(&l, 10) != 0) {
+size_t __eu_catch_1;
+{
+__kobel_eu_usz__std__collections__CollectionErr __eu_src_1 = std__collections__List_i32_index_of(&l, 10);
+if (__eu_src_1.is_ok) {
+__eu_catch_1 = __eu_src_1.u.ok;
+} else {
+__eu_catch_1 = (size_t)999;
+}
+}
+if (__eu_catch_1 != 0) {
 return false;
 }
-if (std__collections__List_i32_index_of(&l, 20) != 1) {
+size_t __eu_catch_2;
+{
+__kobel_eu_usz__std__collections__CollectionErr __eu_src_2 = std__collections__List_i32_index_of(&l, 20);
+if (__eu_src_2.is_ok) {
+__eu_catch_2 = __eu_src_2.u.ok;
+} else {
+__eu_catch_2 = (size_t)999;
+}
+}
+if (__eu_catch_2 != 1) {
 return false;
 }
-if (std__collections__List_i32_index_of(&l, 50) != 4) {
+size_t __eu_catch_3;
+{
+__kobel_eu_usz__std__collections__CollectionErr __eu_src_3 = std__collections__List_i32_index_of(&l, 50);
+if (__eu_src_3.is_ok) {
+__eu_catch_3 = __eu_src_3.u.ok;
+} else {
+__eu_catch_3 = (size_t)999;
+}
+}
+if (__eu_catch_3 != 4) {
 return false;
 }
-if (std__collections__List_i32_index_of(&l, 99) != -1) {
+__kobel_eu_usz__std__collections__CollectionErr miss_first = std__collections__List_i32_index_of(&l, 99);
+if (!(miss_first.is_ok == false && miss_first.u.err.tag == std__collections__CollectionErr__NotFound__TAG)) {
 return false;
 }
-if (std__collections__List_i32_last_index_of(&l, 20) != 3) {
+size_t __eu_catch_4;
+{
+__kobel_eu_usz__std__collections__CollectionErr __eu_src_4 = std__collections__List_i32_last_index_of(&l, 20);
+if (__eu_src_4.is_ok) {
+__eu_catch_4 = __eu_src_4.u.ok;
+} else {
+__eu_catch_4 = (size_t)999;
+}
+}
+if (__eu_catch_4 != 3) {
 return false;
 }
-if (std__collections__List_i32_last_index_of(&l, 50) != 4) {
+size_t __eu_catch_5;
+{
+__kobel_eu_usz__std__collections__CollectionErr __eu_src_5 = std__collections__List_i32_last_index_of(&l, 50);
+if (__eu_src_5.is_ok) {
+__eu_catch_5 = __eu_src_5.u.ok;
+} else {
+__eu_catch_5 = (size_t)999;
+}
+}
+if (__eu_catch_5 != 4) {
 return false;
 }
-if (std__collections__List_i32_last_index_of(&l, 99) != -1) {
+__kobel_eu_usz__std__collections__CollectionErr miss_last = std__collections__List_i32_last_index_of(&l, 99);
+if (!(miss_last.is_ok == false && miss_last.u.err.tag == std__collections__CollectionErr__NotFound__TAG)) {
 return false;
 }
 if (!std__collections__List_i32_contains(&l, 30) || std__collections__List_i32_contains(&l, 99)) {
@@ -1324,10 +1847,61 @@ return false;
 if (!!std__collections__List_tests__features__test_collections__Point2D_contains(&pts, (tests__features__test_collections__Point2D){ 5, 6 })) {
 return false;
 }
-if (std__collections__List_tests__features__test_collections__Point2D_index_of(&pts, (tests__features__test_collections__Point2D){ 3, 4 }) != 1) {
+size_t __eu_catch_6;
+{
+__kobel_eu_usz__std__collections__CollectionErr __eu_src_6 = std__collections__List_tests__features__test_collections__Point2D_index_of(&pts, (tests__features__test_collections__Point2D){ 3, 4 });
+if (__eu_src_6.is_ok) {
+__eu_catch_6 = __eu_src_6.u.ok;
+} else {
+__eu_catch_6 = (size_t)999;
+}
+}
+if (__eu_catch_6 != 1) {
 return false;
 }
-if (std__collections__List_tests__features__test_collections__Point2D_index_of(&pts, (tests__features__test_collections__Point2D){ 9, 9 }) != -1) {
+__kobel_eu_usz__std__collections__CollectionErr miss_pt = std__collections__List_tests__features__test_collections__Point2D_index_of(&pts, (tests__features__test_collections__Point2D){ 9, 9 });
+if (!(miss_pt.is_ok == false && miss_pt.u.err.tag == std__collections__CollectionErr__NotFound__TAG)) {
+return false;
+}
+std__collections__List_i32 empty_l = std__collections__List_i32_init(NULL, 0);
+__kobel_eu_i32__std__collections__CollectionErr err_first = std__collections__List_i32_first(&empty_l);
+if (!(err_first.is_ok == false && err_first.u.err.tag == std__collections__CollectionErr__Empty__TAG)) {
+return false;
+}
+__kobel_eu_i32__std__collections__CollectionErr err_last = std__collections__List_i32_last(&empty_l);
+if (!(err_last.is_ok == false && err_last.u.err.tag == std__collections__CollectionErr__Empty__TAG)) {
+return false;
+}
+__kobel_eu_i32__std__collections__CollectionErr err_pop = std__collections__List_i32_pop(&empty_l);
+if (!(err_pop.is_ok == false && err_pop.u.err.tag == std__collections__CollectionErr__Empty__TAG)) {
+return false;
+}
+__kobel_eu_i32__std__collections__CollectionErr err_oob = std__collections__List_i32_remove_at(&m, 99);
+if (!(err_oob.is_ok == false && err_oob.u.err.tag == std__collections__CollectionErr__OutOfBounds__TAG)) {
+return false;
+}
+int32_t __eu_catch_7;
+{
+__kobel_eu_i32__std__collections__CollectionErr __eu_src_7 = std__collections__List_i32_first(&m);
+if (__eu_src_7.is_ok) {
+__eu_catch_7 = __eu_src_7.u.ok;
+} else {
+__eu_catch_7 = -1;
+}
+}
+if (__eu_catch_7 != 10) {
+return false;
+}
+int32_t __eu_catch_8;
+{
+__kobel_eu_i32__std__collections__CollectionErr __eu_src_8 = std__collections__List_i32_last(&m);
+if (__eu_src_8.is_ok) {
+__eu_catch_8 = __eu_src_8.u.ok;
+} else {
+__eu_catch_8 = -1;
+}
+}
+if (__eu_catch_8 != 40) {
 return false;
 }
 return true;
@@ -1482,6 +2056,20 @@ __for_i = __for_i - 1;
 return (std__collections__List_i32){ buf, items_len, cap };
 }
 
+__kobel_eu_i32__std__collections__CollectionErr std__collections__List_i32_first(std__collections__List_i32* self) {
+if (self->len == 0) {
+return (__kobel_eu_i32__std__collections__CollectionErr){ .is_ok = false, .u = { .err = (std__collections__CollectionErr){ .tag = 1, .__err_code = 3U, .__origin = { "lib/std/collections/list.kb", 52, 42, "List_i32_first" } } } };
+}
+return (__kobel_eu_i32__std__collections__CollectionErr){ .is_ok = true, .u = { .ok = self->data[0] } };
+}
+
+__kobel_eu_i32__std__collections__CollectionErr std__collections__List_i32_last(std__collections__List_i32* self) {
+if (self->len == 0) {
+return (__kobel_eu_i32__std__collections__CollectionErr){ .is_ok = false, .u = { .err = (std__collections__CollectionErr){ .tag = 1, .__err_code = 3U, .__origin = { "lib/std/collections/list.kb", 57, 42, "List_i32_last" } } } };
+}
+return (__kobel_eu_i32__std__collections__CollectionErr){ .is_ok = true, .u = { .ok = self->data[self->len - 1] } };
+}
+
 void std__collections__List_i32_add(std__collections__List_i32* self, int32_t value) {
 if (self->len == self->cap) {
 std__collections__List_i32_grow(self);
@@ -1490,9 +2078,12 @@ self->data[self->len] = value;
 self->len++;
 }
 
-int32_t std__collections__List_i32_pop(std__collections__List_i32* self) {
+__kobel_eu_i32__std__collections__CollectionErr std__collections__List_i32_pop(std__collections__List_i32* self) {
+if (self->len == 0) {
+return (__kobel_eu_i32__std__collections__CollectionErr){ .is_ok = false, .u = { .err = (std__collections__CollectionErr){ .tag = 1, .__err_code = 3U, .__origin = { "lib/std/collections/list.kb", 70, 42, "List_i32_pop" } } } };
+}
 self->len--;
-return self->data[self->len];
+return (__kobel_eu_i32__std__collections__CollectionErr){ .is_ok = true, .u = { .ok = self->data[self->len] } };
 }
 
 void std__collections__List_i32_extend(std__collections__List_i32* self, std__collections__List_i32 other) {
@@ -1513,7 +2104,10 @@ self->data = std__memory__Heap_resize_i32(self->data, new_cap);
 self->cap = new_cap;
 }
 
-int32_t std__collections__List_i32_remove_at(std__collections__List_i32* self, size_t index) {
+__kobel_eu_i32__std__collections__CollectionErr std__collections__List_i32_remove_at(std__collections__List_i32* self, size_t index) {
+if (index >= self->len) {
+return (__kobel_eu_i32__std__collections__CollectionErr){ .is_ok = false, .u = { .err = (std__collections__CollectionErr){ .tag = 2, .__err_code = 4U, .__origin = { "lib/std/collections/list.kb", 97, 46, "List_i32_remove_at" } } } };
+}
 int32_t item = self->data[index];
 {
 size_t __for_e = self->len - 1;
@@ -1544,11 +2138,22 @@ __for_i = __for_i - 1;
 }
 }
 self->len--;
-return item;
+return (__kobel_eu_i32__std__collections__CollectionErr){ .is_ok = true, .u = { .ok = item } };
 }
 
 int32_t std__collections__List_i32_pop_or(std__collections__List_i32* self, int32_t value) {
-    return self->len == 0 ? value : std__collections__List_i32_pop(self);
+{
+int32_t __ret_tmp;
+{
+__kobel_eu_i32__std__collections__CollectionErr __eu_src_9 = std__collections__List_i32_pop(self);
+if (__eu_src_9.is_ok) {
+__ret_tmp = __eu_src_9.u.ok;
+} else {
+__ret_tmp = value;
+}
+}
+return __ret_tmp;
+}
 }
 
 void std__collections__List_i32_swap(std__collections__List_i32* self, size_t a, size_t b) {
@@ -1609,7 +2214,7 @@ __for_i = __for_i - 1;
 return res;
 }
 
-intptr_t std__collections__List_i32_index_of(std__collections__List_i32* self, int32_t value) {
+__kobel_eu_usz__std__collections__CollectionErr std__collections__List_i32_index_of(std__collections__List_i32* self, int32_t value) {
 {
 size_t __for_e = self->len;
 size_t __for_i = __for_e;
@@ -1624,7 +2229,7 @@ __for_go = __for_i > __for_e;
 while (__for_go) {
 size_t i = __for_i;
 if (self->data[i] == value) {
-return i;
+return (__kobel_eu_usz__std__collections__CollectionErr){ .is_ok = true, .u = { .ok = i } };
 }
 if (__for_up) {
 __for_go = __for_i + 1 < __for_e;
@@ -1640,32 +2245,37 @@ __for_i = __for_i - 1;
 }
 }
 }
-return -1;
+return (__kobel_eu_usz__std__collections__CollectionErr){ .is_ok = false, .u = { .err = (std__collections__CollectionErr){ .tag = 0, .__err_code = 2U, .__origin = { "lib/std/collections/list.kb", 155, 23, "List_i32_index_of" } } } };
 }
 
-intptr_t std__collections__List_i32_last_index_of(std__collections__List_i32* self, int32_t value) {
+__kobel_eu_usz__std__collections__CollectionErr std__collections__List_i32_last_index_of(std__collections__List_i32* self, int32_t value) {
 if (self->len == 0) {
-return -1;
+return (__kobel_eu_usz__std__collections__CollectionErr){ .is_ok = false, .u = { .err = (std__collections__CollectionErr){ .tag = 0, .__err_code = 2U, .__origin = { "lib/std/collections/list.kb", 159, 42, "List_i32_last_index_of" } } } };
 }
 size_t i = self->len - 1;
 while (true) {
 if (self->data[i] == value) {
-return i;
+return (__kobel_eu_usz__std__collections__CollectionErr){ .is_ok = true, .u = { .ok = i } };
 }
 if (i == 0) {
 break;
 }
 i--;
 }
-return -1;
+return (__kobel_eu_usz__std__collections__CollectionErr){ .is_ok = false, .u = { .err = (std__collections__CollectionErr){ .tag = 0, .__err_code = 2U, .__origin = { "lib/std/collections/list.kb", 168, 23, "List_i32_last_index_of" } } } };
 }
 
 bool std__collections__List_i32_remove(std__collections__List_i32* self, int32_t value) {
-intptr_t idx = std__collections__List_i32_index_of(self, value);
-if (idx < 0) {
+size_t idx;
+{
+__kobel_eu_usz__std__collections__CollectionErr __eu_src_10 = std__collections__List_i32_index_of(self, value);
+if (__eu_src_10.is_ok) {
+idx = __eu_src_10.u.ok;
+} else {
 return false;
 }
-std__collections__List_i32_remove_at(self, (size_t)idx);
+}
+__kobel_unwrap___kobel_eu_i32__std__collections__CollectionErr(std__collections__List_i32_remove_at(self, idx), "lib/std/collections/list.kb", 201, 22, "List_i32_remove");
 return true;
 }
 
@@ -1733,7 +2343,7 @@ int32_t std__collections__List_i32_get(std__collections__List_i32* self, size_t 
 }
 
 bool std__collections__List_i32_contains(std__collections__List_i32* self, int32_t value) {
-    return std__collections__List_i32_index_of(self, value) != -1;
+    return std__collections__List_i32_index_of(self, value).is_ok == true;
 }
 
 int32_t std__collections__List_i32_set(std__collections__List_i32* self, size_t index, int32_t value) {
@@ -2365,7 +2975,7 @@ __for_i = __for_i - 1;
 return (std__collections__List_tests__features__test_collections__Point2D){ buf, items_len, cap };
 }
 
-intptr_t std__collections__List_tests__features__test_collections__Point2D_index_of(std__collections__List_tests__features__test_collections__Point2D* self, tests__features__test_collections__Point2D value) {
+__kobel_eu_usz__std__collections__CollectionErr std__collections__List_tests__features__test_collections__Point2D_index_of(std__collections__List_tests__features__test_collections__Point2D* self, tests__features__test_collections__Point2D value) {
 {
 size_t __for_e = self->len;
 size_t __for_i = __for_e;
@@ -2380,7 +2990,7 @@ __for_go = __for_i > __for_e;
 while (__for_go) {
 size_t i = __for_i;
 if (kobel_memeq(&self->data[i], &value, 8)) {
-return i;
+return (__kobel_eu_usz__std__collections__CollectionErr){ .is_ok = true, .u = { .ok = i } };
 }
 if (__for_up) {
 __for_go = __for_i + 1 < __for_e;
@@ -2396,11 +3006,11 @@ __for_i = __for_i - 1;
 }
 }
 }
-return -1;
+return (__kobel_eu_usz__std__collections__CollectionErr){ .is_ok = false, .u = { .err = (std__collections__CollectionErr){ .tag = 0, .__err_code = 2U, .__origin = { "lib/std/collections/list.kb", 155, 23, "List_tests__features__test_collections__Point2D_index_of" } } } };
 }
 
 bool std__collections__List_tests__features__test_collections__Point2D_contains(std__collections__List_tests__features__test_collections__Point2D* self, tests__features__test_collections__Point2D value) {
-    return std__collections__List_tests__features__test_collections__Point2D_index_of(self, value) != -1;
+    return std__collections__List_tests__features__test_collections__Point2D_index_of(self, value).is_ok == true;
 }
 
 std__collections__HashMap_tests__features__test_collections__Point2D_i32 std__collections__HashMap_tests__features__test_collections__Point2D_i32_init(size_t init_cap) {
@@ -2641,35 +3251,35 @@ void std__memory__Heap_free_tests__features__test_collections__Point2D(tests__fe
 }
 
 uint8_t* std__memory__Heap_create_u8(size_t count) {
-    return (uint8_t*)malloc(count * 1);
+    return __kobel_unwrap___kobel_eu_mut_ptr_u8__std__memory__MemErr(std__memory__Heap_try_create_u8(count), "lib/std/memory/heap.kb", 50, 67, "Heap_create_u8");
 }
 
 kobel_str* std__memory__Heap_create_str(size_t count) {
-    return (kobel_str*)malloc(count * 16);
+    return __kobel_unwrap___kobel_eu_mut_ptr_str__std__memory__MemErr(std__memory__Heap_try_create_str(count), "lib/std/memory/heap.kb", 50, 67, "Heap_create_str");
 }
 
 kobel_str* std__memory__Heap_resize_str(kobel_str* ptr, size_t count) {
-    return (kobel_str*)realloc((uint8_t*)ptr, count * 16);
+    return __kobel_unwrap___kobel_eu_mut_ptr_str__std__memory__MemErr(std__memory__Heap_try_resize_str(ptr, count), "lib/std/memory/heap.kb", 60, 77, "Heap_resize_str");
 }
 
 int32_t* std__memory__Heap_create_i32(size_t count) {
-    return (int32_t*)malloc(count * 4);
+    return __kobel_unwrap___kobel_eu_mut_ptr_i32__std__memory__MemErr(std__memory__Heap_try_create_i32(count), "lib/std/memory/heap.kb", 50, 67, "Heap_create_i32");
 }
 
 int32_t* std__memory__Heap_resize_i32(int32_t* ptr, size_t count) {
-    return (int32_t*)realloc((uint8_t*)ptr, count * 4);
+    return __kobel_unwrap___kobel_eu_mut_ptr_i32__std__memory__MemErr(std__memory__Heap_try_resize_i32(ptr, count), "lib/std/memory/heap.kb", 60, 77, "Heap_resize_i32");
 }
 
 std__collections__List_i32* std__memory__Heap_create_std__collections__List_i32(size_t count) {
-    return (std__collections__List_i32*)malloc(count * 24);
+    return __kobel_unwrap___kobel_eu_mut_ptr_std__collections__List_i32__std__memory__MemErr(std__memory__Heap_try_create_std__collections__List_i32(count), "lib/std/memory/heap.kb", 50, 67, "Heap_create_std__collections__List_i32");
 }
 
 size_t* std__memory__Heap_create_usz(size_t count) {
-    return (size_t*)malloc(count * 8);
+    return __kobel_unwrap___kobel_eu_mut_ptr_usz__std__memory__MemErr(std__memory__Heap_try_create_usz(count), "lib/std/memory/heap.kb", 50, 67, "Heap_create_usz");
 }
 
 bool* std__memory__Heap_create_bool(size_t count) {
-    return (bool*)malloc(count * 1);
+    return __kobel_unwrap___kobel_eu_mut_ptr_bool__std__memory__MemErr(std__memory__Heap_try_create_bool(count), "lib/std/memory/heap.kb", 50, 67, "Heap_create_bool");
 }
 
 void std__memory__Heap_free_usz(size_t* ptr) {
@@ -2681,6 +3291,96 @@ void std__memory__Heap_free_bool(bool* ptr) {
 }
 
 tests__features__test_collections__Point2D* std__memory__Heap_create_tests__features__test_collections__Point2D(size_t count) {
-    return (tests__features__test_collections__Point2D*)malloc(count * 8);
+    return __kobel_unwrap___kobel_eu_mut_ptr_tests__features__test_collections__Point2D__std__memory__MemErr(std__memory__Heap_try_create_tests__features__test_collections__Point2D(count), "lib/std/memory/heap.kb", 50, 67, "Heap_create_tests__features__test_collections__Point2D");
+}
+
+__kobel_eu_mut_ptr_u8__std__memory__MemErr std__memory__Heap_try_create_u8(size_t count) {
+size_t bytes = count * 1;
+__kobel_eu_mut_ptr_u8__std__memory__MemErr __eu_prop_9 = std__memory__Heap_try_alloc(bytes);
+if (!__eu_prop_9.is_ok) {
+return (__kobel_eu_mut_ptr_u8__std__memory__MemErr){ .is_ok = false, .u = { .err = __eu_prop_9.u.err } };
+}
+uint8_t* raw = __eu_prop_9.u.ok;
+return (__kobel_eu_mut_ptr_u8__std__memory__MemErr){ .is_ok = true, .u = { .ok = (uint8_t*)raw } };
+}
+
+__kobel_eu_mut_ptr_str__std__memory__MemErr std__memory__Heap_try_create_str(size_t count) {
+size_t bytes = count * 16;
+__kobel_eu_mut_ptr_u8__std__memory__MemErr __eu_prop_11 = std__memory__Heap_try_alloc(bytes);
+if (!__eu_prop_11.is_ok) {
+return (__kobel_eu_mut_ptr_str__std__memory__MemErr){ .is_ok = false, .u = { .err = __eu_prop_11.u.err } };
+}
+uint8_t* raw = __eu_prop_11.u.ok;
+return (__kobel_eu_mut_ptr_str__std__memory__MemErr){ .is_ok = true, .u = { .ok = (kobel_str*)raw } };
+}
+
+__kobel_eu_mut_ptr_str__std__memory__MemErr std__memory__Heap_try_resize_str(kobel_str* ptr, size_t count) {
+size_t bytes = count * 16;
+size_t req = bytes == 0 ? (size_t)1 : bytes;
+uint8_t* raw = realloc((uint8_t*)ptr, req);
+if (raw == NULL) {
+return (__kobel_eu_mut_ptr_str__std__memory__MemErr){ .is_ok = false, .u = { .err = (std__memory__MemErr){ .tag = 0, .__err_code = 1U, .__origin = { "lib/std/memory/heap.kb", 45, 54, "Heap_try_resize_str" } } } };
+}
+return (__kobel_eu_mut_ptr_str__std__memory__MemErr){ .is_ok = true, .u = { .ok = (kobel_str*)raw } };
+}
+
+__kobel_eu_mut_ptr_i32__std__memory__MemErr std__memory__Heap_try_create_i32(size_t count) {
+size_t bytes = count * 4;
+__kobel_eu_mut_ptr_u8__std__memory__MemErr __eu_prop_12 = std__memory__Heap_try_alloc(bytes);
+if (!__eu_prop_12.is_ok) {
+return (__kobel_eu_mut_ptr_i32__std__memory__MemErr){ .is_ok = false, .u = { .err = __eu_prop_12.u.err } };
+}
+uint8_t* raw = __eu_prop_12.u.ok;
+return (__kobel_eu_mut_ptr_i32__std__memory__MemErr){ .is_ok = true, .u = { .ok = (int32_t*)raw } };
+}
+
+__kobel_eu_mut_ptr_i32__std__memory__MemErr std__memory__Heap_try_resize_i32(int32_t* ptr, size_t count) {
+size_t bytes = count * 4;
+size_t req = bytes == 0 ? (size_t)1 : bytes;
+uint8_t* raw = realloc((uint8_t*)ptr, req);
+if (raw == NULL) {
+return (__kobel_eu_mut_ptr_i32__std__memory__MemErr){ .is_ok = false, .u = { .err = (std__memory__MemErr){ .tag = 0, .__err_code = 1U, .__origin = { "lib/std/memory/heap.kb", 45, 54, "Heap_try_resize_i32" } } } };
+}
+return (__kobel_eu_mut_ptr_i32__std__memory__MemErr){ .is_ok = true, .u = { .ok = (int32_t*)raw } };
+}
+
+__kobel_eu_mut_ptr_std__collections__List_i32__std__memory__MemErr std__memory__Heap_try_create_std__collections__List_i32(size_t count) {
+size_t bytes = count * 24;
+__kobel_eu_mut_ptr_u8__std__memory__MemErr __eu_prop_13 = std__memory__Heap_try_alloc(bytes);
+if (!__eu_prop_13.is_ok) {
+return (__kobel_eu_mut_ptr_std__collections__List_i32__std__memory__MemErr){ .is_ok = false, .u = { .err = __eu_prop_13.u.err } };
+}
+uint8_t* raw = __eu_prop_13.u.ok;
+return (__kobel_eu_mut_ptr_std__collections__List_i32__std__memory__MemErr){ .is_ok = true, .u = { .ok = (std__collections__List_i32*)raw } };
+}
+
+__kobel_eu_mut_ptr_usz__std__memory__MemErr std__memory__Heap_try_create_usz(size_t count) {
+size_t bytes = count * 8;
+__kobel_eu_mut_ptr_u8__std__memory__MemErr __eu_prop_15 = std__memory__Heap_try_alloc(bytes);
+if (!__eu_prop_15.is_ok) {
+return (__kobel_eu_mut_ptr_usz__std__memory__MemErr){ .is_ok = false, .u = { .err = __eu_prop_15.u.err } };
+}
+uint8_t* raw = __eu_prop_15.u.ok;
+return (__kobel_eu_mut_ptr_usz__std__memory__MemErr){ .is_ok = true, .u = { .ok = (size_t*)raw } };
+}
+
+__kobel_eu_mut_ptr_bool__std__memory__MemErr std__memory__Heap_try_create_bool(size_t count) {
+size_t bytes = count * 1;
+__kobel_eu_mut_ptr_u8__std__memory__MemErr __eu_prop_16 = std__memory__Heap_try_alloc(bytes);
+if (!__eu_prop_16.is_ok) {
+return (__kobel_eu_mut_ptr_bool__std__memory__MemErr){ .is_ok = false, .u = { .err = __eu_prop_16.u.err } };
+}
+uint8_t* raw = __eu_prop_16.u.ok;
+return (__kobel_eu_mut_ptr_bool__std__memory__MemErr){ .is_ok = true, .u = { .ok = (bool*)raw } };
+}
+
+__kobel_eu_mut_ptr_tests__features__test_collections__Point2D__std__memory__MemErr std__memory__Heap_try_create_tests__features__test_collections__Point2D(size_t count) {
+size_t bytes = count * 8;
+__kobel_eu_mut_ptr_u8__std__memory__MemErr __eu_prop_18 = std__memory__Heap_try_alloc(bytes);
+if (!__eu_prop_18.is_ok) {
+return (__kobel_eu_mut_ptr_tests__features__test_collections__Point2D__std__memory__MemErr){ .is_ok = false, .u = { .err = __eu_prop_18.u.err } };
+}
+uint8_t* raw = __eu_prop_18.u.ok;
+return (__kobel_eu_mut_ptr_tests__features__test_collections__Point2D__std__memory__MemErr){ .is_ok = true, .u = { .ok = (tests__features__test_collections__Point2D*)raw } };
 }
 

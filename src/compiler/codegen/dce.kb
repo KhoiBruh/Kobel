@@ -384,7 +384,7 @@ impl DceWalker {
 	fn drain(&self) {
 		while (!self.fn_queue.empty() || !self.type_queue.empty() || !self.const_queue.empty()) {
 			while (!self.fn_queue.empty()) {
-				val fname = self.fn_queue.pop();
+				val fname = self.fn_queue.pop()!;
 				val fptr = self.fn_nodes[fname];
 				if (fptr != null && (*fptr) is FnDecl as f) {
 					self.mark_type_ast(f.return_type);
@@ -397,7 +397,7 @@ impl DceWalker {
 				}
 			}
 			while (!self.type_queue.empty()) {
-				val tname = self.type_queue.pop();
+				val tname = self.type_queue.pop()!;
 				val sptr = self.struct_map[tname];
 				if (sptr != null && (*sptr) is StructDecl as s) {
 					for (f in s.fields) self.mark_type_ast(f.type_node);
@@ -420,7 +420,7 @@ impl DceWalker {
 				}
 			}
 			while (!self.const_queue.empty()) {
-				val cname = self.const_queue.pop();
+				val cname = self.const_queue.pop()!;
 				val cptr = self.const_map[cname];
 				if (cptr != null && (*cptr) is ConstDecl as c) {
 					self.mark_type_ast(c.type_node);

@@ -243,14 +243,16 @@ fn test_generic_hash_map(): bool {
 fn test_list_utilities(): bool {
 	// 1. index_of and last_index_of
 	val l = List<i32>(10, 20, 30, 20, 50);
-	if (l.index_of(10) != 0) return false;
-	if (l.index_of(20) != 1) return false;
-	if (l.index_of(50) != 4) return false;
-	if (l.index_of(99) != -1) return false;
+	if ((l.index_of(10) !: 999 as usz) != 0) return false;
+	if ((l.index_of(20) !: 999 as usz) != 1) return false;
+	if ((l.index_of(50) !: 999 as usz) != 4) return false;
+	val miss_first = l.index_of(99);
+	if (miss_first !is CollectionErr.NotFound) return false;
 
-	if (l.last_index_of(20) != 3) return false;
-	if (l.last_index_of(50) != 4) return false;
-	if (l.last_index_of(99) != -1) return false;
+	if ((l.last_index_of(20) !: 999 as usz) != 3) return false;
+	if ((l.last_index_of(50) !: 999 as usz) != 4) return false;
+	val miss_last = l.last_index_of(99);
+	if (miss_last !is CollectionErr.NotFound) return false;
 
 	// 2. contains and in operator
 	if (!l.contains(30) || l.contains(99)) return false;
@@ -298,8 +300,22 @@ fn test_list_utilities(): bool {
 	val pts = List<Point2D>(Point2D(1, 2), Point2D(3, 4));
 	if (!(Point2D(3, 4) in pts)) return false;
 	if (!(Point2D(5, 6) !in pts)) return false;
-	if (pts.index_of(Point2D(3, 4)) != 1) return false;
-	if (pts.index_of(Point2D(9, 9)) != -1) return false;
+	if ((pts.index_of(Point2D(3, 4)) !: 999 as usz) != 1) return false;
+	val miss_pt = pts.index_of(Point2D(9, 9));
+	if (miss_pt !is CollectionErr.NotFound) return false;
+
+	// 11. CollectionErr on empty/out-of-bounds operations
+	var empty_l = List<i32>();
+	val err_first = empty_l.first();
+	if (err_first !is CollectionErr.Empty) return false;
+	val err_last = empty_l.last();
+	if (err_last !is CollectionErr.Empty) return false;
+	val err_pop = empty_l.pop();
+	if (err_pop !is CollectionErr.Empty) return false;
+	val err_oob = m.remove_at(99);
+	if (err_oob !is CollectionErr.OutOfBounds) return false;
+	if ((m.first() !: -1) != 10) return false;
+	if ((m.last() !: -1) != 40) return false;
 
 	return true;
 }

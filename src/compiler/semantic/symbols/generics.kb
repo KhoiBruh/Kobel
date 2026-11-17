@@ -58,9 +58,8 @@ pub struct GenericSubst {
 impl GenericSubst {
 
 	pub fn lookup(*self, name: str): ?&AstNode {
-		val idx = self.names.index_of(name);
-		if (idx >= 0) return self.args[idx as usz];
-		return null;
+		val idx = self.names.index_of(name) !: return null;
+		return self.args[idx];
 	}
 
 }

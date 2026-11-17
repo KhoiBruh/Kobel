@@ -8,6 +8,10 @@ use std.collections.*;
 // Document Representation
 // ============================================================================
 
+pub fault DocumentErr {
+	NotFound("Document is not open in store")
+}
+
 pub struct Document {
 	pub uri: str = "",
 	pub path: str = "",
@@ -47,7 +51,10 @@ impl DocumentStore {
 
 	pub fn remove(&self, uri: str) => self.doc_map.remove(uri);
 
-	pub op get(*self, uri: str) => self.doc_map.get_or(uri, Document());
+	pub fn get_doc(*self, uri: str): Document ! DocumentErr {
+		val p = self.doc_map[uri] ?: return DocumentErr.NotFound;
+		return *p;
+	}
 
 	pub op contains(*self, uri: str) => uri in self.doc_map;
 

@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
+#include <errno.h>
 
 #ifdef _WIN32
 #include <io.h>
@@ -141,77 +142,6 @@ static inline void kobel_path_buf_free(kobel_path_buf* pb) {
 	}
 }
 
-/* Directory listing helper — returns newline-separated filenames */
-static kobel_str kobel_list_dir(kobel_str dir_path) {
-#ifdef _WIN32
-	if (!dir_path.data || dir_path.len == 0) return (kobel_str){ NULL, 0 };
-	char stack_pat[1024];
-	char* pattern = stack_pat;
-	if (dir_path.len + 3 > sizeof(stack_pat)) {
-		pattern = (char*)malloc(dir_path.len + 3);
-		if (!pattern) return (kobel_str){ NULL, 0 };
-	}
-	memcpy(pattern, dir_path.data, dir_path.len);
-	pattern[dir_path.len] = 92;
-	pattern[dir_path.len + 1] = '*';
-	pattern[dir_path.len + 2] = 0;
-
-	struct _finddata_t data;
-	intptr_t handle = _findfirst(pattern, &data);
-	if (pattern != stack_pat) free(pattern);
-	if (handle == -1) return (kobel_str){ NULL, 0 };
-
-	size_t cap = 1024;
-	size_t len = 0;
-	char* buf = (char*)malloc(cap);
-
-	do {
-		if (strcmp(data.name, ".") == 0 || strcmp(data.name, "..") == 0) continue;
-		size_t nlen = strlen(data.name);
-		while (len + nlen + 2 > cap) {
-			cap *= 2;
-			buf = (char*)realloc(buf, cap);
-		}
-		memcpy(buf + len, data.name, nlen);
-		len += nlen;
-		buf[len++] = 10;
-	} while (_findnext(handle, &data) == 0);
-
-	_findclose(handle);
-	buf[len] = 0;
-	return (kobel_str){ buf, len };
-#else
-	if (!dir_path.data || dir_path.len == 0) return (kobel_str){ NULL, 0 };
-	kobel_path_buf pb;
-	char* path = kobel_path_buf_init(&pb, dir_path);
-	if (!path) return (kobel_str){ NULL, 0 };
-
-	DIR* d = opendir(path);
-	kobel_path_buf_free(&pb);
-	if (!d) return (kobel_str){ NULL, 0 };
-
-	size_t cap = 1024;
-	size_t len = 0;
-	char* buf = (char*)malloc(cap);
-
-	struct dirent* ent;
-	while ((ent = readdir(d)) != NULL) {
-		if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0) continue;
-		size_t nlen = strlen(ent->d_name);
-		while (len + nlen + 2 > cap) {
-			cap *= 2;
-			buf = (char*)realloc(buf, cap);
-		}
-		memcpy(buf + len, ent->d_name, nlen);
-		len += nlen;
-		buf[len++] = 10;
-	}
-	closedir(d);
-	buf[len] = 0;
-	return (kobel_str){ buf, len };
-#endif
-}
-
 /* Platform-abstracted stat & mkdir helpers */
 #ifdef _WIN32
 typedef struct _stat kobel_stat_t;
@@ -258,24 +188,146 @@ static int kobel_path_is_file(kobel_str p) {
 #endif
 }
 
-static int kobel_create_dir(kobel_str dir_path) {
-	if (!dir_path.data || dir_path.len == 0) return 0;
-	kobel_path_buf pb;
-	char* path = kobel_path_buf_init(&pb, dir_path);
-	if (!path) return 0;
-	int res = kobel_mkdir(path);
-	kobel_path_buf_free(&pb);
-	if (res == 0) return 1;
-	return kobel_path_is_dir(dir_path);
+/* Maps C errno values to std.filesystem error kind codes (0 = none/unknown). */
+static inline int32_t kobel_errno_kind(void) {
+	switch (errno) {
+		case 0: return 0;
+#ifdef ENOENT
+		case ENOENT: return 1;
+#endif
+#ifdef EACCES
+		case EACCES: return 2;
+#endif
+#ifdef EPERM
+		case EPERM: return 2;
+#endif
+#ifdef EEXIST
+		case EEXIST: return 3;
+#endif
+#ifdef ENOTDIR
+		case ENOTDIR: return 4;
+#endif
+#ifdef EISDIR
+		case EISDIR: return 5;
+#endif
+#ifdef EINVAL
+		case EINVAL: return 6;
+#endif
+#ifdef ENAMETOOLONG
+		case ENAMETOOLONG: return 6;
+#endif
+#ifdef ENOMEM
+		case ENOMEM: return 7;
+#endif
+		default: return 8;
+	}
 }
 
-static int kobel_create_dir_all(kobel_str dir_path) {
-	if (!dir_path.data || dir_path.len == 0) return 1;
-	if (kobel_path_is_dir(dir_path)) return 1;
+static void* kobel_fs_fopen(kobel_str path, kobel_str mode, int32_t* err_out) {
+	if (!path.data || path.len == 0 || !mode.data || mode.len == 0) {
+		if (err_out) *err_out = 6;
+		return NULL;
+	}
+	kobel_path_buf pb;
+	kobel_path_buf mb;
+	char* p = kobel_path_buf_init(&pb, path);
+	if (!p) {
+		if (err_out) *err_out = 7;
+		return NULL;
+	}
+	char* m = kobel_path_buf_init(&mb, mode);
+	if (!m) {
+		kobel_path_buf_free(&pb);
+		if (err_out) *err_out = 7;
+		return NULL;
+	}
+	errno = 0;
+	FILE* f = fopen(p, m);
+	int saved_err = errno;
+	kobel_path_buf_free(&pb);
+	kobel_path_buf_free(&mb);
+	if (!f) {
+		errno = saved_err;
+		if (kobel_path_is_dir(path)) {
+			if (err_out) *err_out = 5;
+		} else {
+			int32_t k = kobel_errno_kind();
+			if (err_out) *err_out = k != 0 ? k : 8;
+		}
+		return NULL;
+	}
+	if (err_out) *err_out = 0;
+	return (void*)f;
+}
+
+static inline int32_t kobel_fs_stream_err(void* f) {
+	if (!f) return 9;
+	return ferror((FILE*)f) ? 8 : 0;
+}
+
+static int32_t kobel_fs_remove(kobel_str p) {
+	if (!p.data || p.len == 0) return 6;
+	kobel_path_buf pb;
+	char* path = kobel_path_buf_init(&pb, p);
+	if (!path) return 7;
+	errno = 0;
+	int rc = remove(path);
+	int saved_err = errno;
+	kobel_path_buf_free(&pb);
+	if (rc == 0) return 0;
+	errno = saved_err;
+	int32_t k = kobel_errno_kind();
+	return k != 0 ? k : 8;
+}
+
+static int32_t kobel_fs_rename(kobel_str old_p, kobel_str new_p) {
+	if (!old_p.data || old_p.len == 0 || !new_p.data || new_p.len == 0) return 6;
+	kobel_path_buf ob;
+	kobel_path_buf nb;
+	char* os = kobel_path_buf_init(&ob, old_p);
+	if (!os) return 7;
+	char* ns = kobel_path_buf_init(&nb, new_p);
+	if (!ns) {
+		kobel_path_buf_free(&ob);
+		return 7;
+	}
+	errno = 0;
+	int rc = rename(os, ns);
+	int saved_err = errno;
+	kobel_path_buf_free(&ob);
+	kobel_path_buf_free(&nb);
+	if (rc == 0) return 0;
+	errno = saved_err;
+	int32_t k = kobel_errno_kind();
+	return k != 0 ? k : 8;
+}
+
+static int32_t kobel_fs_mkdir(kobel_str dir_path) {
+	if (!dir_path.data || dir_path.len == 0) return 6;
 	kobel_path_buf pb;
 	char* path = kobel_path_buf_init(&pb, dir_path);
-	if (!path) return 0;
+	if (!path) return 7;
+	errno = 0;
+	int res = kobel_mkdir(path);
+	int saved_err = errno;
+	kobel_path_buf_free(&pb);
+	if (res == 0) return 0;
+	if (kobel_path_is_dir(dir_path)) return 0;
+	if (kobel_path_exists(dir_path)) return 3;
+	errno = saved_err;
+	int32_t k = kobel_errno_kind();
+	return k != 0 ? k : 8;
+}
 
+static int32_t kobel_fs_mkdir_all(kobel_str dir_path) {
+	if (!dir_path.data || dir_path.len == 0) return 6;
+	if (kobel_path_is_dir(dir_path)) return 0;
+	if (kobel_path_exists(dir_path)) return 4;
+	kobel_path_buf pb;
+	char* path = kobel_path_buf_init(&pb, dir_path);
+	if (!path) return 7;
+
+	int saved_err = 0;
 	for (size_t i = 1; i < dir_path.len; i++) {
 		if (path[i] == '/' || path[i] == 92) {
 			char saved = path[i];
@@ -284,13 +336,156 @@ static int kobel_create_dir_all(kobel_str dir_path) {
 				path[i] = saved;
 				continue;
 			}
-			kobel_mkdir(path);
+			errno = 0;
+			if (kobel_mkdir(path) != 0 && saved_err == 0) saved_err = errno;
 			path[i] = saved;
 		}
 	}
-	kobel_mkdir(path);
+	errno = 0;
+	int final_rc = kobel_mkdir(path);
+	if (final_rc != 0) saved_err = errno;
 	kobel_path_buf_free(&pb);
-	return kobel_path_is_dir(dir_path);
+	if (kobel_path_is_dir(dir_path)) return 0;
+	if (kobel_path_exists(dir_path)) return 4;
+	errno = saved_err;
+	int32_t k = kobel_errno_kind();
+	return k != 0 ? k : 8;
+}
+
+static kobel_str kobel_fs_list_dir(kobel_str dir_path, int32_t* err_out) {
+	if (err_out) *err_out = 0;
+	if (!dir_path.data || dir_path.len == 0) {
+		if (err_out) *err_out = 6;
+		return (kobel_str){ NULL, 0 };
+	}
+	kobel_stat_t st;
+	errno = 0;
+	if (!kobel_path_stat(dir_path, &st)) {
+		int32_t k = kobel_errno_kind();
+		if (err_out) *err_out = k != 0 ? k : 1;
+		return (kobel_str){ NULL, 0 };
+	}
+#ifdef _WIN32
+	if ((st.st_mode & _S_IFDIR) == 0) {
+#else
+	if (!S_ISDIR(st.st_mode)) {
+#endif
+		if (err_out) *err_out = 4;
+		return (kobel_str){ NULL, 0 };
+	}
+#ifdef _WIN32
+	char stack_pat[1024];
+	char* pattern = stack_pat;
+	if (dir_path.len + 3 > sizeof(stack_pat)) {
+		pattern = (char*)malloc(dir_path.len + 3);
+		if (!pattern) {
+			if (err_out) *err_out = 7;
+			return (kobel_str){ NULL, 0 };
+		}
+	}
+	memcpy(pattern, dir_path.data, dir_path.len);
+	pattern[dir_path.len] = 92;
+	pattern[dir_path.len + 1] = '*';
+	pattern[dir_path.len + 2] = 0;
+
+	struct _finddata_t data;
+	errno = 0;
+	intptr_t handle = _findfirst(pattern, &data);
+	int saved_err = errno;
+	if (pattern != stack_pat) free(pattern);
+	if (handle == -1) {
+		errno = saved_err;
+		if (saved_err == ENOENT) {
+			if (err_out) *err_out = 0;
+			return (kobel_str){ NULL, 0 };
+		}
+		int32_t k = kobel_errno_kind();
+		if (err_out) *err_out = k != 0 ? k : 8;
+		return (kobel_str){ NULL, 0 };
+	}
+
+	size_t cap = 1024;
+	size_t len = 0;
+	char* buf = (char*)malloc(cap);
+	if (!buf) {
+		_findclose(handle);
+		if (err_out) *err_out = 7;
+		return (kobel_str){ NULL, 0 };
+	}
+
+	do {
+		if (strcmp(data.name, ".") == 0 || strcmp(data.name, "..") == 0) continue;
+		size_t nlen = strlen(data.name);
+		while (len + nlen + 2 > cap) {
+			cap *= 2;
+			char* next_buf = (char*)realloc(buf, cap);
+			if (!next_buf) {
+				free(buf);
+				_findclose(handle);
+				if (err_out) *err_out = 7;
+				return (kobel_str){ NULL, 0 };
+			}
+			buf = next_buf;
+		}
+		memcpy(buf + len, data.name, nlen);
+		len += nlen;
+		buf[len++] = 10;
+	} while (_findnext(handle, &data) == 0);
+
+	_findclose(handle);
+	buf[len] = 0;
+	return (kobel_str){ buf, len };
+#else
+	kobel_path_buf pb;
+	char* path = kobel_path_buf_init(&pb, dir_path);
+	if (!path) {
+		if (err_out) *err_out = 7;
+		return (kobel_str){ NULL, 0 };
+	}
+
+	errno = 0;
+	DIR* d = opendir(path);
+	int saved_err = errno;
+	kobel_path_buf_free(&pb);
+	if (!d) {
+		errno = saved_err;
+		int32_t k = kobel_errno_kind();
+		if (err_out) *err_out = k != 0 ? k : 8;
+		return (kobel_str){ NULL, 0 };
+	}
+
+	size_t cap = 1024;
+	size_t len = 0;
+	char* buf = (char*)malloc(cap);
+	if (!buf) {
+		closedir(d);
+		if (err_out) *err_out = 7;
+		return (kobel_str){ NULL, 0 };
+	}
+
+	struct dirent* ent;
+	while ((ent = readdir(d)) != NULL) {
+		if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0) continue;
+		size_t nlen = strlen(ent->d_name);
+		while (len + nlen + 2 > cap) {
+			cap *= 2;
+			char* next_buf = (char*)realloc(buf, cap);
+			if (!next_buf) {
+				free(buf);
+				closedir(d);
+				if (err_out) *err_out = 7;
+				return (kobel_str){ NULL, 0 };
+			}
+			buf = next_buf;
+		}
+		memcpy(buf + len, ent->d_name, nlen);
+		len += nlen;
+		buf[len++] = 10;
+	}
+	closedir(d);
+	buf[len] = 0;
+	return (kobel_str){ buf, len };
+#endif
 }
 
 typedef struct {
@@ -312,7 +507,21 @@ typedef struct {
 	kobel_loc origin;
 	kobel_loc fail_at;
 } __kobel_main_result;
+typedef struct std__memory__MemErr std__memory__MemErr;
+typedef struct std__memory__MemErr__OutOfMemory std__memory__MemErr__OutOfMemory;
+#define std__memory__MemErr__OutOfMemory__TAG 0
+typedef struct std__memory__Heap std__memory__Heap;
+typedef struct std__collections__CollectionErr std__collections__CollectionErr;
+typedef struct std__collections__CollectionErr__NotFound std__collections__CollectionErr__NotFound;
+#define std__collections__CollectionErr__NotFound__TAG 0
+typedef struct std__collections__CollectionErr__Empty std__collections__CollectionErr__Empty;
+#define std__collections__CollectionErr__Empty__TAG 1
+typedef struct std__collections__CollectionErr__OutOfBounds std__collections__CollectionErr__OutOfBounds;
+#define std__collections__CollectionErr__OutOfBounds__TAG 2
 typedef struct std__string__StrRaw std__string__StrRaw;
+typedef struct std__string__SearchErr std__string__SearchErr;
+typedef struct std__string__SearchErr__NotFound std__string__SearchErr__NotFound;
+#define std__string__SearchErr__NotFound__TAG 0
 typedef struct std__process__Process std__process__Process;
 typedef struct tests__features__test_syntax__Counter tests__features__test_syntax__Counter;
 typedef struct tests__features__test_syntax__ConfigWithDefaults tests__features__test_syntax__ConfigWithDefaults;
@@ -325,12 +534,126 @@ typedef struct std__collections__List_str std__collections__List_str;
 typedef struct std__collections__Array_str std__collections__Array_str;
 typedef struct std__collections__HashMap_str_i32 std__collections__HashMap_str_i32;
 typedef struct std__collections__HashSet_str std__collections__HashSet_str;
+typedef struct __kobel_eu_mut_ptr_bool__std__memory__MemErr __kobel_eu_mut_ptr_bool__std__memory__MemErr;
+typedef struct __kobel_eu_mut_ptr_u8__std__memory__MemErr __kobel_eu_mut_ptr_u8__std__memory__MemErr;
+typedef struct __kobel_eu_mut_ptr_usz__std__memory__MemErr __kobel_eu_mut_ptr_usz__std__memory__MemErr;
+typedef struct __kobel_eu_mut_ptr_str__std__memory__MemErr __kobel_eu_mut_ptr_str__std__memory__MemErr;
+typedef struct __kobel_eu_mut_ptr_i32__std__memory__MemErr __kobel_eu_mut_ptr_i32__std__memory__MemErr;
+typedef struct __kobel_eu_usz__std__collections__CollectionErr __kobel_eu_usz__std__collections__CollectionErr;
+typedef struct __kobel_eu_usz__std__string__SearchErr __kobel_eu_usz__std__string__SearchErr;
 
+
+static inline kobel_fault_meta __kobel_lookup_fault(uint32_t code) {
+    switch (code) {
+        case 1U: return (kobel_fault_meta){ 1U, "MemErr.OutOfMemory", "Memory allocation failed (out of memory)" };
+        case 2U: return (kobel_fault_meta){ 2U, "CollectionErr.NotFound", "Element not found in collection" };
+        case 3U: return (kobel_fault_meta){ 3U, "CollectionErr.Empty", "Collection is empty" };
+        case 4U: return (kobel_fault_meta){ 4U, "CollectionErr.OutOfBounds", "Collection index out of range" };
+        case 5U: return (kobel_fault_meta){ 5U, "SearchErr.NotFound", "Pattern or matching character not found in string" };
+        default: return (kobel_fault_meta){ code, "UnknownFault", "Unknown error" };
+    }
+}
+
+static inline void __kobel_report_fault(
+    const char* kind,
+    uint32_t code,
+    kobel_loc origin,
+    kobel_loc fail_at
+) {
+    kobel_fault_meta meta = __kobel_lookup_fault(code);
+    if (meta.desc && meta.name && strcmp(meta.desc, meta.name) != 0) {
+        fprintf(stderr, "panic: %s E%04u (%s): %s\n", kind, (unsigned)code, meta.name, meta.desc);
+    } else if (meta.name) {
+        fprintf(stderr, "panic: %s E%04u (%s)\n", kind, (unsigned)code, meta.name);
+    } else {
+        fprintf(stderr, "panic: %s E%04u\n", kind, (unsigned)code);
+    }
+    if (origin.file && origin.file[0] != 0) {
+        fprintf(stderr, "  origin: %s:%zu:%zu", origin.file, origin.line, origin.col);
+        if (origin.fn && origin.fn[0] != 0) fprintf(stderr, " in %s", origin.fn);
+        fputc(10, stderr);
+    }
+    if (fail_at.file && fail_at.file[0] != 0) {
+        bool same = origin.file && strcmp(origin.file, fail_at.file) == 0
+            && origin.line == fail_at.line && origin.col == fail_at.col;
+        if (!same) {
+            fprintf(stderr, "  at:     %s:%zu:%zu", fail_at.file, fail_at.line, fail_at.col);
+            if (fail_at.fn && fail_at.fn[0] != 0) fprintf(stderr, " in %s", fail_at.fn);
+            fputc(10, stderr);
+        }
+    }
+}
+struct std__memory__MemErr__OutOfMemory {
+    char __empty;
+};
+struct std__memory__MemErr {
+    int32_t tag;
+    uint32_t __err_code;
+    kobel_loc __origin;
+    union {
+        struct std__memory__MemErr__OutOfMemory OutOfMemory;
+    } u;
+};
+
+static inline kobel_str __kobel_fault_str_std__memory__MemErr(std__memory__MemErr e) {
+    switch (e.tag) {
+        case 0: return KOBEL_STR("MemErr.OutOfMemory");
+        default: return KOBEL_STR("MemErr");
+    }
+}
+
+struct std__collections__CollectionErr__NotFound {
+    char __empty;
+};
+struct std__collections__CollectionErr__Empty {
+    char __empty;
+};
+struct std__collections__CollectionErr__OutOfBounds {
+    char __empty;
+};
+struct std__collections__CollectionErr {
+    int32_t tag;
+    uint32_t __err_code;
+    kobel_loc __origin;
+    union {
+        struct std__collections__CollectionErr__NotFound NotFound;
+        struct std__collections__CollectionErr__Empty Empty;
+        struct std__collections__CollectionErr__OutOfBounds OutOfBounds;
+    } u;
+};
+
+static inline kobel_str __kobel_fault_str_std__collections__CollectionErr(std__collections__CollectionErr e) {
+    switch (e.tag) {
+        case 0: return KOBEL_STR("CollectionErr.NotFound");
+        case 1: return KOBEL_STR("CollectionErr.Empty");
+        case 2: return KOBEL_STR("CollectionErr.OutOfBounds");
+        default: return KOBEL_STR("CollectionErr");
+    }
+}
 
 struct std__string__StrRaw {
     const char* data;
     size_t len;
 };
+
+struct std__string__SearchErr__NotFound {
+    char __empty;
+};
+struct std__string__SearchErr {
+    int32_t tag;
+    uint32_t __err_code;
+    kobel_loc __origin;
+    union {
+        struct std__string__SearchErr__NotFound NotFound;
+    } u;
+};
+
+static inline kobel_str __kobel_fault_str_std__string__SearchErr(std__string__SearchErr e) {
+    switch (e.tag) {
+        case 0: return KOBEL_STR("SearchErr.NotFound");
+        default: return KOBEL_STR("SearchErr");
+    }
+}
 
 struct tests__features__test_syntax__Counter {
     int32_t count;
@@ -375,6 +698,125 @@ struct std__collections__HashSet_str {
     size_t cap;
 };
 
+struct __kobel_eu_mut_ptr_bool__std__memory__MemErr {
+    bool is_ok;
+    union {
+        bool* ok;
+        std__memory__MemErr err;
+    } u;
+};
+
+static inline bool* __kobel_unwrap___kobel_eu_mut_ptr_bool__std__memory__MemErr(__kobel_eu_mut_ptr_bool__std__memory__MemErr r, const char* file, size_t line, size_t col, const char* fn) {
+    if (!r.is_ok) {
+        kobel_loc at = { file, line, col, fn };
+        __kobel_report_fault("unwrapped error", r.u.err.__err_code, r.u.err.__origin, at);
+        exit(1);
+    }
+    return r.u.ok;
+}
+
+struct __kobel_eu_mut_ptr_u8__std__memory__MemErr {
+    bool is_ok;
+    union {
+        uint8_t* ok;
+        std__memory__MemErr err;
+    } u;
+};
+
+static inline uint8_t* __kobel_unwrap___kobel_eu_mut_ptr_u8__std__memory__MemErr(__kobel_eu_mut_ptr_u8__std__memory__MemErr r, const char* file, size_t line, size_t col, const char* fn) {
+    if (!r.is_ok) {
+        kobel_loc at = { file, line, col, fn };
+        __kobel_report_fault("unwrapped error", r.u.err.__err_code, r.u.err.__origin, at);
+        exit(1);
+    }
+    return r.u.ok;
+}
+
+struct __kobel_eu_mut_ptr_usz__std__memory__MemErr {
+    bool is_ok;
+    union {
+        size_t* ok;
+        std__memory__MemErr err;
+    } u;
+};
+
+static inline size_t* __kobel_unwrap___kobel_eu_mut_ptr_usz__std__memory__MemErr(__kobel_eu_mut_ptr_usz__std__memory__MemErr r, const char* file, size_t line, size_t col, const char* fn) {
+    if (!r.is_ok) {
+        kobel_loc at = { file, line, col, fn };
+        __kobel_report_fault("unwrapped error", r.u.err.__err_code, r.u.err.__origin, at);
+        exit(1);
+    }
+    return r.u.ok;
+}
+
+struct __kobel_eu_mut_ptr_str__std__memory__MemErr {
+    bool is_ok;
+    union {
+        kobel_str* ok;
+        std__memory__MemErr err;
+    } u;
+};
+
+static inline kobel_str* __kobel_unwrap___kobel_eu_mut_ptr_str__std__memory__MemErr(__kobel_eu_mut_ptr_str__std__memory__MemErr r, const char* file, size_t line, size_t col, const char* fn) {
+    if (!r.is_ok) {
+        kobel_loc at = { file, line, col, fn };
+        __kobel_report_fault("unwrapped error", r.u.err.__err_code, r.u.err.__origin, at);
+        exit(1);
+    }
+    return r.u.ok;
+}
+
+struct __kobel_eu_mut_ptr_i32__std__memory__MemErr {
+    bool is_ok;
+    union {
+        int32_t* ok;
+        std__memory__MemErr err;
+    } u;
+};
+
+static inline int32_t* __kobel_unwrap___kobel_eu_mut_ptr_i32__std__memory__MemErr(__kobel_eu_mut_ptr_i32__std__memory__MemErr r, const char* file, size_t line, size_t col, const char* fn) {
+    if (!r.is_ok) {
+        kobel_loc at = { file, line, col, fn };
+        __kobel_report_fault("unwrapped error", r.u.err.__err_code, r.u.err.__origin, at);
+        exit(1);
+    }
+    return r.u.ok;
+}
+
+struct __kobel_eu_usz__std__collections__CollectionErr {
+    bool is_ok;
+    union {
+        size_t ok;
+        std__collections__CollectionErr err;
+    } u;
+};
+
+static inline size_t __kobel_unwrap___kobel_eu_usz__std__collections__CollectionErr(__kobel_eu_usz__std__collections__CollectionErr r, const char* file, size_t line, size_t col, const char* fn) {
+    if (!r.is_ok) {
+        kobel_loc at = { file, line, col, fn };
+        __kobel_report_fault("unwrapped error", r.u.err.__err_code, r.u.err.__origin, at);
+        exit(1);
+    }
+    return r.u.ok;
+}
+
+struct __kobel_eu_usz__std__string__SearchErr {
+    bool is_ok;
+    union {
+        size_t ok;
+        std__string__SearchErr err;
+    } u;
+};
+
+static inline size_t __kobel_unwrap___kobel_eu_usz__std__string__SearchErr(__kobel_eu_usz__std__string__SearchErr r, const char* file, size_t line, size_t col, const char* fn) {
+    if (!r.is_ok) {
+        kobel_loc at = { file, line, col, fn };
+        __kobel_report_fault("unwrapped error", r.u.err.__err_code, r.u.err.__origin, at);
+        exit(1);
+    }
+    return r.u.ok;
+}
+
 struct tests__features__test_syntax__ConfigWithDefaults {
     kobel_str host;
     int32_t port;
@@ -384,9 +826,10 @@ struct tests__features__test_syntax__ConfigWithDefaults {
 
 size_t std__traits__hash_str(kobel_str s);
 size_t str_hash(kobel_str self);
+__kobel_eu_mut_ptr_u8__std__memory__MemErr std__memory__Heap_try_alloc(size_t size);
 kobel_str std__string__str_from_bytes(uint8_t* buf, size_t len);
 bool str_empty(kobel_str self);
-intptr_t str_index_of(kobel_str self, kobel_str sub);
+__kobel_eu_usz__std__string__SearchErr str_index_of(kobel_str self, kobel_str sub);
 bool str_contains(kobel_str self, kobel_str sub);
 kobel_str std__traits__fmt_u64(uint64_t n0);
 kobel_str std__traits__fmt_i64(int64_t v);
@@ -422,7 +865,7 @@ static void __kobel_user_main(void);
 std__collections__List_str std__collections__List_str_init(kobel_str* items_data, size_t items_len);
 void std__collections__List_str_add(std__collections__List_str* self, kobel_str value);
 void std__collections__List_str_grow(std__collections__List_str* self);
-intptr_t std__collections__List_str_index_of(std__collections__List_str* self, kobel_str value);
+__kobel_eu_usz__std__collections__CollectionErr std__collections__List_str_index_of(std__collections__List_str* self, kobel_str value);
 void std__collections__List_str_free(std__collections__List_str self);
 bool std__collections__List_str_contains(std__collections__List_str* self, kobel_str value);
 void std__collections__List_str_plus_assign(std__collections__List_str* self, kobel_str value);
@@ -449,6 +892,12 @@ size_t* std__memory__Heap_create_usz(size_t count);
 bool* std__memory__Heap_create_bool(size_t count);
 void std__memory__Heap_free_usz(size_t* ptr);
 void std__memory__Heap_free_bool(bool* ptr);
+__kobel_eu_mut_ptr_u8__std__memory__MemErr std__memory__Heap_try_create_u8(size_t count);
+__kobel_eu_mut_ptr_str__std__memory__MemErr std__memory__Heap_try_create_str(size_t count);
+__kobel_eu_mut_ptr_str__std__memory__MemErr std__memory__Heap_try_resize_str(kobel_str* ptr, size_t count);
+__kobel_eu_mut_ptr_i32__std__memory__MemErr std__memory__Heap_try_create_i32(size_t count);
+__kobel_eu_mut_ptr_usz__std__memory__MemErr std__memory__Heap_try_create_usz(size_t count);
+__kobel_eu_mut_ptr_bool__std__memory__MemErr std__memory__Heap_try_create_bool(size_t count);
 
 size_t std__traits__hash_str(kobel_str s) {
 int32_t h = 5381;
@@ -488,6 +937,15 @@ size_t str_hash(kobel_str self) {
     return std__traits__hash_str(self);
 }
 
+__kobel_eu_mut_ptr_u8__std__memory__MemErr std__memory__Heap_try_alloc(size_t size) {
+size_t req = size == 0 ? (size_t)1 : size;
+uint8_t* raw = malloc(req);
+if (raw == NULL) {
+return (__kobel_eu_mut_ptr_u8__std__memory__MemErr){ .is_ok = false, .u = { .err = (std__memory__MemErr){ .tag = 0, .__err_code = 1U, .__origin = { "lib/std/memory/heap.kb", 30, 41, "Heap_try_alloc" } } } };
+}
+return (__kobel_eu_mut_ptr_u8__std__memory__MemErr){ .is_ok = true, .u = { .ok = raw } };
+}
+
 kobel_str std__string__str_from_bytes(uint8_t* buf, size_t len) {
 std__string__StrRaw r = (std__string__StrRaw){ (const char*)buf, len };
 kobel_str* sp = (kobel_str*)&r;
@@ -498,12 +956,12 @@ bool str_empty(kobel_str self) {
     return self.len == 0;
 }
 
-intptr_t str_index_of(kobel_str self, kobel_str sub) {
+__kobel_eu_usz__std__string__SearchErr str_index_of(kobel_str self, kobel_str sub) {
 if (str_empty(sub)) {
-return 0;
+return (__kobel_eu_usz__std__string__SearchErr){ .is_ok = true, .u = { .ok = (size_t)0 } };
 }
 if (self.len < sub.len) {
-return -1;
+return (__kobel_eu_usz__std__string__SearchErr){ .is_ok = false, .u = { .err = (std__string__SearchErr){ .tag = 0, .__err_code = 5U, .__origin = { "lib/std/string/str.kb", 159, 43, "str_index_of" } } } };
 }
 size_t max_start = self.len - sub.len;
 {
@@ -552,7 +1010,7 @@ __for_i = __for_i - 1;
 }
 }
 if (matched) {
-return i;
+return (__kobel_eu_usz__std__string__SearchErr){ .is_ok = true, .u = { .ok = i } };
 }
 if (__for_up) {
 __for_go = __for_i < __for_e;
@@ -568,11 +1026,11 @@ __for_i = __for_i - 1;
 }
 }
 }
-return -1;
+return (__kobel_eu_usz__std__string__SearchErr){ .is_ok = false, .u = { .err = (std__string__SearchErr){ .tag = 0, .__err_code = 5U, .__origin = { "lib/std/string/str.kb", 174, 19, "str_index_of" } } } };
 }
 
 bool str_contains(kobel_str self, kobel_str sub) {
-    return str_index_of(self, sub) >= 0;
+    return str_index_of(self, sub).is_ok == true;
 }
 
 kobel_str std__traits__fmt_u64(uint64_t n0) {
@@ -1619,7 +2077,7 @@ self->data = std__memory__Heap_resize_str(self->data, new_cap);
 self->cap = new_cap;
 }
 
-intptr_t std__collections__List_str_index_of(std__collections__List_str* self, kobel_str value) {
+__kobel_eu_usz__std__collections__CollectionErr std__collections__List_str_index_of(std__collections__List_str* self, kobel_str value) {
 {
 size_t __for_e = self->len;
 size_t __for_i = __for_e;
@@ -1634,7 +2092,7 @@ __for_go = __for_i > __for_e;
 while (__for_go) {
 size_t i = __for_i;
 if (kobel_streq(self->data[i], value)) {
-return i;
+return (__kobel_eu_usz__std__collections__CollectionErr){ .is_ok = true, .u = { .ok = i } };
 }
 if (__for_up) {
 __for_go = __for_i + 1 < __for_e;
@@ -1650,7 +2108,7 @@ __for_i = __for_i - 1;
 }
 }
 }
-return -1;
+return (__kobel_eu_usz__std__collections__CollectionErr){ .is_ok = false, .u = { .err = (std__collections__CollectionErr){ .tag = 0, .__err_code = 2U, .__origin = { "lib/std/collections/list.kb", 155, 23, "List_str_index_of" } } } };
 }
 
 void std__collections__List_str_free(std__collections__List_str self) {
@@ -1658,7 +2116,7 @@ void std__collections__List_str_free(std__collections__List_str self) {
 }
 
 bool std__collections__List_str_contains(std__collections__List_str* self, kobel_str value) {
-    return std__collections__List_str_index_of(self, value) != -1;
+    return std__collections__List_str_index_of(self, value).is_ok == true;
 }
 
 void std__collections__List_str_plus_assign(std__collections__List_str* self, kobel_str value) {
@@ -2026,27 +2484,27 @@ void std__memory__Heap_free_i32(int32_t* ptr) {
 }
 
 uint8_t* std__memory__Heap_create_u8(size_t count) {
-    return (uint8_t*)malloc(count * 1);
+    return __kobel_unwrap___kobel_eu_mut_ptr_u8__std__memory__MemErr(std__memory__Heap_try_create_u8(count), "lib/std/memory/heap.kb", 50, 67, "Heap_create_u8");
 }
 
 kobel_str* std__memory__Heap_create_str(size_t count) {
-    return (kobel_str*)malloc(count * 16);
+    return __kobel_unwrap___kobel_eu_mut_ptr_str__std__memory__MemErr(std__memory__Heap_try_create_str(count), "lib/std/memory/heap.kb", 50, 67, "Heap_create_str");
 }
 
 kobel_str* std__memory__Heap_resize_str(kobel_str* ptr, size_t count) {
-    return (kobel_str*)realloc((uint8_t*)ptr, count * 16);
+    return __kobel_unwrap___kobel_eu_mut_ptr_str__std__memory__MemErr(std__memory__Heap_try_resize_str(ptr, count), "lib/std/memory/heap.kb", 60, 77, "Heap_resize_str");
 }
 
 int32_t* std__memory__Heap_create_i32(size_t count) {
-    return (int32_t*)malloc(count * 4);
+    return __kobel_unwrap___kobel_eu_mut_ptr_i32__std__memory__MemErr(std__memory__Heap_try_create_i32(count), "lib/std/memory/heap.kb", 50, 67, "Heap_create_i32");
 }
 
 size_t* std__memory__Heap_create_usz(size_t count) {
-    return (size_t*)malloc(count * 8);
+    return __kobel_unwrap___kobel_eu_mut_ptr_usz__std__memory__MemErr(std__memory__Heap_try_create_usz(count), "lib/std/memory/heap.kb", 50, 67, "Heap_create_usz");
 }
 
 bool* std__memory__Heap_create_bool(size_t count) {
-    return (bool*)malloc(count * 1);
+    return __kobel_unwrap___kobel_eu_mut_ptr_bool__std__memory__MemErr(std__memory__Heap_try_create_bool(count), "lib/std/memory/heap.kb", 50, 67, "Heap_create_bool");
 }
 
 void std__memory__Heap_free_usz(size_t* ptr) {
@@ -2055,5 +2513,65 @@ void std__memory__Heap_free_usz(size_t* ptr) {
 
 void std__memory__Heap_free_bool(bool* ptr) {
     free((uint8_t*)ptr);
+}
+
+__kobel_eu_mut_ptr_u8__std__memory__MemErr std__memory__Heap_try_create_u8(size_t count) {
+size_t bytes = count * 1;
+__kobel_eu_mut_ptr_u8__std__memory__MemErr __eu_prop_1 = std__memory__Heap_try_alloc(bytes);
+if (!__eu_prop_1.is_ok) {
+return (__kobel_eu_mut_ptr_u8__std__memory__MemErr){ .is_ok = false, .u = { .err = __eu_prop_1.u.err } };
+}
+uint8_t* raw = __eu_prop_1.u.ok;
+return (__kobel_eu_mut_ptr_u8__std__memory__MemErr){ .is_ok = true, .u = { .ok = (uint8_t*)raw } };
+}
+
+__kobel_eu_mut_ptr_str__std__memory__MemErr std__memory__Heap_try_create_str(size_t count) {
+size_t bytes = count * 16;
+__kobel_eu_mut_ptr_u8__std__memory__MemErr __eu_prop_3 = std__memory__Heap_try_alloc(bytes);
+if (!__eu_prop_3.is_ok) {
+return (__kobel_eu_mut_ptr_str__std__memory__MemErr){ .is_ok = false, .u = { .err = __eu_prop_3.u.err } };
+}
+uint8_t* raw = __eu_prop_3.u.ok;
+return (__kobel_eu_mut_ptr_str__std__memory__MemErr){ .is_ok = true, .u = { .ok = (kobel_str*)raw } };
+}
+
+__kobel_eu_mut_ptr_str__std__memory__MemErr std__memory__Heap_try_resize_str(kobel_str* ptr, size_t count) {
+size_t bytes = count * 16;
+size_t req = bytes == 0 ? (size_t)1 : bytes;
+uint8_t* raw = realloc((uint8_t*)ptr, req);
+if (raw == NULL) {
+return (__kobel_eu_mut_ptr_str__std__memory__MemErr){ .is_ok = false, .u = { .err = (std__memory__MemErr){ .tag = 0, .__err_code = 1U, .__origin = { "lib/std/memory/heap.kb", 45, 54, "Heap_try_resize_str" } } } };
+}
+return (__kobel_eu_mut_ptr_str__std__memory__MemErr){ .is_ok = true, .u = { .ok = (kobel_str*)raw } };
+}
+
+__kobel_eu_mut_ptr_i32__std__memory__MemErr std__memory__Heap_try_create_i32(size_t count) {
+size_t bytes = count * 4;
+__kobel_eu_mut_ptr_u8__std__memory__MemErr __eu_prop_4 = std__memory__Heap_try_alloc(bytes);
+if (!__eu_prop_4.is_ok) {
+return (__kobel_eu_mut_ptr_i32__std__memory__MemErr){ .is_ok = false, .u = { .err = __eu_prop_4.u.err } };
+}
+uint8_t* raw = __eu_prop_4.u.ok;
+return (__kobel_eu_mut_ptr_i32__std__memory__MemErr){ .is_ok = true, .u = { .ok = (int32_t*)raw } };
+}
+
+__kobel_eu_mut_ptr_usz__std__memory__MemErr std__memory__Heap_try_create_usz(size_t count) {
+size_t bytes = count * 8;
+__kobel_eu_mut_ptr_u8__std__memory__MemErr __eu_prop_6 = std__memory__Heap_try_alloc(bytes);
+if (!__eu_prop_6.is_ok) {
+return (__kobel_eu_mut_ptr_usz__std__memory__MemErr){ .is_ok = false, .u = { .err = __eu_prop_6.u.err } };
+}
+uint8_t* raw = __eu_prop_6.u.ok;
+return (__kobel_eu_mut_ptr_usz__std__memory__MemErr){ .is_ok = true, .u = { .ok = (size_t*)raw } };
+}
+
+__kobel_eu_mut_ptr_bool__std__memory__MemErr std__memory__Heap_try_create_bool(size_t count) {
+size_t bytes = count * 1;
+__kobel_eu_mut_ptr_u8__std__memory__MemErr __eu_prop_7 = std__memory__Heap_try_alloc(bytes);
+if (!__eu_prop_7.is_ok) {
+return (__kobel_eu_mut_ptr_bool__std__memory__MemErr){ .is_ok = false, .u = { .err = __eu_prop_7.u.err } };
+}
+uint8_t* raw = __eu_prop_7.u.ok;
+return (__kobel_eu_mut_ptr_bool__std__memory__MemErr){ .is_ok = true, .u = { .ok = (bool*)raw } };
 }
 

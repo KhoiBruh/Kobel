@@ -22,6 +22,10 @@ use compiler.semantic.symbols.*;
  * ============================================================================
  */
 
+pub fault IndexErr {
+	NotFound("Entry not found in semantic index")
+}
+
 pub enum SymRole {
 	MODULE,
 	FN,
@@ -391,11 +395,11 @@ impl SemanticIndex {
 		return idx;
 	}
 
-	pub fn get_def(*self, key: str): DefInfo {
-		val idx_p = self.def_by_key.get(key) ?: return DefInfo("", "", SymRole.LOCAL, "", "", "", 0, 0, 0, "", "");
+	pub fn get_def(*self, key: str): DefInfo ! IndexErr {
+		val idx_p = self.def_by_key.get(key) ?: return IndexErr.NotFound;
 		val idx = idx_p.read();
 		if (idx < self.defs.len) return self.defs[idx];
-		return DefInfo("", "", SymRole.LOCAL, "", "", "", 0, 0, 0, "", "");
+		return IndexErr.NotFound;
 	}
 
 	pub fn add_ref(&self, r: RefInfo) {
@@ -431,20 +435,23 @@ impl SemanticIndex {
 		}
 	}
 
-	pub fn find_ref_at(*self, file_path: str, line1: usz, col1: usz): RefInfo {
+	pub fn find_ref_at(*self, file_path: str, line1: usz, col1: usz): RefInfo ! IndexErr {
 		val norm = file_path.normalize_path();
 		val list = self.refs_by_file.get_or(norm, List<usz>());
 		var best = RefInfo("", "", "", 0, 0, 0);
+		var found = false;
 		var best_len: usz = 999999;
 		for (idx in list) {
 			val r = self.refs[idx];
 			if (r.line == line1 && col1 >= r.col && col1 <= r.col + r.len) {
-				if (r.len <= best_len) {
+				if (!found || r.len <= best_len) {
 					best = r;
 					best_len = r.len;
+					found = true;
 				}
 			}
 		}
+		if (!found) return IndexErr.NotFound;
 		return best;
 	}
 
@@ -551,7 +558,7 @@ impl IndexWalker {
 	fn push_scope(&self) => self.scopes += LocalScope();
 
 	fn pop_scope(&self) {
-		if (!self.scopes.empty()) self.scopes.pop();
+		if (!self.scopes.empty()) self.scopes.pop()!;
 	}
 
 	fn bind_local(&self, name: str, role: SymRole, line: usz, col: usz, type_str: str, is_mut: bool) {
@@ -581,7 +588,7 @@ impl IndexWalker {
 		}
 	}
 
-	fn lookup_local(*self, name: str): LocalBinding {
+	fn lookup_local(*self, name: str): LocalBinding ! IndexErr {
 		var i = self.scopes.len;
 		while (i > 0) {
 			i--;
@@ -590,18 +597,16 @@ impl IndexWalker {
 				if (b.name == name) return b;
 			}
 		}
-		return LocalBinding("", "", 0);
+		return IndexErr.NotFound;
 	}
 
 	fn mark_mutated(*self, node: ?*AstNode) {
 		if (node == null) return;
 		if (node is IdentifierExpr as id) {
-			val lb = self.lookup_local(id.name);
-			if (!lb.key.empty()) {
-				var d = self.index.defs[lb.def_idx];
-				d.is_mutated = true;
-				self.index.defs[lb.def_idx] = d;
-			}
+			val lb = self.lookup_local(id.name) !: return;
+			var d = self.index.defs[lb.def_idx];
+			d.is_mutated = true;
+			self.index.defs[lb.def_idx] = d;
 		}
 	}
 
@@ -611,8 +616,8 @@ impl IndexWalker {
 		return ty.to_str();
 	}
 
-	fn resolve_variant_named_type(*self, type_name: str): Pair<str, str> {
-		if (type_name.empty()) return Pair<str, str>("", "");
+	fn resolve_variant_named_type(*self, type_name: str): Pair<str, str> ! IndexErr {
+		if (type_name.empty()) return IndexErr.NotFound;
 		// 1. BodyChecker-mangled variant type: `<c_enum>__<Variant>`
 		if (!(type_name in self.index.c_name_to_key) && type_name.len >= 3) {
 			var split_i: isz = -1;
@@ -631,8 +636,8 @@ impl IndexWalker {
 				val vname = type_name.slice(s_u + 2, type_name.len);
 				val e_key = self.index.c_name_to_key.get_or(prefix, "");
 				if (!e_key.empty() && !vname.empty()) {
-					val edef = self.index.get_def(e_key);
-					if (!edef.name.empty()) {
+					val edef_res = self.index.get_def(e_key);
+					if (edef_res is DefInfo as edef) {
 						val v_key = "variant:${edef.module_name}:${edef.name}:${vname}";
 						if (v_key in self.index.def_by_key) return Pair<str, str>(v_key, vname);
 					}
@@ -646,23 +651,22 @@ impl IndexWalker {
 			if (v_key in self.index.def_by_key) return Pair<str, str>(v_key, vname);
 		}
 		// 3. Unmangled `Enum.Variant` / `Fault.Variant`
-		val dot_pos = type_name.index_of(".");
-		if (dot_pos > 0) {
-			val di = dot_pos as usz;
+		val di = type_name.index_of(".") !: return IndexErr.NotFound;
+		if (di > 0) {
 			val ename = type_name.slice(0, di);
 			val vname = type_name.slice(di + 1, type_name.len);
 			if (!vname.empty()) {
 				val e_key = self.index.resolve_visible_symbol_key(self.cur_file, self.cur_mod, ename);
 				if (!e_key.empty()) {
-					val edef = self.index.get_def(e_key);
-					if (!edef.name.empty()) {
+					val edef_res = self.index.get_def(e_key);
+					if (edef_res is DefInfo as edef) {
 						val v_key = "variant:${edef.module_name}:${edef.name}:${vname}";
 						if (v_key in self.index.def_by_key) return Pair<str, str>(v_key, vname);
 					}
 				}
 			}
 		}
-		return Pair<str, str>("", "");
+		return IndexErr.NotFound;
 	}
 
 	fn walk_type_node(&self, node: ?*AstNode) {
@@ -674,8 +678,8 @@ impl IndexWalker {
 				var key = self.index.resolve_visible_symbol_key(self.cur_file, self.cur_mod, node.name);
 				var snap_name = node.name;
 				if (key.empty()) {
-					val vpair = self.resolve_variant_named_type(node.name);
-					if (!vpair.first.empty()) {
+					val vp_res = self.resolve_variant_named_type(node.name);
+					if (vp_res is Pair<str, str> as vpair) {
 						key = vpair.first;
 						snap_name = vpair.second;
 					}
@@ -683,8 +687,10 @@ impl IndexWalker {
 				if (key.empty()) {
 					key = self.index.c_name_to_key.get_or(node.name, "");
 					if (!key.empty()) {
-						val def = self.index.get_def(key);
-						if (!def.name.empty()) snap_name = def.name;
+						val def_res = self.index.get_def(key);
+						if (def_res is DefInfo as def && !def.name.empty()) {
+							snap_name = def.name;
+						}
 					}
 				}
 				if (!key.empty()) {
@@ -1095,8 +1101,8 @@ impl IndexWalker {
 		val ty_s = self.node_type_str(node);
 		when (node) {
 			is IdentifierExpr -> {
-				val lb = self.lookup_local(node.name);
-				if (!lb.key.empty()) {
+				val lb_res = self.lookup_local(node.name);
+				if (lb_res is LocalBinding as lb) {
 					self.index.add_ref(RefInfo(
 						lb.key, self.cur_file, self.cur_mod, nl, nc, node.name.len,
 						false, false, false, ty_s
@@ -1108,8 +1114,10 @@ impl IndexWalker {
 				if (key.empty()) {
 					key = self.index.c_name_to_key.get_or(node.name, "");
 					if (!key.empty()) {
-						val def = self.index.get_def(key);
-						if (!def.name.empty()) ref_len = def.name.len;
+						val def_res = self.index.get_def(key);
+						if (def_res is DefInfo as def && !def.name.empty()) {
+							ref_len = def.name.len;
+						}
 					}
 				}
 				if (!key.empty()) {

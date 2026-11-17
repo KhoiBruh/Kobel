@@ -21,7 +21,7 @@ fn test_toml_parser(): bool {
 		dir = "my_tests"
 	""";
 
-	val doc = Toml(toml_content);
+	val doc = Toml.parse(toml_content) !: return false;
 
 	if (doc.get("package.name", "") != "my_project") return false;
 	if (doc.get("package.version", "") != "0.2.1") return false;
@@ -30,9 +30,25 @@ fn test_toml_parser(): bool {
 	if (doc.get("build.cc", "") != "clang") return false;
 	if (doc.get("test.dir", "") != "my_tests") return false;
 
-	// Default fallback for missing key
+	// Default fallback vs explicit ConfigErr.KeyNotFound
 	if (doc.get("nonexistent.key", "fallback") != "fallback") return false;
+	val miss = doc.try_get("nonexistent.key");
+	if (miss !is ConfigErr.KeyNotFound) return false;
 
+	return true;
+}
+
+fn test_config_errors(): bool {
+	val bad_hdr = Toml.parse("[unclosed");
+	if (bad_hdr !is ConfigErr.MalformedHeader) return false;
+	val bad_line = Toml.parse("not_a_kv_pair");
+	if (bad_line !is ConfigErr.MalformedLine) return false;
+	val empty_key = Toml.parse("= \"val\"");
+	if (empty_key !is ConfigErr.EmptyKey) return false;
+	val bad_str = Toml.parse("name = \"unterminated");
+	if (bad_str !is ConfigErr.UnterminatedString) return false;
+	val missing_cfg = ProjectConfig.load("build/__missing_manifest__.toml");
+	if (missing_cfg !is ConfigErr.ManifestNotFound) return false;
 	return true;
 }
 
@@ -54,7 +70,7 @@ fn test_toml_iteration(): bool {
 		name = "foo"
 		version = "1.2.3"
 	""";
-	val doc = Toml(toml_content);
+	val doc = Toml.parse(toml_content) !: return false;
 	var count = 0;
 	for ((k, v) in doc) {
 		if (k == "package.name" && v == "foo") count++;
@@ -72,10 +88,14 @@ fn test_entry_precedence(): bool {
 
 		[build]
 		entry = "src/other.kb"
-	""");
-	defer p.remove();
+	""") !: return false;
+	defer {
+		if (p.exists()) {
+			p.remove() !: err -> {};
+		}
+	}
 
-	val cfg = ProjectConfig(tmp_path);
+	val cfg = ProjectConfig.load(tmp_path) !: return false;
 	return cfg.entry == "src/main.kb";
 }
 
@@ -105,6 +125,12 @@ fn run_tests(): i32 {
 		return 1;
 	}
 	println("  [PASS] test_entry_precedence");
+
+	if (!test_config_errors()) {
+		println("  [FAIL] test_config_errors");
+		return 1;
+	}
+	println("  [PASS] test_config_errors");
 
 	println("[ALL PASSED] Mini-TOML and Project Config tests passed successfully!");
 	return 0;

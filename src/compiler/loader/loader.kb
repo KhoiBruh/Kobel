@@ -27,6 +27,14 @@ use compiler.parser.Parser;
  * ============================================================================
  */
 
+pub fault LoaderErr {
+	ModuleNotFound("Module not found in search paths"),
+	ProjectRootNotFound("Could not detect Kobel project root"),
+	IoError("Filesystem failure while reading module source"),
+	LexFailed("Lexical analysis failed"),
+	ParseFailed("Syntax analysis failed")
+}
+
 pub struct LoadedModule {
 	pub name: str,
 	pub path: str,
@@ -35,7 +43,6 @@ pub struct LoadedModule {
 }
 
 pub struct ModuleFile {
-	pub found: bool,
 	pub path: str,
 	pub source: str
 }
@@ -43,12 +50,6 @@ pub struct ModuleFile {
 impl ModuleFile {
 
 	pub op unpack(*self, path: &str, source: &str) {
-		path.write(self.path);
-		source.write(self.source);
-	}
-
-	pub op unpack(*self, found: &bool, path: &str, source: &str) {
-		found.write(self.found);
 		path.write(self.path);
 		source.write(self.source);
 	}
@@ -65,7 +66,7 @@ pub struct ModuleLoader {
 	pub sources: SourceMap
 }
 
-pub fn detect_project_root(start_dir: str): str {
+pub fn detect_project_root(start_dir: str): str ! LoaderErr {
 	var curr = Path(start_dir);
 	var count = 0;
 	while (!curr.empty() && count < 10) {
@@ -82,7 +83,7 @@ pub fn detect_project_root(start_dir: str): str {
 		count++;
 	}
 
-	return "";
+	return LoaderErr.ProjectRootNotFound;
 }
 
 fn str_less(a: str, b: str): bool {
@@ -123,7 +124,7 @@ impl ModuleLoader {
 		roots += "src";
 
 		// Auto-detect project root if entry_dir is within a Kobel project tree
-		val proj = detect_project_root(entry_dir);
+		val proj = detect_project_root(entry_dir) !: "";
 		if (!proj.empty()) {
 			val proj_p = Path(proj);
 			roots += proj;
@@ -157,7 +158,7 @@ impl ModuleLoader {
 	// Parsing
 	// ============================================================================
 
-	pub fn parse_source(&self, path: str, source: str, module_name: str = ""): ?&AstNode {
+	pub fn parse_source(&self, path: str, source: str, module_name: str = ""): &AstNode ! LoaderErr {
 		val file_id = self.sources.add_file(path, source, module_name);
 		var lexer = Lexer(source, file_id);
 		val tokens = lexer.tokenize();
@@ -169,7 +170,7 @@ impl ModuleLoader {
 				diag.file_path = path;
 				self.errors += diag;
 			}
-			return null;
+			return LoaderErr.LexFailed;
 		}
 
 		var parser = Parser(tokens, self.arena);
@@ -181,7 +182,7 @@ impl ModuleLoader {
 				diag.file_path = path;
 				self.errors += diag;
 			}
-			return null;
+			return LoaderErr.ParseFailed;
 		}
 
 		return prog;
@@ -191,7 +192,7 @@ impl ModuleLoader {
 	// File Resolution
 	// ============================================================================
 
-	pub fn find_module_files(*self, module_name: str): List<ModuleFile> {
+	pub fn find_module_files(*self, module_name: str): List<ModuleFile> ! LoaderErr {
 		var list = List<ModuleFile>();
 		val rel_file = "${module_name.module_to_rel()}.kb";
 		val rel_dir = module_name.module_to_rel();
@@ -200,13 +201,15 @@ impl ModuleLoader {
 			val root_p = Path(root);
 			// 1. Single-file module: <root>/<rel>.kb
 			val cand_p = root_p.join(rel_file);
-			val src = cand_p.read_text();
-			if (!src.empty()) list += ModuleFile(true, cand_p.raw, src);
+			if (cand_p.is_file()) {
+				val src = cand_p.read_text() !: return LoaderErr.IoError;
+				list += ModuleFile(cand_p.raw, src);
+			}
 
 			// 2. Folder-as-package: <root>/<rel>/
 			val dir_p = root_p.join(rel_dir);
-			val entries = dir_p.list_dir();
-			if (!entries.empty()) {
+			if (dir_p.is_dir()) {
+				val entries = dir_p.list_dir() !: return LoaderErr.IoError;
 				var kb_files = entries.filter { e -> e.ends_with(".kb") };
 				sort_strings(&kb_files);
 
@@ -214,8 +217,8 @@ impl ModuleLoader {
 					val f_p = dir_p.join(f);
 					val already = list.any { m -> m.path == f_p.raw };
 					if (!already) {
-						val f_src = f_p.read_text();
-						if (!f_src.empty()) list += ModuleFile(true, f_p.raw, f_src);
+						val f_src = f_p.read_text() !: return LoaderErr.IoError;
+						list += ModuleFile(f_p.raw, f_src);
 					}
 				}
 			}
@@ -223,14 +226,16 @@ impl ModuleLoader {
 			if (!list.empty()) return list;
 		}
 
-		return list;
+		return LoaderErr.ModuleNotFound;
 	}
 
-	pub fn find_module(*self, module_name: str): ModuleFile {
-		val files = self.find_module_files(module_name);
-		if (files.empty()) return ModuleFile(false, "", "");
+	pub fn find_module(*self, module_name: str): ModuleFile ! LoaderErr {
+		val files = self.find_module_files(module_name)?;
+		if (files.empty()) return LoaderErr.ModuleNotFound;
 		return files[0];
 	}
+
+	pub fn has_module(*self, module_name: str): bool => self.find_module(module_name) is ModuleFile;
 
 	pub fn is_known(*self, module_name: str) => module_name in self.known;
 
@@ -240,18 +245,18 @@ impl ModuleLoader {
 		self.known += module_name;
 		self.modules += LoadedModule(module_name, "", null, 0);
 
-		val files = self.find_module_files(module_name);
-		if (files.empty()) {
-			self.errors += Diagnostic.error(
-				Span(0, line, col, 1), parent_mod,
-				"Module '${module_name}' not found "
-				"(searched the entry directory, -I roots, lib/, src/)"
-			);
+		val files = self.find_module_files(module_name) !: err -> {
+			val msg = when (err) {
+				is .IoError -> "Failed to read module '${module_name}' from disk";
+				else -> "Module '${module_name}' not found "
+					"(searched the entry directory, -I roots, lib/, src/)";
+			};
+			self.errors += Diagnostic.error(Span(0, line, col, 1), parent_mod, msg);
 			return;
-		}
+		};
 
 		for ((f_path, f_src) in files) {
-			val prog = self.parse_source(f_path, f_src, module_name) ?: continue;
+			val prog = self.parse_source(f_path, f_src, module_name) !: continue;
 
 			var declared = "";
 			if (prog is Program as p) declared = p.declared_module_name();
@@ -288,8 +293,8 @@ impl ModuleLoader {
 	// Entry Point
 	// ============================================================================
 
-	pub fn load_program(&self, entry_path: str, entry_source: str): ?&AstNode {
-		val prog = self.parse_source(entry_path, entry_source) ?: return null;
+	pub fn load_program(&self, entry_path: str, entry_source: str): &AstNode ! LoaderErr {
+		val prog = self.parse_source(entry_path, entry_source)?;
 
 		var entry_name = "";
 		if (prog is Program as p) entry_name = p.declared_module_name();

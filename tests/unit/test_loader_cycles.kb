@@ -20,14 +20,18 @@ use compiler.ast.*;
 fn run_tests(): i32 {
 	// The modules live under build/ (ignored by git) and are rewritten per run.
 	val ca_p = Path("build/cyc_a.kb");
-	ca_p.write_text("mod cyc_a;\nuse cyc_b.*;\npub struct A { pub b: *B, pub v: i32 }\n");
+	ca_p.write_text("mod cyc_a;\nuse cyc_b.*;\npub struct A { pub b: *B, pub v: i32 }\n")!;
 	val cb_p = Path("build/cyc_b.kb");
-	cb_p.write_text("mod cyc_b;\nuse cyc_a.*;\npub struct B { pub a: *A, pub w: i32 }\n");
+	cb_p.write_text("mod cyc_b;\nuse cyc_a.*;\npub struct B { pub a: *A, pub w: i32 }\n")!;
 
 	val entry = "mod cyc_entry;\nuse cyc_a.*;\nuse cyc_b.*;\nfn main() {}\n";
 	var loader = ModuleLoader("build", List<str>());
-	val prog = loader.load_program("build/cyc_entry.kb", entry);
-	if (prog == null || !loader.errors.empty()) {
+	val prog_res = loader.load_program("build/cyc_entry.kb", entry);
+	val prog = prog_res !: err -> {
+		println("ASSERTION FAILED: the cyclic modules must load");
+		return 1;
+	};
+	if (!loader.errors.empty()) {
 		println("ASSERTION FAILED: the cyclic modules must load");
 		return 1;
 	}
@@ -37,7 +41,7 @@ fn run_tests(): i32 {
 	}
 
 	var dp = DeclarationCollector();
-	dp.collect_program(prog!);
+	dp.collect_program(prog);
 	if (!dp.errors.empty()) {
 		println("ASSERTION FAILED: cyclic modules must collect without errors");
 		return 2;

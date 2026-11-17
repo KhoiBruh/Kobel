@@ -59,8 +59,16 @@ pub fn send_notification(method: str, params: *JsonValue) {
 // ============================================================================
 // Receiving LSP Frames
 // ============================================================================
-pub fn read_message(): str {
-	var content_length = 0;
+pub fault ProtocolErr {
+	EndOfStream("End of LSP input stream"),
+	InvalidContentLength("Invalid or oversized Content-Length header"),
+	MissingContentLength("Missing Content-Length header in LSP frame"),
+	TruncatedBody("Unexpected end of stream while reading LSP payload")
+}
+
+pub fn read_message(): str ! ProtocolErr {
+	var content_length: usz = 0;
+	var saw_length = false;
 	// 1. Read HTTP-like headers line-by-line
 	while (true) {
 		var header_line = StringBuilder();
@@ -68,14 +76,14 @@ pub fn read_message(): str {
 		var has_any = false;
 		while (true) {
 			val ch = getchar();
-			if (ch < 0) return ""; // EOF
+			if (ch < 0) return ProtocolErr.EndOfStream;
 			has_any = true;
 			val c = char(ch);
 			if (c == '\n') break;
 			if (c != '\r') header_line += c;
 		}
 
-		if (!has_any) return "";
+		if (!has_any) return ProtocolErr.EndOfStream;
 
 		val line = header_line.to_str();
 		// Blank line marks the end of headers
@@ -93,26 +101,33 @@ pub fn read_message(): str {
 			}
 			if (matches) {
 				var n: usz = 0;
+				var has_digit = false;
 				for (j in prefix.len..<line.len) {
 					val c = line[j];
 					if (c in '0'..'9') {
 						n = n * 10 + (c.code() - 48);
+						has_digit = true;
+					} else if (!c.is_whitespace()) {
+						return ProtocolErr.InvalidContentLength;
 					}
 				}
+				if (!has_digit) return ProtocolErr.InvalidContentLength;
 				content_length = n;
+				saw_length = true;
 			}
 		}
 	}
 
-	if (content_length == 0 || content_length > 16777216) return "";
+	if (!saw_length) return ProtocolErr.MissingContentLength;
+	if (content_length == 0 || content_length > 16777216) return ProtocolErr.InvalidContentLength;
 
 	// 2. Read exactly content_length bytes
-	val buf = Heap.create<u8>(content_length + 1);
+	val buf = Heap.try_create<u8>(content_length + 1) !: return ProtocolErr.InvalidContentLength;
 	for (i in 0..<content_length) {
 		val ch = getchar();
 		if (ch < 0) {
 			Heap.free(buf);
-			return ""; // Unexpected EOF
+			return ProtocolErr.TruncatedBody;
 		}
 		buf[i] = ch as u8;
 	}

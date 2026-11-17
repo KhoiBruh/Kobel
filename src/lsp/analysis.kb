@@ -164,14 +164,14 @@ pub struct AnalysisResult {
 	pub dep_paths: List<str> = List()
 }
 
-pub fn find_token_at(tokens: List<Token>, target_line: usz, target_col: usz): Token {
+pub fn find_token_at(tokens: List<Token>, target_line: usz, target_col: usz): Token ! IndexErr {
 	for (tok in tokens) {
 		if (tok.line == target_line) {
 			val len = tok.text.len;
 			if (target_col >= tok.col && target_col <= (tok.col + len)) return tok;
 		}
 	}
-	return Token(TokenType.UNKNOWN, "", 0, 0);
+	return IndexErr.NotFound;
 }
 
 pub fn keyword_hover(kw: str): str => when (kw) {
@@ -348,9 +348,11 @@ fn resolve_project_entry(workspace_root: str): str {
 	val root_p = Path(workspace_root);
 	val toml_p = root_p.join("kobel.toml");
 	if (toml_p.exists()) {
-		val cfg = ProjectConfig(toml_p.raw);
-		val entry_p = root_p.join(cfg.entry);
-		if (entry_p.exists()) return entry_p.raw;
+		val cfg_res = ProjectConfig.load(toml_p.raw);
+		if (cfg_res is ProjectConfig as cfg) {
+			val entry_p = root_p.join(cfg.entry);
+			if (entry_p.exists()) return entry_p.raw;
+		}
 	}
 	val fallback = root_p.join("src/main.kb");
 	if (fallback.exists()) return fallback.raw;
@@ -406,7 +408,7 @@ impl AnalysisResult {
 
 		// 3. Module loading (current doc + project entry for full dependency graph)
 		val entry_dir = path.dir_of();
-		val proj_root = if (!workspace_root.empty()) workspace_root else detect_project_root(entry_dir);
+		val proj_root = if (!workspace_root.empty()) workspace_root else (detect_project_root(entry_dir) !: "");
 		var extra_roots = List<str>();
 		if (!proj_root.empty()) {
 			val root_p = Path(proj_root);
@@ -414,25 +416,26 @@ impl AnalysisResult {
 			extra_roots += proj_root.join_path("lib");
 			extra_roots += proj_root.join_path("src");
 			val toml_p = root_p.join("kobel.toml");
+			var test_dir = "tests";
 			if (toml_p.exists()) {
-				val cfg = ProjectConfig(toml_p.raw);
-				val test_p = root_p.join(cfg.test_dir);
-				if (test_p.exists()) extra_roots += test_p.raw;
-			} else {
-				val test_p = root_p.join("tests");
-				if (test_p.exists()) extra_roots += test_p.raw;
+				val cfg_res = ProjectConfig.load(toml_p.raw);
+				if (cfg_res is ProjectConfig as cfg) {
+					test_dir = cfg.test_dir;
+				}
 			}
+			val test_p = root_p.join(test_dir);
+			if (test_p.exists()) extra_roots += test_p.raw;
 		}
 
 		var loader = ModuleLoader(entry_dir, extra_roots, arena);
-		if (loader.find_module("std.traits").found) loader.ensure_module("std.traits");
-		if (loader.find_module("std.string").found) loader.ensure_module("std.string");
-		if (loader.find_module("std.range").found) loader.ensure_module("std.range");
+		if (loader.has_module("std.traits")) loader.ensure_module("std.traits");
+		if (loader.has_module("std.string")) loader.ensure_module("std.string");
+		if (loader.has_module("std.range")) loader.ensure_module("std.range");
 
 		var full_prog: ?&AstNode = null;
 		val was_known = loader.is_known(doc_mod);
 		var use_in_place = was_known;
-		val pkg_files = loader.find_module_files(doc_mod);
+		val pkg_files = loader.find_module_files(doc_mod) !: List<ModuleFile>();
 		if (!was_known) {
 			for ((f_path, _) in pkg_files) {
 				if (paths_equal(f_path, path)) {
@@ -445,8 +448,9 @@ impl AnalysisResult {
 
 		if (use_in_place) {
 			// Module already loaded in canonical file order: substitute live editor buffer for `path`
-			val override_prog = loader.parse_source(path, source, doc_mod);
-			if (override_prog != null) {
+			val ov_res = loader.parse_source(path, source, doc_mod);
+			if (ov_res is &AstNode as ovp) {
+				val override_prog = *ovp;
 				loader.process_uses(override_prog, doc_mod);
 				var replaced = false;
 				for (i in 0..<loader.ordered.len) {
@@ -462,7 +466,9 @@ impl AnalysisResult {
 			}
 			full_prog = loader.build_merged_program();
 		} else {
-			val doc_prog = loader.load_program(path, source);
+			var doc_prog: ?&AstNode = null;
+			val dp_res = loader.load_program(path, source);
+			if (dp_res is &AstNode as dp) doc_prog = *dp;
 
 			// Load any sibling files belonging to the same module if not already loaded
 			var pkg_dirty = false;
@@ -476,7 +482,7 @@ impl AnalysisResult {
 					}
 				}
 				if (seen_path) continue;
-				val sib_prog = loader.parse_source(f_path, f_src, doc_mod) ?: continue;
+				val sib_prog = loader.parse_source(f_path, f_src, doc_mod) !: continue;
 				var declared = "";
 				if (sib_prog is Program as sp) declared = sp.declared_module_name();
 				if (!declared.empty() && declared != doc_mod) continue;
@@ -492,15 +498,17 @@ impl AnalysisResult {
 		if (include_workspace && !proj_root.empty()) {
 			val proj_entry = resolve_project_entry(proj_root);
 			if (!proj_entry.empty() && !paths_equal(proj_entry, path)) {
-				val entry_src = Path(proj_entry).read_text();
+				val entry_src = Path(proj_entry).read_text() !: "";
 				if (!entry_src.empty()) {
-					val ep = loader.parse_source(proj_entry, entry_src);
-					if (ep != null && ep is Program as epp) {
-						var entry_mod = epp.declared_module_name();
-						if (entry_mod.empty()) entry_mod = proj_entry.base_name().path_to_module();
-						if (!loader.is_known(entry_mod)) {
-							loader.ensure_module(entry_mod);
-							full_prog = loader.build_merged_program();
+					val ep_res = loader.parse_source(proj_entry, entry_src);
+					if (ep_res is &AstNode as ep) {
+						if (*ep is Program as epp) {
+							var entry_mod = epp.declared_module_name();
+							if (entry_mod.empty()) entry_mod = proj_entry.base_name().path_to_module();
+							if (!loader.is_known(entry_mod)) {
+								loader.ensure_module(entry_mod);
+								full_prog = loader.build_merged_program();
+							}
 						}
 					}
 				}
@@ -574,7 +582,7 @@ impl AnalysisResult {
 		val target_line = line0 + 1;
 		val target_col = col0 + 1;
 
-		val tok = find_token_at(self.tokens, target_line, target_col);
+		val tok = find_token_at(self.tokens, target_line, target_col) !: return JsonValue.null_val();
 		if (tok.type == TokenType.UNKNOWN || tok.text.empty()) return JsonValue.null_val();
 
 		// 1. Check keywords (except `self` if resolved semantically)
@@ -589,10 +597,10 @@ impl AnalysisResult {
 		}
 
 		// 2. Semantic index lookup (locals, params, fields, methods, enum variants, functions)
-		val ref_hit = self.index.find_ref_at(self.file_path, target_line, target_col);
-		if (!ref_hit.target_key.empty()) {
-			val def = self.index.get_def(ref_hit.target_key);
-			if (!def.key.empty()) {
+		val ref_res = self.index.find_ref_at(self.file_path, target_line, target_col);
+		if (ref_res is RefInfo as ref_hit) {
+			val def_res = self.index.get_def(ref_hit.target_key);
+			if (def_res is DefInfo as def) {
 				var md = "```kobel\n${def.signature}\n```";
 				if (!def.module_name.empty()) md = "${md}\n\n*module* `${def.module_name}`";
 				if (!ref_hit.type_str.empty() && ref_hit.type_str != def.type_str) {
@@ -638,10 +646,10 @@ impl AnalysisResult {
 		val target_col = col0 + 1;
 
 		// 1. Semantic index cross-file definition lookup
-		val ref_hit = self.index.find_ref_at(self.file_path, target_line, target_col);
-		if (!ref_hit.target_key.empty()) {
-			val def = self.index.get_def(ref_hit.target_key);
-			if (!def.key.empty() && def.line > 0) {
+		val ref_res = self.index.find_ref_at(self.file_path, target_line, target_col);
+		if (ref_res is RefInfo as ref_hit) {
+			val def_res = self.index.get_def(ref_hit.target_key);
+			if (def_res is DefInfo as def && def.line > 0) {
 				val target_uri = if (!def.file_path.empty()) path_to_uri(def.file_path) else doc_uri;
 				val res = JsonValue.obj();
 				res["uri"] = JsonValue.str(target_uri);
@@ -662,7 +670,7 @@ impl AnalysisResult {
 		}
 
 		// 2. Fallback: SymbolTable lookup
-		val tok = find_token_at(self.tokens, target_line, target_col);
+		val tok = find_token_at(self.tokens, target_line, target_col) !: return JsonValue.null_val();
 		if (tok.type != TokenType.IDENTIFIER || tok.text.empty()) return JsonValue.null_val();
 
 		if (self.has_symtab) {
@@ -710,18 +718,19 @@ impl AnalysisResult {
 			var seen = HashSet<str>();
 			// Check if receiver is a struct/enum type name or variable with known type
 			var target_type_name = recv_tok.text;
-			val recv_ref = self.index.find_ref_at(self.file_path, recv_tok.line, recv_tok.col);
+			val recv_ref = self.index.find_ref_at(self.file_path, recv_tok.line, recv_tok.col) !: RefInfo("", "", "", 0, 0, 0);
 			if (!recv_ref.target_key.empty() && !recv_ref.type_str.empty()) {
 				var ts = recv_ref.type_str;
 				if (ts.starts_with("*")) ts = ts.slice(1, ts.len);
 				else if (ts.starts_with("&")) ts = ts.slice(1, ts.len);
 				if (ts.ends_with("?")) ts = ts.slice(0, ts.len - 1);
-				val lt = ts.index_of("<");
-				if (lt >= 0) ts = ts.slice(0, lt as usz);
+				val lt = ts.index_of("<") !: ts.len;
+				if (lt < ts.len) ts = ts.slice(0, lt);
 				val base_pair = self.index.c_inst_to_base.get_or(ts, "");
 				if (!base_pair.empty()) {
-					val colon = base_pair.index_of(":");
-					target_type_name = if (colon >= 0) base_pair.slice((colon + 1) as usz, base_pair.len) else base_pair;
+					val colon = base_pair.index_of(":") !: base_pair.len;
+					target_type_name = if (colon < base_pair.len) base_pair.slice(colon + 1, base_pair.len)
+						else base_pair;
 				} else {
 					target_type_name = ts;
 				}
@@ -823,8 +832,11 @@ impl AnalysisResult {
 		if (callee_tok.type != TokenType.IDENTIFIER) return JsonValue.null_val();
 
 		var def = DefInfo("", "", SymRole.FN, "", "", "", 0, 0, 0, "", "");
-		val ref_hit = self.index.find_ref_at(self.file_path, callee_tok.line, callee_tok.col);
-		if (!ref_hit.target_key.empty()) def = self.index.get_def(ref_hit.target_key);
+		val ref_res = self.index.find_ref_at(self.file_path, callee_tok.line, callee_tok.col);
+		if (ref_res is RefInfo as ref_hit) {
+			val def_res = self.index.get_def(ref_hit.target_key);
+			if (def_res is DefInfo as found_def) def = *found_def;
+		}
 		if (def.key.empty()) {
 			for (d in self.index.defs) {
 				if (d.role in [SymRole.FN, SymRole.METHOD] && d.name == callee_tok.text) {
@@ -858,8 +870,7 @@ impl AnalysisResult {
 
 	pub fn document_highlights(*self, line0: usz, col0: usz): *JsonValue {
 		val arr = JsonValue.arr();
-		val hit = self.index.find_ref_at(self.file_path, line0 + 1, col0 + 1);
-		if (hit.target_key.empty()) return arr;
+		val hit = self.index.find_ref_at(self.file_path, line0 + 1, col0 + 1) !: return arr;
 		val refs = self.index.find_refs_for_key(hit.target_key, true);
 		for (r in refs) {
 			if (!paths_equal(r.file_path, self.file_path)) continue;
@@ -1041,10 +1052,8 @@ impl AnalysisResult {
 
 	pub fn format_document_with_arena(text: str, arena: Arena): *JsonValue {
 		val options = FormatOptions();
-		val formatted_res = format_source_checked_with_arena(text, options, arena);
 		val edits = JsonValue.arr();
-		if (!formatted_res.first) return edits;
-		val formatted = formatted_res.second;
+		val formatted = format_source_checked_with_arena(text, options, arena) !: return edits;
 
 		val edit = JsonValue.obj();
 

@@ -7,31 +7,57 @@ mod std.memory;
  */
 
 extern "libc" {
-	fn malloc(size: usz): &u8;
-	fn realloc(ptr: &u8, size: usz): &u8;
+	fn malloc(size: usz): ?&u8;
+	fn realloc(ptr: &u8, size: usz): ?&u8;
 	fn free(ptr: &u8): none;
+}
+
+pub fault MemErr {
+	OutOfMemory("Memory allocation failed (out of memory)")
 }
 
 pub struct Heap;
 
 impl Allocator for Heap {
-	pub fn alloc_bytes(&self, size: usz, align: usz) => malloc(size);
+	pub fn alloc_bytes(&self, size: usz, align: usz): &u8 => Heap.try_alloc(size)!;
 }
 
 impl Heap {
 
-	// One uninitialized `T` on the heap.
-	pub fn create<T>(count: usz = 1) => malloc(count * T.size()) as &T;
+	// Raw byte allocation returning explicit OOM error on failure.
+	pub fn try_alloc(size: usz): &u8 ! MemErr {
+		val req = if (size == 0) 1 as usz else size;
+		val raw = malloc(req) ?: return MemErr.OutOfMemory;
+		return raw;
+	}
 
-	// One initialized `T` on the heap with the given value.
+	// Fallible allocation of `count` elements of `T`.
+	pub fn try_create<T>(count: usz = 1): &T ! MemErr {
+		val bytes = count * T.size();
+		val raw = Heap.try_alloc(bytes)?;
+		return raw as &T;
+	}
+
+	// Fallible reallocation of `ptr` to hold `count` elements of `T`.
+	pub fn try_resize<T>(ptr: &T, count: usz): &T ! MemErr {
+		val bytes = count * T.size();
+		val req = if (bytes == 0) 1 as usz else bytes;
+		val raw = realloc(ptr as &u8, req) ?: return MemErr.OutOfMemory;
+		return raw as &T;
+	}
+
+	// One uninitialized `T` on the heap (panics on OOM).
+	pub fn create<T>(count: usz = 1): &T => Heap.try_create<T>(count)!;
+
+	// One initialized `T` on the heap with the given value (panics on OOM).
 	pub fn create_val<T>(value: T): &T {
 		val ptr = Heap.create<T>(1);
 		ptr.write(value);
 		return ptr;
 	}
 
-	// Grow/shrink `ptr` to hold `count` elements of `T`.
-	pub fn resize<T>(ptr: &T, count: usz) => realloc(ptr as &u8, count * T.size()) as &T;
+	// Grow/shrink `ptr` to hold `count` elements of `T` (panics on OOM).
+	pub fn resize<T>(ptr: &T, count: usz): &T => Heap.try_resize<T>(ptr, count)!;
 
 	// Free a block obtained from create/alloc/resize.
 	pub fn free(ptr: &none) => free(ptr as &u8);

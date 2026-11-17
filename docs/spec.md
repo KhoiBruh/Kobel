@@ -459,11 +459,11 @@ val result = when (action) {
 
 // Implicit receiver (leading-dot) predicate patterns mixed with value patterns
 val tag = when (text) {
-    .ends_with("a")      -> 1;
-    .starts_with("b")    -> 2;
-    .index_of("C") == 3  -> 3;
-    "D"                  -> 4;
-    else                 -> 0;
+    .ends_with("a")                -> 1;
+    .starts_with("b")              -> 2;
+    (.index_of("C") !: 999 as usz) == 3 -> 3;
+    "D"                            -> 4;
+    else                           -> 0;
 };
 ```
 
@@ -539,18 +539,18 @@ use std.collections.HashMap as Map;
 Standard library modules live in `lib/std/`:
 
 - `std.io`: Console I/O (`print`, `println`).
-- `std.filesystem.File`: Static filesystem operations (`File.open`, `File.read`, `File.write`, `File.append`, `File.exists`, `File.remove`, `File.list_dir`).
-- `std.filesystem.Path`: Path manipulation utilities.
-- `std.collections`: Generic dynamic containers:
-  - `List<T>`: Dynamic resizable array.
+- `std.string`: String utilities (`SearchErr`: `index_of`, `index_where`, `last_index_where` returning `usz ! SearchErr`).
+- `std.filesystem`: Typed filesystem error union `FsErr`, stream `File` (`File.open`, `read_all`, `write_all`, `seek`, `tell`, `size`, `flush`), and `Path` (`read_text`, `write_text`, `append_text`, `remove`, `rename_to`, `create_dir`, `create_dir_all`, `list_dir`, `entries`, `open_read`, `open_write`, `open_append`).
+- `std.collections`: Generic dynamic containers & `CollectionErr`:
+  - `List<T>`: Dynamic resizable array (`first`, `last`, `pop`, `remove_at`, `index_of`, `last_index_of`, `index_where`, `last_index_where` returning `!CollectionErr`).
   - `HashMap<K: Hash, V>`: Hash table.
   - `HashSet<T: Hash>`: Set collection.
   - `StringBuilder`: Efficient string assembly.
-- `std.memory`: Memory allocation interfaces and implementations (`Allocator` trait, `Heap`, `Arena`).
-  - `create<T>`, `create_val<T>`, `alloc<T>`, `resize<T>`, `free<T>`.
+- `std.memory`: Memory allocation interfaces and implementations (`Allocator` trait, `MemErr`, `Heap`, `Arena`).
+  - Fallible `Heap.try_alloc`, `Heap.try_create<T>`, `Heap.try_resize<T>` returning `!MemErr`; unwrapping `Heap.create<T>`, `Heap.create_val<T>`, `Heap.alloc<T>`, `Heap.resize<T>`, `Heap.free<T>`.
   - Bump allocator (`Arena`) for single-point bulk deallocation.
 - `std.traits`: Core traits (`Iterable`, `Hash`, `Stringer`).
-- `std.sys`: System helpers (`exec`, `sys_exit`, `is_windows`, `has_env`).
+- `std.system` / `std.process`: System and process helpers (`System.get_env` returning `str ! SysErr`, `System.has_env`, `System.is_windows`; `Process.exec` returning `i32 ! ProcessErr`, `Process.exit`).
 
 ---
 

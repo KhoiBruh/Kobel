@@ -14,13 +14,16 @@ use std.process.Process;
 
 use std.memory.*;
 
+use std.collections.CollectionErr;
 use std.collections.List;
 
 use std.collections.HashMap;
 use std.collections.HashSet;
 
+use std.filesystem.FsErr;
 use std.filesystem.Path;
 use std.filesystem.File;
+use std.system.SysErr;
 use std.system.System;
 use std.process.Process;
 
@@ -81,7 +84,7 @@ fn test_collections(): bool {
 	if (list.len != 4 || list[1] != 15 || list[2] != 20) return false;
 
 	// test remove_at
-	val rem: i32 = list.remove_at(1); // [10, 20, 30]
+	val rem: i32 = list.remove_at(1) !: return false; // [10, 20, 30]
 	if (rem != 15 || list.len != 3 || list[1] != 20) return false;
 
 	// test clone
@@ -91,7 +94,7 @@ fn test_collections(): bool {
 		if (cloned.len != 3 || cloned[2] != 30) return false;
 	}
 
-	val pop_val: i32 = list.pop();
+	val pop_val: i32 = list.pop() !: return false;
 	if (pop_val != 30 || list.len != 2) return false;
 
 	// test extend, in/contains, index_of, remove, reverse, pop_or, lambda methods
@@ -102,9 +105,13 @@ fn test_collections(): bool {
 		ext_list += 50;
 		list.extend(ext_list); // [10, 20, 40, 50]
 		if (list.len != 4 || !(40 in list) || list.contains(99)) return false;
-		if (list.index_of(40) != 2 || list.index_of(99) != -1) return false;
-		if (list.index_where { x -> x >= 35 } != 2) return false;
-		if (list.last_index_where { x -> x >= 20 } != 3) return false;
+		if ((list.index_of(40) !: 999 as usz) != 2) return false;
+		val l_miss = list.index_of(99);
+		if (l_miss !is CollectionErr.NotFound) return false;
+		if ((list.index_where { x -> x >= 35 } !: 999 as usz) != 2) return false;
+		if ((list.last_index_where { x -> x >= 20 } !: 999 as usz) != 3) return false;
+		val lw_miss = list.index_where { x -> x > 999 };
+		if (lw_miss !is CollectionErr.NotFound) return false;
 		if (list.first_or(-1) { x -> x > 25 } != 40) return false;
 		if (list.first_or(-1) { x -> x > 100 } != -1) return false;
 		val p40 = list.find_ptr { x -> x == 40 };
@@ -114,6 +121,13 @@ fn test_collections(): bool {
 		list.reverse(); // [50, 20, 10]
 		if (list[0] != 50 || list[2] != 10) return false;
 		if (list.pop_or(0) != 10) return false;
+
+		var empty_c = List<i32>();
+		defer empty_c.free();
+		val pop_e = empty_c.pop();
+		if (pop_e !is CollectionErr.Empty) return false;
+		val rem_e = empty_c.remove_at(0);
+		if (rem_e !is CollectionErr.OutOfBounds) return false;
 
 		var rlist = List<i32>();
 		defer rlist.free();
@@ -293,17 +307,15 @@ fn test_io(): bool {
 	val tmp_file: str = "build/tmp_std_test.txt";
 	val p = Path(tmp_file);
 	val content: str = "Testing Kobel standard library I/O!";
-	val written: bool = p.write_text(content);
-	if (!written) return false;
+	p.write_text(content) !: return false;
 	if (!p.exists()) return false;
 	val non_exist = Path("non_existent_file_xyz_123.txt");
 	if (non_exist.exists()) return false;
 
 	val extra: str = "\nAppended line.";
-	val appended: bool = p.append_text(extra);
-	if (!appended) return false;
+	p.append_text(extra) !: return false;
 
-	val read_back: str = p.read_text();
+	val read_back: str = p.read_text() !: return false;
 	if (read_back != "Testing Kobel standard library I/O!\nAppended line.") return false;
 
 	return true;
@@ -325,8 +337,9 @@ fn test_str(): bool {
 	if ("Kobel" !in s) return false;
 	if ("Python" in s) return false;
 
-	if (s.index_of("Kobel") != 7) return false;
-	if (s.index_of("Missing") != -1) return false;
+	if ((s.index_of("Kobel") !: 999 as usz) != 7) return false;
+	val s_miss = s.index_of("Missing");
+	if (s_miss !is SearchErr.NotFound) return false;
 
 	if (s.strip_suffix(7) != "Hello, Kobel") return false;
 
@@ -362,8 +375,10 @@ fn test_str(): bool {
 	if (!"a1b".any { c -> c.is_digit() } || "abc".any { c -> c.is_digit() }) return false;
 	if (!"123".all { c -> c.is_digit() } || "12a".all { c -> c.is_digit() }) return false;
 	if ("a1b2c3".count_where { c -> c.is_digit() } != 3) return false;
-	if ("abc123".index_where { c -> c.is_digit() } != 3) return false;
-	if ("abc123".last_index_where { c -> c.is_digit() } != 5) return false;
+	if (("abc123".index_where { c -> c.is_digit() } !: 999 as usz) != 3) return false;
+	if (("abc123".last_index_where { c -> c.is_digit() } !: 999 as usz) != 5) return false;
+	val sw_miss = "abc".index_where { c -> c.is_digit() };
+	if (sw_miss !is SearchErr.NotFound) return false;
 	var char_count = 0;
 	"kobel".each { c -> char_count++ };
 	if (char_count != 5) return false;
@@ -386,52 +401,69 @@ fn test_filesystem(): bool {
 	if (joined.extension() != "txt") return false;
 
 	val fs_dir = Path("lib/std/filesystem");
-	val entries = fs_dir.list_dir();
+	val entries = fs_dir.list_dir() !: return false;
 	defer entries.free();
 	if (entries.empty()) return false;
 
 	val tmp = Path("build/tmp_fs_test.txt");
-	if (tmp.exists()) tmp.remove();
+	if (tmp.exists()) {
+		tmp.remove() !: return false;
+	}
 
-	if (!tmp.write_text("Hello Filesystem!")) return false;
+	tmp.write_text("Hello Filesystem!") !: return false;
 	if (!tmp.exists()) return false;
-	if (tmp.read_text() != "Hello Filesystem!") return false;
+	if ((tmp.read_text() !: return false) != "Hello Filesystem!") return false;
 
-	var f = tmp.open_read();
+	var f = tmp.open_read() !: return false;
 	if (!f.is_valid()) return false;
-	if (f.read_all() != "Hello Filesystem!") return false;
+	if ((f.read_all() !: return false) != "Hello Filesystem!") return false;
 	f.close();
 
 	val moved = Path("build/tmp_fs_test_moved.txt");
-	if (!tmp.rename_to(moved)) return false;
+	tmp.rename_to(moved) !: return false;
 	if (tmp.exists() || !moved.exists()) return false;
 
-	if (!moved.remove()) return false;
+	moved.remove() !: return false;
 	if (moved.exists()) return false;
 
 	// Test OOP Path and File APIs
 	val nested_dir = Path("build/test_oop_fs/sub1/sub2");
-	if (!nested_dir.create_dir_all()) return false;
+	nested_dir.create_dir_all() !: return false;
 	if (!nested_dir.exists() || !nested_dir.is_dir()) return false;
 
 	val oop_file = nested_dir.join("hello.txt");
-	if (oop_file.exists()) oop_file.remove();
-	if (!oop_file.write_text("Kobel OOP Filesystem")) return false;
+	if (oop_file.exists()) {
+		oop_file.remove() !: return false;
+	}
+	oop_file.write_text("Kobel OOP Filesystem") !: return false;
 	if (!oop_file.exists() || !oop_file.is_file()) return false;
-	if (oop_file.read_text() != "Kobel OOP Filesystem") return false;
+	if ((oop_file.read_text() !: return false) != "Kobel OOP Filesystem") return false;
 
-	if (!oop_file.append_text(" - Appended")) return false;
-	if (oop_file.read_text() != "Kobel OOP Filesystem - Appended") return false;
+	oop_file.append_text(" - Appended") !: return false;
+	if ((oop_file.read_text() !: return false) != "Kobel OOP Filesystem - Appended") return false;
 
-	var oop_stream = oop_file.open_read();
+	var oop_stream = oop_file.open_read() !: return false;
 	if (!oop_stream.is_valid()) return false;
-	if (oop_stream.size() <= 0) return false;
-	oop_stream.seek(0, 0);
-	if (oop_stream.tell() != 0) return false;
-	if (oop_stream.read_all() != "Kobel OOP Filesystem - Appended") return false;
+	if ((oop_stream.size() !: return false) <= 0) return false;
+	oop_stream.seek(0, 0) !: return false;
+	if ((oop_stream.tell() !: return false) != 0) return false;
+	if ((oop_stream.read_all() !: return false) != "Kobel OOP Filesystem - Appended") return false;
 	oop_stream.close();
 
-	if (!oop_file.remove()) return false;
+	// Closed file stream fails with FsErr.NotOpen
+	val closed_read = oop_stream.read_all();
+	if (closed_read !is FsErr.NotOpen) return false;
+
+	// Missing file fails with FsErr.NotFound; existing empty file returns ""
+	val miss_read = Path("build/__no_such_kobel_file__.txt").read_text();
+	if (miss_read !is FsErr.NotFound) return false;
+	val empty_file = nested_dir.join("empty.txt");
+	empty_file.write_text("") !: return false;
+	val empty_read = empty_file.read_text() !: return false;
+	if (!empty_read.empty()) return false;
+	empty_file.remove() !: return false;
+
+	oop_file.remove() !: return false;
 	if (oop_file.exists()) return false;
 
 	return true;
@@ -441,12 +473,15 @@ fn test_system(): bool {
 	val win = System.is_windows();
 	if (win) {
 		if (!System.has_env("SystemRoot") && !System.has_env("WINDIR")) return false;
-		val sys_root = System.get_env("SystemRoot");
-		val win_dir = System.get_env("WINDIR");
+		val sys_root = System.get_env("SystemRoot") !: "";
+		val win_dir = System.get_env("WINDIR") !: "";
 		if (sys_root.empty() && win_dir.empty()) return false;
 	}
 	if (System.has_env("__KOBEL_NON_EXISTENT_ENV_VAR_12345__")) return false;
-	if (!System.get_env("__KOBEL_NON_EXISTENT_ENV_VAR_12345__").empty()) return false;
+	val miss_env = System.get_env("__KOBEL_NON_EXISTENT_ENV_VAR_12345__");
+	if (miss_env !is SysErr.EnvNotSet) return false;
+	val bad_env = System.get_env("");
+	if (bad_env !is SysErr.InvalidName) return false;
 	return true;
 }
 

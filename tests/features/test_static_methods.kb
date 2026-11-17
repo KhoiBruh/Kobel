@@ -55,18 +55,18 @@ fn run_tests(): i32 {
 	// 8. Test filesystem operations via Path
 	val tmp_test = "build/test_static_file.tmp";
 	val p = Path(tmp_test);
-	if (p.exists()) p.remove();
+	if (p.exists()) {
+		p.remove() !: return 7;
+	}
 
-	val w_ok = p.write_text("hello static file");
-	if (!w_ok) return 8;
+	p.write_text("hello static file") !: return 8;
 
 	if (!p.exists()) return 9;
 
-	val read_str = p.read_text();
+	val read_str = p.read_text() !: return 10;
 	if (read_str != "hello static file") return 10;
 
-	val rem_ok = p.remove();
-	if (!rem_ok) return 11;
+	p.remove() !: return 11;
 	if (p.exists()) return 12;
 
 	return 0;

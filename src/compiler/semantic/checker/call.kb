@@ -39,7 +39,9 @@ impl BodyChecker {
 					if (self.current_rec != null) self.set_ann_obj(callee, subj_copy);
 					else mem.object = subj_copy;
 				}
-				if (mem.member == "size") return self.lower_size_query(node, mem);
+				if (mem.member == "size" && self.is_type_size_query(mem, call)) {
+					return self.lower_size_query(node, mem);
+				}
 				if (mem.member == "slice") return self.check_slice_call(node, mem, call);
 
 				// `Shape.Circle(1.5)`: a payload-enum variant.
@@ -271,6 +273,19 @@ impl BodyChecker {
 		return str_ty;
 	}
 
+	fn is_type_size_query(*self, mem: *MemberExpr, call: *CallExpr): bool {
+		if (!call.args.empty()) return false;
+		if (mem.object is IdentifierExpr as id) {
+			if (self.type_param_index(id.name) >= 0) return true;
+			if (prim_c_size(id.name) > 0) return true;
+			val sym = self.symtab.lookup(id.name);
+			if (sym != null && (sym.kind == SymbolKind.STRUCT || sym.kind == SymbolKind.ENUM)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	fn lower_size_query(&self, node: *AstNode, mem: &MemberExpr): *Type {
 		val obj = mem.object;
 		if (obj is IdentifierExpr as id) {
@@ -464,7 +479,7 @@ impl BodyChecker {
 			if (call.args.len < min_user_args) {
 				self.report_error(node, "Argument count mismatch in method call '${mem.member}'");
 			} else {
-				val elem_ty = fn_info.param_types.last();
+				val elem_ty = fn_info.param_types.last()!;
 				for (i in 0..<min_user_args) {
 					val param_ty = fn_info.param_types[i + 1];
 					val arg_n = call.args[i];

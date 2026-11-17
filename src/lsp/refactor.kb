@@ -70,12 +70,10 @@ pub fn collect_semantic_refs(
 ): List<RefInfo> {
 	val line1 = line0 + 1;
 	val col1 = col0 + 1;
-	val hit = index.find_ref_at(file_path, line1, col1);
-	if (hit.target_key.empty()) return List<RefInfo>();
+	val hit = index.find_ref_at(file_path, line1, col1) !: return List<RefInfo>();
 	val all_refs = index.find_refs_for_key(hit.target_key, include_decl);
 
-	val def = index.get_def(hit.target_key);
-	if (def.key.empty()) return all_refs;
+	val def = index.get_def(hit.target_key) !: return all_refs;
 
 	// For non-local symbols, filter by dependency graph (defining module + dependents)
 	if (def.role in [SymRole.LOCAL, SymRole.PARAM]) {
@@ -118,10 +116,8 @@ pub fn prepare_rename_json(
 	line0: usz,
 	col0: usz
 ): *JsonValue {
-	val hit = index.find_ref_at(file_path, line0 + 1, col0 + 1);
-	if (hit.target_key.empty()) return JsonValue.null_val();
-	val def = index.get_def(hit.target_key);
-	if (def.key.empty()) return JsonValue.null_val();
+	val hit = index.find_ref_at(file_path, line0 + 1, col0 + 1) !: return JsonValue.null_val();
+	val def = index.get_def(hit.target_key) !: return JsonValue.null_val();
 	if (!is_renameable_def(def)) return JsonValue.null_val();
 
 	val res = JsonValue.obj();
@@ -143,10 +139,8 @@ pub fn rename_symbol_json(
 ): *JsonValue {
 	if (!is_valid_ident_name(new_name)) return JsonValue.null_val();
 
-	val hit = index.find_ref_at(file_path, line0 + 1, col0 + 1);
-	if (hit.target_key.empty()) return JsonValue.null_val();
-	val def = index.get_def(hit.target_key);
-	if (def.key.empty()) return JsonValue.null_val();
+	val hit = index.find_ref_at(file_path, line0 + 1, col0 + 1) !: return JsonValue.null_val();
+	val def = index.get_def(hit.target_key) !: return JsonValue.null_val();
 	if (!is_renameable_def(def)) return JsonValue.null_val();
 
 	val refs = collect_semantic_refs(index, file_path, line0, col0, true);
@@ -212,7 +206,7 @@ fn find_closing_brace_line1(source: str, start_line1: usz): usz {
 	return start_line1;
 }
 
-fn extract_ident_from_diag(msg: str): str {
+fn extract_ident_from_diag(msg: str): str ! IndexErr {
 	// Matches patterns like "Undefined identifier 'foo'" or "Unknown type 'Bar'"
 	var q1: isz = -1;
 	for (i in 0..<msg.len) {
@@ -225,7 +219,7 @@ fn extract_ident_from_diag(msg: str): str {
 			}
 		}
 	}
-	return "";
+	return IndexErr.NotFound;
 }
 
 fn make_code_action(title: str, kind: str, uri: str, edits: *JsonValue, is_preferred: bool = false): *JsonValue {
@@ -264,8 +258,8 @@ pub fn code_actions_json(
 		val insert_line = find_use_insert_line1(source);
 		for (d in diags.arr_val) {
 			val msg = d.get_str("message", "");
-			val sym_name = extract_ident_from_diag(msg);
-			if (sym_name.empty() || (sym_name in seen_names)) continue;
+			val sym_name = extract_ident_from_diag(msg) !: continue;
+			if (sym_name in seen_names) continue;
 			seen_names += sym_name;
 
 			var offered_mods = HashSet<str>();

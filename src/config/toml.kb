@@ -10,50 +10,53 @@ pub struct Toml {
 
 impl Toml {
 
-	pub init(content: str) {
-		var self = Self();
+	pub fn parse(content: str): Toml ! ConfigErr {
+		var res = Toml();
 		val lines = content.split_lines();
+		defer lines.free();
 		var current_section = "";
 
 		for (line in lines) {
 			val trimmed = line.trim();
 			if (trimmed.empty() || trimmed.starts_with("#")) continue;
 
-			if (
-				trimmed.starts_with("[") &&
-				trimmed.ends_with("]") &&
-				trimmed.len >= 2
-			) {
+			if (trimmed.starts_with("[")) {
+				if (!trimmed.ends_with("]") || trimmed.len < 3) return ConfigErr.MalformedHeader;
 				current_section = trimmed.slice(1, trimmed.len - 1).trim();
+				if (current_section.empty()) return ConfigErr.MalformedHeader;
 				continue;
 			}
 
-			val eq_pos = trimmed.index_of("=");
-			if (eq_pos > 0) {
-				val key_raw = trimmed.slice(0, eq_pos).trim();
-				val val_raw = trimmed.slice(eq_pos + 1, trimmed.len).trim();
+			val eq_pos = trimmed.index_of("=") !: return ConfigErr.MalformedLine;
+			val key_raw = trimmed.slice(0, eq_pos).trim();
+			if (key_raw.empty()) return ConfigErr.EmptyKey;
+			val val_raw = trimmed.slice(eq_pos + 1, trimmed.len).trim();
 
-				// Unquote string literals if surrounded by quotes
-				val val_clean = if (
-					val_raw.len >= 2 &&
-					val_raw[0] in ['"', '\''] &&
-					val_raw[0] == val_raw[val_raw.len - 1]
-				) val_raw.slice(1, val_raw.len - 1)
-				else val_raw;
-
-				val full_key = if (!current_section.empty()) "${current_section}.${key_raw}"
-				else key_raw;
-
-				self.entries[full_key] = val_clean;
+			// Unquote string literals if surrounded by matching quotes; reject stray opening quote.
+			var val_clean = val_raw;
+			if (!val_raw.empty() && val_raw[0] in ['"', '\'']) {
+				val q = val_raw[0];
+				if (val_raw.len < 2 || val_raw[val_raw.len - 1] != q) {
+					return ConfigErr.UnterminatedString;
+				}
+				val_clean = val_raw.slice(1, val_raw.len - 1);
 			}
+
+			val full_key = if (!current_section.empty()) "${current_section}.${key_raw}"
+			else key_raw;
+
+			res.entries[full_key] = val_clean;
 		}
 
-		return self;
+		return res;
 	}
 
 	pub fn get(*self, key: str, default_val: str) => self.entries.get_or(key, default_val);
 
-	pub op get(*self, key: str) => self.entries.get_or(key, "");
+	pub fn try_get(*self, key: str): str ! ConfigErr {
+		val p = self.entries[key] ?: return ConfigErr.KeyNotFound;
+		return *p;
+	}
 
 	pub op set(&self, key: str, value: str) {
 		self.entries[key] = value;

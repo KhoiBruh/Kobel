@@ -47,8 +47,8 @@ impl TypeSubst {
 	// Restores the substitution stack to a previously saved mark.
 	pub fn pop(&self, mark: usz) {
 		while (self.names.len > mark) {
-			self.names.pop();
-			self.types.pop();
+			self.names.pop()!;
+			self.types.pop()!;
 		}
 	}
 

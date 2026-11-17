@@ -306,12 +306,35 @@ impl LoweringPass {
 		}
 	}
 
+	fn lower_stmt_in_expr(&self, stmt_node: &AstNode): &AstNode {
+		if (stmt_node is BlockStmt as blk) {
+			self.lower_eu_block(blk);
+			return stmt_node;
+		}
+		var pre = List<&AstNode>();
+		val low = self.lower_eu_stmt_single(stmt_node, &pre);
+		if (!pre.empty()) {
+			var stmts = List<&AstNode>();
+			for (ps in pre) stmts += ps;
+			stmts += low;
+			return self.arena.node(NodeData.BlockStmt(stmts), stmt_node.line, stmt_node.col);
+		}
+		return low;
+	}
+
 	fn wrap_expr_for_eu(&self, node: &AstNode): &AstNode {
 		when (node) {
 			is GroupExpr as g -> g.expr = self.wrap_expr_for_eu(g.expr);
 			is BinaryExpr as b -> {
 				b.left = self.wrap_expr_for_eu(b.left);
-				b.right = self.wrap_expr_for_eu(b.right);
+				if (
+					b.op == TokenType.QUESTION_COLON &&
+					(b.right is BlockStmt || self.is_stmt_node(b.right))
+				) {
+					b.right = self.lower_stmt_in_expr(b.right);
+				} else {
+					b.right = self.wrap_expr_for_eu(b.right);
+				}
 			}
 			is UnaryExpr as u -> u.operand = self.wrap_expr_for_eu(u.operand);
 			is CallExpr as c -> {
@@ -353,6 +376,9 @@ impl LoweringPass {
 				val we_ty = self.type_of(node);
 				for (i in 0..<we.arms.len) {
 					var arm = we.arms[i];
+					for (j in 0..<arm.patterns.len) {
+						arm.patterns[j] = self.wrap_expr_for_eu(arm.patterns[j]);
+					}
 					if (arm.body is BlockStmt as blk) {
 						self.lower_eu_block(blk);
 						if (we_ty != null && we_ty.kind == DataType.ERROR_UNION) {
@@ -404,24 +430,13 @@ impl LoweringPass {
 				ce.expr = self.wrap_expr_for_eu(ce.expr);
 				val src_ty = self.type_of(ce.expr);
 				val h_is_stmt = self.is_stmt_node(ce.handler);
-				if (ce.handler is BlockStmt as hblk) {
-					self.lower_eu_block(hblk);
-					if (src_ty != null && src_ty.kind == DataType.ERROR_UNION) {
+				if (ce.handler is BlockStmt || h_is_stmt) {
+					ce.handler = self.lower_stmt_in_expr(ce.handler);
+					if (ce.handler is BlockStmt as hblk && src_ty != null && src_ty.kind == DataType.ERROR_UNION) {
 						val ok_ty = src_ty.as_error_union()!.ok;
 						if (ok_ty.kind == DataType.ERROR_UNION) {
 							self.wrap_block_yields_for_eu(hblk, ok_ty);
 						}
-					}
-				} else if (h_is_stmt) {
-					var h_pre = List<&AstNode>();
-					val low_h = self.lower_eu_stmt_single(ce.handler, &h_pre);
-					if (!h_pre.empty()) {
-						var stmts = List<&AstNode>();
-						for (ps in h_pre) stmts += ps;
-						stmts += low_h;
-						ce.handler = self.arena.node(NodeData.BlockStmt(stmts), ce.handler.line, ce.handler.col);
-					} else {
-						ce.handler = low_h;
 					}
 				} else {
 					ce.handler = self.wrap_expr_for_eu(ce.handler);
@@ -507,6 +522,7 @@ impl LoweringPass {
 			is WhenExpr as we -> {
 				if (self.expr_needs_eu_lower(we.condition)) yield true;
 				for (arm in we.arms) {
+					if (self.arm_patterns_need_eu(&arm)) yield true;
 					if (arm.body !is BlockStmt && self.expr_needs_eu_lower(arm.body)) yield true;
 				}
 				yield false;
@@ -517,6 +533,63 @@ impl LoweringPass {
 			is ErrorUnionWrapExpr as w -> self.expr_needs_eu_lower(w.value);
 			else -> false;
 		};
+	}
+
+	fn arm_patterns_need_eu(&self, arm: *WhenArm): bool =>
+		arm.patterns.any { p -> self.expr_needs_eu_lower(p) };
+
+	fn lower_when_head_patterns(&self, arm: &WhenArm, prelude: &List<&AstNode>) {
+		for (j in 0..<arm.patterns.len) {
+			if (self.expr_needs_eu_lower(arm.patterns[j])) {
+				arm.patterns[j] = self.lower_eu_expr(arm.patterns[j], prelude, false);
+			}
+		}
+	}
+
+	fn partition_when_arms(
+		*self,
+		arms: List<WhenArm>,
+		split_idx: usz
+	): Pair<List<WhenArm>, List<WhenArm>> {
+		var kept = List<WhenArm>();
+		var tail_arms = List<WhenArm>();
+		if (split_idx == 0 && arms[0].patterns.len > 1) {
+			val head_arm = arms[0];
+			var head_pats = List<&AstNode>();
+			head_pats += head_arm.patterns[0];
+			var rest_pats = List<&AstNode>();
+			for (j in 1..<head_arm.patterns.len) rest_pats += head_arm.patterns[j];
+			kept += WhenArm(head_pats, false, head_arm.body, head_arm.line, head_arm.col);
+			tail_arms += WhenArm(rest_pats, false, head_arm.body, head_arm.line, head_arm.col);
+			for (i in 1..<arms.len) tail_arms += arms[i];
+			return Pair(kept, tail_arms);
+		}
+		for (i in 0..<split_idx) kept += arms[i];
+		for (i in split_idx..<arms.len) tail_arms += arms[i];
+		return Pair(kept, tail_arms);
+	}
+
+	fn build_when_else_tail(&self, line: usz, col: usz, stmts: List<&AstNode>): WhenArm {
+		val else_blk = self.arena.node(NodeData.BlockStmt(stmts), line, col);
+		return WhenArm(List<&AstNode>(), true, else_blk, line, col);
+	}
+
+	fn lower_when_arm_body(&self, arm: &WhenArm) {
+		if (arm.body is BlockStmt as ablk) {
+			self.lower_eu_block(ablk);
+		} else if (self.expr_needs_eu_lower(arm.body)) {
+			var ap = List<&AstNode>();
+			val low_ab = self.lower_eu_expr(arm.body, &ap, true);
+			var astmts = List<&AstNode>();
+			for (ps in ap) astmts += ps;
+			val aty = self.type_of(arm.body);
+			if (aty != null && aty.kind != DataType.NONE) {
+				astmts += self.arena.node(NodeData.YieldStmt(low_ab), arm.body.line, arm.body.col);
+			} else if (!self.is_postfix_q(arm.body)) {
+				astmts += self.arena.node(NodeData.ExprStmt(low_ab), arm.body.line, arm.body.col);
+			}
+			arm.body = self.arena.node(NodeData.BlockStmt(astmts), arm.body.line, arm.body.col);
+		}
 	}
 
 	fn ensure_block_for_prelude(&self, prelude: List<&AstNode>, stmt: &AstNode): &AstNode {
@@ -679,10 +752,39 @@ impl LoweringPass {
 					ws.condition = self.wrap_expr_for_eu(ws.condition!);
 					ws.condition = self.lower_eu_expr(ws.condition!, prelude, false);
 				}
+				var split_idx: usz = ws.arms.len;
 				for (i in 0..<ws.arms.len) {
 					var arm = ws.arms[i];
+					for (j in 0..<arm.patterns.len) {
+						arm.patterns[j] = self.wrap_expr_for_eu(arm.patterns[j]);
+					}
+					if (self.arm_patterns_need_eu(&arm)) {
+						if (i == 0 && arm.patterns.len <= 1) {
+							self.lower_when_head_patterns(&arm, prelude);
+						} else {
+							ws.arms[i] = arm;
+							split_idx = i;
+							break;
+						}
+					}
 					arm.body = self.lower_eu_branch(arm.body);
 					ws.arms[i] = arm;
+				}
+				if (split_idx < ws.arms.len) {
+					val (kept_ref, tail_arms) = self.partition_when_arms(ws.arms, split_idx);
+					var kept = kept_ref;
+					val first_tail = tail_arms[0];
+					val inner_ws = self.arena.node(
+						NodeData.WhenStmt(ws.condition, tail_arms),
+						first_tail.line, first_tail.col
+					);
+					var tail_pre = List<&AstNode>();
+					val low_ws = self.lower_eu_stmt_single(inner_ws, &tail_pre);
+					var tail_stmts = List<&AstNode>();
+					for (ps in tail_pre) tail_stmts += ps;
+					tail_stmts += low_ws;
+					kept += self.build_when_else_tail(first_tail.line, first_tail.col, tail_stmts);
+					ws.arms = kept;
 				}
 				return node;
 			}
@@ -975,39 +1077,59 @@ impl LoweringPass {
 			}
 			is WhenExpr as we -> {
 				if (we.condition != null) we.condition = self.lower_eu_expr(we.condition!, prelude, false);
+				val res_ty = self.type_of(node);
+				val has_val_res = (res_ty?.kind ?: DataType.NONE) != DataType.NONE;
+				var split_idx: usz = we.arms.len;
 				for (i in 0..<we.arms.len) {
 					var arm = we.arms[i];
-					if (arm.body is BlockStmt as ablk) {
-						self.lower_eu_block(ablk);
-					} else if (self.expr_needs_eu_lower(arm.body)) {
-						var ap = List<&AstNode>();
-						val low_ab = self.lower_eu_expr(arm.body, &ap, true);
-						var astmts = List<&AstNode>();
-						for (ps in ap) astmts += ps;
-						val aty = self.type_of(arm.body);
-						if (aty != null && aty.kind != DataType.NONE) {
-							astmts += self.arena.node(NodeData.YieldStmt(low_ab), arm.body.line, arm.body.col);
+					if (self.arm_patterns_need_eu(&arm)) {
+						if (i == 0 && arm.patterns.len <= 1) {
+							self.lower_when_head_patterns(&arm, prelude);
 						} else {
-							if (!self.is_postfix_q(arm.body)) {
-								astmts += self.arena.node(NodeData.ExprStmt(low_ab), arm.body.line, arm.body.col);
-							}
+							we.arms[i] = arm;
+							split_idx = i;
+							break;
 						}
-						arm.body = self.arena.node(NodeData.BlockStmt(astmts), arm.body.line, arm.body.col);
 					}
+					self.lower_when_arm_body(&arm);
 					we.arms[i] = arm;
 				}
-				if (!allow_top_catch && self.when_has_blocks(we)) {
-					val res_ty = self.type_of(node);
-					if (res_ty != null && res_ty.kind != DataType.NONE) {
-						val cname = "__eu_when_${self.next_eu_id()}";
-						prelude.add(self.arena.node(
-							NodeData.VarDeclStmt(false, cname, self.arena.ast_type_from_type(res_ty), node),
-							node.line, node.col
-						));
-						val cid = self.arena.node(NodeData.IdentifierExpr(cname), node.line, node.col);
-						self.symtab.set_node_type(cid, res_ty);
-						return cid;
+				if (split_idx < we.arms.len) {
+					val (kept_ref, tail_arms) = self.partition_when_arms(we.arms, split_idx);
+					var kept = kept_ref;
+					val first_tail = tail_arms[0];
+					val inner_when = self.arena.node(
+						NodeData.WhenExpr(we.condition, tail_arms),
+						first_tail.line, first_tail.col
+					);
+					if (res_ty != null) self.symtab.set_node_type(inner_when, res_ty);
+					var tail_pre = List<&AstNode>();
+					val inner_val = self.lower_eu_expr(inner_when, &tail_pre, false);
+					var tail_stmts = List<&AstNode>();
+					for (ps in tail_pre) tail_stmts += ps;
+					if (has_val_res) {
+						tail_stmts += self.arena.node(
+							NodeData.YieldStmt(inner_val),
+							first_tail.line, first_tail.col
+						);
+					} else {
+						tail_stmts += self.arena.node(
+							NodeData.ExprStmt(inner_val),
+							first_tail.line, first_tail.col
+						);
 					}
+					kept += self.build_when_else_tail(first_tail.line, first_tail.col, tail_stmts);
+					we.arms = kept;
+				}
+				if (!allow_top_catch && self.when_has_blocks(we) && res_ty != null && res_ty.kind != DataType.NONE) {
+					val cname = "__eu_when_${self.next_eu_id()}";
+					prelude.add(self.arena.node(
+						NodeData.VarDeclStmt(false, cname, self.arena.ast_type_from_type(res_ty), node),
+						node.line, node.col
+					));
+					val cid = self.arena.node(NodeData.IdentifierExpr(cname), node.line, node.col);
+					self.symtab.set_node_type(cid, res_ty);
+					return cid;
 				}
 				return node;
 			}

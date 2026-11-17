@@ -61,18 +61,18 @@ impl Parser {
 	}
 
 	pub fn peek(*self) =>
-		if (self.current >= self.tokens.len) self.tokens.last()
+		if (self.current >= self.tokens.len) self.tokens.last()!
 		else self.tokens[self.current];
 
 	// Token `offset` positions ahead of the cursor (0 == peek), clamped to the end.
 	pub fn peek_at(*self, offset: usz): Token {
 		val idx = self.current + offset;
-		if (idx >= self.tokens.len) return self.tokens.last();
+		if (idx >= self.tokens.len) return self.tokens.last()!;
 		return self.tokens[idx];
 	}
 
 	pub fn previous(*self) =>
-		if (self.current == 0) self.tokens.first()
+		if (self.current == 0) self.tokens.first()!
 		else self.tokens[self.current - 1];
 
 	pub fn advance(&self): Token {

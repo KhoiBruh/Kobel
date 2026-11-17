@@ -109,8 +109,7 @@ impl Kobel {
 	fn run_fixpoint(*self): !CompilerErr => Compiler.fixpoint("kobel.toml");
 
 	fn run_emit_c(*self): !CompilerErr {
-		val manifest_p = Path("kobel.toml");
-		val cfg = if (manifest_p.exists()) ProjectConfig("kobel.toml") else ProjectConfig();
+		val cfg = load_project_config_optional("kobel.toml")?;
 		val out_path = if (self.args.len >= 3) self.args[2] else "dist/bootstrap.c";
 		var compiler = Compiler();
 		compiler.emit_c(cfg.entry, out_path)?;

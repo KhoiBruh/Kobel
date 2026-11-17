@@ -15,6 +15,12 @@ use std.traits.*;
  *   val n = a.len;
  *   for (item in a) { ... }
  */
+pub fault CollectionErr {
+	NotFound("Element not found in collection"),
+	Empty("Collection is empty"),
+	OutOfBounds("Collection index out of range")
+}
+
 pub struct Array<T> {
 	pub data: *T,
 	pub len: usz
@@ -32,9 +38,15 @@ impl Array<T> {
 
 	pub fn empty(*self) => self.len == 0;
 
-	pub fn first(*self) => self.data[0];
+	pub fn first(*self): T ! CollectionErr {
+		if (self.len == 0) return CollectionErr.Empty;
+		return self.data[0];
+	}
 
-	pub fn last(*self) => self.data[self.len - 1];
+	pub fn last(*self): T ! CollectionErr {
+		if (self.len == 0) return CollectionErr.Empty;
+		return self.data[self.len - 1];
+	}
 
 	pub op get(*self, i: usz) => self.data[i];
 

@@ -10,6 +10,17 @@ use std.collections.*;
 // JSON Data Types
 // ============================================================================
 
+pub fault JsonErr {
+	EmptyInput("JSON input is empty"),
+	UnexpectedToken("Unexpected character in JSON"),
+	UnterminatedString("Unterminated JSON string"),
+	InvalidEscape("Invalid escape sequence in JSON string"),
+	ExpectedColon("Expected ':' after JSON object key"),
+	InvalidLiteral("Invalid JSON literal token"),
+	InvalidNumber("Invalid JSON number token"),
+	TrailingData("Unexpected trailing characters after JSON value")
+}
+
 pub enum JsonKind {
 	JNULL,
 	JBOOL,
@@ -68,9 +79,12 @@ impl JsonValue {
 	pub fn obj() => JsonValue.box(JsonValue(JsonKind.JOBJ));
 	pub fn object() => JsonValue.obj();
 
-	pub fn parse(src: str): &JsonValue {
+	pub fn parse(src: str): &JsonValue ! JsonErr {
 		var parser = JsonParser(src);
-		return parser.parse_value();
+		val v = parser.parse_value()?;
+		parser.skip_whitespace();
+		if (!parser.is_end()) return JsonErr.TrailingData;
+		return v;
 	}
 
 	pub fn serialize_to(*self, sb: &StringBuilder) {
@@ -120,9 +134,9 @@ impl JsonValue {
 
 	pub op set(&self, key: str, val_item: *JsonValue) {
 		if (self.kind != JsonKind.JOBJ) return;
-		val idx = self.obj_keys.index_of(key);
-		if (idx >= 0) {
-			self.obj_vals[idx as usz] = val_item;
+		val idx_res = self.obj_keys.index_of(key);
+		if (idx_res is usz as idx) {
+			self.obj_vals[*idx] = val_item;
 			return;
 		}
 		self.obj_keys += key;
@@ -132,9 +146,8 @@ impl JsonValue {
 	pub op get(*self, key: str): *JsonValue {
 		if (self == null || self.kind != JsonKind.JOBJ) return JsonValue.null_val();
 
-		val idx = self.obj_keys.index_of(key);
-		if (idx >= 0) return self.obj_vals[idx as usz];
-		return JsonValue.null_val();
+		val idx = self.obj_keys.index_of(key) !: return JsonValue.null_val();
+		return self.obj_vals[idx];
 	}
 
 	pub op contains(*self, key: str): bool => self?.kind == JsonKind.JOBJ && key in self.obj_keys;
@@ -222,16 +235,20 @@ impl JsonParser {
 		}
 	}
 
-	pub fn parse_string(&self): str {
+	pub fn parse_string(&self): str ! JsonErr {
 		self.advance(); // Skip opening quote '"'
 		var sb = StringBuilder();
 		defer sb.free();
+		var closed = false;
 		while (!self.is_end()) {
 			val c = self.advance();
 			when (c) {
-				'"' -> break;
+				'"' -> {
+					closed = true;
+					break;
+				}
 				'\\' -> {
-					if (self.is_end()) break;
+					if (self.is_end()) return JsonErr.UnterminatedString;
 
 					val esc = self.advance();
 					when (esc) {
@@ -250,11 +267,13 @@ impl JsonParser {
 									'0'..'9' -> (hc.code() as i32) - 48;
 									'a'..'f' -> (hc.code() as i32) - 87;
 									'A'..'F' -> (hc.code() as i32) - 55;
-									else -> 0;
+									else -> -1;
 								};
+								if (d < 0) return JsonErr.InvalidEscape;
 								u_val = u_val * 16 + d;
 								u_count++;
 							}
+							if (u_count < 4) return JsonErr.InvalidEscape;
 							if (u_val > 0 && u_val < 128) sb += char(u_val);
 							else sb += '?';
 						}
@@ -265,16 +284,18 @@ impl JsonParser {
 			}
 		}
 
+		if (!closed) return JsonErr.UnterminatedString;
 		return sb.to_str();
 	}
 
-	pub fn parse_number(&self): i64 {
+	pub fn parse_number(&self): i64 ! JsonErr {
 		var sign: i64 = 1;
 		if (self.peek() == '-') {
 			sign = -1;
 			self.advance();
 		}
 
+		if (self.is_end() || !(self.peek() in '0'..'9')) return JsonErr.InvalidNumber;
 		var val_num: i64 = 0;
 		while (!self.is_end() && self.peek() in '0'..'9') {
 			val c = self.advance();
@@ -284,6 +305,7 @@ impl JsonParser {
 
 		if (!self.is_end() && self.peek() == '.') {
 			self.advance();
+			if (self.is_end() || !(self.peek() in '0'..'9')) return JsonErr.InvalidNumber;
 			while (!self.is_end() && self.peek() in '0'..'9') self.advance();
 		}
 
@@ -298,6 +320,7 @@ impl JsonParser {
 							'+', '-' -> self.advance();
 						}
 					}
+					if (self.is_end() || !(self.peek() in '0'..'9')) return JsonErr.InvalidNumber;
 					while (!self.is_end() && self.peek() in '0'..'9') self.advance();
 				}
 			}
@@ -306,7 +329,7 @@ impl JsonParser {
 		return val_num * sign;
 	}
 
-	pub fn parse_array(&self): &JsonValue {
+	pub fn parse_array(&self): &JsonValue ! JsonErr {
 		self.advance(); // Skip '['
 		var res = JsonValue.arr();
 		self.skip_whitespace();
@@ -317,7 +340,7 @@ impl JsonParser {
 
 		while (!self.is_end()) {
 			self.skip_whitespace();
-			val item = self.parse_value();
+			val item = self.parse_value()?;
 			res += item;
 			self.skip_whitespace();
 
@@ -326,11 +349,12 @@ impl JsonParser {
 		}
 
 		self.skip_whitespace();
-		if (!self.is_end() && self.peek() == ']') self.advance();
+		if (self.is_end() || self.peek() != ']') return JsonErr.UnexpectedToken;
+		self.advance();
 		return res;
 	}
 
-	pub fn parse_object(&self): &JsonValue {
+	pub fn parse_object(&self): &JsonValue ! JsonErr {
 		self.advance(); // Skip '{'
 		var res = JsonValue.obj();
 		self.skip_whitespace();
@@ -341,14 +365,15 @@ impl JsonParser {
 
 		while (!self.is_end()) {
 			self.skip_whitespace();
-			if (self.is_end() || self.peek() != '"') break;
-			val key = self.parse_string();
+			if (self.is_end() || self.peek() != '"') return JsonErr.UnexpectedToken;
+			val key = self.parse_string()?;
 			self.skip_whitespace();
 
-			if (!self.is_end() && self.peek() == ':') self.advance();
+			if (self.is_end() || self.peek() != ':') return JsonErr.ExpectedColon;
+			self.advance();
 			self.skip_whitespace();
 
-			val val_item = self.parse_value();
+			val val_item = self.parse_value()?;
 			res[key] = val_item;
 
 			self.skip_whitespace();
@@ -357,37 +382,43 @@ impl JsonParser {
 		}
 
 		self.skip_whitespace();
-		if (!self.is_end() && self.peek() == '}') self.advance();
+		if (self.is_end() || self.peek() != '}') return JsonErr.UnexpectedToken;
+		self.advance();
 		return res;
 	}
 
-	pub fn parse_value(&self): &JsonValue {
+	fn expect_literal(&self, expected: str): !JsonErr {
+		for (i in 0..<expected.len) {
+			if (self.is_end() || self.advance() != expected[i]) {
+				return JsonErr.InvalidLiteral;
+			}
+		}
+	}
+
+	pub fn parse_value(&self): &JsonValue ! JsonErr {
 		self.skip_whitespace();
-		if (self.is_end()) return JsonValue.null_val();
+		if (self.is_end()) return JsonErr.EmptyInput;
 
 		val c = self.peek();
-		return when (c) {
-			'"' -> JsonValue.str(self.parse_string());
-			'{' -> self.parse_object();
-			'[' -> self.parse_array();
-			'-', '0'..'9' -> JsonValue.num(self.parse_number());
+		when (c) {
+			'"' -> return JsonValue.str(self.parse_string()?);
+			'{' -> return self.parse_object()?;
+			'[' -> return self.parse_array()?;
+			'-', '0'..'9' -> return JsonValue.num(self.parse_number()?);
 			't' -> {
-				for (i in 0..<4) if (!self.is_end()) self.advance();
-				yield JsonValue.bool(true);
+				self.expect_literal("true")?;
+				return JsonValue.bool(true);
 			}
 			'f' -> {
-				for (i in 0..<5) if (!self.is_end()) self.advance();
-				yield JsonValue.bool(false);
+				self.expect_literal("false")?;
+				return JsonValue.bool(false);
 			}
 			'n' -> {
-				for (i in 0..<4) if (!self.is_end()) self.advance();
-				yield JsonValue.null_val();
+				self.expect_literal("null")?;
+				return JsonValue.null_val();
 			}
-			else -> {
-				self.advance();
-				yield JsonValue.null_val();
-			}
-		};
+			else -> return JsonErr.UnexpectedToken;
+		}
 	}
 
 }

@@ -433,7 +433,7 @@ impl CCodeGen {
 		// Static or string method call: T.size() -> sizeof(T), s.c_str() -> kobel_cstr(s)
 		val callee = call.callee;
 		if (callee is MemberExpr as mem) {
-			if (mem.member == "size") {
+			if (mem.member == "size" && self.symtab?.get_resolved_method(ast_node) == null) {
 				val obj_name = self.gen_expr(mem.object);
 				val c_type = when (obj_name) {
 					"str" -> "kobel_str";

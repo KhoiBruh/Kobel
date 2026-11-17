@@ -81,7 +81,7 @@ impl CCodeGen {
 	fn gen_break_stmt(&self) {
 		self.mark_current_scope_jumped();
 		if (!self.loop_defer_depths.empty()) {
-			val target_depth = self.loop_defer_depths.last();
+			val target_depth = self.loop_defer_depths.last()!;
 			self.gen_defers_unwind(target_depth);
 		}
 		self.out += "break;\n";
@@ -90,7 +90,7 @@ impl CCodeGen {
 	fn gen_continue_stmt(&self) {
 		self.mark_current_scope_jumped();
 		if (!self.loop_defer_depths.empty()) {
-			val target_depth = self.loop_defer_depths.last();
+			val target_depth = self.loop_defer_depths.last()!;
 			self.gen_defers_unwind(target_depth);
 		}
 		self.out += "continue;\n";
@@ -520,7 +520,7 @@ impl CCodeGen {
 		self.out += " {\n";
 		self.loop_defer_depths += self.scope_starts.len;
 		self.gen_block_body(wh.body);
-		self.loop_defer_depths.pop();
+		self.loop_defer_depths.pop()!;
 		self.out += "}\n";
 	}
 
@@ -828,7 +828,7 @@ impl CCodeGen {
 	// identifier subject. Empty when the arm binds nothing.
 	fn when_arm_binding(*self, patterns: List<&AstNode>, cond: ?*AstNode): str {
 		if (cond == null || patterns.len != 1) return "";
-		val pat = patterns.first();
+		val pat = patterns.first()!;
 		if (pat is IsExpr as is_e) {
 			if (self.is_multi_target_list(is_e)) return "";
 			if (!is_e.alias.empty()) return is_e.alias;
@@ -844,7 +844,7 @@ impl CCodeGen {
 			var cast_decl = "";
 			val bound = self.when_arm_binding(arm.patterns, ws.condition);
 			if (!bound.empty()) {
-				val pat_node = arm.patterns.first();
+				val pat_node = arm.patterns.first()!;
 				if (pat_node is IsExpr as is_e) {
 					var subj_expr = self.gen_expr(ws.condition!);
 					if (ws.condition! is IdentifierExpr as id) subj_expr = id.name;
@@ -879,7 +879,7 @@ impl CCodeGen {
 		val pat_info = self.is_pattern_info(is_node);
 		var target_node = is_e.target_type;
 		if (target_node is ArrayLiteralExpr as al && !al.elements.empty()) {
-			target_node = al.elements.first();
+			target_node = al.elements.first()!;
 		}
 		val target_name = c_type_from_ast(target_node);
 		val bound_name = if (!is_e.alias.empty()) is_e.alias else var_name;
@@ -956,7 +956,7 @@ impl CCodeGen {
 			var cast_decl = "";
 			val bound = self.when_arm_binding(arm.patterns, we.condition);
 			if (!bound.empty()) {
-				val pat_node = arm.patterns.first();
+				val pat_node = arm.patterns.first()!;
 				if (pat_node is IsExpr as is_e) {
 					var subj_expr = self.gen_expr(we.condition!);
 					if (we.condition is IdentifierExpr as id) subj_expr = id.name;

@@ -10,16 +10,44 @@ use std.memory.*;
  */
 
 extern "libc" {
-	fn fopen(filename: *char, mode: *char): ?*none;
 	fn fclose(stream: ?*none): i32;
 	fn fread(ptr: &u8, size: usz, count: usz, stream: ?*none): usz;
 	fn fwrite(ptr: *char, size: usz, count: usz, stream: ?*none): usz;
 	fn fseek(stream: ?*none, offset: i64, origin: i32): i32;
 	fn ftell(stream: ?*none): i64;
 	fn fflush(stream: ?*none): i32;
-	fn remove(filename: *char): i32;
-	fn rename(old_filename: *char, new_filename: *char): i32;
 }
+
+extern "C" {
+	fn kobel_fs_fopen(path: str, mode: str, err_out: &i32): ?*none;
+	fn kobel_fs_stream_err(f: ?*none): i32;
+}
+
+pub fault FsErr {
+	NotFound("File or directory not found"),
+	PermissionDenied("Permission denied"),
+	AlreadyExists("Target path already exists"),
+	NotDirectory("Path is not a directory"),
+	IsDirectory("Path is a directory"),
+	InvalidPath("Path or mode is empty or invalid"),
+	NotOpen("File stream is closed or not open"),
+	ReadFailed("Failed to read from file"),
+	WriteFailed("Failed to write all bytes to file"),
+	SeekFailed("Failed to seek or query file position"),
+	OutOfMemory("Insufficient memory to allocate file buffer"),
+	IoFailed("I/O operation failed")
+}
+
+pub fn fs_err_from_code(code: i32): FsErr => when (code) {
+	1 -> FsErr.NotFound;
+	2 -> FsErr.PermissionDenied;
+	3 -> FsErr.AlreadyExists;
+	4 -> FsErr.NotDirectory;
+	5 -> FsErr.IsDirectory;
+	6 -> FsErr.InvalidPath;
+	7 -> FsErr.OutOfMemory;
+	else -> FsErr.IoFailed;
+};
 
 pub struct File {
 	pub handle: ?*none
@@ -27,8 +55,10 @@ pub struct File {
 
 impl File {
 
-	pub fn open(path: str, mode: str): File {
-		val f = fopen(path.c_str(), mode.c_str());
+	pub fn open(path: str, mode: str): File ! FsErr {
+		var err_code: i32 = 0;
+		val f = kobel_fs_fopen(path, mode, &err_code);
+		if (f == null) return fs_err_from_code(err_code);
 		return File(f);
 	}
 
@@ -45,49 +75,66 @@ impl File {
 		}
 	}
 
-	pub fn flush(*self) {
-		if (self.handle != null) fflush(self.handle);
+	pub fn flush(*self): !FsErr {
+		if (self.handle == null) return FsErr.NotOpen;
+		if (fflush(self.handle) != 0) return FsErr.IoFailed;
 	}
 
-	pub fn seek(*self, offset: i64, origin: i32) => fseek(self.handle, offset, origin);
+	pub fn seek(*self, offset: i64, origin: i32): !FsErr {
+		if (self.handle == null) return FsErr.NotOpen;
+		if (fseek(self.handle, offset, origin) != 0) return FsErr.SeekFailed;
+	}
 
-	pub fn tell(*self) => ftell(self.handle);
+	pub fn tell(*self): i64 ! FsErr {
+		if (self.handle == null) return FsErr.NotOpen;
+		val pos = ftell(self.handle);
+		if (pos < 0) return FsErr.SeekFailed;
+		return pos;
+	}
 
-	pub fn size(*self): i64 {
-		if (self.handle == null) return 0;
+	pub fn size(*self): i64 ! FsErr {
+		if (self.handle == null) return FsErr.NotOpen;
 
 		val cur = ftell(self.handle);
-		fseek(self.handle, 0, 2);
+		if (cur < 0) return FsErr.SeekFailed;
+		if (fseek(self.handle, 0, 2) != 0) return FsErr.SeekFailed;
 
 		val total = ftell(self.handle);
 		fseek(self.handle, cur, 0);
+		if (total < 0) return FsErr.SeekFailed;
 
 		return total;
 	}
 
-	pub fn write_all(*self, content: str): bool {
-		if (self.handle == null) return false;
+	pub fn write_all(*self, content: str): !FsErr {
+		if (self.handle == null) return FsErr.NotOpen;
+		if (content.len == 0) return;
 		val written = fwrite(content.data, 1, content.len, self.handle);
-		return written == content.len;
+		if (written != content.len) return FsErr.WriteFailed;
 	}
 
-	pub fn read_all(*self): str {
-		if (self.handle == null) return "";
+	pub fn read_all(*self): str ! FsErr {
+		if (self.handle == null) return FsErr.NotOpen;
 
 		val cur = ftell(self.handle);
-		fseek(self.handle, 0, 2);
+		if (cur < 0) return FsErr.SeekFailed;
+		if (fseek(self.handle, 0, 2) != 0) return FsErr.SeekFailed;
 		val end_pos = ftell(self.handle);
-		if (end_pos <= cur) {
+		if (end_pos < 0) {
 			fseek(self.handle, cur, 0);
-			return "";
+			return FsErr.SeekFailed;
 		}
+		if (fseek(self.handle, cur, 0) != 0) return FsErr.SeekFailed;
+		if (end_pos <= cur) return "";
 
-		fseek(self.handle, cur, 0);
+		val sz = (end_pos - cur) as usz;
+		val buf = Heap.try_create<u8>(sz + 1) !: return FsErr.OutOfMemory;
 
-		val size = end_pos - cur;
-		val buf = Heap.create<u8>(size + 1) ?: return "";
-
-		val read_bytes = fread(buf, 1, size, self.handle);
+		val read_bytes = fread(buf, 1, sz, self.handle);
+		if (kobel_fs_stream_err(self.handle) != 0) {
+			Heap.free(buf);
+			return FsErr.ReadFailed;
+		}
 		buf[read_bytes] = 0;
 
 		return str_from_bytes(buf, read_bytes);

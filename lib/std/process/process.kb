@@ -11,11 +11,21 @@ extern "libc" {
 	fn exit(code: i32);
 }
 
+pub fault ProcessErr {
+	EmptyCommand("Command string is empty"),
+	SpawnFailed("Failed to launch shell or child process")
+}
+
 pub struct Process;
 
 impl Process {
 
-	pub fn exec(cmd: str) => system(cmd.c_str());
+	pub fn exec(cmd: str): i32 ! ProcessErr {
+		if (cmd.empty()) return ProcessErr.EmptyCommand;
+		val rc = system(cmd.c_str());
+		if (rc < 0) return ProcessErr.SpawnFailed;
+		return rc;
+	}
 
 	pub fn exit(code: i32) => exit(code);
 

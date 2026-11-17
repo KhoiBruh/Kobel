@@ -12,6 +12,10 @@ use compiler.parser.*;
 
 pub fault FmtErr {
 	NoFiles("No files specified to format"),
+	ReadFailed("Could not read source file for formatting"),
+	EmptySource("Cannot format empty source file"),
+	SyntaxError("Source code contains lexical or syntax errors"),
+	WriteFailed("Failed to write formatted source file"),
 	FormatFailed("Failed to format one or more files")
 }
 
@@ -24,7 +28,7 @@ pub fault FmtErr {
  * leak `\r` bytes into comments and produce mixed-EOL output.
  */
 fn strip_cr(src: str): str {
-	if (src.index_of("\r") < 0) return src;
+	if ("\r" !in src) return src;
 	return src.strip_char('\r');
 }
 
@@ -264,7 +268,7 @@ impl Formatter {
 				}
 				var has_trailing_lambda = false;
 				if (!c.args.empty()) {
-					val last_arg = c.args.last();
+					val last_arg = c.args.last()!;
 					if (last_arg is LambdaExpr as lam) {
 						if (lam.is_trailing) has_trailing_lambda = true;
 					}
@@ -293,7 +297,7 @@ impl Formatter {
 					} else {
 						self.buf += " ";
 					}
-					self.format_expr(c.args.last());
+					self.format_expr(c.args.last()!);
 				} else {
 					self.buf += "(";
 					var call_broke = false;
@@ -337,7 +341,7 @@ impl Formatter {
 					self.buf += "}";
 				} else {
 					val rendered = self.render_expr(lam.body);
-					val wraps = rendered.index_of("\n") >= 0 ||
+					val wraps = "\n" in rendered ||
 						self.buf.current_col + 1 + rendered.len + 2 > self.options.max_width;
 					if (wraps) {
 						self.buf.indent();
@@ -1025,42 +1029,41 @@ impl Formatter {
 		write_in_place: bool,
 		options: FormatOptions,
 		arena: Arena
-	): bool {
+	): !FmtErr {
 		val fp = Path(path);
-		val src = fp.read_text();
+		val src = fp.read_text() !: {
+			println("Error: cannot read '${path}' for formatting");
+			return FmtErr.ReadFailed;
+		};
 		if (src.empty()) {
-			println("Error: cannot format '${path}': file is empty or unreadable");
-			return false;
+			println("Error: cannot format '${path}': file is empty");
+			return FmtErr.EmptySource;
 		}
 
-		val res = format_source_checked_with_arena(src, options, arena);
-		if (!res.first) {
+		val formatted = format_source_checked_with_arena(src, options, arena) !: {
 			println("Error: cannot format '${path}': source has syntax errors");
-			return false;
-		}
-		val formatted = res.second;
+			return FmtErr.SyntaxError;
+		};
 
 		if (write_in_place) {
-			val ok = fp.write_text(formatted);
-			if (!ok) {
+			fp.write_text(formatted) !: {
 				println("Error: Failed to write to ${path}");
-				return false;
-			}
+				return FmtErr.WriteFailed;
+			};
 			println("Formatted: ${path}");
 		} else {
 			print(formatted);
 		}
-		return true;
 	}
 
 	pub fn format_file(
 		path: str,
 		write_in_place: bool = false,
 		options: FormatOptions = FormatOptions()
-	): bool {
+	): !FmtErr {
 		var arena = Arena(262144);
 		defer arena.free();
-		return Self.format_file_with_arena(path, write_in_place, options, arena);
+		Self.format_file_with_arena(path, write_in_place, options, arena)?;
 	}
 
 	pub fn format_files(
@@ -1075,12 +1078,17 @@ impl Formatter {
 
 		var arena = Arena(262144);
 		defer arena.free();
-		var all_ok = true;
+		var first_err = FmtErr.FormatFailed;
+		var fail_count: usz = 0;
 		for (fpath in files) {
-			if (!Self.format_file_with_arena(fpath, write_in_place, options, arena)) all_ok = false;
+			Self.format_file_with_arena(fpath, write_in_place, options, arena) !: err -> {
+				if (fail_count == 0) first_err = err;
+				fail_count++;
+			};
 			arena.reset();
 		}
-		if (!all_ok) return FmtErr.FormatFailed;
+		if (fail_count == 1) return first_err;
+		if (fail_count > 1) return FmtErr.FormatFailed;
 	}
 
 }
@@ -1114,7 +1122,7 @@ pub fn is_parseable(src: str): bool {
 	return is_parseable_with_arena(src, arena);
 }
 
-pub fn format_source_checked_with_arena(src: str, options: FormatOptions, arena: Arena): Pair<bool, str> {
+pub fn format_source_checked_with_arena(src: str, options: FormatOptions, arena: Arena): str ! FmtErr {
 	val normalized = strip_cr(src);
 	var lex = Lexer(normalized);
 	val tokens = lex.tokenize();
@@ -1123,7 +1131,7 @@ pub fn format_source_checked_with_arena(src: str, options: FormatOptions, arena:
 	for (tok in tokens) {
 		if (tok.type == TokenType.UNKNOWN) {
 			tokens.free();
-			return Pair(false, src);
+			return FmtErr.SyntaxError;
 		}
 	}
 
@@ -1131,7 +1139,7 @@ pub fn format_source_checked_with_arena(src: str, options: FormatOptions, arena:
 	if (!parser.errors.empty()) {
 		parser.tokens.free();
 		parser.errors.free();
-		return Pair(false, src);
+		return FmtErr.SyntaxError;
 	}
 
 	val comments = Comment.extract(normalized);
@@ -1141,7 +1149,7 @@ pub fn format_source_checked_with_arena(src: str, options: FormatOptions, arena:
 	parser.tokens.free();
 	parser.errors.free();
 
-	return Pair(true, fmt.to_str());
+	return fmt.to_str();
 }
 
 pub fn format_source_with_arena(src: str, options: FormatOptions, arena: Arena): str {

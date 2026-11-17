@@ -1,0 +1,18 @@
+mod config;
+
+/*
+ * ============================================================================
+ * config.error — Fault definitions for TOML parsing and project configuration
+ * ============================================================================
+ */
+
+pub fault ConfigErr {
+	ManifestNotFound("Project manifest file not found"),
+	ReadFailed("Could not read configuration file"),
+	EmptyManifest("Configuration file is empty"),
+	MalformedHeader("Malformed TOML section header"),
+	MalformedLine("Expected 'key = value' entry in TOML"),
+	EmptyKey("TOML key cannot be empty"),
+	UnterminatedString("Unterminated quoted string in TOML"),
+	KeyNotFound("Configuration key not found")
+}

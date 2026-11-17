@@ -115,16 +115,16 @@ impl Diagnostic {
 			if (!have_line && !self.file_path.empty()) {
 				val fp = Path(self.file_path);
 				if (fp.exists()) {
-					val content = fp.read_text();
-				if (!content.empty()) {
-					val lines = content.split_lines();
-					defer lines.free();
+					val content = fp.read_text() !: "";
+					if (!content.empty()) {
+						val lines = content.split_lines();
+						defer lines.free();
 
-					if (self.line in 1..lines.len) {
-						raw_line = lines[self.line - 1];
-						have_line = true;
+						if (self.line in 1..lines.len) {
+							raw_line = lines[self.line - 1];
+							have_line = true;
+						}
 					}
-				}
 				}
 			}
 		}

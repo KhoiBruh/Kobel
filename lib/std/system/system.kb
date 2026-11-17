@@ -10,16 +10,22 @@ extern "libc" {
 	fn getenv(name: *char): ?*char;
 }
 
+pub fault SysErr {
+	InvalidName("Environment variable name is empty"),
+	EnvNotSet("Environment variable is not set")
+}
+
 pub struct System;
 
 impl System {
 
 	pub fn is_windows() => getenv("SystemRoot".c_str()) != null || getenv("WINDIR".c_str()) != null;
 
-	pub fn has_env(name: str) => getenv(name.c_str()) != null;
+	pub fn has_env(name: str) => !name.empty() && getenv(name.c_str()) != null;
 
-	pub fn get_env(name: str): str {
-		val raw = getenv(name.c_str()) ?: return "";
+	pub fn get_env(name: str): str ! SysErr {
+		if (name.empty()) return SysErr.InvalidName;
+		val raw = getenv(name.c_str()) ?: return SysErr.EnvNotSet;
 		return str(raw);
 	}
 

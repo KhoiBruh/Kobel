@@ -17,12 +17,14 @@ use std.traits.Stringer;
  */
 
 extern "C" {
-	fn kobel_list_dir(dir_path: str): str;
+	fn kobel_fs_list_dir(dir_path: str, err_out: &i32): str;
 	fn kobel_path_exists(path: str): i32;
 	fn kobel_path_is_dir(path: str): i32;
 	fn kobel_path_is_file(path: str): i32;
-	fn kobel_create_dir(dir_path: str): i32;
-	fn kobel_create_dir_all(dir_path: str): i32;
+	fn kobel_fs_mkdir(dir_path: str): i32;
+	fn kobel_fs_mkdir_all(dir_path: str): i32;
+	fn kobel_fs_remove(path: str): i32;
+	fn kobel_fs_rename(old_path: str, new_path: str): i32;
 }
 
 pub fn str_is_sep(c: char) => c in ['/', '\\'];
@@ -44,16 +46,14 @@ impl str {
 
 	// Directory part of a path ("" when the path has no separator).
 	pub fn dir_of(*self): str {
-		val last = self.last_index_where { c -> str_is_sep(c) };
-		if (last < 0) return "";
-		return self.slice(0, last as usz);
+		val last = self.last_index_where { c -> str_is_sep(c) } !: return "";
+		return self.slice(0, last);
 	}
 
 	// File name part of a path (input with separators included).
 	pub fn base_name(*self): str {
-		val last = self.last_index_where { c -> str_is_sep(c) };
-		if (last < 0) return self;
-		return self.slice((last + 1) as usz);
+		val last = self.last_index_where { c -> str_is_sep(c) } !: return self;
+		return self.slice(last + 1);
 	}
 
 	// Joins a directory and a relative path with a single '/' separator.
@@ -96,17 +96,17 @@ impl Path {
 	// Extension without the leading dot ("kb" from "src/main.kb", "" if none).
 	pub fn extension(*self): str {
 		val fname = self.file_name();
-		val last_dot = fname.last_index_where { c -> c == '.' };
-		if (last_dot <= 0 || (last_dot as usz) == fname.len - 1) return "";
-		return fname.slice((last_dot + 1) as usz);
+		val last_dot = fname.last_index_where { c -> c == '.' } !: return "";
+		if (last_dot == 0 || last_dot == fname.len - 1) return "";
+		return fname.slice(last_dot + 1);
 	}
 
 	// File name without the trailing extension ("main" from "src/main.kb").
 	pub fn stem(*self): str {
 		val fname = self.file_name();
-		val last_dot = fname.last_index_where { c -> c == '.' };
-		if (last_dot <= 0) return fname;
-		return fname.slice(0, last_dot as usz);
+		val last_dot = fname.last_index_where { c -> c == '.' } !: return fname;
+		if (last_dot == 0) return fname;
+		return fname.slice(0, last_dot);
 	}
 
 	// Joins two path segments with a normalized '/' separator.
@@ -149,24 +149,37 @@ impl Path {
 	// Filesystem directory manipulation
 	// ------------------------------------------------------------------------
 
-	pub fn create_dir(*self) => kobel_create_dir(self.raw) != 0;
-
-	pub fn create_dir_all(*self) => kobel_create_dir_all(self.raw) != 0;
-
-	pub fn remove(*self) => remove(self.raw.c_str()) == 0;
-
-	pub fn rename_to(*self, target: Path): bool {
-		if (target.exists()) target.remove();
-		return rename(self.raw.c_str(), target.raw.c_str()) == 0;
+	pub fn create_dir(*self): !FsErr {
+		val rc = kobel_fs_mkdir(self.raw);
+		if (rc != 0) return fs_err_from_code(rc);
 	}
 
-	// Directory listing returning list of filename strings
-	pub fn list_dir(*self): List<str> {
-		val raw = kobel_list_dir(self.raw);
-		if (raw.empty()) return List<str>();
+	pub fn create_dir_all(*self): !FsErr {
+		val rc = kobel_fs_mkdir_all(self.raw);
+		if (rc != 0) return fs_err_from_code(rc);
+	}
+
+	pub fn remove(*self): !FsErr {
+		val rc = kobel_fs_remove(self.raw);
+		if (rc != 0) return fs_err_from_code(rc);
+	}
+
+	pub fn rename_to(*self, target: Path): !FsErr {
+		if (target.exists()) target.remove()?;
+		val rc = kobel_fs_rename(self.raw, target.raw);
+		if (rc != 0) return fs_err_from_code(rc);
+	}
+
+	// Directory listing returning list of filename strings.
+	pub fn list_dir(*self): List<str> ! FsErr {
+		var err_code: i32 = 0;
+		val raw = kobel_fs_list_dir(self.raw, &err_code);
+		if (err_code != 0) return fs_err_from_code(err_code);
 
 		var res = List<str>();
-		var start = 0;
+		if (raw.empty()) return res;
+
+		var start: usz = 0;
 		for (i in 0..<raw.len) {
 			if (raw[i] == '\n') {
 				if (i > start) res += raw.slice(start, i);
@@ -178,9 +191,9 @@ impl Path {
 		return res;
 	}
 
-	// Directory entries listing returning List<Path>
-	pub fn entries(*self): List<Path> {
-		val names = self.list_dir();
+	// Directory entries listing returning List<Path>.
+	pub fn entries(*self): List<Path> ! FsErr {
+		val names = self.list_dir()?;
 		defer names.free();
 
 		return names.map { name -> self.join(name) };
@@ -190,56 +203,33 @@ impl Path {
 	// High-level text I/O operations
 	// ------------------------------------------------------------------------
 
-	pub fn read_text(*self): str {
-		val f = fopen(self.raw.c_str(), "rb");
-		if (f == null) return "";
-
-		fseek(f, 0, 2);
-		val size_i64 = ftell(f);
-		if (size_i64 <= 0) {
-			fclose(f);
-			return "";
-		}
-
-		fseek(f, 0, 0);
-		val sz = size_i64 as usz;
-		val buf = Heap.create<u8>(sz + 1);
-		if (buf == null) {
-			fclose(f);
-			return "";
-		}
-
-		val read_bytes = fread(buf, 1, sz, f);
-		fclose(f);
-		buf[read_bytes] = 0;
-
-		return str_from_bytes(buf, read_bytes);
+	pub fn read_text(*self): str ! FsErr {
+		var f = File.open(self.raw, "rb")?;
+		defer f.close();
+		return f.read_all()?;
 	}
 
-	pub fn write_text(*self, content: str): bool {
-		val f = fopen(self.raw.c_str(), "wb");
-		if (f == null) return false;
-		val written = fwrite(content.data, 1, content.len, f);
-		fclose(f);
-		return written == content.len;
+	pub fn write_text(*self, content: str): !FsErr {
+		var f = File.open(self.raw, "wb")?;
+		defer f.close();
+		f.write_all(content)?;
 	}
 
-	pub fn append_text(*self, content: str): bool {
-		val f = fopen(self.raw.c_str(), "ab") ?: return false;
-		val written = fwrite(content.data, 1, content.len, f);
-		fclose(f);
-		return written == content.len;
+	pub fn append_text(*self, content: str): !FsErr {
+		var f = File.open(self.raw, "ab")?;
+		defer f.close();
+		f.write_all(content)?;
 	}
 
 	// ------------------------------------------------------------------------
 	// Stream factory
 	// ------------------------------------------------------------------------
 
-	pub fn open_read(*self) => File.open(self.raw, "rb");
+	pub fn open_read(*self): File ! FsErr => File.open(self.raw, "rb");
 
-	pub fn open_write(*self) => File.open(self.raw, "wb");
+	pub fn open_write(*self): File ! FsErr => File.open(self.raw, "wb");
 
-	pub fn open_append(*self) => File.open(self.raw, "ab");
+	pub fn open_append(*self): File ! FsErr => File.open(self.raw, "ab");
 
 }
 
