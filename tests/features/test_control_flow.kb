@@ -5,6 +5,7 @@ use std.io.println;
 use std.string.*;
 use std.collections.*;
 use std.traits.*;
+use std.process.Process;
 
 // ============================================================================
 // `for` loop tests (phase 1: iterable lowering + closed/open ranges)
@@ -552,7 +553,7 @@ fn test_defer_loop(t: &Tally) {
 	check(trace == "0;L;C;L;B;L;", "defer in loop with continue and break must unwind correctly", t);
 }
 
-fn main(): i32 {
+fn main() {
 	println("=== Feature Suite: Control Flow & Loops ===");
 
 	var t = Tally(0);
@@ -585,9 +586,8 @@ fn main(): i32 {
 
 	if (t.fails != 0) {
 		println("[FAILED] Bootstrap for-loop tests");
-		return 1;
+		Process.exit(1);
 	}
 
 	println("=== ALL CONTROL FLOW TESTS PASSED! ===");
-	return 0;
 }

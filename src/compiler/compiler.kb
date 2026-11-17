@@ -32,10 +32,12 @@ impl Compiler {
 	// Compilation Pipeline
 	// ------------------------------------------------------------------------
 
-	pub fn compile(*self): i32 {
-		val code = self.options.compile_with_arena(self.arena);
+	pub fn compile(*self): !CompilerErr {
+		self.options.compile_with_arena(self.arena) !: err -> {
+			self.arena.reset();
+			return err;
+		};
 		self.arena.reset();
-		return code;
 	}
 
 	pub fn free(&self) {
@@ -46,34 +48,34 @@ impl Compiler {
 	// Project Commands Dispatch
 	// ------------------------------------------------------------------------
 
-	pub fn build(manifest_path: str = "kobel.toml") => cmd_build(manifest_path);
+	pub fn build(manifest_path: str = "kobel.toml"): !CompilerErr => cmd_build(manifest_path);
 
 	pub fn run_project(
 		manifest_path: str = "kobel.toml",
 		extra_args: List<str> = List<str>()
-	) => cmd_run(manifest_path, extra_args);
+	): !CompilerErr => cmd_run(manifest_path, extra_args);
 
 	pub fn test(
 		manifest_path: str = "kobel.toml",
 		filter: str = ""
-	) => cmd_test(manifest_path, filter);
+	): !CompilerErr => cmd_test(manifest_path, filter);
 
 	pub fn snap(
 		manifest_path: str = "kobel.toml",
 		update: bool = false
-	) => cmd_snap(manifest_path, update);
+	): !CompilerErr => cmd_snap(manifest_path, update);
 
-	pub fn fixpoint(manifest_path: str = "kobel.toml") => cmd_fixpoint(manifest_path);
+	pub fn fixpoint(manifest_path: str = "kobel.toml"): !CompilerErr => cmd_fixpoint(manifest_path);
 
 	pub fn emit_c(
 		&self,
 		input_path: str,
 		out_path: str = "dist/bootstrap.c"
-	): i32 {
+	): !CompilerErr {
 		self.options.input_path = input_path;
 		self.options.emit_c_path = out_path;
 		self.options.only_emit_c = true;
-		return self.compile();
+		self.compile()?;
 	}
 
 }

@@ -475,6 +475,21 @@ impl BodyChecker {
 						self.report_error(node, "Function cannot return a lambda/closure");
 					}
 					self.current_fn_return_type = val_ty;
+				} else if (
+					self.in_main_fn &&
+					!self.in_lambda &&
+					(self.current_fn_return_type == null || self.current_fn_return_type!.kind == DataType.NONE)
+				) {
+					val val_ty = self.check_expr(ret.value!);
+					if (val_ty.is_fault()) {
+						self.symtab.sem.main_uses_any_fault = true;
+					} else {
+						self.report_error(
+							node,
+							"Entry point 'main' cannot return a value of type '${self.type_display(val_ty)}'; " +
+							"only faults or empty 'return;' are allowed"
+						);
+					}
 				} else {
 					var hint = self.current_fn_return_type;
 					if (hint != null && hint.kind == DataType.ERROR_UNION) {

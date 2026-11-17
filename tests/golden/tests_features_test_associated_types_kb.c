@@ -292,6 +292,27 @@ static int kobel_create_dir_all(kobel_str dir_path) {
 	kobel_path_buf_free(&pb);
 	return kobel_path_is_dir(dir_path);
 }
+
+typedef struct {
+	const char* file;
+	size_t line;
+	size_t col;
+	const char* fn;
+} kobel_loc;
+
+typedef struct {
+	uint32_t code;
+	const char* name;
+	const char* desc;
+} kobel_fault_meta;
+
+typedef struct {
+	bool is_ok;
+	uint32_t code;
+	kobel_loc origin;
+	kobel_loc fail_at;
+} __kobel_main_result;
+typedef struct std__process__Process std__process__Process;
 typedef struct test__associated_types__IntBox test__associated_types__IntBox;
 typedef struct test__associated_types__NamedBox test__associated_types__NamedBox;
 
@@ -304,6 +325,7 @@ struct test__associated_types__NamedBox {
     kobel_str name;
 };
 
+void std__process__Process_exit(int32_t code);
 int32_t test__associated_types__IntBox_first(test__associated_types__IntBox* self);
 int32_t test__associated_types__IntBox_get(test__associated_types__IntBox* self, size_t i);
 void test__associated_types__IntBox_put(test__associated_types__IntBox* self, int32_t v);
@@ -312,7 +334,12 @@ kobel_str test__associated_types__NamedBox_first(test__associated_types__NamedBo
 kobel_str test__associated_types__NamedBox_get(test__associated_types__NamedBox* self, size_t i);
 void test__associated_types__NamedBox_put(test__associated_types__NamedBox* self, kobel_str v);
 kobel_str test__associated_types__NamedBox_echo(test__associated_types__NamedBox* self);
-int32_t main(void);
+int32_t test__associated_types__run_tests(void);
+static void __kobel_user_main(void);
+
+void std__process__Process_exit(int32_t code) {
+    exit(code);
+}
 
 int32_t test__associated_types__IntBox_first(test__associated_types__IntBox* self) {
 return self->v;
@@ -345,7 +372,7 @@ kobel_str test__associated_types__NamedBox_echo(test__associated_types__NamedBox
 return test__associated_types__NamedBox_first(self);
 }
 
-int32_t main(void) {
+int32_t test__associated_types__run_tests(void) {
 test__associated_types__IntBox b = (test__associated_types__IntBox){ 7 };
 if (test__associated_types__IntBox_first(&b) != 7) {
 return 1;
@@ -369,5 +396,16 @@ return 6;
 test__associated_types__IntBox_put(&b, 1);
 test__associated_types__NamedBox_put(&n, KOBEL_STR("x"));
 return 0;
+}
+
+static void __kobel_user_main(void) {
+if (test__associated_types__run_tests() != 0) {
+std__process__Process_exit(1);
+}
+}
+
+int main(void) {
+    __kobel_user_main();
+    return 0;
 }
 

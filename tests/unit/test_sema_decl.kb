@@ -177,8 +177,11 @@ fn test_lambda_declaration_restrictions() {
 fn test_fault_and_error_union_decl() {
 	val ok_src = """
 		fault IoErr {
-			NotFound,
+			NotFound("Target file missing"),
 			Fail(code: i32)
+		}
+		fault NetErr {
+			Closed("Connection dropped")
 		}
 		fn read(): i32 ! IoErr { return 1; }
 		fn ping(): !IoErr { return; }
@@ -193,6 +196,24 @@ fn test_fault_and_error_union_decl() {
 	assert_true(sym_flt != null, "IoErr symbol must exist");
 	if (sym_flt != null) {
 		assert_true(sym_flt.type_ptr.is_fault(), "IoErr symbol must be marked as fault");
+	}
+	val ei_io = d_ok.symtab.find_enum_info("IoErr");
+	assert_true(ei_io != null, "IoErr EnumInfo must exist");
+	if (ei_io != null) {
+		val m0 = ei_io.find_member("NotFound");
+		val m1 = ei_io.find_member("Fail");
+		assert_true(m0 != null && m1 != null, "IoErr members must exist");
+		if (m0 != null && m1 != null) {
+			assert_true(m0.err_code == 1 && m1.err_code == 2, "Fault variants must receive sequential global err_codes");
+			assert_eq_str(m0.description, "Target file missing", "Explicit fault description must be recorded");
+			assert_eq_str(m1.description, "IoErr.Fail", "Default fault description must be Fault.Variant");
+		}
+	}
+	val ei_net = d_ok.symtab.find_enum_info("NetErr");
+	assert_true(ei_net != null, "NetErr EnumInfo must exist");
+	if (ei_net != null) {
+		val mn = ei_net.find_member("Closed");
+		assert_true(mn != null && mn!.err_code == 3, "Subsequent fault must continue global err_code sequence");
 	}
 	val sym_read = d_ok.symtab.lookup("read");
 	assert_true(sym_read != null, "read symbol must exist");
@@ -223,7 +244,7 @@ fn test_fault_and_error_union_decl() {
 	println("  [PASS] test_fault_and_error_union_decl");
 }
 
-fn main(): i32 {
+fn main() {
 	println("[RUNNING] Bootstrap Semantic DeclarationCollector tests...");
 	test_generic_bounds_checking();
 	test_lambda_declaration_restrictions();
@@ -231,5 +252,4 @@ fn main(): i32 {
 	test_collect_program();
 	test_duplicate_declarations();
 	println("[ALL PASSED] Bootstrap Semantic DeclarationCollector passed all tests successfully!");
-	return 0;
 }

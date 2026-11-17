@@ -26,10 +26,10 @@ fn test_end_to_end_codegen() {
 		    pub y: i32
 		}
 		fn add(a: i32, b: i32): i32 => a + b;
-		fn main(): i32 {
+		fn main() {
 		    val p = Point(10, 20);
 		    val total = add(p.x, p.y);
-		    return total;
+		    if (total == 0) return;
 		}
 	""";
 
@@ -91,16 +91,17 @@ fn test_dce_prunes_unused_and_keeps_reachable() {
 		fn used_fn(b: *Box<i32>): i32 => b.get() + USED_CONST;
 		fn unused_helper(): i32 => UNUSED_CONST;
 
-		fn main(): i32 {
+		fn sink(v: i32) {}
+
+		fn main() {
 		    val u = UsedStruct(1);
 		    val b = Box<i32>(u.a);
 		    val e = UsedEnum.Pair(2, 3);
 		    if (e is UsedEnum.Pair as p) {
 		        if (b.get() > 0 && u.a == 1 && u.a != 2) {
-		            return used_fn(&b) + p.x;
+		            sink(used_fn(&b) + p.x);
 		        }
 		    }
-		    return 0;
 		}
 	""";
 
@@ -228,7 +229,7 @@ fn test_minimal_parens_precedence() {
 fn test_error_union_codegen_and_dce() {
 	val src = """
 		fault LiveErr {
-		    Bad(code: i32),
+		    Bad(code: i32)("Numeric validation failure"),
 		    Other
 		}
 		fault DeadErr {
@@ -247,12 +248,13 @@ fn test_error_union_codegen_and_dce() {
 	var arena = Arena(65536);
 	defer arena.free();
 
-	var lexer = Lexer(src);
+	var lexer = Lexer(src, 1);
 	var parser = Parser(lexer.tokenize());
 	val prog = parser.parse_program();
 	assert_eq_usz(parser.errors.len, 0, "EU codegen test must parse cleanly");
 
 	var dp = DeclarationCollector(arena);
+	dp.symtab.sources.add_file("app/main.kb", "main", src);
 	dp.collect_program(prog);
 	assert_eq_usz(dp.errors.len, 0, "EU codegen test must collect decls cleanly");
 
@@ -269,14 +271,55 @@ fn test_error_union_codegen_and_dce() {
 
 	assert_true(c_code.contains("__kobel_eu_"), "Emitted C must declare ErrorUnion structs");
 	assert_true(c_code.contains("__kobel_fault_str_LiveErr"), "Live fault string helper must be emitted");
+	assert_true(c_code.contains("__kobel_lookup_fault"), "Runtime fault lookup table must be emitted");
+	assert_true(c_code.contains("Numeric validation failure"), "Custom fault variant description must appear in lookup table");
+	assert_true(c_code.contains("__kobel_report_fault"), "Fault panic reporter helper must be emitted");
+	assert_true(c_code.contains("\"app/main.kb\""), "Origin file path must be emitted on fault ctors");
 	assert_true(c_code.contains("__kobel_unwrap_"), "ErrorUnion unwrap helper must be emitted");
 	assert_true(c_code.contains("__kobel_user_main"), "main returning !E must generate C main wrapper");
 	assert_true(!c_code.contains("DeadErr"), "DCE must prune unused FaultDecl");
 
+	val any_src = """
+		fault AErr {
+		    Missing("Item missing")
+		}
+		fault BErr {
+		    TimedOut("Timed out")
+		}
+		fn fa(): i32 ! AErr => AErr.Missing;
+		fn fb(): !BErr => BErr.TimedOut;
+		fn main() {
+		    val a = fa()?;
+		    val ua = fa()!;
+		    fb()?;
+		    if (a + ua == 0) return;
+		}
+	""";
+	var l2 = Lexer(any_src, 1);
+	var p2 = Parser(l2.tokenize());
+	val prog2 = p2.parse_program();
+	assert_eq_usz(p2.errors.len, 0, "Any-fault main codegen test must parse cleanly");
+	var dp2 = DeclarationCollector(arena);
+	dp2.symtab.sources.add_file("app/entry.kb", "main", any_src);
+	dp2.collect_program(prog2);
+	assert_eq_usz(dp2.errors.len, 0, "Any-fault main codegen test must collect decls");
+	var bp2 = BodyChecker(dp2.symtab, dp2);
+	bp2.check_program(prog2);
+	assert_eq_usz(bp2.errors.len, 0, "Any-fault main codegen test must typecheck");
+	bp2.decl.symtab = bp2.symtab;
+	var lp2 = LoweringPass(bp2.symtab, arena, bp2.decl);
+	lp2.lower_program(prog2);
+	var cg2 = CCodeGen(&lp2.symtab);
+	val c2 = cg2.gen_program(prog2);
+	assert_true(c2.contains("__kobel_main_result __kobel_user_main"), "fn main() using ? must emit __kobel_main_result wrapper");
+	assert_true(c2.contains("\"AErr.Missing\""), "AErr variant must be mapped in lookup table");
+	assert_true(c2.contains("\"BErr.TimedOut\""), "BErr variant must be mapped in lookup table");
+	assert_true(c2.contains("\"app/entry.kb\""), "Panic unwrap and propagation sites must include file location");
+
 	println("  [PASS] test_error_union_codegen_and_dce");
 }
 
-fn main(): i32 {
+fn main() {
 	println("[RUNNING] Bootstrap C CodeGen tests...");
 	test_end_to_end_codegen();
 	test_dce_prunes_unused_and_keeps_reachable();
@@ -284,5 +327,4 @@ fn main(): i32 {
 	test_minimal_parens_precedence();
 	test_error_union_codegen_and_dce();
 	println("[ALL PASSED] Bootstrap C CodeGen passed all tests successfully!");
-	return 0;
 }

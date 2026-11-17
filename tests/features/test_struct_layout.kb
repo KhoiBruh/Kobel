@@ -63,11 +63,10 @@ fn test_pointer_cycle() {
 	assert_eq_i32(b.next!.value, 1, "pointer cycle backward");
 }
 
-fn main(): i32 {
+fn main() {
 	println("=== Running struct layout tests ===");
 	test_layout_sizes();
 	test_embedded_later_struct();
 	test_pointer_cycle();
 	println("All struct layout tests passed!");
-	return 0;
 }

@@ -292,7 +292,28 @@ static int kobel_create_dir_all(kobel_str dir_path) {
 	kobel_path_buf_free(&pb);
 	return kobel_path_is_dir(dir_path);
 }
+
+typedef struct {
+	const char* file;
+	size_t line;
+	size_t col;
+	const char* fn;
+} kobel_loc;
+
+typedef struct {
+	uint32_t code;
+	const char* name;
+	const char* desc;
+} kobel_fault_meta;
+
+typedef struct {
+	bool is_ok;
+	uint32_t code;
+	kobel_loc origin;
+	kobel_loc fail_at;
+} __kobel_main_result;
 typedef struct std__string__StrRaw std__string__StrRaw;
+typedef struct std__process__Process std__process__Process;
 typedef struct tests__features__test_syntax__Counter tests__features__test_syntax__Counter;
 typedef struct tests__features__test_syntax__ConfigWithDefaults tests__features__test_syntax__ConfigWithDefaults;
 typedef struct tests__features__test_syntax__PointWithDefaults tests__features__test_syntax__PointWithDefaults;
@@ -371,6 +392,7 @@ kobel_str std__traits__fmt_u64(uint64_t n0);
 kobel_str std__traits__fmt_i64(int64_t v);
 kobel_str i32_to_str(int32_t self);
 void std__io__println(kobel_str s);
+void std__process__Process_exit(int32_t code);
 tests__features__test_syntax__PointWithDefaults tests__features__test_syntax__PointWithDefaults_init(int32_t x, int32_t y);
 tests__features__test_syntax__PointWithDefaults tests__features__test_syntax__PointWithDefaults_add_offset(tests__features__test_syntax__PointWithDefaults* self, int32_t dx, int32_t dy);
 kobel_str tests__features__test_syntax__SafeNode_get_name(tests__features__test_syntax__SafeNode* self);
@@ -395,7 +417,8 @@ bool tests__features__test_syntax__test_safe_calls(void);
 bool tests__features__test_syntax__test_adjacent_strings(void);
 bool tests__features__test_syntax__test_multiline_strings(void);
 bool tests__features__test_syntax__test_in_operator(void);
-int32_t main(void);
+int32_t tests__features__test_syntax__run_tests(void);
+static void __kobel_user_main(void);
 std__collections__List_str std__collections__List_str_init(kobel_str* items_data, size_t items_len);
 void std__collections__List_str_add(std__collections__List_str* self, kobel_str value);
 void std__collections__List_str_grow(std__collections__List_str* self);
@@ -588,6 +611,10 @@ kobel_str i32_to_str(int32_t self) {
 
 void std__io__println(kobel_str s) {
     kobel_println(s);
+}
+
+void std__process__Process_exit(int32_t code) {
+    exit(code);
 }
 
 tests__features__test_syntax__PointWithDefaults tests__features__test_syntax__PointWithDefaults_init(int32_t x, int32_t y) {
@@ -1477,7 +1504,7 @@ return __ret_tmp;
 }
 }
 
-int32_t main(void) {
+int32_t tests__features__test_syntax__run_tests(void) {
 std__io__println(KOBEL_STR("=== Feature Suite: Core Syntax & Operators ==="));
 if (!tests__features__test_syntax__test_compound_assign()) {
 std__io__println(KOBEL_STR("  [FAIL] test_compound_assign"));
@@ -1531,6 +1558,17 @@ return 1;
 std__io__println(KOBEL_STR("  [PASS] test_in_operator"));
 std__io__println(KOBEL_STR("=== ALL CORE SYNTAX TESTS PASSED! ==="));
 return 0;
+}
+
+static void __kobel_user_main(void) {
+if (tests__features__test_syntax__run_tests() != 0) {
+std__process__Process_exit(1);
+}
+}
+
+int main(void) {
+    __kobel_user_main();
+    return 0;
 }
 
 std__collections__List_str std__collections__List_str_init(kobel_str* items_data, size_t items_len) {

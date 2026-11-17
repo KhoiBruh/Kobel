@@ -7,13 +7,13 @@ use testsupport.errdefs.*;
 use testsupport.errdefs.NetErr as ExtNetErr;
 
 fault IoErr {
-	NotFound,
+	NotFound("Target resource was not found"),
 	PermissionDenied
 }
 
 fault ParseErr {
 	Empty,
-	BadChar(pos: usz, ch: char),
+	BadChar(pos: usz, ch: char)("Unexpected non-digit character"),
 	TooLarge(msg: str)
 }
 
@@ -139,7 +139,7 @@ fn catch_with_defers(should_fail: bool, early_yield: bool): i32 {
 	return v + trace;
 }
 
-fn main(): i32 {
+fn main() {
 	// 1. Implicit wrapping & local variables
 	val ok_r: i32 ! IoErr = 42;
 	var err_r: i32 ! IoErr = IoErr.NotFound;
@@ -282,6 +282,13 @@ fn main(): i32 {
 	assert_eq_i32(hb.get_item() !: -1, 7, "generic struct holding T ! E");
 	assert_eq_i32(unwrap_or_generic<i32>(IoErr.NotFound, 55), 55, "generic fn with T ! E parameter");
 
+	// 8. main() propagates distinct fault types seamlessly via `?`
+	val r_net = ping(5)?;
+	assert_eq_i32(r_net, 50, "main() propagates NetErr with ?");
+	val r_io = void_outer(true)?;
+	assert_eq_i32(r_io, 123, "main() propagates IoErr with ?");
+	val r_parse = propagate_basic("42")?;
+	assert_eq_i32(r_parse, 52, "main() propagates ParseErr with ?");
+
 	println("[PASS] test_error_union passed all assertions!");
-	return 0;
 }

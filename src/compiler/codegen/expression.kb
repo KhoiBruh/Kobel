@@ -75,7 +75,7 @@ impl CCodeGen {
 
 			is BinaryExpr -> self.gen_binary_expr(ast_node, node, min_prec);
 
-			is UnaryExpr -> self.gen_unary_expr(node, min_prec);
+			is UnaryExpr -> self.gen_unary_expr(ast_node, node, min_prec);
 
 			is CallExpr -> self.gen_call_expr(ast_node, node, min_prec);
 
@@ -127,8 +127,21 @@ impl CCodeGen {
 				yield "(${node.c_name}){ ${joined} }";
 			}
 
-			// A payload-enum value: tag plus the variant's union member.
+			// A payload-enum or fault value: tag (plus implicit error code & origin for faults) + union payload.
 			is EnumCtorExpr -> {
+				if (node.err_code > 0) {
+					val f_esc = c_escape_str(node.origin_file);
+					val fn_esc = c_escape_str(node.origin_fn);
+					val hdr = ".${node.tag_field} = ${node.tag_value}, "
+						".__err_code = ${node.err_code}U, "
+						".__origin = { \"${f_esc}\", ${node.origin_line}, ${node.origin_col}, \"${fn_esc}\" }";
+					if (node.payload_path.empty()) {
+						yield "(${node.c_name}){ ${hdr} }";
+					}
+					val ctor_args = node.args.map { a -> self.gen_expr(a) };
+					val joined = ", ".join(ctor_args);
+					yield "(${node.c_name}){ ${hdr}, .${node.payload_path} = { ${joined} } }";
+				}
 				if (node.payload_path.empty()) {
 					yield "(${node.c_name}){ .${node.tag_field} = ${node.tag_value} }";
 				}
@@ -140,7 +153,18 @@ impl CCodeGen {
 
 			is ErrorUnionWrapExpr -> {
 				var wrap_res = "";
-				if (!node.is_ok) {
+				if (node.is_any_fault) {
+					if (node.is_ok) {
+						wrap_res = "(__kobel_main_result){ .is_ok = true }";
+					} else {
+						val f_s = self.gen_expr_prec(node.value!, PREC_POSTFIX);
+						val fail_f_esc = c_escape_str(node.fail_file);
+						wrap_res = "(__kobel_main_result){ .is_ok = false, "
+							".code = ${f_s}.__err_code, "
+							".origin = ${f_s}.__origin, "
+							".fail_at = { \"${fail_f_esc}\", ${node.fail_line}, ${node.fail_col}, \"main\" } }";
+					}
+				} else if (!node.is_ok) {
 					val err_s = self.gen_expr(node.value!);
 					wrap_res = "(${node.c_type}){ .is_ok = false, .u = { .err = ${err_s} } }";
 				} else if (node.value == null) {
@@ -377,13 +401,18 @@ impl CCodeGen {
 	}
 
 	// Unary operators lower to a C prefix operator (- guards a negative operand).
-	fn gen_unary_expr(&self, un: *UnaryExpr, min_prec: i32): str {
+	fn gen_unary_expr(&self, ast_node: *AstNode, un: *UnaryExpr, min_prec: i32): str {
 		if (un.is_postfix && un.op == TokenType.BANG) {
 			val opnd_ty = self.node_type(unwrap_group_expr(un.operand));
 			if (opnd_ty != null && opnd_ty.kind == DataType.ERROR_UNION) {
 				val eu = opnd_ty.as_error_union()!;
 				val arg = self.gen_expr(un.operand);
-				return wrap_prec("__kobel_unwrap_${eu.c_name}(${arg})", PREC_POSTFIX, min_prec);
+				val f_esc = c_escape_str(self.node_file_path(ast_node));
+				val fn_esc = c_escape_str(self.current_fn_display_name);
+				return wrap_prec(
+					"__kobel_unwrap_${eu.c_name}(${arg}, \"${f_esc}\", ${ast_node.line}, ${ast_node.col}, \"${fn_esc}\")",
+					PREC_POSTFIX, min_prec
+				);
 			}
 			return self.gen_expr_prec(un.operand, min_prec);
 		}

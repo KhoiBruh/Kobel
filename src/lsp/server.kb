@@ -135,7 +135,7 @@ impl LanguageServer {
 		self.cache = List<AnalysisCacheEntry>();
 	}
 
-	pub fn run(&self): i32 {
+	pub fn run(&self) {
 		init_stdio();
 
 		while (true) {
@@ -497,12 +497,11 @@ impl LanguageServer {
 
 		self.invalidate_cache();
 		self.arena.free();
-		return 0;
 	}
 
 }
 
-pub fn run_server(): i32 {
+pub fn run_server() {
 	var server = LanguageServer();
-	return server.run();
+	server.run();
 }

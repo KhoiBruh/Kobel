@@ -6,6 +6,7 @@ mod test.generic_methods;
 
 use std.memory.Arena;
 use std.memory.Heap;
+use std.process.Process;
 
 struct A { pub v: i32 }
 struct B { pub v: i32 }
@@ -26,7 +27,7 @@ impl Box<T> {
 	pub fn get_twice(*self) => self.get() + self.get();
 }
 
-fn main(): i32 {
+fn run_tests(): i32 {
 	val a = A(10);
 	val b = B(20);
 	if (a.pick<i32>() != 11) return 1;
@@ -61,4 +62,8 @@ fn main(): i32 {
 	if (hp.read() != 77) return 10;
 
 	return 0;
+}
+
+fn main() {
+	if (run_tests() != 0) Process.exit(1);
 }

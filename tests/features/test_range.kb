@@ -332,7 +332,7 @@ fn test_when_patterns() {
 	assert_eq_i32(test_when_stmt('?'), -1, "when stmt '?'");
 }
 
-pub fn main(): i32 {
+pub fn main() {
 	println("=== Running Range Feature Tests ===");
 	test_range_values();
 	test_direct_for_loops();
@@ -340,5 +340,4 @@ pub fn main(): i32 {
 	test_containment();
 	test_when_patterns();
 	println("All range feature tests passed!");
-	return 0;
 }

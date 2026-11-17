@@ -22,6 +22,20 @@ use compiler.loader.*;
 // Compiler Driver Pipeline
 // ============================================================================
 
+pub fault CompilerErr {
+	SourceReadFailed("Could not read compiler input source file"),
+	LexParseFailed("Lexical or syntax analysis failed"),
+	SemanticFailed("Semantic analysis failed"),
+	OutputWriteFailed("Failed to write output C file"),
+	BackendFailed("Backend C compiler failed"),
+	ExecutableInstallFailed("Could not place compiled executable"),
+	ManifestNotFound("Project manifest kobel.toml not found"),
+	SubprocessFailed("Executed command or subprocess failed"),
+	TestsFailed("One or more tests failed"),
+	SnapshotMismatch("One or more C snapshots changed"),
+	FixpointMismatch("Self-hosted compiler fixpoint output diverged")
+}
+
 /*
  * The backend compiler is invoked exactly as configured; Kobel does not
  * discover a toolchain, load vcvars or translate per-compiler flags.
@@ -61,20 +75,20 @@ pub struct CompileOptions {
 
 impl CompileOptions {
 
-	pub fn compile(*self): i32 {
+	pub fn compile(*self): !CompilerErr {
 		var arena = Arena(524288);
 		defer arena.free();
-		return self.compile_with_arena(arena);
+		self.compile_with_arena(arena)?;
 	}
 
 	// Run all compilation passes using a single shared arena owned by the caller.
-	pub fn compile_with_arena(*self, arena: Arena): i32 {
+	pub fn compile_with_arena(*self, arena: Arena): !CompilerErr {
 		val input_path = self.input_path;
 		val in_p = Path(input_path);
 		val src = in_p.read_text();
 		if (src.empty()) {
 			println("Error: Could not read source file or file is empty: ${input_path}");
-			return 1;
+			return CompilerErr.SourceReadFailed;
 		}
 
 		if (!self.quiet) println("[1/4] Loading modules (lex + parse)...");
@@ -92,11 +106,11 @@ impl CompileOptions {
 		val loaded_prog = loader.load_program(input_path, src);
 		if (!loader.errors.empty()) {
 			print_diagnostics(loader.errors, input_path, &loader);
-			return 1;
+			return CompilerErr.LexParseFailed;
 		}
 		if (loaded_prog == null) {
 			println("Error: Could not parse source file: ${input_path}");
-			return 1;
+			return CompilerErr.LexParseFailed;
 		}
 
 		val prog = loaded_prog!;
@@ -106,10 +120,11 @@ impl CompileOptions {
 
 		if (!self.quiet) println("[2/4] Semantic analysis (declarations)...");
 		var decl_p = DeclarationCollector(arena);
+		decl_p.symtab.sources = loader.sources;
 		decl_p.collect_program(prog);
 		if (!decl_p.errors.empty()) {
 			print_diagnostics(decl_p.errors, input_path, &loader);
-			return 1;
+			return CompilerErr.SemanticFailed;
 		}
 
 		if (!self.quiet) println("[3/4] Semantic analysis (bodies)...");
@@ -120,7 +135,7 @@ impl CompileOptions {
 		}
 		if (!body_p.errors.empty()) {
 			print_diagnostics(body_p.errors, input_path, &loader);
-			return 1;
+			return CompilerErr.SemanticFailed;
 		}
 
 		// Sugar that needs no further checking is lowered in a separate pass, so
@@ -138,10 +153,10 @@ impl CompileOptions {
 			val ok = emit_p.write_text(c_code);
 			if (!ok) {
 				println("Error: Failed to write output file: ${self.emit_c_path}");
-				return 1;
+				return CompilerErr.OutputWriteFailed;
 			}
 			if (!self.quiet) println("[SUCCESS] C99 source written to ${self.emit_c_path}");
-			return 0;
+			return;
 		}
 
 		// Native binary compilation
@@ -164,7 +179,7 @@ impl CompileOptions {
 		val write_ok = c_tmp_p.write_text(c_code);
 		if (!write_ok) {
 			println("Error: Failed to write temporary C file: ${c_tmp_p.raw}");
-			return 1;
+			return CompilerErr.OutputWriteFailed;
 		}
 
 		if (!self.quiet) println("[BUILDING] Invoking backend compiler (${self.c_compiler})...");
@@ -182,7 +197,7 @@ impl CompileOptions {
 				println("Error: Backend C compiler produced no executable: ${stage_p.raw}");
 			}
 			println("  cmd was '${compile_cmd}'");
-			return if (exit_code != 0) exit_code else 1;
+			return CompilerErr.BackendFailed;
 		}
 
 		// Swap the new binary in. `<out>.old` is only a parking spot for the
@@ -195,7 +210,7 @@ impl CompileOptions {
 		if (!stage_p.rename_to(out_p)) {
 			if (old_p.exists() && !out_p.exists()) old_p.rename_to(out_p);
 			println("Error: Could not move the new executable into place: ${out_path}");
-			return 1;
+			return CompilerErr.ExecutableInstallFailed;
 		}
 
 		c_tmp_p.remove();
@@ -203,7 +218,6 @@ impl CompileOptions {
 		old_p.remove();
 
 		if (!self.quiet) println("[SUCCESS] Executable created: ${out_path}");
-		return 0;
 	}
 
 }

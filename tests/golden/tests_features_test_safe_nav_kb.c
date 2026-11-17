@@ -292,6 +292,27 @@ static int kobel_create_dir_all(kobel_str dir_path) {
 	kobel_path_buf_free(&pb);
 	return kobel_path_is_dir(dir_path);
 }
+
+typedef struct {
+	const char* file;
+	size_t line;
+	size_t col;
+	const char* fn;
+} kobel_loc;
+
+typedef struct {
+	uint32_t code;
+	const char* name;
+	const char* desc;
+} kobel_fault_meta;
+
+typedef struct {
+	bool is_ok;
+	uint32_t code;
+	kobel_loc origin;
+	kobel_loc fail_at;
+} __kobel_main_result;
+typedef struct std__process__Process std__process__Process;
 typedef int32_t test__safe_nav__ItemKind;
 typedef struct test__safe_nav__Inner test__safe_nav__Inner;
 typedef struct test__safe_nav__Middle test__safe_nav__Middle;
@@ -313,10 +334,16 @@ struct test__safe_nav__Outer {
     test__safe_nav__Middle* middle;
 };
 
+void std__process__Process_exit(int32_t code);
 bool test__safe_nav__Inner_check_ok(test__safe_nav__Inner* self);
 bool test__safe_nav__takes_non_null(test__safe_nav__Inner* item);
 bool test__safe_nav__test_elvis_jump_on_null(test__safe_nav__Inner* p);
-int32_t main(void);
+int32_t test__safe_nav__run_tests(void);
+static void __kobel_user_main(void);
+
+void std__process__Process_exit(int32_t code) {
+    exit(code);
+}
 
 bool test__safe_nav__Inner_check_ok(test__safe_nav__Inner* self) {
 return self->is_active;
@@ -334,7 +361,7 @@ test__safe_nav__ItemKind k = p->kind;
 return false;
 }
 
-int32_t main(void) {
+int32_t test__safe_nav__run_tests(void) {
 test__safe_nav__Inner in1 = (test__safe_nav__Inner){ true, 1, 42, KOBEL_STR("hello") };
 test__safe_nav__Middle mid1 = (test__safe_nav__Middle){ &in1 };
 test__safe_nav__Outer out1 = (test__safe_nav__Outer){ &mid1 };
@@ -423,5 +450,16 @@ if (k_no_jump != 1) {
 return 23;
 }
 return 0;
+}
+
+static void __kobel_user_main(void) {
+if (test__safe_nav__run_tests() != 0) {
+std__process__Process_exit(1);
+}
+}
+
+int main(void) {
+    __kobel_user_main();
+    return 0;
 }
 

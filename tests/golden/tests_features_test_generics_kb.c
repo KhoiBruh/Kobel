@@ -292,6 +292,27 @@ static int kobel_create_dir_all(kobel_str dir_path) {
 	kobel_path_buf_free(&pb);
 	return kobel_path_is_dir(dir_path);
 }
+
+typedef struct {
+	const char* file;
+	size_t line;
+	size_t col;
+	const char* fn;
+} kobel_loc;
+
+typedef struct {
+	uint32_t code;
+	const char* name;
+	const char* desc;
+} kobel_fault_meta;
+
+typedef struct {
+	bool is_ok;
+	uint32_t code;
+	kobel_loc origin;
+	kobel_loc fail_at;
+} __kobel_main_result;
+typedef struct std__process__Process std__process__Process;
 typedef struct std__collections__List_i32 std__collections__List_i32;
 typedef struct std__collections__List_std__collections__List_i32 std__collections__List_std__collections__List_i32;
 
@@ -308,7 +329,9 @@ struct std__collections__List_std__collections__List_i32 {
     size_t cap;
 };
 
-int32_t main(void);
+void std__process__Process_exit(int32_t code);
+int32_t test__generics__run_tests(void);
+static void __kobel_user_main(void);
 std__collections__List_i32 std__collections__List_i32_init(int32_t* items_data, size_t items_len);
 void std__collections__List_i32_add(std__collections__List_i32* self, int32_t value);
 void std__collections__List_i32_grow(std__collections__List_i32* self);
@@ -328,7 +351,11 @@ int32_t test__generics__id_i32(int32_t x);
 std__collections__List_i32* std__memory__Heap_create_std__collections__List_i32(size_t count);
 std__collections__List_i32* std__memory__Heap_resize_std__collections__List_i32(std__collections__List_i32* ptr, size_t count);
 
-int32_t main(void) {
+void std__process__Process_exit(int32_t code) {
+    exit(code);
+}
+
+int32_t test__generics__run_tests(void) {
 std__collections__List_i32 inner = test__generics__wrap_i32(7);
 if (inner.len != 1) {
 return 1;
@@ -368,6 +395,17 @@ if (std__collections__List_i32_get(&inferred_inner, 0) != 99) {
 return 10;
 }
 return 0;
+}
+
+static void __kobel_user_main(void) {
+if (test__generics__run_tests() != 0) {
+std__process__Process_exit(1);
+}
+}
+
+int main(void) {
+    __kobel_user_main();
+    return 0;
 }
 
 std__collections__List_i32 std__collections__List_i32_init(int32_t* items_data, size_t items_len) {

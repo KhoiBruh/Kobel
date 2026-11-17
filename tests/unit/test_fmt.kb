@@ -200,8 +200,8 @@ enum Shape {
 
 fn test_error_union_formatting() {
 	val code = """fault IoErr {
-	NotFound,
-	Fail(code: i32)
+	NotFound("Resource not found"),
+	Fail(code: i32)("Failure with status")
 }
 
 fn run(x: i32 ! IoErr): !IoErr {
@@ -212,20 +212,28 @@ fn run(x: i32 ! IoErr): !IoErr {
 	val c = x?;
 	val d = x!;
 }
+
+fn main() {
+	val ok = run(1);
+	ok!;
+}
 """;
 	val once = format_source(code, FormatOptions());
 	val twice = format_source(once, FormatOptions());
 	assert_eq_str(twice, once, "fault and error union formatting must be idempotent");
 	assert_true(("fault IoErr {" in once), "fault declaration must survive");
+	assert_true(("NotFound(\"Resource not found\")," in once), "unit fault description must preserve formatting");
+	assert_true(("Fail(code: i32)(\"Failure with status\")" in once), "payload fault description must preserve formatting");
 	assert_true(("fn run(x: i32 ! IoErr): !IoErr {" in once), "T ! E and !E types must preserve spacing");
 	assert_true(("val a = x !: return IoErr.NotFound;" in once), "!: return handler must not duplicate semicolons");
 	assert_true(("val b = x !: err -> {" in once), "!: err -> { ... } must preserve formatting");
 	assert_true(("val c = x?;" in once), "postfix ? must preserve formatting");
 	assert_true(("val d = x!;" in once), "postfix ! must preserve formatting");
+	assert_true(("fn main() {" in once), "entry fn main() must preserve formatting");
 	println("  [PASS] test_error_union_formatting");
 }
 
-fn main(): i32 {
+fn main() {
 	println("[RUNNING] Kobel Formatter tests...");
 	test_basic_formatting();
 	test_knr_and_smart_tabs();
@@ -239,5 +247,4 @@ fn main(): i32 {
 	test_generic_impl_assoc_and_payload_enum();
 	test_error_union_formatting();
 	println("[ALL PASSED] Kobel Formatter tests passed successfully!");
-	return 0;
 }

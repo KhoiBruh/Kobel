@@ -292,6 +292,26 @@ static int kobel_create_dir_all(kobel_str dir_path) {
 	kobel_path_buf_free(&pb);
 	return kobel_path_is_dir(dir_path);
 }
+
+typedef struct {
+	const char* file;
+	size_t line;
+	size_t col;
+	const char* fn;
+} kobel_loc;
+
+typedef struct {
+	uint32_t code;
+	const char* name;
+	const char* desc;
+} kobel_fault_meta;
+
+typedef struct {
+	bool is_ok;
+	uint32_t code;
+	kobel_loc origin;
+	kobel_loc fail_at;
+} __kobel_main_result;
 typedef struct std__string__StrRaw std__string__StrRaw;
 typedef struct std__process__Process std__process__Process;
 typedef struct tests__features__test_struct_layout__Outer tests__features__test_struct_layout__Outer;
@@ -348,7 +368,7 @@ void testsupport__assert__assert_eq_i32(int32_t actual, int32_t expected, kobel_
 void tests__features__test_struct_layout__test_layout_sizes(void);
 void tests__features__test_struct_layout__test_embedded_later_struct(void);
 void tests__features__test_struct_layout__test_pointer_cycle(void);
-int32_t main(void);
+static void __kobel_user_main(void);
 std__collections__List_i32 std__collections__List_i32_init(int32_t* items_data, size_t items_len);
 void std__collections__List_i32_add(std__collections__List_i32* self, int32_t value);
 void std__collections__List_i32_grow(std__collections__List_i32* self);
@@ -473,13 +493,17 @@ testsupport__assert__assert_eq_i32((*a.next).value, 2, KOBEL_STR("pointer cycle 
 testsupport__assert__assert_eq_i32((*b.next).value, 1, KOBEL_STR("pointer cycle backward"));
 }
 
-int32_t main(void) {
+static void __kobel_user_main(void) {
 std__io__println(KOBEL_STR("=== Running struct layout tests ==="));
 tests__features__test_struct_layout__test_layout_sizes();
 tests__features__test_struct_layout__test_embedded_later_struct();
 tests__features__test_struct_layout__test_pointer_cycle();
 std__io__println(KOBEL_STR("All struct layout tests passed!"));
-return 0;
+}
+
+int main(void) {
+    __kobel_user_main();
+    return 0;
 }
 
 std__collections__List_i32 std__collections__List_i32_init(int32_t* items_data, size_t items_len) {

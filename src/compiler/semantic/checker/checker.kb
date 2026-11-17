@@ -64,7 +64,9 @@ pub struct BodyChecker {
 	pub lambda_captures: List<LambdaCapture> = List(),
 	pub allowing_fn_param_ref: bool = false,
 	pub catch_yield_expected: ?*Type = null,
-	pub catch_yield_seen: bool = false
+	pub catch_yield_seen: bool = false,
+	pub in_main_fn: bool = false,
+	pub current_fn_display_name: str = ""
 }
 
 impl BodyChecker {
@@ -88,6 +90,11 @@ impl BodyChecker {
 		bc.symtab.prims = decl.symtab.prims;
 		bc.symtab.sem = decl.symtab.sem;
 		return bc;
+	}
+
+	pub fn node_file_path(*self, node: *AstNode): str {
+		if (!self.has_symtab) return "";
+		return self.symtab.file_path_of(node.span.file_id);
 	}
 
 	pub fn type_display(*self, ty: *Type): str {

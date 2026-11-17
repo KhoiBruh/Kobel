@@ -1221,19 +1221,19 @@ fn test_pointer_cast_and_implicit_conv_restrictions() {
 
 fn test_error_union_restrictions() {
 	check_single_error(
-		"fault E { Fail }\nfn f(): i32 ! E => 1;\nfn main(): i32 { f(); return 0; }",
+		"fault E { Fail }\nfn f(): i32 ! E => 1;\nfn main() { f(); }",
 		"Discarding T ! E as bare statement must fail"
 	);
 	check_single_error(
-		"fault E { Fail }\nfn f(): !E {}\nfn main(): i32 { f(); return 0; }",
+		"fault E { Fail }\nfn f(): !E {}\nfn main() { f(); }",
 		"Discarding !E as bare statement must fail"
 	);
 	check_single_error(
-		"fault E { Fail }\nstruct S { pub x: i32 }\nfn f(): S ! E => S(1);\nfn main(): i32 { val y = f().x; return y; }",
+		"fault E { Fail }\nstruct S { pub x: i32 }\nfn f(): S ! E => S(1);\nfn main() { val y = f().x; }",
 		"Member access on unhandled error union must fail"
 	);
 	check_single_error(
-		"fault E { Fail }\nfn f(): i32 ! E => 1;\nfn main(): i32 { val a: i32 = f(); return a; }",
+		"fault E { Fail }\nfn f(): i32 ! E => 1;\nfn g(): i32 { val a: i32 = f(); return a; }",
 		"Implicit conversion from T ! E to T must fail"
 	);
 	check_single_error(
@@ -1270,14 +1270,34 @@ fn test_error_union_restrictions() {
 	);
 	check_single_error(
 		"fault E { A }\nfn main(): str ! E => \"ok\";",
-		"Entry point main with non-i32/non-none success error union must fail"
+		"Entry point main with non-none success error union must fail"
 	);
 	check_single_error(
-		"fault E { A }\nfn f(): i32 ! E => 1;\nfn main(): i32 { val x = f() !: \"bad\"; return 0; }",
+		"fn main(): i32 { return 0; }",
+		"Deprecated fn main(): i32 must be rejected"
+	);
+	check_single_error(
+		"fault E { A }\nfn main(): i32 ! E => 1;",
+		"Entry point main returning i32 ! E must be rejected"
+	);
+	check_single_error(
+		"fn main() { return 0; }",
+		"Returning non-fault i32 from fn main() must be rejected"
+	);
+	check_single_error(
+		"fn main() => 42;",
+		"Arrow fn main() returning i32 must be rejected"
+	);
+	check_single_error(
+		"fn main(x: i32) {}",
+		"Entry point main with invalid parameter list must be rejected"
+	);
+	check_single_error(
+		"fault E { A }\nfn f(): i32 ! E => 1;\nfn g() { val x = f() !: \"bad\"; }",
 		"Recovery handler type mismatch in !: must fail"
 	);
 	check_single_error(
-		"fault E { A }\nfn f(): i32 ! E => 1;\nfn g(cb: () -> none) { cb(); }\nfn main(): i32 { g { f(); }; return 0; }",
+		"fault E { A }\nfn f(): i32 ! E => 1;\nfn g(cb: () -> none) { cb(); }\nfn main() { g { f(); }; }",
 		"Discarded error union in none-returning lambda must fail"
 	);
 	check_single_error(
@@ -1288,10 +1308,22 @@ fn test_error_union_restrictions() {
 		"fault E { A, B }\nfn f(ok: bool): !E { if (!ok) return E.A; }\nfn main(): !E { f(true)?; return; }",
 		"main returning !E with ? propagation and empty return must pass"
 	);
+	check_valid_body(
+		"fault A { X }\nfault B { Y }\nfn f(): i32 ! A => 1;\nfn g(): !B {}\nfn main() { val v = f()?; g()?; }",
+		"fn main() must propagate multiple distinct fault types via ?"
+	);
+	check_valid_body(
+		"fault E { A }\nfn main() { return E.A; }",
+		"fn main() returning a fault directly must pass"
+	);
+	check_valid_body(
+		"fn main(argc: i32, argv: &*char) {}",
+		"fn main(argc: i32, argv: &*char) without return type must pass"
+	);
 	println("  [PASS] test_error_union_restrictions");
 }
 
-fn main(): i32 {
+fn main() {
 	println("[RUNNING] Bootstrap Semantic BodyChecker tests...");
 	test_nullable_pointer_restrictions();
 	test_address_of_and_auto_ref_mutability();
@@ -1316,5 +1348,4 @@ fn main(): i32 {
 	test_elvis_jump_restriction();
 	test_defer_restrictions();
 	println("[ALL PASSED] Bootstrap Semantic BodyChecker passed all tests successfully!");
-	return 0;
 }

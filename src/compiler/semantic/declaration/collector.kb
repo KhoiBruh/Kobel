@@ -400,6 +400,7 @@ impl DeclarationCollector {
 			}
 
 			var ret_type = if (f.return_type != null) self.resolve_ast_type(f.return_type!)
+			else if (f.name == "main") self.prims().t_none()
 			else self.infer_decl_return_type(f) ?: self.prims().t_none();
 
 			val fn_type = self.arena.fn_type(param_types, ret_type, is_vararg);
@@ -598,7 +599,13 @@ impl DeclarationCollector {
 				Symbol("${v_name}__TAG", "${v_c}__TAG", SymbolKind.CONST, tag_ty, false, false, m.line, m.col, null)
 			);
 
-			val mi = self.arena.create_val(EnumMemberInfo(m.name, idx, v_ty, "u.${m.name}", "", Literal.INTEGER));
+			val err_code: u32 = if (is_fault) self.symtab.alloc_fault_code() else 0;
+			val desc = if (is_fault) (
+				if (!m.description.empty()) m.description else "${name}.${m.name}"
+			) else "";
+			val mi = self.arena.create_val(
+				EnumMemberInfo(m.name, idx, v_ty, "u.${m.name}", "", Literal.INTEGER, err_code, desc)
+			);
 			members += mi;
 
 			if (v_ty.size > max_payload) max_payload = v_ty.size;
@@ -606,10 +613,18 @@ impl DeclarationCollector {
 			idx = idx + 1;
 		}
 
-		// Layout: tag, padded up to the union's alignment, then the largest payload.
-		var body_off = tag_ty.size;
-		val rem = tag_ty.size % max_align;
-		if (rem != 0) body_off = tag_ty.size + (max_align - rem);
+		// Layout: tag (plus implicit error code and origin for faults), padded to
+		// the union's alignment, followed by the largest variant payload.
+		var hdr_sz = tag_ty.size;
+		if (is_fault) {
+			val ptr_sz: usz = 8;
+			// i32 tag + u32 __err_code + kobel_loc(file, line, col, fn)
+			hdr_sz = tag_ty.size + 4 + 4 * ptr_sz;
+			if (max_align < ptr_sz) max_align = ptr_sz;
+		}
+		var body_off = hdr_sz;
+		val rem = hdr_sz % max_align;
+		if (rem != 0) body_off = hdr_sz + (max_align - rem);
 		var pay = max_payload;
 		val prem = pay % max_align;
 		if (prem != 0) pay = pay + (max_align - prem);
@@ -639,7 +654,20 @@ impl DeclarationCollector {
 	pub fn collect_fault(&self, node: &AstNode) {
 		if (node is FaultDecl as flt) {
 			val under_type = self.prims().t_prim(Type.i32());
+			val orig_name = flt.name;
 			flt.name = self.collect_tagged_union(node, flt.name, flt.members, flt.public, under_type, true);
+			val ei = self.symtab.find_enum_info(flt.name) ?: self.symtab.find_enum_info(orig_name);
+			if (ei != null) {
+				for (i in 0..<flt.members.len) {
+					var m = flt.members[i];
+					val mi = ei.find_member(m.name);
+					if (mi != null) {
+						m.err_code = mi.err_code;
+						if (m.description.empty()) m.description = mi.description;
+						flt.members[i] = m;
+					}
+				}
+			}
 		}
 	}
 

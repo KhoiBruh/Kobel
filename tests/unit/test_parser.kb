@@ -463,8 +463,8 @@ fn test_nested_lambda_in_expr_lambda() {
 fn test_error_union_parsing() {
 	val src = """
 		fault IoErr {
-			NotFound,
-			Code(n: i32)
+			NotFound("Target path missing"),
+			Code(n: i32)("Failure with status code")
 		}
 		fn f(a: i32 ! IoErr): !IoErr {
 			val x = a !: err -> {
@@ -482,6 +482,11 @@ fn test_error_union_parsing() {
 	if (prog is Program as pr) {
 		assert_eq_usz(pr.declarations.len, 2, "Program must have FaultDecl and FnDecl");
 		assert_true(pr.declarations[0] is FaultDecl, "First decl must be FaultDecl");
+		if (pr.declarations[0] is FaultDecl as flt) {
+			assert_eq_usz(flt.members.len, 2, "IoErr must parse 2 variants");
+			assert_eq_str(flt.members[0].description, "Target path missing", "Unit fault description must parse cleanly");
+			assert_eq_str(flt.members[1].description, "Failure with status code", "Payload fault description must parse cleanly");
+		}
 		if (pr.declarations[1] is FnDecl as f) {
 			assert_true(f.params[0].type_node is ErrorUnionType, "Param must parse as ErrorUnionType");
 			if (f.params[0].type_node is ErrorUnionType as peu) {
@@ -515,7 +520,7 @@ fn test_error_union_parsing() {
 	println("  [PASS] test_error_union_parsing");
 }
 
-fn main(): i32 {
+fn main() {
 	println("[RUNNING] Bootstrap Parser tests...");
 	test_val_var_self_rejected();
 	test_not_is_parsing();
@@ -531,5 +536,4 @@ fn main(): i32 {
 	test_adjacent_strings_parsing();
 	test_multiline_string_parsing();
 	println("[ALL PASSED] Bootstrap Parser passed all tests successfully!");
-	return 0;
 }

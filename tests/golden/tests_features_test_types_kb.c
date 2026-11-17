@@ -292,12 +292,33 @@ static int kobel_create_dir_all(kobel_str dir_path) {
 	kobel_path_buf_free(&pb);
 	return kobel_path_is_dir(dir_path);
 }
+
+typedef struct {
+	const char* file;
+	size_t line;
+	size_t col;
+	const char* fn;
+} kobel_loc;
+
+typedef struct {
+	uint32_t code;
+	const char* name;
+	const char* desc;
+} kobel_fault_meta;
+
+typedef struct {
+	bool is_ok;
+	uint32_t code;
+	kobel_loc origin;
+	kobel_loc fail_at;
+} __kobel_main_result;
 typedef struct std__memory__ArenaBlock std__memory__ArenaBlock;
 typedef struct std__memory__ArenaState std__memory__ArenaState;
 typedef struct std__memory__Arena std__memory__Arena;
 typedef struct std__string__StrRaw std__string__StrRaw;
 typedef struct std__string__StringBuilder std__string__StringBuilder;
 typedef struct testsupport__box__Boxed testsupport__box__Boxed;
+typedef struct std__process__Process std__process__Process;
 typedef struct tests__features__test_types__Tally tests__features__test_types__Tally;
 typedef struct tests__features__test_types__Person tests__features__test_types__Person;
 typedef struct tests__features__test_types__Box tests__features__test_types__Box;
@@ -464,6 +485,7 @@ void std__io__print(kobel_str string);
 void std__io__println(kobel_str s);
 testsupport__box__Boxed testsupport__box__make_box(int32_t v);
 int32_t testsupport__box__boxed_value(testsupport__box__Boxed b);
+void std__process__Process_exit(int32_t code);
 void tests__features__test_types__check_i(int32_t got, int32_t want, kobel_str msg, tests__features__test_types__Tally* t);
 void tests__features__test_types__check_str(kobel_str got, kobel_str want, kobel_str msg, tests__features__test_types__Tally* t);
 kobel_str tests__features__test_types__Person_name(tests__features__test_types__Person* self);
@@ -512,7 +534,7 @@ bool tests__features__test_types__infer_is_pos(int32_t x);
 kobel_str tests__features__test_types__infer_callee_name(void);
 kobel_str tests__features__test_types__infer_interp_hole_call(void);
 void tests__features__test_types__test_return_and_const_inference(tests__features__test_types__Tally* t);
-int32_t main(void);
+static void __kobel_user_main(void);
 void tests__features__test_types__test_force_unwrap(tests__features__test_types__Tally* t);
 std__collections__List_str std__collections__List_str_init(kobel_str* items_data, size_t items_len);
 void std__collections__List_str_add(std__collections__List_str* self, kobel_str value);
@@ -951,6 +973,10 @@ int32_t testsupport__box__boxed_value(testsupport__box__Boxed b) {
     return b.value;
 }
 
+void std__process__Process_exit(int32_t code) {
+    exit(code);
+}
+
 void tests__features__test_types__check_i(int32_t got, int32_t want, kobel_str msg, tests__features__test_types__Tally* t) {
 if (got != want) {
 t->fails = t->fails + 1;
@@ -1332,7 +1358,7 @@ kobel_str hole = tests__features__test_types__infer_interp_hole_call();
 tests__features__test_types__check_str(hole, KOBEL_STR("Welcome to Kobel!"), KOBEL_STR("interp hole calling unannotated fn"), t);
 }
 
-int32_t main(void) {
+static void __kobel_user_main(void) {
 std__io__println(KOBEL_STR("=== Feature Suite: Traits, OOP & Types ==="));
 tests__features__test_types__Tally t = (tests__features__test_types__Tally){ 0 };
 tests__features__test_types__test_required_and_default(&t);
@@ -1356,10 +1382,14 @@ tests__features__test_types__test_return_and_const_inference(&t);
 tests__features__test_types__test_force_unwrap(&t);
 if (t.fails != 0) {
 std__io__println(KOBEL_STR("[FAILED] Bootstrap trait tests"));
-return 1;
+std__process__Process_exit(1);
 }
 std__io__println(KOBEL_STR("=== ALL TRAITS, OOP & TYPE TESTS PASSED! ==="));
-return 0;
+}
+
+int main(void) {
+    __kobel_user_main();
+    return 0;
 }
 
 void tests__features__test_types__test_force_unwrap(tests__features__test_types__Tally* t) {

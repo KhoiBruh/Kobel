@@ -239,7 +239,9 @@ pub struct EnumMemberInfo {
 	pub payload_ty: ?*Type = null,
 	pub payload_path: str = "",
 	pub raw_text: str = "",
-	pub lit_kind: Literal = Literal.INTEGER
+	pub lit_kind: Literal = Literal.INTEGER,
+	pub err_code: u32 = 0,
+	pub description: str = ""
 }
 
 pub struct EnumInfo {

@@ -5,6 +5,7 @@ use std.string.*;
 
 use std.io.print;
 use std.io.println;
+use std.process.Process;
 
 
 
@@ -449,7 +450,7 @@ fn test_system(): bool {
 	return true;
 }
 
-fn main(): i32 {
+fn run_tests(): i32 {
 	if (!test_ascii()) {
 		println("FAIL: test_ascii");
 		return 1;
@@ -494,5 +495,9 @@ fn main(): i32 {
 
 	println("=== ALL STANDARD LIBRARY TESTS PASSED! ===");
 	return 0;
+}
+
+fn main() {
+	if (run_tests() != 0) Process.exit(1);
 }
 

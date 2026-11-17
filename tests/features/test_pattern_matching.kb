@@ -1,5 +1,6 @@
 mod tests.features.test_pattern_matching;
 use std.io.*;
+use std.process.Process;
 
 // Case 1: Tagged union with i32 TAG
 struct Node {
@@ -225,7 +226,7 @@ fn is_known_node(node: ?*Node): bool => when (node) {
 	else -> false;
 };
 
-fn main(): i32 {
+fn run_tests(): i32 {
 	println("=== Feature Suite: Pattern Matching & Smart Cast ===");
 
 	// Test Case 1:
@@ -442,4 +443,8 @@ fn main(): i32 {
 
 	println("=== ALL PATTERN MATCHING TESTS PASSED! ===");
 	return 0;
+}
+
+fn main() {
+	if (run_tests() != 0) Process.exit(1);
 }

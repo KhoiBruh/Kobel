@@ -292,6 +292,26 @@ static int kobel_create_dir_all(kobel_str dir_path) {
 	kobel_path_buf_free(&pb);
 	return kobel_path_is_dir(dir_path);
 }
+
+typedef struct {
+	const char* file;
+	size_t line;
+	size_t col;
+	const char* fn;
+} kobel_loc;
+
+typedef struct {
+	uint32_t code;
+	const char* name;
+	const char* desc;
+} kobel_fault_meta;
+
+typedef struct {
+	bool is_ok;
+	uint32_t code;
+	kobel_loc origin;
+	kobel_loc fail_at;
+} __kobel_main_result;
 typedef struct std__string__StrRaw std__string__StrRaw;
 typedef struct std__process__Process std__process__Process;
 typedef struct test__test_destructuring__Wrapper test__test_destructuring__Wrapper;
@@ -382,7 +402,7 @@ void test__test_destructuring__test_hashmap_for_destructuring(void);
 void test__test_destructuring__test_loop_and_nested(void);
 void test__test_destructuring__test_hashmap_entries_destructuring(void);
 void test__test_destructuring__test_nullable_destructuring(void);
-int32_t main(void);
+static void __kobel_user_main(void);
 test__test_destructuring__Tuple3_i32_str_bool test__test_destructuring__Tuple3_i32_str_bool_init(int32_t a, kobel_str b, bool c);
 void test__test_destructuring__Tuple3_i32_str_bool_unpack(test__test_destructuring__Tuple3_i32_str_bool* self, int32_t* a, kobel_str* b, bool* c);
 void std__collections__Pair_str_i32_unpack(std__collections__Pair_str_i32* self, kobel_str* first, int32_t* second);
@@ -781,7 +801,7 @@ testsupport__assert__assert_eq_i32(nx, 50, KOBEL_STR("nx == 50"));
 testsupport__assert__assert_eq_i32(ny, 60, KOBEL_STR("ny == 60"));
 }
 
-int32_t main(void) {
+static void __kobel_user_main(void) {
 std__io__println(KOBEL_STR("=== Running Destructuring Tests ==="));
 test__test_destructuring__test_val_destructuring();
 test__test_destructuring__test_var_destructuring();
@@ -793,7 +813,11 @@ test__test_destructuring__test_hashmap_entries_destructuring();
 test__test_destructuring__test_nullable_destructuring();
 test__test_destructuring__test_loop_and_nested();
 std__io__println(KOBEL_STR("All destructuring tests passed!"));
-return 0;
+}
+
+int main(void) {
+    __kobel_user_main();
+    return 0;
 }
 
 test__test_destructuring__Tuple3_i32_str_bool test__test_destructuring__Tuple3_i32_str_bool_init(int32_t a, kobel_str b, bool c) {

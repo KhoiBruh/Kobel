@@ -1034,9 +1034,17 @@ impl BodyChecker {
 			}
 
 			val payload_path = if (field_types.empty()) "" else mi.payload_path;
-			self.set_resolved(node, self.arena.node(NodeData.EnumCtorExpr(
-				ei.c_name, ei.tag_field, mi.value, payload_path, call.args
-			), node.line, node.col));
+			val err_code: u32 = if (ei.is_fault) mi.err_code else 0;
+			val o_file = if (ei.is_fault) self.node_file_path(node) else "";
+			val o_line: usz = if (ei.is_fault) node.line else 0;
+			val o_col: usz = if (ei.is_fault) node.col else 0;
+			val o_fn = if (ei.is_fault) self.current_fn_display_name else "";
+			var ctor = self.arena.node(NodeData.EnumCtorExpr(
+				ei.c_name, ei.tag_field, mi.value, payload_path, call.args,
+				err_code, o_file, o_line, o_col, o_fn
+			), node.line, node.col);
+			ctor.span = node.span;
+			self.set_resolved(node, ctor);
 			return e_sym.type_ptr;
 		}
 		return null;

@@ -2,6 +2,7 @@ mod test.bootstrap_lexer;
 
 use std.io.print;
 use std.io.println;
+use std.process.Process;
 use compiler.lexer.TokenType;
 use compiler.lexer.Token;
 use compiler.lexer.Lexer;
@@ -274,7 +275,7 @@ fn test_lexical_diagnostics(): bool {
 	return true;
 }
 
-fn main(): i32 {
+fn run_tests(): i32 {
 	println("[RUNNING] Bootstrap Lexer tests...");
 	if (!test_keywords()) {
 		println("  [FAIL] test_keywords");
@@ -338,4 +339,8 @@ fn main(): i32 {
 	println("  [PASS] test_fault_and_catch_tokens");
 	println("[ALL PASSED] Bootstrap Lexer passed all tests successfully!");
 	return 0;
+}
+
+fn main() {
+	if (run_tests() != 0) Process.exit(1);
 }

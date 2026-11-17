@@ -5,6 +5,7 @@ use std.collections.Array;
 use std.collections.List;
 use std.collections.HashMap;
 use std.collections.HashSet;
+use std.process.Process;
 
 // ============================================================================
 // Feature Suite 1: Core Syntax, Operators, and Control Expressions
@@ -617,7 +618,7 @@ fn test_in_operator(): bool {
 	return true;
 }
 
-fn main(): i32 {
+fn run_tests(): i32 {
 	println("=== Feature Suite: Core Syntax & Operators ===");
 
 	if (!test_compound_assign()) {
@@ -682,4 +683,8 @@ fn main(): i32 {
 
 	println("=== ALL CORE SYNTAX TESTS PASSED! ===");
 	return 0;
+}
+
+fn main() {
+	if (run_tests() != 0) Process.exit(1);
 }

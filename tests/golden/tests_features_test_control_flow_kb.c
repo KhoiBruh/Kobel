@@ -292,8 +292,29 @@ static int kobel_create_dir_all(kobel_str dir_path) {
 	kobel_path_buf_free(&pb);
 	return kobel_path_is_dir(dir_path);
 }
+
+typedef struct {
+	const char* file;
+	size_t line;
+	size_t col;
+	const char* fn;
+} kobel_loc;
+
+typedef struct {
+	uint32_t code;
+	const char* name;
+	const char* desc;
+} kobel_fault_meta;
+
+typedef struct {
+	bool is_ok;
+	uint32_t code;
+	kobel_loc origin;
+	kobel_loc fail_at;
+} __kobel_main_result;
 typedef struct std__string__StrRaw std__string__StrRaw;
 typedef struct std__string__StringBuilder std__string__StringBuilder;
+typedef struct std__process__Process std__process__Process;
 typedef struct tests__features__test_control_flow__Bundle tests__features__test_control_flow__Bundle;
 typedef struct tests__features__test_control_flow__Tally tests__features__test_control_flow__Tally;
 typedef struct tests__features__test_control_flow__Steps tests__features__test_control_flow__Steps;
@@ -419,6 +440,7 @@ kobel_str std__traits__fmt_i64(int64_t v);
 kobel_str i32_to_str(int32_t self);
 void std__io__print(kobel_str string);
 void std__io__println(kobel_str s);
+void std__process__Process_exit(int32_t code);
 void tests__features__test_control_flow__check(bool ok, kobel_str msg, tests__features__test_control_flow__Tally* t);
 void tests__features__test_control_flow__test_range_closed_asc(tests__features__test_control_flow__Tally* t);
 void tests__features__test_control_flow__test_range_closed_desc(tests__features__test_control_flow__Tally* t);
@@ -448,7 +470,7 @@ void tests__features__test_control_flow__test_defer_nested_scopes(tests__feature
 int32_t tests__features__test_control_flow__helper_return_with_defer(bool cond, kobel_str* trace);
 void tests__features__test_control_flow__test_defer_early_return(tests__features__test_control_flow__Tally* t);
 void tests__features__test_control_flow__test_defer_loop(tests__features__test_control_flow__Tally* t);
-int32_t main(void);
+static void __kobel_user_main(void);
 size_t std__collections__List_i32_count(std__collections__List_i32* self);
 int32_t std__collections__List_i32_at(std__collections__List_i32* self, size_t i);
 std__collections__List_i32 std__collections__List_i32_init(int32_t* items_data, size_t items_len);
@@ -627,6 +649,10 @@ void std__io__print(kobel_str string) {
 
 void std__io__println(kobel_str s) {
     kobel_println(s);
+}
+
+void std__process__Process_exit(int32_t code) {
+    exit(code);
 }
 
 void tests__features__test_control_flow__check(bool ok, kobel_str msg, tests__features__test_control_flow__Tally* t) {
@@ -1727,7 +1753,7 @@ trace = kobel_concat(2, trace, KOBEL_STR("L;"));
 tests__features__test_control_flow__check(kobel_streq(trace, KOBEL_STR("0;L;C;L;B;L;")), KOBEL_STR("defer in loop with continue and break must unwind correctly"), t);
 }
 
-int32_t main(void) {
+static void __kobel_user_main(void) {
 std__io__println(KOBEL_STR("=== Feature Suite: Control Flow & Loops ==="));
 tests__features__test_control_flow__Tally t = (tests__features__test_control_flow__Tally){ 0 };
 tests__features__test_control_flow__test_range_closed_asc(&t);
@@ -1757,10 +1783,14 @@ tests__features__test_control_flow__test_defer_early_return(&t);
 tests__features__test_control_flow__test_defer_loop(&t);
 if (t.fails != 0) {
 std__io__println(KOBEL_STR("[FAILED] Bootstrap for-loop tests"));
-return 1;
+std__process__Process_exit(1);
 }
 std__io__println(KOBEL_STR("=== ALL CONTROL FLOW TESTS PASSED! ==="));
-return 0;
+}
+
+int main(void) {
+    __kobel_user_main();
+    return 0;
 }
 
 size_t std__collections__List_i32_count(std__collections__List_i32* self) {

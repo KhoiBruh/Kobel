@@ -6,6 +6,7 @@ mod test.generics;
 // instance worklist in the declaration pass.
 
 use std.collections.*;
+use std.process.Process;
 
 fn id<U>(x: U): U {
 	return x;
@@ -22,7 +23,7 @@ fn twice<U>(x: U): U {
 	return y;
 }
 
-fn main(): i32 {
+fn run_tests(): i32 {
 	var inner: List<i32> = wrap<i32>(7);
 	if (inner.len != 1) return 1;
 	if (inner[0] != 7) return 2;
@@ -49,4 +50,8 @@ fn main(): i32 {
 	if (inferred_inner[0] != 99) return 10;
 
 	return 0;
+}
+
+fn main() {
+	if (run_tests() != 0) Process.exit(1);
 }

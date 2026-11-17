@@ -2,6 +2,7 @@ mod compiler.codegen;
 
 use std.collections.*;
 
+use compiler.core.*;
 use compiler.lexer.*;
 use compiler.ast.*;
 use compiler.semantic.types.*;
@@ -83,6 +84,7 @@ impl CCodeGen {
 				self.out += ";\n";
 			}
 			self.out += "\n\n";
+			self.gen_fault_runtime_helpers(prog, &live);
 
 			// 3. Struct bodies, in dependency order: a by-value field needs its struct
 			// complete first, and a monomorphized instance may embed a struct that is
@@ -305,7 +307,7 @@ impl CCodeGen {
 		}
 	}
 
-	fn gen_tagged_struct(&self, name: str, members: List<EnumMember>) {
+	fn gen_tagged_struct(&self, name: str, members: List<EnumMember>, is_fault: bool = false) {
 		for (m in members) {
 			self.out += "struct ";
 			self.out += name;
@@ -325,7 +327,11 @@ impl CCodeGen {
 
 		self.out += "struct ";
 		self.out += name;
-		self.out += " {\n    int32_t tag;\n    union {\n";
+		self.out += " {\n    int32_t tag;\n";
+		if (is_fault) {
+			self.out += "    uint32_t __err_code;\n    kobel_loc __origin;\n";
+		}
+		self.out += "    union {\n";
 		for (m in members) {
 			self.out += "        struct ";
 			self.out += name;
@@ -342,23 +348,74 @@ impl CCodeGen {
 	// variant, so a pattern binding can point straight at the active payload.
 	pub fn gen_payload_enum(&self, e: *EnumDecl) {
 		if (!self.enum_has_payload(e)) return;
-		self.gen_tagged_struct(e.name, e.members);
+		self.gen_tagged_struct(e.name, e.members, false);
 	}
 
-	fn fault_short_name(*self, c_name: str): str {
-		var pos: usz = 0;
-		var i: usz = 0;
-		while (i + 1 < c_name.len) {
-			if (c_name[i] == '_' && c_name[i + 1] == '_') pos = i + 2;
-			i++;
+	fn gen_fault_runtime_helpers(&self, prog: *Program, live: *ReachableSet) {
+		var has_faults = !live.error_unions.empty() || (self.symtab != null && self.symtab!.sem.main_uses_any_fault);
+		if (!has_faults) {
+			for (decl in prog) {
+				if (!decl_is_template(decl) && decl is FaultDecl as flt && live.has_type(flt.name)) {
+					has_faults = true;
+					break;
+				}
+			}
 		}
-		if (pos > 0 && pos < c_name.len) return c_name.slice(pos, c_name.len);
-		return c_name;
+		if (!has_faults) return;
+
+		self.out += "static inline kobel_fault_meta __kobel_lookup_fault(uint32_t code) {\n";
+		self.out += "    switch (code) {\n";
+		for (decl in prog) {
+			if (decl_is_template(decl)) continue;
+			if (decl is FaultDecl as flt && live.has_type(flt.name)) {
+				val short_name = c_escape_str(short_symbol_name(flt.name));
+				for (m in flt.members) {
+					if (m.err_code == 0) continue;
+					val m_name = "${short_name}.${m.name}";
+					val m_desc = if (!m.description.empty()) m.description else m_name;
+					self.out += "        case ${m.err_code}U: return (kobel_fault_meta){ ${m.err_code}U, \"${m_name}\", \"${m_desc}\" };\n";
+				}
+			}
+		}
+		self.out += "        default: return (kobel_fault_meta){ code, \"UnknownFault\", \"Unknown error\" };\n";
+		self.out += "    }\n}\n\n";
+
+		self.out += """static inline void __kobel_report_fault(
+    const char* kind,
+    uint32_t code,
+    kobel_loc origin,
+    kobel_loc fail_at
+) {
+    kobel_fault_meta meta = __kobel_lookup_fault(code);
+    if (meta.desc && meta.name && strcmp(meta.desc, meta.name) != 0) {
+        fprintf(stderr, "panic: %s E%04u (%s): %s\\n", kind, (unsigned)code, meta.name, meta.desc);
+    } else if (meta.name) {
+        fprintf(stderr, "panic: %s E%04u (%s)\\n", kind, (unsigned)code, meta.name);
+    } else {
+        fprintf(stderr, "panic: %s E%04u\\n", kind, (unsigned)code);
+    }
+    if (origin.file && origin.file[0] != 0) {
+        fprintf(stderr, "  origin: %s:%zu:%zu", origin.file, origin.line, origin.col);
+        if (origin.fn && origin.fn[0] != 0) fprintf(stderr, " in %s", origin.fn);
+        fputc(10, stderr);
+    }
+    if (fail_at.file && fail_at.file[0] != 0) {
+        bool same = origin.file && strcmp(origin.file, fail_at.file) == 0
+            && origin.line == fail_at.line && origin.col == fail_at.col;
+        if (!same) {
+            fprintf(stderr, "  at:     %s:%zu:%zu", fail_at.file, fail_at.line, fail_at.col);
+            if (fail_at.fn && fail_at.fn[0] != 0) fprintf(stderr, " in %s", fail_at.fn);
+            fputc(10, stderr);
+        }
+    }
+}
+
+""";
 	}
 
 	pub fn gen_fault_decl(&self, flt: *FaultDecl) {
-		self.gen_tagged_struct(flt.name, flt.members);
-		val short_name = self.fault_short_name(flt.name);
+		self.gen_tagged_struct(flt.name, flt.members, true);
+		val short_name = short_symbol_name(flt.name);
 		self.out += "static inline kobel_str __kobel_fault_str_${flt.name}(${flt.name} e) {\n";
 		self.out += "    switch (e.tag) {\n";
 		for (i in 0..<flt.members.len) {
@@ -367,11 +424,6 @@ impl CCodeGen {
 		}
 		self.out += "        default: return KOBEL_STR(\"${short_name}\");\n";
 		self.out += "    }\n}\n\n";
-
-		self.out += "static inline void __kobel_print_fault_${flt.name}(${flt.name} e) {\n";
-		self.out += "    kobel_str s = __kobel_fault_str_${flt.name}(e);\n";
-		self.out += "    if (s.data && s.len > 0) fwrite(s.data, 1, s.len, stderr);\n";
-		self.out += "    fputc(10, stderr);\n}\n\n";
 	}
 
 	pub fn gen_error_union_decl(&self, eu: ErrorUnionDesc) {
@@ -382,10 +434,10 @@ impl CCodeGen {
 		self.out += "        ${eu.err_c} err;\n    } u;\n};\n\n";
 
 		val unwrap_ret = if (eu.ok_is_void) "void" else eu.ok_c;
-		self.out += "static inline ${unwrap_ret} __kobel_unwrap_${eu.c_name}(${eu.c_name} r) {\n";
+		self.out += "static inline ${unwrap_ret} __kobel_unwrap_${eu.c_name}(${eu.c_name} r, const char* file, size_t line, size_t col, const char* fn) {\n";
 		self.out += "    if (!r.is_ok) {\n";
-		self.out += "        fprintf(stderr, \"panic: unwrapped error \");\n";
-		self.out += "        __kobel_print_fault_${eu.err_c}(r.u.err);\n";
+		self.out += "        kobel_loc at = { file, line, col, fn };\n";
+		self.out += "        __kobel_report_fault(\"unwrapped error\", r.u.err.__err_code, r.u.err.__origin, at);\n";
 		self.out += "        exit(1);\n";
 		self.out += "    }\n";
 		if (!eu.ok_is_void) {
@@ -400,6 +452,11 @@ impl CCodeGen {
 		return false;
 	}
 
+	fn fn_display_name_for_c(*self, f: *FnDecl): str {
+		if (f.name == "main") return "main";
+		return short_symbol_name(f.name, f.module);
+	}
+
 	// `self_c_type` is the C name of the enclosing struct when generating an impl
 	// method ("" for free functions). It types the untyped `self` receiver.
 	pub fn gen_fn_decl(&self, f: *FnDecl, is_proto: bool, self_c_type: str) {
@@ -407,9 +464,14 @@ impl CCodeGen {
 		val f_body = f.body;
 		if (!is_proto && f_body == null) return;
 
-		val is_eu_main = f.name == "main" && ret_ty.starts_with("__kobel_eu_");
-		val c_fn_name = if (is_eu_main) "__kobel_user_main" else f.name;
-		if (is_eu_main) self.out += "static ";
+		val is_any_fault_main = f.name == "main" && f.return_type == null
+			&& self.symtab != null && self.symtab!.sem.main_uses_any_fault;
+		val is_eu_main = f.name == "main" && !is_any_fault_main && ret_ty.starts_with("__kobel_eu_");
+		val is_plain_main = f.name == "main" && !is_any_fault_main && !is_eu_main && ret_ty == "void";
+		val is_wrapped_main = is_any_fault_main || is_eu_main || is_plain_main;
+		val eff_ret_ty = if (is_any_fault_main) "__kobel_main_result" else ret_ty;
+		val c_fn_name = if (is_wrapped_main) "__kobel_user_main" else f.name;
+		if (is_wrapped_main) self.out += "static ";
 
 		if (!is_proto && f_body != null) {
 			var lambdas = List<&AstNode>();
@@ -420,11 +482,15 @@ impl CCodeGen {
 			}
 		}
 
-		self.out += ret_ty;
+		self.out += eff_ret_ty;
 		self.out += ' ';
 		self.out += c_fn_name;
 		self.out += '(';
-		if (f.params.empty()) self.out += "void";
+		if (is_eu_main) {
+			self.out += "kobel_loc* __fail_loc_out";
+			if (!f.params.empty()) self.out += ", ";
+		}
+		if (f.params.empty() && !is_eu_main) self.out += "void";
 		else {
 			for (i in 0..<f.params.len) {
 				if (i > 0) self.out += ", ";
@@ -458,7 +524,9 @@ impl CCodeGen {
 			return;
 		}
 
-		self.current_fn_ret_type = ret_ty;
+		self.current_fn_ret_type = eff_ret_ty;
+		self.current_fn_display_name = self.fn_display_name_for_c(f);
+		self.in_eu_main = is_eu_main;
 
 		self.defer_nodes.clear();
 		self.scope_starts.clear();
@@ -532,7 +600,9 @@ impl CCodeGen {
 			}
 		}
 
-		if (
+		if (is_any_fault_main && f_body is BlockStmt) {
+			self.out += "    return (__kobel_main_result){ .is_ok = true };\n";
+		} else if (
 			f_body is BlockStmt &&
 			f.return_type != null &&
 			f.return_type! is ErrorUnionType as eu &&
@@ -541,20 +611,35 @@ impl CCodeGen {
 			self.out += "    return (${ret_ty}){ .is_ok = true };\n";
 		}
 
+		self.in_eu_main = false;
+		self.current_fn_display_name = "";
 		self.out += "}\n\n";
 
-		if (is_eu_main && f.return_type != null && f.return_type! is ErrorUnionType as meu) {
-			val ok_is_void = self.ast_is_none_or_null(meu.ok_type);
-			val err_c = c_type_from_ast(meu.err_type);
-			val ok_ret = if (ok_is_void) "0" else "(int)__eu_main.u.ok";
-			self.out += "int main(void) {\n";
-			self.out += "    ${ret_ty} __eu_main = __kobel_user_main();\n";
-			self.out += "    if (!__eu_main.is_ok) {\n";
-			self.out += "        fprintf(stderr, \"panic: unhandled error in main: \");\n";
-			self.out += "        __kobel_print_fault_${err_c}(__eu_main.u.err);\n";
-			self.out += "        return 1;\n";
-			self.out += "    }\n";
-			self.out += "    return ${ok_ret};\n";
+		if (is_wrapped_main) {
+			val has_cli_args = f.params.len == 2;
+			val sig = if (has_cli_args) "int main(int argc, char** argv)" else "int main(void)";
+			val args_pass = if (has_cli_args) "(int32_t)argc, (const char**)argv" else "";
+			self.out += "${sig} {\n";
+			if (is_plain_main) {
+				self.out += "    __kobel_user_main(${args_pass});\n";
+				self.out += "    return 0;\n";
+			} else if (is_any_fault_main) {
+				self.out += "    __kobel_main_result __eu_main = __kobel_user_main(${args_pass});\n";
+				self.out += "    if (!__eu_main.is_ok) {\n";
+				self.out += "        __kobel_report_fault(\"unhandled error in main\", __eu_main.code, __eu_main.origin, __eu_main.fail_at);\n";
+				self.out += "        return 1;\n";
+				self.out += "    }\n";
+				self.out += "    return 0;\n";
+			} else if (f.return_type != null && f.return_type! is ErrorUnionType as meu) {
+				val sep = if (has_cli_args) ", " else "";
+				self.out += "    kobel_loc __main_fail_loc = { NULL, 0, 0, \"main\" };\n";
+				self.out += "    ${ret_ty} __eu_main = __kobel_user_main(&__main_fail_loc${sep}${args_pass});\n";
+				self.out += "    if (!__eu_main.is_ok) {\n";
+				self.out += "        __kobel_report_fault(\"unhandled error in main\", __eu_main.u.err.__err_code, __eu_main.u.err.__origin, __main_fail_loc);\n";
+				self.out += "        return 1;\n";
+				self.out += "    }\n";
+				self.out += "    return 0;\n";
+			}
 			self.out += "}\n\n";
 		}
 	}
@@ -566,6 +651,7 @@ impl CCodeGen {
 // C return type of a function: explicit annotation, else inferred from an
 // arrow body (used by both the prototype and the definition).
 	pub fn fn_ret_c_type(*self, f: *FnDecl): str {
+		if (f.name == "main" && f.return_type == null) return "void";
 		if (f.return_type != null) return c_type_from_ast(f.return_type!);
 
 		val f_body = f.body;

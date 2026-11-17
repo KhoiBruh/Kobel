@@ -1,4 +1,5 @@
 use std.collections.*;
+use std.process.Process;
 
 fn sum(items: ..i32): i32 {
 	var total = 0;
@@ -12,7 +13,7 @@ fn count_items(prefix: str, items: ..i32): usz {
 	return items.len;
 }
 
-fn main(): i32 {
+fn run_tests(): i32 {
 	// 1. Variadic function with arguments
 	val s = sum(1, 2, 3, 4, 5);
 	if (s != 15) return 1;
@@ -50,4 +51,8 @@ fn main(): i32 {
 	if (empty_list.len != 0) return 13;
 
 	return 0;
+}
+
+fn main() {
+	if (run_tests() != 0) Process.exit(1);
 }

@@ -58,7 +58,7 @@ impl CCodeGen {
 			is DestructDeclStmt as ds -> self.gen_destruct_decl_stmt(node, ds);
 			is IfStmt -> self.gen_if_stmt(node);
 			is WhileStmt -> self.gen_while_stmt(node);
-			is ReturnStmt -> self.gen_return_stmt(node);
+			is ReturnStmt as ret -> self.gen_return_stmt(node, ret);
 			is ExprStmt -> self.gen_expr_stmt(node);
 			is BreakStmt -> self.gen_break_stmt();
 			is ContinueStmt -> self.gen_continue_stmt();
@@ -524,7 +524,14 @@ impl CCodeGen {
 		self.out += "}\n";
 	}
 
-	fn gen_return_stmt(&self, ret: *ReturnStmt) {
+	fn emit_eu_main_fail_loc(&self, node: *AstNode) {
+		if (!self.in_eu_main) return;
+		val f_esc = c_escape_str(self.node_file_path(node));
+		self.out += "*__fail_loc_out = (kobel_loc){ \"${f_esc}\", ${node.line}, ${node.col}, \"main\" };\n";
+	}
+
+	fn gen_return_stmt(&self, node: *AstNode, ret: *ReturnStmt) {
+		self.emit_eu_main_fail_loc(node);
 
 		val ret_val = ret.value;
 		if (

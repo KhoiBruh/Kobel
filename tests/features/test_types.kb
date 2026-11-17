@@ -7,6 +7,7 @@ use std.collections.*;
 use std.memory.*;
 use std.traits.*;
 use std.string.*;
+use std.process.Process;
 
 // ============================================================================
 // Trait tests: required methods, default methods, inheritance, generic bounds
@@ -538,7 +539,7 @@ fn test_return_and_const_inference(t: &Tally) {
 	check_str(hole, "Welcome to Kobel!", "interp hole calling unannotated fn", t);
 }
 
-fn main(): i32 {
+fn main() {
 	println("=== Feature Suite: Traits, OOP & Types ===");
 
 	var t = Tally(0);
@@ -565,11 +566,10 @@ fn main(): i32 {
 
 	if (t.fails != 0) {
 		println("[FAILED] Bootstrap trait tests");
-		return 1;
+		Process.exit(1);
 	}
 
 	println("=== ALL TRAITS, OOP & TYPE TESTS PASSED! ===");
-	return 0;
 }// 19. Force Unwrap Operator (!)
 fn test_force_unwrap(t: &Tally) {
 	val maybe_ptr: ?*char = "hello";

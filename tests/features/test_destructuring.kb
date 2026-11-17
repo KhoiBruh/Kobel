@@ -219,7 +219,7 @@ fn test_nullable_destructuring() {
 	assert_eq_i32(ny, 60, "ny == 60");
 }
 
-pub fn main(): i32 {
+pub fn main() {
 	println("=== Running Destructuring Tests ===");
 	test_val_destructuring();
 	test_var_destructuring();
@@ -231,5 +231,4 @@ pub fn main(): i32 {
 	test_nullable_destructuring();
 	test_loop_and_nested();
 	println("All destructuring tests passed!");
-	return 0;
 }

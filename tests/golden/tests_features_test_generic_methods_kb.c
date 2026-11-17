@@ -292,9 +292,30 @@ static int kobel_create_dir_all(kobel_str dir_path) {
 	kobel_path_buf_free(&pb);
 	return kobel_path_is_dir(dir_path);
 }
+
+typedef struct {
+	const char* file;
+	size_t line;
+	size_t col;
+	const char* fn;
+} kobel_loc;
+
+typedef struct {
+	uint32_t code;
+	const char* name;
+	const char* desc;
+} kobel_fault_meta;
+
+typedef struct {
+	bool is_ok;
+	uint32_t code;
+	kobel_loc origin;
+	kobel_loc fail_at;
+} __kobel_main_result;
 typedef struct std__memory__ArenaBlock std__memory__ArenaBlock;
 typedef struct std__memory__ArenaState std__memory__ArenaState;
 typedef struct std__memory__Arena std__memory__Arena;
+typedef struct std__process__Process std__process__Process;
 typedef struct test__generic_methods__A test__generic_methods__A;
 typedef struct test__generic_methods__B test__generic_methods__B;
 typedef struct test__generic_methods__Box_i32 test__generic_methods__Box_i32;
@@ -334,7 +355,9 @@ std__memory__Arena std__memory__Arena_init(size_t block_size);
 std__memory__ArenaState* std__memory__Arena_ensure_state(std__memory__Arena* self);
 void std__memory__Arena_new_block(std__memory__Arena* self, size_t min_size);
 void std__memory__Arena_free(std__memory__Arena* self);
-int32_t main(void);
+void std__process__Process_exit(int32_t code);
+int32_t test__generic_methods__run_tests(void);
+static void __kobel_user_main(void);
 int32_t test__generic_methods__Box_i32_get(test__generic_methods__Box_i32* self);
 int32_t test__generic_methods__Box_i32_get_twice(test__generic_methods__Box_i32* self);
 void std__memory__Heap_free_u8(uint8_t* ptr);
@@ -421,7 +444,11 @@ std__memory__Heap_free_std__memory__ArenaState(st);
 self->state = NULL;
 }
 
-int32_t main(void) {
+void std__process__Process_exit(int32_t code) {
+    exit(code);
+}
+
+int32_t test__generic_methods__run_tests(void) {
 test__generic_methods__A a = (test__generic_methods__A){ 10 };
 test__generic_methods__B b = (test__generic_methods__B){ 20 };
 if (test__generic_methods__A_pick_i32(&a) != 11) {
@@ -498,6 +525,17 @@ std__memory__Heap_free_i32(hp);
 std__memory__Arena_free(&arena);
 return __ret_tmp;
 }
+}
+
+static void __kobel_user_main(void) {
+if (test__generic_methods__run_tests() != 0) {
+std__process__Process_exit(1);
+}
+}
+
+int main(void) {
+    __kobel_user_main();
+    return 0;
 }
 
 int32_t test__generic_methods__Box_i32_get(test__generic_methods__Box_i32* self) {

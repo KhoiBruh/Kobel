@@ -231,8 +231,8 @@ fn test_error_union_lsp() {
 	val src = """mod err_lsp_sample;
 
 fault NetErr {
-	Timeout,
-	Closed(code: i32)
+	Timeout("Connection timed out"),
+	Closed(code: i32)("Peer closed connection")
 }
 
 fn connect(ok: bool): i32 ! NetErr {
@@ -272,7 +272,7 @@ pub fn run(ok: bool): i32 {
 	println("  [PASS] test_error_union_lsp");
 }
 
-pub fn main(): i32 {
+pub fn main() {
 	println("Running LSP unit tests...");
 	test_json_and_uri();
 	test_new_features_and_semantics();
@@ -280,5 +280,4 @@ pub fn main(): i32 {
 	test_preloaded_stdlib_no_duplicate_diagnostics();
 	test_error_union_lsp();
 	println("All LSP unit tests passed.");
-	return 0;
 }

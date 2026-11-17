@@ -292,6 +292,27 @@ static int kobel_create_dir_all(kobel_str dir_path) {
 	kobel_path_buf_free(&pb);
 	return kobel_path_is_dir(dir_path);
 }
+
+typedef struct {
+	const char* file;
+	size_t line;
+	size_t col;
+	const char* fn;
+} kobel_loc;
+
+typedef struct {
+	uint32_t code;
+	const char* name;
+	const char* desc;
+} kobel_fault_meta;
+
+typedef struct {
+	bool is_ok;
+	uint32_t code;
+	kobel_loc origin;
+	kobel_loc fail_at;
+} __kobel_main_result;
+typedef struct std__process__Process std__process__Process;
 typedef struct test__self_move__Point test__self_move__Point;
 
 
@@ -300,10 +321,16 @@ struct test__self_move__Point {
     int32_t y;
 };
 
+void std__process__Process_exit(int32_t code);
 int32_t test__self_move__Point_sum(test__self_move__Point* self);
 void test__self_move__Point_translate(test__self_move__Point* self, int32_t dx, int32_t dy);
 int32_t test__self_move__Point_into_sum(test__self_move__Point self);
-int32_t main(void);
+int32_t test__self_move__run_tests(void);
+static void __kobel_user_main(void);
+
+void std__process__Process_exit(int32_t code) {
+    exit(code);
+}
 
 int32_t test__self_move__Point_sum(test__self_move__Point* self) {
     return self->x + self->y;
@@ -318,7 +345,7 @@ int32_t test__self_move__Point_into_sum(test__self_move__Point self) {
     return self.x + self.y;
 }
 
-int32_t main(void) {
+int32_t test__self_move__run_tests(void) {
 test__self_move__Point p = (test__self_move__Point){ 10, 20 };
 if (test__self_move__Point_sum(&p) != 30) {
 return 1;
@@ -339,5 +366,16 @@ if (test__self_move__Point_sum(&p) != 300) {
 return 5;
 }
 return 0;
+}
+
+static void __kobel_user_main(void) {
+if (test__self_move__run_tests() != 0) {
+std__process__Process_exit(1);
+}
+}
+
+int main(void) {
+    __kobel_user_main();
+    return 0;
 }
 

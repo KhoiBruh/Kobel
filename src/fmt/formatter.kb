@@ -10,6 +10,11 @@ use compiler.ast.*;
 use compiler.lexer.*;
 use compiler.parser.*;
 
+pub fault FmtErr {
+	NoFiles("No files specified to format"),
+	FormatFailed("Failed to format one or more files")
+}
+
 // ============================================================================
 // Operator token to string representation
 // ============================================================================
@@ -753,6 +758,11 @@ impl Formatter {
 					}
 					self.buf += ")";
 				}
+				if (!mem.description.empty()) {
+					self.buf += "(\"";
+					self.buf += mem.description;
+					self.buf += "\")";
+				}
 				if (mem.value != null) {
 					self.buf += " = ";
 					self.format_expr(mem.value!);
@@ -1057,10 +1067,10 @@ impl Formatter {
 		files: List<str>,
 		write_in_place: bool = false,
 		options: FormatOptions = FormatOptions()
-	): i32 {
+	): !FmtErr {
 		if (files.empty()) {
 			println("Error: No files specified to format");
-			return 1;
+			return FmtErr.NoFiles;
 		}
 
 		var arena = Arena(262144);
@@ -1070,7 +1080,7 @@ impl Formatter {
 			if (!Self.format_file_with_arena(fpath, write_in_place, options, arena)) all_ok = false;
 			arena.reset();
 		}
-		return if (all_ok) 0 else 1;
+		if (!all_ok) return FmtErr.FormatFailed;
 	}
 
 }

@@ -292,7 +292,28 @@ static int kobel_create_dir_all(kobel_str dir_path) {
 	kobel_path_buf_free(&pb);
 	return kobel_path_is_dir(dir_path);
 }
+
+typedef struct {
+	const char* file;
+	size_t line;
+	size_t col;
+	const char* fn;
+} kobel_loc;
+
+typedef struct {
+	uint32_t code;
+	const char* name;
+	const char* desc;
+} kobel_fault_meta;
+
+typedef struct {
+	bool is_ok;
+	uint32_t code;
+	kobel_loc origin;
+	kobel_loc fail_at;
+} __kobel_main_result;
 typedef struct std__string__StrRaw std__string__StrRaw;
+typedef struct std__process__Process std__process__Process;
 typedef struct test__lambda__Counter test__lambda__Counter;
 typedef struct std__collections__List_str std__collections__List_str;
 typedef struct std__collections__List_i32 std__collections__List_i32;
@@ -324,11 +345,13 @@ kobel_str std__string__str_from_bytes(uint8_t* buf, size_t len);
 kobel_str std__traits__fmt_u64(uint64_t n0);
 kobel_str std__traits__fmt_i64(int64_t v);
 kobel_str i32_to_str(int32_t self);
+void std__process__Process_exit(int32_t code);
 int32_t test__lambda__run_once(kobel_closure f);
 int32_t test__lambda__compute(kobel_closure f);
 int32_t test__lambda__apply_pair(int32_t a, int32_t b, kobel_closure op_fn);
 int32_t test__lambda__forward_compute(kobel_closure f);
-int32_t main(void);
+int32_t test__lambda__run_tests(void);
+static void __kobel_user_main(void);
 std__collections__List_str std__collections__List_str_init(kobel_str* items_data, size_t items_len);
 void std__collections__List_str_add(std__collections__List_str* self, kobel_str value);
 void std__collections__List_str_grow(std__collections__List_str* self);
@@ -398,6 +421,10 @@ return std__traits__fmt_u64((uint64_t)v);
 
 kobel_str i32_to_str(int32_t self) {
     return std__traits__fmt_i64(self);
+}
+
+void std__process__Process_exit(int32_t code) {
+    exit(code);
 }
 
 int32_t test__lambda__run_once(kobel_closure f) {
@@ -619,7 +646,7 @@ static void __lambda_fn_31(void* __raw_env, int32_t a) {
     std__collections__List_i32_each(&(*(__env->evens)), (kobel_closure){ (void*)__lambda_fn_30, (void*)&(struct __lambda_env_30){ a, &(*(__env->acc2)) } });
 }
 
-int32_t main(void) {
+int32_t test__lambda__run_tests(void) {
 int32_t r0 = test__lambda__run_once((kobel_closure){ (void*)__lambda_fn_6, NULL });
 if (r0 != 42) {
 return 1;
@@ -900,6 +927,17 @@ std__collections__List_i32_free(evens);
 std__collections__List_i32_free(list);
 return __ret_tmp;
 }
+}
+
+static void __kobel_user_main(void) {
+if (test__lambda__run_tests() != 0) {
+std__process__Process_exit(1);
+}
+}
+
+int main(void) {
+    __kobel_user_main();
+    return 0;
 }
 
 std__collections__List_str std__collections__List_str_init(kobel_str* items_data, size_t items_len) {

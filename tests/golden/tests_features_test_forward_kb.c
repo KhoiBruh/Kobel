@@ -292,6 +292,27 @@ static int kobel_create_dir_all(kobel_str dir_path) {
 	kobel_path_buf_free(&pb);
 	return kobel_path_is_dir(dir_path);
 }
+
+typedef struct {
+	const char* file;
+	size_t line;
+	size_t col;
+	const char* fn;
+} kobel_loc;
+
+typedef struct {
+	uint32_t code;
+	const char* name;
+	const char* desc;
+} kobel_fault_meta;
+
+typedef struct {
+	bool is_ok;
+	uint32_t code;
+	kobel_loc origin;
+	kobel_loc fail_at;
+} __kobel_main_result;
+typedef struct std__process__Process std__process__Process;
 typedef struct test__forward__A test__forward__A;
 typedef struct test__forward__B test__forward__B;
 
@@ -305,9 +326,15 @@ struct test__forward__A {
     test__forward__B* b;
 };
 
-int32_t main(void);
+void std__process__Process_exit(int32_t code);
+int32_t test__forward__run_tests(void);
+static void __kobel_user_main(void);
 
-int32_t main(void) {
+void std__process__Process_exit(int32_t code) {
+    exit(code);
+}
+
+int32_t test__forward__run_tests(void) {
 test__forward__A a = (test__forward__A){ 5, NULL };
 test__forward__B b = (test__forward__B){ &a };
 a.b = &b;
@@ -321,5 +348,16 @@ if (a.b != NULL && (*(*a.b).a).v != 5) {
 return 3;
 }
 return 0;
+}
+
+static void __kobel_user_main(void) {
+if (test__forward__run_tests() != 0) {
+std__process__Process_exit(1);
+}
+}
+
+int main(void) {
+    __kobel_user_main();
+    return 0;
 }
 

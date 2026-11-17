@@ -185,7 +185,7 @@ fn test_symbol_table_oop() {
 	println("  [PASS] test_symbol_table_oop");
 }
 
-fn main(): i32 {
+fn main() {
 	println("[RUNNING] Bootstrap Semantic Symbol tests...");
 	test_global_scope();
 	test_duplicate_definition();
@@ -193,5 +193,4 @@ fn main(): i32 {
 	test_function_boundary();
 	test_symbol_table_oop();
 	println("[ALL PASSED] Bootstrap Semantic Symbol passed all tests successfully!");
-	return 0;
 }

@@ -292,7 +292,28 @@ static int kobel_create_dir_all(kobel_str dir_path) {
 	kobel_path_buf_free(&pb);
 	return kobel_path_is_dir(dir_path);
 }
+
+typedef struct {
+	const char* file;
+	size_t line;
+	size_t col;
+	const char* fn;
+} kobel_loc;
+
+typedef struct {
+	uint32_t code;
+	const char* name;
+	const char* desc;
+} kobel_fault_meta;
+
+typedef struct {
+	bool is_ok;
+	uint32_t code;
+	kobel_loc origin;
+	kobel_loc fail_at;
+} __kobel_main_result;
 typedef struct std__string__StrRaw std__string__StrRaw;
+typedef struct std__process__Process std__process__Process;
 typedef struct tests__features__test_pattern_matching__Node tests__features__test_pattern_matching__Node;
 typedef struct tests__features__test_pattern_matching__Literal tests__features__test_pattern_matching__Literal;
 typedef struct tests__features__test_pattern_matching__Binary tests__features__test_pattern_matching__Binary;
@@ -358,6 +379,7 @@ kobel_str std__traits__fmt_bool(bool b);
 kobel_str bool_to_str(bool self);
 kobel_str i32_to_str(int32_t self);
 void std__io__println(kobel_str s);
+void std__process__Process_exit(int32_t code);
 int32_t tests__features__test_pattern_matching__eval(tests__features__test_pattern_matching__Node* node);
 int32_t tests__features__test_pattern_matching__eval_when_expr(tests__features__test_pattern_matching__Node* node);
 tests__features__test_pattern_matching__Literal* tests__features__test_pattern_matching__cast_to_literal(tests__features__test_pattern_matching__Node* node);
@@ -379,7 +401,8 @@ int32_t tests__features__test_pattern_matching__Probe_classify(tests__features__
 int32_t tests__features__test_pattern_matching__classify_str_subject(kobel_str s);
 int32_t tests__features__test_pattern_matching__classify_str_stmt(kobel_str s);
 bool tests__features__test_pattern_matching__is_known_node(tests__features__test_pattern_matching__Node* node);
-int32_t main(void);
+int32_t tests__features__test_pattern_matching__run_tests(void);
+static void __kobel_user_main(void);
 uint8_t* std__memory__Heap_create_u8(size_t count);
 
 kobel_str std__string__str_from_bytes(uint8_t* buf, size_t len) {
@@ -584,6 +607,10 @@ kobel_str i32_to_str(int32_t self) {
 
 void std__io__println(kobel_str s) {
     kobel_println(s);
+}
+
+void std__process__Process_exit(int32_t code) {
+    exit(code);
 }
 
 int32_t tests__features__test_pattern_matching__eval(tests__features__test_pattern_matching__Node* node) {
@@ -792,7 +819,7 @@ return false;
 }
 }
 
-int32_t main(void) {
+int32_t tests__features__test_pattern_matching__run_tests(void) {
 std__io__println(KOBEL_STR("=== Feature Suite: Pattern Matching & Smart Cast ==="));
 tests__features__test_pattern_matching__Literal lit1 = (tests__features__test_pattern_matching__Literal){ tests__features__test_pattern_matching__Literal__TAG, 10 };
 tests__features__test_pattern_matching__Literal lit2 = (tests__features__test_pattern_matching__Literal){ tests__features__test_pattern_matching__Literal__TAG, 25 };
@@ -960,6 +987,17 @@ return 1;
 std__io__println(KOBEL_STR("implicit subject when (.method / .field): OK"));
 std__io__println(KOBEL_STR("=== ALL PATTERN MATCHING TESTS PASSED! ==="));
 return 0;
+}
+
+static void __kobel_user_main(void) {
+if (tests__features__test_pattern_matching__run_tests() != 0) {
+std__process__Process_exit(1);
+}
+}
+
+int main(void) {
+    __kobel_user_main();
+    return 0;
 }
 
 uint8_t* std__memory__Heap_create_u8(size_t count) {

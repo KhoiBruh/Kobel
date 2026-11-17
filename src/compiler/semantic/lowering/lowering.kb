@@ -25,7 +25,8 @@ pub struct LoweringPass {
 	pub decl: DeclarationCollector = DeclarationCollector(),
 	pub current_fn_ret_type: ?*Type = null,
 	pub current_eu_self_ty: ?*Type = null,
-	pub current_eu_id: usz = 0
+	pub current_eu_id: usz = 0,
+	pub in_any_fault_main: bool = false
 }
 
 impl LoweringPass {

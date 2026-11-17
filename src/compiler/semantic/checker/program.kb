@@ -12,6 +12,7 @@ mod compiler.semantic.checker;
 use std.memory.*;
 use std.collections.*;
 
+use compiler.core.*;
 use compiler.ast.*;
 use compiler.lexer.*;
 use compiler.semantic.types.*;
@@ -70,18 +71,51 @@ impl BodyChecker {
 		}
 	}
 
+	fn display_fn_name(*self, f: *FnDecl): str {
+		if (f.name == "main") return "main";
+		return short_symbol_name(f.name, f.module);
+	}
+
+	fn is_valid_main_params(*self, param_types: List<*Type>): bool {
+		if (param_types.empty()) return true;
+		if (param_types.len != 2) return false;
+		val p0 = param_types[0];
+		val p1 = param_types[1];
+		if (p0.kind != DataType.I32) return false;
+		if (p1.kind != DataType.POINTER) return false;
+		val p1_ptr = p1.as_pointer()!;
+		if (!p1_ptr.mutable || p1_ptr.nullable || p1_ptr.pointee.kind != DataType.POINTER) return false;
+		val inner = p1_ptr.pointee.as_pointer()!;
+		return !inner.mutable && !inner.nullable && inner.pointee.kind == DataType.CHAR;
+	}
+
 	pub fn check_fn_body(&self, fn_node: &AstNode, fn_type: *Type) {
 		if (fn_node in self.checked_fns) return;
 		if (fn_node is FnDecl as f) {
 			self.checked_fns += fn_node;
 
 			val fn_info = fn_type.as_fn()!;
-			if (f.name == "main" && fn_info.return_type.kind == DataType.ERROR_UNION) {
-				val eu = fn_info.return_type.as_error_union()!;
-				if (eu.ok.kind !in [DataType.NONE, DataType.I32]) {
+			if (f.name == "main") {
+				if (!self.is_valid_main_params(fn_info.param_types)) {
 					self.report_error(
 						fn_node,
-						"Entry point 'main' returning an error union must have 'none' or 'i32' success type"
+						"Entry point 'main' must take no parameters or '(argc: i32, argv: &*char)'"
+					);
+				}
+				if (fn_info.return_type.kind == DataType.ERROR_UNION) {
+					val eu = fn_info.return_type.as_error_union()!;
+					if (eu.ok.kind != DataType.NONE) {
+						self.report_error(
+							fn_node,
+							"Entry point 'main' cannot return a value '${self.type_display(eu.ok)}'; " +
+							"use 'fn main()' or 'fn main(): !Fault'"
+						);
+					}
+				} else if (fn_info.return_type.kind != DataType.NONE) {
+					self.report_error(
+						fn_node,
+						"Entry point 'main' cannot return '${self.type_display(fn_info.return_type)}'; " +
+						"'fn main(): i32' is removed, use 'fn main()' or 'fn main(): !Fault'"
 					);
 				}
 			}
@@ -89,10 +123,18 @@ impl BodyChecker {
 			val saved_inferring = self.inferring_fn_return;
 			val saved_catch_exp = self.catch_yield_expected;
 			val saved_catch_seen = self.catch_yield_seen;
+			val saved_in_main = self.in_main_fn;
+			val saved_fn_disp = self.current_fn_display_name;
 			self.current_fn_return_type = fn_info.return_type;
-			self.inferring_fn_return = (f.return_type == null);
+			self.inferring_fn_return = (f.return_type == null && f.name != "main");
 			self.catch_yield_expected = null;
 			self.catch_yield_seen = false;
+			self.in_main_fn = (f.name == "main");
+			self.current_fn_display_name = self.display_fn_name(f);
+			defer {
+				self.in_main_fn = saved_in_main;
+				self.current_fn_display_name = saved_fn_disp;
+			}
 
 			var saved_names = List<str>();
 			var saved_types = List<*Type>();
@@ -130,7 +172,7 @@ impl BodyChecker {
 					for (stmt in blk.statements) {
 						self.check_statement(stmt);
 					}
-					if (f.return_type == null && self.current_fn_return_type != null) {
+					if (f.name != "main" && f.return_type == null && self.current_fn_return_type != null) {
 						val cur_ret = self.current_fn_return_type!;
 						val fn_info_mut = fn_type.as_fn()!;
 						fn_info_mut.return_type = cur_ret;
@@ -148,7 +190,21 @@ impl BodyChecker {
 					if (body_ty.kind == DataType.FN) {
 						self.report_error(fn_node, "Function cannot return a lambda/closure");
 					}
-					if (f.return_type == null) {
+					if (f.name == "main" && f.return_type == null) {
+						if (body_ty.kind == DataType.ERROR_UNION) {
+							self.report_error(
+								fn_node,
+								"Unhandled error union '${self.type_display(body_ty)}' in 'main'; use '?' or handle it"
+							);
+						} else if (body_ty.is_fault()) {
+							self.symtab.sem.main_uses_any_fault = true;
+						} else if (body_ty.kind != DataType.NONE) {
+							self.report_error(
+								fn_node,
+								"Entry point 'main' cannot return a value of type '${self.type_display(body_ty)}'"
+							);
+						}
+					} else if (f.return_type == null) {
 						val fn_info_mut = fn_type.as_fn()!;
 						fn_info_mut.return_type = body_ty;
 						self.current_fn_return_type = body_ty;

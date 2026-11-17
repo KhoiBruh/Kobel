@@ -292,6 +292,26 @@ static int kobel_create_dir_all(kobel_str dir_path) {
 	kobel_path_buf_free(&pb);
 	return kobel_path_is_dir(dir_path);
 }
+
+typedef struct {
+	const char* file;
+	size_t line;
+	size_t col;
+	const char* fn;
+} kobel_loc;
+
+typedef struct {
+	uint32_t code;
+	const char* name;
+	const char* desc;
+} kobel_fault_meta;
+
+typedef struct {
+	bool is_ok;
+	uint32_t code;
+	kobel_loc origin;
+	kobel_loc fail_at;
+} __kobel_main_result;
 typedef struct std__string__StrRaw std__string__StrRaw;
 typedef struct std__string__StringBuilder std__string__StringBuilder;
 typedef struct std__process__Process std__process__Process;
@@ -392,7 +412,7 @@ void test__test_operators__test_hash_set_ops(void);
 void test__test_operators__test_string_builder_ops(void);
 void test__test_operators__append_via_ptr(std__string__StringBuilder* sb, std__collections__List_i32* list, std__collections__HashSet_str* set, std__collections__HashMap_str_i32* map);
 void test__test_operators__test_pointer_receiver_ops(void);
-int32_t main(void);
+static void __kobel_user_main(void);
 std__collections__List_i32 std__collections__List_i32_init(int32_t* items_data, size_t items_len);
 void std__collections__List_i32_add(std__collections__List_i32* self, int32_t value);
 void std__collections__List_i32_grow(std__collections__List_i32* self);
@@ -839,7 +859,7 @@ std__collections__List_i32_free(list);
 std__string__StringBuilder_free(sb);
 }
 
-int32_t main(void) {
+static void __kobel_user_main(void) {
 std__io__println(KOBEL_STR("=== Running Operator Overloading Tests ==="));
 test__test_operators__test_vector_ops();
 test__test_operators__test_buffer_index_ops();
@@ -849,7 +869,11 @@ test__test_operators__test_hash_set_ops();
 test__test_operators__test_string_builder_ops();
 test__test_operators__test_pointer_receiver_ops();
 std__io__println(KOBEL_STR("All operator tests passed!"));
-return 0;
+}
+
+int main(void) {
+    __kobel_user_main();
+    return 0;
 }
 
 std__collections__List_i32 std__collections__List_i32_init(int32_t* items_data, size_t items_len) {

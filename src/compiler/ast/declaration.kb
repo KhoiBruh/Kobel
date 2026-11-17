@@ -58,7 +58,10 @@ pub struct EnumMember {
 	 * Empty for a plain (integer) enum member; non-empty when the member carries
 	 * data, which makes the whole declaration a payload enum.
 	 */
-	pub payload: List<EnumField> = List()
+	pub payload: List<EnumField> = List(),
+	// Optional variant description and global fault code assigned in sema (faults only).
+	pub description: str = "",
+	pub err_code: u32 = 0
 }
 
 impl Program {

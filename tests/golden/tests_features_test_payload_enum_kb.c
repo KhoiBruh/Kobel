@@ -292,6 +292,27 @@ static int kobel_create_dir_all(kobel_str dir_path) {
 	kobel_path_buf_free(&pb);
 	return kobel_path_is_dir(dir_path);
 }
+
+typedef struct {
+	const char* file;
+	size_t line;
+	size_t col;
+	const char* fn;
+} kobel_loc;
+
+typedef struct {
+	uint32_t code;
+	const char* name;
+	const char* desc;
+} kobel_fault_meta;
+
+typedef struct {
+	bool is_ok;
+	uint32_t code;
+	kobel_loc origin;
+	kobel_loc fail_at;
+} __kobel_main_result;
+typedef struct std__process__Process std__process__Process;
 typedef struct test__payload_enum__Shape test__payload_enum__Shape;
 typedef struct test__payload_enum__Shape__Circle test__payload_enum__Shape__Circle;
 #define test__payload_enum__Shape__Circle__TAG 0
@@ -325,6 +346,7 @@ struct test__payload_enum__Holder {
     test__payload_enum__Shape shape;
 };
 
+void std__process__Process_exit(int32_t code);
 double test__payload_enum__area(test__payload_enum__Shape s);
 double test__payload_enum__holder_area(test__payload_enum__Holder h);
 double test__payload_enum__radius_of(test__payload_enum__Shape* p);
@@ -333,7 +355,12 @@ double test__payload_enum__circle_radius_or_zero(test__payload_enum__Shape s);
 int32_t test__payload_enum__non_rect_tag(test__payload_enum__Shape s);
 bool test__payload_enum__has_area_list(test__payload_enum__Shape s);
 double test__payload_enum__single_list_radius_else(test__payload_enum__Shape s);
-int32_t main(void);
+int32_t test__payload_enum__run_tests(void);
+static void __kobel_user_main(void);
+
+void std__process__Process_exit(int32_t code) {
+    exit(code);
+}
 
 double test__payload_enum__area(test__payload_enum__Shape s) {
 if (s.tag == test__payload_enum__Shape__Circle__TAG) {
@@ -417,7 +444,7 @@ return s->radius;
 }
 }
 
-int32_t main(void) {
+int32_t test__payload_enum__run_tests(void) {
 test__payload_enum__Shape c = (test__payload_enum__Shape){ .tag = 0, .u.Circle = { 2.0 } };
 test__payload_enum__Shape r = (test__payload_enum__Shape){ .tag = 1, .u.Rect = { 3.0, 4.0 } };
 test__payload_enum__Shape e = (test__payload_enum__Shape){ .tag = 2 };
@@ -509,5 +536,16 @@ if (!!(null_hp != NULL && (null_hp->shape.tag == test__payload_enum__Shape__Circ
 return 28;
 }
 return 0;
+}
+
+static void __kobel_user_main(void) {
+if (test__payload_enum__run_tests() != 0) {
+std__process__Process_exit(1);
+}
+}
+
+int main(void) {
+    __kobel_user_main();
+    return 0;
 }
 

@@ -1,8 +1,10 @@
 mod compiler.semantic.symbols;
 
 use std.memory.*;
+use std.string.*;
 use std.collections.*;
 
+use compiler.core.*;
 use compiler.ast.*;
 use compiler.semantic.types.*;
 
@@ -39,7 +41,8 @@ pub struct SymbolTable {
 	pub assoc_types: HashMap<str, *Type> = HashMap(),
 	pub gen: GenericRegistry = GenericRegistry(),
 	pub prims: ?*PrimTypes = null,
-	pub struct_types: List<MutTypeEntry> = List()
+	pub struct_types: List<MutTypeEntry> = List(),
+	pub sources: SourceMap = SourceMap()
 }
 
 impl SymbolTable {
@@ -132,6 +135,18 @@ impl SymbolTable {
 		val id = self.sem.next_lambda_id;
 		self.sem.next_lambda_id = id + 1;
 		return id;
+	}
+
+	pub fn alloc_fault_code(*self): u32 {
+		val code = self.sem.next_fault_code;
+		self.sem.next_fault_code = code + 1;
+		return code;
+	}
+
+	pub fn file_path_of(*self, file_id: u32): str {
+		if (file_id == 0) return "";
+		val sf = self.sources.get_file(file_id) ?: return "";
+		return sf.path.replace_char('\\', '/');
 	}
 
 	pub fn set_lambda_info(*self, node: ?*AstNode, info: LambdaInfo) {

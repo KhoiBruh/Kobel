@@ -203,7 +203,7 @@ fn test_error_union_type() {
 	println("  [PASS] test_error_union_type");
 }
 
-fn main(): i32 {
+fn main() {
 	println("[RUNNING] Bootstrap Semantic Types tests...");
 	test_primitive_types();
 	test_pointer_and_array_types();
@@ -211,5 +211,4 @@ fn main(): i32 {
 	test_type_equality_and_assignability();
 	test_error_union_type();
 	println("[ALL PASSED] Bootstrap Semantic Types passed all tests successfully!");
-	return 0;
 }

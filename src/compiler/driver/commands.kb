@@ -78,11 +78,11 @@ pub fn compute_project_stamp(cfg: ProjectConfig, manifest_path: str): str {
 	return stamp_seed.hash_stamp();
 }
 
-pub fn cmd_build(manifest_path: str): i32 {
+pub fn cmd_build(manifest_path: str): !CompilerErr {
 	val man_p = Path(manifest_path);
 	if (!man_p.exists()) {
 		println("Error: Project manifest '${manifest_path}' not found.");
-		return 1;
+		return CompilerErr.ManifestNotFound;
 	}
 
 	val cfg = ProjectConfig(manifest_path);
@@ -93,23 +93,20 @@ pub fn cmd_build(manifest_path: str): i32 {
 	opts.output_bin = cfg.output;
 	opts.c_compiler = cfg.cc;
 
-	val exit_code = opts.compile();
-	if (exit_code == 0) {
-		val build_dir = Path("build");
-		if (!build_dir.exists()) build_dir.create_dir_all();
-		val stamp_p = build_dir.join(".kobel_stamp");
-		val stamp = compute_project_stamp(cfg, manifest_path);
-		stamp_p.write_text(stamp);
-		println("[SUCCESS] Build complete: ${cfg.output}");
-	}
-	return exit_code;
+	opts.compile()?;
+	val build_dir = Path("build");
+	if (!build_dir.exists()) build_dir.create_dir_all();
+	val stamp_p = build_dir.join(".kobel_stamp");
+	val stamp = compute_project_stamp(cfg, manifest_path);
+	stamp_p.write_text(stamp);
+	println("[SUCCESS] Build complete: ${cfg.output}");
 }
 
-pub fn cmd_run(manifest_path: str, extra_args: List<str>): i32 {
+pub fn cmd_run(manifest_path: str, extra_args: List<str>): !CompilerErr {
 	val man_p = Path(manifest_path);
 	if (!man_p.exists()) {
 		println("Error: Project manifest '${manifest_path}' not found.");
-		return 1;
+		return CompilerErr.ManifestNotFound;
 	}
 
 	val cfg = ProjectConfig(manifest_path);
@@ -139,11 +136,7 @@ pub fn cmd_run(manifest_path: str, extra_args: List<str>): i32 {
 	};
 
 	if (needs_build) {
-		val build_code = cmd_build(manifest_path);
-		if (build_code != 0) {
-			println("Build failed with code ${build_code}. Aborting run.");
-			return build_code;
-		}
+		cmd_build(manifest_path)?;
 	} else println("No changes detected. Running '${cfg.output}'...");
 
 	// Prepare run command safely without triggering Windows cmd /c quote stripping
@@ -167,7 +160,8 @@ pub fn cmd_run(manifest_path: str, extra_args: List<str>): i32 {
 		else "${run_cmd} ${arg}";
 	}
 
-	return Process.exec(run_cmd);
+	val run_res = Process.exec(run_cmd);
+	if (run_res != 0) return CompilerErr.SubprocessFailed;
 }
 
 pub fn discover_test_files(test_dir: str): List<str> {
@@ -176,7 +170,7 @@ pub fn discover_test_files(test_dir: str): List<str> {
 	return list;
 }
 
-pub fn cmd_test(manifest_path: str, filter: str): i32 {
+pub fn cmd_test(manifest_path: str, filter: str): !CompilerErr {
 	val man_p = Path(manifest_path);
 	val cfg = if (man_p.exists()) ProjectConfig(manifest_path)
 			else ProjectConfig();
@@ -191,7 +185,7 @@ pub fn cmd_test(manifest_path: str, filter: str): i32 {
 
 	if (active_tests.empty()) {
 		println("No tests matched filter '${filter}'.");
-		return 0;
+		return;
 	}
 
 	var pass_count = 0;
@@ -216,8 +210,11 @@ pub fn cmd_test(manifest_path: str, filter: str): i32 {
 		// `testsupport.*` from every suite.
 		opts.extra_roots += cfg.test_dir;
 
-		val compile_res = opts.compile();
-		if (compile_res != 0) {
+		var compile_ok = true;
+		opts.compile() !: {
+			compile_ok = false;
+		};
+		if (!compile_ok) {
 			println("FAIL (compilation error)");
 			fail_count++;
 			failed_names += tpath;
@@ -262,12 +259,11 @@ pub fn cmd_test(manifest_path: str, filter: str): i32 {
 		println("");
 		println("[ERROR] The following tests failed:");
 		for (name in failed_names) println("  - ${name}");
-		return 1;
+		return CompilerErr.TestsFailed;
 	}
 
 	println("");
 	println("[SUCCESS] All tests passed successfully!");
-	return 0;
 }
 
 // ============================================================================
@@ -305,7 +301,7 @@ pub fn snap_name(path: str): str => path.map_chars { c ->
  */
 pub fn snapshot_as_text(src: str): bool => src.starts_with("tests/features/");
 
-pub fn cmd_snap(manifest_path: str, update: bool): i32 {
+pub fn cmd_snap(manifest_path: str, update: bool): !CompilerErr {
 	val man_p = Path(manifest_path);
 	val cfg = if (man_p.exists()) ProjectConfig(manifest_path) else ProjectConfig();
 	val golden_dir = Path("tests/golden");
@@ -331,7 +327,11 @@ pub fn cmd_snap(manifest_path: str, update: bool): i32 {
 		opts.only_emit_c = true;
 		opts.quiet = true;
 		opts.extra_roots += cfg.test_dir;
-		if (opts.compile() != 0) {
+		var emit_ok = true;
+		opts.compile() !: {
+			emit_ok = false;
+		};
+		if (!emit_ok) {
 			println("FAIL (emit-c error)");
 			fail_count++;
 			continue;
@@ -380,13 +380,12 @@ pub fn cmd_snap(manifest_path: str, update: bool): i32 {
 	if (fail_count > 0) {
 		println("[ERROR] ${fail_count} snapshot(s) changed. "
 			"If the change is intended, run 'kobel snap --update' and commit tests/golden.");
-		return 1;
+		return CompilerErr.SnapshotMismatch;
 	}
 	println("[SUCCESS] All ${corpus.len} snapshots match.");
-	return 0;
 }
 
-pub fn cmd_fixpoint(manifest_path: str): i32 {
+pub fn cmd_fixpoint(manifest_path: str): !CompilerErr {
 	val man_p = Path(manifest_path);
 	val cfg = if (man_p.exists()) ProjectConfig(manifest_path) else ProjectConfig();
 	val dir = Path("build/fixpoint");
@@ -402,9 +401,13 @@ pub fn cmd_fixpoint(manifest_path: str): i32 {
 	opts.emit_c_path = s1_p.raw;
 	opts.only_emit_c = true;
 	opts.quiet = true;
-	if (opts.compile() != 0) {
+	var emit1_ok = true;
+	opts.compile() !: {
+		emit1_ok = false;
+	};
+	if (!emit1_ok) {
 		println("[ERROR] Could not emit C for '${cfg.entry}'.");
-		return 1;
+		return CompilerErr.OutputWriteFailed;
 	}
 
 	println("[2/3] Building the second-generation compiler...");
@@ -412,7 +415,7 @@ pub fn cmd_fixpoint(manifest_path: str): i32 {
 	val compile_res = Process.exec(c_compile_cmd(s1_p.raw, s2_exe_p.raw, cfg.cc, true));
 	if (compile_res != 0 || !s2_exe_p.exists()) {
 		println("[ERROR] Backend compiler did not produce '${s2_exe_p.raw}'.");
-		return 1;
+		return CompilerErr.BackendFailed;
 	}
 
 	println("[3/3] Re-emitting C with the second-generation compiler...");
@@ -424,14 +427,14 @@ pub fn cmd_fixpoint(manifest_path: str): i32 {
 	val exit_code = Process.exec("${run_exe} ${cfg.entry} -emit-c ${s2_p.raw}");
 	if (exit_code != 0) {
 		println("[ERROR] Second-generation compiler failed (exit ${exit_code}).");
-		return 1;
+		return CompilerErr.SubprocessFailed;
 	}
 
 	val first = s1_p.read_text();
 	val second = s2_p.read_text();
 	if (first == second) {
 		println("[SUCCESS] Fixpoint reached: stage1.c == stage2.c (${first.len} bytes).");
-		return 0;
+		return;
 	}
 
 	println("[ERROR] Fixpoint broken: stage1.c (${first.len} bytes) != "
@@ -443,5 +446,5 @@ pub fn cmd_fixpoint(manifest_path: str): i32 {
 	println("  First difference at line ${i + 1}:");
 	if (i < a_lines.len) println("    stage1: ${a_lines[i]}");
 	if (i < b_lines.len) println("    stage2: ${b_lines[i]}");
-	return 1;
+	return CompilerErr.FixpointMismatch;
 }

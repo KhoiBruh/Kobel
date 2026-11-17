@@ -79,6 +79,14 @@ impl LoweringPass {
 		self.current_fn_ret_type = self.fn_decl_ret_type(f);
 		defer self.current_fn_ret_type = prev_ret;
 
+		val prev_any_main = self.in_any_fault_main;
+		self.in_any_fault_main = (
+			f.name == "main" &&
+			f.return_type == null &&
+			self.symtab.sem.main_uses_any_fault
+		);
+		defer self.in_any_fault_main = prev_any_main;
+
 		if (f.body == null) return;
 		val body = f.body!;
 
@@ -89,6 +97,28 @@ impl LoweringPass {
 
 		if (body is ExprStmt as es) {
 			val ret_ty = self.current_fn_ret_type;
+			if (self.in_any_fault_main) {
+				var wrapped = self.wrap_expr_for_eu(es.expr);
+				var stmts = List<&AstNode>();
+				var prelude = List<&AstNode>();
+				val val_low = self.lower_eu_expr(wrapped, &prelude, true);
+				for (ps in prelude) stmts += ps;
+				val val_ty = self.type_of(val_low) ?: self.type_of(wrapped);
+				if (val_ty != null && val_ty.is_fault()) {
+					val err_w = self.wrap_main_fault_expr(val_low, es.expr, &stmts);
+					stmts += self.arena.node(NodeData.ReturnStmt(err_w), es.expr.line, es.expr.col);
+				} else {
+					if (!self.is_postfix_q(wrapped)) {
+						stmts += self.arena.node(NodeData.ExprStmt(val_low), es.expr.line, es.expr.col);
+					}
+					stmts += self.arena.node(
+						NodeData.ReturnStmt(self.make_main_ok_wrap(es.expr.line, es.expr.col)),
+						es.expr.line, es.expr.col
+					);
+				}
+				f.body = self.arena.node(NodeData.BlockStmt(stmts), body.line, body.col);
+				return;
+			}
 			if (ret_ty != null && ret_ty.kind == DataType.ERROR_UNION) {
 				val eu = ret_ty.as_error_union()!;
 				val expr_ty = self.type_of(es.expr);
@@ -130,9 +160,49 @@ impl LoweringPass {
 		&self, c_type: str, is_ok: bool, value: ?&AstNode,
 		eu_ty: *Type, line: usz, col: usz
 	): &AstNode {
-		val w = self.arena.node(NodeData.ErrorUnionWrapExpr(c_type, is_ok, value), line, col);
+		val w = self.arena.node(
+			NodeData.ErrorUnionWrapExpr(c_type, is_ok, value, false, "", 0, 0),
+			line, col
+		);
 		self.symtab.set_node_type(w, eu_ty);
 		return w;
+	}
+
+	fn make_main_ok_wrap(&self, line: usz, col: usz): &AstNode {
+		return self.arena.node(
+			NodeData.ErrorUnionWrapExpr("__kobel_main_result", true, null, true, "", 0, 0),
+			line, col
+		);
+	}
+
+	fn make_main_err_wrap(&self, fault_expr: &AstNode, loc_node: *AstNode): &AstNode {
+		val fail_file = self.symtab.file_path_of(loc_node.span.file_id);
+		val w = self.arena.node(
+			NodeData.ErrorUnionWrapExpr(
+				"__kobel_main_result", false, fault_expr, true,
+				fail_file, loc_node.line, loc_node.col
+			),
+			loc_node.line, loc_node.col
+		);
+		w.span = loc_node.span;
+		return w;
+	}
+
+	fn wrap_main_fault_expr(&self, fault_expr: &AstNode, loc_node: *AstNode, prelude: &List<&AstNode>): &AstNode {
+		val raw = self.unwrap_eu_group(fault_expr);
+		val needs_tmp = raw == null || (raw !is IdentifierExpr && raw !is MemberExpr);
+		if (!needs_tmp) return self.make_main_err_wrap(fault_expr, loc_node);
+
+		val tmp_name = "__mf_tmp_${self.next_eu_id()}";
+		val f_ty = self.type_of(fault_expr);
+		val ty_ast = if (f_ty != null) self.arena.ast_type_from_type(f_ty!) else null;
+		prelude.add(self.arena.node(
+			NodeData.VarDeclStmt(false, tmp_name, ty_ast, fault_expr),
+			loc_node.line, loc_node.col
+		));
+		val tmp_id = self.arena.node(NodeData.IdentifierExpr(tmp_name), loc_node.line, loc_node.col);
+		if (f_ty != null) self.symtab.set_node_type(tmp_id, f_ty);
+		return self.make_main_err_wrap(tmp_id, loc_node);
 	}
 
 	fn wrap_for_eu(&self, expr: &AstNode, target_ty: *Type): &AstNode {
@@ -533,6 +603,19 @@ impl LoweringPass {
 				return node;
 			}
 			is ReturnStmt as ret -> {
+				if (self.in_any_fault_main) {
+					if (ret.value != null) {
+						ret.value = self.wrap_expr_for_eu(ret.value!);
+						ret.value = self.lower_eu_expr(ret.value!, prelude, false);
+						val rty = self.type_of(ret.value!);
+						if (rty != null && rty.is_fault()) {
+							ret.value = self.wrap_main_fault_expr(ret.value!, node, prelude);
+						}
+					} else {
+						ret.value = self.make_main_ok_wrap(node.line, node.col);
+					}
+					return node;
+				}
 				if (ret.value != null) {
 					ret.value = self.wrap_expr_for_eu(ret.value!);
 					if (self.current_fn_ret_type != null && self.current_fn_ret_type!.kind == DataType.ERROR_UNION) {
@@ -617,9 +700,11 @@ impl LoweringPass {
 		val eu_ty = self.type_of(un.operand) ?: return null;
 		if (eu_ty.kind != DataType.ERROR_UNION) return null;
 		val eu = eu_ty.as_error_union()!;
-		val ret_ty = self.current_fn_ret_type ?: return null;
-		if (ret_ty.kind != DataType.ERROR_UNION) return null;
-		val ret_eu = ret_ty.as_error_union()!;
+
+		if (!self.in_any_fault_main) {
+			val ret_ty = self.current_fn_ret_type ?: return null;
+			if (ret_ty.kind != DataType.ERROR_UNION) return null;
+		}
 
 		val id_n = self.next_eu_id();
 		val tmp_name = "__eu_prop_${id_n}";
@@ -640,8 +725,16 @@ impl LoweringPass {
 		val u_err_mem = self.arena.node(NodeData.MemberExpr(tmp_id, "u", false), node.line, node.col);
 		val err_mem = self.arena.node(NodeData.MemberExpr(u_err_mem, "err", false), node.line, node.col);
 		self.symtab.set_node_type(err_mem, eu.err);
-		val wrap_err = self.make_eu_wrap(ret_eu.c_name, false, err_mem, ret_ty, node.line, node.col);
-		val ret_stmt = self.arena.node(NodeData.ReturnStmt(wrap_err), node.line, node.col);
+		var wrap_err = err_mem;
+		if (self.in_any_fault_main) {
+			wrap_err = self.make_main_err_wrap(err_mem, node);
+		} else {
+			val ret_ty = self.current_fn_ret_type!;
+			val ret_eu = ret_ty.as_error_union()!;
+			wrap_err = self.make_eu_wrap(ret_eu.c_name, false, err_mem, ret_ty, node.line, node.col);
+		}
+		var ret_stmt = self.arena.node(NodeData.ReturnStmt(wrap_err), node.line, node.col);
+		ret_stmt.span = node.span;
 		val then_blk = self.single_stmt_block(ret_stmt);
 		prelude.add(self.arena.node(NodeData.IfStmt(cond, then_blk, null), node.line, node.col));
 

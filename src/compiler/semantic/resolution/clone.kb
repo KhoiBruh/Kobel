@@ -225,7 +225,8 @@ impl TypeResolver {
 			is EnumCtorExpr as ec -> self.arena.node(
 				NodeData.EnumCtorExpr(
 					ec.c_name, ec.tag_field, ec.tag_value, ec.payload_path,
-					self.clone_expr_list(ec.args, subst)
+					self.clone_expr_list(ec.args, subst),
+					ec.err_code, ec.origin_file, ec.origin_line, ec.origin_col, ec.origin_fn
 				),
 				node.line, node.col
 			);
@@ -242,7 +243,8 @@ impl TypeResolver {
 			is ErrorUnionWrapExpr as w -> self.arena.node(
 				NodeData.ErrorUnionWrapExpr(
 					w.c_type, w.is_ok,
-					if (w.value != null) self.clone_expr(w.value!, subst) else null
+					if (w.value != null) self.clone_expr(w.value!, subst) else null,
+					w.is_any_fault, w.fail_file, w.fail_line, w.fail_col
 				),
 				node.line, node.col
 			);
@@ -300,19 +302,25 @@ impl TypeResolver {
 				self.symtab.set_closure_call(out);
 			}
 		}
+		out.span = node.span;
 		return out;
 	}
 
 	fn clone_call_expr(&self, node: *AstNode, subst: ?*GenericSubst = null): &AstNode {
 		val special = self.clone_size_query(node, subst) ?: self.clone_template_call(node, subst);
-		if (special != null) return special;
+		if (special != null) {
+			special.span = node.span;
+			return special;
+		}
 
 		if (node is CallExpr as c) {
 			val args = self.clone_expr_list(c.args, subst);
-			return self.arena.node(
+			var res = self.arena.node(
 				NodeData.CallExpr(self.clone_expr(c.callee, subst), args, List<&AstNode>()),
 				node.line, node.col
 			);
+			res.span = node.span;
+			return res;
 		}
 		return self.arena.node(NodeData.NONE, node.line, node.col);
 	}
@@ -483,7 +491,7 @@ impl TypeResolver {
 		if (se?.resolved != null) return self.clone_stmt(se.resolved!, subst);
 
 		val target = node;
-		return when (target) {
+		var out_stmt = when (target) {
 			is BlockStmt as b -> self.arena.node(
 				NodeData.BlockStmt(b.statements.map { s -> self.clone_stmt(s, subst) }),
 				node.line, node.col
@@ -583,6 +591,8 @@ impl TypeResolver {
 
 			else -> self.arena.node(NodeData.ExprStmt(self.clone_expr(target, subst)), node.line, node.col);
 		};
+		out_stmt.span = node.span;
+		return out_stmt;
 	}
 
 	pub fn clone_fn(&self, node: *AstNode, subst: ?*GenericSubst = null, new_name: str = ""): &AstNode {

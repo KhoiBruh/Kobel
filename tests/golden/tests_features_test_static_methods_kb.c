@@ -292,8 +292,29 @@ static int kobel_create_dir_all(kobel_str dir_path) {
 	kobel_path_buf_free(&pb);
 	return kobel_path_is_dir(dir_path);
 }
+
+typedef struct {
+	const char* file;
+	size_t line;
+	size_t col;
+	const char* fn;
+} kobel_loc;
+
+typedef struct {
+	uint32_t code;
+	const char* name;
+	const char* desc;
+} kobel_fault_meta;
+
+typedef struct {
+	bool is_ok;
+	uint32_t code;
+	kobel_loc origin;
+	kobel_loc fail_at;
+} __kobel_main_result;
 typedef struct std__string__StrRaw std__string__StrRaw;
 typedef struct std__filesystem__Path std__filesystem__Path;
+typedef struct std__process__Process std__process__Process;
 typedef struct test__static_methods__Point test__static_methods__Point;
 
 
@@ -316,6 +337,7 @@ bool std__filesystem__Path_exists(std__filesystem__Path* self);
 bool std__filesystem__Path_remove(std__filesystem__Path* self);
 kobel_str std__filesystem__Path_read_text(std__filesystem__Path* self);
 bool std__filesystem__Path_write_text(std__filesystem__Path* self, kobel_str content);
+void std__process__Process_exit(int32_t code);
 test__static_methods__Point test__static_methods__Point_init(int32_t x, int32_t y);
 test__static_methods__Point test__static_methods__Point_create(int32_t x, int32_t y);
 test__static_methods__Point test__static_methods__Point_origin(void);
@@ -323,7 +345,8 @@ test__static_methods__Point test__static_methods__Point_default_x(int32_t y, int
 test__static_methods__Point test__static_methods__Point_add(test__static_methods__Point p1, test__static_methods__Point p2);
 test__static_methods__Point test__static_methods__Point_make_zero(void);
 int32_t test__static_methods__Point_length_squared(test__static_methods__Point* self);
-int32_t main(void);
+int32_t test__static_methods__run_tests(void);
+static void __kobel_user_main(void);
 uint8_t* std__memory__Heap_create_u8(size_t count);
 
 kobel_str std__string__str_from_bytes(uint8_t* buf, size_t len) {
@@ -374,6 +397,10 @@ fclose(f);
 return written == content.len;
 }
 
+void std__process__Process_exit(int32_t code) {
+    exit(code);
+}
+
 test__static_methods__Point test__static_methods__Point_init(int32_t x, int32_t y) {
     return (test__static_methods__Point){ x, y };
 }
@@ -402,7 +429,7 @@ int32_t test__static_methods__Point_length_squared(test__static_methods__Point* 
     return self->x * self->x + self->y * self->y;
 }
 
-int32_t main(void) {
+int32_t test__static_methods__run_tests(void) {
 test__static_methods__Point p1 = test__static_methods__Point_create(3, 4);
 if (p1.x != 3 || p1.y != 4) {
 return 1;
@@ -454,6 +481,17 @@ if (std__filesystem__Path_exists(&p)) {
 return 12;
 }
 return 0;
+}
+
+static void __kobel_user_main(void) {
+if (test__static_methods__run_tests() != 0) {
+std__process__Process_exit(1);
+}
+}
+
+int main(void) {
+    __kobel_user_main();
+    return 0;
 }
 
 uint8_t* std__memory__Heap_create_u8(size_t count) {

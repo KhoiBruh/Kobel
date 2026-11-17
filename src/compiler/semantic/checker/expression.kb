@@ -612,6 +612,10 @@ impl BodyChecker {
 				}
 				val op_eu = op_ty.as_error_union()!;
 				val ret_ty = self.current_fn_return_type;
+				if (self.in_main_fn && (ret_ty == null || ret_ty!.kind == DataType.NONE)) {
+					self.symtab.sem.main_uses_any_fault = true;
+					return op_eu.ok;
+				}
 				if (ret_ty == null || ret_ty!.kind != DataType.ERROR_UNION) {
 					val ret_desc = if (ret_ty != null) self.type_display(ret_ty!) else "none";
 					self.report_error(

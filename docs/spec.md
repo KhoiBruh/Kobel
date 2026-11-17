@@ -227,8 +227,8 @@ Kobel uses `fault` declarations and explicit error union types (`T ! E` and `!E`
 
 ```kobel
 fault ParseErr {
-    Empty,
-    BadByte(pos: usz, byte: u8)
+    Empty("Input string is empty"),
+    BadByte(pos: usz, byte: u8)("Unexpected null byte")
 }
 
 fn parse_byte(s: str): u8 ! ParseErr {
@@ -246,14 +246,14 @@ fn first_or_default(s: str): u8 {
 }
 ```
 
-- **`fault` declarations:** Define a closed tagged union of error variants (`>= 1` variant; unit or payload variants). Underlying integer types (`: i32`) and explicit discriminant values (`= 0`) are not allowed. Every `fault` automatically implements `Stringer` (for `${err}` formatting) unless a custom `impl Stringer` is supplied.
+- **`fault` declarations:** Define a closed tagged union of error variants (`>= 1` variant; unit or payload variants). Each variant may carry an optional description string (`NotFound("...")` or `Bad(x: i32)("...")`). Underlying integer types (`: i32`) and explicit discriminant values (`= 0`) are not allowed. Every variant receives a unique global implicit error code (`E0001`, `E0002`, ...) mapped at runtime to its name and description, and tracks the origin source location (`file:line:col` and enclosing function) where it was constructed. Every `fault` automatically implements `Stringer` (for `${err}` formatting) unless a custom `impl Stringer` is supplied.
 - **Error union types (`T ! E` / `!E`):** `E` must resolve to a `fault` type. `T ! E` pairs an ok value `T` with `E`; `!E` carries no ok payload (`none`). Function types, nested error unions, and `E ! E` are disallowed as the ok type. Error unions may be used in function returns, parameters, locals, struct fields, function types `(A) -> T ! E`, and generic type arguments.
 - **Handling rules:** Produced error union values must be explicitly handled (`?`, `!:`, `!`, `is`, exhaustive `when`, or propagated via `return`) and cannot be ignored or cast with `as` or compared directly with `==`/`!=`.
-- **Propagation (`expr?`):** Unwraps the ok value or immediately returns the fault from the enclosing function returning a compatible error union. Forbidden inside lambdas.
+- **Propagation (`expr?`):** Unwraps the ok value or immediately returns the fault from the enclosing function returning a compatible error union (or from `main()` across any fault type). Forbidden inside lambdas.
 - **Recovery (`expr !: fallback`):** Right-associative catch operator evaluated only on error; supports fallback expressions, `err -> expr`, multi-statement `err -> { ...; yield v; }`, and control-flow transfers (`return`, `break`, `continue`, `yield`).
-- **Force-unwrap (`expr!`):** Extracts the ok value or aborts execution with a diagnostic message if the value holds a fault.
+- **Force-unwrap (`expr!`):** Extracts the ok value or aborts execution with the implicit error code, mapped description, origin site, and panic site if the value holds a fault.
 - **Matching (`is`, `!is`, `when`):** Matches the ok type (`is T as v` binding `*T`, or `is none` for `!E`), fault type (`is Fault`), variant (`is Fault.Var`, `is .Var`), or variant list (`is [.V1, .V2]`).
-- **Program entry point:** `pub fn main(): !E` and `pub fn main(): i32 ! E` are supported; if `main` returns a fault, the fault is printed via `Stringer` and the process exits non-zero.
+- **Program entry point:** `main` never returns `i32` or `i32 ! E`; see §12.
 
 ---
 
@@ -580,11 +580,18 @@ pub fn main() {
     println("Hello, World!");
 }
 
-// Or returning an exit code:
-pub fn main(): i32 {
-    return 0;
+// Entry point accepting CLI arguments or propagating any fault with `?`:
+pub fn main(argc: i32, argv: &*char) {
+    run_app(argc, argv)?;
+}
+
+// Or explicitly constrained to a single fault set:
+pub fn main(): !ParseErr {
+    val byte = parse_byte("")?;
 }
 ```
+
+`fn main(): i32` and `fn main(): i32 ! E` are disallowed. Returning a value other than `none` or a `fault` from `main` is a compile error; any unhandled `fault` exiting `main` reports its implicit error code, mapped description, origin site, and failure site to `stderr` before exiting non-zero.
 
 ---
 

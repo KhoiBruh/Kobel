@@ -66,9 +66,28 @@ pub enum NodeData {
 	IsExpr(expr: ?&AstNode, target_type: &AstNode, alias: str),
 	LambdaExpr(params: List<Param>, body: &AstNode, is_trailing: bool, had_empty_parens: bool),
 	StructCtorExpr(c_name: str, args: List<&AstNode>),
-	EnumCtorExpr(c_name: str, tag_field: str, tag_value: i64, payload_path: str, args: List<&AstNode>),
+	EnumCtorExpr(
+		c_name: str,
+		tag_field: str,
+		tag_value: i64,
+		payload_path: str,
+		args: List<&AstNode>,
+		err_code: u32,
+		origin_file: str,
+		origin_line: usz,
+		origin_col: usz,
+		origin_fn: str
+	),
 	CatchExpr(expr: &AstNode, err_name: str, handler: &AstNode),
-	ErrorUnionWrapExpr(c_type: str, is_ok: bool, value: ?&AstNode),
+	ErrorUnionWrapExpr(
+		c_type: str,
+		is_ok: bool,
+		value: ?&AstNode,
+		is_any_fault: bool,
+		fail_file: str,
+		fail_line: usz,
+		fail_col: usz
+	),
 	SizeOfParam(param_index: usz, size_text: str),
 
 	// Statements

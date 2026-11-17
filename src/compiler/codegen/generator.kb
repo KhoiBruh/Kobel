@@ -53,7 +53,9 @@ pub struct CCodeGen {
 	pub scope_jumped: List<bool> = List(),
 	pub loop_defer_depths: List<usz> = List(),
 	pub symtab: ?*SymbolTable = null,
-	pub active_lambda_captures: List<LambdaCapture> = List()
+	pub active_lambda_captures: List<LambdaCapture> = List(),
+	pub current_fn_display_name: str = "",
+	pub in_eu_main: bool = false
 }
 
 impl CCodeGen {
@@ -133,9 +135,27 @@ impl CCodeGen {
 
 	// True when the enum carries data on at least one variant; such an enum is
 	// emitted as a struct instead of a plain integer typedef.
+	pub fn node_file_path(*self, node: ?*AstNode): str {
+		if (node == null || self.symtab == null) return "";
+		return self.symtab!.file_path_of(node!.span.file_id);
+	}
+
 	pub fn enum_has_payload(*self, e: *EnumDecl): bool =>
 		e.members.any { m -> !m.payload.empty() };
 
+}
+
+pub fn c_escape_str(s: str): str {
+	var sb = StringBuilder();
+	for (ch in s) {
+		if (ch == '\\') sb += "\\\\";
+		else if (ch == '"') sb += "\\\"";
+		else if (ch == '\n') sb += "\\n";
+		else if (ch == '\r') sb += "\\r";
+		else if (ch == '\t') sb += "\\t";
+		else sb += ch;
+	}
+	return sb.to_str();
 }
 
 pub fn c_format_int_literal(raw: str): str {

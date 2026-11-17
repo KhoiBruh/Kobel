@@ -292,7 +292,28 @@ static int kobel_create_dir_all(kobel_str dir_path) {
 	kobel_path_buf_free(&pb);
 	return kobel_path_is_dir(dir_path);
 }
+
+typedef struct {
+	const char* file;
+	size_t line;
+	size_t col;
+	const char* fn;
+} kobel_loc;
+
+typedef struct {
+	uint32_t code;
+	const char* name;
+	const char* desc;
+} kobel_fault_meta;
+
+typedef struct {
+	bool is_ok;
+	uint32_t code;
+	kobel_loc origin;
+	kobel_loc fail_at;
+} __kobel_main_result;
 typedef struct std__string__StrRaw std__string__StrRaw;
+typedef struct std__process__Process std__process__Process;
 typedef struct tests__features__test_collections__Point2D tests__features__test_collections__Point2D;
 typedef struct tests__features__test_collections__CustomIndexBox tests__features__test_collections__CustomIndexBox;
 typedef struct std__collections__List_str std__collections__List_str;
@@ -387,6 +408,7 @@ kobel_str i32_to_str(int32_t self);
 kobel_str usz_to_str(size_t self);
 kobel_str f64_to_str(double self);
 void std__io__println(kobel_str s);
+void std__process__Process_exit(int32_t code);
 kobel_str tests__features__test_collections__Point2D_to_str(tests__features__test_collections__Point2D* self);
 size_t tests__features__test_collections__Point2D_hash(tests__features__test_collections__Point2D* self);
 int32_t tests__features__test_collections__CustomIndexBox_get(tests__features__test_collections__CustomIndexBox* self, size_t i);
@@ -399,7 +421,8 @@ bool tests__features__test_collections__test_interpolation_and_formatting(void);
 bool tests__features__test_collections__test_hash_map(void);
 bool tests__features__test_collections__test_generic_hash_map(void);
 bool tests__features__test_collections__test_list_utilities(void);
-int32_t main(void);
+int32_t tests__features__test_collections__run_tests(void);
+static void __kobel_user_main(void);
 std__collections__List_str std__collections__List_str_init(kobel_str* items_data, size_t items_len);
 void std__collections__List_str_add(std__collections__List_str* self, kobel_str value);
 void std__collections__List_str_grow(std__collections__List_str* self);
@@ -712,6 +735,10 @@ kobel_str f64_to_str(double self) {
 
 void std__io__println(kobel_str s) {
     kobel_println(s);
+}
+
+void std__process__Process_exit(int32_t code) {
+    exit(code);
 }
 
 kobel_str tests__features__test_collections__Point2D_to_str(tests__features__test_collections__Point2D* self) {
@@ -1306,7 +1333,7 @@ return false;
 return true;
 }
 
-int32_t main(void) {
+int32_t tests__features__test_collections__run_tests(void) {
 std__io__println(KOBEL_STR("=== Feature Suite: Collections, Indexing & Formatting ==="));
 if (!tests__features__test_collections__test_list_literals()) {
 std__io__println(KOBEL_STR("  [FAIL] test_list_literals"));
@@ -1340,6 +1367,17 @@ return 1;
 std__io__println(KOBEL_STR("  [PASS] test_list_utilities"));
 std__io__println(KOBEL_STR("=== ALL COLLECTIONS & FORMATTING TESTS PASSED! ==="));
 return 0;
+}
+
+static void __kobel_user_main(void) {
+if (tests__features__test_collections__run_tests() != 0) {
+std__process__Process_exit(1);
+}
+}
+
+int main(void) {
+    __kobel_user_main();
+    return 0;
 }
 
 std__collections__List_str std__collections__List_str_init(kobel_str* items_data, size_t items_len) {

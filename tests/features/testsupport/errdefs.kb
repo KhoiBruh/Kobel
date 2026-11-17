@@ -1,8 +1,8 @@
 mod testsupport.errdefs;
 
 pub fault NetErr {
-	Timeout,
-	Closed(code: i32)
+	Timeout("Network request timed out"),
+	Closed(code: i32)("Connection closed by peer")
 }
 
 pub fn ping(id: i32): i32 ! NetErr {

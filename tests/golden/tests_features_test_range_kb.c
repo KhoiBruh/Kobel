@@ -292,6 +292,26 @@ static int kobel_create_dir_all(kobel_str dir_path) {
 	kobel_path_buf_free(&pb);
 	return kobel_path_is_dir(dir_path);
 }
+
+typedef struct {
+	const char* file;
+	size_t line;
+	size_t col;
+	const char* fn;
+} kobel_loc;
+
+typedef struct {
+	uint32_t code;
+	const char* name;
+	const char* desc;
+} kobel_fault_meta;
+
+typedef struct {
+	bool is_ok;
+	uint32_t code;
+	kobel_loc origin;
+	kobel_loc fail_at;
+} __kobel_main_result;
 typedef struct std__string__StrRaw std__string__StrRaw;
 typedef struct std__process__Process std__process__Process;
 typedef struct std__range__Range_char std__range__Range_char;
@@ -349,7 +369,7 @@ void test__test_range__test_direct_for_loops(void);
 void test__test_range__test_range_variable_iteration(void);
 void test__test_range__test_containment(void);
 void test__test_range__test_when_patterns(void);
-int32_t main(void);
+static void __kobel_user_main(void);
 bool std__range__Range_char_is_ascending(std__range__Range_char* self);
 bool std__range__Range_char_contains(std__range__Range_char* self, char item);
 size_t std__range__Range_char_count(std__range__Range_char* self);
@@ -1142,7 +1162,7 @@ testsupport__assert__assert_eq_i32(test__test_range__test_when_stmt('5'), 3, KOB
 testsupport__assert__assert_eq_i32(test__test_range__test_when_stmt('?'), -1, KOBEL_STR("when stmt '?'"));
 }
 
-int32_t main(void) {
+static void __kobel_user_main(void) {
 std__io__println(KOBEL_STR("=== Running Range Feature Tests ==="));
 test__test_range__test_range_values();
 test__test_range__test_direct_for_loops();
@@ -1150,7 +1170,11 @@ test__test_range__test_range_variable_iteration();
 test__test_range__test_containment();
 test__test_range__test_when_patterns();
 std__io__println(KOBEL_STR("All range feature tests passed!"));
-return 0;
+}
+
+int main(void) {
+    __kobel_user_main();
+    return 0;
 }
 
 bool std__range__Range_char_is_ascending(std__range__Range_char* self) {

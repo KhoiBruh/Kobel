@@ -1,5 +1,7 @@
 mod test.payload_enum;
 
+use std.process.Process;
+
 // Payload enums: variants carry named data, construction sets a tag plus the
 // variant's payload, and `is Enum.Variant as x` binds the payload for the arm
 // (by pointer, whether the subject is a value or a pointer).
@@ -83,7 +85,7 @@ fn single_list_radius_else(s: Shape): f64 {
 	}
 }
 
-fn main(): i32 {
+fn run_tests(): i32 {
 	val c = Shape.Circle(2.0);
 	val r = Shape.Rect(3.0, 4.0);
 	val e = Shape.Empty;
@@ -127,4 +129,8 @@ fn main(): i32 {
 	if (!(null_hp?.shape !is [.Circle, .Rect])) return 28;
 
 	return 0;
+}
+
+fn main() {
+	if (run_tests() != 0) Process.exit(1);
 }

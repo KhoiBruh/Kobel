@@ -2,6 +2,7 @@ mod test.bootstrap_ast;
 
 use std.io.print;
 use std.io.println;
+use std.process.Process;
 
 use compiler.ast.*;
 
@@ -238,7 +239,7 @@ fn test_arena_ast_methods(): bool {
 	return true;
 }
 
-fn main(): i32 {
+fn run_tests(): i32 {
 	println("[RUNNING] Bootstrap AST tests...");
 
 	if (!test_expression_tree()) {
@@ -272,4 +273,8 @@ fn main(): i32 {
 
 	println("[ALL PASSED] Bootstrap AST passed all tests successfully!");
 	return 0;
+}
+
+fn main() {
+	if (run_tests() != 0) Process.exit(1);
 }

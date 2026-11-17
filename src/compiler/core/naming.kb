@@ -68,3 +68,21 @@ pub fn str_join_dots(parts: List<str>, count: usz): str {
 	}
 	return sb.to_str();
 }
+
+// Unmangles `<mod>__symbol` cleanly back to `symbol` for human-readable names.
+pub fn short_symbol_name(c_name: str, module_name: str = ""): str {
+	if (!module_name.empty()) {
+		val mod_prefix = module_name.mangle_symbol("");
+		if (c_name.starts_with(mod_prefix)) {
+			return c_name.slice(mod_prefix.len, c_name.len);
+		}
+	}
+	var pos: usz = 0;
+	var i: usz = 0;
+	while (i + 1 < c_name.len) {
+		if (c_name[i] == '_' && c_name[i + 1] == '_') pos = i + 2;
+		i++;
+	}
+	if (pos > 0 && pos < c_name.len) return c_name.slice(pos, c_name.len);
+	return c_name;
+}

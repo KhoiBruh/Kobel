@@ -292,6 +292,27 @@ static int kobel_create_dir_all(kobel_str dir_path) {
 	kobel_path_buf_free(&pb);
 	return kobel_path_is_dir(dir_path);
 }
+
+typedef struct {
+	const char* file;
+	size_t line;
+	size_t col;
+	const char* fn;
+} kobel_loc;
+
+typedef struct {
+	uint32_t code;
+	const char* name;
+	const char* desc;
+} kobel_fault_meta;
+
+typedef struct {
+	bool is_ok;
+	uint32_t code;
+	kobel_loc origin;
+	kobel_loc fail_at;
+} __kobel_main_result;
+typedef struct std__process__Process std__process__Process;
 typedef struct std__collections__Array_i32 std__collections__Array_i32;
 typedef struct std__collections__List_i32 std__collections__List_i32;
 
@@ -307,9 +328,11 @@ struct std__collections__List_i32 {
     size_t cap;
 };
 
+void std__process__Process_exit(int32_t code);
 int32_t test_variadic__sum(int32_t* items_data, size_t items_len);
 size_t test_variadic__count_items(kobel_str prefix, int32_t* items_data, size_t items_len);
-int32_t main(void);
+int32_t test_variadic__run_tests(void);
+static void __kobel_user_main(void);
 size_t std__collections__Array_i32_count(std__collections__Array_i32* self);
 int32_t std__collections__Array_i32_at(std__collections__Array_i32* self, size_t i);
 std__collections__Array_i32 std__collections__Array_i32_init(int32_t* items_data, size_t items_len);
@@ -319,6 +342,10 @@ void std__collections__List_i32_free(std__collections__List_i32 self);
 int32_t std__collections__List_i32_get(std__collections__List_i32* self, size_t index);
 void std__memory__Heap_free_i32(int32_t* ptr);
 int32_t* std__memory__Heap_create_i32(size_t count);
+
+void std__process__Process_exit(int32_t code) {
+    exit(code);
+}
 
 int32_t test_variadic__sum(int32_t* items_data, size_t items_len) {
 int32_t total = 0;
@@ -338,7 +365,7 @@ size_t test_variadic__count_items(kobel_str prefix, int32_t* items_data, size_t 
 return items_len;
 }
 
-int32_t main(void) {
+int32_t test_variadic__run_tests(void) {
 int32_t s = test_variadic__sum((int32_t[]){ 1, 2, 3, 4, 5 }, 5);
 if (s != 15) {
 return 1;
@@ -405,6 +432,17 @@ std__collections__List_i32_free(empty_list);
 std__collections__List_i32_free(list);
 return __ret_tmp;
 }
+}
+
+static void __kobel_user_main(void) {
+if (test_variadic__run_tests() != 0) {
+std__process__Process_exit(1);
+}
+}
+
+int main(void) {
+    __kobel_user_main();
+    return 0;
 }
 
 size_t std__collections__Array_i32_count(std__collections__Array_i32* self) {

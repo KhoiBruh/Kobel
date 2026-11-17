@@ -345,6 +345,20 @@ impl Parser {
 		);
 	}
 
+	fn extract_fault_desc(&self, tok: Token): str {
+		val text = tok.text;
+		if (text.starts_with("\"\"\"")) {
+			self.error(tok, "Fault variant description cannot be a multiline string");
+			return "";
+		}
+		if (str_has_hole(text)) {
+			self.error(tok, "Fault variant description cannot contain string interpolation");
+			return "";
+		}
+		if (text.len >= 2) return text.slice(1, text.len - 1);
+		return "";
+	}
+
 	fn parse_variant_members(&self, allow_value: bool, kind_label: str): List<EnumMember> {
 		self.consume(TokenType.OPEN_BRACE, "Expected '{' before ${kind_label} members");
 		var members = List<EnumMember>();
@@ -352,9 +366,15 @@ impl Parser {
 		while (!self.check(TokenType.CLOSE_BRACE) && !self.is_end()) {
 			val m_tok = self.consume(TokenType.IDENTIFIER, "Expected ${kind_label} variant name");
 
-			// `Variant(field: Type, ...)` attaches payload fields to this variant.
+			// `Variant("desc")` or `Variant(field: Type, ...)` (plus optional trailing `("desc")`)
 			var payload = List<EnumField>();
-			if (self.match_token(TokenType.OPEN_PAREN)) {
+			var desc = "";
+			if (self.check(TokenType.OPEN_PAREN) && !allow_value && self.peek_at(1).type == TokenType.STRING) {
+				self.advance(); // '('
+				val d_tok = self.advance();
+				desc = self.extract_fault_desc(d_tok);
+				self.consume(TokenType.CLOSE_PAREN, "Expected ')' after fault variant description");
+			} else if (self.match_token(TokenType.OPEN_PAREN)) {
 				while (!self.check(TokenType.CLOSE_PAREN) && !self.is_end()) {
 					val f_tok = self.consume(TokenType.IDENTIFIER, "Expected field name in ${kind_label} variant");
 					self.consume(TokenType.COLON, "Expected ':' after field name");
@@ -362,6 +382,12 @@ impl Parser {
 					if (!self.match_token(TokenType.COMMA)) break;
 				}
 				self.consume(TokenType.CLOSE_PAREN, "Expected ')' after ${kind_label} variant fields");
+				if (self.check(TokenType.OPEN_PAREN) && !allow_value && self.peek_at(1).type == TokenType.STRING) {
+					self.advance(); // '('
+					val d_tok = self.advance();
+					desc = self.extract_fault_desc(d_tok);
+					self.consume(TokenType.CLOSE_PAREN, "Expected ')' after fault variant description");
+				}
 			}
 
 			var m_val: ?&AstNode = null;
@@ -374,7 +400,7 @@ impl Parser {
 				val parsed_val = self.parse_expression(Precedence.NONE);
 				if (allow_value) m_val = parsed_val;
 			}
-			members += EnumMember(m_tok.text, m_val, m_tok.line, m_tok.col, payload);
+			members += EnumMember(m_tok.text, m_val, m_tok.line, m_tok.col, payload, desc);
 
 			self.match_token(TokenType.COMMA);
 		}
