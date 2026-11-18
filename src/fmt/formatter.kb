@@ -4,7 +4,6 @@ use std.io.*;
 use std.memory.Arena;
 use std.filesystem.*;
 use std.collections.*;
-use std.string.StringBuilder;
 
 use compiler.ast.*;
 use compiler.lexer.*;

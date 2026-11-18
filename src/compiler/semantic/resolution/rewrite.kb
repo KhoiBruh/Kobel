@@ -4,13 +4,9 @@ use std.memory.*;
 use std.collections.*;
 
 use compiler.core.*;
-use compiler.lexer.TokenType;
 use compiler.ast.*;
 use compiler.semantic.types.*;
 use compiler.semantic.symbols.*;
-
-use compiler.ast.StructField as AstStructField;
-use compiler.semantic.types.StructField;
 
 /*
  * ============================================================================

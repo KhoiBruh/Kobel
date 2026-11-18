@@ -24,13 +24,11 @@ use std.memory.*;
 use std.collections.*;
 
 use compiler.core.*;
-use compiler.lexer.TokenType;
 use compiler.ast.*;
 use compiler.semantic.types.*;
 use compiler.semantic.symbols.*;
 use compiler.semantic.resolution.*;
 
-use compiler.ast.StructField as AstStructField;
 use compiler.semantic.types.StructField;
 
 // A trait may declare overloads, so a method is identified by name + arity.
