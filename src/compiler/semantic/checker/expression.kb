@@ -712,6 +712,12 @@ impl BodyChecker {
 				}
 				TokenType.AMPERSAND -> {
 					val is_mut = self.is_mutable_addressable(un.operand);
+					if (is_mut) {
+						val exp_ro = expected != null
+							&& expected!.kind == DataType.POINTER
+							&& !expected!.as_pointer()!.mutable;
+						if (!exp_ro) self.mark_node_mutated(un.operand);
+					}
 					yield self.arena.pointer_type(op_ty, is_mut);
 				}
 				else -> op_ty;

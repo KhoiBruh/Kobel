@@ -80,6 +80,22 @@
             "hint"
           ],
           "description": "Severity level used for dead code diagnostics in VS Code (all dead code ranges are also faded via DiagnosticTag.Unnecessary)."
+        },
+        "kobel.lint.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Report Kobel simplification and mutability lint warnings via LSP (unmutated 'var'/'&self', redundant 'else', boolean simplifications, expression body '=>', etc.)."
+        },
+        "kobel.lint.severity": {
+          "type": "string",
+          "default": "server",
+          "enum": [
+            "server",
+            "warning",
+            "information",
+            "hint"
+          ],
+          "description": "Severity level used for Kobel simplification lints in VS Code ('server' uses warning)."
         }
       }
     }

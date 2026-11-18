@@ -68,9 +68,7 @@ impl Counter {
 		return self.value;
 	}
 
-	pub op plus(*self, other: Counter): Counter {
-		return Counter(self.value + other.value);
-	}
+	pub op plus(*self, other: Counter): Counter => Counter(self.value + other.value);
 }
 
 fn step_sum(m: Mode, a: i64, b: i64): i64 {
@@ -641,6 +639,380 @@ pub fn bad(): i32 => MathObj.HIDDEN_STEP;
 	println("  [PASS] test_object_lsp_and_privacy");
 }
 
+fn lsp_pos_offset(text: str, line0: usz, char0: usz): usz {
+	var cur_line: usz = 0;
+	var i: usz = 0;
+	while (i < text.len && cur_line < line0) {
+		if (text[i] == '\n') cur_line++;
+		i++;
+	}
+	var c: usz = 0;
+	while (i < text.len && c < char0 && text[i] != '\n' && text[i] != '\r') {
+		i++;
+		c++;
+	}
+	return i;
+}
+
+fn apply_action_edits(text: str, act: *JsonValue, uri: str): str {
+	val changes = act.get_obj("edit").get_obj("changes");
+	val edits = changes[uri];
+	if (edits == null || !edits.is_arr()) return text;
+	// Simple single-edit or reverse-order application for tests
+	var cur = text;
+	var i = edits.arr_val.len;
+	while (i > 0) {
+		i--;
+		val ed = edits.arr_val[i];
+		val r = ed.get_obj("range");
+		val sp = r.get_obj("start");
+		val ep = r.get_obj("end");
+		val a = lsp_pos_offset(
+			cur,
+			sp.get_num("line", 0) as usz,
+			sp.get_num("character", 0) as usz
+		);
+		val b = lsp_pos_offset(
+			cur,
+			ep.get_num("line", 0) as usz,
+			ep.get_num("character", 0) as usz
+		);
+		val nt = ed.get_str("newText", "");
+		cur = "${cur.slice(0, a)}${nt}${cur.slice(b, cur.len)}";
+	}
+	return cur;
+}
+
+fn has_diag_on(diags: List<LspDiagnostic>, code: str, needle: str): bool {
+	for (d in diags) {
+		if (d.code == code && needle in d.message) return true;
+	}
+	return false;
+}
+
+fn count_diag_code(diags: List<LspDiagnostic>, code: str): usz {
+	var n: usz = 0;
+	for (d in diags) {
+		if (d.code == code) n++;
+	}
+	return n;
+}
+
+fn find_action_by_title(actions: *JsonValue, prefix: str): ?*JsonValue {
+	for (act in actions.arr_val) {
+		val t = act.get_str("title", "");
+		if (prefix in t) return act;
+	}
+	return null;
+}
+
+fn test_lint_warnings_and_quickfixes() {
+	val src = """mod lint_sample;
+
+use std.io.println;
+use std.collections.List;
+
+enum Kind {
+	A(v: i64),
+	B
+}
+
+struct Holder {
+	pub x: i64
+}
+
+impl Holder {
+	pub fn read_bad(&self): i64 => self.x;
+	pub fn read_blk_bad(&self): i64 {
+		val v = self.x + 1;
+		return v;
+	}
+	pub fn bump_arrow(&self): i64 => self.x += 1;
+}
+
+fn single_expr_ret(x: i64): i64 {
+	return x * 2;
+}
+
+fn inline_ret_ok(a: i64, b: i64): i64 {
+	val sum = a + b;
+	return sum;
+}
+
+fn multiline_keep_ok(flag: bool): i64 {
+	val chosen = if (flag) {
+		10
+	} else {
+		20
+	};
+	return chosen;
+}
+
+fn bool_ret_1(flag: bool): bool {
+	if (flag) {
+		return true;
+	} else {
+		return false;
+	}
+}
+
+fn bool_ret_2(a: i64): bool {
+	if (a > 0) return false;
+	return true;
+}
+
+fn bool_ret_not_in(x: i64): bool {
+	if (x !in [1, 2]) return false;
+	return true;
+}
+
+fn bool_cmps(flag: bool, x: i64): bool {
+	val a = flag == true;
+	val b = flag == false;
+	val c = !(!flag);
+	val d = !(x !in [3, 4]);
+	return a && b && c && d;
+}
+
+fn red_else_fn(x: i64): i64 {
+	if (x > 0) {
+		return x;
+	} else {
+		val y = x - 1;
+		return y;
+	}
+}
+
+fn empty_else_keep_and_drop(x: i64): i64 {
+	var acc = 0;
+	if (x > 0) {
+		acc = 1;
+	} else {}
+	if (x < 0) {}
+	if (x == 0) { // keep empty documented
+	}
+	return acc;
+}
+
+fn collapse_ok_and_guard(a: bool, b: bool, c: bool, k: Kind): i64 {
+	var hits = 0;
+	if (a || b) {
+		if (c) {
+			hits++;
+		}
+	}
+	if (k is Kind.A) {
+		if (k.v > 0) hits += k.v;
+	}
+	return hits;
+}
+
+fn trailing_ret_fn(x: i64) {
+	if (x > 0) println("ok");
+	return;
+}
+
+fn var_checks(): i64 {
+	var unmut_1 = 10;
+	var unmut_2 = 20;
+	var xs: List<i64> = List();
+	xs += 1;
+	var ptr_tgt = 5;
+	val mp = &ptr_tgt;
+	mp.write(6);
+	var sc_opt: ?&Holder = null;
+	if (sc_opt != null) {
+		sc_opt.x = 9;
+	}
+	var cap_cnt = 0;
+	xs.each { _ -> cap_cnt++; };
+	var used_h = Holder(1);
+	defer used_h.bump_arrow();
+	return unmut_1 + unmut_2 + xs.len as i64 + ptr_tgt + cap_cnt + used_h.x;
+}
+
+pub fn run_all(): i64 {
+	var h = Holder(3);
+	val sh = h.read_bad() + h.read_blk_bad() + h.bump_arrow();
+	trailing_ret_fn(sh);
+	val ok = bool_ret_1(true) && bool_ret_2(1) && bool_ret_not_in(5) && bool_cmps(true, 1);
+	val s = sh + single_expr_ret(2) + inline_ret_ok(1, 2) + multiline_keep_ok(ok) + red_else_fn(1);
+	return s + empty_else_keep_and_drop(1) + collapse_ok_and_guard(true, false, true, Kind.A(2)) + var_checks();
+}
+""";
+	val p = "C:/Users/Admin/CLionProjects/Kobel/tests/unit/lint_sample_virtual.kb";
+	val uri = path_to_uri(p);
+	val analysis = AnalysisResult(p, src, "", false);
+
+	var err_count: usz = 0;
+	for (d in analysis.diagnostics) {
+		if (d.severity == 1) err_count++;
+	}
+	assert_eq_usz(err_count, 0, "lint sample must compile with zero semantic errors");
+
+	// Group 1 assertions
+	assert_true(
+		has_diag_on(analysis.diagnostics, "unnecessary-mut-receiver", "read_bad"),
+		"arrow &self method never mutated must emit unnecessary-mut-receiver"
+	);
+	assert_true(
+		has_diag_on(analysis.diagnostics, "unnecessary-mut-receiver", "read_blk_bad"),
+		"block &self method never mutated must emit unnecessary-mut-receiver"
+	);
+	assert_true(
+		!has_diag_on(analysis.diagnostics, "unnecessary-mut-receiver", "bump_arrow"),
+		"mutated arrow &self method must not trigger unnecessary-mut-receiver"
+	);
+
+	assert_true(
+		has_diag_on(analysis.diagnostics, "unnecessary-mut", "'unmut_1'") &&
+		has_diag_on(analysis.diagnostics, "unnecessary-mut", "'unmut_2'"),
+		"unmutated var declarations must emit unnecessary-mut"
+	);
+	assert_true(
+		!has_diag_on(analysis.diagnostics, "unnecessary-mut", "'xs'") &&
+		!has_diag_on(analysis.diagnostics, "unnecessary-mut", "'ptr_tgt'") &&
+		!has_diag_on(analysis.diagnostics, "unnecessary-mut", "'sc_opt'") &&
+		!has_diag_on(analysis.diagnostics, "unnecessary-mut", "'cap_cnt'") &&
+		!has_diag_on(analysis.diagnostics, "unnecessary-mut", "'used_h'"),
+		"vars mutated via &self call, &borrow, smart-cast, lambda, or defer must not be flagged"
+	);
+
+	// Group 2 assertions
+	assert_eq_usz(
+		count_diag_code(analysis.diagnostics, "prefer-expression-body"), 1,
+		"single-return function body must emit prefer-expression-body"
+	);
+	assert_true(
+		has_diag_on(analysis.diagnostics, "redundant-return-var", "'sum'"),
+		"single-line val + immediate return must emit redundant-return-var"
+	);
+	assert_true(
+		!has_diag_on(analysis.diagnostics, "redundant-return-var", "'chosen'"),
+		"multi-line initializer before return must not emit redundant-return-var"
+	);
+	assert_eq_usz(
+		count_diag_code(analysis.diagnostics, "redundant-boolean-return"), 3,
+		"all three if-return boolean patterns must emit redundant-boolean-return"
+	);
+	assert_true(
+		has_diag_on(analysis.diagnostics, "redundant-boolean-return", "return !(x !in [1, 2]);"),
+		"negating (x !in [1, 2]) must preserve !in inside !(...) instead of dropping !"
+	);
+	assert_eq_usz(
+		count_diag_code(analysis.diagnostics, "redundant-bool-compare"), 3,
+		"flag == true, flag == false, and !(!flag) must emit redundant-bool-compare (not !(x !in ...))"
+	);
+	assert_eq_usz(
+		count_diag_code(analysis.diagnostics, "redundant-else"), 1,
+		"redundant else after return block must emit redundant-else"
+	);
+	assert_eq_usz(
+		count_diag_code(analysis.diagnostics, "empty-branch"), 2,
+		"undocumented empty else {} and empty if {} must emit empty-branch (commented one ignored)"
+	);
+	assert_eq_usz(
+		count_diag_code(analysis.diagnostics, "collapsible-if"), 1,
+		"collapsible nested if must trigger once while unaliased `if (k is Kind.A)` guard stays untouched"
+	);
+	assert_eq_usz(
+		count_diag_code(analysis.diagnostics, "redundant-trailing-return"), 1,
+		"trailing return; in none-returning function must emit redundant-trailing-return"
+	);
+
+	// QuickFixes check (precomputed fixes) + applying QuickFix edits and re-checking
+	val diags_json = JsonValue.arr();
+	for (d in analysis.diagnostics) diags_json += d.to_json();
+	val all_actions = code_actions_json(
+		analysis.index, analysis.tokens, p, src, 0, 0, 200, 0, diags_json, &analysis.lint_fixes
+	);
+
+	val act_recv = find_action_by_title(all_actions, "Change '&self' to '*self'");
+	val act_var_all = find_action_by_title(all_actions, "Convert all");
+	val act_expr_body = find_action_by_title(all_actions, "Convert to expression body");
+	val act_inline = find_action_by_title(all_actions, "Inline return variable 'sum'");
+	val act_red_else = find_action_by_title(all_actions, "Remove redundant 'else'");
+	val act_merge_if = find_action_by_title(all_actions, "Merge nested 'if'");
+	val act_trail_ret = find_action_by_title(all_actions, "Remove redundant 'return;'");
+	val act_not_in_bool = find_action_by_title(all_actions, "Simplify to 'return !(x !in [1, 2]);'");
+	assert_true(
+		act_recv != null && act_var_all != null && act_expr_body != null &&
+		act_inline != null && act_red_else != null && act_merge_if != null &&
+		act_trail_ret != null && act_not_in_bool != null,
+		"every Group 1 & Group 2 lint diagnostic must produce a working QuickFix"
+	);
+
+	// Verify 9-arg fallback still produces AST lint QuickFix when called without precomputed list
+	val fb_actions = code_actions_json(
+		analysis.index, analysis.tokens, p, src, 0, 0, 200, 0, diags_json
+	);
+	assert_true(
+		find_action_by_title(fb_actions, "Remove redundant 'else'") != null,
+		"9-arg code_actions_json fallback must still emit lint QuickFixes"
+	);
+
+	// Verify applying key QuickFixes produces valid code that compiles cleanly with zero errors
+	val mini_src = """mod qf_verify;
+
+struct Box { pub v: i64 }
+impl Box {
+	pub fn get(&self): i64 {
+		return self.v;
+	}
+}
+pub fn check(a: bool, b: bool, c: bool): i64 {
+	var x = 1;
+	var y = 2;
+	if (a || b) {
+		if (c) {
+			return x + y;
+		}
+	}
+	if (x == 1) {
+		return 10;
+	} else {
+		val r = x + y;
+		return r;
+	}
+}
+""";
+	val mp_path = "C:/Users/Admin/CLionProjects/Kobel/tests/unit/qf_verify_virtual.kb";
+	val mp_uri = path_to_uri(mp_path);
+	var cur_txt = mini_src;
+	// Repeatedly apply the first non-var/first available lint fix until fixed-point
+	for (_step in 0..<8) {
+		val cur_a = AnalysisResult(mp_path, cur_txt, "", false);
+		var step_errs: usz = 0;
+		for (d in cur_a.diagnostics) if (d.severity == 1) step_errs++;
+		assert_eq_usz(step_errs, 0, "edited source at each QuickFix step must have zero compile errors");
+		val cur_dj = JsonValue.arr();
+		for (d in cur_a.diagnostics) cur_dj += d.to_json();
+		val acts = code_actions_json(
+			cur_a.index, cur_a.tokens, mp_path, cur_txt, 0, 0, 100, 0, cur_dj, &cur_a.lint_fixes
+		);
+		if (acts.arr_val.empty()) break;
+		val batch = find_action_by_title(acts, "Convert all");
+		val chosen = if (batch != null) batch! else acts.arr_val[0];
+		val next_txt = apply_action_edits(cur_txt, chosen, mp_uri);
+		assert_true(next_txt != cur_txt, "applied QuickFix edit must modify text");
+		cur_txt = next_txt;
+	}
+	val final_a = AnalysisResult(mp_path, cur_txt, "", false);
+	var final_errs: usz = 0;
+	for (d in final_a.diagnostics) if (d.severity == 1) final_errs++;
+	assert_eq_usz(final_errs, 0, "final QuickFixed code must compile with zero errors");
+	assert_eq_usz(count_diag_code(final_a.diagnostics, "unnecessary-mut-receiver"), 0, "receiver fixed");
+	assert_eq_usz(count_diag_code(final_a.diagnostics, "unnecessary-mut"), 0, "vars fixed");
+	assert_eq_usz(count_diag_code(final_a.diagnostics, "prefer-expression-body"), 0, "expr body fixed");
+	assert_eq_usz(count_diag_code(final_a.diagnostics, "collapsible-if"), 0, "collapsible if fixed");
+	assert_eq_usz(count_diag_code(final_a.diagnostics, "redundant-else"), 0, "redundant else fixed");
+	assert_eq_usz(count_diag_code(final_a.diagnostics, "redundant-return-var"), 0, "inline return fixed");
+	assert_true("fn get(*self): i64 => self.v;" in cur_txt, "applied fixes produced clean arrow *self method");
+	assert_true("if ((a || b) && c)" in cur_txt, "applied collapsible-if preserved || precedence");
+
+	println("  [PASS] test_lint_warnings_and_quickfixes");
+}
+
 pub fn main() {
 	println("Running LSP unit tests...");
 	test_json_and_uri();
@@ -650,5 +1022,6 @@ pub fn main() {
 	test_error_union_lsp();
 	test_dead_code_and_quickfixes();
 	test_object_lsp_and_privacy();
+	test_lint_warnings_and_quickfixes();
 	println("All LSP unit tests passed.");
 }

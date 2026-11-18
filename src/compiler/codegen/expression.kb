@@ -212,32 +212,37 @@ impl CCodeGen {
 	}
 
 	// Literals lower to their C spelling (ints/floats normalised, strings wrapped in KOBEL_STR).
-	fn gen_literal_expr(*self, ast_node: *AstNode, lit: *LiteralExpr): str {
-		return when (lit.literal_kind) {
-			Literal.INTEGER -> c_format_int_literal(lit.raw_text);
-			Literal.FLOAT -> c_format_float_literal(lit.raw_text);
-			Literal.BOOLEAN -> lit.raw_text;
-			Literal.STRING -> {
-				val lit_ty = self.node_type(ast_node);
-				val is_ptr_lit = lit_ty?.kind == DataType.POINTER;
-				val quoted = if (lit.raw_text.len >= 2 && lit.raw_text[0] == '"') lit.raw_text
-					else "\"${lit.raw_text}\"";
-				if (is_ptr_lit) {
-					yield quoted;
-				}
-				yield "KOBEL_STR(${quoted})";
-			}
-			Literal.CHARACTER -> {
-				if (
-					lit.raw_text.len >= 2 &&
-					lit.raw_text[0] == '\''
-				) yield lit.raw_text;
+	fn gen_literal_expr(*self, ast_node: *AstNode, lit: *LiteralExpr): str => when (lit.literal_kind) {
+		Literal.INTEGER -> c_format_int_literal(lit.raw_text);
 
-				yield "'${lit.raw_text}'";
-			}
-			Literal.NULL_VAL -> "NULL";
-		};
-	}
+		Literal.FLOAT -> c_format_float_literal(lit.raw_text);
+
+		Literal.BOOLEAN -> lit.raw_text;
+
+		Literal.STRING -> {
+			val lit_ty = self.node_type(ast_node);
+			val is_ptr_lit = lit_ty?.kind == DataType.POINTER;
+			val quoted = if (
+				lit.raw_text.len >= 2 &&
+				lit.raw_text[0] == '"'
+			) lit.raw_text
+			else "\"${lit.raw_text}\"";
+
+			if (is_ptr_lit) yield quoted;
+			yield "KOBEL_STR(${quoted})";
+		}
+
+		Literal.CHARACTER -> {
+			if (
+				lit.raw_text.len >= 2 &&
+				lit.raw_text[0] == '\''
+			) yield lit.raw_text;
+
+			yield "'${lit.raw_text}'";
+		}
+
+		Literal.NULL_VAL -> "NULL";
+	};
 
 	// Binary expressions lower to a C operator (`?:` lowers to C `?:`, with parens only as needed).
 	fn gen_binary_expr(&self, ast_node: *AstNode, bin: *BinaryExpr, min_prec: i32): str {
@@ -780,9 +785,9 @@ impl CCodeGen {
 	// Builds the test expression of a `when` arm: `c == p1 || c == p2`.
 	// For the boolean form (`cond` empty) each pattern is itself the test.
 	// String patterns compare with `kobel_streq`.
-	pub fn gen_when_test(&self, cond: str, patterns: List<&AstNode>): str {
-		return self.gen_when_test_prec(cond, patterns, PREC_NONE);
-	}
+	pub fn gen_when_test(
+		&self, cond: str, patterns: List<&AstNode>
+	) => self.gen_when_test_prec(cond, patterns, PREC_NONE);
 
 	pub fn gen_when_test_prec(&self, cond: str, patterns: List<&AstNode>, min_prec: i32): str {
 		if (patterns.empty()) return "1";

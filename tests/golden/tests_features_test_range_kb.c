@@ -646,6 +646,7 @@ bool std__range__Range_char_contains(std__range__Range_char* self, char item);
 size_t std__range__Range_char_count(std__range__Range_char* self);
 char std__range__Range_char_at(std__range__Range_char* self, size_t i);
 uint8_t* std__memory__Heap_create_u8(size_t count);
+__kobel_eu_mut_ptr_u8__std__memory__MemErr std__memory__Heap_try_create_u8(size_t count);
 bool std__range__Range_i32_is_ascending(std__range__Range_i32* self);
 bool std__range__Range_i32_equals(std__range__Range_i32* self, std__range__Range_i32 other);
 bool std__range__Range_i32_contains(std__range__Range_i32* self, int32_t item);
@@ -657,10 +658,9 @@ size_t std__range__Range_usz_count(std__range__Range_usz* self);
 size_t std__range__Range_usz_at(std__range__Range_usz* self, size_t i);
 bool std__range__Range_i64_is_ascending(std__range__Range_i64* self);
 size_t std__range__Range_i64_count(std__range__Range_i64* self);
-__kobel_eu_mut_ptr_u8__std__memory__MemErr std__memory__Heap_try_create_u8(size_t count);
 
 __kobel_eu_mut_ptr_u8__std__memory__MemErr std__memory__Heap_try_alloc(size_t size) {
-size_t req = size == 0 ? (size_t)1 : size;
+size_t req = size == 0 ? 1 : size;
 uint8_t* raw = malloc(req);
 if (raw == NULL) {
 return (__kobel_eu_mut_ptr_u8__std__memory__MemErr){ .is_ok = false, .u = { .err = (std__memory__MemErr){ .tag = 0, .__err_code = 1U, .__origin = { "lib/std/memory/heap.kb", 24, 41, "Heap_try_alloc" } } } };
@@ -1492,7 +1492,17 @@ return (char)(self->start - (intptr_t)i);
 }
 
 uint8_t* std__memory__Heap_create_u8(size_t count) {
-    return __kobel_unwrap___kobel_eu_mut_ptr_u8__std__memory__MemErr(std__memory__Heap_try_create_u8(count), "lib/std/memory/heap.kb", 44, 67, "Heap_create_u8");
+    return __kobel_unwrap___kobel_eu_mut_ptr_u8__std__memory__MemErr(std__memory__Heap_try_create_u8(count), "lib/std/memory/heap.kb", 44, 63, "Heap_create_u8");
+}
+
+__kobel_eu_mut_ptr_u8__std__memory__MemErr std__memory__Heap_try_create_u8(size_t count) {
+size_t bytes = count * 1;
+__kobel_eu_mut_ptr_u8__std__memory__MemErr __eu_prop_1 = std__memory__Heap_try_alloc(bytes);
+if (!__eu_prop_1.is_ok) {
+return (__kobel_eu_mut_ptr_u8__std__memory__MemErr){ .is_ok = false, .u = { .err = __eu_prop_1.u.err } };
+}
+uint8_t* raw = __eu_prop_1.u.ok;
+return (__kobel_eu_mut_ptr_u8__std__memory__MemErr){ .is_ok = true, .u = { .ok = (uint8_t*)raw } };
 }
 
 bool std__range__Range_i32_is_ascending(std__range__Range_i32* self) {
@@ -1576,15 +1586,5 @@ return self->inclusive ? diff + 1 : diff;
 }
 size_t diff = (size_t)(self->start - self->end);
 return self->inclusive ? diff + 1 : diff;
-}
-
-__kobel_eu_mut_ptr_u8__std__memory__MemErr std__memory__Heap_try_create_u8(size_t count) {
-size_t bytes = count * 1;
-__kobel_eu_mut_ptr_u8__std__memory__MemErr __eu_prop_1 = std__memory__Heap_try_alloc(bytes);
-if (!__eu_prop_1.is_ok) {
-return (__kobel_eu_mut_ptr_u8__std__memory__MemErr){ .is_ok = false, .u = { .err = __eu_prop_1.u.err } };
-}
-uint8_t* raw = __eu_prop_1.u.ok;
-return (__kobel_eu_mut_ptr_u8__std__memory__MemErr){ .is_ok = true, .u = { .ok = (uint8_t*)raw } };
 }
 

@@ -80,9 +80,15 @@ impl BodyChecker {
 				self.report_error(node, "Lambda closure cannot be stored in a variable; pass it directly to a function call");
 			}
 
-			val ok = self.symtab.define(
-				Symbol(vd.name, vd.name, SymbolKind.VAR, var_ty, vd.mutable, false, node.line, node.col, null)
-			);
+			var sym = Symbol(vd.name, vd.name, SymbolKind.VAR, var_ty, vd.mutable, false, node.line, node.col, null);
+			if (vd.mutable && vd.initializer != null) {
+				val v_key = self.decl_loc_key("V", node);
+				if (!v_key.empty()) {
+					sym.decl_key = v_key;
+					self.symtab.sem.checked_var_decls[v_key] = true;
+				}
+			}
+			val ok = self.symtab.define(sym);
 			self.ensure(ok, node, "Variable '${vd.name}' is already defined in this scope");
 		}
 	}
@@ -229,9 +235,9 @@ impl BodyChecker {
 
 		val non_null_ty = self.arena.pointer_type(ptr_ty.pointee, ptr_ty.mutable);
 		val orig_ty = sym.orig_type ?: sym.type_ptr;
-		self.symtab.define(
-			Symbol(var_name, sym.c_name, sym.kind, non_null_ty, sym.mutable, sym.public, 0, 0, null, orig_ty)
-		);
+		var promoted = Symbol(var_name, sym.c_name, sym.kind, non_null_ty, sym.mutable, sym.public, 0, 0, null, orig_ty);
+		promoted.decl_key = sym.decl_key;
+		self.symtab.define(promoted);
 	}
 
 	fn check_null_guard(&self, left: *AstNode, right: *AstNode) {
@@ -311,6 +317,7 @@ impl BodyChecker {
 			var no_alias_syms = List<str>();
 			var no_alias_tys = List<*Type>();
 			var no_alias_muts = List<bool>();
+			var no_alias_keys = List<str>();
 
 			for (c in conds) {
 				val prev_sn = self.in_safe_nav_context;
@@ -342,6 +349,7 @@ impl BodyChecker {
 							no_alias_syms += id.name;
 							no_alias_tys += cast_ty;
 							no_alias_muts += mutable;
+							no_alias_keys += subj_sym?.decl_key ?: "";
 						}
 					}
 				}
@@ -354,10 +362,12 @@ impl BodyChecker {
 			}
 
 			for (i in 0..<no_alias_syms.len) {
-				self.symtab.define(Symbol(
+				var shadow = Symbol(
 					no_alias_syms[i], no_alias_syms[i], SymbolKind.VAR,
 					no_alias_tys[i], no_alias_muts[i], false, 0, 0
-				));
+				);
+				shadow.decl_key = no_alias_keys[i];
+				self.symtab.define(shadow);
 			}
 
 			self.check_statement(if_s.then_branch);
@@ -387,10 +397,12 @@ impl BodyChecker {
 							self.symtab.enter_scope(false);
 							val subj_sym = self.symtab.lookup(id.name);
 							val mutable = subj_sym?.mutable ?: false;
-							self.symtab.define(Symbol(
+							var shadow = Symbol(
 								id.name, id.name, SymbolKind.VAR,
 								cast_ty, mutable, false, 0, 0
-							));
+							);
+							shadow.decl_key = subj_sym?.decl_key ?: "";
+							self.symtab.define(shadow);
 							else_neg_is = true;
 						}
 					}
@@ -536,8 +548,10 @@ impl BodyChecker {
 				val mutable = self.arm_smart_cast_mutable(arm.patterns, ws.condition);
 
 				if (!sym.empty() && smart_cast_ty != null) {
+					val outer_key = self.symtab.lookup(sym)?.decl_key ?: "";
 					self.symtab.enter_scope(false);
-					val s = Symbol(sym, sym, SymbolKind.VAR, smart_cast_ty, mutable, false, 0, 0);
+					var s = Symbol(sym, sym, SymbolKind.VAR, smart_cast_ty, mutable, false, 0, 0);
+					s.decl_key = outer_key;
 					self.symtab.define(s);
 					self.check_statement(arm.body);
 					self.symtab.exit_scope();

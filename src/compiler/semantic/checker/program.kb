@@ -28,7 +28,8 @@ struct ArrowCandidate {
 	pub node: &AstNode,
 	pub fn_type: *Type,
 	pub self_ty: ?*Type = null,
-	pub module: str
+	pub module: str,
+	pub is_trait_impl: bool = false
 }
 
 impl BodyChecker {
@@ -153,6 +154,14 @@ impl BodyChecker {
 			self.symtab.enter_scope(true);
 			defer self.symtab.exit_scope();
 
+			val is_trait_impl = !self.current_trait_name.empty();
+			val mut_self_key = if (
+				!is_trait_impl &&
+				f.body != null &&
+				!f.params.empty() &&
+				f.params[0].receiver == ReceiverKind.PTR_MUT
+			) self.decl_loc_key("F", fn_node) else "";
+
 			for (i in 0..<f.params.len) {
 				val p = f.params[i];
 				var p_ty = fn_info.param_types[i];
@@ -166,6 +175,7 @@ impl BodyChecker {
 					fn_node.line, fn_node.col, null
 				);
 				sym.is_vararg = is_vararg;
+				if (i == 0 && !mut_self_key.empty()) sym.decl_key = mut_self_key;
 				self.symtab.define(sym);
 			}
 
@@ -220,9 +230,14 @@ impl BodyChecker {
 				}
 			}
 
-			val is_trait_impl = !self.current_trait_name.empty();
 			if (!f.params.empty() && f.params[0].receiver == ReceiverKind.PTR_MUT) {
 				val sym = self.symtab.lookup(f.params[0].name);
+				if (!mut_self_key.empty()) {
+					self.symtab.sem.checked_mut_self_fns[mut_self_key] = true;
+					if (sym?.mutated == true) {
+						self.symtab.sem.mutated_decl_keys[mut_self_key] = true;
+					}
+				}
 				if (sym != null && !sym.mutated && !is_trait_impl) {
 					self.report_warning(
 						fn_node,
@@ -438,8 +453,9 @@ impl BodyChecker {
 		node: &AstNode,
 		fn_type: *Type,
 		self_ty: ?*Type = null,
-		module: str
-	): *ArrowCandidate => self.arena.create_val(ArrowCandidate(node, fn_type, self_ty, module));
+		module: str,
+		is_trait_impl: bool = false
+	): *ArrowCandidate => self.arena.create_val(ArrowCandidate(node, fn_type, self_ty, module, is_trait_impl));
 
 	fn add_fn_arrow_candidate(
 		&self,
@@ -483,7 +499,8 @@ impl BodyChecker {
 		val st_sym = self.symtab.lookup(im.struct_name) ?: return;
 		if (st_sym.type_ptr.kind != DataType.STRUCT) return;
 		self.add_struct_method_arrow_candidates(
-			im.methods, st_sym.type_ptr, st_sym.type_ptr.as_struct()!, module, pending, seen
+			im.methods, st_sym.type_ptr, st_sym.type_ptr.as_struct()!, module, pending, seen,
+			!im.trait_name.empty()
 		);
 	}
 
@@ -508,7 +525,8 @@ impl BodyChecker {
 		st_info: *StructType,
 		module: str,
 		pending: &List<*ArrowCandidate>,
-		seen: &List<&AstNode>
+		seen: &List<&AstNode>,
+		is_trait_impl: bool = false
 	) {
 		for (m_node in methods) {
 			if (m_node in seen) continue;
@@ -516,7 +534,7 @@ impl BodyChecker {
 			if (m_node is FnDecl as mf) {
 				val mi = st_info.find_method_c(mf.name) ?: continue;
 				seen += m_node;
-				pending += self.arrow_candidate(m_node, mi.fn_type, self_ty, module);
+				pending += self.arrow_candidate(m_node, mi.fn_type, self_ty, module, is_trait_impl);
 			}
 		}
 	}
@@ -537,14 +555,22 @@ impl BodyChecker {
 			self.current_fn_return_type = fn_info.return_type;
 			val prev_mod = self.enter_module(c.module);
 
+			val mut_self_key = if (
+				!c.is_trait_impl &&
+				!f.params.empty() &&
+				f.params[0].receiver == ReceiverKind.PTR_MUT
+			) self.decl_loc_key("F", c.node) else "";
+
 			self.symtab.enter_scope(true);
 			for (i in 0..<f.params.len) {
 				val p = f.params[i];
 				val p_ty = if (i < fn_info.param_types.len) fn_info.param_types[i] else self.prims().t_none();
-				self.symtab.define(Symbol(
+				var sym = Symbol(
 					p.name, p.name, SymbolKind.PARAM, p_ty, p.receiver == ReceiverKind.PTR_MUT, false,
 					c.node.line, c.node.col, null
-				));
+				);
+				if (i == 0 && !mut_self_key.empty()) sym.decl_key = mut_self_key;
+				self.symtab.define(sym);
 			}
 			val rec = self.symtab.get_node_instance(c.node);
 			val saved_rec = self.push_instance(rec);
@@ -561,6 +587,7 @@ impl BodyChecker {
 				return true;
 			}
 			val body_ty = self.check_expr(body_expr!);
+			val val_mutated = if (!mut_self_key.empty()) self.symtab.lookup(f.params[0].name)?.mutated == true else false;
 			self.pop_instance(saved_rec, rec);
 			self.symtab.exit_scope();
 
@@ -574,6 +601,11 @@ impl BodyChecker {
 				return false;
 			}
 			self.infer_blocked = saved_blocked;
+
+			if (!mut_self_key.empty()) {
+				self.symtab.sem.checked_mut_self_fns[mut_self_key] = true;
+				if (val_mutated) self.symtab.sem.mutated_decl_keys[mut_self_key] = true;
+			}
 
 			val fn_mut = c.fn_type.as_fn()!;
 			fn_mut.return_type = body_ty;

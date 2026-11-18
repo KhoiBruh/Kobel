@@ -1,0 +1,1483 @@
+mod lsp;
+
+use std.collections.*;
+use std.string.*;
+
+use compiler.ast.*;
+use compiler.lexer.*;
+use compiler.semantic.symbols.*;
+use compiler.semantic.types.*;
+
+/*
+ * ============================================================================
+ * lsp.lint — Simplification & Mutability Lint Analyzer + QuickFixes
+ *
+ * Inspects a parsed module AST + token stream + `SemanticTable` mutability
+ * records to emit actionable cleanup diagnostics and exact edit specs:
+ *
+ *   Group 1 (Mutability warnings from BodyChecker semantic truth):
+ *     - `unnecessary-mut-receiver`: `&self` never mutated -> `*self`
+ *     - `unnecessary-mut`: `var` never mutated -> `val`
+ *
+ *   Group 2 (Control-flow & expression simplifications, AST + token precise):
+ *     - `redundant-else`: `else` after diverging `then` branch
+ *     - `empty-branch`: empty `else {}` / pure `if (cond) {}`
+ *     - `collapsible-if`: `if (a) { if (b) { ... } }` -> `if (a && b) { ... }`
+ *     - `redundant-boolean-return`: `if (c) return true; [else] return false;`
+ *     - `redundant-bool-compare`: `c == true` / `c != false` / `!(!c)`
+ *     - `prefer-expression-body`: `fn f() { return expr; }` -> `=> expr;`
+ *     - `redundant-trailing-return`: trailing `return;` in `none` function
+ *     - `redundant-return-var`: single-line `val x = expr; return x;`
+ * ============================================================================
+ */
+
+const LINT_TAG_UNNECESSARY: i64 = 1;
+const LINT_SEV_WARNING: i64 = 2;
+
+pub struct LintEditSpec {
+	pub line1: usz,
+	pub col1: usz,
+	pub end_line1: usz,
+	pub end_col1: usz,
+	pub new_text: str
+}
+
+pub struct LintFix {
+	pub title: str,
+	pub kind: str,
+	pub code: str,
+	pub start_line0: usz,
+	pub start_col0: usz,
+	pub end_line0: usz,
+	pub end_col0: usz,
+	pub is_preferred: bool = true,
+	pub edits: List<LintEditSpec> = List()
+}
+
+struct SourceMapper {
+	pub src: str,
+	pub line_starts: List<usz> = List()
+}
+
+impl SourceMapper {
+
+	pub init(src: str) {
+		var starts = List<usz>();
+		starts += 0;
+		for (i in 0..<src.len) {
+			if (src[i] == '\n') starts += i + 1;
+		}
+		return Self(src, starts);
+	}
+
+	pub fn line_count(*self): usz => self.line_starts.len;
+
+	pub fn line_start_offset(*self, line1: usz): usz {
+		if (self.line_starts.empty()) return 0;
+		if (line1 <= 1) return 0;
+		if (line1 > self.line_starts.len) return self.src.len;
+		return self.line_starts[line1 - 1];
+	}
+
+	pub fn line_end_offset(*self, line1: usz): usz {
+		val s = self.line_start_offset(line1);
+		var e = if (line1 < self.line_starts.len) self.line_starts[line1] else self.src.len;
+		while (e > s && (self.src[e - 1] == '\n' || self.src[e - 1] == '\r')) e--;
+		return e;
+	}
+
+	pub fn offset_at(*self, line1: usz, col1: usz): usz {
+		val s = self.line_start_offset(line1);
+		val e = self.line_end_offset(line1);
+		val c0 = if (col1 > 0) col1 - 1 else 0;
+		val off = s + c0;
+		return if (off > e) e else off;
+	}
+
+	pub fn slice_pos(*self, sl1: usz, sc1: usz, el1: usz, ec1: usz): str {
+		val a = self.offset_at(sl1, sc1);
+		val b = self.offset_at(el1, ec1);
+		if (b <= a) return "";
+		return self.src.slice(a, b);
+	}
+
+	pub fn line_text(*self, line1: usz): str {
+		val a = self.line_start_offset(line1);
+		val b = self.line_end_offset(line1);
+		if (b <= a) return "";
+		return self.src.slice(a, b);
+	}
+
+	pub fn line_indent(*self, line1: usz): str {
+		val ln = self.line_text(line1);
+		var i: usz = 0;
+		while (i < ln.len && (ln[i] == ' ' || ln[i] == '\t')) i++;
+		return ln.slice(0, i);
+	}
+
+	pub fn has_only_ws_before(*self, line1: usz, col1: usz): bool {
+		val ln = self.line_text(line1);
+		val limit = if (col1 > 0 && col1 - 1 < ln.len) col1 - 1 else ln.len;
+		for (i in 0..<limit) {
+			if (ln[i] != ' ' && ln[i] != '\t') return false;
+		}
+		return true;
+	}
+
+	pub fn has_only_ws_after(*self, line1: usz, col1: usz): bool {
+		val ln = self.line_text(line1);
+		val start = if (col1 > 0) col1 - 1 else 0;
+		var i = start;
+		while (i < ln.len) {
+			if (ln[i] != ' ' && ln[i] != '\t' && ln[i] != '\r') return false;
+			i++;
+		}
+		return true;
+	}
+
+	pub fn is_full_line_span(*self, sl1: usz, sc1: usz, el1: usz, ec1: usz): bool =>
+		self.has_only_ws_before(sl1, sc1) && self.has_only_ws_after(el1, ec1);
+
+	pub fn has_comment_pos(*self, sl1: usz, sc1: usz, el1: usz, ec1: usz): bool =>
+		has_comment_in_text(self.slice_pos(sl1, sc1, el1, ec1));
+
+}
+
+fn has_comment_in_text(text: str): bool {
+	var i: usz = 0;
+	while (i < text.len) {
+		val ch = text[i];
+		if (ch == '"') {
+			val is_triple = i + 2 < text.len && text[i + 1] == '"' && text[i + 2] == '"';
+			i += if (is_triple) 3 else 1;
+			while (i < text.len) {
+				val c = text[i];
+				if (c == '\\') {
+					i += 2;
+					continue;
+				}
+				if (is_triple) {
+					if (i + 2 < text.len && text[i] == '"' && text[i + 1] == '"' && text[i + 2] == '"') {
+						i += 3;
+						break;
+					}
+				} else if (c == '"') {
+					i++;
+					break;
+				}
+				i++;
+			}
+			continue;
+		}
+		if (ch == '\'') {
+			i++;
+			while (i < text.len) {
+				val c = text[i];
+				if (c == '\\') {
+					i += 2;
+					continue;
+				}
+				if (c == '\'') {
+					i++;
+					break;
+				}
+				i++;
+			}
+			continue;
+		}
+		if (ch == '/' && i + 1 < text.len && (text[i + 1] == '/' || text[i + 1] == '*')) {
+			return true;
+		}
+		i++;
+	}
+	return false;
+}
+
+fn trim_outer_blank_lines(text: str): str {
+	var start: usz = 0;
+	while (start < text.len && (text[start] == '\r' || text[start] == '\n')) start++;
+	var end = text.len;
+	while (end > start && (text[end - 1] == ' ' || text[end - 1] == '\t' || text[end - 1] == '\r')) {
+		end--;
+	}
+	while (end > start && (text[end - 1] == '\n' || text[end - 1] == '\r')) end--;
+	return text.slice(start, end);
+}
+
+fn dedent_block_interior(inner_raw: str, outer_indent: str): str {
+	val trimmed = trim_outer_blank_lines(inner_raw);
+	if (trimmed.empty()) return "";
+
+	val lines = trimmed.split('\n');
+	var first_ws = "";
+	var has_nonempty = false;
+	for (raw_ln in lines) {
+		val ln = if (raw_ln.ends_with("\r")) raw_ln.slice(0, raw_ln.len - 1) else raw_ln;
+		val t = ln.trim();
+		if (!t.empty()) {
+			var k: usz = 0;
+			while (k < ln.len && (ln[k] == ' ' || ln[k] == '\t')) k++;
+			first_ws = ln.slice(0, k);
+			has_nonempty = true;
+			break;
+		}
+	}
+	if (!has_nonempty) return "";
+
+	val step = if (first_ws.len > outer_indent.len && first_ws.starts_with(outer_indent)) {
+		first_ws.slice(outer_indent.len, first_ws.len)
+	} else "";
+	val full_prefix = "${outer_indent}${step}";
+
+	var sb = StringBuilder();
+	defer sb.free();
+	for (i in 0..<lines.len) {
+		if (i > 0) sb += "\n";
+		val raw_ln = lines[i];
+		val ln = if (raw_ln.ends_with("\r")) raw_ln.slice(0, raw_ln.len - 1) else raw_ln;
+		if (ln.trim().empty()) continue;
+		if (!step.empty() && ln.starts_with(full_prefix)) {
+			sb += outer_indent;
+			sb += ln.slice(full_prefix.len, ln.len);
+		} else if (!ln.starts_with(outer_indent) && !first_ws.empty() && ln.starts_with(first_ws)) {
+			sb += outer_indent;
+			sb += ln.slice(first_ws.len, ln.len);
+		} else {
+			sb += ln;
+		}
+	}
+	return sb.to_str();
+}
+
+// ============================================================================
+// Token & AST Span Locators
+// ============================================================================
+
+fn token_end_pos(tok: Token): Pair<usz, usz> {
+	var ln = tok.line;
+	var col = tok.col;
+	for (i in 0..<tok.text.len) {
+		val c = tok.text[i];
+		if (c == '\n') {
+			ln++;
+			col = 1;
+		} else if (c != '\r') {
+			col++;
+		}
+	}
+	return Pair(ln, col);
+}
+
+fn cmp_pos(l1: usz, c1: usz, l2: usz, c2: usz): i32 {
+	if (l1 < l2) return -1;
+	if (l1 > l2) return 1;
+	if (c1 < c2) return -1;
+	if (c1 > c2) return 1;
+	return 0;
+}
+
+fn find_token_index_at_or_after(tokens: List<Token>, line1: usz, col1: usz): usz {
+	var i = find_token_index_at_line(tokens, line1);
+	while (i < tokens.len) {
+		val tok = tokens[i];
+		if (cmp_pos(tok.line, tok.col, line1, col1) >= 0) return i;
+		i++;
+	}
+	return tokens.len;
+}
+
+fn find_token_index_exact(tokens: List<Token>, line1: usz, col1: usz): isz {
+	val idx = find_token_index_at_or_after(tokens, line1, col1);
+	if (idx < tokens.len) {
+		val tok = tokens[idx];
+		if (tok.line == line1 && tok.col == col1) return idx as isz;
+	}
+	return -1;
+}
+
+fn find_matching_delim_index(
+	tokens: List<Token>,
+	open_idx: usz,
+	open_ty: TokenType,
+	close_ty: TokenType
+): isz {
+	if (open_idx >= tokens.len || tokens[open_idx].type != open_ty) return -1;
+	var depth: i32 = 1;
+	var i = open_idx + 1;
+	while (i < tokens.len) {
+		val tt = tokens[i].type;
+		if (tt == open_ty) depth++;
+		else if (tt == close_ty) {
+			depth--;
+			if (depth == 0) return i as isz;
+		}
+		i++;
+	}
+	return -1;
+}
+
+fn unwrap_group_ast(node: ?*AstNode): ?*AstNode {
+	var cur = node;
+	while (cur != null) {
+		if (cur is GroupExpr as g) cur = g.expr;
+		else break;
+	}
+	return cur;
+}
+
+fn is_empty_ident(node: *AstNode): bool {
+	if (node is IdentifierExpr as id) return id.name.empty();
+	return false;
+}
+
+fn is_kw_in_binary(node: *AstNode): bool {
+	if (node is BinaryExpr as b) return b.op == TokenType.KW_IN;
+	return false;
+}
+
+fn bool_literal_state(node: *AstNode): i32 {
+	if (node is LiteralExpr as lit && lit.literal_kind == Literal.BOOLEAN) {
+		return if (lit.raw_text == "true") 1 else 0;
+	}
+	return -1;
+}
+
+fn expr_start_pos(node: *AstNode): Pair<usz, usz> {
+	return when (node) {
+		is BinaryExpr as b -> expr_start_pos(b.left);
+		is AssignExpr as a -> expr_start_pos(a.target);
+		is CatchExpr as c -> expr_start_pos(c.expr);
+		is MemberExpr as m -> if (is_empty_ident(m.object)) {
+			Pair(node.line, node.col)
+		} else {
+			expr_start_pos(m.object)
+		};
+		is IndexExpr as ix -> expr_start_pos(ix.target);
+		is CallExpr as cl -> expr_start_pos(cl.callee);
+		is CastExpr as cs -> if (cs.expr != null) expr_start_pos(cs.expr!) else Pair(node.line, node.col);
+		is IsExpr as ise -> if (ise.expr != null) expr_start_pos(ise.expr!) else Pair(node.line, node.col);
+		is UpdateExpr as u -> expr_start_pos(u.target);
+		is UnaryExpr as un -> {
+			if (un.is_postfix) yield expr_start_pos(un.operand);
+			if (un.op == TokenType.BANG && (un.operand is IsExpr || is_kw_in_binary(un.operand))) {
+				yield expr_start_pos(un.operand);
+			}
+			yield Pair(node.line, node.col);
+		}
+		else -> Pair(node.line, node.col);
+	};
+}
+
+fn type_end_pos(tokens: List<Token>, node: *AstNode): Pair<usz, usz> {
+	val sl = if (node.line > 0) node.line else 1;
+	val sc = if (node.col > 0) node.col else 1;
+	return when (node) {
+		is PointerType as pt -> type_end_pos(tokens, pt.pointee);
+		is VariadicType as vt -> type_end_pos(tokens, vt.element_type);
+		is FnType as ft -> type_end_pos(tokens, ft.return_type);
+		is ErrorUnionType as eu -> type_end_pos(tokens, eu.err_type);
+		is ArrayType -> {
+			val oi = find_token_index_exact(tokens, sl, sc);
+			if (oi >= 0) {
+				val ci = find_matching_delim_index(
+					tokens, oi as usz, TokenType.OPEN_BRACKET, TokenType.CLOSE_BRACKET
+				);
+				if (ci >= 0) yield token_end_pos(tokens[ci as usz]);
+			}
+			yield Pair(sl, sc + 1);
+		}
+		is ArrayLiteralExpr -> {
+			val oi = find_token_index_exact(tokens, sl, sc);
+			if (oi >= 0) {
+				val ci = find_matching_delim_index(
+					tokens, oi as usz, TokenType.OPEN_BRACKET, TokenType.CLOSE_BRACKET
+				);
+				if (ci >= 0) yield token_end_pos(tokens[ci as usz]);
+			}
+			yield Pair(sl, sc + 1);
+		}
+		is NamedType as nt -> {
+			if (!nt.type_args.empty()) {
+				val last_ta = nt.type_args.last()!;
+				val (tl, tc) = type_end_pos(tokens, last_ta);
+				val gi = find_token_index_at_or_after(tokens, tl, tc);
+				if (gi < tokens.len && tokens[gi].type == TokenType.GREATER) {
+					yield token_end_pos(tokens[gi]);
+				}
+				yield Pair(tl, tc + 1);
+			}
+			var idx = find_token_index_at_or_after(tokens, sl, sc);
+			if (idx < tokens.len) {
+				var end = token_end_pos(tokens[idx]);
+				while (idx + 2 < tokens.len && tokens[idx + 1].type == TokenType.DOT) {
+					idx += 2;
+					end = token_end_pos(tokens[idx]);
+				}
+				yield end;
+			}
+			yield Pair(sl, sc + nt.name.len);
+		}
+		else -> expr_end_pos(tokens, node);
+	};
+}
+
+fn expr_end_pos(tokens: List<Token>, node: *AstNode): Pair<usz, usz> {
+	val sl = if (node.line > 0) node.line else 1;
+	val sc = if (node.col > 0) node.col else 1;
+	return when (node) {
+		is BinaryExpr as b -> expr_end_pos(tokens, b.right);
+		is AssignExpr as a -> expr_end_pos(tokens, a.value);
+		is CatchExpr as ce -> if (ce.handler is BlockStmt) stmt_end_pos(tokens, ce.handler)
+			else expr_end_pos(tokens, ce.handler);
+		is UnaryExpr as un -> {
+			if (un.is_postfix) {
+				val ti = find_token_index_exact(tokens, sl, sc);
+				if (ti >= 0) yield token_end_pos(tokens[ti as usz]);
+				yield Pair(sl, sc + 1);
+			}
+			yield expr_end_pos(tokens, un.operand);
+		}
+		is UpdateExpr -> {
+			val ti = find_token_index_exact(tokens, sl, sc);
+			if (ti >= 0) yield token_end_pos(tokens[ti as usz]);
+			yield Pair(sl, sc + 2);
+		}
+		is MemberExpr -> {
+			val ti = find_token_index_at_or_after(tokens, sl, sc);
+			if (ti + 1 < tokens.len) yield token_end_pos(tokens[ti + 1]);
+			yield Pair(sl, sc + 1);
+		}
+		is IndexExpr -> {
+			val oi = find_token_index_exact(tokens, sl, sc);
+			if (oi >= 0) {
+				val ci = find_matching_delim_index(
+					tokens, oi as usz, TokenType.OPEN_BRACKET, TokenType.CLOSE_BRACKET
+				);
+				if (ci >= 0) yield token_end_pos(tokens[ci as usz]);
+			}
+			yield Pair(sl, sc + 1);
+		}
+		is GroupExpr -> {
+			val oi = find_token_index_exact(tokens, sl, sc);
+			if (oi >= 0) {
+				val ci = find_matching_delim_index(
+					tokens, oi as usz, TokenType.OPEN_PAREN, TokenType.CLOSE_PAREN
+				);
+				if (ci >= 0) yield token_end_pos(tokens[ci as usz]);
+			}
+			yield Pair(sl, sc + 1);
+		}
+		is ArrayLiteralExpr -> {
+			val oi = find_token_index_exact(tokens, sl, sc);
+			if (oi >= 0) {
+				val ci = find_matching_delim_index(
+					tokens, oi as usz, TokenType.OPEN_BRACKET, TokenType.CLOSE_BRACKET
+				);
+				if (ci >= 0) yield token_end_pos(tokens[ci as usz]);
+			}
+			yield Pair(sl, sc + 1);
+		}
+		is LambdaExpr -> {
+			val oi = find_token_index_exact(tokens, sl, sc);
+			if (oi >= 0) {
+				val ci = find_matching_delim_index(
+					tokens, oi as usz, TokenType.OPEN_BRACE, TokenType.CLOSE_BRACE
+				);
+				if (ci >= 0) yield token_end_pos(tokens[ci as usz]);
+			}
+			yield Pair(sl, sc + 1);
+		}
+		is WhenExpr -> {
+			var idx = find_token_index_at_or_after(tokens, sl, sc);
+			while (idx < tokens.len && tokens[idx].type != TokenType.OPEN_BRACE) idx++;
+			if (idx < tokens.len) {
+				val ci = find_matching_delim_index(
+					tokens, idx, TokenType.OPEN_BRACE, TokenType.CLOSE_BRACE
+				);
+				if (ci >= 0) yield token_end_pos(tokens[ci as usz]);
+			}
+			yield Pair(sl, sc + 4);
+		}
+		is IfExpr as ie -> {
+			val (eb_l, eb_c) = expr_end_pos(tokens, ie.else_branch);
+			val (es_l, es_c) = expr_start_pos(ie.else_branch);
+			// Check whether `else { ... }` wrapped the branch expression in braces
+			val pre_eb = find_token_index_at_or_after(tokens, es_l, es_c);
+			if (pre_eb > 0 && tokens[pre_eb - 1].type == TokenType.OPEN_BRACE) {
+				val ci = find_matching_delim_index(
+					tokens, pre_eb - 1, TokenType.OPEN_BRACE, TokenType.CLOSE_BRACE
+				);
+				if (ci >= 0) yield token_end_pos(tokens[ci as usz]);
+			}
+			yield Pair(eb_l, eb_c);
+		}
+		is CastExpr as cs -> type_end_pos(tokens, cs.target_type);
+		is IsExpr as ise -> {
+			if (!ise.alias.empty()) {
+				val (tl, tc) = type_end_pos(tokens, ise.target_type);
+				var idx = find_token_index_at_or_after(tokens, tl, tc);
+				if (idx < tokens.len && tokens[idx].type == TokenType.KW_AS) {
+					idx++;
+					if (
+						idx < tokens.len &&
+						tokens[idx].type in [TokenType.KW_VAR, TokenType.KW_VAL, TokenType.AMPERSAND]
+					) idx++;
+					if (idx < tokens.len) yield token_end_pos(tokens[idx]);
+				}
+			}
+			yield type_end_pos(tokens, ise.target_type);
+		}
+		is CallExpr as cl -> {
+			if (!cl.args.empty()) {
+				val last_arg = cl.args.last()!;
+				if (last_arg is LambdaExpr as lam && lam.is_trailing) {
+					yield expr_end_pos(tokens, last_arg);
+				}
+				val (al, ac) = expr_end_pos(tokens, last_arg);
+				var idx = find_token_index_at_or_after(tokens, al, ac);
+				while (idx < tokens.len && tokens[idx].type != TokenType.CLOSE_PAREN) idx++;
+				if (idx < tokens.len) yield token_end_pos(tokens[idx]);
+				yield Pair(al, ac);
+			}
+			var idx = find_token_index_at_or_after(tokens, sl, sc);
+			if (!cl.type_args.empty()) {
+				val (tl, tc) = type_end_pos(tokens, cl.type_args.last()!);
+				idx = find_token_index_at_or_after(tokens, tl, tc);
+				if (idx < tokens.len && tokens[idx].type == TokenType.GREATER) idx++;
+			}
+			if (idx < tokens.len && tokens[idx].type == TokenType.OPEN_PAREN) {
+				val ci = find_matching_delim_index(
+					tokens, idx, TokenType.OPEN_PAREN, TokenType.CLOSE_PAREN
+				);
+				if (ci >= 0) yield token_end_pos(tokens[ci as usz]);
+			}
+			yield Pair(sl, sc + 1);
+		}
+		is LiteralExpr -> {
+			var idx = find_token_index_at_or_after(tokens, sl, sc);
+			if (idx < tokens.len) {
+				var last = tokens[idx];
+				if (last.type == TokenType.STRING) {
+					while (idx + 1 < tokens.len && tokens[idx + 1].type == TokenType.STRING) {
+						idx++;
+						last = tokens[idx];
+					}
+				}
+				yield token_end_pos(last);
+			}
+			yield Pair(sl, sc + 1);
+		}
+		else -> {
+			val ti = find_token_index_at_or_after(tokens, sl, sc);
+			if (ti < tokens.len) yield token_end_pos(tokens[ti]);
+			yield Pair(sl, sc + 1);
+		}
+	};
+}
+
+// ============================================================================
+// Expression & Control-Flow Safety Predicates
+// ============================================================================
+
+fn has_unaliased_is_expr(node: ?*AstNode): bool {
+	if (node == null) return false;
+	return when (node!) {
+		is IsExpr as ise -> ise.alias.empty();
+		is GroupExpr as g -> has_unaliased_is_expr(g.expr);
+		is BinaryExpr as b -> has_unaliased_is_expr(b.left) || has_unaliased_is_expr(b.right);
+		is UnaryExpr as u -> if (u.op == TokenType.BANG && !u.is_postfix && u.operand is IsExpr) {
+			false
+		} else {
+			has_unaliased_is_expr(u.operand)
+		};
+		else -> false;
+	};
+}
+
+fn expr_has_side_effect(node: ?*AstNode): bool {
+	if (node == null) return false;
+	return when (node!) {
+		is CallExpr, AssignExpr, UpdateExpr, CatchExpr -> true;
+		is UnaryExpr as u -> if (u.is_postfix) true else expr_has_side_effect(u.operand);
+		is BinaryExpr as b -> expr_has_side_effect(b.left) || expr_has_side_effect(b.right);
+		is MemberExpr as m -> expr_has_side_effect(m.object);
+		is IndexExpr as ix -> expr_has_side_effect(ix.target) || expr_has_side_effect(ix.index);
+		is CastExpr as cs -> expr_has_side_effect(cs.expr);
+		is GroupExpr as g -> expr_has_side_effect(g.expr);
+		is IsExpr as ise -> expr_has_side_effect(ise.expr);
+		is IfExpr as ie -> expr_has_side_effect(ie.condition)
+			|| expr_has_side_effect(ie.then_branch)
+			|| expr_has_side_effect(ie.else_branch);
+		is WhenExpr -> true;
+		else -> false;
+	};
+}
+
+fn expr_needs_parens_for_not(node: *AstNode): bool {
+	val cur = unwrap_group_ast(node) ?: return true;
+	return when (cur) {
+		is IdentifierExpr, LiteralExpr, CallExpr, MemberExpr, IndexExpr -> false;
+		is UnaryExpr as u -> u.op == TokenType.BANG && !u.is_postfix && (
+			u.operand is IsExpr || is_kw_in_binary(u.operand)
+		);
+		else -> true;
+	};
+}
+
+fn expr_needs_parens_for_and(node: *AstNode): bool {
+	if (node is GroupExpr) return false;
+	return when (node) {
+		is BinaryExpr as b -> b.op in [TokenType.OR_OR, TokenType.QUESTION_COLON];
+		is AssignExpr, CatchExpr, IfExpr, WhenExpr -> true;
+		else -> false;
+	};
+}
+
+fn negate_condition_text(
+	cond: *AstNode,
+	raw_text: str,
+	tokens: List<Token>,
+	mapper: *SourceMapper
+): str {
+	val trimmed = raw_text.trim();
+	val un = unwrap_group_ast(cond);
+	if (un != null) {
+		val u_l = un.line;
+		val u_c = un.col;
+		if (un is UnaryExpr as u && u.op == TokenType.BANG && !u.is_postfix) {
+			// `!(!expr)` cancels out cleanly, whereas `a !in b` / `a !is T` must not drop `!`
+			val tok_i = find_token_index_exact(tokens, u_l, u_c);
+			if (tok_i >= 0 && tokens[tok_i as usz].type == TokenType.BANG) {
+				if (u.operand is GroupExpr as g) {
+					val inner = g.expr;
+					val (isl, isc) = expr_start_pos(inner);
+					val (iel, iec) = expr_end_pos(tokens, inner);
+					val inner_txt = mapper.slice_pos(isl, isc, iel, iec).trim();
+					if (!inner_txt.empty()) return inner_txt;
+				} else if (!(u.operand is IsExpr) && !is_kw_in_binary(u.operand)) {
+					val inner = u.operand;
+					val (isl, isc) = expr_start_pos(inner);
+					val (iel, iec) = expr_end_pos(tokens, inner);
+					val inner_txt = mapper.slice_pos(isl, isc, iel, iec).trim();
+					if (!inner_txt.empty()) return inner_txt;
+				}
+			}
+		}
+	}
+	if (expr_needs_parens_for_not(cond)) {
+		if (trimmed.starts_with("(") && trimmed.ends_with(")")) return "!${trimmed}";
+		return "!(${trimmed})";
+	}
+	return "!${trimmed}";
+}
+
+fn bool_return_state(stmt: ?*AstNode): i32 {
+	if (stmt == null) return -1;
+	var cur = stmt!;
+	if (cur is BlockStmt as blk) {
+		if (blk.statements.len != 1) return -1;
+		cur = blk.statements[0];
+	}
+	if (cur is ReturnStmt as ret && ret.value != null) {
+		val inner = unwrap_group_ast(ret.value);
+		if (inner != null && inner is LiteralExpr as lit && lit.literal_kind == Literal.BOOLEAN) {
+			if (lit.raw_text == "true") return 1;
+			if (lit.raw_text == "false") return 0;
+		}
+	}
+	return -1;
+}
+
+// ============================================================================
+// Lint Walker
+// ============================================================================
+
+struct LintCollector {
+	pub doc_ast: *AstNode,
+	pub tokens: List<Token>,
+	pub mapper: SourceMapper,
+	pub symtab: SymbolTable,
+	pub has_symtab: bool,
+	pub file_id: u32,
+	pub diags: List<LspDiagnostic> = List(),
+	pub fixes: List<LintFix> = List(),
+	pub handled_bool_if_addrs: HashSet<usz> = HashSet()
+}
+
+impl LintCollector {
+
+	fn make_diag(
+		l0: usz,
+		c0: usz,
+		el0: usz,
+		ec0: usz,
+		message: str,
+		code: str,
+		unnecessary: bool = false
+	): LspDiagnostic {
+		var tags = List<i64>();
+		if (unnecessary) tags += LINT_TAG_UNNECESSARY;
+		return LspDiagnostic(l0, c0, el0, ec0, LINT_SEV_WARNING, message, code, tags);
+	}
+
+	fn emit(
+		&self,
+		sl1: usz,
+		sc1: usz,
+		el1: usz,
+		ec1: usz,
+		message: str,
+		code: str,
+		unnecessary: bool,
+		fix_title: str,
+		edits: List<LintEditSpec>,
+		fix_kind: str = "quickfix",
+		fix_sl1: usz = 0,
+		fix_sc1: usz = 0,
+		fix_el1: usz = 0,
+		fix_ec1: usz = 0
+	) {
+		val l0 = if (sl1 > 0) sl1 - 1 else 0;
+		val c0 = if (sc1 > 0) sc1 - 1 else 0;
+		val end_l0 = if (el1 > 0) el1 - 1 else l0;
+		var end_c0 = if (ec1 > 0) ec1 - 1 else c0 + 1;
+		if (end_l0 == l0 && end_c0 <= c0) end_c0 = c0 + 1;
+
+		self.diags += Self.make_diag(l0, c0, end_l0, end_c0, message, code, unnecessary);
+
+		if (!fix_title.empty() && !edits.empty()) {
+			val f_sl0 = if (fix_sl1 > 0) fix_sl1 - 1 else l0;
+			val f_sc0 = if (fix_sc1 > 0) fix_sc1 - 1 else c0;
+			val f_el0 = if (fix_el1 > 0) fix_el1 - 1 else end_l0;
+			val f_ec0 = if (fix_ec1 > 0) fix_ec1 - 1 else end_c0;
+			self.fixes += LintFix(
+				fix_title, fix_kind, code,
+				f_sl0, f_sc0, f_el0, f_ec0,
+				true, edits
+			);
+		}
+	}
+
+	fn is_bool_expr(*self, node: *AstNode): bool {
+		if (!self.has_symtab) return true;
+		val ty = self.symtab.get_node_type(node) ?: return true;
+		return ty.kind == DataType.BOOL;
+	}
+
+	fn find_if_cond_parens(*self, if_node: *AstNode): Pair<Token, Token> ! IndexErr {
+		var idx = find_token_index_at_or_after(self.tokens, if_node.line, if_node.col);
+		while (idx < self.tokens.len && self.tokens[idx].type != TokenType.OPEN_PAREN) {
+			if (idx > find_token_index_at_or_after(self.tokens, if_node.line, if_node.col) + 4) {
+				return IndexErr.NotFound;
+			}
+			idx++;
+		}
+		if (idx >= self.tokens.len) return IndexErr.NotFound;
+		val lparen = self.tokens[idx];
+		val ci = find_matching_delim_index(self.tokens, idx, TokenType.OPEN_PAREN, TokenType.CLOSE_PAREN);
+		if (ci < 0) return IndexErr.NotFound;
+		return Pair(lparen, self.tokens[ci as usz]);
+	}
+
+	fn source_fn_name(*self, fn_node: *AstNode, f: *FnDecl): str {
+		var i = find_token_index_at_or_after(self.tokens, fn_node.line, fn_node.col);
+		while (i < self.tokens.len) {
+			val t = self.tokens[i];
+			if (t.type in [TokenType.OPEN_PAREN, TokenType.OPEN_BRACE, TokenType.FAT_ARROW]) break;
+			if (t.type == TokenType.KW_INIT) return "init";
+			if (t.type in [TokenType.KW_FN, TokenType.KW_OP] && i + 1 < self.tokens.len) {
+				val nt = self.tokens[i + 1];
+				if (nt.type == TokenType.IDENTIFIER) return nt.text;
+			}
+			i++;
+		}
+		return f.name;
+	}
+
+	fn check_mut_self_fn(&self, fn_node: *AstNode, f: *FnDecl) {
+		if (!self.has_symtab || self.file_id == 0 || f.body == null) return;
+		if (f.params.empty() || f.params[0].receiver != ReceiverKind.PTR_MUT) return;
+		val f_key = "F:${self.file_id}:${fn_node.line}:${fn_node.col}";
+		val sem = self.symtab.sem;
+		if (f_key !in sem.checked_mut_self_fns || f_key in sem.mutated_decl_keys) return;
+		val disp_name = self.source_fn_name(fn_node, f);
+
+		var i = find_token_index_at_or_after(self.tokens, fn_node.line, fn_node.col);
+		while (i + 1 < self.tokens.len) {
+			val t = self.tokens[i];
+			if (t.type in [TokenType.OPEN_BRACE, TokenType.FAT_ARROW]) break;
+			if (
+				t.type == TokenType.AMPERSAND &&
+				self.tokens[i + 1].type == TokenType.IDENTIFIER &&
+				self.tokens[i + 1].text == "self"
+			) {
+				val self_end = token_end_pos(self.tokens[i + 1]);
+				var edits = List<LintEditSpec>();
+				edits += LintEditSpec(t.line, t.col, t.line, t.col + 1, "*");
+				self.emit(
+					t.line, t.col, self_end.first, self_end.second,
+					"Receiver 'self' in '${disp_name}' is declared mutable with '&self', but is never mutated; use '*self'",
+					"unnecessary-mut-receiver",
+					false,
+					"Change '&self' to '*self'",
+					edits
+				);
+				return;
+			}
+			i++;
+		}
+	}
+
+	fn check_var_mutability(&self, stmt_node: *AstNode, vd: *VarDeclStmt) {
+		if (!vd.mutable || vd.initializer == null) return;
+		if (!self.has_symtab || self.file_id == 0) return;
+		val v_key = "V:${self.file_id}:${stmt_node.line}:${stmt_node.col}";
+		val sem = self.symtab.sem;
+		if (v_key !in sem.checked_var_decls || v_key in sem.mutated_decl_keys) return;
+
+		val ti = find_token_index_exact(self.tokens, stmt_node.line, stmt_node.col);
+		if (ti < 0 || self.tokens[ti as usz].type != TokenType.KW_VAR) return;
+		val var_tok = self.tokens[ti as usz];
+		var edits = List<LintEditSpec>();
+		edits += LintEditSpec(var_tok.line, var_tok.col, var_tok.line, var_tok.col + 3, "val");
+		self.emit(
+			var_tok.line, var_tok.col, var_tok.line, var_tok.col + 3,
+			"Variable '${vd.name}' is declared with 'var', but is never mutated; use 'val'",
+			"unnecessary-mut",
+			false,
+			"Convert 'var ${vd.name}' to 'val ${vd.name}'",
+			edits
+		);
+	}
+
+	fn check_prefer_expression_body(&self, fn_node: *AstNode, f: *FnDecl) {
+		if (f.name == "main" || f.body == null) return;
+		if (f.body! is BlockStmt as blk && blk.statements.len == 1) {
+			val only = blk.statements[0];
+			if (only is ReturnStmt as ret && ret.value != null) {
+				val (blk_end_l, blk_end_c) = stmt_end_pos(self.tokens, f.body!);
+				val (lbrace_l, lbrace_c) = Pair(f.body!.line, f.body!.col);
+				val (val_sl, val_sc) = expr_start_pos(ret.value!);
+				val (ret_end_l, ret_end_c) = stmt_end_pos(self.tokens, only);
+				if (self.mapper.has_comment_pos(lbrace_l, lbrace_c, val_sl, val_sc)) return;
+				if (self.mapper.has_comment_pos(ret_end_l, ret_end_c, blk_end_l, blk_end_c)) return;
+
+				val (val_el, val_ec) = expr_end_pos(self.tokens, ret.value!);
+				val expr_raw = self.mapper.slice_pos(val_sl, val_sc, val_el, val_ec).trim();
+				if (expr_raw.empty()) return;
+
+				val fn_indent = self.mapper.line_indent(fn_node.line);
+				val ret_indent = self.mapper.line_indent(only.line);
+				val header_text = self.mapper.line_text(lbrace_l);
+				val header_prefix_len = if (lbrace_c > 1 && lbrace_c - 1 <= header_text.len) lbrace_c - 1 else header_text.len;
+
+				var replacement = "";
+				if ("\n" !in expr_raw && header_prefix_len + 4 + expr_raw.len <= 100) {
+					replacement = "=> ${expr_raw};";
+				} else if ("\n" !in expr_raw) {
+					replacement = "=>\n${fn_indent}\t${expr_raw};";
+				} else {
+					val step = if (ret_indent.len > fn_indent.len && ret_indent.starts_with(fn_indent)) {
+						ret_indent.slice(fn_indent.len, ret_indent.len)
+					} else "\t";
+					val lines = expr_raw.split('\n');
+					var sb = StringBuilder();
+					defer sb.free();
+					sb += "=> ";
+					for (idx in 0..<lines.len) {
+						if (idx > 0) {
+							sb += "\n";
+							val raw_ln = lines[idx];
+							val ln = if (raw_ln.ends_with("\r")) raw_ln.slice(0, raw_ln.len - 1) else raw_ln;
+							val full_pref = "${fn_indent}${step}";
+							if (ln.starts_with(full_pref)) {
+								sb += fn_indent;
+								sb += ln.slice(full_pref.len, ln.len);
+							} else {
+								sb += ln;
+							}
+						} else {
+							sb += lines[0];
+						}
+					}
+					sb += ";";
+					replacement = sb.to_str();
+				}
+
+				val disp_name = self.source_fn_name(fn_node, f);
+				var edits = List<LintEditSpec>();
+				edits += LintEditSpec(lbrace_l, lbrace_c, blk_end_l, blk_end_c, replacement);
+				self.emit(
+					only.line, only.col, ret_end_l, ret_end_c,
+					"Function '${disp_name}' has a single return statement; use expression body '=>'",
+					"prefer-expression-body",
+					false,
+					"Convert to expression body '=>'",
+					edits,
+					"quickfix",
+					lbrace_l, lbrace_c, blk_end_l, blk_end_c
+				);
+			}
+		}
+	}
+
+	fn check_trailing_return(&self, f: *FnDecl) {
+		if (f.body == null) return;
+		if (f.return_type != null && f.return_type!.span.file_id > 0) {
+			if (f.return_type! is NamedType as nt) {
+				if (nt.name != "none" && nt.name != "void") return;
+			} else return;
+		}
+		if (f.body! is BlockStmt as blk && !blk.statements.empty()) {
+			val last_stmt = blk.statements.last()!;
+			if (last_stmt is ReturnStmt as ret && ret.value == null) {
+				val (el1, ec1) = stmt_end_pos(self.tokens, last_stmt);
+				var edits = List<LintEditSpec>();
+				if (self.mapper.is_full_line_span(last_stmt.line, last_stmt.col, el1, ec1) && el1 < self.mapper.line_count()) {
+					edits += LintEditSpec(last_stmt.line, 1, el1 + 1, 1, "");
+				} else {
+					edits += LintEditSpec(last_stmt.line, last_stmt.col, el1, ec1, "");
+				}
+				self.emit(
+					last_stmt.line, last_stmt.col, el1, ec1,
+					"Redundant trailing 'return;'",
+					"redundant-trailing-return",
+					true,
+					"Remove redundant 'return;'",
+					edits
+				);
+			}
+		}
+	}
+
+	fn check_empty_if(&self, if_node: *AstNode, ifs: *IfStmt): bool {
+		if (ifs.else_branch != null && ifs.else_branch! is BlockStmt as eb && eb.statements.empty()) {
+			val (then_el, then_ec) = stmt_end_pos(self.tokens, ifs.then_branch);
+			val else_i = find_token_index_at_or_after(self.tokens, then_el, then_ec);
+			if (else_i < self.tokens.len && self.tokens[else_i].type == TokenType.KW_ELSE) {
+				val else_tok = self.tokens[else_i];
+				val (eb_el, eb_ec) = stmt_end_pos(self.tokens, ifs.else_branch!);
+				if (!self.mapper.has_comment_pos(then_el, then_ec, eb_el, eb_ec)) {
+					var edits = List<LintEditSpec>();
+					edits += LintEditSpec(then_el, then_ec, eb_el, eb_ec, "");
+					self.emit(
+						else_tok.line, else_tok.col, eb_el, eb_ec,
+						"Empty 'else' branch",
+						"empty-branch",
+						true,
+						"Remove empty 'else' branch",
+						edits
+					);
+					return true;
+				}
+			}
+		}
+
+		if (ifs.else_branch == null && ifs.then_branch is BlockStmt as tb && tb.statements.empty()) {
+			val (then_el, then_ec) = stmt_end_pos(self.tokens, ifs.then_branch);
+			if (!self.mapper.has_comment_pos(if_node.line, if_node.col, then_el, then_ec)) {
+				var edits = List<LintEditSpec>();
+				var fix_title = "";
+				if (!expr_has_side_effect(ifs.condition)) {
+					fix_title = "Remove empty 'if' statement";
+					if (self.mapper.is_full_line_span(if_node.line, if_node.col, then_el, then_ec) && then_el < self.mapper.line_count()) {
+						edits += LintEditSpec(if_node.line, 1, then_el + 1, 1, "");
+					} else {
+						edits += LintEditSpec(if_node.line, if_node.col, then_el, then_ec, "");
+					}
+				}
+				self.emit(
+					if_node.line, if_node.col, then_el, then_ec,
+					"Empty 'if' block",
+					"empty-branch",
+					true,
+					fix_title,
+					edits
+				);
+				return true;
+			}
+		}
+		return false;
+	}
+
+	fn check_single_if_bool_return(&self, if_node: *AstNode, ifs: *IfStmt): bool {
+		if (ifs.else_branch == null) return false;
+		val b1 = bool_return_state(ifs.then_branch);
+		val b2 = bool_return_state(ifs.else_branch);
+		if (!((b1 == 1 && b2 == 0) || (b1 == 0 && b2 == 1))) return false;
+
+		val (if_el, if_ec) = stmt_end_pos(self.tokens, if_node);
+		val (lp, rp) = self.find_if_cond_parens(if_node) !: return false;
+		if (self.mapper.has_comment_pos(rp.line, rp.col + 1, if_el, if_ec)) return false;
+
+		val cond_raw = self.mapper.slice_pos(lp.line, lp.col + 1, rp.line, rp.col).trim();
+		if (cond_raw.empty()) return false;
+
+		val simplified = if (b1 == 1) cond_raw else negate_condition_text(ifs.condition, cond_raw, self.tokens, &self.mapper);
+		var edits = List<LintEditSpec>();
+		edits += LintEditSpec(if_node.line, if_node.col, if_el, if_ec, "return ${simplified};");
+		self.emit(
+			if_node.line, if_node.col, if_el, if_ec,
+			"If-else statement can be simplified to 'return ${simplified};'",
+			"redundant-boolean-return",
+			false,
+			"Simplify to 'return ${simplified};'",
+			edits
+		);
+		self.handled_bool_if_addrs += if_node.addr();
+		return true;
+	}
+
+	fn check_consecutive_bool_return(&self, s0: *AstNode, s1: *AstNode): bool {
+		if (s0 is IfStmt as ifs && ifs.else_branch == null) {
+			val b1 = bool_return_state(ifs.then_branch);
+			val b2 = bool_return_state(s1);
+			if (!((b1 == 1 && b2 == 0) || (b1 == 0 && b2 == 1))) return false;
+
+			val (s1_el, s1_ec) = stmt_end_pos(self.tokens, s1);
+			val (lp, rp) = self.find_if_cond_parens(s0) !: return false;
+			if (self.mapper.has_comment_pos(rp.line, rp.col + 1, s1_el, s1_ec)) return false;
+
+			val cond_raw = self.mapper.slice_pos(lp.line, lp.col + 1, rp.line, rp.col).trim();
+			if (cond_raw.empty()) return false;
+
+			val simplified = if (b1 == 1) cond_raw else negate_condition_text(ifs.condition, cond_raw, self.tokens, &self.mapper);
+			var edits = List<LintEditSpec>();
+			edits += LintEditSpec(s0.line, s0.col, s1_el, s1_ec, "return ${simplified};");
+			self.emit(
+				s0.line, s0.col, s1_el, s1_ec,
+				"If-return can be simplified to 'return ${simplified};'",
+				"redundant-boolean-return",
+				false,
+				"Simplify to 'return ${simplified};'",
+				edits
+			);
+			self.handled_bool_if_addrs += s0.addr();
+			return true;
+		}
+		return false;
+	}
+
+	fn check_redundant_else(&self, if_node: *AstNode, ifs: *IfStmt, in_block: bool, is_else_if_child: bool) {
+		if (!in_block || is_else_if_child) return;
+		if (if_node.addr() in self.handled_bool_if_addrs) return;
+		if (ifs.else_branch == null || ifs.else_branch! is IfStmt) return;
+		if (ifs.else_branch! is BlockStmt as eb && eb.statements.empty()) return;
+		if (!stmt_always_diverges_lsp(ifs.then_branch)) return;
+
+		val (then_el, then_ec) = stmt_end_pos(self.tokens, ifs.then_branch);
+		val else_i = find_token_index_at_or_after(self.tokens, then_el, then_ec);
+		if (else_i >= self.tokens.len || self.tokens[else_i].type != TokenType.KW_ELSE) return;
+		val else_tok = self.tokens[else_i];
+		val (eb_el, eb_ec) = stmt_end_pos(self.tokens, ifs.else_branch!);
+		val if_indent = self.mapper.line_indent(if_node.line);
+
+		var edits = List<LintEditSpec>();
+		val eb_node = ifs.else_branch!;
+		if (eb_node is BlockStmt) {
+			if (else_i + 1 < self.tokens.len && self.tokens[else_i + 1].type == TokenType.OPEN_BRACE) {
+				val lbrace = self.tokens[else_i + 1];
+				val rbrace_i = find_matching_delim_index(
+					self.tokens, else_i + 1, TokenType.OPEN_BRACE, TokenType.CLOSE_BRACE
+				);
+				if (
+					rbrace_i >= 0 &&
+					!self.mapper.has_comment_pos(then_el, then_ec, lbrace.line, lbrace.col + 1)
+				) {
+					val rbrace = self.tokens[rbrace_i as usz];
+					val inner_raw = self.mapper.slice_pos(
+						lbrace.line, lbrace.col + 1, rbrace.line, rbrace.col
+					);
+					val dedented = dedent_block_interior(inner_raw, if_indent);
+					if (!dedented.empty()) {
+						edits += LintEditSpec(then_el, then_ec, eb_el, eb_ec, "\n${dedented}");
+					}
+				}
+			}
+		} else if (!self.mapper.has_comment_pos(then_el, then_ec, eb_node.line, eb_node.col)) {
+			edits += LintEditSpec(then_el, then_ec, eb_node.line, eb_node.col, "\n${if_indent}");
+		}
+
+		self.emit(
+			else_tok.line, else_tok.col, else_tok.line, else_tok.col + 4,
+			"Redundant 'else' after diverging branch",
+			"redundant-else",
+			true,
+			if (edits.empty()) "" else "Remove redundant 'else'",
+			edits
+		);
+	}
+
+	fn check_collapsible_if(&self, outer_node: *AstNode, outer: *IfStmt, in_block: bool) {
+		if (outer.else_branch != null) return;
+		if (has_unaliased_is_expr(outer.condition)) return;
+
+		var inner_node: ?*AstNode = null;
+		var wrapped = false;
+		if (outer.then_branch is IfStmt) {
+			inner_node = outer.then_branch;
+		} else if (outer.then_branch is BlockStmt as tb && tb.statements.len == 1) {
+			if (tb.statements[0] is IfStmt) {
+				inner_node = tb.statements[0];
+				wrapped = true;
+			}
+		}
+		if (inner_node == null) return;
+		if (inner_node! is IfStmt as inner) {
+			if (inner.else_branch != null) return;
+			// Keep brace safety when outer wasn't directly inside a block
+			if (!in_block && !wrapped) return;
+
+			val (o_lp, o_rp) = self.find_if_cond_parens(outer_node) !: return;
+			val (i_lp, i_rp) = self.find_if_cond_parens(inner_node!) !: return;
+			if (self.mapper.has_comment_pos(o_rp.line, o_rp.col + 1, inner_node!.line, inner_node!.col)) return;
+
+			val c1_raw = self.mapper.slice_pos(o_lp.line, o_lp.col + 1, o_rp.line, o_rp.col).trim();
+			val c2_raw = self.mapper.slice_pos(i_lp.line, i_lp.col + 1, i_rp.line, i_rp.col).trim();
+			if (c1_raw.empty() || c2_raw.empty()) return;
+
+			var edits = List<LintEditSpec>();
+			if ("\n" !in c1_raw && "\n" !in c2_raw) {
+				val p1 = if (expr_needs_parens_for_and(outer.condition)) "(${c1_raw})" else c1_raw;
+				val p2 = if (expr_needs_parens_for_and(inner.condition)) "(${c2_raw})" else c2_raw;
+				val merged = "${p1} && ${p2}";
+				val (outer_el, outer_ec) = stmt_end_pos(self.tokens, outer_node);
+				val (inner_el, inner_ec) = stmt_end_pos(self.tokens, inner_node!);
+				if (!wrapped) {
+					edits += LintEditSpec(o_lp.line, o_lp.col + 1, i_rp.line, i_rp.col, merged);
+				} else if (!self.mapper.has_comment_pos(inner_el, inner_ec, outer_el, outer_ec)) {
+					val body_node = inner.then_branch;
+					val if_indent = self.mapper.line_indent(outer_node.line);
+					val bl_l = body_node.line;
+					val bl_c = body_node.col;
+					val (be_l, be_c) = stmt_end_pos(self.tokens, body_node);
+					if (body_node is BlockStmt) {
+						val inner_raw = self.mapper.slice_pos(bl_l, bl_c + 1, be_l, if (be_c > 1) be_c - 1 else be_c);
+						val dedented = dedent_block_interior(inner_raw, if_indent);
+						val new_body = if (dedented.empty()) "{}"
+							else "{\n${dedented}\n${if_indent}}";
+						edits += LintEditSpec(o_lp.line, o_lp.col + 1, outer_el, outer_ec, "${merged}) ${new_body}");
+					} else {
+						val body_txt = self.mapper.slice_pos(i_rp.line, i_rp.col + 1, inner_el, inner_ec).trim();
+						if (!body_txt.empty()) {
+							edits += LintEditSpec(o_lp.line, o_lp.col + 1, outer_el, outer_ec, "${merged}) ${body_txt}");
+						}
+					}
+				}
+			}
+
+			self.emit(
+				inner_node!.line, inner_node!.col, inner_node!.line, inner_node!.col + 2,
+				"Nested 'if' can be combined with outer 'if' using '&&'",
+				"collapsible-if",
+				false,
+				if (edits.empty()) "" else "Merge nested 'if' conditions",
+				edits
+			);
+		}
+	}
+
+	fn check_redundant_return_var(&self, s0: *AstNode, s1: *AstNode): bool {
+		if (s0 is VarDeclStmt as vd && s1 is ReturnStmt as ret) {
+			if (vd.initializer == null) return false;
+			if (vd.type_annotation != null && vd.type_annotation!.span.file_id > 0) return false;
+			if (ret.value == null) return false;
+
+			val ret_inner = unwrap_group_ast(ret.value);
+			if (ret_inner == null) return false;
+			if (ret_inner! is IdentifierExpr as ret_id) {
+				if (ret_id.name != vd.name) return false;
+			} else {
+				return false;
+			}
+			if (vd.initializer! is LiteralExpr as lit && lit.literal_kind == Literal.NULL_VAL) return false;
+
+			val (init_sl, init_sc) = expr_start_pos(vd.initializer!);
+			val (init_el, init_ec) = expr_end_pos(self.tokens, vd.initializer!);
+			// Keep multiline initializers (e.g. multi-line `when` / `!:`) intact for readability
+			if (init_sl != init_el || init_sl != s0.line) return false;
+
+			val (s0_el, s0_ec) = stmt_end_pos(self.tokens, s0);
+			val (s1_el, s1_ec) = stmt_end_pos(self.tokens, s1);
+			if (self.mapper.has_comment_pos(s0.line, s0.col, s1.line, s1.col)) return false;
+			if (self.mapper.has_comment_pos(s1.line, s1.col, s1_el, s1_ec)) return false;
+
+			val init_txt = self.mapper.slice_pos(init_sl, init_sc, init_el, init_ec).trim();
+			if (init_txt.empty()) return false;
+
+			var edits = List<LintEditSpec>();
+			edits += LintEditSpec(s0.line, s0.col, s1_el, s1_ec, "return ${init_txt};");
+			self.emit(
+				s0.line, s0.col, s0_el, s0_ec,
+				"Variable '${vd.name}' is immediately returned; inline as 'return ${init_txt};'",
+				"redundant-return-var",
+				false,
+				"Inline return variable '${vd.name}'",
+				edits
+			);
+			return true;
+		}
+		return false;
+	}
+
+	fn check_bool_compare_expr(&self, expr: *AstNode, bin: *BinaryExpr): bool {
+		if (bin.op !in [TokenType.EQUAL_EQUAL, TokenType.BANG_EQUAL]) return false;
+		val l_un = unwrap_group_ast(bin.left) ?: return false;
+		val r_un = unwrap_group_ast(bin.right) ?: return false;
+
+		var bool_lit_val: i32 = -1;
+		var other: ?*AstNode = null;
+		val r_bool = bool_literal_state(r_un);
+		val l_bool = bool_literal_state(l_un);
+		if (r_bool >= 0 && l_bool < 0) {
+			bool_lit_val = r_bool;
+			other = bin.left;
+		} else if (l_bool >= 0 && r_bool < 0) {
+			bool_lit_val = l_bool;
+			other = bin.right;
+		} else {
+			return false;
+		}
+		if (!self.is_bool_expr(other!)) return false;
+
+		val keep_sense = (bin.op == TokenType.EQUAL_EQUAL && bool_lit_val == 1)
+			|| (bin.op == TokenType.BANG_EQUAL && bool_lit_val == 0);
+		val (osl, osc) = expr_start_pos(other!);
+		val (oel, oec) = expr_end_pos(self.tokens, other!);
+		val other_txt = self.mapper.slice_pos(osl, osc, oel, oec).trim();
+		if (other_txt.empty()) return false;
+
+		val simplified = if (keep_sense) other_txt
+			else negate_condition_text(other!, other_txt, self.tokens, &self.mapper);
+
+		val (bsl, bsc) = expr_start_pos(expr);
+		val (bel, bec) = expr_end_pos(self.tokens, expr);
+		var edits = List<LintEditSpec>();
+		edits += LintEditSpec(bsl, bsc, bel, bec, simplified);
+		self.emit(
+			bsl, bsc, bel, bec,
+			"Redundant boolean comparison; simplify to '${simplified}'",
+			"redundant-bool-compare",
+			false,
+			"Simplify to '${simplified}'",
+			edits
+		);
+		self.walk_expr(other);
+		return true;
+	}
+
+	fn check_double_not_expr(&self, expr: *AstNode, un: *UnaryExpr): bool {
+		if (un.is_postfix || un.op != TokenType.BANG) return false;
+		val outer_tok_i = find_token_index_exact(self.tokens, expr.line, expr.col);
+		if (outer_tok_i < 0 || self.tokens[outer_tok_i as usz].type != TokenType.BANG) return false;
+
+		val inner_node = unwrap_group_ast(un.operand) ?: return false;
+		val iu_l = inner_node.line;
+		val iu_c = inner_node.col;
+		if (inner_node is UnaryExpr as iu) {
+			if (iu.is_postfix || iu.op != TokenType.BANG) return false;
+			val inner_tok_i = find_token_index_exact(self.tokens, iu_l, iu_c);
+			if (inner_tok_i < 0 || self.tokens[inner_tok_i as usz].type != TokenType.BANG) return false;
+			if (iu.operand is IsExpr || is_kw_in_binary(iu.operand)) return false;
+			if (!self.is_bool_expr(iu.operand)) return false;
+
+			val (tsl, tsc) = expr_start_pos(iu.operand);
+			val (tel, tec) = expr_end_pos(self.tokens, iu.operand);
+			val inner_txt = self.mapper.slice_pos(tsl, tsc, tel, tec).trim();
+			if (inner_txt.empty()) return false;
+
+			val (usl, usc) = expr_start_pos(expr);
+			val (uel, uec) = expr_end_pos(self.tokens, expr);
+			var edits = List<LintEditSpec>();
+			edits += LintEditSpec(usl, usc, uel, uec, inner_txt);
+			self.emit(
+				usl, usc, uel, uec,
+				"Redundant double negation; simplify to '${inner_txt}'",
+				"redundant-bool-compare",
+				false,
+				"Simplify to '${inner_txt}'",
+				edits
+			);
+			self.walk_expr(iu.operand);
+			return true;
+		}
+		return false;
+	}
+
+	fn walk_expr(&self, node: ?*AstNode) {
+		if (node == null) return;
+		when (node!) {
+			is BinaryExpr as b -> {
+				if (self.check_bool_compare_expr(node!, b)) return;
+				self.walk_expr(b.left);
+				self.walk_expr(b.right);
+			}
+			is UnaryExpr as u -> {
+				if (self.check_double_not_expr(node!, u)) return;
+				self.walk_expr(u.operand);
+			}
+			is CallExpr as c -> {
+				self.walk_expr(c.callee);
+				for (a in c.args) self.walk_expr(a);
+			}
+			is MemberExpr as m -> self.walk_expr(m.object);
+			is IndexExpr as ix -> {
+				self.walk_expr(ix.target);
+				self.walk_expr(ix.index);
+			}
+			is AssignExpr as a -> {
+				self.walk_expr(a.target);
+				self.walk_expr(a.value);
+			}
+			is CastExpr as cs -> self.walk_expr(cs.expr);
+			is GroupExpr as g -> self.walk_expr(g.expr);
+			is ArrayLiteralExpr as al -> for (el in al.elements) self.walk_expr(el);
+			is IfExpr as ie -> {
+				self.walk_expr(ie.condition);
+				self.walk_expr(ie.then_branch);
+				self.walk_expr(ie.else_branch);
+			}
+			is WhenExpr as we -> {
+				self.walk_expr(we.condition);
+				for (arm in we.arms) {
+					if (arm.body is BlockStmt) self.walk_stmt(arm.body, false, false);
+					else self.walk_expr(arm.body);
+				}
+			}
+			is InterpExpr as ip -> {
+				for (part in ip.parts) {
+					when (part) {
+						is InterpPart.Hole -> self.walk_expr(part.node);
+						else -> {}
+					}
+				}
+			}
+			is IsExpr as ise -> self.walk_expr(ise.expr);
+			is LambdaExpr as lam -> self.walk_stmt(lam.body, false, false);
+			is CatchExpr as ce -> {
+				self.walk_expr(ce.expr);
+				if (ce.handler is BlockStmt) self.walk_stmt(ce.handler, false, false);
+				else self.walk_expr(ce.handler);
+			}
+			is ErrorUnionWrapExpr as eu -> self.walk_expr(eu.value);
+			else -> {}
+		}
+	}
+
+	fn walk_stmt(&self, node: ?*AstNode, in_block: bool, is_else_if_child: bool) {
+		if (node == null) return;
+		when (node!) {
+			is BlockStmt as blk -> {
+				val n = blk.statements.len;
+				for (i in 0..<n) {
+					val st = blk.statements[i];
+					if (i + 1 < n) {
+						val nxt = blk.statements[i + 1];
+						if (!self.check_consecutive_bool_return(st, nxt)) {
+							self.check_redundant_return_var(st, nxt);
+						}
+					}
+					self.walk_stmt(st, true, false);
+				}
+			}
+			is ExprStmt as es -> self.walk_expr(es.expr);
+			is VarDeclStmt as vd -> {
+				self.check_var_mutability(node!, vd);
+				self.walk_expr(vd.initializer);
+			}
+			is DestructDeclStmt as dd -> self.walk_expr(dd.initializer);
+			is IfStmt as ifs -> {
+				self.walk_expr(ifs.condition);
+				val did_empty = self.check_empty_if(node!, ifs);
+				val did_bool = self.check_single_if_bool_return(node!, ifs);
+				if (!did_empty && !did_bool) {
+					self.check_redundant_else(node!, ifs, in_block, is_else_if_child);
+					self.check_collapsible_if(node!, ifs, in_block);
+				}
+				self.walk_stmt(ifs.then_branch, ifs.then_branch is BlockStmt, false);
+				if (ifs.else_branch != null) {
+					self.walk_stmt(
+						ifs.else_branch!,
+						ifs.else_branch! is BlockStmt,
+						ifs.else_branch! is IfStmt
+					);
+				}
+			}
+			is WhileStmt as ws -> {
+				self.walk_expr(ws.condition);
+				self.walk_stmt(ws.body, ws.body is BlockStmt, false);
+			}
+			is ForStmt as fs -> {
+				self.walk_expr(fs.iterable);
+				self.walk_expr(fs.range_start);
+				self.walk_expr(fs.range_end);
+				self.walk_stmt(fs.body, fs.body is BlockStmt, false);
+			}
+			is ReturnStmt as rs -> self.walk_expr(rs.value);
+			is YieldStmt as ys -> self.walk_expr(ys.value);
+			is DeferStmt as ds -> self.walk_stmt(ds.body, ds.body is BlockStmt, false);
+			is WhenStmt as wh -> {
+				self.walk_expr(wh.condition);
+				for (arm in wh.arms) {
+					self.walk_stmt(arm.body, arm.body is BlockStmt, false);
+				}
+			}
+			else -> self.walk_expr(node);
+		}
+	}
+
+	fn walk_fn(&self, fn_node: *AstNode, f: *FnDecl, is_trait_decl: bool) {
+		if (!is_trait_decl) self.check_mut_self_fn(fn_node, f);
+		if (f.body == null) return;
+		self.check_prefer_expression_body(fn_node, f);
+		self.check_trailing_return(f);
+		self.walk_stmt(f.body!, f.body! is BlockStmt, false);
+	}
+
+	pub fn collect(&self) {
+		if (self.doc_ast is Program as prog) {
+			for (decl in prog) {
+				when (decl) {
+					is FnDecl as f -> self.walk_fn(decl, f, false);
+					is ImplDecl as im -> for (m in im.methods) {
+						if (m is FnDecl as mf) self.walk_fn(m, mf, false);
+					}
+					is ObjectDecl as obj -> {
+						for (cnode in obj.consts) {
+							if (cnode is ConstDecl as oc) self.walk_expr(oc.value);
+						}
+						for (m in obj.methods) {
+							if (m is FnDecl as mf) self.walk_fn(m, mf, false);
+						}
+					}
+					is TraitDecl as tr -> for (m in tr.methods) {
+						if (m is FnDecl as tm) self.walk_fn(m, tm, true);
+					}
+					is ConstDecl as c -> self.walk_expr(c.value);
+					is StructDecl as st -> for (fld in st.fields) {
+						self.walk_expr(fld.default_val);
+					}
+				}
+			}
+		}
+	}
+
+}
+
+pub fn collect_lint_diagnostics_and_fixes(
+	doc_ast: ?*AstNode,
+	symtab: SymbolTable,
+	has_symtab: bool,
+	tokens: List<Token>,
+	source: str,
+	diags_out: &List<LspDiagnostic>,
+	fixes_out: &List<LintFix>
+) {
+	val root = doc_ast ?: return;
+	val file_id = root.span.file_id;
+	var collector = LintCollector(root, tokens, SourceMapper(source), symtab, has_symtab, file_id);
+	collector.collect();
+	for (d in collector.diags) diags_out += d;
+	for (fx in collector.fixes) fixes_out += fx;
+	collector.handled_bool_if_addrs.free();
+}

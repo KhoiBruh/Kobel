@@ -334,34 +334,36 @@ impl CCodeGen {
 		}
 		if (cur == null) return res;
 
-		if (cur is BinaryExpr as bin) {
-			if (bin.op == TokenType.AND_AND) {
-				val left = self.collect_condition_aliases(bin.left);
-				defer left.free();
-				val right = self.collect_condition_aliases(bin.right);
-				defer right.free();
-				for (l in left) {
-					var found = false;
-					for (item in res) {
-						if (item.name == l.name) {
-							found = true;
-							break;
-						}
+		if (cur is BinaryExpr as bin && bin.op == TokenType.AND_AND) {
+			val left = self.collect_condition_aliases(bin.left);
+			defer left.free();
+
+			val right = self.collect_condition_aliases(bin.right);
+			defer right.free();
+
+			for (l in left) {
+				var found = false;
+				for (item in res) {
+					if (item.name == l.name) {
+						found = true;
+						break;
 					}
-					if (!found) res += l;
 				}
-				for (r in right) {
-					var found = false;
-					for (item in res) {
-						if (item.name == r.name) {
-							found = true;
-							break;
-						}
-					}
-					if (!found) res += r;
-				}
-				return res;
+				if (!found) res += l;
 			}
+
+			for (r in right) {
+				var found = false;
+				for (item in res) {
+					if (item.name == r.name) {
+						found = true;
+						break;
+					}
+				}
+				if (!found) res += r;
+			}
+
+			return res;
 		}
 
 		if (cur is IsExpr as is_e && !is_e.alias.empty()) {
@@ -890,40 +892,44 @@ impl CCodeGen {
 					if (pat_info.payload_ptr) {
 						return "${target_name}* ${bound_name} = ${subj}->${pat_info.payload_path};";
 					}
+
 					return "${target_name}* ${bound_name} = (${target_name}*)"
 							"(&${subj}->${pat_info.payload_path});";
 				}
+				
 				return "${target_name}* ${bound_name} = (${target_name}*)${var_name};";
-			} else {
-				if (!pat_info.payload_path.empty()) {
-					if (pat_info.payload_ptr) {
-						return "${target_name}* ${bound_name} = ${subj}.${pat_info.payload_path};";
-					}
-					return "${target_name}* ${bound_name} = (${target_name}*)"
-							"(&${subj}.${pat_info.payload_path});";
-				}
-				return "${target_name}* ${bound_name} = (${target_name}*)&${var_name};";
-			}
-		} else {
-			if (!pat_info.payload_path.empty()) {
-				val src = if (is_ptr) var_name else "&${var_name}";
-				val bound = if (pat_info.payload_ptr)
-					"((${pat_info.base_c_name}*)__orig_${var_name})->${pat_info.payload_path}"
-					else "(&((${pat_info.base_c_name}*)__orig_${var_name})->${pat_info.payload_path})";
-				return "void* __orig_${var_name} = (void*)${src};"
-						"\n${target_name}* ${var_name} = (${target_name}*)(${bound});";
 			}
 
-			if (is_ptr) {
-				return "void* __orig_${var_name} = (void*)${var_name};"
-						"\n${target_name}* ${var_name} = "
-						"(${target_name}*)__orig_${var_name};";
-			} else {
-				return "void* __orig_${var_name} = (void*)&${var_name};"
-						"\n${target_name}* ${var_name} = "
-						"(${target_name}*)__orig_${var_name};";
+			if (!pat_info.payload_path.empty()) {
+				if (pat_info.payload_ptr) {
+					return "${target_name}* ${bound_name} = ${subj}.${pat_info.payload_path};";
+				}
+				return "${target_name}* ${bound_name} = (${target_name}*)"
+						"(&${subj}.${pat_info.payload_path});";
 			}
+
+			return "${target_name}* ${bound_name} = (${target_name}*)&${var_name};";
 		}
+
+		if (!pat_info.payload_path.empty()) {
+			val src = if (is_ptr) var_name else "&${var_name}";
+			val bound = if (pat_info.payload_ptr)
+				"((${pat_info.base_c_name}*)__orig_${var_name})->${pat_info.payload_path}"
+				else "(&((${pat_info.base_c_name}*)__orig_${var_name})->${pat_info.payload_path})";
+
+			return "void* __orig_${var_name} = (void*)${src};"
+					"\n${target_name}* ${var_name} = (${target_name}*)(${bound});";
+		}
+
+		if (is_ptr) {
+			return "void* __orig_${var_name} = (void*)${var_name};"
+					"\n${target_name}* ${var_name} = "
+					"(${target_name}*)__orig_${var_name};";
+		}
+
+		return "void* __orig_${var_name} = (void*)&${var_name};"
+				"\n${target_name}* ${var_name} = "
+				"(${target_name}*)__orig_${var_name};";
 	}
 
 	pub fn gen_when_with_target(&self, we: *WhenExpr, target_name: str, is_ret: bool) {

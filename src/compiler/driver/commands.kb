@@ -64,6 +64,7 @@ pub fn compute_project_stamp(cfg: ProjectConfig, manifest_path: str): str {
 
 	var files = List<str>();
 	defer files.free();
+
 	collect_kb_files(root_dir, "", &files);
 	if (!files.empty()) {
 		for (fpath in files) {
@@ -79,12 +80,10 @@ pub fn compute_project_stamp(cfg: ProjectConfig, manifest_path: str): str {
 	return stamp_seed.hash_stamp();
 }
 
-pub fn load_project_config_required(manifest_path: str): ProjectConfig ! CompilerErr {
-	return ProjectConfig.load(manifest_path) !: err -> {
-		println("Error: Could not load '${manifest_path}' (${err}).");
-		return CompilerErr.ManifestNotFound;
-	};
-}
+pub fn load_project_config_required(manifest_path: str): ProjectConfig ! CompilerErr => ProjectConfig.load(manifest_path) !: err -> {
+	println("Error: Could not load '${manifest_path}' (${err}).");
+	return CompilerErr.ManifestNotFound;
+};
 
 pub fn load_project_config_optional(manifest_path: str): ProjectConfig ! CompilerErr {
 	val man_p = Path(manifest_path);
@@ -134,7 +133,7 @@ pub fn cmd_run(manifest_path: str, extra_args: List<str>): !CompilerErr {
 	val current_stamp = compute_project_stamp(cfg, manifest_path);
 
 	val out_p = Path(cfg.output);
-	var needs_build = when {
+	val needs_build = when {
 		!out_p.exists() -> {
 			println("Target '${cfg.output}' not found. Building first...");
 			yield true;

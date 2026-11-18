@@ -807,20 +807,20 @@ void std__memory__Heap_free_u8(uint8_t* ptr);
 void std__memory__Heap_free_i32(int32_t* ptr);
 void std__memory__Heap_free_tests__features__test_control_flow__Bundle(tests__features__test_control_flow__Bundle* ptr);
 uint8_t* std__memory__Heap_create_u8(size_t count);
-uint8_t* std__memory__Heap_resize_u8(uint8_t* ptr, size_t count);
-int32_t* std__memory__Heap_create_i32(size_t count);
-int32_t* std__memory__Heap_resize_i32(int32_t* ptr, size_t count);
-tests__features__test_control_flow__Bundle* std__memory__Heap_create_tests__features__test_control_flow__Bundle(size_t count);
-tests__features__test_control_flow__Bundle* std__memory__Heap_resize_tests__features__test_control_flow__Bundle(tests__features__test_control_flow__Bundle* ptr, size_t count);
 __kobel_eu_mut_ptr_u8__std__memory__MemErr std__memory__Heap_try_create_u8(size_t count);
+uint8_t* std__memory__Heap_resize_u8(uint8_t* ptr, size_t count);
 __kobel_eu_mut_ptr_u8__std__memory__MemErr std__memory__Heap_try_resize_u8(uint8_t* ptr, size_t count);
+int32_t* std__memory__Heap_create_i32(size_t count);
 __kobel_eu_mut_ptr_i32__std__memory__MemErr std__memory__Heap_try_create_i32(size_t count);
+int32_t* std__memory__Heap_resize_i32(int32_t* ptr, size_t count);
 __kobel_eu_mut_ptr_i32__std__memory__MemErr std__memory__Heap_try_resize_i32(int32_t* ptr, size_t count);
+tests__features__test_control_flow__Bundle* std__memory__Heap_create_tests__features__test_control_flow__Bundle(size_t count);
 __kobel_eu_mut_ptr_tests__features__test_control_flow__Bundle__std__memory__MemErr std__memory__Heap_try_create_tests__features__test_control_flow__Bundle(size_t count);
+tests__features__test_control_flow__Bundle* std__memory__Heap_resize_tests__features__test_control_flow__Bundle(tests__features__test_control_flow__Bundle* ptr, size_t count);
 __kobel_eu_mut_ptr_tests__features__test_control_flow__Bundle__std__memory__MemErr std__memory__Heap_try_resize_tests__features__test_control_flow__Bundle(tests__features__test_control_flow__Bundle* ptr, size_t count);
 
 __kobel_eu_mut_ptr_u8__std__memory__MemErr std__memory__Heap_try_alloc(size_t size) {
-size_t req = size == 0 ? (size_t)1 : size;
+size_t req = size == 0 ? 1 : size;
 uint8_t* raw = malloc(req);
 if (raw == NULL) {
 return (__kobel_eu_mut_ptr_u8__std__memory__MemErr){ .is_ok = false, .u = { .err = (std__memory__MemErr){ .tag = 0, .__err_code = 1U, .__origin = { "lib/std/memory/heap.kb", 24, 41, "Heap_try_alloc" } } } };
@@ -2310,27 +2310,7 @@ void std__memory__Heap_free_tests__features__test_control_flow__Bundle(tests__fe
 }
 
 uint8_t* std__memory__Heap_create_u8(size_t count) {
-    return __kobel_unwrap___kobel_eu_mut_ptr_u8__std__memory__MemErr(std__memory__Heap_try_create_u8(count), "lib/std/memory/heap.kb", 44, 67, "Heap_create_u8");
-}
-
-uint8_t* std__memory__Heap_resize_u8(uint8_t* ptr, size_t count) {
-    return __kobel_unwrap___kobel_eu_mut_ptr_u8__std__memory__MemErr(std__memory__Heap_try_resize_u8(ptr, count), "lib/std/memory/heap.kb", 54, 77, "Heap_resize_u8");
-}
-
-int32_t* std__memory__Heap_create_i32(size_t count) {
-    return __kobel_unwrap___kobel_eu_mut_ptr_i32__std__memory__MemErr(std__memory__Heap_try_create_i32(count), "lib/std/memory/heap.kb", 44, 67, "Heap_create_i32");
-}
-
-int32_t* std__memory__Heap_resize_i32(int32_t* ptr, size_t count) {
-    return __kobel_unwrap___kobel_eu_mut_ptr_i32__std__memory__MemErr(std__memory__Heap_try_resize_i32(ptr, count), "lib/std/memory/heap.kb", 54, 77, "Heap_resize_i32");
-}
-
-tests__features__test_control_flow__Bundle* std__memory__Heap_create_tests__features__test_control_flow__Bundle(size_t count) {
-    return __kobel_unwrap___kobel_eu_mut_ptr_tests__features__test_control_flow__Bundle__std__memory__MemErr(std__memory__Heap_try_create_tests__features__test_control_flow__Bundle(count), "lib/std/memory/heap.kb", 44, 67, "Heap_create_tests__features__test_control_flow__Bundle");
-}
-
-tests__features__test_control_flow__Bundle* std__memory__Heap_resize_tests__features__test_control_flow__Bundle(tests__features__test_control_flow__Bundle* ptr, size_t count) {
-    return __kobel_unwrap___kobel_eu_mut_ptr_tests__features__test_control_flow__Bundle__std__memory__MemErr(std__memory__Heap_try_resize_tests__features__test_control_flow__Bundle(ptr, count), "lib/std/memory/heap.kb", 54, 77, "Heap_resize_tests__features__test_control_flow__Bundle");
+    return __kobel_unwrap___kobel_eu_mut_ptr_u8__std__memory__MemErr(std__memory__Heap_try_create_u8(count), "lib/std/memory/heap.kb", 44, 63, "Heap_create_u8");
 }
 
 __kobel_eu_mut_ptr_u8__std__memory__MemErr std__memory__Heap_try_create_u8(size_t count) {
@@ -2343,14 +2323,22 @@ uint8_t* raw = __eu_prop_1.u.ok;
 return (__kobel_eu_mut_ptr_u8__std__memory__MemErr){ .is_ok = true, .u = { .ok = (uint8_t*)raw } };
 }
 
+uint8_t* std__memory__Heap_resize_u8(uint8_t* ptr, size_t count) {
+    return __kobel_unwrap___kobel_eu_mut_ptr_u8__std__memory__MemErr(std__memory__Heap_try_resize_u8(ptr, count), "lib/std/memory/heap.kb", 54, 73, "Heap_resize_u8");
+}
+
 __kobel_eu_mut_ptr_u8__std__memory__MemErr std__memory__Heap_try_resize_u8(uint8_t* ptr, size_t count) {
 size_t bytes = count * 1;
-size_t req = bytes == 0 ? (size_t)1 : bytes;
+size_t req = bytes == 0 ? 1 : bytes;
 uint8_t* raw = realloc((uint8_t*)ptr, req);
 if (raw == NULL) {
 return (__kobel_eu_mut_ptr_u8__std__memory__MemErr){ .is_ok = false, .u = { .err = (std__memory__MemErr){ .tag = 0, .__err_code = 1U, .__origin = { "lib/std/memory/heap.kb", 39, 54, "Heap_try_resize_u8" } } } };
 }
 return (__kobel_eu_mut_ptr_u8__std__memory__MemErr){ .is_ok = true, .u = { .ok = (uint8_t*)raw } };
+}
+
+int32_t* std__memory__Heap_create_i32(size_t count) {
+    return __kobel_unwrap___kobel_eu_mut_ptr_i32__std__memory__MemErr(std__memory__Heap_try_create_i32(count), "lib/std/memory/heap.kb", 44, 63, "Heap_create_i32");
 }
 
 __kobel_eu_mut_ptr_i32__std__memory__MemErr std__memory__Heap_try_create_i32(size_t count) {
@@ -2363,14 +2351,22 @@ uint8_t* raw = __eu_prop_4.u.ok;
 return (__kobel_eu_mut_ptr_i32__std__memory__MemErr){ .is_ok = true, .u = { .ok = (int32_t*)raw } };
 }
 
+int32_t* std__memory__Heap_resize_i32(int32_t* ptr, size_t count) {
+    return __kobel_unwrap___kobel_eu_mut_ptr_i32__std__memory__MemErr(std__memory__Heap_try_resize_i32(ptr, count), "lib/std/memory/heap.kb", 54, 73, "Heap_resize_i32");
+}
+
 __kobel_eu_mut_ptr_i32__std__memory__MemErr std__memory__Heap_try_resize_i32(int32_t* ptr, size_t count) {
 size_t bytes = count * 4;
-size_t req = bytes == 0 ? (size_t)1 : bytes;
+size_t req = bytes == 0 ? 1 : bytes;
 uint8_t* raw = realloc((uint8_t*)ptr, req);
 if (raw == NULL) {
 return (__kobel_eu_mut_ptr_i32__std__memory__MemErr){ .is_ok = false, .u = { .err = (std__memory__MemErr){ .tag = 0, .__err_code = 1U, .__origin = { "lib/std/memory/heap.kb", 39, 54, "Heap_try_resize_i32" } } } };
 }
 return (__kobel_eu_mut_ptr_i32__std__memory__MemErr){ .is_ok = true, .u = { .ok = (int32_t*)raw } };
+}
+
+tests__features__test_control_flow__Bundle* std__memory__Heap_create_tests__features__test_control_flow__Bundle(size_t count) {
+    return __kobel_unwrap___kobel_eu_mut_ptr_tests__features__test_control_flow__Bundle__std__memory__MemErr(std__memory__Heap_try_create_tests__features__test_control_flow__Bundle(count), "lib/std/memory/heap.kb", 44, 63, "Heap_create_tests__features__test_control_flow__Bundle");
 }
 
 __kobel_eu_mut_ptr_tests__features__test_control_flow__Bundle__std__memory__MemErr std__memory__Heap_try_create_tests__features__test_control_flow__Bundle(size_t count) {
@@ -2383,9 +2379,13 @@ uint8_t* raw = __eu_prop_5.u.ok;
 return (__kobel_eu_mut_ptr_tests__features__test_control_flow__Bundle__std__memory__MemErr){ .is_ok = true, .u = { .ok = (tests__features__test_control_flow__Bundle*)raw } };
 }
 
+tests__features__test_control_flow__Bundle* std__memory__Heap_resize_tests__features__test_control_flow__Bundle(tests__features__test_control_flow__Bundle* ptr, size_t count) {
+    return __kobel_unwrap___kobel_eu_mut_ptr_tests__features__test_control_flow__Bundle__std__memory__MemErr(std__memory__Heap_try_resize_tests__features__test_control_flow__Bundle(ptr, count), "lib/std/memory/heap.kb", 54, 73, "Heap_resize_tests__features__test_control_flow__Bundle");
+}
+
 __kobel_eu_mut_ptr_tests__features__test_control_flow__Bundle__std__memory__MemErr std__memory__Heap_try_resize_tests__features__test_control_flow__Bundle(tests__features__test_control_flow__Bundle* ptr, size_t count) {
 size_t bytes = count * 24;
-size_t req = bytes == 0 ? (size_t)1 : bytes;
+size_t req = bytes == 0 ? 1 : bytes;
 uint8_t* raw = realloc((uint8_t*)ptr, req);
 if (raw == NULL) {
 return (__kobel_eu_mut_ptr_tests__features__test_control_flow__Bundle__std__memory__MemErr){ .is_ok = false, .u = { .err = (std__memory__MemErr){ .tag = 0, .__err_code = 1U, .__origin = { "lib/std/memory/heap.kb", 39, 54, "Heap_try_resize_tests__features__test_control_flow__Bundle" } } } };

@@ -48,7 +48,9 @@ pub struct Symbol {
 	pub orig_type: ?*Type = null,
 	pub mutated: bool = false,
 	pub is_moved: bool = false,
-	pub is_vararg: bool = false
+	pub is_vararg: bool = false,
+	// Canonical declaration coordinate key ("V:<fid>:<line>:<col>" / "F:...") for mutability tracking across scopes
+	pub decl_key: str = ""
 }
 
 impl Symbol {

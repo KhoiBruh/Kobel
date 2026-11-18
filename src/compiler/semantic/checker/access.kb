@@ -345,7 +345,12 @@ impl BodyChecker {
 
 	pub fn mark_symbol_mutated(*self, name: str) {
 		val sym = self.symtab.lookup_local_mut(name);
-		if (sym != null) sym.mutated = true;
+		if (sym != null) {
+			sym.mutated = true;
+			if (!sym.decl_key.empty()) {
+				self.symtab.sem.mutated_decl_keys[sym.decl_key] = true;
+			}
+		}
 	}
 
 	pub fn mark_node_mutated(&self, node: ?*AstNode) {

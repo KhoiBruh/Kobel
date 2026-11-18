@@ -205,9 +205,26 @@ const DEAD_CODE_CODES = new Set([
     'unused-symbol',
     'unreachable-code'
 ]);
+const LINT_CODES = new Set([
+    'unnecessary-mut-receiver',
+    'unnecessary-mut',
+    'redundant-else',
+    'empty-branch',
+    'collapsible-if',
+    'redundant-boolean-return',
+    'redundant-bool-compare',
+    'prefer-expression-body',
+    'redundant-trailing-return',
+    'redundant-return-var'
+]);
+
+function isLintDiag(d) {
+    return Boolean(d && typeof d.code === 'string' && LINT_CODES.has(d.code));
+}
 
 function isDeadCodeDiag(d) {
     if (!d) return false;
+    if (isLintDiag(d)) return false;
     if (typeof d.code === 'string' && DEAD_CODE_CODES.has(d.code)) return true;
     if (Array.isArray(d.tags) && d.tags.includes(1)) return true;
     return false;
@@ -222,11 +239,27 @@ function getDeadCodeSettings() {
     return { enabled, severityStr };
 }
 
-function mapDiagnosticSeverity(rawSeverity, isDead, deadSeverityStr) {
+function getLintSettings() {
+    const cfg = vscode.workspace && typeof vscode.workspace.getConfiguration === 'function'
+        ? vscode.workspace.getConfiguration('kobel')
+        : null;
+    const enabled = cfg ? cfg.get('lint.enabled', true) !== false : true;
+    const severityStr = String(cfg ? cfg.get('lint.severity', 'server') : 'server').toLowerCase();
+    return { enabled, severityStr };
+}
+
+function mapNamedSeverity(severityStr) {
+    if (severityStr === 'hint') return vscode.DiagnosticSeverity.Hint;
+    if (severityStr === 'information') return vscode.DiagnosticSeverity.Information;
+    return vscode.DiagnosticSeverity.Warning;
+}
+
+function mapDiagnosticSeverity(rawSeverity, isDead, deadSeverityStr, isLint, lintSeverityStr) {
     if (isDead) {
-        if (deadSeverityStr === 'hint') return vscode.DiagnosticSeverity.Hint;
-        if (deadSeverityStr === 'information') return vscode.DiagnosticSeverity.Information;
-        return vscode.DiagnosticSeverity.Warning;
+        return mapNamedSeverity(deadSeverityStr);
+    }
+    if (isLint && lintSeverityStr && lintSeverityStr !== 'server') {
+        return mapNamedSeverity(lintSeverityStr);
     }
     return rawSeverity === 1 ? vscode.DiagnosticSeverity.Error
         : rawSeverity === 2 ? vscode.DiagnosticSeverity.Warning
@@ -789,12 +822,15 @@ class KobelLanguageClient {
 
     buildVscodeDiagnostics(rawList) {
         const { enabled, severityStr } = getDeadCodeSettings();
+        const lintCfg = getLintSettings();
         const diags = [];
         for (const d of (rawList || [])) {
             const dead = isDeadCodeDiag(d);
             if (dead && !enabled) continue;
+            const lint = isLintDiag(d);
+            if (lint && !lintCfg.enabled) continue;
             const range = toVscodeRange(d.range);
-            const sev = mapDiagnosticSeverity(d.severity, dead, severityStr);
+            const sev = mapDiagnosticSeverity(d.severity, dead, severityStr, lint, lintCfg.severityStr);
             const diag = new vscode.Diagnostic(range, d.message || '', sev);
             diag.source = d.source || 'kobel';
             if (typeof d.code === 'string' && d.code.length > 0) diag.code = d.code;
@@ -1273,7 +1309,7 @@ function activate(context) {
             if (event.affectsConfiguration('kobel.compilerPath')) {
                 client.restart(resolveCompilerPath());
             }
-            if (event.affectsConfiguration('kobel.deadCode')) {
+            if (event.affectsConfiguration('kobel.deadCode') || event.affectsConfiguration('kobel.lint')) {
                 client.refreshAllDiagnostics();
             }
         })

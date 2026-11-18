@@ -870,7 +870,7 @@ uint8_t* std__memory__Heap_create_u8(size_t count);
 __kobel_eu_mut_ptr_u8__std__memory__MemErr std__memory__Heap_try_create_u8(size_t count);
 
 __kobel_eu_mut_ptr_u8__std__memory__MemErr std__memory__Heap_try_alloc(size_t size) {
-size_t req = size == 0 ? (size_t)1 : size;
+size_t req = size == 0 ? 1 : size;
 uint8_t* raw = malloc(req);
 if (raw == NULL) {
 return (__kobel_eu_mut_ptr_u8__std__memory__MemErr){ .is_ok = false, .u = { .err = (std__memory__MemErr){ .tag = 0, .__err_code = 1U, .__origin = { "lib/std/memory/heap.kb", 24, 41, "Heap_try_alloc" } } } };
@@ -1739,7 +1739,7 @@ return __ret_tmp;
 }
 
 uint8_t* std__memory__Heap_create_u8(size_t count) {
-    return __kobel_unwrap___kobel_eu_mut_ptr_u8__std__memory__MemErr(std__memory__Heap_try_create_u8(count), "lib/std/memory/heap.kb", 44, 67, "Heap_create_u8");
+    return __kobel_unwrap___kobel_eu_mut_ptr_u8__std__memory__MemErr(std__memory__Heap_try_create_u8(count), "lib/std/memory/heap.kb", 44, 63, "Heap_create_u8");
 }
 
 __kobel_eu_mut_ptr_u8__std__memory__MemErr std__memory__Heap_try_create_u8(size_t count) {

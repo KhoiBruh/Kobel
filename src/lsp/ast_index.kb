@@ -62,7 +62,8 @@ pub struct DefInfo {
 	pub return_type: str = "",
 	pub has_body: bool = true,
 	pub is_trait_impl: bool = false,
-	pub is_special_fn: bool = false
+	pub is_special_fn: bool = false,
+	pub has_mut_check: bool = false
 }
 
 pub struct RefInfo {
@@ -602,7 +603,8 @@ struct IndexWalker {
 	pub cur_when_enum_mod: str = "",
 	pub cur_owner_key: str = "",
 	pub cur_impl_struct: str = "",
-	pub cur_impl_mod: str = ""
+	pub cur_impl_mod: str = "",
+	pub cur_file_id: u32 = 0
 }
 
 impl IndexWalker {
@@ -620,8 +622,10 @@ impl IndexWalker {
 		));
 	}
 
-	fn bind_local(&self, name: str, role: SymRole, line: usz, col: usz, type_str: str, is_mut: bool) {
-		if (name.empty() || name == "_") return;
+	fn bind_local(
+		&self, name: str, role: SymRole, line: usz, col: usz, type_str: str, is_mut: bool
+	): isz {
+		if (name.empty() || name == "_") return -1;
 		val tok = if (role == SymRole.PARAM) find_param_token_after(self.tokens, line, col, name)
 			else find_ident_token_after(self.tokens, line, col, name);
 		val r_line = if (tok.line > 0) tok.line else line;
@@ -647,6 +651,7 @@ impl IndexWalker {
 			sc.bindings += LocalBinding(name, key, def_idx);
 			self.scopes[last_i] = sc;
 		}
+		return def_idx as isz;
 	}
 
 	fn lookup_local(*self, name: str): LocalBinding ! IndexErr {
@@ -1234,7 +1239,18 @@ impl IndexWalker {
 				var ty_s = self.node_type_str(node.initializer);
 				if (ty_s.empty() && node.type_annotation != null) ty_s = format_type_node(node.type_annotation);
 				if (ty_s.empty()) ty_s = "any";
-				self.bind_local(node.name, SymRole.LOCAL, nl, nc, ty_s, node.mutable);
+				val d_idx = self.bind_local(node.name, SymRole.LOCAL, nl, nc, ty_s, node.mutable);
+				if (d_idx >= 0 && node.mutable && self.index.has_symtab && self.cur_file_id > 0) {
+					val v_key = "V:${self.cur_file_id}:${nl}:${nc}";
+					val sem = self.index.symtab.sem;
+					if (v_key in sem.checked_var_decls) {
+						val idx_u = d_idx as usz;
+						var def = self.index.defs[idx_u];
+						def.has_mut_check = true;
+						if (v_key in sem.mutated_decl_keys) def.is_mutated = true;
+						self.index.defs[idx_u] = def;
+					}
+				}
 			}
 			is DestructDeclStmt -> {
 				self.walk_expr(node.initializer);
@@ -1679,6 +1695,7 @@ pub fn finish_semantic_index(
 		val norm = lm.path.normalize_path();
 		val toks = index.file_tokens.get_or(norm, List<Token>());
 		var walker = IndexWalker(index, lm.path, lm.name, toks);
+		walker.cur_file_id = lm.file_id;
 		walker.walk_body_pass(prog);
 	}
 

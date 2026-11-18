@@ -688,7 +688,9 @@ int32_t test__generic_methods__Box_i32_get_twice(test__generic_methods__Box_i32*
 void std__memory__Heap_free_u8(uint8_t* ptr);
 std__memory__ArenaState* std__memory__Heap_create_val_std__memory__ArenaState(std__memory__ArenaState value);
 uint8_t* std__memory__Heap_create_u8(size_t count);
+__kobel_eu_mut_ptr_u8__std__memory__MemErr std__memory__Heap_try_create_u8(size_t count);
 std__memory__ArenaBlock* std__memory__Heap_create_std__memory__ArenaBlock(size_t count);
+__kobel_eu_mut_ptr_std__memory__ArenaBlock__std__memory__MemErr std__memory__Heap_try_create_std__memory__ArenaBlock(size_t count);
 void std__memory__Heap_free_std__memory__ArenaBlock(std__memory__ArenaBlock* ptr);
 void std__memory__Heap_free_std__memory__ArenaState(std__memory__ArenaState* ptr);
 int32_t test__generic_methods__A_pick_i32(test__generic_methods__A* self);
@@ -698,13 +700,11 @@ int32_t* std__memory__Arena_create_val_i32(std__memory__Arena* self, int32_t val
 kobel_str* std__memory__Arena_create_val_str(std__memory__Arena* self, kobel_str value);
 int32_t test__generic_methods__A_pick_or_i32(test__generic_methods__A* self, int32_t bonus);
 int32_t* std__memory__Heap_create_i32(size_t count);
+__kobel_eu_mut_ptr_i32__std__memory__MemErr std__memory__Heap_try_create_i32(size_t count);
 void std__memory__Heap_free_i32(int32_t* ptr);
 std__memory__ArenaState* std__memory__Heap_create_std__memory__ArenaState(size_t count);
-__kobel_eu_mut_ptr_u8__std__memory__MemErr std__memory__Heap_try_create_u8(size_t count);
-__kobel_eu_mut_ptr_std__memory__ArenaBlock__std__memory__MemErr std__memory__Heap_try_create_std__memory__ArenaBlock(size_t count);
-kobel_str* std__memory__Arena_create_str(std__memory__Arena* self);
-__kobel_eu_mut_ptr_i32__std__memory__MemErr std__memory__Heap_try_create_i32(size_t count);
 __kobel_eu_mut_ptr_std__memory__ArenaState__std__memory__MemErr std__memory__Heap_try_create_std__memory__ArenaState(size_t count);
+kobel_str* std__memory__Arena_create_str(std__memory__Arena* self);
 
 uint8_t* std__memory__Arena_alloc_bytes(std__memory__Arena* self, size_t size, size_t align) {
 std__memory__ArenaState* st = std__memory__Arena_ensure_state(self);
@@ -774,7 +774,7 @@ self->state = NULL;
 }
 
 __kobel_eu_mut_ptr_u8__std__memory__MemErr std__memory__Heap_try_alloc(size_t size) {
-size_t req = size == 0 ? (size_t)1 : size;
+size_t req = size == 0 ? 1 : size;
 uint8_t* raw = malloc(req);
 if (raw == NULL) {
 return (__kobel_eu_mut_ptr_u8__std__memory__MemErr){ .is_ok = false, .u = { .err = (std__memory__MemErr){ .tag = 0, .__err_code = 1U, .__origin = { "lib/std/memory/heap.kb", 24, 41, "Heap_try_alloc" } } } };
@@ -895,11 +895,31 @@ return ptr;
 }
 
 uint8_t* std__memory__Heap_create_u8(size_t count) {
-    return __kobel_unwrap___kobel_eu_mut_ptr_u8__std__memory__MemErr(std__memory__Heap_try_create_u8(count), "lib/std/memory/heap.kb", 44, 67, "Heap_create_u8");
+    return __kobel_unwrap___kobel_eu_mut_ptr_u8__std__memory__MemErr(std__memory__Heap_try_create_u8(count), "lib/std/memory/heap.kb", 44, 63, "Heap_create_u8");
+}
+
+__kobel_eu_mut_ptr_u8__std__memory__MemErr std__memory__Heap_try_create_u8(size_t count) {
+size_t bytes = count * 1;
+__kobel_eu_mut_ptr_u8__std__memory__MemErr __eu_prop_1 = std__memory__Heap_try_alloc(bytes);
+if (!__eu_prop_1.is_ok) {
+return (__kobel_eu_mut_ptr_u8__std__memory__MemErr){ .is_ok = false, .u = { .err = __eu_prop_1.u.err } };
+}
+uint8_t* raw = __eu_prop_1.u.ok;
+return (__kobel_eu_mut_ptr_u8__std__memory__MemErr){ .is_ok = true, .u = { .ok = (uint8_t*)raw } };
 }
 
 std__memory__ArenaBlock* std__memory__Heap_create_std__memory__ArenaBlock(size_t count) {
-    return __kobel_unwrap___kobel_eu_mut_ptr_std__memory__ArenaBlock__std__memory__MemErr(std__memory__Heap_try_create_std__memory__ArenaBlock(count), "lib/std/memory/heap.kb", 44, 67, "Heap_create_std__memory__ArenaBlock");
+    return __kobel_unwrap___kobel_eu_mut_ptr_std__memory__ArenaBlock__std__memory__MemErr(std__memory__Heap_try_create_std__memory__ArenaBlock(count), "lib/std/memory/heap.kb", 44, 63, "Heap_create_std__memory__ArenaBlock");
+}
+
+__kobel_eu_mut_ptr_std__memory__ArenaBlock__std__memory__MemErr std__memory__Heap_try_create_std__memory__ArenaBlock(size_t count) {
+size_t bytes = count * 32;
+__kobel_eu_mut_ptr_u8__std__memory__MemErr __eu_prop_2 = std__memory__Heap_try_alloc(bytes);
+if (!__eu_prop_2.is_ok) {
+return (__kobel_eu_mut_ptr_std__memory__ArenaBlock__std__memory__MemErr){ .is_ok = false, .u = { .err = __eu_prop_2.u.err } };
+}
+uint8_t* raw = __eu_prop_2.u.ok;
+return (__kobel_eu_mut_ptr_std__memory__ArenaBlock__std__memory__MemErr){ .is_ok = true, .u = { .ok = (std__memory__ArenaBlock*)raw } };
 }
 
 void std__memory__Heap_free_std__memory__ArenaBlock(std__memory__ArenaBlock* ptr) {
@@ -939,39 +959,7 @@ int32_t test__generic_methods__A_pick_or_i32(test__generic_methods__A* self, int
 }
 
 int32_t* std__memory__Heap_create_i32(size_t count) {
-    return __kobel_unwrap___kobel_eu_mut_ptr_i32__std__memory__MemErr(std__memory__Heap_try_create_i32(count), "lib/std/memory/heap.kb", 44, 67, "Heap_create_i32");
-}
-
-void std__memory__Heap_free_i32(int32_t* ptr) {
-    free((uint8_t*)ptr);
-}
-
-std__memory__ArenaState* std__memory__Heap_create_std__memory__ArenaState(size_t count) {
-    return __kobel_unwrap___kobel_eu_mut_ptr_std__memory__ArenaState__std__memory__MemErr(std__memory__Heap_try_create_std__memory__ArenaState(count), "lib/std/memory/heap.kb", 44, 67, "Heap_create_std__memory__ArenaState");
-}
-
-__kobel_eu_mut_ptr_u8__std__memory__MemErr std__memory__Heap_try_create_u8(size_t count) {
-size_t bytes = count * 1;
-__kobel_eu_mut_ptr_u8__std__memory__MemErr __eu_prop_1 = std__memory__Heap_try_alloc(bytes);
-if (!__eu_prop_1.is_ok) {
-return (__kobel_eu_mut_ptr_u8__std__memory__MemErr){ .is_ok = false, .u = { .err = __eu_prop_1.u.err } };
-}
-uint8_t* raw = __eu_prop_1.u.ok;
-return (__kobel_eu_mut_ptr_u8__std__memory__MemErr){ .is_ok = true, .u = { .ok = (uint8_t*)raw } };
-}
-
-__kobel_eu_mut_ptr_std__memory__ArenaBlock__std__memory__MemErr std__memory__Heap_try_create_std__memory__ArenaBlock(size_t count) {
-size_t bytes = count * 32;
-__kobel_eu_mut_ptr_u8__std__memory__MemErr __eu_prop_2 = std__memory__Heap_try_alloc(bytes);
-if (!__eu_prop_2.is_ok) {
-return (__kobel_eu_mut_ptr_std__memory__ArenaBlock__std__memory__MemErr){ .is_ok = false, .u = { .err = __eu_prop_2.u.err } };
-}
-uint8_t* raw = __eu_prop_2.u.ok;
-return (__kobel_eu_mut_ptr_std__memory__ArenaBlock__std__memory__MemErr){ .is_ok = true, .u = { .ok = (std__memory__ArenaBlock*)raw } };
-}
-
-kobel_str* std__memory__Arena_create_str(std__memory__Arena* self) {
-    return (kobel_str*)std__memory__Arena_alloc_bytes(self, 16, 8);
+    return __kobel_unwrap___kobel_eu_mut_ptr_i32__std__memory__MemErr(std__memory__Heap_try_create_i32(count), "lib/std/memory/heap.kb", 44, 63, "Heap_create_i32");
 }
 
 __kobel_eu_mut_ptr_i32__std__memory__MemErr std__memory__Heap_try_create_i32(size_t count) {
@@ -984,6 +972,14 @@ uint8_t* raw = __eu_prop_3.u.ok;
 return (__kobel_eu_mut_ptr_i32__std__memory__MemErr){ .is_ok = true, .u = { .ok = (int32_t*)raw } };
 }
 
+void std__memory__Heap_free_i32(int32_t* ptr) {
+    free((uint8_t*)ptr);
+}
+
+std__memory__ArenaState* std__memory__Heap_create_std__memory__ArenaState(size_t count) {
+    return __kobel_unwrap___kobel_eu_mut_ptr_std__memory__ArenaState__std__memory__MemErr(std__memory__Heap_try_create_std__memory__ArenaState(count), "lib/std/memory/heap.kb", 44, 63, "Heap_create_std__memory__ArenaState");
+}
+
 __kobel_eu_mut_ptr_std__memory__ArenaState__std__memory__MemErr std__memory__Heap_try_create_std__memory__ArenaState(size_t count) {
 size_t bytes = count * 16;
 __kobel_eu_mut_ptr_u8__std__memory__MemErr __eu_prop_5 = std__memory__Heap_try_alloc(bytes);
@@ -992,5 +988,9 @@ return (__kobel_eu_mut_ptr_std__memory__ArenaState__std__memory__MemErr){ .is_ok
 }
 uint8_t* raw = __eu_prop_5.u.ok;
 return (__kobel_eu_mut_ptr_std__memory__ArenaState__std__memory__MemErr){ .is_ok = true, .u = { .ok = (std__memory__ArenaState*)raw } };
+}
+
+kobel_str* std__memory__Arena_create_str(std__memory__Arena* self) {
+    return (kobel_str*)std__memory__Arena_alloc_bytes(self, 16, 8);
 }
 

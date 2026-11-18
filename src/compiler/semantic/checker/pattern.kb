@@ -428,9 +428,12 @@ impl BodyChecker {
 	): *Type {
 		if (sym.empty() || smart_cast_ty == null) return self.check_when_arm_body(body, expected);
 
+		val outer_key = self.symtab.lookup(sym)?.decl_key ?: "";
 		self.symtab.enter_scope(false);
 		defer self.symtab.exit_scope();
-		self.symtab.define(Symbol(sym, sym, SymbolKind.VAR, smart_cast_ty!, mutable, false, 0, 0));
+		var shadow = Symbol(sym, sym, SymbolKind.VAR, smart_cast_ty!, mutable, false, 0, 0);
+		shadow.decl_key = outer_key;
+		self.symtab.define(shadow);
 		return self.check_when_arm_body(body, expected);
 	}
 

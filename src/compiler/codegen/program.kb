@@ -97,18 +97,24 @@ impl CCodeGen {
 			defer pending.free();
 			for (decl in prog) {
 				if (decl_is_template(decl)) continue;
-				if (decl is StructDecl as s) {
-					if (!s.forward && live.has_type(s.name)) {
+				when (decl) {
+					is StructDecl as s -> if (
+						!s.forward &&
+						live.has_type(s.name)
+					) {
 						items += decl;
 						pending += s.name;
 					}
-				} else if (decl is EnumDecl as e) {
-					if (self.enum_has_payload(e) && live.has_type(e.name)) {
+
+					is EnumDecl as e -> if (
+						self.enum_has_payload(e) &&
+						live.has_type(e.name)
+					) {
 						items += decl;
 						pending += e.name;
 					}
-				} else if (decl is FaultDecl as flt) {
-					if (live.has_type(flt.name)) {
+
+					is FaultDecl as flt -> if (live.has_type(flt.name)) {
 						items += decl;
 						pending += flt.name;
 					}

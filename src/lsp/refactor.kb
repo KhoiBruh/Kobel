@@ -2,9 +2,11 @@ mod lsp;
 
 use std.ascii.*;
 use std.collections.*;
+use std.memory.Arena;
 use std.string.*;
 
 use compiler.lexer.*;
+use compiler.parser.*;
 
 /*
  * ============================================================================
@@ -265,7 +267,8 @@ pub fn code_actions_json(
 	start_col0: usz,
 	end_line0: usz,
 	end_col0: usz,
-	diags: *JsonValue
+	diags: *JsonValue,
+	lint_fixes: ?*List<LintFix> = null
 ): *JsonValue {
 	val actions = JsonValue.arr();
 	val uri = path_to_uri(file_path);
@@ -332,25 +335,101 @@ pub fn code_actions_json(
 		);
 	}
 
-	// 3. Refactor: Convert unmutated `var` to `val` near cursor/selection
+	// Collect or reconstruct simplification & mutability lint fixes for current file
+	var fallback_fixes = List<LintFix>();
+	var effective_fixes = lint_fixes;
+	if (effective_fixes == null) {
+		var needs_ast_lint = false;
+		if (diags.is_arr()) {
+			for (d in diags.arr_val) {
+				val code = d.get_str("code", "");
+				if (
+					code in [
+						"unnecessary-mut-receiver", "unnecessary-mut",
+						"redundant-else", "empty-branch", "collapsible-if",
+						"redundant-boolean-return", "redundant-bool-compare",
+						"prefer-expression-body", "redundant-trailing-return",
+						"redundant-return-var"
+					]
+				) {
+					needs_ast_lint = true;
+					break;
+				}
+			}
+		}
+		if (needs_ast_lint) {
+			var tmp_arena = Arena(65536);
+			var parser = Parser(tokens, tmp_arena);
+			val ast = parser.parse_program();
+			var tmp_diags = List<LspDiagnostic>();
+			collect_lint_diagnostics_and_fixes(
+				ast, index.symtab, index.has_symtab, tokens, source, &tmp_diags, &fallback_fixes
+			);
+			tmp_diags.free();
+			parser.errors.free();
+			tmp_arena.free();
+			effective_fixes = &fallback_fixes;
+		}
+	}
+
+	var lint_var_lines = HashSet<usz>();
+	val all_var_edits = JsonValue.arr();
+	var all_var_count: usz = 0;
+	var var_overlap_count: usz = 0;
+	if (effective_fixes != null) {
+		val fixes_list = effective_fixes;
+		for (fi in 0..<fixes_list.len) {
+			val fx = fixes_list.data[fi];
+			val overlaps = !(end_line0 < fx.start_line0 || start_line0 > fx.end_line0);
+			if (fx.code == "unnecessary-mut") {
+				for (ed in fx.edits) {
+					lint_var_lines += ed.line1;
+					all_var_edits += make_text_edit(ed.line1, ed.col1, ed.end_line1, ed.end_col1, ed.new_text);
+					all_var_count++;
+				}
+				if (overlaps) var_overlap_count++;
+			}
+			if (!overlaps) continue;
+			val edits = JsonValue.arr();
+			for (ed in fx.edits) {
+				edits += make_text_edit(ed.line1, ed.col1, ed.end_line1, ed.end_col1, ed.new_text);
+			}
+			actions += make_code_action(fx.title, fx.kind, uri, edits, fx.is_preferred);
+		}
+	}
+
+	// 3. QuickFix: Convert unmutated `var` to `val` near cursor/selection (if not already emitted via lints)
 	for (def in index.defs) {
 		if (def.role != SymRole.LOCAL || !def.is_mutable || def.is_mutated) continue;
 		if (!paths_equal(def.file_path, file_path)) continue;
-		if (def.line < req_start1 || def.line > req_end1) continue;
+		if (def.line in lint_var_lines) continue;
 
 		// Find `var` token on def.line before def.col
 		for (tok in tokens) {
 			if (tok.line == def.line && tok.type == TokenType.KW_VAR && tok.col < def.col) {
-				val edits = JsonValue.arr();
-				edits += make_text_edit(tok.line, tok.col, tok.line, tok.col + 3, "val");
-				actions += make_code_action(
-					"Convert 'var ${def.name}' to 'val ${def.name}'",
-					"refactor.rewrite", uri, edits
-				);
+				all_var_edits += make_text_edit(tok.line, tok.col, tok.line, tok.col + 3, "val");
+				all_var_count++;
+				if (def.line >= req_start1 && def.line <= req_end1) {
+					val edits = JsonValue.arr();
+					edits += make_text_edit(tok.line, tok.col, tok.line, tok.col + 3, "val");
+					actions += make_code_action(
+						"Convert 'var ${def.name}' to 'val ${def.name}'",
+						"quickfix", uri, edits, true
+					);
+					var_overlap_count++;
+				}
 				break;
 			}
 		}
 	}
+	if (all_var_count > 1 && var_overlap_count > 0) {
+		actions += make_code_action(
+			"Convert all ${all_var_count} unmutated 'var' declaration(s) to 'val'",
+			"quickfix", uri, all_var_edits
+		);
+	}
+	lint_var_lines.free();
+	fallback_fixes.free();
 
 	// 4. QuickFix: Generate missing trait method stubs in `impl Trait for Struct`
 	val missing_list = index.missing_impls_by_file.get_or(norm, List<ImplMissingInfo>());

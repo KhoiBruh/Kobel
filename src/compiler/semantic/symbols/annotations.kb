@@ -78,5 +78,9 @@ pub struct SemanticTable {
 	pub closure_calls: HashMap<usz, bool> = HashMap(),
 	pub next_lambda_id: usz = 1,
 	pub next_fault_code: u32 = 1,
-	pub main_uses_any_fault: bool = false
+	pub main_uses_any_fault: bool = false,
+	// Cross-pass mutability tracking keyed by decl_key for LSP unmutated `var` / `&self` lints
+	pub checked_var_decls: HashMap<str, bool> = HashMap(),
+	pub checked_mut_self_fns: HashMap<str, bool> = HashMap(),
+	pub mutated_decl_keys: HashMap<str, bool> = HashMap()
 }

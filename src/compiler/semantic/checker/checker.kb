@@ -143,6 +143,11 @@ impl BodyChecker {
 		return ty;
 	}
 
+	pub fn decl_loc_key(*self, prefix: str, node: *AstNode): str {
+		if (node.span.file_id == 0 || node.line == 0) return "";
+		return "${prefix}:${node.span.file_id}:${node.line}:${node.col}";
+	}
+
 	pub fn report_warning(&self, node: ?*AstNode, msg: str) {
 		val span = if (node != null) node!.span else Span();
 		self.warnings += Diagnostic.warning(span, self.symtab.current_module, msg);
