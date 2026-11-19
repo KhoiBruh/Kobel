@@ -2,7 +2,6 @@ mod compiler.codegen;
 
 use std.string.*;
 use std.collections.*;
-use std.string.StringBuilder;
 
 use compiler.lexer.*;
 use compiler.ast.*;
@@ -68,22 +67,22 @@ impl CCodeGen {
 
 	pub fn node_type(*self, node: ?*AstNode): ?*Type {
 		if (node == null || self.symtab == null) return null;
-		return self.symtab!.get_node_type(node);
+		return self.symtab.get_node_type(node);
 	}
 
 	pub fn is_pattern_info(*self, node: ?*AstNode): IsPatternInfo {
 		if (node == null || self.symtab == null) return IsPatternInfo();
-		return self.symtab!.get_is_pattern(node);
+		return self.symtab.get_is_pattern(node);
 	}
 
 	pub fn is_predicate_pattern(*self, node: ?*AstNode): bool {
 		if (node == null || self.symtab == null) return false;
-		return self.symtab!.is_predicate_pattern(node);
+		return self.symtab.is_predicate_pattern(node);
 	}
 
 	pub fn lambda_info_of(*self, node: ?*AstNode): LambdaInfo {
 		if (node == null || self.symtab == null) return LambdaInfo();
-		return self.symtab!.get_lambda_info(node);
+		return self.symtab.get_lambda_info(node);
 	}
 
 	pub fn enter_defer_scope(&self) {
@@ -137,7 +136,7 @@ impl CCodeGen {
 	// emitted as a struct instead of a plain integer typedef.
 	pub fn node_file_path(*self, node: ?*AstNode): str {
 		if (node == null || self.symtab == null) return "";
-		return self.symtab!.file_path_of(node!.span.file_id);
+		return self.symtab.file_path_of(node.span.file_id);
 	}
 
 	pub fn enum_has_payload(*self, e: *EnumDecl): bool =>

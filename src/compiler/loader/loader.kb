@@ -109,11 +109,7 @@ fn sort_strings(items: &List<str>) {
 
 impl ModuleLoader {
 
-	pub init(entry_dir: str, extra_roots: List<str>) {
-		return ModuleLoader(entry_dir, extra_roots, Arena(524288));
-	}
-
-	pub init(entry_dir: str, extra_roots: List<str>, arena: Arena) {
+	pub init(entry_dir: str, extra_roots: List<str>, arena: Arena = Arena(524288)) {
 		var roots = List<str>();
 		if (!entry_dir.empty()) roots += entry_dir;
 

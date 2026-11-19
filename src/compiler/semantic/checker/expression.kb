@@ -799,7 +799,7 @@ impl BodyChecker {
 			self.pop_non_null_scope();
 			self.symtab.exit_scope();
 
-			val else_hint = if (branch_hint != null) branch_hint else then_ty;
+			val else_hint = branch_hint ?: then_ty;
 			self.symtab.enter_scope(false);
 			self.push_non_null_scope();
 			self.apply_falsy_null_guards(if_e.condition);

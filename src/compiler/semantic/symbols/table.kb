@@ -47,11 +47,7 @@ pub struct SymbolTable {
 
 impl SymbolTable {
 
-	pub init() {
-		return SymbolTable(Arena());
-	}
-
-	pub init(arena: Arena) {
+	pub init(arena: Arena = Arena()) {
 		var shared = arena;
 		val root_scope = shared.create_val(Scope());
 		val prims = shared.create_val(PrimTypes(&shared));
@@ -213,8 +209,7 @@ impl SymbolTable {
 	}
 
 	pub fn register_prim_method(*self, prim: *Type, mi: *MethodInfo) {
-		var target = prim;
-		target.add_method(mi);
+		prim.add_method(mi);
 	}
 
 	pub fn find_prim_method(*self, kind: DataType, name: str): ?*MethodInfo {

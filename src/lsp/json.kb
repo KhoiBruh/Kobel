@@ -264,9 +264,9 @@ impl JsonParser {
 							while (u_count < 4 && !self.is_end()) {
 								val hc = self.advance();
 								val d: i32 = when (hc) {
-									'0'..'9' -> (hc.code() as i32) - 48;
-									'a'..'f' -> (hc.code() as i32) - 87;
-									'A'..'F' -> (hc.code() as i32) - 55;
+									'0'..'9' -> hc.code() - 48;
+									'a'..'f' -> hc.code() - 87;
+									'A'..'F' -> hc.code() - 55;
 									else -> -1;
 								};
 								if (d < 0) return JsonErr.InvalidEscape;

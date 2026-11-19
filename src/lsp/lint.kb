@@ -29,6 +29,14 @@ use compiler.semantic.types.*;
  *     - `prefer-expression-body`: `fn f() { return expr; }` -> `=> expr;`
  *     - `redundant-trailing-return`: trailing `return;` in `none` function
  *     - `redundant-return-var`: single-line `val x = expr; return x;`
+ *
+ *   Group 3 (Kobel idioms & hygiene):
+ *     - `prefer-not-in`: `!(x in S)` -> `x !in S`
+ *     - `prefer-not-is`: `!(x is T)` -> `x !is T`
+ *     - `prefer-safe-nav`: `if (x != null) x.m else fb` -> `x?.m ?: fb` / `x ?: fb` / `x?.f();`
+ *     - `redundant-cast`: `expr as T` where `expr` already has type `T`
+ *     - `single-arm-when`: `when (x) { p -> a; else -> b }` -> `if (...) a else b`
+ *     - `duplicate-import`: duplicate `use` or explicit `use` covered by `use mod.*`
  * ============================================================================
  */
 
@@ -660,7 +668,7 @@ fn negate_condition_text(
 					val (iel, iec) = expr_end_pos(tokens, inner);
 					val inner_txt = mapper.slice_pos(isl, isc, iel, iec).trim();
 					if (!inner_txt.empty()) return inner_txt;
-				} else if (!(u.operand is IsExpr) && !is_kw_in_binary(u.operand)) {
+				} else if (u.operand !is IsExpr && !is_kw_in_binary(u.operand)) {
 					val inner = u.operand;
 					val (isl, isc) = expr_start_pos(inner);
 					val (iel, iec) = expr_end_pos(tokens, inner);
@@ -694,6 +702,62 @@ fn bool_return_state(stmt: ?*AstNode): i32 {
 	return -1;
 }
 
+fn is_null_lit(node: ?*AstNode): bool {
+	val cur = unwrap_group_ast(node) ?: return false;
+	if (cur is LiteralExpr as lit) return lit.literal_kind == Literal.NULL_VAL;
+	return false;
+}
+
+fn simple_path_key(node: ?*AstNode): str {
+	val cur = unwrap_group_ast(node) ?: return "";
+	return when (cur) {
+		is IdentifierExpr as id -> if (id.name.empty()) "" else id.name;
+		is MemberExpr as m -> {
+			if (m.is_safe) yield "";
+			val base = simple_path_key(m.object);
+			yield if (base.empty()) "" else "${base}.${m.member}";
+		}
+		else -> "";
+	};
+}
+
+fn is_safe_nav_compatible_type(ty: *Type): bool {
+	if (ty.kind in [DataType.POINTER, DataType.STR, DataType.BOOL, DataType.CHAR]) {
+		return true;
+	}
+	return ty.is_numeric();
+}
+
+fn is_untyped_num_lit(node: ?*AstNode): bool {
+	val cur = unwrap_group_ast(node) ?: return false;
+	if (cur is LiteralExpr as lit) {
+		return lit.literal_kind in [Literal.INTEGER, Literal.FLOAT];
+	}
+	if (cur is UnaryExpr as un && !un.is_postfix && un.op == TokenType.MINUS) {
+		return is_untyped_num_lit(un.operand);
+	}
+	return false;
+}
+
+fn expr_needs_parens_for_elvis_rhs(node: *AstNode): bool {
+	val cur = unwrap_group_ast(node) ?: return true;
+	return when (cur) {
+		is AssignExpr, IfExpr, WhenExpr, CatchExpr, BlockStmt -> true;
+		else -> false;
+	};
+}
+
+fn is_simple_when_pattern(pat: *AstNode): bool {
+	val cur = unwrap_group_ast(pat) ?: return false;
+	return when (cur) {
+		is LiteralExpr -> true;
+		is IdentifierExpr as id -> !id.name.empty();
+		is MemberExpr as m -> !m.is_safe && !is_empty_ident(m.object);
+		is IsExpr as ise -> ise.alias.empty();
+		else -> false;
+	};
+}
+
 // ============================================================================
 // Lint Walker
 // ============================================================================
@@ -707,7 +771,8 @@ struct LintCollector {
 	pub file_id: u32,
 	pub diags: List<LspDiagnostic> = List(),
 	pub fixes: List<LintFix> = List(),
-	pub handled_bool_if_addrs: HashSet<usz> = HashSet()
+	pub handled_bool_if_addrs: HashSet<usz> = HashSet(),
+	pub in_generic: bool = false
 }
 
 impl LintCollector {
@@ -1122,12 +1187,15 @@ impl LintCollector {
 		var wrapped = false;
 		if (outer.then_branch is IfStmt) {
 			inner_node = outer.then_branch;
-		} else if (outer.then_branch is BlockStmt as tb && tb.statements.len == 1) {
-			if (tb.statements[0] is IfStmt) {
-				inner_node = tb.statements[0];
-				wrapped = true;
-			}
+		} else if (
+			outer.then_branch is BlockStmt as tb &&
+			tb.statements.len == 1 &&
+			tb.statements[0] is IfStmt
+		) {
+			inner_node = tb.statements[0];
+			wrapped = true;
 		}
+
 		if (inner_node == null) return;
 		if (inner_node is IfStmt as inner) {
 			if (inner.else_branch != null) return;
@@ -1329,6 +1397,365 @@ impl LintCollector {
 		);
 	}
 
+	// ------------------------------------------------------------------------
+	// Group 3: Kobel idioms & hygiene
+	// ------------------------------------------------------------------------
+
+	fn check_duplicate_imports(&self, prog: *Program) {
+		var wildcard_mods = HashSet<str>();
+		for (decl in prog) {
+			if (decl is UseDecl as u && u.wildcard && !u.full_path.empty()) {
+				val base = if (u.full_path.ends_with(".*"))
+					u.full_path.slice(0, u.full_path.len - 2)
+				else
+					u.full_path;
+				wildcard_mods += base;
+			}
+		}
+
+		var seen = HashSet<str>();
+		for (decl in prog) {
+			if (decl is UseDecl as u) {
+				if (u.full_path.empty() || decl.line == 0) continue;
+				val key = if (u.wildcard) "*:${u.full_path}" else "${u.full_path}:${u.alias}";
+				val is_dup = key in seen;
+				var parent_mod = "";
+				if (!u.wildcard && u.alias.empty()) {
+					var dot_pos: usz = 0;
+					for (i in 0..<u.full_path.len) if (u.full_path[i] == '.') dot_pos = i;
+					if (dot_pos > 0) parent_mod = u.full_path.slice(0, dot_pos);
+				}
+				val covered_by_wild = !is_dup && !parent_mod.empty() && (parent_mod in wildcard_mods);
+				if (!is_dup && !covered_by_wild) {
+					seen += key;
+					continue;
+				}
+
+				val start_i = find_token_index_at_or_after(self.tokens, decl.line, decl.col);
+				if (start_i >= self.tokens.len) continue;
+				var semi_i = start_i;
+				while (semi_i < self.tokens.len && self.tokens[semi_i].type != TokenType.SEMI_COLON) {
+					if (semi_i > start_i + 32) break;
+					semi_i++;
+				}
+				if (semi_i >= self.tokens.len || self.tokens[semi_i].type != TokenType.SEMI_COLON) continue;
+
+				val (el1, ec1) = token_end_pos(self.tokens[semi_i]);
+				var edits = List<LintEditSpec>();
+				if (
+					self.mapper.is_full_line_span(decl.line, decl.col, el1, ec1)
+					&& el1 < self.mapper.line_count()
+				) {
+					edits += LintEditSpec(decl.line, 1, el1 + 1, 1, "");
+				} else {
+					edits += LintEditSpec(decl.line, decl.col, el1, ec1, "");
+				}
+				val desc = u.full_path;
+				val msg = if (is_dup)
+					"Duplicate import '${desc}'"
+				else
+					"Redundant import '${u.full_path}' is already covered by 'use ${parent_mod}.*;'";
+				self.emit(
+					decl.line, decl.col, el1, ec1,
+					msg,
+					"duplicate-import",
+					true,
+					"Remove redundant import",
+					edits
+				);
+			}
+		}
+		seen.free();
+		wildcard_mods.free();
+	}
+
+	fn check_negated_in_or_is(&self, expr: *AstNode, un: *UnaryExpr): bool {
+		if (un.is_postfix || un.op != TokenType.BANG) return false;
+		val bang_i = find_token_index_exact(self.tokens, expr.line, expr.col);
+		if (bang_i < 0 || self.tokens[bang_i as usz].type != TokenType.BANG) return false;
+
+		if (un.operand is GroupExpr as grp) {
+			val open_i = find_token_index_exact(self.tokens, un.operand.line, un.operand.col);
+			if (open_i < 0 || self.tokens[open_i as usz].type != TokenType.OPEN_PAREN) return false;
+			val close_i = find_matching_delim_index(
+				self.tokens, open_i as usz, TokenType.OPEN_PAREN, TokenType.CLOSE_PAREN
+			);
+			if (close_i < 0) return false;
+			val next_i = (close_i as usz) + 1;
+			if (next_i < self.tokens.len && self.tokens[next_i].type in [TokenType.DOT, TokenType.QUESTION_DOT]) {
+				return false;
+			}
+			val (uel, uec) = token_end_pos(self.tokens[close_i as usz]);
+
+			val inner = grp.expr;
+			if (inner is BinaryExpr as b && b.op == TokenType.KW_IN) {
+				val (lsl, lsc) = expr_start_pos(b.left);
+				val (lel, lec) = expr_end_pos(self.tokens, b.left);
+				val (rsl, rsc) = expr_start_pos(b.right);
+				val (rel, rec) = expr_end_pos(self.tokens, b.right);
+				val lhs_txt = self.mapper.slice_pos(lsl, lsc, lel, lec).trim();
+				val rhs_txt = self.mapper.slice_pos(rsl, rsc, rel, rec).trim();
+				if (lhs_txt.empty() || rhs_txt.empty() || "\n" in lhs_txt || "\n" in rhs_txt) return false;
+
+				val repl = "${lhs_txt} !in ${rhs_txt}";
+				var edits = List<LintEditSpec>();
+				edits += LintEditSpec(expr.line, expr.col, uel, uec, repl);
+				self.emit(
+					expr.line, expr.col, uel, uec,
+					"Prefer '${repl}' instead of negated 'in'",
+					"prefer-not-in",
+					false,
+					"Simplify to '${repl}'",
+					edits
+				);
+				self.walk_expr(b.left);
+				self.walk_expr(b.right);
+				return true;
+			}
+
+			if (inner is IsExpr as ise && ise.expr != null && ise.alias.empty()) {
+				val (lsl, lsc) = expr_start_pos(ise.expr);
+				val (lel, lec) = expr_end_pos(self.tokens, ise.expr);
+				val (tel, tec) = type_end_pos(self.tokens, ise.target_type);
+				val lhs_txt = self.mapper.slice_pos(lsl, lsc, lel, lec).trim();
+				val ty_txt = self.mapper.slice_pos(ise.target_type.line, ise.target_type.col, tel, tec).trim();
+				if (lhs_txt.empty() || ty_txt.empty() || "\n" in lhs_txt || "\n" in ty_txt) return false;
+
+				val repl = "${lhs_txt} !is ${ty_txt}";
+				var edits = List<LintEditSpec>();
+				edits += LintEditSpec(expr.line, expr.col, uel, uec, repl);
+				self.emit(
+					expr.line, expr.col, uel, uec,
+					"Prefer '${repl}' instead of negated 'is'",
+					"prefer-not-is",
+					false,
+					"Simplify to '${repl}'",
+					edits
+				);
+				self.walk_expr(ise.expr);
+				return true;
+			}
+		}
+		return false;
+	}
+
+	fn check_redundant_cast(&self, expr: *AstNode, cs: *CastExpr) {
+		if (!self.has_symtab || self.in_generic || cs.expr == null) return;
+		if (is_untyped_num_lit(cs.expr)) return;
+		val src_ty = self.symtab.get_node_type(cs.expr) ?: return;
+		val dst_ty = self.symtab.get_node_type(expr) ?: return;
+		if (src_ty.kind == DataType.NONE || dst_ty.kind == DataType.NONE) return;
+		if (!src_ty.equals(dst_ty)) return;
+
+		val (esl, esc) = expr_end_pos(self.tokens, cs.expr);
+		val (cel, cec) = type_end_pos(self.tokens, cs.target_type);
+		val as_i = find_token_index_at_or_after(self.tokens, esl, esc);
+		if (as_i >= self.tokens.len || self.tokens[as_i].type != TokenType.KW_AS) return;
+		val as_tok = self.tokens[as_i];
+		val ty_txt = self.mapper.slice_pos(cs.target_type.line, cs.target_type.col, cel, cec).trim();
+		if (ty_txt.empty()) return;
+
+		var edits = List<LintEditSpec>();
+		edits += LintEditSpec(esl, esc, cel, cec, "");
+		self.emit(
+			as_tok.line, as_tok.col, cel, cec,
+			"Redundant cast 'as ${ty_txt}'; expression already has this type",
+			"redundant-cast",
+			true,
+			"Remove redundant 'as ${ty_txt}'",
+			edits
+		);
+	}
+
+	fn extract_null_cmp(*self, cond: *AstNode): Pair<?*AstNode, bool> {
+		val cur = unwrap_group_ast(cond) ?: return Pair(null, false);
+		if (cur is BinaryExpr as b && b.op in [TokenType.BANG_EQUAL, TokenType.EQUAL_EQUAL]) {
+			val is_ne = b.op == TokenType.BANG_EQUAL;
+			if (is_null_lit(b.right)) return Pair(b.left, is_ne);
+			if (is_null_lit(b.left)) return Pair(b.right, is_ne);
+		}
+		return Pair(null, false);
+	}
+
+	fn is_nullable_ptr_node(*self, node: *AstNode): bool {
+		if (!self.has_symtab) return true;
+		val ty = self.symtab.get_node_type(node) ?: return false;
+		return ty.kind == DataType.POINTER && ty.as_pointer()!.nullable;
+	}
+
+	fn check_prefer_safe_nav_expr(&self, expr: *AstNode, ie: *IfExpr) {
+		val (checked_opt, is_ne) = self.extract_null_cmp(ie.condition);
+		val checked = checked_opt ?: return;
+		val x_path = simple_path_key(checked);
+		if (x_path.empty() || !self.is_nullable_ptr_node(checked)) return;
+
+		val non_null_br = if (is_ne) ie.then_branch else ie.else_branch;
+		val null_br = if (is_ne) ie.else_branch else ie.then_branch;
+		if (non_null_br is BlockStmt || null_br is BlockStmt) return;
+
+		val (xsl, xsc) = expr_start_pos(checked);
+		val (xel, xec) = expr_end_pos(self.tokens, checked);
+		val x_txt = self.mapper.slice_pos(xsl, xsc, xel, xec).trim();
+		if (x_txt.empty() || "\n" in x_txt) return;
+
+		val (fsl, fsc) = expr_start_pos(null_br);
+		val (fel, fec) = expr_end_pos(self.tokens, null_br);
+		val fb_txt = self.mapper.slice_pos(fsl, fsc, fel, fec).trim();
+		if (fb_txt.empty() || "\n" in fb_txt) return;
+
+		val (isl, isc) = expr_start_pos(expr);
+		val (iel, iec) = expr_end_pos(self.tokens, expr);
+		val fb_is_null = is_null_lit(null_br);
+		val fb_ok = !fb_is_null && !expr_needs_parens_for_elvis_rhs(null_br);
+
+		var repl = "";
+		val nn_cur = unwrap_group_ast(non_null_br) ?: return;
+		if (simple_path_key(nn_cur) == x_path && fb_ok) {
+			repl = "${x_txt} ?: ${fb_txt}";
+		} else if (nn_cur is MemberExpr as m && !m.is_safe && simple_path_key(m.object) == x_path) {
+			if (self.has_symtab) {
+				val m_ty = self.symtab.get_node_type(nn_cur) ?: return;
+				if (!is_safe_nav_compatible_type(m_ty)) return;
+				if (fb_is_null) {
+					if (m_ty.kind == DataType.POINTER) repl = "${x_txt}?.${m.member}";
+				} else if (fb_ok) {
+					repl = "${x_txt}?.${m.member} ?: ${fb_txt}";
+				}
+			} else if (fb_ok) {
+				repl = "${x_txt}?.${m.member} ?: ${fb_txt}";
+			}
+		} else if (
+			nn_cur is CallExpr as c
+			&& c.callee is MemberExpr as m
+			&& !m.is_safe
+			&& simple_path_key(m.object) == x_path
+		) {
+			val (oel, oec) = expr_end_pos(self.tokens, m.object);
+			val (cel, cec) = expr_end_pos(self.tokens, nn_cur);
+			val tail = self.mapper.slice_pos(oel, oec, cel, cec);
+			if (!tail.starts_with(".") || "\n" in tail) return;
+			if (self.has_symtab) {
+				val c_ty = self.symtab.get_node_type(nn_cur) ?: return;
+				if (!is_safe_nav_compatible_type(c_ty)) return;
+				if (fb_is_null) {
+					if (c_ty.kind == DataType.POINTER) repl = "${x_txt}?${tail}";
+				} else if (fb_ok) {
+					repl = "${x_txt}?${tail} ?: ${fb_txt}";
+				}
+			} else if (fb_ok) {
+				repl = "${x_txt}?${tail} ?: ${fb_txt}";
+			}
+		}
+
+		if (repl.empty()) return;
+		var edits = List<LintEditSpec>();
+		edits += LintEditSpec(isl, isc, iel, iec, repl);
+		self.emit(
+			isl, isc, iel, iec,
+			"Prefer null-safe expression '${repl}'",
+			"prefer-safe-nav",
+			false,
+			"Simplify to '${repl}'",
+			edits
+		);
+	}
+
+	fn check_prefer_safe_nav_stmt(&self, stmt: *AstNode, ifs: *IfStmt) {
+		if (ifs.else_branch != null) return;
+		val (checked_opt, is_ne) = self.extract_null_cmp(ifs.condition);
+		if (!is_ne) return;
+		val checked = checked_opt ?: return;
+		val x_path = simple_path_key(checked);
+		if (x_path.empty() || !self.is_nullable_ptr_node(checked)) return;
+
+		var inner_stmt: *AstNode = ifs.then_branch;
+		if (inner_stmt is BlockStmt as blk) {
+			if (blk.statements.len != 1) return;
+			inner_stmt = blk.statements[0];
+		}
+		if (inner_stmt is ExprStmt as es) inner_stmt = es.expr;
+		if (inner_stmt is CallExpr as c && c.callee is MemberExpr as m && !m.is_safe) {
+			if (simple_path_key(m.object) != x_path) return;
+			if (self.has_symtab) {
+				val c_ty = self.symtab.get_node_type(inner_stmt) ?: return;
+				if (c_ty.kind != DataType.NONE) return;
+			}
+			val (xsl, xsc) = expr_start_pos(checked);
+			val (xel, xec) = expr_end_pos(self.tokens, checked);
+			val x_txt = self.mapper.slice_pos(xsl, xsc, xel, xec).trim();
+			val (oel, oec) = expr_end_pos(self.tokens, m.object);
+			val (cel, cec) = expr_end_pos(self.tokens, inner_stmt);
+			val tail = self.mapper.slice_pos(oel, oec, cel, cec);
+			if (x_txt.empty() || !tail.starts_with(".") || "\n" in x_txt || "\n" in tail) return;
+
+			val (sel, sec) = stmt_end_pos(self.tokens, stmt);
+			val repl = "${x_txt}?${tail};";
+			var edits = List<LintEditSpec>();
+			edits += LintEditSpec(stmt.line, stmt.col, sel, sec, repl);
+			self.emit(
+				stmt.line, stmt.col, sel, sec,
+				"Prefer safe call '${repl}'",
+				"prefer-safe-nav",
+				false,
+				"Simplify to '${repl}'",
+				edits
+			);
+		}
+	}
+
+	fn check_single_arm_when(&self, expr: *AstNode, we: *WhenExpr) {
+		val cond = we.condition ?: return;
+		if (we.arms.len != 2) return;
+		val arm0 = we.arms[0];
+		val arm1 = we.arms[1];
+		if (arm0.is_else || arm0.patterns.len != 1 || !arm1.is_else) return;
+		if (arm0.body is BlockStmt || arm1.body is BlockStmt) return;
+		val pat = arm0.patterns[0];
+		if (!is_simple_when_pattern(pat)) return;
+
+		val (csl, csc) = expr_start_pos(cond);
+		val (cel, cec) = expr_end_pos(self.tokens, cond);
+		val cond_txt = self.mapper.slice_pos(csl, csc, cel, cec).trim();
+		val (tsl, tsc) = expr_start_pos(arm0.body);
+		val (tel, tec) = expr_end_pos(self.tokens, arm0.body);
+		val then_txt = self.mapper.slice_pos(tsl, tsc, tel, tec).trim();
+		val (esl, esc) = expr_start_pos(arm1.body);
+		val (eel, eec) = expr_end_pos(self.tokens, arm1.body);
+		val else_txt = self.mapper.slice_pos(esl, esc, eel, eec).trim();
+		if (
+			cond_txt.empty() || then_txt.empty() || else_txt.empty()
+			|| "\n" in cond_txt || "\n" in then_txt || "\n" in else_txt
+		) return;
+
+		val pat_cur = unwrap_group_ast(pat) ?: return;
+		var cond_expr = "";
+		if (pat_cur is IsExpr as ise) {
+			val (tyel, tyec) = type_end_pos(self.tokens, ise.target_type);
+			val ty_txt = self.mapper.slice_pos(ise.target_type.line, ise.target_type.col, tyel, tyec).trim();
+			if (ty_txt.empty() || "\n" in ty_txt) return;
+			cond_expr = if (ise.alias.empty()) "${cond_txt} is ${ty_txt}" else "${cond_txt} is ${ty_txt} as ${ise.alias}";
+		} else {
+			val (psl, psc) = expr_start_pos(pat_cur);
+			val (pel, pec) = expr_end_pos(self.tokens, pat_cur);
+			val pat_txt = self.mapper.slice_pos(psl, psc, pel, pec).trim();
+			if (pat_txt.empty() || "\n" in pat_txt) return;
+			cond_expr = "${cond_txt} == ${pat_txt}";
+		}
+
+		val (wel, wec) = expr_end_pos(self.tokens, expr);
+		val repl = "if (${cond_expr}) ${then_txt} else ${else_txt}";
+		var edits = List<LintEditSpec>();
+		edits += LintEditSpec(expr.line, expr.col, wel, wec, repl);
+		self.emit(
+			expr.line, expr.col, wel, wec,
+			"Single-arm 'when' expression can be simplified to 'if / else'",
+			"single-arm-when",
+			false,
+			"Simplify 'when' to 'if / else'",
+			edits
+		);
+	}
+
 	fn walk_expr(&self, node: ?*AstNode) {
 		if (node == null) return;
 		when (node) {
@@ -1339,6 +1766,7 @@ impl LintCollector {
 			}
 			is UnaryExpr as u -> {
 				self.check_unnecessary_unwrap(node, u);
+				if (self.check_negated_in_or_is(node, u)) return;
 				if (self.check_double_not_expr(node, u)) return;
 				self.walk_expr(u.operand);
 			}
@@ -1355,15 +1783,20 @@ impl LintCollector {
 				self.walk_expr(a.target);
 				self.walk_expr(a.value);
 			}
-			is CastExpr as cs -> self.walk_expr(cs.expr);
+			is CastExpr as cs -> {
+				self.check_redundant_cast(node, cs);
+				self.walk_expr(cs.expr);
+			}
 			is GroupExpr as g -> self.walk_expr(g.expr);
 			is ArrayLiteralExpr as al -> for (el in al.elements) self.walk_expr(el);
 			is IfExpr as ie -> {
+				self.check_prefer_safe_nav_expr(node, ie);
 				self.walk_expr(ie.condition);
 				self.walk_expr(ie.then_branch);
 				self.walk_expr(ie.else_branch);
 			}
 			is WhenExpr as we -> {
+				self.check_single_arm_when(node, we);
 				self.walk_expr(we.condition);
 				for (arm in we.arms) {
 					if (arm.body is BlockStmt) self.walk_stmt(arm.body, false, false);
@@ -1419,6 +1852,7 @@ impl LintCollector {
 				if (!did_empty && !did_bool) {
 					self.check_redundant_else(node, ifs, in_block, is_else_if_child);
 					self.check_collapsible_if(node, ifs, in_block);
+					self.check_prefer_safe_nav_stmt(node, ifs);
 				}
 				self.walk_stmt(ifs.then_branch, ifs.then_branch is BlockStmt, false);
 				if (ifs.else_branch != null) {
@@ -1453,6 +1887,9 @@ impl LintCollector {
 	}
 
 	fn walk_fn(&self, fn_node: *AstNode, f: *FnDecl, is_trait_decl: bool) {
+		val prev_gen = self.in_generic;
+		if (!f.type_params.empty()) self.in_generic = true;
+		defer self.in_generic = prev_gen;
 		if (!is_trait_decl) self.check_mut_self_fn(fn_node, f);
 		if (f.body == null) return;
 		self.check_prefer_expression_body(fn_node, f);
@@ -1462,11 +1899,17 @@ impl LintCollector {
 
 	pub fn collect(&self) {
 		if (self.doc_ast is Program as prog) {
+			self.check_duplicate_imports(prog);
 			for (decl in prog) {
 				when (decl) {
 					is FnDecl as f -> self.walk_fn(decl, f, false);
-					is ImplDecl as im -> for (m in im.methods) {
-						if (m is FnDecl as mf) self.walk_fn(m, mf, false);
+					is ImplDecl as im -> {
+						val prev_gen = self.in_generic;
+						if (!im.type_params.empty()) self.in_generic = true;
+						for (m in im.methods) {
+							if (m is FnDecl as mf) self.walk_fn(m, mf, false);
+						}
+						self.in_generic = prev_gen;
 					}
 					is ObjectDecl as obj -> {
 						for (cnode in obj.consts) {

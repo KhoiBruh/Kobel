@@ -634,8 +634,7 @@ impl BodyChecker {
 					matched_data_member = m;
 					tag_field_name = "data.tag";
 					val auto_tag = self.symtab.lookup("${data_enum.name}.${m.name}__TAG");
-					tag_const_c_name = if (auto_tag != null) auto_tag.c_name
-						else "${data_enum.c_name}__${m.name}__TAG";
+					tag_const_c_name = auto_tag?.c_name ?: "${data_enum.c_name}__${m.name}__TAG";
 				}
 			}
 		}

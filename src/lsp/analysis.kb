@@ -84,7 +84,7 @@ impl LspDiagnostic {
 		val c0 = if (col > 0) col - 1 else 0;
 
 		var end_col = c0 + 1;
-		if (diag.length > 1) end_col = c0 + (diag.length as usz);
+		if (diag.length > 1) end_col = c0 + (diag.length);
 
 		val severity = if (diag.severity == Severity.WARNING) 2 else 1;
 		return Self(l0, c0, l0, end_col, severity, diag.message);

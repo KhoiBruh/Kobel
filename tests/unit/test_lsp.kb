@@ -1121,6 +1121,165 @@ fn non_null_bang(n: *Node): i64 => take(n!);
 	println("  [PASS] test_null_smart_cast_and_unwrap_lint");
 }
 
+fn test_group3_idiom_lints_and_quickfixes() {
+	val src = """mod sample.group3_lints;
+
+use std.collections.*;
+use std.collections.List;
+use std.io.println;
+use std.io.println;
+
+struct Payload {
+	pub x: i64
+}
+
+enum Item {
+	A(x: i64),
+	B
+}
+
+struct Box {
+	pub v: i64,
+	pub next: ?*Box,
+	pub pl: Payload
+}
+
+impl Box {
+	pub fn get_v(*self): i64 => self.v;
+	pub fn ping(*self) { println("ok"); }
+}
+
+fn test_idioms(p: ?*Box, fb: *Box, n: i64, it: Item, def_pl: Payload): i64 {
+	var xs = List<i64>();
+	xs += n;
+	var acc: i64 = 0;
+
+	// prefer-not-in & prefer-not-is
+	if (!(n in [1, 2, 3])) acc += 1;
+	if (!(it is Item.A)) acc += 1;
+	// Already idiomatic (must NOT warn)
+	if (n !in [4, 5]) acc += 1;
+	if (it !is Item.B) acc += 1;
+
+	// prefer-safe-nav (Elvis, safe field, safe method, null fallback, void stmt)
+	val chosen = if (p != null) p else fb;
+	val fv = if (p != null) p.v else 0;
+	val mv = if (p == null) 0 else p.get_v();
+	val nx = if (p != null) p.next else null;
+	if (p != null) p.ping();
+	// Non-pointer struct field cannot use `?.` -> must NOT warn
+	val pl = if (p != null) p.pl else def_pl;
+
+	// redundant-cast (2 redundant, 2 legitimate)
+	val c1 = n as i64;
+	val c2 = chosen as *Box;
+	val ok_diff = n as i32;
+	val ok_lit = 0 as i32;
+
+	// single-arm-when (value & unaliased is-pattern)
+	val w1 = when (n) {
+		1 -> 10;
+		else -> 20;
+	};
+	val w2 = when (it) {
+		is Item.A -> 100;
+		else -> 0;
+	};
+	// Aliased is-pattern in WhenExpr must NOT warn (IfExpr does not bind `as alias`)
+	val w_alias = when (it) {
+		is Item.A as a -> a.x;
+		else -> 0;
+	};
+	// Multi-arm when must NOT warn
+	val w_multi = when (n) {
+		1 -> 1;
+		2 -> 2;
+		else -> 3;
+	};
+
+	if (nx != null) acc += nx.v;
+	return acc + fv + mv + pl.x + c1 + c2.v + (ok_diff as i64) + (ok_lit as i64) + w1 + w2 + w_alias + w_multi + (xs.len as i64);
+}
+""";
+	val vpath = "C:/Users/Admin/CLionProjects/Kobel/tests/unit/group3_lints_virtual.kb";
+	val vuri = path_to_uri(vpath);
+	val a = AnalysisResult(vpath, src, "", false);
+
+	var err_cnt: usz = 0;
+	for (d in a.diagnostics) if (d.severity == 1) err_cnt++;
+	assert_eq_usz(err_cnt, 0, "group 3 sample must compile with zero errors");
+
+	assert_eq_usz(count_diag_code(a.diagnostics, "duplicate-import"), 2, "expected 2 duplicate-import");
+	assert_eq_usz(count_diag_code(a.diagnostics, "prefer-not-in"), 1, "expected 1 prefer-not-in");
+	assert_eq_usz(count_diag_code(a.diagnostics, "prefer-not-is"), 1, "expected 1 prefer-not-is");
+	assert_eq_usz(count_diag_code(a.diagnostics, "prefer-safe-nav"), 5, "expected 5 prefer-safe-nav");
+	assert_eq_usz(count_diag_code(a.diagnostics, "redundant-cast"), 2, "expected 2 redundant-cast");
+	assert_eq_usz(count_diag_code(a.diagnostics, "single-arm-when"), 2, "expected 2 single-arm-when");
+
+	// Verify batch QuickFixes exist for duplicate-import and redundant-cast
+	val dj = JsonValue.arr();
+	for (d in a.diagnostics) dj += d.to_json();
+	val all_acts = code_actions_json(
+		a.index, a.tokens, vpath, src, 0, 0, 100, 0, dj, &a.lint_fixes
+	);
+	assert_true(
+		find_action_by_title(all_acts, "Remove all 2 redundant import(s)") != null,
+		"batch QuickFix for duplicate-import must exist"
+	);
+	assert_true(
+		find_action_by_title(all_acts, "Remove all 2 redundant 'as' cast(s)") != null,
+		"batch QuickFix for redundant-cast must exist"
+	);
+
+	// Apply QuickFixes iteratively until all Group 3 warnings are eliminated
+	var cur_txt = src;
+	for (_step in 0..<14) {
+		val cur_a = AnalysisResult(vpath, cur_txt, "", false);
+		var step_errs: usz = 0;
+		for (d in cur_a.diagnostics) if (d.severity == 1) step_errs++;
+		assert_eq_usz(step_errs, 0, "group 3 QuickFix step must have zero compile errors");
+		val cur_dj = JsonValue.arr();
+		for (d in cur_a.diagnostics) cur_dj += d.to_json();
+		val acts = code_actions_json(
+			cur_a.index, cur_a.tokens, vpath, cur_txt, 0, 0, 100, 0, cur_dj, &cur_a.lint_fixes
+		);
+		if (acts.arr_val.empty()) break;
+		val batch_imp = find_action_by_title(acts, "Remove all 2 redundant import(s)");
+		val batch_cast = find_action_by_title(acts, "Remove all 2 redundant 'as' cast(s)");
+		val chosen = if (batch_imp != null) batch_imp
+			else if (batch_cast != null) batch_cast
+			else acts.arr_val[0];
+		val next_txt = apply_action_edits(cur_txt, chosen, vuri);
+		assert_true(next_txt != cur_txt, "group 3 QuickFix edit must modify text");
+		cur_txt = next_txt;
+	}
+
+	val fin = AnalysisResult(vpath, cur_txt, "", false);
+	var fin_errs: usz = 0;
+	for (d in fin.diagnostics) if (d.severity == 1) fin_errs++;
+	assert_eq_usz(fin_errs, 0, "final Group 3 fixed source must compile cleanly");
+	assert_eq_usz(count_diag_code(fin.diagnostics, "duplicate-import"), 0, "duplicate-import cleared");
+	assert_eq_usz(count_diag_code(fin.diagnostics, "prefer-not-in"), 0, "prefer-not-in cleared");
+	assert_eq_usz(count_diag_code(fin.diagnostics, "prefer-not-is"), 0, "prefer-not-is cleared");
+	assert_eq_usz(count_diag_code(fin.diagnostics, "prefer-safe-nav"), 0, "prefer-safe-nav cleared");
+	assert_eq_usz(count_diag_code(fin.diagnostics, "redundant-cast"), 0, "redundant-cast cleared");
+	assert_eq_usz(count_diag_code(fin.diagnostics, "single-arm-when"), 0, "single-arm-when cleared");
+
+	assert_true("n !in [1, 2, 3]" in cur_txt, "prefer-not-in rewrite applied");
+	assert_true("it !is Item.A" in cur_txt, "prefer-not-is rewrite applied");
+	assert_true("val chosen = p ?: fb;" in cur_txt, "Elvis rewrite applied");
+	assert_true("val fv = p?.v ?: 0;" in cur_txt, "safe field + Elvis rewrite applied");
+	assert_true("val mv = p?.get_v() ?: 0;" in cur_txt, "safe call + Elvis rewrite applied");
+	assert_true("val nx = p?.next;" in cur_txt, "safe pointer field rewrite applied");
+	assert_true("p?.ping();" in cur_txt, "safe void call statement rewrite applied");
+	assert_true("val c1 = n;" in cur_txt, "redundant i64 cast removed");
+	assert_true("val c2 = chosen;" in cur_txt, "redundant pointer cast removed");
+	assert_true("val w1 = if (n == 1) 10 else 20;" in cur_txt, "single-arm value when simplified");
+	assert_true("val w2 = if (it is Item.A) 100 else 0;" in cur_txt, "single-arm is when simplified");
+
+	println("  [PASS] test_group3_idiom_lints_and_quickfixes");
+}
+
 pub fn main() {
 	println("Running LSP unit tests...");
 	test_json_and_uri();
@@ -1132,5 +1291,6 @@ pub fn main() {
 	test_object_lsp_and_privacy();
 	test_lint_warnings_and_quickfixes();
 	test_null_smart_cast_and_unwrap_lint();
+	test_group3_idiom_lints_and_quickfixes();
 	println("All LSP unit tests passed.");
 }

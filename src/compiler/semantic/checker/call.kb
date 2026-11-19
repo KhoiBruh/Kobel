@@ -1349,6 +1349,22 @@ impl BodyChecker {
 		return self.prims().t_none();
 	}
 
+	fn check_arg_in_module(
+		&self,
+		arg: &AstNode,
+		expected: *Type,
+		def_mod: str,
+		is_default: bool
+	): *Type {
+		if (!is_default || def_mod.empty() || def_mod == self.symtab.current_module) {
+			return self.check_expr(arg, expected);
+		}
+		val prev_mod = self.symtab.current_module;
+		self.symtab.current_module = def_mod;
+		defer self.symtab.current_module = prev_mod;
+		return self.check_expr(arg, expected);
+	}
+
 	pub fn check_struct_ctor(
 		&self,
 		node: &AstNode,
@@ -1357,6 +1373,7 @@ impl BodyChecker {
 		callee_is_self: bool
 	): *Type {
 		val s_info = callee_ty.as_struct()!;
+		val orig_argc = call.args.len;
 
 		if (!callee_is_self) {
 			val init_cand = s_info.find_static_method_arity("init", call.args.len);
@@ -1365,13 +1382,15 @@ impl BodyChecker {
 			);
 			if (nm != null) {
 				val n_info = nm.fn_type.as_fn()!;
+				var init_mod = s_info.module;
+				if (nm.ast_node is FnDecl as fd && !fd.module.empty()) init_mod = fd.module;
 				if (n_info.is_variadic) {
 					val min_args = n_info.param_types.len - 1;
 					val elem_ty = n_info.param_types[min_args];
 					for (i in 0..<min_args) {
 						val param_ty = n_info.param_types[i];
 						val arg_n = call.args[i];
-						val arg_ty = self.check_expr(arg_n, param_ty);
+						val arg_ty = self.check_arg_in_module(arg_n, param_ty, init_mod, i >= orig_argc);
 						self.ensure(param_ty.can_assign(arg_ty), node, "Argument type mismatch in call to constructor");
 					}
 					for (i in min_args..<call.args.len) {
@@ -1383,7 +1402,7 @@ impl BodyChecker {
 					for (i in 0..<call.args.len) {
 						val param_ty = n_info.param_types[i];
 						val arg_n = call.args[i];
-						val arg_ty = self.check_expr(arg_n, param_ty);
+						val arg_ty = self.check_arg_in_module(arg_n, param_ty, init_mod, i >= orig_argc);
 						self.ensure(param_ty.can_assign(arg_ty), node, "Argument type mismatch in call to constructor");
 					}
 				}
@@ -1422,7 +1441,7 @@ impl BodyChecker {
 			for (i in 0..<call.args.len) {
 				val f_ty = s_info.fields[i].type_ptr;
 				val arg_n = call.args[i];
-				val arg_ty = self.check_expr(arg_n, f_ty);
+				val arg_ty = self.check_arg_in_module(arg_n, f_ty, s_info.module, i >= orig_argc);
 				self.ensure(
 					f_ty.can_assign(arg_ty),
 					node,

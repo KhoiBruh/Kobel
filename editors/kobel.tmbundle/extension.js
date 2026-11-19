@@ -216,7 +216,13 @@ const LINT_CODES = new Set([
     'redundant-bool-compare',
     'prefer-expression-body',
     'redundant-trailing-return',
-    'redundant-return-var'
+    'redundant-return-var',
+    'prefer-not-in',
+    'prefer-not-is',
+    'prefer-safe-nav',
+    'redundant-cast',
+    'single-arm-when',
+    'duplicate-import'
 ]);
 
 function isLintDiag(d) {

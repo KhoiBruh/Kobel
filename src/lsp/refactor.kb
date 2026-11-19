@@ -59,8 +59,7 @@ fn is_valid_ident_name(name: str): bool {
 
 fn is_renameable_def(def: DefInfo): bool {
 	if (def.role == SymRole.MODULE) return false;
-	if (def.name in ["self", "init", "main"]) return false;
-	return true;
+	return def.name !in ["self", "init", "main"];
 }
 
 pub fn collect_semantic_refs(
@@ -350,7 +349,9 @@ pub fn code_actions_json(
 						"redundant-else", "empty-branch", "collapsible-if",
 						"redundant-boolean-return", "redundant-bool-compare",
 						"prefer-expression-body", "redundant-trailing-return",
-						"redundant-return-var"
+						"redundant-return-var",
+						"prefer-not-in", "prefer-not-is", "prefer-safe-nav",
+						"redundant-cast", "single-arm-when", "duplicate-import"
 					]
 				) {
 					needs_ast_lint = true;
@@ -380,6 +381,12 @@ pub fn code_actions_json(
 	val all_unwrap_edits = JsonValue.arr();
 	var all_unwrap_count: usz = 0;
 	var unwrap_overlap_count: usz = 0;
+	val all_cast_edits = JsonValue.arr();
+	var all_cast_count: usz = 0;
+	var cast_overlap_count: usz = 0;
+	val all_dup_imp_edits = JsonValue.arr();
+	var all_dup_imp_count: usz = 0;
+	var dup_imp_overlap_count: usz = 0;
 	if (effective_fixes != null) {
 		val fixes_list = effective_fixes;
 		for (fi in 0..<fixes_list.len) {
@@ -398,6 +405,18 @@ pub fn code_actions_json(
 					all_unwrap_count++;
 				}
 				if (overlaps) unwrap_overlap_count++;
+			} else if (fx.code == "redundant-cast") {
+				for (ed in fx.edits) {
+					all_cast_edits += make_text_edit(ed.line1, ed.col1, ed.end_line1, ed.end_col1, ed.new_text);
+					all_cast_count++;
+				}
+				if (overlaps) cast_overlap_count++;
+			} else if (fx.code == "duplicate-import") {
+				for (ed in fx.edits) {
+					all_dup_imp_edits += make_text_edit(ed.line1, ed.col1, ed.end_line1, ed.end_col1, ed.new_text);
+					all_dup_imp_count++;
+				}
+				if (overlaps) dup_imp_overlap_count++;
 			}
 			if (!overlaps) continue;
 			val edits = JsonValue.arr();
@@ -411,6 +430,18 @@ pub fn code_actions_json(
 		actions += make_code_action(
 			"Remove all ${all_unwrap_count} redundant '!' assertion(s)",
 			"quickfix", uri, all_unwrap_edits
+		);
+	}
+	if (all_cast_count > 1 && cast_overlap_count > 0) {
+		actions += make_code_action(
+			"Remove all ${all_cast_count} redundant 'as' cast(s)",
+			"quickfix", uri, all_cast_edits
+		);
+	}
+	if (all_dup_imp_count > 1 && dup_imp_overlap_count > 0) {
+		actions += make_code_action(
+			"Remove all ${all_dup_imp_count} redundant import(s)",
+			"quickfix", uri, all_dup_imp_edits
 		);
 	}
 
@@ -476,9 +507,13 @@ pub fn code_actions_json(
 		if (has_usage_ref(index, def.key)) continue;
 		if (def.role == SymRole.PARAM && !def.container.empty()) {
 			val owner_res = index.get_def(def.container);
-			if (owner_res is DefInfo as owner) {
-				if (!owner.has_body || owner.is_trait_impl || owner.name == "main") continue;
-			}
+			if (
+				owner_res is DefInfo as owner && (
+					!owner.has_body ||
+					owner.is_trait_impl ||
+					owner.name == "main"
+				)
+			) continue;
 		}
 
 		val edits = JsonValue.arr();

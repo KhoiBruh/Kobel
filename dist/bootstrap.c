@@ -984,6 +984,7 @@ typedef struct std__collections__List_compiler__semantic__lowering__PendingResol
 typedef struct std__collections__List_ptr_compiler__semantic__checker__ArrowCandidate std__collections__List_ptr_compiler__semantic__checker__ArrowCandidate;
 typedef struct std__collections__List_compiler__codegen__ConditionAlias std__collections__List_compiler__codegen__ConditionAlias;
 typedef struct std__collections__Pair_compiler__lexer__Token_compiler__lexer__Token std__collections__Pair_compiler__lexer__Token_compiler__lexer__Token;
+typedef struct std__collections__Pair_qptr_compiler__ast__AstNode_bool std__collections__Pair_qptr_compiler__ast__AstNode_bool;
 typedef struct std__collections__Array_str std__collections__Array_str;
 typedef struct std__collections__HashMap_str_lsp__JsonArrRef std__collections__HashMap_str_lsp__JsonArrRef;
 typedef struct std__range__Range_char std__range__Range_char;
@@ -1056,9 +1057,9 @@ typedef struct __kobel_eu_lsp__Document__lsp__DocumentErr __kobel_eu_lsp__Docume
 typedef struct __kobel_eu_lsp__RefInfo__lsp__IndexErr __kobel_eu_lsp__RefInfo__lsp__IndexErr;
 typedef struct __kobel_eu_config__ProjectConfig__config__ConfigErr __kobel_eu_config__ProjectConfig__config__ConfigErr;
 typedef struct __kobel_eu_mut_ptr_lsp__LintFix__std__memory__MemErr __kobel_eu_mut_ptr_lsp__LintFix__std__memory__MemErr;
-typedef struct __kobel_eu_std__collections__Pair_compiler__lexer__Token_compiler__lexer__Token__lsp__IndexErr __kobel_eu_std__collections__Pair_compiler__lexer__Token_compiler__lexer__Token__lsp__IndexErr;
 typedef struct __kobel_eu_mut_ptr_i64__std__memory__MemErr __kobel_eu_mut_ptr_i64__std__memory__MemErr;
 typedef struct __kobel_eu_mut_ptr_lsp__LintEditSpec__std__memory__MemErr __kobel_eu_mut_ptr_lsp__LintEditSpec__std__memory__MemErr;
+typedef struct __kobel_eu_std__collections__Pair_compiler__lexer__Token_compiler__lexer__Token__lsp__IndexErr __kobel_eu_std__collections__Pair_compiler__lexer__Token_compiler__lexer__Token__lsp__IndexErr;
 typedef struct __kobel_eu_lsp__DefInfo__lsp__IndexErr __kobel_eu_lsp__DefInfo__lsp__IndexErr;
 typedef struct __kobel_eu_mut_ptr_std__collections__List_str__std__memory__MemErr __kobel_eu_mut_ptr_std__collections__List_str__std__memory__MemErr;
 typedef struct __kobel_eu_mut_ptr_lsp__ImportInfo__std__memory__MemErr __kobel_eu_mut_ptr_lsp__ImportInfo__std__memory__MemErr;
@@ -2637,6 +2638,11 @@ struct std__collections__Pair_compiler__lexer__Token_compiler__lexer__Token {
     compiler__lexer__Token second;
 };
 
+struct std__collections__Pair_qptr_compiler__ast__AstNode_bool {
+    compiler__ast__AstNode* first;
+    bool second;
+};
+
 struct std__collections__Array_str {
     kobel_str* data;
     size_t len;
@@ -3815,23 +3821,6 @@ static inline lsp__LintFix* __kobel_unwrap___kobel_eu_mut_ptr_lsp__LintFix__std_
     return r.u.ok;
 }
 
-struct __kobel_eu_std__collections__Pair_compiler__lexer__Token_compiler__lexer__Token__lsp__IndexErr {
-    bool is_ok;
-    union {
-        std__collections__Pair_compiler__lexer__Token_compiler__lexer__Token ok;
-        lsp__IndexErr err;
-    } u;
-};
-
-static inline std__collections__Pair_compiler__lexer__Token_compiler__lexer__Token __kobel_unwrap___kobel_eu_std__collections__Pair_compiler__lexer__Token_compiler__lexer__Token__lsp__IndexErr(__kobel_eu_std__collections__Pair_compiler__lexer__Token_compiler__lexer__Token__lsp__IndexErr r, const char* file, size_t line, size_t col, const char* fn) {
-    if (!r.is_ok) {
-        kobel_loc at = { file, line, col, fn };
-        __kobel_report_fault("unwrapped error", r.u.err.__err_code, r.u.err.__origin, at);
-        exit(1);
-    }
-    return r.u.ok;
-}
-
 struct __kobel_eu_mut_ptr_i64__std__memory__MemErr {
     bool is_ok;
     union {
@@ -3858,6 +3847,23 @@ struct __kobel_eu_mut_ptr_lsp__LintEditSpec__std__memory__MemErr {
 };
 
 static inline lsp__LintEditSpec* __kobel_unwrap___kobel_eu_mut_ptr_lsp__LintEditSpec__std__memory__MemErr(__kobel_eu_mut_ptr_lsp__LintEditSpec__std__memory__MemErr r, const char* file, size_t line, size_t col, const char* fn) {
+    if (!r.is_ok) {
+        kobel_loc at = { file, line, col, fn };
+        __kobel_report_fault("unwrapped error", r.u.err.__err_code, r.u.err.__origin, at);
+        exit(1);
+    }
+    return r.u.ok;
+}
+
+struct __kobel_eu_std__collections__Pair_compiler__lexer__Token_compiler__lexer__Token__lsp__IndexErr {
+    bool is_ok;
+    union {
+        std__collections__Pair_compiler__lexer__Token_compiler__lexer__Token ok;
+        lsp__IndexErr err;
+    } u;
+};
+
+static inline std__collections__Pair_compiler__lexer__Token_compiler__lexer__Token __kobel_unwrap___kobel_eu_std__collections__Pair_compiler__lexer__Token_compiler__lexer__Token__lsp__IndexErr(__kobel_eu_std__collections__Pair_compiler__lexer__Token_compiler__lexer__Token__lsp__IndexErr r, const char* file, size_t line, size_t col, const char* fn) {
     if (!r.is_ok) {
         kobel_loc at = { file, line, col, fn };
         __kobel_report_fault("unwrapped error", r.u.err.__err_code, r.u.err.__origin, at);
@@ -5175,6 +5181,7 @@ struct lsp__LintCollector {
     std__collections__List_lsp__LspDiagnostic diags;
     std__collections__List_lsp__LintFix fixes;
     std__collections__HashSet_usz handled_bool_if_addrs;
+    bool in_generic;
 };
 
 struct lsp__LanguageServer {
@@ -5547,7 +5554,7 @@ void compiler__loader__ModuleFile_unpack(compiler__loader__ModuleFile* self, kob
 __kobel_eu_str__compiler__loader__LoaderErr compiler__loader__detect_project_root(kobel_str start_dir);
 bool compiler__loader__str_less(kobel_str a, kobel_str b);
 void compiler__loader__sort_strings(std__collections__List_str* items);
-compiler__loader__ModuleLoader compiler__loader__ModuleLoader_init_3(kobel_str entry_dir, std__collections__List_str extra_roots, std__memory__Arena arena);
+compiler__loader__ModuleLoader compiler__loader__ModuleLoader_init(kobel_str entry_dir, std__collections__List_str extra_roots, std__memory__Arena arena);
 compiler__ast__AstNode* compiler__loader__ModuleLoader_module_decl(compiler__loader__ModuleLoader* self, std__collections__List_str path, kobel_str full_path, size_t line, size_t col);
 compiler__ast__AstNode* compiler__loader__ModuleLoader_program(compiler__loader__ModuleLoader* self, std__collections__List_mut_ptr_compiler__ast__AstNode declarations, size_t line, size_t col);
 size_t compiler__loader__ModuleLoader_count(compiler__loader__ModuleLoader* self);
@@ -5645,7 +5652,7 @@ compiler__semantic__symbols__Symbol* compiler__semantic__symbols__Scope_at(compi
 compiler__semantic__symbols__Symbol* compiler__semantic__symbols__ModuleScope_lookup(compiler__semantic__symbols__ModuleScope* self, kobel_str name);
 bool compiler__semantic__symbols__ModuleScope_contains(compiler__semantic__symbols__ModuleScope* self, kobel_str name);
 void compiler__semantic__symbols__ModuleScope_plus_assign(compiler__semantic__symbols__ModuleScope* self, compiler__semantic__symbols__Symbol* sym);
-compiler__semantic__symbols__SymbolTable compiler__semantic__symbols__SymbolTable_init_1(std__memory__Arena arena);
+compiler__semantic__symbols__SymbolTable compiler__semantic__symbols__SymbolTable_init(std__memory__Arena arena);
 void compiler__semantic__symbols__SymbolTable_set_node_type(compiler__semantic__symbols__SymbolTable* self, compiler__ast__AstNode* node, compiler__semantic__types__Type* ty);
 compiler__semantic__types__Type* compiler__semantic__symbols__SymbolTable_get_node_type(compiler__semantic__symbols__SymbolTable* self, compiler__ast__AstNode* node);
 void compiler__semantic__symbols__SymbolTable_set_resolved_method(compiler__semantic__symbols__SymbolTable* self, compiler__ast__AstNode* node, compiler__semantic__types__MethodInfo* mi);
@@ -5968,6 +5975,7 @@ compiler__semantic__types__Type* compiler__semantic__checker__BodyChecker_check_
 compiler__semantic__types__Type* compiler__semantic__checker__BodyChecker_check_fn_call(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* node, compiler__semantic__types__Type* callee_ty, compiler__ast__NodeData__CallExpr* call);
 void compiler__semantic__checker__BodyChecker_check_fn_arg(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* node, compiler__ast__NodeData__CallExpr* call, size_t i, compiler__semantic__types__Type* param_ty);
 compiler__semantic__types__Type* compiler__semantic__checker__BodyChecker_check_lambda_expr(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* node, compiler__semantic__types__Type* expected);
+compiler__semantic__types__Type* compiler__semantic__checker__BodyChecker_check_arg_in_module(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* arg, compiler__semantic__types__Type* expected, kobel_str def_mod, bool is_default);
 compiler__semantic__types__Type* compiler__semantic__checker__BodyChecker_check_struct_ctor(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* node, compiler__semantic__types__Type* callee_ty, compiler__ast__NodeData__CallExpr* call, bool callee_is_self);
 compiler__semantic__checker__BodyChecker compiler__semantic__checker__BodyChecker_init_2(compiler__semantic__symbols__SymbolTable symtab, compiler__semantic__declaration__DeclarationCollector decl);
 kobel_str compiler__semantic__checker__BodyChecker_node_file_path(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* node);
@@ -6419,6 +6427,12 @@ bool lsp__expr_needs_parens_for_not(compiler__ast__AstNode* node);
 bool lsp__expr_needs_parens_for_and(compiler__ast__AstNode* node);
 kobel_str lsp__negate_condition_text(compiler__ast__AstNode* cond, kobel_str raw_text, std__collections__List_compiler__lexer__Token tokens, lsp__SourceMapper* mapper);
 int32_t lsp__bool_return_state(compiler__ast__AstNode* stmt);
+bool lsp__is_null_lit(compiler__ast__AstNode* node);
+kobel_str lsp__simple_path_key(compiler__ast__AstNode* node);
+bool lsp__is_safe_nav_compatible_type(compiler__semantic__types__Type* ty);
+bool lsp__is_untyped_num_lit(compiler__ast__AstNode* node);
+bool lsp__expr_needs_parens_for_elvis_rhs(compiler__ast__AstNode* node);
+bool lsp__is_simple_when_pattern(compiler__ast__AstNode* pat);
 lsp__LspDiagnostic lsp__LintCollector_make_diag(size_t l0, size_t c0, size_t el0, size_t ec0, kobel_str message, kobel_str code, bool unnecessary);
 void lsp__LintCollector_emit(lsp__LintCollector* self, size_t sl1, size_t sc1, size_t el1, size_t ec1, kobel_str message, kobel_str code, bool unnecessary, kobel_str fix_title, std__collections__List_lsp__LintEditSpec edits, kobel_str fix_kind, size_t fix_sl1, size_t fix_sc1, size_t fix_el1, size_t fix_ec1);
 bool lsp__LintCollector_is_bool_expr(lsp__LintCollector* self, compiler__ast__AstNode* node);
@@ -6437,6 +6451,14 @@ bool lsp__LintCollector_check_redundant_return_var(lsp__LintCollector* self, com
 bool lsp__LintCollector_check_bool_compare_expr(lsp__LintCollector* self, compiler__ast__AstNode* expr, compiler__ast__NodeData__BinaryExpr* bin);
 bool lsp__LintCollector_check_double_not_expr(lsp__LintCollector* self, compiler__ast__AstNode* expr, compiler__ast__NodeData__UnaryExpr* un);
 void lsp__LintCollector_check_unnecessary_unwrap(lsp__LintCollector* self, compiler__ast__AstNode* expr, compiler__ast__NodeData__UnaryExpr* un);
+void lsp__LintCollector_check_duplicate_imports(lsp__LintCollector* self, compiler__ast__NodeData__Program* prog);
+bool lsp__LintCollector_check_negated_in_or_is(lsp__LintCollector* self, compiler__ast__AstNode* expr, compiler__ast__NodeData__UnaryExpr* un);
+void lsp__LintCollector_check_redundant_cast(lsp__LintCollector* self, compiler__ast__AstNode* expr, compiler__ast__NodeData__CastExpr* cs);
+std__collections__Pair_qptr_compiler__ast__AstNode_bool lsp__LintCollector_extract_null_cmp(lsp__LintCollector* self, compiler__ast__AstNode* cond);
+bool lsp__LintCollector_is_nullable_ptr_node(lsp__LintCollector* self, compiler__ast__AstNode* node);
+void lsp__LintCollector_check_prefer_safe_nav_expr(lsp__LintCollector* self, compiler__ast__AstNode* expr, compiler__ast__NodeData__IfExpr* ie);
+void lsp__LintCollector_check_prefer_safe_nav_stmt(lsp__LintCollector* self, compiler__ast__AstNode* stmt, compiler__ast__NodeData__IfStmt* ifs);
+void lsp__LintCollector_check_single_arm_when(lsp__LintCollector* self, compiler__ast__AstNode* expr, compiler__ast__NodeData__WhenExpr* we);
 void lsp__LintCollector_walk_expr(lsp__LintCollector* self, compiler__ast__AstNode* node);
 void lsp__LintCollector_walk_stmt(lsp__LintCollector* self, compiler__ast__AstNode* node, bool in_block, bool is_else_if_child);
 void lsp__LintCollector_walk_fn(lsp__LintCollector* self, compiler__ast__AstNode* fn_node, compiler__ast__NodeData__FnDecl* f, bool is_trait_decl);
@@ -7026,6 +7048,7 @@ void std__collections__List_compiler__codegen__ConditionAlias_grow(std__collecti
 void std__collections__List_compiler__codegen__ConditionAlias_free(std__collections__List_compiler__codegen__ConditionAlias self);
 void std__collections__List_compiler__codegen__ConditionAlias_plus_assign(std__collections__List_compiler__codegen__ConditionAlias* self, compiler__codegen__ConditionAlias value);
 void std__collections__Pair_compiler__lexer__Token_compiler__lexer__Token_unpack(std__collections__Pair_compiler__lexer__Token_compiler__lexer__Token* self, compiler__lexer__Token* first, compiler__lexer__Token* second);
+void std__collections__Pair_qptr_compiler__ast__AstNode_bool_unpack(std__collections__Pair_qptr_compiler__ast__AstNode_bool* self, compiler__ast__AstNode** first, bool* second);
 size_t std__collections__Array_str_count(std__collections__Array_str* self);
 kobel_str std__collections__Array_str_at(std__collections__Array_str* self, size_t i);
 std__collections__Array_str std__collections__Array_str_init(kobel_str* items_data, size_t items_len);
@@ -13095,7 +13118,7 @@ __for_i = __for_i - 1;
 }
 }
 
-compiler__loader__ModuleLoader compiler__loader__ModuleLoader_init_3(kobel_str entry_dir, std__collections__List_str extra_roots, std__memory__Arena arena) {
+compiler__loader__ModuleLoader compiler__loader__ModuleLoader_init(kobel_str entry_dir, std__collections__List_str extra_roots, std__memory__Arena arena) {
 std__collections__List_str roots = std__collections__List_str_init(NULL, 0);
 if (!str_empty(entry_dir)) {
 std__collections__List_str_plus_assign(&roots, entry_dir);
@@ -13150,7 +13173,7 @@ __for_i = __for_i + 1;
 }
 }
 {
-__kobel_eu_mut_ptr_compiler__ast__AstNode__compiler__loader__LoaderErr __ret_tmp = (__kobel_eu_mut_ptr_compiler__ast__AstNode__compiler__loader__LoaderErr){ .is_ok = false, .u = { .err = (compiler__loader__LoaderErr){ .tag = 3, .__err_code = 33U, .__origin = { "src/compiler/loader/loader.kb", 173, 20, "ModuleLoader_parse_source" } } } };
+__kobel_eu_mut_ptr_compiler__ast__AstNode__compiler__loader__LoaderErr __ret_tmp = (__kobel_eu_mut_ptr_compiler__ast__AstNode__compiler__loader__LoaderErr){ .is_ok = false, .u = { .err = (compiler__loader__LoaderErr){ .tag = 3, .__err_code = 33U, .__origin = { "src/compiler/loader/loader.kb", 169, 20, "ModuleLoader_parse_source" } } } };
 std__collections__List_compiler__lexer__Token_free(tokens);
 return __ret_tmp;
 }
@@ -13170,7 +13193,7 @@ __for_i = __for_i + 1;
 }
 }
 {
-__kobel_eu_mut_ptr_compiler__ast__AstNode__compiler__loader__LoaderErr __ret_tmp = (__kobel_eu_mut_ptr_compiler__ast__AstNode__compiler__loader__LoaderErr){ .is_ok = false, .u = { .err = (compiler__loader__LoaderErr){ .tag = 4, .__err_code = 34U, .__origin = { "src/compiler/loader/loader.kb", 185, 20, "ModuleLoader_parse_source" } } } };
+__kobel_eu_mut_ptr_compiler__ast__AstNode__compiler__loader__LoaderErr __ret_tmp = (__kobel_eu_mut_ptr_compiler__ast__AstNode__compiler__loader__LoaderErr){ .is_ok = false, .u = { .err = (compiler__loader__LoaderErr){ .tag = 4, .__err_code = 34U, .__origin = { "src/compiler/loader/loader.kb", 181, 20, "ModuleLoader_parse_source" } } } };
 std__collections__List_compiler__lexer__Token_free(tokens);
 return __ret_tmp;
 }
@@ -13214,7 +13237,7 @@ __kobel_eu_str__std__filesystem__FsErr __eu_src_52 = std__filesystem__Path_read_
 if (__eu_src_52.is_ok) {
 src = __eu_src_52.u.ok;
 } else {
-return (__kobel_eu_std__collections__List_compiler__loader__ModuleFile__compiler__loader__LoaderErr){ .is_ok = false, .u = { .err = (compiler__loader__LoaderErr){ .tag = 2, .__err_code = 32U, .__origin = { "src/compiler/loader/loader.kb", 205, 53, "ModuleLoader_find_module_files" } } } };
+return (__kobel_eu_std__collections__List_compiler__loader__ModuleFile__compiler__loader__LoaderErr){ .is_ok = false, .u = { .err = (compiler__loader__LoaderErr){ .tag = 2, .__err_code = 32U, .__origin = { "src/compiler/loader/loader.kb", 201, 53, "ModuleLoader_find_module_files" } } } };
 }
 }
 std__collections__List_compiler__loader__ModuleFile_plus_assign(&list, (compiler__loader__ModuleFile){ cand_p.raw, src });
@@ -13227,7 +13250,7 @@ __kobel_eu_std__collections__List_str__std__filesystem__FsErr __eu_src_53 = std_
 if (__eu_src_53.is_ok) {
 entries = __eu_src_53.u.ok;
 } else {
-return (__kobel_eu_std__collections__List_compiler__loader__ModuleFile__compiler__loader__LoaderErr){ .is_ok = false, .u = { .err = (compiler__loader__LoaderErr){ .tag = 2, .__err_code = 32U, .__origin = { "src/compiler/loader/loader.kb", 212, 55, "ModuleLoader_find_module_files" } } } };
+return (__kobel_eu_std__collections__List_compiler__loader__ModuleFile__compiler__loader__LoaderErr){ .is_ok = false, .u = { .err = (compiler__loader__LoaderErr){ .tag = 2, .__err_code = 32U, .__origin = { "src/compiler/loader/loader.kb", 208, 55, "ModuleLoader_find_module_files" } } } };
 }
 }
 std__collections__List_str kb_files = std__collections__List_str_filter(&entries, (kobel_closure){ (void*)__lambda_fn_16, NULL });
@@ -13246,7 +13269,7 @@ __kobel_eu_str__std__filesystem__FsErr __eu_src_54 = std__filesystem__Path_read_
 if (__eu_src_54.is_ok) {
 f_src = __eu_src_54.u.ok;
 } else {
-return (__kobel_eu_std__collections__List_compiler__loader__ModuleFile__compiler__loader__LoaderErr){ .is_ok = false, .u = { .err = (compiler__loader__LoaderErr){ .tag = 2, .__err_code = 32U, .__origin = { "src/compiler/loader/loader.kb", 220, 54, "ModuleLoader_find_module_files" } } } };
+return (__kobel_eu_std__collections__List_compiler__loader__ModuleFile__compiler__loader__LoaderErr){ .is_ok = false, .u = { .err = (compiler__loader__LoaderErr){ .tag = 2, .__err_code = 32U, .__origin = { "src/compiler/loader/loader.kb", 216, 54, "ModuleLoader_find_module_files" } } } };
 }
 }
 std__collections__List_compiler__loader__ModuleFile_plus_assign(&list, (compiler__loader__ModuleFile){ f_p.raw, f_src });
@@ -13261,7 +13284,7 @@ return (__kobel_eu_std__collections__List_compiler__loader__ModuleFile__compiler
 __for_i = __for_i + 1;
 }
 }
-return (__kobel_eu_std__collections__List_compiler__loader__ModuleFile__compiler__loader__LoaderErr){ .is_ok = false, .u = { .err = (compiler__loader__LoaderErr){ .tag = 0, .__err_code = 30U, .__origin = { "src/compiler/loader/loader.kb", 229, 19, "ModuleLoader_find_module_files" } } } };
+return (__kobel_eu_std__collections__List_compiler__loader__ModuleFile__compiler__loader__LoaderErr){ .is_ok = false, .u = { .err = (compiler__loader__LoaderErr){ .tag = 0, .__err_code = 30U, .__origin = { "src/compiler/loader/loader.kb", 225, 19, "ModuleLoader_find_module_files" } } } };
 }
 
 __kobel_eu_compiler__loader__ModuleFile__compiler__loader__LoaderErr compiler__loader__ModuleLoader_find_module(compiler__loader__ModuleLoader* self, kobel_str module_name) {
@@ -13271,7 +13294,7 @@ return (__kobel_eu_compiler__loader__ModuleFile__compiler__loader__LoaderErr){ .
 }
 std__collections__List_compiler__loader__ModuleFile files = __eu_prop_20.u.ok;
 if (std__collections__List_compiler__loader__ModuleFile_empty(&files)) {
-return (__kobel_eu_compiler__loader__ModuleFile__compiler__loader__LoaderErr){ .is_ok = false, .u = { .err = (compiler__loader__LoaderErr){ .tag = 0, .__err_code = 30U, .__origin = { "src/compiler/loader/loader.kb", 234, 38, "ModuleLoader_find_module" } } } };
+return (__kobel_eu_compiler__loader__ModuleFile__compiler__loader__LoaderErr){ .is_ok = false, .u = { .err = (compiler__loader__LoaderErr){ .tag = 0, .__err_code = 30U, .__origin = { "src/compiler/loader/loader.kb", 230, 38, "ModuleLoader_find_module" } } } };
 }
 return (__kobel_eu_compiler__loader__ModuleFile__compiler__loader__LoaderErr){ .is_ok = true, .u = { .ok = std__collections__List_compiler__loader__ModuleFile_get(&files, 0) } };
 }
@@ -14811,7 +14834,7 @@ std__collections__List_ptr_compiler__semantic__symbols__Symbol_plus_assign(&self
 std__collections__HashMap_str_ptr_compiler__semantic__symbols__Symbol_set(&self->sym_map, sym->name, sym);
 }
 
-compiler__semantic__symbols__SymbolTable compiler__semantic__symbols__SymbolTable_init_1(std__memory__Arena arena) {
+compiler__semantic__symbols__SymbolTable compiler__semantic__symbols__SymbolTable_init(std__memory__Arena arena) {
 std__memory__Arena shared = arena;
 compiler__semantic__symbols__Scope* root_scope = std__memory__Arena_create_val_compiler__semantic__symbols__Scope(&shared, (compiler__semantic__symbols__Scope){ NULL, std__collections__List_ptr_compiler__semantic__symbols__Symbol_init(NULL, 0), false, std__collections__List_compiler__semantic__symbols__ScopeEntry_init(NULL, 0) });
 compiler__semantic__types__PrimTypes* prims = std__memory__Arena_create_val_compiler__semantic__types__PrimTypes(&shared, compiler__semantic__types__PrimTypes_init(&shared));
@@ -15043,8 +15066,7 @@ return NULL;
 }
 
 void compiler__semantic__symbols__SymbolTable_register_prim_method(compiler__semantic__symbols__SymbolTable* self, compiler__semantic__types__Type* prim, compiler__semantic__types__MethodInfo* mi) {
-compiler__semantic__types__Type* target = prim;
-compiler__semantic__types__Type_add_method(target, mi);
+compiler__semantic__types__Type_add_method(prim, mi);
 }
 
 compiler__semantic__types__MethodInfo* compiler__semantic__symbols__SymbolTable_find_prim_method(compiler__semantic__symbols__SymbolTable* self, compiler__semantic__types__DataType kind, kobel_str name) {
@@ -18213,11 +18235,11 @@ return NULL;
 
 compiler__semantic__declaration__DeclarationCollector compiler__semantic__declaration__DeclarationCollector_init_0(void) {
 std__memory__Arena arena = std__memory__Arena_init(65536);
-return (compiler__semantic__declaration__DeclarationCollector){ compiler__semantic__symbols__SymbolTable_init_1(arena), arena, KOBEL_STR(""), std__collections__List_compiler__core__Diagnostic_init(NULL, 0), false, NULL, std__collections__List_str_init(NULL, 0), std__collections__List_ptr_compiler__semantic__types__Type_init(NULL, 0), NULL, NULL };
+return (compiler__semantic__declaration__DeclarationCollector){ compiler__semantic__symbols__SymbolTable_init(arena), arena, KOBEL_STR(""), std__collections__List_compiler__core__Diagnostic_init(NULL, 0), false, NULL, std__collections__List_str_init(NULL, 0), std__collections__List_ptr_compiler__semantic__types__Type_init(NULL, 0), NULL, NULL };
 }
 
 compiler__semantic__declaration__DeclarationCollector compiler__semantic__declaration__DeclarationCollector_init_1(std__memory__Arena arena) {
-    return (compiler__semantic__declaration__DeclarationCollector){ compiler__semantic__symbols__SymbolTable_init_1(arena), arena, KOBEL_STR(""), std__collections__List_compiler__core__Diagnostic_init(NULL, 0), false, NULL, std__collections__List_str_init(NULL, 0), std__collections__List_ptr_compiler__semantic__types__Type_init(NULL, 0), NULL, NULL };
+    return (compiler__semantic__declaration__DeclarationCollector){ compiler__semantic__symbols__SymbolTable_init(arena), arena, KOBEL_STR(""), std__collections__List_compiler__core__Diagnostic_init(NULL, 0), false, NULL, std__collections__List_str_init(NULL, 0), std__collections__List_ptr_compiler__semantic__types__Type_init(NULL, 0), NULL, NULL };
 }
 
 compiler__semantic__types__PrimTypes* compiler__semantic__declaration__DeclarationCollector_prims(compiler__semantic__declaration__DeclarationCollector* self) {
@@ -25971,13 +25993,34 @@ return final_fn_ty;
 return compiler__semantic__types__PrimTypes_t_none(compiler__semantic__checker__BodyChecker_prims(self));
 }
 
+compiler__semantic__types__Type* compiler__semantic__checker__BodyChecker_check_arg_in_module(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* arg, compiler__semantic__types__Type* expected, kobel_str def_mod, bool is_default) {
+if (!is_default || str_empty(def_mod) || kobel_streq(def_mod, self->symtab.current_module)) {
+return compiler__semantic__checker__BodyChecker_check_expr(self, arg, expected);
+}
+kobel_str prev_mod = self->symtab.current_module;
+self->symtab.current_module = def_mod;
+{
+compiler__semantic__types__Type* __ret_tmp = compiler__semantic__checker__BodyChecker_check_expr(self, arg, expected);
+self->symtab.current_module = prev_mod;
+return __ret_tmp;
+}
+}
+
 compiler__semantic__types__Type* compiler__semantic__checker__BodyChecker_check_struct_ctor(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* node, compiler__semantic__types__Type* callee_ty, compiler__ast__NodeData__CallExpr* call, bool callee_is_self) {
 compiler__semantic__types__StructType* s_info = compiler__semantic__types__Type_as_struct(callee_ty);
+size_t orig_argc = call->args.len;
 if (!callee_is_self) {
 compiler__semantic__types__MethodInfo* init_cand = compiler__semantic__types__StructType_find_static_method_arity(s_info, KOBEL_STR("init"), call->args.len);
 compiler__semantic__types__MethodInfo* nm = compiler__semantic__checker__BodyChecker_method_with_defaults(self, KOBEL_STR("init"), call->args.len, s_info->methods, call, init_cand);
 if (nm != NULL) {
 compiler__semantic__types__FnTypeInfo* n_info = compiler__semantic__types__Type_as_fn(nm->fn_type);
+kobel_str init_mod = s_info->module;
+{
+compiler__ast__NodeData__FnDecl* fd = NULL;
+if (nm->ast_node != NULL && nm->ast_node->data.tag == compiler__ast__NodeData__FnDecl__TAG && (fd = (compiler__ast__NodeData__FnDecl*)(&nm->ast_node->data.u.FnDecl), 1) && !str_empty(fd->module)) {
+init_mod = fd->module;
+}
+}
 if (n_info->is_variadic) {
 size_t min_args = n_info->param_types.len - 1;
 compiler__semantic__types__Type* elem_ty = std__collections__List_ptr_compiler__semantic__types__Type_get(&n_info->param_types, min_args);
@@ -25996,7 +26039,7 @@ while (__for_go) {
 size_t i = __for_i;
 compiler__semantic__types__Type* param_ty = std__collections__List_ptr_compiler__semantic__types__Type_get(&n_info->param_types, i);
 compiler__ast__AstNode* arg_n = std__collections__List_mut_ptr_compiler__ast__AstNode_get(&call->args, i);
-compiler__semantic__types__Type* arg_ty = compiler__semantic__checker__BodyChecker_check_expr(self, arg_n, param_ty);
+compiler__semantic__types__Type* arg_ty = compiler__semantic__checker__BodyChecker_check_arg_in_module(self, arg_n, param_ty, init_mod, i >= orig_argc);
 compiler__semantic__checker__BodyChecker_ensure(self, compiler__semantic__types__Type_can_assign(param_ty, arg_ty), node, KOBEL_STR("Argument type mismatch in call to constructor"));
 if (__for_up) {
 __for_go = __for_i + 1 < __for_e;
@@ -26058,7 +26101,7 @@ while (__for_go) {
 size_t i = __for_i;
 compiler__semantic__types__Type* param_ty = std__collections__List_ptr_compiler__semantic__types__Type_get(&n_info->param_types, i);
 compiler__ast__AstNode* arg_n = std__collections__List_mut_ptr_compiler__ast__AstNode_get(&call->args, i);
-compiler__semantic__types__Type* arg_ty = compiler__semantic__checker__BodyChecker_check_expr(self, arg_n, param_ty);
+compiler__semantic__types__Type* arg_ty = compiler__semantic__checker__BodyChecker_check_arg_in_module(self, arg_n, param_ty, init_mod, i >= orig_argc);
 compiler__semantic__checker__BodyChecker_ensure(self, compiler__semantic__types__Type_can_assign(param_ty, arg_ty), node, KOBEL_STR("Argument type mismatch in call to constructor"));
 if (__for_up) {
 __for_go = __for_i + 1 < __for_e;
@@ -26167,7 +26210,7 @@ while (__for_go) {
 size_t i = __for_i;
 compiler__semantic__types__Type* f_ty = std__collections__List_compiler__semantic__types__StructField_get(&s_info->fields, i).type_ptr;
 compiler__ast__AstNode* arg_n = std__collections__List_mut_ptr_compiler__ast__AstNode_get(&call->args, i);
-compiler__semantic__types__Type* arg_ty = compiler__semantic__checker__BodyChecker_check_expr(self, arg_n, f_ty);
+compiler__semantic__types__Type* arg_ty = compiler__semantic__checker__BodyChecker_check_arg_in_module(self, arg_n, f_ty, s_info->module, i >= orig_argc);
 compiler__semantic__checker__BodyChecker_ensure(self, compiler__semantic__types__Type_can_assign(f_ty, arg_ty), node, kobel_concat(2, kobel_concat(5, KOBEL_STR("Field type mismatch in struct constructor: '"), s_info->c_name, KOBEL_STR("."), std__collections__List_compiler__semantic__types__StructField_get(&s_info->fields, i).name, KOBEL_STR("' ")), kobel_concat(4, KOBEL_STR("expects "), compiler__semantic__checker__BodyChecker_type_display(self, f_ty), KOBEL_STR(" got "), compiler__semantic__checker__BodyChecker_type_display(self, arg_ty))));
 if (__for_up) {
 __for_go = __for_i + 1 < __for_e;
@@ -27604,7 +27647,8 @@ compiler__semantic__checker__BodyChecker_apply_truthy_null_guards(self, if_e->co
 compiler__semantic__types__Type* then_ty = compiler__semantic__checker__BodyChecker_check_expr(self, if_e->then_branch, branch_hint);
 compiler__semantic__checker__BodyChecker_pop_non_null_scope(self);
 compiler__semantic__symbols__SymbolTable_exit_scope(&self->symtab);
-compiler__semantic__types__Type* else_hint = branch_hint != NULL ? branch_hint : then_ty;
+compiler__semantic__types__Type* else_hint = branch_hint;
+if (else_hint == NULL) else_hint = then_ty;
 compiler__semantic__symbols__SymbolTable_enter_scope(&self->symtab, false);
 compiler__semantic__checker__BodyChecker_push_non_null_scope(self);
 compiler__semantic__checker__BodyChecker_apply_falsy_null_guards(self, if_e->condition);
@@ -29401,7 +29445,8 @@ is_payload_data = true;
 matched_data_member = m;
 tag_field_name = KOBEL_STR("data.tag");
 compiler__semantic__symbols__Symbol* auto_tag = compiler__semantic__symbols__SymbolTable_lookup(&self->symtab, kobel_concat(4, data_enum->name, KOBEL_STR("."), m->name, KOBEL_STR("__TAG")));
-tag_const_c_name = auto_tag != NULL ? auto_tag->c_name : kobel_concat(4, data_enum->c_name, KOBEL_STR("__"), m->name, KOBEL_STR("__TAG"));
+tag_const_c_name = auto_tag != NULL ? auto_tag->c_name : kobel_null_str();
+if (tag_const_c_name.data == NULL) tag_const_c_name = kobel_concat(4, data_enum->c_name, KOBEL_STR("__"), m->name, KOBEL_STR("__TAG"));
 }
 __for_i = __for_i + 1;
 }
@@ -33205,7 +33250,7 @@ void compiler__codegen__CCodeGen_add_defer(compiler__codegen__CCodeGen* self, co
 
 void compiler__codegen__CCodeGen_mark_current_scope_jumped(compiler__codegen__CCodeGen* self) {
 if (!std__collections__List_bool_empty(&self->scope_jumped)) {
-__kobel_unwrap___kobel_eu_bool__std__collections__CollectionErr(std__collections__List_bool_pop(&self->scope_jumped), "src/compiler/codegen/generator.kb", 98, 27, "CCodeGen_mark_current_scope_jumped");
+__kobel_unwrap___kobel_eu_bool__std__collections__CollectionErr(std__collections__List_bool_pop(&self->scope_jumped), "src/compiler/codegen/generator.kb", 97, 27, "CCodeGen_mark_current_scope_jumped");
 std__collections__List_bool_plus_assign(&self->scope_jumped, true);
 }
 }
@@ -33214,11 +33259,11 @@ void compiler__codegen__CCodeGen_exit_defer_scope(compiler__codegen__CCodeGen* s
 if (std__collections__List_usz_empty(&self->scope_starts)) {
 return;
 }
-size_t start_idx = __kobel_unwrap___kobel_eu_usz__std__collections__CollectionErr(std__collections__List_usz_pop(&self->scope_starts), "src/compiler/codegen/generator.kb", 105, 42, "CCodeGen_exit_defer_scope");
-bool jumped = __kobel_unwrap___kobel_eu_bool__std__collections__CollectionErr(std__collections__List_bool_pop(&self->scope_jumped), "src/compiler/codegen/generator.kb", 106, 39, "CCodeGen_exit_defer_scope");
+size_t start_idx = __kobel_unwrap___kobel_eu_usz__std__collections__CollectionErr(std__collections__List_usz_pop(&self->scope_starts), "src/compiler/codegen/generator.kb", 104, 42, "CCodeGen_exit_defer_scope");
+bool jumped = __kobel_unwrap___kobel_eu_bool__std__collections__CollectionErr(std__collections__List_bool_pop(&self->scope_jumped), "src/compiler/codegen/generator.kb", 105, 39, "CCodeGen_exit_defer_scope");
 if (jumped || self->defer_nodes.len <= start_idx) {
 while (self->defer_nodes.len > start_idx) {
-__kobel_unwrap___kobel_eu_mut_ptr_compiler__ast__AstNode__std__collections__CollectionErr(std__collections__List_mut_ptr_compiler__ast__AstNode_pop(&self->defer_nodes), "src/compiler/codegen/generator.kb", 109, 27, "CCodeGen_exit_defer_scope");
+__kobel_unwrap___kobel_eu_mut_ptr_compiler__ast__AstNode__std__collections__CollectionErr(std__collections__List_mut_ptr_compiler__ast__AstNode_pop(&self->defer_nodes), "src/compiler/codegen/generator.kb", 108, 27, "CCodeGen_exit_defer_scope");
 }
 return;
 }
@@ -33228,7 +33273,7 @@ i--;
 compiler__codegen__CCodeGen_gen_statement(self, std__collections__List_mut_ptr_compiler__ast__AstNode_get(&self->defer_nodes, i));
 }
 while (self->defer_nodes.len > start_idx) {
-__kobel_unwrap___kobel_eu_mut_ptr_compiler__ast__AstNode__std__collections__CollectionErr(std__collections__List_mut_ptr_compiler__ast__AstNode_pop(&self->defer_nodes), "src/compiler/codegen/generator.kb", 119, 26, "CCodeGen_exit_defer_scope");
+__kobel_unwrap___kobel_eu_mut_ptr_compiler__ast__AstNode__std__collections__CollectionErr(std__collections__List_mut_ptr_compiler__ast__AstNode_pop(&self->defer_nodes), "src/compiler/codegen/generator.kb", 118, 26, "CCodeGen_exit_defer_scope");
 }
 }
 
@@ -33255,7 +33300,7 @@ kobel_str compiler__codegen__CCodeGen_node_file_path(compiler__codegen__CCodeGen
 if (node == NULL || self->symtab == NULL) {
 return KOBEL_STR("");
 }
-return compiler__semantic__symbols__SymbolTable_file_path_of(self->symtab, (*node).span.file_id);
+return compiler__semantic__symbols__SymbolTable_file_path_of(self->symtab, node->span.file_id);
 }
 
 static bool __lambda_fn_60(void* __raw_env, compiler__ast__EnumMember m) {
@@ -36286,7 +36331,7 @@ return (__kobel_eu_none__compiler__driver__CompilerErr){ .is_ok = false, .u = { 
 if (!self->quiet) {
 std__io__println(KOBEL_STR("[1/4] Loading modules (lex + parse)..."));
 }
-compiler__loader__ModuleLoader loader = compiler__loader__ModuleLoader_init_3(str_dir_of(input_path), self->extra_roots, arena);
+compiler__loader__ModuleLoader loader = compiler__loader__ModuleLoader_init(str_dir_of(input_path), self->extra_roots, arena);
 if (compiler__loader__ModuleLoader_has_module(&loader, KOBEL_STR("std.traits"))) {
 compiler__loader__ModuleLoader_ensure_module(&loader, KOBEL_STR("std.traits"), 0, 0, KOBEL_STR(""));
 }
@@ -38683,7 +38728,7 @@ size_t l0 = line - 1;
 size_t c0 = col > 0 ? col - 1 : 0;
 size_t end_col = c0 + 1;
 if (diag.length > 1) {
-end_col = c0 + (size_t)diag.length;
+end_col = c0 + diag.length;
 }
 int32_t severity = diag.severity == 1 ? 2 : 1;
 return (lsp__LspDiagnostic){ l0, c0, l0, end_col, severity, diag.message, KOBEL_STR(""), std__collections__List_i64_init(NULL, 0) };
@@ -38902,7 +38947,7 @@ return KOBEL_STR("");
 }
 
 lsp__AnalysisResult lsp__AnalysisResult_init_0(void) {
-    return (lsp__AnalysisResult){ std__collections__List_lsp__LspDiagnostic_init(NULL, 0), compiler__semantic__symbols__SymbolTable_init_1(std__memory__Arena_empty()), false, std__collections__List_compiler__lexer__Token_init(NULL, 0), (lsp__SemanticIndex){ std__collections__List_lsp__DefInfo_init(NULL, 0), std__collections__HashMap_str_usz_init(16), std__collections__List_lsp__RefInfo_init(NULL, 0), std__collections__HashMap_str_std__collections__List_usz_init(16), std__collections__HashMap_str_std__collections__List_usz_init(16), std__collections__HashSet_str_init(16), std__collections__HashMap_str_std__collections__List_lsp__ImportInfo_init(16), std__collections__HashMap_str_std__collections__List_lsp__ImplMissingInfo_init(16), (lsp__DepGraph){ std__collections__HashMap_str_std__collections__List_str_init(16), std__collections__HashMap_str_std__collections__List_str_init(16), std__collections__HashMap_str_std__collections__List_str_init(16) }, compiler__semantic__symbols__SymbolTable_init_1(std__memory__Arena_empty()), false, std__collections__HashMap_str_std__collections__List_compiler__lexer__Token_init(16), std__collections__HashMap_str_str_init(16), std__collections__HashMap_usz_str_init(16), std__collections__HashMap_usz_str_init(16), std__collections__HashMap_str_str_init(16), std__collections__HashMap_str_str_init(16), std__collections__HashMap_str_str_init(16), std__collections__HashMap_str_str_init(16), std__collections__HashMap_str_str_init(16) }, KOBEL_STR(""), KOBEL_STR(""), std__memory__Arena_empty(), KOBEL_STR(""), std__collections__List_str_init(NULL, 0), NULL, std__collections__List_lsp__LintFix_init(NULL, 0) };
+    return (lsp__AnalysisResult){ std__collections__List_lsp__LspDiagnostic_init(NULL, 0), compiler__semantic__symbols__SymbolTable_init(std__memory__Arena_empty()), false, std__collections__List_compiler__lexer__Token_init(NULL, 0), (lsp__SemanticIndex){ std__collections__List_lsp__DefInfo_init(NULL, 0), std__collections__HashMap_str_usz_init(16), std__collections__List_lsp__RefInfo_init(NULL, 0), std__collections__HashMap_str_std__collections__List_usz_init(16), std__collections__HashMap_str_std__collections__List_usz_init(16), std__collections__HashSet_str_init(16), std__collections__HashMap_str_std__collections__List_lsp__ImportInfo_init(16), std__collections__HashMap_str_std__collections__List_lsp__ImplMissingInfo_init(16), (lsp__DepGraph){ std__collections__HashMap_str_std__collections__List_str_init(16), std__collections__HashMap_str_std__collections__List_str_init(16), std__collections__HashMap_str_std__collections__List_str_init(16) }, compiler__semantic__symbols__SymbolTable_init(std__memory__Arena_empty()), false, std__collections__HashMap_str_std__collections__List_compiler__lexer__Token_init(16), std__collections__HashMap_str_str_init(16), std__collections__HashMap_usz_str_init(16), std__collections__HashMap_usz_str_init(16), std__collections__HashMap_str_str_init(16), std__collections__HashMap_str_str_init(16), std__collections__HashMap_str_str_init(16), std__collections__HashMap_str_str_init(16), std__collections__HashMap_str_str_init(16) }, KOBEL_STR(""), KOBEL_STR(""), std__memory__Arena_empty(), KOBEL_STR(""), std__collections__List_str_init(NULL, 0), NULL, std__collections__List_lsp__LintFix_init(NULL, 0) };
 }
 
 lsp__AnalysisResult lsp__AnalysisResult_init_4(kobel_str path, kobel_str source, kobel_str workspace_root, bool include_workspace) {
@@ -38937,8 +38982,8 @@ __for_i = __for_i + 1;
 }
 std__collections__List_compiler__core__Diagnostic_free(parser.errors);
 std__memory__Arena_free(&arena);
-compiler__semantic__symbols__SymbolTable empty_symtab = compiler__semantic__symbols__SymbolTable_init_1(std__memory__Arena_empty());
-return (lsp__AnalysisResult){ diagnostics, empty_symtab, false, tokens, (lsp__SemanticIndex){ std__collections__List_lsp__DefInfo_init(NULL, 0), std__collections__HashMap_str_usz_init(16), std__collections__List_lsp__RefInfo_init(NULL, 0), std__collections__HashMap_str_std__collections__List_usz_init(16), std__collections__HashMap_str_std__collections__List_usz_init(16), std__collections__HashSet_str_init(16), std__collections__HashMap_str_std__collections__List_lsp__ImportInfo_init(16), std__collections__HashMap_str_std__collections__List_lsp__ImplMissingInfo_init(16), (lsp__DepGraph){ std__collections__HashMap_str_std__collections__List_str_init(16), std__collections__HashMap_str_std__collections__List_str_init(16), std__collections__HashMap_str_std__collections__List_str_init(16) }, compiler__semantic__symbols__SymbolTable_init_1(std__memory__Arena_empty()), false, std__collections__HashMap_str_std__collections__List_compiler__lexer__Token_init(16), std__collections__HashMap_str_str_init(16), std__collections__HashMap_usz_str_init(16), std__collections__HashMap_usz_str_init(16), std__collections__HashMap_str_str_init(16), std__collections__HashMap_str_str_init(16), std__collections__HashMap_str_str_init(16), std__collections__HashMap_str_str_init(16), std__collections__HashMap_str_str_init(16) }, path, source, std__memory__Arena_empty(), KOBEL_STR(""), std__collections__List_str_init(NULL, 0), NULL, std__collections__List_lsp__LintFix_init(NULL, 0) };
+compiler__semantic__symbols__SymbolTable empty_symtab = compiler__semantic__symbols__SymbolTable_init(std__memory__Arena_empty());
+return (lsp__AnalysisResult){ diagnostics, empty_symtab, false, tokens, (lsp__SemanticIndex){ std__collections__List_lsp__DefInfo_init(NULL, 0), std__collections__HashMap_str_usz_init(16), std__collections__List_lsp__RefInfo_init(NULL, 0), std__collections__HashMap_str_std__collections__List_usz_init(16), std__collections__HashMap_str_std__collections__List_usz_init(16), std__collections__HashSet_str_init(16), std__collections__HashMap_str_std__collections__List_lsp__ImportInfo_init(16), std__collections__HashMap_str_std__collections__List_lsp__ImplMissingInfo_init(16), (lsp__DepGraph){ std__collections__HashMap_str_std__collections__List_str_init(16), std__collections__HashMap_str_std__collections__List_str_init(16), std__collections__HashMap_str_std__collections__List_str_init(16) }, compiler__semantic__symbols__SymbolTable_init(std__memory__Arena_empty()), false, std__collections__HashMap_str_std__collections__List_compiler__lexer__Token_init(16), std__collections__HashMap_str_str_init(16), std__collections__HashMap_usz_str_init(16), std__collections__HashMap_usz_str_init(16), std__collections__HashMap_str_str_init(16), std__collections__HashMap_str_str_init(16), std__collections__HashMap_str_str_init(16), std__collections__HashMap_str_str_init(16), std__collections__HashMap_str_str_init(16) }, path, source, std__memory__Arena_empty(), KOBEL_STR(""), std__collections__List_str_init(NULL, 0), NULL, std__collections__List_lsp__LintFix_init(NULL, 0) };
 }
 kobel_str doc_mod = KOBEL_STR("");
 {
@@ -38987,7 +39032,7 @@ if (std__filesystem__Path_exists(&test_p)) {
 std__collections__List_str_plus_assign(&extra_roots, test_p.raw);
 }
 }
-compiler__loader__ModuleLoader loader = compiler__loader__ModuleLoader_init_3(entry_dir, extra_roots, arena);
+compiler__loader__ModuleLoader loader = compiler__loader__ModuleLoader_init(entry_dir, extra_roots, arena);
 if (compiler__loader__ModuleLoader_has_module(&loader, KOBEL_STR("std.traits"))) {
 compiler__loader__ModuleLoader_ensure_module(&loader, KOBEL_STR("std.traits"), 0, 0, KOBEL_STR(""));
 }
@@ -39297,8 +39342,8 @@ return (lsp__AnalysisResult){ diagnostics, body_p.symtab, true, tokens, index, p
 std__memory__Arena_free(&arena);
 compiler__core__SourceMap_free(loader.sources);
 std__collections__List_compiler__core__Diagnostic_free(loader.errors);
-compiler__semantic__symbols__SymbolTable empty_symtab = compiler__semantic__symbols__SymbolTable_init_1(std__memory__Arena_empty());
-return (lsp__AnalysisResult){ diagnostics, empty_symtab, false, tokens, (lsp__SemanticIndex){ std__collections__List_lsp__DefInfo_init(NULL, 0), std__collections__HashMap_str_usz_init(16), std__collections__List_lsp__RefInfo_init(NULL, 0), std__collections__HashMap_str_std__collections__List_usz_init(16), std__collections__HashMap_str_std__collections__List_usz_init(16), std__collections__HashSet_str_init(16), std__collections__HashMap_str_std__collections__List_lsp__ImportInfo_init(16), std__collections__HashMap_str_std__collections__List_lsp__ImplMissingInfo_init(16), (lsp__DepGraph){ std__collections__HashMap_str_std__collections__List_str_init(16), std__collections__HashMap_str_std__collections__List_str_init(16), std__collections__HashMap_str_std__collections__List_str_init(16) }, compiler__semantic__symbols__SymbolTable_init_1(std__memory__Arena_empty()), false, std__collections__HashMap_str_std__collections__List_compiler__lexer__Token_init(16), std__collections__HashMap_str_str_init(16), std__collections__HashMap_usz_str_init(16), std__collections__HashMap_usz_str_init(16), std__collections__HashMap_str_str_init(16), std__collections__HashMap_str_str_init(16), std__collections__HashMap_str_str_init(16), std__collections__HashMap_str_str_init(16), std__collections__HashMap_str_str_init(16) }, path, source, std__memory__Arena_empty(), doc_mod, dep_paths, NULL, std__collections__List_lsp__LintFix_init(NULL, 0) };
+compiler__semantic__symbols__SymbolTable empty_symtab = compiler__semantic__symbols__SymbolTable_init(std__memory__Arena_empty());
+return (lsp__AnalysisResult){ diagnostics, empty_symtab, false, tokens, (lsp__SemanticIndex){ std__collections__List_lsp__DefInfo_init(NULL, 0), std__collections__HashMap_str_usz_init(16), std__collections__List_lsp__RefInfo_init(NULL, 0), std__collections__HashMap_str_std__collections__List_usz_init(16), std__collections__HashMap_str_std__collections__List_usz_init(16), std__collections__HashSet_str_init(16), std__collections__HashMap_str_std__collections__List_lsp__ImportInfo_init(16), std__collections__HashMap_str_std__collections__List_lsp__ImplMissingInfo_init(16), (lsp__DepGraph){ std__collections__HashMap_str_std__collections__List_str_init(16), std__collections__HashMap_str_std__collections__List_str_init(16), std__collections__HashMap_str_std__collections__List_str_init(16) }, compiler__semantic__symbols__SymbolTable_init(std__memory__Arena_empty()), false, std__collections__HashMap_str_std__collections__List_compiler__lexer__Token_init(16), std__collections__HashMap_str_str_init(16), std__collections__HashMap_usz_str_init(16), std__collections__HashMap_usz_str_init(16), std__collections__HashMap_str_str_init(16), std__collections__HashMap_str_str_init(16), std__collections__HashMap_str_str_init(16), std__collections__HashMap_str_str_init(16), std__collections__HashMap_str_str_init(16) }, path, source, std__memory__Arena_empty(), doc_mod, dep_paths, NULL, std__collections__List_lsp__LintFix_init(NULL, 0) };
 }
 
 void lsp__AnalysisResult_free(lsp__AnalysisResult* self) {
@@ -42259,7 +42304,7 @@ __for_i = __for_i + 1;
 }
 
 lsp__SemanticIndex lsp__prepare_semantic_index(compiler__loader__ModuleLoader* loader, kobel_str doc_path, kobel_str doc_source) {
-lsp__SemanticIndex index = (lsp__SemanticIndex){ std__collections__List_lsp__DefInfo_init(NULL, 0), std__collections__HashMap_str_usz_init(16), std__collections__List_lsp__RefInfo_init(NULL, 0), std__collections__HashMap_str_std__collections__List_usz_init(16), std__collections__HashMap_str_std__collections__List_usz_init(16), std__collections__HashSet_str_init(16), std__collections__HashMap_str_std__collections__List_lsp__ImportInfo_init(16), std__collections__HashMap_str_std__collections__List_lsp__ImplMissingInfo_init(16), (lsp__DepGraph){ std__collections__HashMap_str_std__collections__List_str_init(16), std__collections__HashMap_str_std__collections__List_str_init(16), std__collections__HashMap_str_std__collections__List_str_init(16) }, compiler__semantic__symbols__SymbolTable_init_1(std__memory__Arena_empty()), false, std__collections__HashMap_str_std__collections__List_compiler__lexer__Token_init(16), std__collections__HashMap_str_str_init(16), std__collections__HashMap_usz_str_init(16), std__collections__HashMap_usz_str_init(16), std__collections__HashMap_str_str_init(16), std__collections__HashMap_str_str_init(16), std__collections__HashMap_str_str_init(16), std__collections__HashMap_str_str_init(16), std__collections__HashMap_str_str_init(16) };
+lsp__SemanticIndex index = (lsp__SemanticIndex){ std__collections__List_lsp__DefInfo_init(NULL, 0), std__collections__HashMap_str_usz_init(16), std__collections__List_lsp__RefInfo_init(NULL, 0), std__collections__HashMap_str_std__collections__List_usz_init(16), std__collections__HashMap_str_std__collections__List_usz_init(16), std__collections__HashSet_str_init(16), std__collections__HashMap_str_std__collections__List_lsp__ImportInfo_init(16), std__collections__HashMap_str_std__collections__List_lsp__ImplMissingInfo_init(16), (lsp__DepGraph){ std__collections__HashMap_str_std__collections__List_str_init(16), std__collections__HashMap_str_std__collections__List_str_init(16), std__collections__HashMap_str_std__collections__List_str_init(16) }, compiler__semantic__symbols__SymbolTable_init(std__memory__Arena_empty()), false, std__collections__HashMap_str_std__collections__List_compiler__lexer__Token_init(16), std__collections__HashMap_str_str_init(16), std__collections__HashMap_usz_str_init(16), std__collections__HashMap_usz_str_init(16), std__collections__HashMap_str_str_init(16), std__collections__HashMap_str_str_init(16), std__collections__HashMap_str_str_init(16), std__collections__HashMap_str_str_init(16), std__collections__HashMap_str_str_init(16) };
 std__collections__HashMap_str_str src_by_path = std__collections__HashMap_str_str_init(16);
 {
 size_t __for_n = std__collections__List_compiler__core__SourceFile_count(&loader->sources.files);
@@ -43704,7 +43749,7 @@ int32_t u_val = 0;
 size_t u_count = 0;
 while (u_count < 4 && !lsp__JsonParser_is_end(self)) {
 char hc = lsp__JsonParser_advance(self);
-int32_t d = (hc >= '0' && hc <= '9') || (hc <= '0' && hc >= '9') ? (int32_t)(int32_t)(uint8_t)hc - 48 : (hc >= 'a' && hc <= 'f') || (hc <= 'a' && hc >= 'f') ? (int32_t)(int32_t)(uint8_t)hc - 87 : (hc >= 'A' && hc <= 'F') || (hc <= 'A' && hc >= 'F') ? (int32_t)(int32_t)(uint8_t)hc - 55 : -1;
+int32_t d = (hc >= '0' && hc <= '9') || (hc <= '0' && hc >= '9') ? (int32_t)(uint8_t)hc - 48 : (hc >= 'a' && hc <= 'f') || (hc <= 'a' && hc >= 'f') ? (int32_t)(uint8_t)hc - 87 : (hc >= 'A' && hc <= 'F') || (hc <= 'A' && hc >= 'F') ? (int32_t)(uint8_t)hc - 55 : -1;
 if (d < 0) {
 {
 __kobel_eu_str__lsp__JsonErr __ret_tmp = (__kobel_eu_str__lsp__JsonErr){ .is_ok = false, .u = { .err = (lsp__JsonErr){ .tag = 3, .__err_code = 57U, .__origin = { "src/lsp/json.kb", 272, 34, "JsonParser_parse_string" } } } };
@@ -44498,7 +44543,7 @@ return (std__collections__Pair_usz_usz){ sl, sc + 1 };
 } else if (node != NULL && node->data.tag == compiler__ast__NodeData__NamedType__TAG) {
 compiler__ast__NodeData__NamedType* nt = (compiler__ast__NodeData__NamedType*)(&node->data.u.NamedType);
 if (!std__collections__List_mut_ptr_compiler__ast__AstNode_empty(&nt->type_args)) {
-compiler__ast__AstNode* last_ta = __kobel_unwrap___kobel_eu_mut_ptr_compiler__ast__AstNode__std__collections__CollectionErr(std__collections__List_mut_ptr_compiler__ast__AstNode_last(&nt->type_args), "src/lsp/lint.kb", 406, 38, "type_end_pos");
+compiler__ast__AstNode* last_ta = __kobel_unwrap___kobel_eu_mut_ptr_compiler__ast__AstNode__std__collections__CollectionErr(std__collections__List_mut_ptr_compiler__ast__AstNode_last(&nt->type_args), "src/lsp/lint.kb", 414, 38, "type_end_pos");
 std__collections__Pair_usz_usz __destruct_tmp_30 = lsp__type_end_pos(tokens, last_ta);
 size_t tl;
 size_t tc;
@@ -44663,7 +44708,7 @@ return lsp__type_end_pos(tokens, ise->target_type);
 } else if (node != NULL && node->data.tag == compiler__ast__NodeData__CallExpr__TAG) {
 compiler__ast__NodeData__CallExpr* cl = (compiler__ast__NodeData__CallExpr*)(&node->data.u.CallExpr);
 if (!std__collections__List_mut_ptr_compiler__ast__AstNode_empty(&cl->args)) {
-compiler__ast__AstNode* last_arg = __kobel_unwrap___kobel_eu_mut_ptr_compiler__ast__AstNode__std__collections__CollectionErr(std__collections__List_mut_ptr_compiler__ast__AstNode_last(&cl->args), "src/lsp/lint.kb", 538, 34, "expr_end_pos");
+compiler__ast__AstNode* last_arg = __kobel_unwrap___kobel_eu_mut_ptr_compiler__ast__AstNode__std__collections__CollectionErr(std__collections__List_mut_ptr_compiler__ast__AstNode_last(&cl->args), "src/lsp/lint.kb", 546, 34, "expr_end_pos");
 {
 compiler__ast__NodeData__LambdaExpr* lam = NULL;
 if (last_arg != NULL && last_arg->data.tag == compiler__ast__NodeData__LambdaExpr__TAG && (lam = (compiler__ast__NodeData__LambdaExpr*)(&last_arg->data.u.LambdaExpr), 1) && lam->is_trailing) {
@@ -44685,7 +44730,7 @@ return (std__collections__Pair_usz_usz){ al, ac };
 }
 size_t idx = lsp__find_token_index_at_or_after(tokens, sl, sc);
 if (!std__collections__List_mut_ptr_compiler__ast__AstNode_empty(&cl->type_args)) {
-std__collections__Pair_usz_usz __destruct_tmp_35 = lsp__type_end_pos(tokens, __kobel_unwrap___kobel_eu_mut_ptr_compiler__ast__AstNode__std__collections__CollectionErr(std__collections__List_mut_ptr_compiler__ast__AstNode_last(&cl->type_args), "src/lsp/lint.kb", 550, 60, "expr_end_pos"));
+std__collections__Pair_usz_usz __destruct_tmp_35 = lsp__type_end_pos(tokens, __kobel_unwrap___kobel_eu_mut_ptr_compiler__ast__AstNode__std__collections__CollectionErr(std__collections__List_mut_ptr_compiler__ast__AstNode_last(&cl->type_args), "src/lsp/lint.kb", 558, 60, "expr_end_pos"));
 size_t tl;
 size_t tc;
 std__collections__Pair_usz_usz_unpack(&__destruct_tmp_35, &tl, &tc);
@@ -44906,6 +44951,102 @@ return 0;
 return -1;
 }
 
+bool lsp__is_null_lit(compiler__ast__AstNode* node) {
+compiler__ast__AstNode* cur = lsp__unwrap_group_ast(node);
+if (cur == NULL) {
+return false;
+}
+{
+compiler__ast__NodeData__LiteralExpr* lit = NULL;
+if (cur != NULL && cur->data.tag == compiler__ast__NodeData__LiteralExpr__TAG && (lit = (compiler__ast__NodeData__LiteralExpr*)(&cur->data.u.LiteralExpr), 1)) {
+return lit->literal_kind == 5;
+}
+}
+return false;
+}
+
+kobel_str lsp__simple_path_key(compiler__ast__AstNode* node) {
+compiler__ast__AstNode* cur = lsp__unwrap_group_ast(node);
+if (cur == NULL) {
+return KOBEL_STR("");
+}
+if (cur != NULL && cur->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG) {
+compiler__ast__NodeData__IdentifierExpr* id = (compiler__ast__NodeData__IdentifierExpr*)(&cur->data.u.IdentifierExpr);
+return str_empty(id->name) ? KOBEL_STR("") : id->name;
+} else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__MemberExpr__TAG) {
+compiler__ast__NodeData__MemberExpr* m = (compiler__ast__NodeData__MemberExpr*)(&cur->data.u.MemberExpr);
+if (m->is_safe) {
+return KOBEL_STR("");
+}
+kobel_str base = lsp__simple_path_key(m->object);
+return str_empty(base) ? KOBEL_STR("") : kobel_concat(3, base, KOBEL_STR("."), m->member);
+} else {
+return KOBEL_STR("");
+}
+}
+
+bool lsp__is_safe_nav_compatible_type(compiler__semantic__types__Type* ty) {
+if (ty->kind == 16 || ty->kind == 15 || ty->kind == 1 || ty->kind == 2) {
+return true;
+}
+return compiler__semantic__types__Type_is_numeric(ty);
+}
+
+bool lsp__is_untyped_num_lit(compiler__ast__AstNode* node) {
+compiler__ast__AstNode* cur = lsp__unwrap_group_ast(node);
+if (cur == NULL) {
+return false;
+}
+{
+compiler__ast__NodeData__LiteralExpr* lit = NULL;
+if (cur != NULL && cur->data.tag == compiler__ast__NodeData__LiteralExpr__TAG && (lit = (compiler__ast__NodeData__LiteralExpr*)(&cur->data.u.LiteralExpr), 1)) {
+return lit->literal_kind == 0 || lit->literal_kind == 1;
+}
+}
+{
+compiler__ast__NodeData__UnaryExpr* un = NULL;
+if (cur != NULL && cur->data.tag == compiler__ast__NodeData__UnaryExpr__TAG && (un = (compiler__ast__NodeData__UnaryExpr*)(&cur->data.u.UnaryExpr), 1) && !un->is_postfix && un->op == 7) {
+return lsp__is_untyped_num_lit(un->operand);
+}
+}
+return false;
+}
+
+bool lsp__expr_needs_parens_for_elvis_rhs(compiler__ast__AstNode* node) {
+compiler__ast__AstNode* cur = lsp__unwrap_group_ast(node);
+if (cur == NULL) {
+return true;
+}
+if ((cur != NULL && cur->data.tag == compiler__ast__NodeData__AssignExpr__TAG) || (cur != NULL && cur->data.tag == compiler__ast__NodeData__IfExpr__TAG) || (cur != NULL && cur->data.tag == compiler__ast__NodeData__WhenExpr__TAG) || (cur != NULL && cur->data.tag == compiler__ast__NodeData__CatchExpr__TAG) || (cur != NULL && cur->data.tag == compiler__ast__NodeData__BlockStmt__TAG)) {
+return true;
+} else {
+return false;
+}
+}
+
+bool lsp__is_simple_when_pattern(compiler__ast__AstNode* pat) {
+compiler__ast__AstNode* cur = lsp__unwrap_group_ast(pat);
+if (cur == NULL) {
+return false;
+}
+if (cur != NULL && cur->data.tag == compiler__ast__NodeData__LiteralExpr__TAG) {
+void* __orig_cur = (void*)cur;
+compiler__ast__NodeData__LiteralExpr* cur = (compiler__ast__NodeData__LiteralExpr*)((&((compiler__ast__AstNode*)__orig_cur)->data.u.LiteralExpr));
+return true;
+} else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG) {
+compiler__ast__NodeData__IdentifierExpr* id = (compiler__ast__NodeData__IdentifierExpr*)(&cur->data.u.IdentifierExpr);
+return !str_empty(id->name);
+} else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__MemberExpr__TAG) {
+compiler__ast__NodeData__MemberExpr* m = (compiler__ast__NodeData__MemberExpr*)(&cur->data.u.MemberExpr);
+return !m->is_safe && !lsp__is_empty_ident(m->object);
+} else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__IsExpr__TAG) {
+compiler__ast__NodeData__IsExpr* ise = (compiler__ast__NodeData__IsExpr*)(&cur->data.u.IsExpr);
+return str_empty(ise->alias);
+} else {
+return false;
+}
+}
+
 lsp__LspDiagnostic lsp__LintCollector_make_diag(size_t l0, size_t c0, size_t el0, size_t ec0, kobel_str message, kobel_str code, bool unnecessary) {
 std__collections__List_i64 tags = std__collections__List_i64_init(NULL, 0);
 if (unnecessary) {
@@ -44947,17 +45088,17 @@ __kobel_eu_std__collections__Pair_compiler__lexer__Token_compiler__lexer__Token_
 size_t idx = lsp__find_token_index_at_or_after(self->tokens, if_node->line, if_node->col);
 while (idx < self->tokens.len && std__collections__List_compiler__lexer__Token_get(&self->tokens, idx).type != 15) {
 if (idx > lsp__find_token_index_at_or_after(self->tokens, if_node->line, if_node->col) + 4) {
-return (__kobel_eu_std__collections__Pair_compiler__lexer__Token_compiler__lexer__Token__lsp__IndexErr){ .is_ok = false, .u = { .err = (lsp__IndexErr){ .tag = 0, .__err_code = 52U, .__origin = { "src/lsp/lint.kb", 777, 20, "LintCollector_find_if_cond_parens" } } } };
+return (__kobel_eu_std__collections__Pair_compiler__lexer__Token_compiler__lexer__Token__lsp__IndexErr){ .is_ok = false, .u = { .err = (lsp__IndexErr){ .tag = 0, .__err_code = 52U, .__origin = { "src/lsp/lint.kb", 842, 20, "LintCollector_find_if_cond_parens" } } } };
 }
 idx++;
 }
 if (idx >= self->tokens.len) {
-return (__kobel_eu_std__collections__Pair_compiler__lexer__Token_compiler__lexer__Token__lsp__IndexErr){ .is_ok = false, .u = { .err = (lsp__IndexErr){ .tag = 0, .__err_code = 52U, .__origin = { "src/lsp/lint.kb", 781, 46, "LintCollector_find_if_cond_parens" } } } };
+return (__kobel_eu_std__collections__Pair_compiler__lexer__Token_compiler__lexer__Token__lsp__IndexErr){ .is_ok = false, .u = { .err = (lsp__IndexErr){ .tag = 0, .__err_code = 52U, .__origin = { "src/lsp/lint.kb", 846, 46, "LintCollector_find_if_cond_parens" } } } };
 }
 compiler__lexer__Token lparen = std__collections__List_compiler__lexer__Token_get(&self->tokens, idx);
 intptr_t ci = lsp__find_matching_delim_index(self->tokens, idx, 15, 16);
 if (ci < 0) {
-return (__kobel_eu_std__collections__Pair_compiler__lexer__Token_compiler__lexer__Token__lsp__IndexErr){ .is_ok = false, .u = { .err = (lsp__IndexErr){ .tag = 0, .__err_code = 52U, .__origin = { "src/lsp/lint.kb", 784, 30, "LintCollector_find_if_cond_parens" } } } };
+return (__kobel_eu_std__collections__Pair_compiler__lexer__Token_compiler__lexer__Token__lsp__IndexErr){ .is_ok = false, .u = { .err = (lsp__IndexErr){ .tag = 0, .__err_code = 52U, .__origin = { "src/lsp/lint.kb", 849, 30, "LintCollector_find_if_cond_parens" } } } };
 }
 return (__kobel_eu_std__collections__Pair_compiler__lexer__Token_compiler__lexer__Token__lsp__IndexErr){ .is_ok = true, .u = { .ok = (std__collections__Pair_compiler__lexer__Token_compiler__lexer__Token){ lparen, std__collections__List_compiler__lexer__Token_get(&self->tokens, (size_t)ci) } } };
 }
@@ -45164,7 +45305,7 @@ return;
 {
 compiler__ast__NodeData__BlockStmt* blk = NULL;
 if (f->body != NULL && f->body->data.tag == compiler__ast__NodeData__BlockStmt__TAG && (blk = (compiler__ast__NodeData__BlockStmt*)(&f->body->data.u.BlockStmt), 1) && !std__collections__List_mut_ptr_compiler__ast__AstNode_empty(&blk->statements)) {
-compiler__ast__AstNode* last_stmt = __kobel_unwrap___kobel_eu_mut_ptr_compiler__ast__AstNode__std__collections__CollectionErr(std__collections__List_mut_ptr_compiler__ast__AstNode_last(&blk->statements), "src/lsp/lint.kb", 938, 41, "LintCollector_check_trailing_return");
+compiler__ast__AstNode* last_stmt = __kobel_unwrap___kobel_eu_mut_ptr_compiler__ast__AstNode__std__collections__CollectionErr(std__collections__List_mut_ptr_compiler__ast__AstNode_last(&blk->statements), "src/lsp/lint.kb", 1003, 41, "LintCollector_check_trailing_return");
 {
 compiler__ast__NodeData__ReturnStmt* ret = NULL;
 if (last_stmt != NULL && last_stmt->data.tag == compiler__ast__NodeData__ReturnStmt__TAG && (ret = (compiler__ast__NodeData__ReturnStmt*)(&last_stmt->data.u.ReturnStmt), 1) && ret->value == NULL) {
@@ -45250,9 +45391,9 @@ size_t if_ec;
 std__collections__Pair_usz_usz_unpack(&__destruct_tmp_49, &if_el, &if_ec);
 std__collections__Pair_compiler__lexer__Token_compiler__lexer__Token __eu_catch_37;
 {
-__kobel_eu_std__collections__Pair_compiler__lexer__Token_compiler__lexer__Token__lsp__IndexErr __eu_src_149 = lsp__LintCollector_find_if_cond_parens(self, if_node);
-if (__eu_src_149.is_ok) {
-__eu_catch_37 = __eu_src_149.u.ok;
+__kobel_eu_std__collections__Pair_compiler__lexer__Token_compiler__lexer__Token__lsp__IndexErr __eu_src_152 = lsp__LintCollector_find_if_cond_parens(self, if_node);
+if (__eu_src_152.is_ok) {
+__eu_catch_37 = __eu_src_152.u.ok;
 } else {
 return false;
 }
@@ -45290,9 +45431,9 @@ size_t s1_ec;
 std__collections__Pair_usz_usz_unpack(&__destruct_tmp_51, &s1_el, &s1_ec);
 std__collections__Pair_compiler__lexer__Token_compiler__lexer__Token __eu_catch_38;
 {
-__kobel_eu_std__collections__Pair_compiler__lexer__Token_compiler__lexer__Token__lsp__IndexErr __eu_src_150 = lsp__LintCollector_find_if_cond_parens(self, s0);
-if (__eu_src_150.is_ok) {
-__eu_catch_38 = __eu_src_150.u.ok;
+__kobel_eu_std__collections__Pair_compiler__lexer__Token_compiler__lexer__Token__lsp__IndexErr __eu_src_153 = lsp__LintCollector_find_if_cond_parens(self, s0);
+if (__eu_src_153.is_ok) {
+__eu_catch_38 = __eu_src_153.u.ok;
 } else {
 return false;
 }
@@ -45387,11 +45528,9 @@ bool wrapped = false;
 compiler__ast__NodeData__BlockStmt* tb = NULL;
 if (outer->then_branch != NULL && outer->then_branch->data.tag == compiler__ast__NodeData__IfStmt__TAG) {
 inner_node = outer->then_branch;
-} else if (outer->then_branch != NULL && outer->then_branch->data.tag == compiler__ast__NodeData__BlockStmt__TAG && (tb = (compiler__ast__NodeData__BlockStmt*)(&outer->then_branch->data.u.BlockStmt), 1) && tb->statements.len == 1) {
-if (std__collections__List_mut_ptr_compiler__ast__AstNode_get(&tb->statements, 0) != NULL && std__collections__List_mut_ptr_compiler__ast__AstNode_get(&tb->statements, 0)->data.tag == compiler__ast__NodeData__IfStmt__TAG) {
+} else if (outer->then_branch != NULL && outer->then_branch->data.tag == compiler__ast__NodeData__BlockStmt__TAG && (tb = (compiler__ast__NodeData__BlockStmt*)(&outer->then_branch->data.u.BlockStmt), 1) && tb->statements.len == 1 && std__collections__List_mut_ptr_compiler__ast__AstNode_get(&tb->statements, 0) != NULL && std__collections__List_mut_ptr_compiler__ast__AstNode_get(&tb->statements, 0)->data.tag == compiler__ast__NodeData__IfStmt__TAG) {
 inner_node = std__collections__List_mut_ptr_compiler__ast__AstNode_get(&tb->statements, 0);
 wrapped = true;
-}
 }
 }
 if (inner_node == NULL) {
@@ -45408,9 +45547,9 @@ return;
 }
 std__collections__Pair_compiler__lexer__Token_compiler__lexer__Token __eu_catch_39;
 {
-__kobel_eu_std__collections__Pair_compiler__lexer__Token_compiler__lexer__Token__lsp__IndexErr __eu_src_151 = lsp__LintCollector_find_if_cond_parens(self, outer_node);
-if (__eu_src_151.is_ok) {
-__eu_catch_39 = __eu_src_151.u.ok;
+__kobel_eu_std__collections__Pair_compiler__lexer__Token_compiler__lexer__Token__lsp__IndexErr __eu_src_154 = lsp__LintCollector_find_if_cond_parens(self, outer_node);
+if (__eu_src_154.is_ok) {
+__eu_catch_39 = __eu_src_154.u.ok;
 } else {
 return;
 }
@@ -45420,9 +45559,9 @@ compiler__lexer__Token o_rp;
 std__collections__Pair_compiler__lexer__Token_compiler__lexer__Token_unpack(&__eu_catch_39, &o_lp, &o_rp);
 std__collections__Pair_compiler__lexer__Token_compiler__lexer__Token __eu_catch_40;
 {
-__kobel_eu_std__collections__Pair_compiler__lexer__Token_compiler__lexer__Token__lsp__IndexErr __eu_src_152 = lsp__LintCollector_find_if_cond_parens(self, inner_node);
-if (__eu_src_152.is_ok) {
-__eu_catch_40 = __eu_src_152.u.ok;
+__kobel_eu_std__collections__Pair_compiler__lexer__Token_compiler__lexer__Token__lsp__IndexErr __eu_src_155 = lsp__LintCollector_find_if_cond_parens(self, inner_node);
+if (__eu_src_155.is_ok) {
+__eu_catch_40 = __eu_src_155.u.ok;
 } else {
 return;
 }
@@ -45691,6 +45830,588 @@ std__collections__List_lsp__LintEditSpec_plus_assign(&edits, (lsp__LintEditSpec)
 lsp__LintCollector_emit(self, expr->line, expr->col, expr->line, expr->col + 1, KOBEL_STR("Unnecessary non-null assertion '!'; expression is already known to be non-null"), KOBEL_STR("unnecessary-non-null-assert"), true, KOBEL_STR("Remove redundant '!'"), edits, KOBEL_STR("quickfix"), 0, 0, 0, 0);
 }
 
+void lsp__LintCollector_check_duplicate_imports(lsp__LintCollector* self, compiler__ast__NodeData__Program* prog) {
+std__collections__HashSet_str wildcard_mods = std__collections__HashSet_str_init(16);
+{
+size_t __for_n = compiler__ast__NodeData__Program_count(prog);
+size_t __for_i = 0;
+while (__for_i < __for_n) {
+compiler__ast__AstNode* decl = compiler__ast__NodeData__Program_at(prog, __for_i);
+{
+compiler__ast__NodeData__UseDecl* u = NULL;
+if (decl != NULL && decl->data.tag == compiler__ast__NodeData__UseDecl__TAG && (u = (compiler__ast__NodeData__UseDecl*)(&decl->data.u.UseDecl), 1) && u->wildcard && !str_empty(u->full_path)) {
+kobel_str base = str_ends_with(u->full_path, KOBEL_STR(".*")) ? kobel_slice(u->full_path, 0, u->full_path.len - 2) : u->full_path;
+std__collections__HashSet_str_plus_assign(&wildcard_mods, base);
+}
+}
+__for_i = __for_i + 1;
+}
+}
+std__collections__HashSet_str seen = std__collections__HashSet_str_init(16);
+{
+size_t __for_n = compiler__ast__NodeData__Program_count(prog);
+size_t __for_i = 0;
+while (__for_i < __for_n) {
+compiler__ast__AstNode* decl = compiler__ast__NodeData__Program_at(prog, __for_i);
+{
+compiler__ast__NodeData__UseDecl* u = NULL;
+if (decl != NULL && decl->data.tag == compiler__ast__NodeData__UseDecl__TAG && (u = (compiler__ast__NodeData__UseDecl*)(&decl->data.u.UseDecl), 1)) {
+if (str_empty(u->full_path) || decl->line == 0) {
+__for_i = __for_i + 1;
+continue;
+}
+kobel_str key = u->wildcard ? kobel_concat(2, KOBEL_STR("*:"), u->full_path) : kobel_concat(3, u->full_path, KOBEL_STR(":"), u->alias);
+bool is_dup = std__collections__HashSet_str_contains(&seen, key);
+kobel_str parent_mod = KOBEL_STR("");
+if (!u->wildcard && str_empty(u->alias)) {
+size_t dot_pos = 0;
+{
+size_t __for_e = u->full_path.len;
+size_t __for_i = __for_e;
+__for_i = 0;
+bool __for_up = __for_i <= __for_e;
+bool __for_go = false;
+if (__for_up) {
+__for_go = __for_i < __for_e;
+} else {
+__for_go = __for_i > __for_e;
+}
+while (__for_go) {
+size_t i = __for_i;
+if (u->full_path.data[i] == '.') {
+dot_pos = i;
+}
+if (__for_up) {
+__for_go = __for_i + 1 < __for_e;
+} else {
+__for_go = __for_i - 1 > __for_e;
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = __for_i + 1;
+} else {
+__for_i = __for_i - 1;
+}
+}
+}
+}
+if (dot_pos > 0) {
+parent_mod = kobel_slice(u->full_path, 0, dot_pos);
+}
+}
+bool covered_by_wild = !is_dup && !str_empty(parent_mod) && std__collections__HashSet_str_contains(&wildcard_mods, parent_mod);
+if (!is_dup && !covered_by_wild) {
+std__collections__HashSet_str_plus_assign(&seen, key);
+{
+__for_i = __for_i + 1;
+continue;
+}
+}
+size_t start_i = lsp__find_token_index_at_or_after(self->tokens, decl->line, decl->col);
+if (start_i >= self->tokens.len) {
+__for_i = __for_i + 1;
+continue;
+}
+size_t semi_i = start_i;
+while (semi_i < self->tokens.len && std__collections__List_compiler__lexer__Token_get(&self->tokens, semi_i).type != 0) {
+if (semi_i > start_i + 32) {
+break;
+}
+semi_i++;
+}
+if (semi_i >= self->tokens.len || std__collections__List_compiler__lexer__Token_get(&self->tokens, semi_i).type != 0) {
+__for_i = __for_i + 1;
+continue;
+}
+std__collections__Pair_usz_usz __destruct_tmp_72 = lsp__token_end_pos(std__collections__List_compiler__lexer__Token_get(&self->tokens, semi_i));
+size_t el1;
+size_t ec1;
+std__collections__Pair_usz_usz_unpack(&__destruct_tmp_72, &el1, &ec1);
+std__collections__List_lsp__LintEditSpec edits = std__collections__List_lsp__LintEditSpec_init(NULL, 0);
+if (lsp__SourceMapper_is_full_line_span(&self->mapper, decl->line, decl->col, el1, ec1) && el1 < lsp__SourceMapper_line_count(&self->mapper)) {
+std__collections__List_lsp__LintEditSpec_plus_assign(&edits, (lsp__LintEditSpec){ decl->line, 1, el1 + 1, 1, KOBEL_STR("") });
+} else {
+std__collections__List_lsp__LintEditSpec_plus_assign(&edits, (lsp__LintEditSpec){ decl->line, decl->col, el1, ec1, KOBEL_STR("") });
+}
+kobel_str desc = u->full_path;
+kobel_str msg = is_dup ? kobel_concat(3, KOBEL_STR("Duplicate import '"), desc, KOBEL_STR("'")) : kobel_concat(5, KOBEL_STR("Redundant import '"), u->full_path, KOBEL_STR("' is already covered by 'use "), parent_mod, KOBEL_STR(".*;'"));
+lsp__LintCollector_emit(self, decl->line, decl->col, el1, ec1, msg, KOBEL_STR("duplicate-import"), true, KOBEL_STR("Remove redundant import"), edits, KOBEL_STR("quickfix"), 0, 0, 0, 0);
+}
+}
+__for_i = __for_i + 1;
+}
+}
+std__collections__HashSet_str_free(seen);
+std__collections__HashSet_str_free(wildcard_mods);
+}
+
+bool lsp__LintCollector_check_negated_in_or_is(lsp__LintCollector* self, compiler__ast__AstNode* expr, compiler__ast__NodeData__UnaryExpr* un) {
+if (un->is_postfix || un->op != 4) {
+return false;
+}
+intptr_t bang_i = lsp__find_token_index_exact(self->tokens, expr->line, expr->col);
+if (bang_i < 0 || std__collections__List_compiler__lexer__Token_get(&self->tokens, (size_t)bang_i).type != 4) {
+return false;
+}
+{
+compiler__ast__NodeData__GroupExpr* grp = NULL;
+if (un->operand != NULL && un->operand->data.tag == compiler__ast__NodeData__GroupExpr__TAG && (grp = (compiler__ast__NodeData__GroupExpr*)(&un->operand->data.u.GroupExpr), 1)) {
+intptr_t open_i = lsp__find_token_index_exact(self->tokens, (*un->operand).line, (*un->operand).col);
+if (open_i < 0 || std__collections__List_compiler__lexer__Token_get(&self->tokens, (size_t)open_i).type != 15) {
+return false;
+}
+intptr_t close_i = lsp__find_matching_delim_index(self->tokens, (size_t)open_i, 15, 16);
+if (close_i < 0) {
+return false;
+}
+size_t next_i = (size_t)close_i + 1;
+if (next_i < self->tokens.len && (std__collections__List_compiler__lexer__Token_get(&self->tokens, next_i).type == 3 || std__collections__List_compiler__lexer__Token_get(&self->tokens, next_i).type == 39)) {
+return false;
+}
+std__collections__Pair_usz_usz __destruct_tmp_73 = lsp__token_end_pos(std__collections__List_compiler__lexer__Token_get(&self->tokens, (size_t)close_i));
+size_t uel;
+size_t uec;
+std__collections__Pair_usz_usz_unpack(&__destruct_tmp_73, &uel, &uec);
+compiler__ast__AstNode* inner = grp->expr;
+{
+compiler__ast__NodeData__BinaryExpr* b = NULL;
+if (inner != NULL && inner->data.tag == compiler__ast__NodeData__BinaryExpr__TAG && (b = (compiler__ast__NodeData__BinaryExpr*)(&inner->data.u.BinaryExpr), 1) && b->op == 69) {
+std__collections__Pair_usz_usz __destruct_tmp_74 = lsp__expr_start_pos(b->left);
+size_t lsl;
+size_t lsc;
+std__collections__Pair_usz_usz_unpack(&__destruct_tmp_74, &lsl, &lsc);
+std__collections__Pair_usz_usz __destruct_tmp_75 = lsp__expr_end_pos(self->tokens, b->left);
+size_t lel;
+size_t lec;
+std__collections__Pair_usz_usz_unpack(&__destruct_tmp_75, &lel, &lec);
+std__collections__Pair_usz_usz __destruct_tmp_76 = lsp__expr_start_pos(b->right);
+size_t rsl;
+size_t rsc;
+std__collections__Pair_usz_usz_unpack(&__destruct_tmp_76, &rsl, &rsc);
+std__collections__Pair_usz_usz __destruct_tmp_77 = lsp__expr_end_pos(self->tokens, b->right);
+size_t rel;
+size_t rec;
+std__collections__Pair_usz_usz_unpack(&__destruct_tmp_77, &rel, &rec);
+kobel_str lhs_txt = str_trim(lsp__SourceMapper_slice_pos(&self->mapper, lsl, lsc, lel, lec));
+kobel_str rhs_txt = str_trim(lsp__SourceMapper_slice_pos(&self->mapper, rsl, rsc, rel, rec));
+if (str_empty(lhs_txt) || str_empty(rhs_txt) || str_contains(lhs_txt, KOBEL_STR("\n")) || str_contains(rhs_txt, KOBEL_STR("\n"))) {
+return false;
+}
+kobel_str repl = kobel_concat(3, lhs_txt, KOBEL_STR(" !in "), rhs_txt);
+std__collections__List_lsp__LintEditSpec edits = std__collections__List_lsp__LintEditSpec_init(NULL, 0);
+std__collections__List_lsp__LintEditSpec_plus_assign(&edits, (lsp__LintEditSpec){ expr->line, expr->col, uel, uec, repl });
+lsp__LintCollector_emit(self, expr->line, expr->col, uel, uec, kobel_concat(3, KOBEL_STR("Prefer '"), repl, KOBEL_STR("' instead of negated 'in'")), KOBEL_STR("prefer-not-in"), false, kobel_concat(3, KOBEL_STR("Simplify to '"), repl, KOBEL_STR("'")), edits, KOBEL_STR("quickfix"), 0, 0, 0, 0);
+lsp__LintCollector_walk_expr(self, b->left);
+lsp__LintCollector_walk_expr(self, b->right);
+return true;
+}
+}
+{
+compiler__ast__NodeData__IsExpr* ise = NULL;
+if (inner != NULL && inner->data.tag == compiler__ast__NodeData__IsExpr__TAG && (ise = (compiler__ast__NodeData__IsExpr*)(&inner->data.u.IsExpr), 1) && ise->expr != NULL && str_empty(ise->alias)) {
+std__collections__Pair_usz_usz __destruct_tmp_78 = lsp__expr_start_pos(ise->expr);
+size_t lsl;
+size_t lsc;
+std__collections__Pair_usz_usz_unpack(&__destruct_tmp_78, &lsl, &lsc);
+std__collections__Pair_usz_usz __destruct_tmp_79 = lsp__expr_end_pos(self->tokens, ise->expr);
+size_t lel;
+size_t lec;
+std__collections__Pair_usz_usz_unpack(&__destruct_tmp_79, &lel, &lec);
+std__collections__Pair_usz_usz __destruct_tmp_80 = lsp__type_end_pos(self->tokens, ise->target_type);
+size_t tel;
+size_t tec;
+std__collections__Pair_usz_usz_unpack(&__destruct_tmp_80, &tel, &tec);
+kobel_str lhs_txt = str_trim(lsp__SourceMapper_slice_pos(&self->mapper, lsl, lsc, lel, lec));
+kobel_str ty_txt = str_trim(lsp__SourceMapper_slice_pos(&self->mapper, (*ise->target_type).line, (*ise->target_type).col, tel, tec));
+if (str_empty(lhs_txt) || str_empty(ty_txt) || str_contains(lhs_txt, KOBEL_STR("\n")) || str_contains(ty_txt, KOBEL_STR("\n"))) {
+return false;
+}
+kobel_str repl = kobel_concat(3, lhs_txt, KOBEL_STR(" !is "), ty_txt);
+std__collections__List_lsp__LintEditSpec edits = std__collections__List_lsp__LintEditSpec_init(NULL, 0);
+std__collections__List_lsp__LintEditSpec_plus_assign(&edits, (lsp__LintEditSpec){ expr->line, expr->col, uel, uec, repl });
+lsp__LintCollector_emit(self, expr->line, expr->col, uel, uec, kobel_concat(3, KOBEL_STR("Prefer '"), repl, KOBEL_STR("' instead of negated 'is'")), KOBEL_STR("prefer-not-is"), false, kobel_concat(3, KOBEL_STR("Simplify to '"), repl, KOBEL_STR("'")), edits, KOBEL_STR("quickfix"), 0, 0, 0, 0);
+lsp__LintCollector_walk_expr(self, ise->expr);
+return true;
+}
+}
+}
+}
+return false;
+}
+
+void lsp__LintCollector_check_redundant_cast(lsp__LintCollector* self, compiler__ast__AstNode* expr, compiler__ast__NodeData__CastExpr* cs) {
+if (!self->has_symtab || self->in_generic || cs->expr == NULL) {
+return;
+}
+if (lsp__is_untyped_num_lit(cs->expr)) {
+return;
+}
+compiler__semantic__types__Type* src_ty = compiler__semantic__symbols__SymbolTable_get_node_type(&self->symtab, cs->expr);
+if (src_ty == NULL) {
+return;
+}
+compiler__semantic__types__Type* dst_ty = compiler__semantic__symbols__SymbolTable_get_node_type(&self->symtab, expr);
+if (dst_ty == NULL) {
+return;
+}
+if (src_ty->kind == 0 || dst_ty->kind == 0) {
+return;
+}
+if (!compiler__semantic__types__Type_equals(src_ty, dst_ty)) {
+return;
+}
+std__collections__Pair_usz_usz __destruct_tmp_81 = lsp__expr_end_pos(self->tokens, cs->expr);
+size_t esl;
+size_t esc;
+std__collections__Pair_usz_usz_unpack(&__destruct_tmp_81, &esl, &esc);
+std__collections__Pair_usz_usz __destruct_tmp_82 = lsp__type_end_pos(self->tokens, cs->target_type);
+size_t cel;
+size_t cec;
+std__collections__Pair_usz_usz_unpack(&__destruct_tmp_82, &cel, &cec);
+size_t as_i = lsp__find_token_index_at_or_after(self->tokens, esl, esc);
+if (as_i >= self->tokens.len || std__collections__List_compiler__lexer__Token_get(&self->tokens, as_i).type != 56) {
+return;
+}
+compiler__lexer__Token as_tok = std__collections__List_compiler__lexer__Token_get(&self->tokens, as_i);
+kobel_str ty_txt = str_trim(lsp__SourceMapper_slice_pos(&self->mapper, (*cs->target_type).line, (*cs->target_type).col, cel, cec));
+if (str_empty(ty_txt)) {
+return;
+}
+std__collections__List_lsp__LintEditSpec edits = std__collections__List_lsp__LintEditSpec_init(NULL, 0);
+std__collections__List_lsp__LintEditSpec_plus_assign(&edits, (lsp__LintEditSpec){ esl, esc, cel, cec, KOBEL_STR("") });
+lsp__LintCollector_emit(self, as_tok.line, as_tok.col, cel, cec, kobel_concat(3, KOBEL_STR("Redundant cast 'as "), ty_txt, KOBEL_STR("'; expression already has this type")), KOBEL_STR("redundant-cast"), true, kobel_concat(3, KOBEL_STR("Remove redundant 'as "), ty_txt, KOBEL_STR("'")), edits, KOBEL_STR("quickfix"), 0, 0, 0, 0);
+}
+
+std__collections__Pair_qptr_compiler__ast__AstNode_bool lsp__LintCollector_extract_null_cmp(lsp__LintCollector* self, compiler__ast__AstNode* cond) {
+compiler__ast__AstNode* cur = lsp__unwrap_group_ast(cond);
+if (cur == NULL) {
+return (std__collections__Pair_qptr_compiler__ast__AstNode_bool){ NULL, false };
+}
+{
+compiler__ast__NodeData__BinaryExpr* b = NULL;
+if (cur != NULL && cur->data.tag == compiler__ast__NodeData__BinaryExpr__TAG && (b = (compiler__ast__NodeData__BinaryExpr*)(&cur->data.u.BinaryExpr), 1) && (b->op == 22 || b->op == 21)) {
+bool is_ne = b->op == 22;
+if (lsp__is_null_lit(b->right)) {
+return (std__collections__Pair_qptr_compiler__ast__AstNode_bool){ b->left, is_ne };
+}
+if (lsp__is_null_lit(b->left)) {
+return (std__collections__Pair_qptr_compiler__ast__AstNode_bool){ b->right, is_ne };
+}
+}
+}
+return (std__collections__Pair_qptr_compiler__ast__AstNode_bool){ NULL, false };
+}
+
+bool lsp__LintCollector_is_nullable_ptr_node(lsp__LintCollector* self, compiler__ast__AstNode* node) {
+if (!self->has_symtab) {
+return true;
+}
+compiler__semantic__types__Type* ty = compiler__semantic__symbols__SymbolTable_get_node_type(&self->symtab, node);
+if (ty == NULL) {
+return false;
+}
+return ty->kind == 16 && (*compiler__semantic__types__Type_as_pointer(ty)).nullable;
+}
+
+void lsp__LintCollector_check_prefer_safe_nav_expr(lsp__LintCollector* self, compiler__ast__AstNode* expr, compiler__ast__NodeData__IfExpr* ie) {
+std__collections__Pair_qptr_compiler__ast__AstNode_bool __destruct_tmp_83 = lsp__LintCollector_extract_null_cmp(self, ie->condition);
+compiler__ast__AstNode* checked_opt;
+bool is_ne;
+std__collections__Pair_qptr_compiler__ast__AstNode_bool_unpack(&__destruct_tmp_83, &checked_opt, &is_ne);
+compiler__ast__AstNode* checked = checked_opt;
+if (checked == NULL) {
+return;
+}
+kobel_str x_path = lsp__simple_path_key(checked);
+if (str_empty(x_path) || !lsp__LintCollector_is_nullable_ptr_node(self, checked)) {
+return;
+}
+compiler__ast__AstNode* non_null_br = is_ne ? ie->then_branch : ie->else_branch;
+compiler__ast__AstNode* null_br = is_ne ? ie->else_branch : ie->then_branch;
+if ((non_null_br != NULL && non_null_br->data.tag == compiler__ast__NodeData__BlockStmt__TAG) || (null_br != NULL && null_br->data.tag == compiler__ast__NodeData__BlockStmt__TAG)) {
+return;
+}
+std__collections__Pair_usz_usz __destruct_tmp_84 = lsp__expr_start_pos(checked);
+size_t xsl;
+size_t xsc;
+std__collections__Pair_usz_usz_unpack(&__destruct_tmp_84, &xsl, &xsc);
+std__collections__Pair_usz_usz __destruct_tmp_85 = lsp__expr_end_pos(self->tokens, checked);
+size_t xel;
+size_t xec;
+std__collections__Pair_usz_usz_unpack(&__destruct_tmp_85, &xel, &xec);
+kobel_str x_txt = str_trim(lsp__SourceMapper_slice_pos(&self->mapper, xsl, xsc, xel, xec));
+if (str_empty(x_txt) || str_contains(x_txt, KOBEL_STR("\n"))) {
+return;
+}
+std__collections__Pair_usz_usz __destruct_tmp_86 = lsp__expr_start_pos(null_br);
+size_t fsl;
+size_t fsc;
+std__collections__Pair_usz_usz_unpack(&__destruct_tmp_86, &fsl, &fsc);
+std__collections__Pair_usz_usz __destruct_tmp_87 = lsp__expr_end_pos(self->tokens, null_br);
+size_t fel;
+size_t fec;
+std__collections__Pair_usz_usz_unpack(&__destruct_tmp_87, &fel, &fec);
+kobel_str fb_txt = str_trim(lsp__SourceMapper_slice_pos(&self->mapper, fsl, fsc, fel, fec));
+if (str_empty(fb_txt) || str_contains(fb_txt, KOBEL_STR("\n"))) {
+return;
+}
+std__collections__Pair_usz_usz __destruct_tmp_88 = lsp__expr_start_pos(expr);
+size_t isl;
+size_t isc;
+std__collections__Pair_usz_usz_unpack(&__destruct_tmp_88, &isl, &isc);
+std__collections__Pair_usz_usz __destruct_tmp_89 = lsp__expr_end_pos(self->tokens, expr);
+size_t iel;
+size_t iec;
+std__collections__Pair_usz_usz_unpack(&__destruct_tmp_89, &iel, &iec);
+bool fb_is_null = lsp__is_null_lit(null_br);
+bool fb_ok = !fb_is_null && !lsp__expr_needs_parens_for_elvis_rhs(null_br);
+kobel_str repl = KOBEL_STR("");
+compiler__ast__AstNode* nn_cur = lsp__unwrap_group_ast(non_null_br);
+if (nn_cur == NULL) {
+return;
+}
+{
+compiler__ast__NodeData__MemberExpr* m = NULL;
+compiler__ast__NodeData__CallExpr* c = NULL;
+if (kobel_streq(lsp__simple_path_key(nn_cur), x_path) && fb_ok) {
+repl = kobel_concat(3, x_txt, KOBEL_STR(" ?: "), fb_txt);
+} else if (nn_cur != NULL && nn_cur->data.tag == compiler__ast__NodeData__MemberExpr__TAG && (m = (compiler__ast__NodeData__MemberExpr*)(&nn_cur->data.u.MemberExpr), 1) && !m->is_safe && kobel_streq(lsp__simple_path_key(m->object), x_path)) {
+if (self->has_symtab) {
+compiler__semantic__types__Type* m_ty = compiler__semantic__symbols__SymbolTable_get_node_type(&self->symtab, nn_cur);
+if (m_ty == NULL) {
+return;
+}
+if (!lsp__is_safe_nav_compatible_type(m_ty)) {
+return;
+}
+if (fb_is_null) {
+if (m_ty->kind == 16) {
+repl = kobel_concat(3, x_txt, KOBEL_STR("?."), m->member);
+}
+} else if (fb_ok) {
+repl = kobel_concat(5, x_txt, KOBEL_STR("?."), m->member, KOBEL_STR(" ?: "), fb_txt);
+}
+} else if (fb_ok) {
+repl = kobel_concat(5, x_txt, KOBEL_STR("?."), m->member, KOBEL_STR(" ?: "), fb_txt);
+}
+} else if (nn_cur != NULL && nn_cur->data.tag == compiler__ast__NodeData__CallExpr__TAG && (c = (compiler__ast__NodeData__CallExpr*)(&nn_cur->data.u.CallExpr), 1) && c->callee != NULL && c->callee->data.tag == compiler__ast__NodeData__MemberExpr__TAG && (m = (compiler__ast__NodeData__MemberExpr*)(&c->callee->data.u.MemberExpr), 1) && !m->is_safe && kobel_streq(lsp__simple_path_key(m->object), x_path)) {
+std__collections__Pair_usz_usz __destruct_tmp_90 = lsp__expr_end_pos(self->tokens, m->object);
+size_t oel;
+size_t oec;
+std__collections__Pair_usz_usz_unpack(&__destruct_tmp_90, &oel, &oec);
+std__collections__Pair_usz_usz __destruct_tmp_91 = lsp__expr_end_pos(self->tokens, nn_cur);
+size_t cel;
+size_t cec;
+std__collections__Pair_usz_usz_unpack(&__destruct_tmp_91, &cel, &cec);
+kobel_str tail = lsp__SourceMapper_slice_pos(&self->mapper, oel, oec, cel, cec);
+if (!str_starts_with(tail, KOBEL_STR(".")) || str_contains(tail, KOBEL_STR("\n"))) {
+return;
+}
+if (self->has_symtab) {
+compiler__semantic__types__Type* c_ty = compiler__semantic__symbols__SymbolTable_get_node_type(&self->symtab, nn_cur);
+if (c_ty == NULL) {
+return;
+}
+if (!lsp__is_safe_nav_compatible_type(c_ty)) {
+return;
+}
+if (fb_is_null) {
+if (c_ty->kind == 16) {
+repl = kobel_concat(3, x_txt, KOBEL_STR("?"), tail);
+}
+} else if (fb_ok) {
+repl = kobel_concat(5, x_txt, KOBEL_STR("?"), tail, KOBEL_STR(" ?: "), fb_txt);
+}
+} else if (fb_ok) {
+repl = kobel_concat(5, x_txt, KOBEL_STR("?"), tail, KOBEL_STR(" ?: "), fb_txt);
+}
+}
+}
+if (str_empty(repl)) {
+return;
+}
+std__collections__List_lsp__LintEditSpec edits = std__collections__List_lsp__LintEditSpec_init(NULL, 0);
+std__collections__List_lsp__LintEditSpec_plus_assign(&edits, (lsp__LintEditSpec){ isl, isc, iel, iec, repl });
+lsp__LintCollector_emit(self, isl, isc, iel, iec, kobel_concat(3, KOBEL_STR("Prefer null-safe expression '"), repl, KOBEL_STR("'")), KOBEL_STR("prefer-safe-nav"), false, kobel_concat(3, KOBEL_STR("Simplify to '"), repl, KOBEL_STR("'")), edits, KOBEL_STR("quickfix"), 0, 0, 0, 0);
+}
+
+void lsp__LintCollector_check_prefer_safe_nav_stmt(lsp__LintCollector* self, compiler__ast__AstNode* stmt, compiler__ast__NodeData__IfStmt* ifs) {
+if (ifs->else_branch != NULL) {
+return;
+}
+std__collections__Pair_qptr_compiler__ast__AstNode_bool __destruct_tmp_92 = lsp__LintCollector_extract_null_cmp(self, ifs->condition);
+compiler__ast__AstNode* checked_opt;
+bool is_ne;
+std__collections__Pair_qptr_compiler__ast__AstNode_bool_unpack(&__destruct_tmp_92, &checked_opt, &is_ne);
+if (!is_ne) {
+return;
+}
+compiler__ast__AstNode* checked = checked_opt;
+if (checked == NULL) {
+return;
+}
+kobel_str x_path = lsp__simple_path_key(checked);
+if (str_empty(x_path) || !lsp__LintCollector_is_nullable_ptr_node(self, checked)) {
+return;
+}
+compiler__ast__AstNode* inner_stmt = ifs->then_branch;
+{
+compiler__ast__NodeData__BlockStmt* blk = NULL;
+if (inner_stmt != NULL && inner_stmt->data.tag == compiler__ast__NodeData__BlockStmt__TAG && (blk = (compiler__ast__NodeData__BlockStmt*)(&inner_stmt->data.u.BlockStmt), 1)) {
+if (blk->statements.len != 1) {
+return;
+}
+inner_stmt = std__collections__List_mut_ptr_compiler__ast__AstNode_get(&blk->statements, 0);
+}
+}
+{
+compiler__ast__NodeData__ExprStmt* es = NULL;
+if (inner_stmt != NULL && inner_stmt->data.tag == compiler__ast__NodeData__ExprStmt__TAG && (es = (compiler__ast__NodeData__ExprStmt*)(&inner_stmt->data.u.ExprStmt), 1)) {
+inner_stmt = es->expr;
+}
+}
+{
+compiler__ast__NodeData__CallExpr* c = NULL;
+compiler__ast__NodeData__MemberExpr* m = NULL;
+if (inner_stmt != NULL && inner_stmt->data.tag == compiler__ast__NodeData__CallExpr__TAG && (c = (compiler__ast__NodeData__CallExpr*)(&inner_stmt->data.u.CallExpr), 1) && c->callee != NULL && c->callee->data.tag == compiler__ast__NodeData__MemberExpr__TAG && (m = (compiler__ast__NodeData__MemberExpr*)(&c->callee->data.u.MemberExpr), 1) && !m->is_safe) {
+if (!kobel_streq(lsp__simple_path_key(m->object), x_path)) {
+return;
+}
+if (self->has_symtab) {
+compiler__semantic__types__Type* c_ty = compiler__semantic__symbols__SymbolTable_get_node_type(&self->symtab, inner_stmt);
+if (c_ty == NULL) {
+return;
+}
+if (c_ty->kind != 0) {
+return;
+}
+}
+std__collections__Pair_usz_usz __destruct_tmp_93 = lsp__expr_start_pos(checked);
+size_t xsl;
+size_t xsc;
+std__collections__Pair_usz_usz_unpack(&__destruct_tmp_93, &xsl, &xsc);
+std__collections__Pair_usz_usz __destruct_tmp_94 = lsp__expr_end_pos(self->tokens, checked);
+size_t xel;
+size_t xec;
+std__collections__Pair_usz_usz_unpack(&__destruct_tmp_94, &xel, &xec);
+kobel_str x_txt = str_trim(lsp__SourceMapper_slice_pos(&self->mapper, xsl, xsc, xel, xec));
+std__collections__Pair_usz_usz __destruct_tmp_95 = lsp__expr_end_pos(self->tokens, m->object);
+size_t oel;
+size_t oec;
+std__collections__Pair_usz_usz_unpack(&__destruct_tmp_95, &oel, &oec);
+std__collections__Pair_usz_usz __destruct_tmp_96 = lsp__expr_end_pos(self->tokens, inner_stmt);
+size_t cel;
+size_t cec;
+std__collections__Pair_usz_usz_unpack(&__destruct_tmp_96, &cel, &cec);
+kobel_str tail = lsp__SourceMapper_slice_pos(&self->mapper, oel, oec, cel, cec);
+if (str_empty(x_txt) || !str_starts_with(tail, KOBEL_STR(".")) || str_contains(x_txt, KOBEL_STR("\n")) || str_contains(tail, KOBEL_STR("\n"))) {
+return;
+}
+std__collections__Pair_usz_usz __destruct_tmp_97 = lsp__stmt_end_pos(self->tokens, stmt);
+size_t sel;
+size_t sec;
+std__collections__Pair_usz_usz_unpack(&__destruct_tmp_97, &sel, &sec);
+kobel_str repl = kobel_concat(4, x_txt, KOBEL_STR("?"), tail, KOBEL_STR(";"));
+std__collections__List_lsp__LintEditSpec edits = std__collections__List_lsp__LintEditSpec_init(NULL, 0);
+std__collections__List_lsp__LintEditSpec_plus_assign(&edits, (lsp__LintEditSpec){ stmt->line, stmt->col, sel, sec, repl });
+lsp__LintCollector_emit(self, stmt->line, stmt->col, sel, sec, kobel_concat(3, KOBEL_STR("Prefer safe call '"), repl, KOBEL_STR("'")), KOBEL_STR("prefer-safe-nav"), false, kobel_concat(3, KOBEL_STR("Simplify to '"), repl, KOBEL_STR("'")), edits, KOBEL_STR("quickfix"), 0, 0, 0, 0);
+}
+}
+}
+
+void lsp__LintCollector_check_single_arm_when(lsp__LintCollector* self, compiler__ast__AstNode* expr, compiler__ast__NodeData__WhenExpr* we) {
+compiler__ast__AstNode* cond = we->condition;
+if (cond == NULL) {
+return;
+}
+if (we->arms.len != 2) {
+return;
+}
+compiler__ast__WhenArm arm0 = std__collections__List_compiler__ast__WhenArm_get(&we->arms, 0);
+compiler__ast__WhenArm arm1 = std__collections__List_compiler__ast__WhenArm_get(&we->arms, 1);
+if (arm0.is_else || arm0.patterns.len != 1 || !arm1.is_else) {
+return;
+}
+if ((arm0.body != NULL && arm0.body->data.tag == compiler__ast__NodeData__BlockStmt__TAG) || (arm1.body != NULL && arm1.body->data.tag == compiler__ast__NodeData__BlockStmt__TAG)) {
+return;
+}
+compiler__ast__AstNode* pat = std__collections__List_mut_ptr_compiler__ast__AstNode_get(&arm0.patterns, 0);
+if (!lsp__is_simple_when_pattern(pat)) {
+return;
+}
+std__collections__Pair_usz_usz __destruct_tmp_98 = lsp__expr_start_pos(cond);
+size_t csl;
+size_t csc;
+std__collections__Pair_usz_usz_unpack(&__destruct_tmp_98, &csl, &csc);
+std__collections__Pair_usz_usz __destruct_tmp_99 = lsp__expr_end_pos(self->tokens, cond);
+size_t cel;
+size_t cec;
+std__collections__Pair_usz_usz_unpack(&__destruct_tmp_99, &cel, &cec);
+kobel_str cond_txt = str_trim(lsp__SourceMapper_slice_pos(&self->mapper, csl, csc, cel, cec));
+std__collections__Pair_usz_usz __destruct_tmp_100 = lsp__expr_start_pos(arm0.body);
+size_t tsl;
+size_t tsc;
+std__collections__Pair_usz_usz_unpack(&__destruct_tmp_100, &tsl, &tsc);
+std__collections__Pair_usz_usz __destruct_tmp_101 = lsp__expr_end_pos(self->tokens, arm0.body);
+size_t tel;
+size_t tec;
+std__collections__Pair_usz_usz_unpack(&__destruct_tmp_101, &tel, &tec);
+kobel_str then_txt = str_trim(lsp__SourceMapper_slice_pos(&self->mapper, tsl, tsc, tel, tec));
+std__collections__Pair_usz_usz __destruct_tmp_102 = lsp__expr_start_pos(arm1.body);
+size_t esl;
+size_t esc;
+std__collections__Pair_usz_usz_unpack(&__destruct_tmp_102, &esl, &esc);
+std__collections__Pair_usz_usz __destruct_tmp_103 = lsp__expr_end_pos(self->tokens, arm1.body);
+size_t eel;
+size_t eec;
+std__collections__Pair_usz_usz_unpack(&__destruct_tmp_103, &eel, &eec);
+kobel_str else_txt = str_trim(lsp__SourceMapper_slice_pos(&self->mapper, esl, esc, eel, eec));
+if (str_empty(cond_txt) || str_empty(then_txt) || str_empty(else_txt) || str_contains(cond_txt, KOBEL_STR("\n")) || str_contains(then_txt, KOBEL_STR("\n")) || str_contains(else_txt, KOBEL_STR("\n"))) {
+return;
+}
+compiler__ast__AstNode* pat_cur = lsp__unwrap_group_ast(pat);
+if (pat_cur == NULL) {
+return;
+}
+kobel_str cond_expr = KOBEL_STR("");
+{
+compiler__ast__NodeData__IsExpr* ise = NULL;
+if (pat_cur != NULL && pat_cur->data.tag == compiler__ast__NodeData__IsExpr__TAG && (ise = (compiler__ast__NodeData__IsExpr*)(&pat_cur->data.u.IsExpr), 1)) {
+std__collections__Pair_usz_usz __destruct_tmp_104 = lsp__type_end_pos(self->tokens, ise->target_type);
+size_t tyel;
+size_t tyec;
+std__collections__Pair_usz_usz_unpack(&__destruct_tmp_104, &tyel, &tyec);
+kobel_str ty_txt = str_trim(lsp__SourceMapper_slice_pos(&self->mapper, (*ise->target_type).line, (*ise->target_type).col, tyel, tyec));
+if (str_empty(ty_txt) || str_contains(ty_txt, KOBEL_STR("\n"))) {
+return;
+}
+cond_expr = str_empty(ise->alias) ? kobel_concat(3, cond_txt, KOBEL_STR(" is "), ty_txt) : kobel_concat(5, cond_txt, KOBEL_STR(" is "), ty_txt, KOBEL_STR(" as "), ise->alias);
+} else {
+std__collections__Pair_usz_usz __destruct_tmp_105 = lsp__expr_start_pos(pat_cur);
+size_t psl;
+size_t psc;
+std__collections__Pair_usz_usz_unpack(&__destruct_tmp_105, &psl, &psc);
+std__collections__Pair_usz_usz __destruct_tmp_106 = lsp__expr_end_pos(self->tokens, pat_cur);
+size_t pel;
+size_t pec;
+std__collections__Pair_usz_usz_unpack(&__destruct_tmp_106, &pel, &pec);
+kobel_str pat_txt = str_trim(lsp__SourceMapper_slice_pos(&self->mapper, psl, psc, pel, pec));
+if (str_empty(pat_txt) || str_contains(pat_txt, KOBEL_STR("\n"))) {
+return;
+}
+cond_expr = kobel_concat(3, cond_txt, KOBEL_STR(" == "), pat_txt);
+}
+}
+std__collections__Pair_usz_usz __destruct_tmp_107 = lsp__expr_end_pos(self->tokens, expr);
+size_t wel;
+size_t wec;
+std__collections__Pair_usz_usz_unpack(&__destruct_tmp_107, &wel, &wec);
+kobel_str repl = kobel_concat(6, KOBEL_STR("if ("), cond_expr, KOBEL_STR(") "), then_txt, KOBEL_STR(" else "), else_txt);
+std__collections__List_lsp__LintEditSpec edits = std__collections__List_lsp__LintEditSpec_init(NULL, 0);
+std__collections__List_lsp__LintEditSpec_plus_assign(&edits, (lsp__LintEditSpec){ expr->line, expr->col, wel, wec, repl });
+lsp__LintCollector_emit(self, expr->line, expr->col, wel, wec, KOBEL_STR("Single-arm 'when' expression can be simplified to 'if / else'"), KOBEL_STR("single-arm-when"), false, KOBEL_STR("Simplify 'when' to 'if / else'"), edits, KOBEL_STR("quickfix"), 0, 0, 0, 0);
+}
+
 void lsp__LintCollector_walk_expr(lsp__LintCollector* self, compiler__ast__AstNode* node) {
 if (node == NULL) {
 return;
@@ -45705,6 +46426,9 @@ lsp__LintCollector_walk_expr(self, b->right);
 } else if (node != NULL && node->data.tag == compiler__ast__NodeData__UnaryExpr__TAG) {
 compiler__ast__NodeData__UnaryExpr* u = (compiler__ast__NodeData__UnaryExpr*)(&node->data.u.UnaryExpr);
 lsp__LintCollector_check_unnecessary_unwrap(self, node, u);
+if (lsp__LintCollector_check_negated_in_or_is(self, node, u)) {
+return;
+}
 if (lsp__LintCollector_check_double_not_expr(self, node, u)) {
 return;
 }
@@ -45734,6 +46458,7 @@ lsp__LintCollector_walk_expr(self, a->target);
 lsp__LintCollector_walk_expr(self, a->value);
 } else if (node != NULL && node->data.tag == compiler__ast__NodeData__CastExpr__TAG) {
 compiler__ast__NodeData__CastExpr* cs = (compiler__ast__NodeData__CastExpr*)(&node->data.u.CastExpr);
+lsp__LintCollector_check_redundant_cast(self, node, cs);
 lsp__LintCollector_walk_expr(self, cs->expr);
 } else if (node != NULL && node->data.tag == compiler__ast__NodeData__GroupExpr__TAG) {
 compiler__ast__NodeData__GroupExpr* g = (compiler__ast__NodeData__GroupExpr*)(&node->data.u.GroupExpr);
@@ -45749,11 +46474,13 @@ __for_i = __for_i + 1;
 }
 } else if (node != NULL && node->data.tag == compiler__ast__NodeData__IfExpr__TAG) {
 compiler__ast__NodeData__IfExpr* ie = (compiler__ast__NodeData__IfExpr*)(&node->data.u.IfExpr);
+lsp__LintCollector_check_prefer_safe_nav_expr(self, node, ie);
 lsp__LintCollector_walk_expr(self, ie->condition);
 lsp__LintCollector_walk_expr(self, ie->then_branch);
 lsp__LintCollector_walk_expr(self, ie->else_branch);
 } else if (node != NULL && node->data.tag == compiler__ast__NodeData__WhenExpr__TAG) {
 compiler__ast__NodeData__WhenExpr* we = (compiler__ast__NodeData__WhenExpr*)(&node->data.u.WhenExpr);
+lsp__LintCollector_check_single_arm_when(self, node, we);
 lsp__LintCollector_walk_expr(self, we->condition);
 {
 size_t __for_n = std__collections__List_compiler__ast__WhenArm_count(&we->arms);
@@ -45865,6 +46592,7 @@ bool did_bool = lsp__LintCollector_check_single_if_bool_return(self, node, ifs);
 if (!did_empty && !did_bool) {
 lsp__LintCollector_check_redundant_else(self, node, ifs, in_block, is_else_if_child);
 lsp__LintCollector_check_collapsible_if(self, node, ifs, in_block);
+lsp__LintCollector_check_prefer_safe_nav_stmt(self, node, ifs);
 }
 lsp__LintCollector_walk_stmt(self, ifs->then_branch, ifs->then_branch != NULL && ifs->then_branch->data.tag == compiler__ast__NodeData__BlockStmt__TAG, false);
 if (ifs->else_branch != NULL) {
@@ -45907,21 +46635,28 @@ lsp__LintCollector_walk_expr(self, node);
 }
 
 void lsp__LintCollector_walk_fn(lsp__LintCollector* self, compiler__ast__AstNode* fn_node, compiler__ast__NodeData__FnDecl* f, bool is_trait_decl) {
+bool prev_gen = self->in_generic;
+if (!std__collections__List_compiler__ast__GenericParam_empty(&f->type_params)) {
+self->in_generic = true;
+}
 if (!is_trait_decl) {
 lsp__LintCollector_check_mut_self_fn(self, fn_node, f);
 }
 if (f->body == NULL) {
+self->in_generic = prev_gen;
 return;
 }
 lsp__LintCollector_check_prefer_expression_body(self, fn_node, f);
 lsp__LintCollector_check_trailing_return(self, f);
 lsp__LintCollector_walk_stmt(self, f->body, f->body != NULL && f->body->data.tag == compiler__ast__NodeData__BlockStmt__TAG, false);
+self->in_generic = prev_gen;
 }
 
 void lsp__LintCollector_collect(lsp__LintCollector* self) {
 {
 compiler__ast__NodeData__Program* prog = NULL;
 if (self->doc_ast != NULL && self->doc_ast->data.tag == compiler__ast__NodeData__Program__TAG && (prog = (compiler__ast__NodeData__Program*)(&self->doc_ast->data.u.Program), 1)) {
+lsp__LintCollector_check_duplicate_imports(self, prog);
 {
 size_t __for_n = compiler__ast__NodeData__Program_count(prog);
 size_t __for_i = 0;
@@ -45932,6 +46667,11 @@ compiler__ast__NodeData__FnDecl* f = (compiler__ast__NodeData__FnDecl*)(&decl->d
 lsp__LintCollector_walk_fn(self, decl, f, false);
 } else if (decl != NULL && decl->data.tag == compiler__ast__NodeData__ImplDecl__TAG) {
 compiler__ast__NodeData__ImplDecl* im = (compiler__ast__NodeData__ImplDecl*)(&decl->data.u.ImplDecl);
+bool prev_gen = self->in_generic;
+if (!std__collections__List_compiler__ast__GenericParam_empty(&im->type_params)) {
+self->in_generic = true;
+}
+{
 size_t __for_n = std__collections__List_mut_ptr_compiler__ast__AstNode_count(&im->methods);
 size_t __for_i = 0;
 while (__for_i < __for_n) {
@@ -45944,6 +46684,8 @@ lsp__LintCollector_walk_fn(self, m, mf, false);
 }
 __for_i = __for_i + 1;
 }
+}
+self->in_generic = prev_gen;
 } else if (decl != NULL && decl->data.tag == compiler__ast__NodeData__ObjectDecl__TAG) {
 compiler__ast__NodeData__ObjectDecl* obj = (compiler__ast__NodeData__ObjectDecl*)(&decl->data.u.ObjectDecl);
 {
@@ -46014,7 +46756,7 @@ if (root == NULL) {
 return;
 }
 uint32_t file_id = root->span.file_id;
-lsp__LintCollector collector = (lsp__LintCollector){ root, tokens, lsp__SourceMapper_init(source), symtab, has_symtab, file_id, std__collections__List_lsp__LspDiagnostic_init(NULL, 0), std__collections__List_lsp__LintFix_init(NULL, 0), std__collections__HashSet_usz_init(16) };
+lsp__LintCollector collector = (lsp__LintCollector){ root, tokens, lsp__SourceMapper_init(source), symtab, has_symtab, file_id, std__collections__List_lsp__LspDiagnostic_init(NULL, 0), std__collections__List_lsp__LintFix_init(NULL, 0), std__collections__HashSet_usz_init(16), false };
 lsp__LintCollector_collect(&collector);
 {
 size_t __for_n = std__collections__List_lsp__LspDiagnostic_count(&collector.diags);
@@ -46206,9 +46948,9 @@ return (__kobel_eu_str__lsp__ProtocolErr){ .is_ok = false, .u = { .err = (lsp__P
 }
 uint8_t* buf;
 {
-__kobel_eu_mut_ptr_u8__std__memory__MemErr __eu_src_153 = std__memory__Heap_try_create_u8(content_length + 1);
-if (__eu_src_153.is_ok) {
-buf = __eu_src_153.u.ok;
+__kobel_eu_mut_ptr_u8__std__memory__MemErr __eu_src_156 = std__memory__Heap_try_create_u8(content_length + 1);
+if (__eu_src_156.is_ok) {
+buf = __eu_src_156.u.ok;
 } else {
 return (__kobel_eu_str__lsp__ProtocolErr){ .is_ok = false, .u = { .err = (lsp__ProtocolErr){ .tag = 1, .__err_code = 63U, .__origin = { "src/lsp/protocol.kb", 125, 73, "read_message" } } } };
 }
@@ -46316,10 +47058,7 @@ bool lsp__is_renameable_def(lsp__DefInfo def) {
 if (def.role == 0) {
 return false;
 }
-if (kobel_streq(def.name, KOBEL_STR("self")) || kobel_streq(def.name, KOBEL_STR("init")) || kobel_streq(def.name, KOBEL_STR("main"))) {
-return false;
-}
-return true;
+return !(kobel_streq(def.name, KOBEL_STR("self")) || kobel_streq(def.name, KOBEL_STR("init")) || kobel_streq(def.name, KOBEL_STR("main")));
 }
 
 std__collections__List_lsp__RefInfo lsp__collect_semantic_refs(lsp__SemanticIndex* index, kobel_str file_path, size_t line0, size_t col0, bool include_decl) {
@@ -46327,9 +47066,9 @@ size_t line1 = line0 + 1;
 size_t col1 = col0 + 1;
 lsp__RefInfo hit;
 {
-__kobel_eu_lsp__RefInfo__lsp__IndexErr __eu_src_154 = lsp__SemanticIndex_find_ref_at(index, file_path, line1, col1);
-if (__eu_src_154.is_ok) {
-hit = __eu_src_154.u.ok;
+__kobel_eu_lsp__RefInfo__lsp__IndexErr __eu_src_157 = lsp__SemanticIndex_find_ref_at(index, file_path, line1, col1);
+if (__eu_src_157.is_ok) {
+hit = __eu_src_157.u.ok;
 } else {
 return std__collections__List_lsp__RefInfo_init(NULL, 0);
 }
@@ -46337,9 +47076,9 @@ return std__collections__List_lsp__RefInfo_init(NULL, 0);
 std__collections__List_lsp__RefInfo all_refs = lsp__SemanticIndex_find_refs_for_key(index, hit.target_key, include_decl);
 lsp__DefInfo def;
 {
-__kobel_eu_lsp__DefInfo__lsp__IndexErr __eu_src_155 = lsp__SemanticIndex_get_def(index, hit.target_key);
-if (__eu_src_155.is_ok) {
-def = __eu_src_155.u.ok;
+__kobel_eu_lsp__DefInfo__lsp__IndexErr __eu_src_158 = lsp__SemanticIndex_get_def(index, hit.target_key);
+if (__eu_src_158.is_ok) {
+def = __eu_src_158.u.ok;
 } else {
 return all_refs;
 }
@@ -46387,18 +47126,18 @@ return arr;
 lsp__JsonValue* lsp__prepare_rename_json(lsp__SemanticIndex* index, kobel_str file_path, size_t line0, size_t col0) {
 lsp__RefInfo hit;
 {
-__kobel_eu_lsp__RefInfo__lsp__IndexErr __eu_src_156 = lsp__SemanticIndex_find_ref_at(index, file_path, line0 + 1, col0 + 1);
-if (__eu_src_156.is_ok) {
-hit = __eu_src_156.u.ok;
+__kobel_eu_lsp__RefInfo__lsp__IndexErr __eu_src_159 = lsp__SemanticIndex_find_ref_at(index, file_path, line0 + 1, col0 + 1);
+if (__eu_src_159.is_ok) {
+hit = __eu_src_159.u.ok;
 } else {
 return lsp__JsonValue_null_val();
 }
 }
 lsp__DefInfo def;
 {
-__kobel_eu_lsp__DefInfo__lsp__IndexErr __eu_src_157 = lsp__SemanticIndex_get_def(index, hit.target_key);
-if (__eu_src_157.is_ok) {
-def = __eu_src_157.u.ok;
+__kobel_eu_lsp__DefInfo__lsp__IndexErr __eu_src_160 = lsp__SemanticIndex_get_def(index, hit.target_key);
+if (__eu_src_160.is_ok) {
+def = __eu_src_160.u.ok;
 } else {
 return lsp__JsonValue_null_val();
 }
@@ -46418,18 +47157,18 @@ return lsp__JsonValue_null_val();
 }
 lsp__RefInfo hit;
 {
-__kobel_eu_lsp__RefInfo__lsp__IndexErr __eu_src_158 = lsp__SemanticIndex_find_ref_at(index, file_path, line0 + 1, col0 + 1);
-if (__eu_src_158.is_ok) {
-hit = __eu_src_158.u.ok;
+__kobel_eu_lsp__RefInfo__lsp__IndexErr __eu_src_161 = lsp__SemanticIndex_find_ref_at(index, file_path, line0 + 1, col0 + 1);
+if (__eu_src_161.is_ok) {
+hit = __eu_src_161.u.ok;
 } else {
 return lsp__JsonValue_null_val();
 }
 }
 lsp__DefInfo def;
 {
-__kobel_eu_lsp__DefInfo__lsp__IndexErr __eu_src_159 = lsp__SemanticIndex_get_def(index, hit.target_key);
-if (__eu_src_159.is_ok) {
-def = __eu_src_159.u.ok;
+__kobel_eu_lsp__DefInfo__lsp__IndexErr __eu_src_162 = lsp__SemanticIndex_get_def(index, hit.target_key);
+if (__eu_src_162.is_ok) {
+def = __eu_src_162.u.ok;
 } else {
 return lsp__JsonValue_null_val();
 }
@@ -46625,7 +47364,7 @@ __for_i = __for_i - 1;
 }
 }
 }
-return (__kobel_eu_str__lsp__IndexErr){ .is_ok = false, .u = { .err = (lsp__IndexErr){ .tag = 0, .__err_code = 52U, .__origin = { "src/lsp/refactor.kb", 224, 17, "extract_ident_from_diag" } } } };
+return (__kobel_eu_str__lsp__IndexErr){ .is_ok = false, .u = { .err = (lsp__IndexErr){ .tag = 0, .__err_code = 52U, .__origin = { "src/lsp/refactor.kb", 223, 17, "extract_ident_from_diag" } } } };
 }
 
 lsp__JsonValue* lsp__make_code_action(kobel_str title, kobel_str kind, kobel_str uri, lsp__JsonValue* edits, bool is_preferred) {
@@ -46685,14 +47424,14 @@ lsp__JsonValue* d = std__collections__List_ptr_lsp__JsonValue_at(&diags->arr_val
 kobel_str msg = lsp__JsonValue_get_str(d, KOBEL_STR("message"), KOBEL_STR(""));
 kobel_str sym_name;
 {
-__kobel_eu_str__lsp__IndexErr __eu_src_160 = lsp__extract_ident_from_diag(msg);
-if (__eu_src_160.is_ok) {
-sym_name = __eu_src_160.u.ok;
+__kobel_eu_str__lsp__IndexErr __eu_src_163 = lsp__extract_ident_from_diag(msg);
+if (__eu_src_163.is_ok) {
+sym_name = __eu_src_163.u.ok;
 } else {
 __for_i = __for_i + 1;
 continue;
 }
-__catch_end_160:;
+__catch_end_163:;
 }
 if (std__collections__HashSet_str_contains(&seen_names, sym_name)) {
 __for_i = __for_i + 1;
@@ -46768,7 +47507,7 @@ size_t __for_i = 0;
 while (__for_i < __for_n) {
 lsp__JsonValue* d = std__collections__List_ptr_lsp__JsonValue_at(&diags->arr_val, __for_i);
 kobel_str code = lsp__JsonValue_get_str(d, KOBEL_STR("code"), KOBEL_STR(""));
-if (kobel_streq(code, KOBEL_STR("unnecessary-mut-receiver")) || kobel_streq(code, KOBEL_STR("unnecessary-mut")) || kobel_streq(code, KOBEL_STR("unnecessary-non-null-assert")) || kobel_streq(code, KOBEL_STR("redundant-else")) || kobel_streq(code, KOBEL_STR("empty-branch")) || kobel_streq(code, KOBEL_STR("collapsible-if")) || kobel_streq(code, KOBEL_STR("redundant-boolean-return")) || kobel_streq(code, KOBEL_STR("redundant-bool-compare")) || kobel_streq(code, KOBEL_STR("prefer-expression-body")) || kobel_streq(code, KOBEL_STR("redundant-trailing-return")) || kobel_streq(code, KOBEL_STR("redundant-return-var"))) {
+if (kobel_streq(code, KOBEL_STR("unnecessary-mut-receiver")) || kobel_streq(code, KOBEL_STR("unnecessary-mut")) || kobel_streq(code, KOBEL_STR("unnecessary-non-null-assert")) || kobel_streq(code, KOBEL_STR("redundant-else")) || kobel_streq(code, KOBEL_STR("empty-branch")) || kobel_streq(code, KOBEL_STR("collapsible-if")) || kobel_streq(code, KOBEL_STR("redundant-boolean-return")) || kobel_streq(code, KOBEL_STR("redundant-bool-compare")) || kobel_streq(code, KOBEL_STR("prefer-expression-body")) || kobel_streq(code, KOBEL_STR("redundant-trailing-return")) || kobel_streq(code, KOBEL_STR("redundant-return-var")) || kobel_streq(code, KOBEL_STR("prefer-not-in")) || kobel_streq(code, KOBEL_STR("prefer-not-is")) || kobel_streq(code, KOBEL_STR("prefer-safe-nav")) || kobel_streq(code, KOBEL_STR("redundant-cast")) || kobel_streq(code, KOBEL_STR("single-arm-when")) || kobel_streq(code, KOBEL_STR("duplicate-import"))) {
 needs_ast_lint = true;
 break;
 }
@@ -46795,6 +47534,12 @@ size_t var_overlap_count = 0;
 lsp__JsonValue* all_unwrap_edits = lsp__JsonValue_arr();
 size_t all_unwrap_count = 0;
 size_t unwrap_overlap_count = 0;
+lsp__JsonValue* all_cast_edits = lsp__JsonValue_arr();
+size_t all_cast_count = 0;
+size_t cast_overlap_count = 0;
+lsp__JsonValue* all_dup_imp_edits = lsp__JsonValue_arr();
+size_t all_dup_imp_count = 0;
+size_t dup_imp_overlap_count = 0;
 if (effective_fixes != NULL) {
 std__collections__List_lsp__LintFix* fixes_list = effective_fixes;
 {
@@ -46841,6 +47586,34 @@ __for_i = __for_i + 1;
 if (overlaps) {
 unwrap_overlap_count++;
 }
+} else if (kobel_streq(fx.code, KOBEL_STR("redundant-cast"))) {
+{
+size_t __for_n = std__collections__List_lsp__LintEditSpec_count(&fx.edits);
+size_t __for_i = 0;
+while (__for_i < __for_n) {
+lsp__LintEditSpec ed = std__collections__List_lsp__LintEditSpec_at(&fx.edits, __for_i);
+lsp__JsonValue_plus_assign(all_cast_edits, lsp__make_text_edit(ed.line1, ed.col1, ed.end_line1, ed.end_col1, ed.new_text));
+all_cast_count++;
+__for_i = __for_i + 1;
+}
+}
+if (overlaps) {
+cast_overlap_count++;
+}
+} else if (kobel_streq(fx.code, KOBEL_STR("duplicate-import"))) {
+{
+size_t __for_n = std__collections__List_lsp__LintEditSpec_count(&fx.edits);
+size_t __for_i = 0;
+while (__for_i < __for_n) {
+lsp__LintEditSpec ed = std__collections__List_lsp__LintEditSpec_at(&fx.edits, __for_i);
+lsp__JsonValue_plus_assign(all_dup_imp_edits, lsp__make_text_edit(ed.line1, ed.col1, ed.end_line1, ed.end_col1, ed.new_text));
+all_dup_imp_count++;
+__for_i = __for_i + 1;
+}
+}
+if (overlaps) {
+dup_imp_overlap_count++;
+}
 }
 if (!overlaps) {
 if (__for_up) {
@@ -46885,6 +47658,12 @@ __for_i = __for_i - 1;
 }
 if (all_unwrap_count > 1 && unwrap_overlap_count > 0) {
 lsp__JsonValue_plus_assign(actions, lsp__make_code_action(kobel_concat(3, KOBEL_STR("Remove all "), usz_to_str(all_unwrap_count), KOBEL_STR(" redundant '!' assertion(s)")), KOBEL_STR("quickfix"), uri, all_unwrap_edits, false));
+}
+if (all_cast_count > 1 && cast_overlap_count > 0) {
+lsp__JsonValue_plus_assign(actions, lsp__make_code_action(kobel_concat(3, KOBEL_STR("Remove all "), usz_to_str(all_cast_count), KOBEL_STR(" redundant 'as' cast(s)")), KOBEL_STR("quickfix"), uri, all_cast_edits, false));
+}
+if (all_dup_imp_count > 1 && dup_imp_overlap_count > 0) {
+lsp__JsonValue_plus_assign(actions, lsp__make_code_action(kobel_concat(3, KOBEL_STR("Remove all "), usz_to_str(all_dup_imp_count), KOBEL_STR(" redundant import(s)")), KOBEL_STR("quickfix"), uri, all_dup_imp_edits, false));
 }
 {
 size_t __for_n = std__collections__List_lsp__DefInfo_count(&index->defs);
@@ -46988,11 +47767,9 @@ if (def.role == 11 && !str_empty(def.container)) {
 __kobel_eu_lsp__DefInfo__lsp__IndexErr owner_res = lsp__SemanticIndex_get_def(index, def.container);
 {
 lsp__DefInfo* owner = NULL;
-if (owner_res.is_ok == true && (owner = (lsp__DefInfo*)(&owner_res.u.ok), 1)) {
-if (!owner->has_body || owner->is_trait_impl || kobel_streq(owner->name, KOBEL_STR("main"))) {
+if (owner_res.is_ok == true && (owner = (lsp__DefInfo*)(&owner_res.u.ok), 1) && (!owner->has_body || owner->is_trait_impl || kobel_streq(owner->name, KOBEL_STR("main")))) {
 __for_i = __for_i + 1;
 continue;
-}
 }
 }
 }
@@ -47076,9 +47853,9 @@ lsp__LanguageServer lsp__LanguageServer_init(void) {
 lsp__AnalysisResult* lsp__LanguageServer_get_analysis(lsp__LanguageServer* self, kobel_str uri, kobel_str doc_path, kobel_str doc_text, bool need_ws) {
 lsp__Document doc;
 {
-__kobel_eu_lsp__Document__lsp__DocumentErr __eu_src_161 = lsp__DocumentStore_get_doc(&self->docs, uri);
-if (__eu_src_161.is_ok) {
-doc = __eu_src_161.u.ok;
+__kobel_eu_lsp__Document__lsp__DocumentErr __eu_src_164 = lsp__DocumentStore_get_doc(&self->docs, uri);
+if (__eu_src_164.is_ok) {
+doc = __eu_src_164.u.ok;
 } else {
 doc = (lsp__Document){ uri, doc_path, doc_text, -1 };
 }
@@ -47190,11 +47967,11 @@ lsp__init_stdio();
 while (true) {
 kobel_str raw_msg;
 {
-__kobel_eu_str__lsp__ProtocolErr __eu_src_162 = lsp__read_message();
-if (__eu_src_162.is_ok) {
-raw_msg = __eu_src_162.u.ok;
+__kobel_eu_str__lsp__ProtocolErr __eu_src_165 = lsp__read_message();
+if (__eu_src_165.is_ok) {
+raw_msg = __eu_src_165.u.ok;
 } else {
-lsp__ProtocolErr err = __eu_src_162.u.err;
+lsp__ProtocolErr err = __eu_src_165.u.err;
 (void)err;
 if (err.tag == lsp__ProtocolErr__EndOfStream__TAG) {
 void* __orig_err = (void*)&err;
@@ -47203,13 +47980,13 @@ break;
 }
 continue;
 }
-__catch_end_162:;
+__catch_end_165:;
 }
 lsp__JsonValue* msg;
 {
-__kobel_eu_mut_ptr_lsp__JsonValue__lsp__JsonErr __eu_src_163 = lsp__JsonValue_parse(raw_msg);
-if (__eu_src_163.is_ok) {
-msg = __eu_src_163.u.ok;
+__kobel_eu_mut_ptr_lsp__JsonValue__lsp__JsonErr __eu_src_166 = lsp__JsonValue_parse(raw_msg);
+if (__eu_src_166.is_ok) {
+msg = __eu_src_166.u.ok;
 } else {
 continue;
 }
@@ -47518,9 +48295,9 @@ kobel_str entry = lsp__resolve_project_entry(self->workspace_root);
 if (!str_empty(entry)) {
 kobel_str src;
 {
-__kobel_eu_str__std__filesystem__FsErr __eu_src_164 = std__filesystem__Path_read_text(&(std__filesystem__Path){ entry });
-if (__eu_src_164.is_ok) {
-src = __eu_src_164.u.ok;
+__kobel_eu_str__std__filesystem__FsErr __eu_src_167 = std__filesystem__Path_read_text(&(std__filesystem__Path){ entry });
+if (__eu_src_167.is_ok) {
+src = __eu_src_167.u.ok;
 } else {
 src = KOBEL_STR("");
 }
@@ -47722,8 +48499,8 @@ std__io__println(KOBEL_STR("Error: No files specified to format"));
 return (__kobel_eu_none__compiler__driver__CompilerErr){ .is_ok = false, .u = { .err = (compiler__driver__CompilerErr){ .tag = 0, .__err_code = 35U, .__origin = { "src/main.kb", 143, 22, "Kobel_run_fmt" } } } };
 }
 {
-__kobel_eu_none__fmt__FmtErr __eu_src_165 = fmt__Formatter_format_files(files, write_in_place, (fmt__FormatOptions){ 4, true, 100, true });
-if (!__eu_src_165.is_ok) {
+__kobel_eu_none__fmt__FmtErr __eu_src_168 = fmt__Formatter_format_files(files, write_in_place, (fmt__FormatOptions){ 4, true, 100, true });
+if (!__eu_src_168.is_ok) {
 return (__kobel_eu_none__compiler__driver__CompilerErr){ .is_ok = false, .u = { .err = (compiler__driver__CompilerErr){ .tag = 3, .__err_code = 38U, .__origin = { "src/main.kb", 146, 70, "Kobel_run_fmt" } } } };
 }
 }
@@ -56660,6 +57437,11 @@ void std__collections__List_compiler__codegen__ConditionAlias_plus_assign(std__c
 }
 
 void std__collections__Pair_compiler__lexer__Token_compiler__lexer__Token_unpack(std__collections__Pair_compiler__lexer__Token_compiler__lexer__Token* self, compiler__lexer__Token* first, compiler__lexer__Token* second) {
+*first = self->first;
+*second = self->second;
+}
+
+void std__collections__Pair_qptr_compiler__ast__AstNode_bool_unpack(std__collections__Pair_qptr_compiler__ast__AstNode_bool* self, compiler__ast__AstNode** first, bool* second) {
 *first = self->first;
 *second = self->second;
 }
