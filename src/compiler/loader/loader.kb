@@ -139,6 +139,15 @@ impl ModuleLoader {
 		);
 	}
 
+	pub fn free_buffers(*self) {
+		self.roots.free();
+		self.modules.free();
+		self.ordered.free();
+		self.errors.free();
+		self.known.free();
+		self.sources.free();
+	}
+
 	pub fn module_decl(&self, path: List<str>, full_path: str, line: usz, col: usz)
 		=> self.arena.node(NodeData.ModuleDecl(path, full_path), line, col);
 

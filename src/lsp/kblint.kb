@@ -456,6 +456,7 @@ fn kblint_parse_disable_list(val_str: str, out: &HashSet<str>) {
 
 pub fn parse_kblint_source(src: str, ruleset: &KblintRuleSet) {
 	val lines = src.split('\n');
+	defer lines.free();
 	var i: usz = 0;
 	while (i < lines.len) {
 		val raw_ln = lines[i].trim();
@@ -835,6 +836,7 @@ fn kblint_eval_atom(
 	val raw_args = s.slice((lp as usz) + 1, s.len - 1).trim();
 
 	val parts = raw_args.split(',');
+	defer parts.free();
 	var arg0_name = if (!parts.empty()) parts[0].trim() else "";
 	if (arg0_name.starts_with("$")) arg0_name = arg0_name.slice(1, arg0_name.len);
 	var arg0_node: ?*AstNode = null;
@@ -946,6 +948,7 @@ fn kblint_eval_where(
 
 	// Split by `||` first (lowest precedence), then `&&`, then unary `!`
 	val or_parts = kblint_split_str(trimmed, "||");
+	defer or_parts.free();
 	for (or_p in or_parts) {
 		val and_parts = kblint_split_str(or_p, "&&");
 		var all_ok = true;
@@ -963,6 +966,7 @@ fn kblint_eval_where(
 				break;
 			}
 		}
+		and_parts.free();
 		if (all_ok) return true;
 	}
 	return false;
@@ -1013,12 +1017,41 @@ fn kblint_render_template(
 	return sb.to_str();
 }
 
+// Zero-allocation root node pre-filter so non-matching rules skip KblintBindings allocation.
+fn kblint_same_root_kind(pat: *AstNode, target: *AstNode): bool => when (pat) {
+	is IdentifierExpr as pid -> if (!kblint_meta_var_name(pid.name).empty()) true else (target is IdentifierExpr);
+	is BinaryExpr as pb -> {
+		if (target is BinaryExpr as tb) yield pb.op == tb.op;
+		yield false;
+	}
+	is UnaryExpr as pu -> {
+		if (target is UnaryExpr as tu) yield pu.op == tu.op && pu.is_postfix == tu.is_postfix;
+		yield false;
+	}
+	is CallExpr -> target is CallExpr;
+	is MemberExpr as pm -> {
+		if (target is MemberExpr as tm) yield pm.is_safe == tm.is_safe;
+		yield false;
+	}
+	is IfExpr -> target is IfExpr;
+	is IfStmt -> target is IfStmt;
+	is IndexExpr -> target is IndexExpr;
+	is IsExpr -> target is IsExpr;
+	is CastExpr -> target is CastExpr;
+	is GroupExpr -> target is GroupExpr;
+	is LiteralExpr -> target is LiteralExpr;
+	is ReturnStmt -> kblint_unwrap_stmt(target) is ReturnStmt;
+	is ExprStmt as pes -> kblint_same_root_kind(pes.expr, kblint_unwrap_stmt(target));
+	else -> true;
+};
+
 impl LintCollector {
 
 	fn run_kblint_expr_rules(&self, node: *AstNode): bool {
 		val rs = self.ruleset ?: return false;
 		for (rule in rs.expr_rules) {
 			if (rs.is_code_disabled(rule.code)) continue;
+			if (!kblint_same_root_kind(rule.pattern, node)) continue;
 			var bindings = KblintBindings();
 			if (kblint_match_node(rule.pattern, node, self.tokens, &self.mapper, &bindings)) {
 				val ok = kblint_eval_where(
@@ -1059,6 +1092,7 @@ impl LintCollector {
 		val rs = self.ruleset ?: return false;
 		for (rule in rs.stmt_rules) {
 			if (rs.is_code_disabled(rule.code)) continue;
+			if (!kblint_same_root_kind(rule.pattern, node)) continue;
 			var bindings = KblintBindings();
 			if (kblint_match_node(rule.pattern, node, self.tokens, &self.mapper, &bindings)) {
 				val ok = kblint_eval_where(

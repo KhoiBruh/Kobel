@@ -115,6 +115,16 @@ impl GenericRegistry {
 		self.inst_map[sym.name] = sym;
 	}
 
+	pub fn free(*self) {
+		self.struct_templates.free();
+		self.fn_templates.free();
+		self.impl_templates.free();
+		self.inst_map.free();
+		self.records.free();
+		self.record_map.free();
+		self.instances.free();
+	}
+
 	pub fn find_instance_symbol(*self, name: str): ?*Symbol {
 		val p = self.inst_map.get(name) ?: return null;
 		return p.read();

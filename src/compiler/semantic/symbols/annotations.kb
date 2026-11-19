@@ -86,3 +86,22 @@ pub struct SemanticTable {
 	// Postfix `!` locations ("U:<fid>:<line>:<col>") on pointers already proven non-null
 	pub unnecessary_unwraps: HashMap<str, bool> = HashMap()
 }
+
+impl SemanticTable {
+
+	pub fn free(*self) {
+		self.node_types.free();
+		self.resolved_methods.free();
+		self.resolved_nodes.free();
+		self.node_instances.free();
+		self.is_patterns.free();
+		self.predicate_patterns.free();
+		self.lambdas.free();
+		self.closure_calls.free();
+		self.checked_var_decls.free();
+		self.checked_mut_self_fns.free();
+		self.mutated_decl_keys.free();
+		self.unnecessary_unwraps.free();
+	}
+
+}

@@ -77,6 +77,15 @@ impl JsonValue {
 	pub fn array() => JsonValue.arr();
 
 	pub fn obj() => JsonValue.box(JsonValue(JsonKind.JOBJ));
+
+	pub fn free_tree(v: ?*JsonValue) {
+		val node = v ?: return;
+		for (el in node.arr_val) JsonValue.free_tree(el);
+		node.arr_val.free();
+		node.obj_keys.free();
+		for (ov in node.obj_vals) JsonValue.free_tree(ov);
+		node.obj_vals.free();
+	}
 	pub fn object() => JsonValue.obj();
 
 	pub fn parse(src: str): &JsonValue ! JsonErr {

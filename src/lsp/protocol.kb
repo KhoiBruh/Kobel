@@ -31,21 +31,33 @@ pub fn send_raw(payload: str) {
 
 pub fn send_response(id: *JsonValue, result: *JsonValue) {
 	val msg = JsonValue.obj();
-	msg["jsonrpc"] = JsonValue.str("2.0");
+	val rpc = JsonValue.str("2.0");
+	msg["jsonrpc"] = rpc;
 	msg["id"] = id;
 	msg["result"] = result;
 	send_raw(msg.serialize());
+	JsonValue.free_tree(rpc);
+	JsonValue.free_tree(result);
+	msg.obj_keys.free();
+	msg.obj_vals.free();
+	Heap.free(msg as &JsonValue);
 }
 
 pub fn send_error(id: *JsonValue, code: i64, message: str) {
 	val msg = JsonValue.obj();
-	msg["jsonrpc"] = JsonValue.str("2.0");
+	val rpc = JsonValue.str("2.0");
+	msg["jsonrpc"] = rpc;
 	msg["id"] = id;
 	val err = JsonValue.obj();
 	err["code"] = JsonValue.num(code);
 	err["message"] = JsonValue.str(message);
 	msg["error"] = err;
 	send_raw(msg.serialize());
+	JsonValue.free_tree(rpc);
+	JsonValue.free_tree(err);
+	msg.obj_keys.free();
+	msg.obj_vals.free();
+	Heap.free(msg as &JsonValue);
 }
 
 pub fn send_notification(method: str, params: *JsonValue) {
@@ -54,6 +66,7 @@ pub fn send_notification(method: str, params: *JsonValue) {
 	msg["method"] = JsonValue.str(method);
 	msg["params"] = params;
 	send_raw(msg.serialize());
+	JsonValue.free_tree(msg);
 }
 
 // ============================================================================

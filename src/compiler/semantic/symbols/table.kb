@@ -57,6 +57,29 @@ impl SymbolTable {
 		return st;
 	}
 
+	pub fn free(*self) {
+		self.sem.free();
+		for (m in self.modules) {
+			m.symbols.free();
+			m.sym_map.free();
+		}
+		self.modules.free();
+		self.module_map.free();
+		self.imports.free();
+		self.enums.free();
+		self.enum_map.free();
+		self.traits.free();
+		self.trait_map.free();
+		self.c_name_map.free();
+		self.struct_const_map.free();
+		self.explicit_imports.free();
+		self.wildcard_owners.free();
+		self.wildcard_modules.free();
+		self.assoc_types.free();
+		self.gen.free();
+		self.struct_types.free();
+	}
+
 	pub fn set_node_type(*self, node: ?*AstNode, ty: ?*Type) {
 		if (node == null || ty == null) return;
 		self.sem.node_types[node.addr()] = ty;

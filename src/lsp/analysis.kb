@@ -604,10 +604,13 @@ impl AnalysisResult {
 			}
 			mut_self_lines.free();
 
-			loader.sources.free();
-			loader.errors.free();
+			loader.free_buffers();
+			extra_roots.free();
 			decl_p.errors.free();
 			body_p.errors.free();
+			body_p.warnings.free();
+			body_p.non_null_paths.free();
+			body_p.non_null_marks.free();
 			return Self(
 				diagnostics, body_p.symtab, true, tokens, index,
 				path, source, arena, doc_mod, dep_paths, doc_ast, lint_fixes
@@ -615,8 +618,7 @@ impl AnalysisResult {
 		}
 
 		arena.free();
-		loader.sources.free();
-		loader.errors.free();
+		loader.free_buffers();
 		val empty_symtab = SymbolTable(Arena.empty());
 		return Self(
 			diagnostics, empty_symtab, false, tokens, SemanticIndex(),
@@ -625,10 +627,15 @@ impl AnalysisResult {
 	}
 
 	pub fn free(&self) {
-		self.arena.free();
+		if (self.has_symtab) self.symtab.free();
+		self.index.free();
+		for (fx in self.lint_fixes) fx.edits.free();
+		self.lint_fixes.free();
+		for (d in self.diagnostics) d.tags.free();
+		self.diagnostics.free();
 		self.tokens.free();
 		self.dep_paths.free();
-		self.diagnostics.free();
+		self.arena.free();
 	}
 
 	pub fn hover_at(*self, line0: usz, col0: usz): *JsonValue {

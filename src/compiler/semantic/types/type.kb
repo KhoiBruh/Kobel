@@ -122,20 +122,30 @@ impl Arena {
 
 	pub fn primitive_type(&self, base: Type) => self.create_val(base);
 
-	pub fn pointer_type(&self, pointee: *Type, mutable: bool): *Type
-		=> self.type_payload(DataType.POINTER, 8, 8, TypePayload.Pointer(pointee, mutable, false));
+	pub fn pointer_type(&self, pointee: *Type, mutable: bool): *Type => self.type_payload(
+		DataType.POINTER, 8, 8,
+		TypePayload.Pointer(pointee, mutable, false)
+	);
 
-	pub fn nullable_pointer_type(&self, pointee: *Type, mutable: bool): *Type
-		=> self.type_payload(DataType.POINTER, 8, 8, TypePayload.Pointer(pointee, mutable, true));
+	pub fn nullable_pointer_type(&self, pointee: *Type, mutable: bool): *Type => self.type_payload(
+		DataType.POINTER, 8, 8,
+		TypePayload.Pointer(pointee, mutable, true)
+	);
 
-	pub fn array_type(&self, elem: *Type, length: usz): *Type
-		=> self.type_payload(DataType.ARRAY, elem.size * length, elem.align, TypePayload.Array(elem, length));
+	pub fn array_type(&self, elem: *Type, length: usz): *Type => self.type_payload(
+		DataType.ARRAY,
+		elem.size * length, elem.align,
+		TypePayload.Array(elem, length)
+	);
 
-	pub fn fn_type(&self, param_types: List<*Type>, return_type: *Type, is_variadic: bool = false): *Type
-		=> self.type_payload(
-			DataType.FN, 16, 8,
-			TypePayload.Fn(self.create_val(FnTypeInfo(param_types, return_type, is_variadic)))
-		);
+	pub fn fn_type(
+		&self,
+		param_types: List<*Type>, return_type: *Type,
+		is_variadic: bool = false
+	): *Type => self.type_payload(
+		DataType.FN, 16, 8,
+		TypePayload.Fn(self.create_val(FnTypeInfo(param_types, return_type, is_variadic)))
+	);
 
 	pub fn error_union_type(&self, ok: *Type, err: *Type): *Type {
 		val c_name = "__kobel_eu_${eu_type_token(ok)}__${eu_type_token(err)}";
@@ -145,13 +155,16 @@ impl Arena {
 			if (ok.size > u_size) u_size = ok.size;
 			if (ok.align > u_align) u_align = ok.align;
 		}
+
 		if (u_align == 0) u_align = 1;
 		val u_rem = u_size % u_align;
 		if (u_rem != 0) u_size += u_align - u_rem;
+
 		val body_off = u_align;
 		var total = body_off + u_size;
 		val t_rem = total % u_align;
 		if (t_rem != 0) total += u_align - t_rem;
+
 		return self.type_payload(
 			DataType.ERROR_UNION, total, u_align,
 			TypePayload.ErrorUnion(ok, err, c_name)
@@ -161,7 +174,8 @@ impl Arena {
 }
 
 pub fn eu_type_token(ty: *Type): str {
-	if (ty.is_enum()) return ty.as_enum()!.c_name;
+	if (ty.is_enum()) return ty.as_enum()?.c_name;
+
 	return when (ty.kind) {
 		DataType.POINTER -> {
 			val p = ty.as_pointer()!;
@@ -205,26 +219,20 @@ impl Type {
 
 	pub fn as_struct(*self): ?&StructType {
 		val data = self.data;
-		return when (data) {
-			is TypePayload.Struct as p -> p.inner;
-			else -> null;
-		};
+		if (data is TypePayload.Struct as p) return p.inner;
+		return null;
 	}
 
 	pub fn as_fn(*self): ?&FnTypeInfo {
 		val data = self.data;
-		return when (data) {
-			is TypePayload.Fn as p -> p.inner;
-			else -> null;
-		};
+		if (data is TypePayload.Fn) return data.inner;
+		return null;
 	}
 
 	pub fn as_enum(*self): ?*EnumInfo {
 		val data = self.data;
-		return when (data) {
-			is TypePayload.Enum as p -> p.inner;
-			else -> null;
-		};
+		if (data is TypePayload.Enum) return data.inner;
+		return null;
 	}
 
 	pub fn as_error_union(*self) => when (self.data) {
@@ -289,13 +297,13 @@ impl Type {
 	pub fn is_list(*self): bool {
 		if (self.kind != DataType.STRUCT) return false;
 
-		val s = self.as_struct();
-		if (s!.module !in ["std.collections.list", "std.collections"]) return false;
+		val s = self.as_struct() ?: return false;
+		if (s.module !in ["std.collections.list", "std.collections"]) return false;
 
-		return s!.name.starts_with("std__collections__list__List")
-			|| s!.c_name.starts_with("std__collections__list__List")
-			|| s!.name.starts_with("std__collections__List")
-			|| s!.c_name.starts_with("std__collections__List");
+		return s.name.starts_with("std__collections__list__List")
+			|| s.c_name.starts_with("std__collections__list__List")
+			|| s.name.starts_with("std__collections__List")
+			|| s.c_name.starts_with("std__collections__List");
 	}
 
 	pub fn layout_struct(&self) {

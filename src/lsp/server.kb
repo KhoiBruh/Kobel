@@ -163,6 +163,7 @@ impl LanguageServer {
 			};
 
 			val msg = JsonValue.parse(raw_msg) !: continue;
+			defer JsonValue.free_tree(msg);
 			if (!msg.is_obj()) continue;
 
 			val method = msg.get_str("method", "");

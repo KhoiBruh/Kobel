@@ -160,6 +160,15 @@ impl DepGraph {
 		return result;
 	}
 
+	pub fn free(*self) {
+		for ((_k, v) in self.imports_of) v.free();
+		self.imports_of.free();
+		for ((_k, v) in self.dependents_of) v.free();
+		self.dependents_of.free();
+		for ((_k, v) in self.module_files) v.free();
+		self.module_files.free();
+	}
+
 }
 
 struct LocalBinding {
@@ -193,6 +202,36 @@ pub struct SemanticIndex {
 	pub struct_mod_by_name: HashMap<str, str> = HashMap(),
 	pub enum_mod_by_name: HashMap<str, str> = HashMap(),
 	pub top_key_by_name: HashMap<str, str> = HashMap()
+}
+
+impl SemanticIndex {
+
+	pub fn free(*self) {
+		self.defs.free();
+		self.def_by_key.free();
+		self.refs.free();
+		for ((_k, v) in self.refs_by_file) v.free();
+		self.refs_by_file.free();
+		for ((_k, v) in self.refs_by_key) v.free();
+		self.refs_by_key.free();
+		self.seen_refs.free();
+		for ((_k, v) in self.imports_by_file) v.free();
+		self.imports_by_file.free();
+		for ((_k, v) in self.missing_impls_by_file) v.free();
+		self.missing_impls_by_file.free();
+		self.dep_graph.free();
+		for ((_k, v) in self.file_tokens) v.free();
+		self.file_tokens.free();
+		self.file_modules.free();
+		self.orig_node_names.free();
+		self.orig_node_keys.free();
+		self.c_name_to_key.free();
+		self.c_inst_to_base.free();
+		self.struct_mod_by_name.free();
+		self.enum_mod_by_name.free();
+		self.top_key_by_name.free();
+	}
+
 }
 
 // ============================================================================
