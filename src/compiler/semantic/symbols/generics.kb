@@ -89,7 +89,7 @@ impl InstanceRecord {
 
 	pub fn find_ann(*self, node: *AstNode): ?&AnnotationEntry {
 		if (self.ann_map == null) return null;
-		val p = self.ann_map!.get(node.addr()) ?: return null;
+		val p = self.ann_map.get(node.addr()) ?: return null;
 		return p.read();
 	}
 

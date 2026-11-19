@@ -69,7 +69,7 @@ impl TypeResolver {
 				if (subst_res != null) yield subst_res;
 
 				if (name == "Self" && self.current_self_type != null) {
-					val sinfo = self.current_self_type!.as_struct()!;
+					val sinfo = self.current_self_type.as_struct()!;
 					if (sinfo != null && sinfo.is_object) {
 						self.report_error(
 							node,
@@ -77,18 +77,18 @@ impl TypeResolver {
 						);
 						yield self.prims().t_none();
 					}
-					if (self.subst.empty()) {
-						if (sinfo != null) {
-							if (!sinfo.c_name.empty()) named.name = sinfo.c_name;
-							else named.name = sinfo.name;
-						}
+
+					if (self.subst.empty() && sinfo != null) {
+						named.name = if (!sinfo.c_name.empty()) sinfo.c_name
+							else sinfo.name;
 					}
+
 					yield self.current_self_type;
 				}
 
 				if (name.starts_with("Self.")) {
 					val assoc = name.slice(5, name.len);
-					if (self.current_self_type == null || self.current_self_type!.kind != DataType.STRUCT) {
+					if (self.current_self_type == null || self.current_self_type.kind != DataType.STRUCT) {
 						self.report_error(node, "Associated type '${name}' used outside of an impl");
 						yield self.prims().t_none();
 					}
@@ -174,7 +174,7 @@ impl TypeResolver {
 			is VariadicType as var_ast -> self.resolve_ast_type(var_ast.element_type);
 
 			is ErrorUnionType as eu -> {
-				val ok_ty = if (eu.ok_type != null) self.resolve_ast_type(eu.ok_type!) else self.prims().t_none();
+				val ok_ty = if (eu.ok_type != null) self.resolve_ast_type(eu.ok_type) else self.prims().t_none();
 				if (ok_ty.kind == DataType.FN) {
 					self.report_error(node, "Error union value type cannot be a lambda/closure");
 				}

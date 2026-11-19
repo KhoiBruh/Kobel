@@ -25,11 +25,11 @@ impl BodyChecker {
 		if (node is WhenExpr as we) {
 			if (we.condition != null && self.expr_has_call(we.condition)) {
 				self.report_error(
-					we.condition!,
+					we.condition,
 					"Function or method call is not allowed in 'when' subject; bind the result to a variable first"
 				);
 			}
-			val cond_ty = if (we.condition != null) self.check_expr(we.condition!) else null;
+			val cond_ty = if (we.condition != null) self.check_expr(we.condition) else null;
 
 			val saved_catch_exp = self.catch_yield_expected;
 			val saved_catch_seen = self.catch_yield_seen;
@@ -96,7 +96,7 @@ impl BodyChecker {
 			}
 
 			if (result_ty == null) return self.prims().t_none();
-			return result_ty!;
+			return result_ty;
 		}
 		return self.prims().t_none();
 	}
@@ -114,13 +114,13 @@ impl BodyChecker {
 			}
 		}
 		if (err_ei != null) {
-			val resolved_v = self.find_variant_in_enum_info(err_ei, type_node!);
+			val resolved_v = self.find_variant_in_enum_info(err_ei, type_node);
 			if (resolved_v != null && resolved_v.name !in (*covered)) {
 				covered.add(resolved_v.name);
 				return;
 			}
 		}
-		val target_ty = self.resolve_type(type_node!);
+		val target_ty = self.resolve_type(type_node);
 		if (target_ty.equals(ok_ty)) {
 			has_ok.write(true);
 			return;
@@ -130,7 +130,7 @@ impl BodyChecker {
 			return;
 		}
 		if (err_ei != null) {
-			val vname = self.match_enum_variant_type(type_node!, err_ei);
+			val vname = self.match_enum_variant_type(type_node, err_ei);
 			if (!vname.empty() && vname !in (*covered)) covered.add(vname);
 		}
 	}
@@ -145,7 +145,7 @@ impl BodyChecker {
 			val eu = base_ty.as_error_union()!;
 			val err_s = eu.err.as_struct();
 			val err_ei = if (err_s != null) {
-				self.symtab.find_enum_info(err_s!.c_name) ?: self.symtab.find_enum_info(err_s!.name)
+				self.symtab.find_enum_info(err_s.c_name) ?: self.symtab.find_enum_info(err_s.name)
 			} else null;
 			var has_ok = false;
 			var has_all_err = false;
@@ -164,7 +164,7 @@ impl BodyChecker {
 					}
 				}
 			}
-			val err_ok = has_all_err || (err_ei != null && !err_ei!.members.empty() && covered.len == err_ei!.members.len);
+			val err_ok = has_all_err || (err_ei != null && !err_ei.members.empty() && covered.len == err_ei.members.len);
 			return has_ok && err_ok;
 		}
 
@@ -225,7 +225,7 @@ impl BodyChecker {
 			val m = enum_info.find_member(nt.name.slice(1, nt.name.len));
 			if (m != null) return m.name;
 		}
-		val target_ty = self.resolve_type(type_node!);
+		val target_ty = self.resolve_type(type_node);
 		if (target_ty.kind == DataType.STRUCT) {
 			val target_s = target_ty.as_struct()!;
 			for (m in enum_info.members) {
@@ -281,7 +281,7 @@ impl BodyChecker {
 			if (!is_e.alias.empty()) return false;
 			if (cond is IdentifierExpr as cond_id) {
 				val subj_sym = self.symtab.lookup(cond_id.name);
-				return subj_sym != null && subj_sym!.mutable;
+				return subj_sym != null && subj_sym.mutable;
 			}
 		}
 		return false;
@@ -313,7 +313,7 @@ impl BodyChecker {
 
 	pub fn expr_has_call(*self, node: ?*AstNode): bool {
 		if (node == null) return false;
-		val cur = node!;
+		val cur = node;
 		return when (cur) {
 			is CallExpr, InterpExpr -> true;
 			is GroupExpr as g -> self.expr_has_call(g.expr);
@@ -331,7 +331,7 @@ impl BodyChecker {
 
 	pub fn expr_has_implicit_subject(*self, node: ?*AstNode): bool {
 		if (node == null) return false;
-		val cur = node!;
+		val cur = node;
 		return when (cur) {
 			is IdentifierExpr as id -> id.name.empty();
 			is GroupExpr as g -> self.expr_has_implicit_subject(g.expr);
@@ -369,7 +369,7 @@ impl BodyChecker {
 		) {
 			val inner = self.unwrap_group_mut(un.operand);
 			if (inner is IsExpr as inner_is) {
-				val subj_ty = if (inner_is.expr == null) cond_ty else self.check_expr(inner_is.expr!);
+				val subj_ty = if (inner_is.expr == null) cond_ty else self.check_expr(inner_is.expr);
 				if (inner_is.expr == null) inner_is.expr = cond;
 				self.check_is_pattern(inner_is.expr, subj_ty, inner);
 				self.annotate_type(inner, self.prims().t_bool());
@@ -431,7 +431,7 @@ impl BodyChecker {
 		val outer_key = self.symtab.lookup(sym)?.decl_key ?: "";
 		self.symtab.enter_scope(false);
 		defer self.symtab.exit_scope();
-		var shadow = Symbol(sym, sym, SymbolKind.VAR, smart_cast_ty!, mutable, false, 0, 0);
+		var shadow = Symbol(sym, sym, SymbolKind.VAR, smart_cast_ty, mutable, false, 0, 0);
 		shadow.decl_key = outer_key;
 		self.symtab.define(shadow);
 		return self.check_when_arm_body(body, expected);
@@ -442,15 +442,18 @@ impl BodyChecker {
 			var yield_ty: ?*Type = null;
 			self.symtab.enter_scope(false);
 			defer self.symtab.exit_scope();
+			self.push_non_null_scope();
+			defer self.pop_non_null_scope();
 
 			for (stmt in blk.statements) {
 				if (stmt is YieldStmt as ys) {
 					yield_ty = if (ys.value != null)
-						self.check_expr(ys.value!, expected)
+						self.check_expr(ys.value, expected)
 					else
 						self.prims().t_none();
 				} else {
 					self.check_statement(stmt);
+					self.apply_post_stmt_null_guards(stmt);
 				}
 			}
 
@@ -459,7 +462,7 @@ impl BodyChecker {
 				return self.prims().t_none();
 			}
 
-			return yield_ty!;
+			return yield_ty;
 		}
 
 		return self.check_expr(body, expected);
@@ -511,7 +514,7 @@ impl BodyChecker {
 			if (matched_m?.payload_ty != null) {
 				val v_c_name = "${err_ei.c_name}__${matched_m.name}";
 				if (target_node is NamedType as nt) {
-					if (self.current_rec != null) self.set_ann_ty(target_node, matched_m.payload_ty!);
+					if (self.current_rec != null) self.set_ann_ty(target_node, matched_m.payload_ty);
 					else nt.name = v_c_name;
 				}
 				val tag_c = "${v_c_name}__TAG";
@@ -522,7 +525,7 @@ impl BodyChecker {
 				);
 				self.set_is_pattern(info_node, info);
 				if (extra_info_node != null) self.set_is_pattern(extra_info_node, info);
-				return self.arena.pointer_type(matched_m.payload_ty!, is_ptr && subj_mutable);
+				return self.arena.pointer_type(matched_m.payload_ty, is_ptr && subj_mutable);
 			}
 		}
 
@@ -577,8 +580,8 @@ impl BodyChecker {
 	): ?*Type {
 		val data_ty = self.field_type_of(base_s, "data");
 		val data_enum = if (data_ty?.kind == DataType.STRUCT)
-			self.symtab.find_enum_info(data_ty!.as_struct()!.c_name)
-				?: self.symtab.find_enum_info(data_ty!.as_struct()!.name)
+			self.symtab.find_enum_info(data_ty.as_struct()!.c_name)
+				?: self.symtab.find_enum_info(data_ty.as_struct()!.name)
 		else null;
 		val direct_enum = self.symtab.find_enum_info(base_s.c_name)
 			?: self.symtab.find_enum_info(base_s.name);
@@ -631,7 +634,7 @@ impl BodyChecker {
 					matched_data_member = m;
 					tag_field_name = "data.tag";
 					val auto_tag = self.symtab.lookup("${data_enum.name}.${m.name}__TAG");
-					tag_const_c_name = if (auto_tag != null) auto_tag!.c_name
+					tag_const_c_name = if (auto_tag != null) auto_tag.c_name
 						else "${data_enum.c_name}__${m.name}__TAG";
 				}
 			}
@@ -639,7 +642,7 @@ impl BodyChecker {
 
 		if (!is_payload_data) {
 			val tag_const_sym = self.find_tag_const(target_s.name);
-			if (tag_const_sym == null || tag_const_sym!.kind != SymbolKind.CONST) {
+			if (tag_const_sym == null || tag_const_sym.kind != SymbolKind.CONST) {
 				self.report_error(
 					err_node,
 					"Cannot smart cast to '${target_s.name}': " +
@@ -658,14 +661,14 @@ impl BodyChecker {
 			}
 
 			val tag_field_ty = self.field_type_of(base_s, tag_field_name);
-			if (tag_field_ty == null || !tag_field_ty!.can_assign(tag_const_sym!.type_ptr)) {
+			if (tag_field_ty == null || !tag_field_ty.can_assign(tag_const_sym.type_ptr)) {
 				self.report_error(
 					err_node,
 					"Tag type mismatch: '${base_s.name}.${tag_field_name}' does not match '${target_s.name}.TAG'"
 				);
 				return null;
 			}
-			tag_const_c_name = tag_const_sym!.c_name;
+			tag_const_c_name = tag_const_sym.c_name;
 		}
 
 		var payload_path = "";
@@ -752,12 +755,12 @@ impl BodyChecker {
 				);
 			}
 
-			if (base_ty == null || base_ty!.kind != DataType.STRUCT) {
+			if (base_ty == null || base_ty.kind != DataType.STRUCT) {
 				self.report_error(is_node, "Subject of 'is' must be a struct or pointer to struct");
 				return null;
 			}
 
-			val base_s = base_ty!.as_struct()!;
+			val base_s = base_ty.as_struct()!;
 
 			if (is_e.target_type is ArrayLiteralExpr as al) {
 				if (al.elements.empty()) {
@@ -784,12 +787,10 @@ impl BodyChecker {
 		return null;
 	}
 
-	fn find_tag_const(*self, struct_name: str): ?*Symbol {
-		return self.symtab.lookup("${struct_name}__TAG")
-			?: self.symtab.lookup_struct_const(struct_name, "TAG")
-			?: self.symtab.lookup("${struct_name}__KIND")
-			?: self.symtab.lookup_struct_const(struct_name, "KIND");
-	}
+	fn find_tag_const(*self, struct_name: str) => self.symtab.lookup("${struct_name}__TAG")
+		?: self.symtab.lookup_struct_const(struct_name, "TAG")
+		?: self.symtab.lookup("${struct_name}__KIND")
+		?: self.symtab.lookup_struct_const(struct_name, "KIND");
 
 	fn tag_field_name_of(*self, base_s: *StructType): str {
 		if (base_s.fields.empty()) return "";
@@ -813,7 +814,7 @@ impl BodyChecker {
 			val prev_elvis = self.in_elvis_lhs;
 			self.in_safe_nav_context = true;
 			self.in_elvis_lhs = true;
-			val subj_ty = self.check_expr(is_e.expr!);
+			val subj_ty = self.check_expr(is_e.expr);
 			self.in_safe_nav_context = prev_sn;
 			self.in_elvis_lhs = prev_elvis;
 			self.check_is_pattern(is_e.expr, subj_ty, node);

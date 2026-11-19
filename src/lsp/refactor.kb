@@ -346,6 +346,7 @@ pub fn code_actions_json(
 				if (
 					code in [
 						"unnecessary-mut-receiver", "unnecessary-mut",
+						"unnecessary-non-null-assert",
 						"redundant-else", "empty-branch", "collapsible-if",
 						"redundant-boolean-return", "redundant-bool-compare",
 						"prefer-expression-body", "redundant-trailing-return",
@@ -376,6 +377,9 @@ pub fn code_actions_json(
 	val all_var_edits = JsonValue.arr();
 	var all_var_count: usz = 0;
 	var var_overlap_count: usz = 0;
+	val all_unwrap_edits = JsonValue.arr();
+	var all_unwrap_count: usz = 0;
+	var unwrap_overlap_count: usz = 0;
 	if (effective_fixes != null) {
 		val fixes_list = effective_fixes;
 		for (fi in 0..<fixes_list.len) {
@@ -388,6 +392,12 @@ pub fn code_actions_json(
 					all_var_count++;
 				}
 				if (overlaps) var_overlap_count++;
+			} else if (fx.code == "unnecessary-non-null-assert") {
+				for (ed in fx.edits) {
+					all_unwrap_edits += make_text_edit(ed.line1, ed.col1, ed.end_line1, ed.end_col1, ed.new_text);
+					all_unwrap_count++;
+				}
+				if (overlaps) unwrap_overlap_count++;
 			}
 			if (!overlaps) continue;
 			val edits = JsonValue.arr();
@@ -396,6 +406,12 @@ pub fn code_actions_json(
 			}
 			actions += make_code_action(fx.title, fx.kind, uri, edits, fx.is_preferred);
 		}
+	}
+	if (all_unwrap_count > 1 && unwrap_overlap_count > 0) {
+		actions += make_code_action(
+			"Remove all ${all_unwrap_count} redundant '!' assertion(s)",
+			"quickfix", uri, all_unwrap_edits
+		);
 	}
 
 	// 3. QuickFix: Convert unmutated `var` to `val` near cursor/selection (if not already emitted via lints)

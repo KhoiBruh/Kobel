@@ -50,7 +50,7 @@ impl BodyChecker {
 			val arg_ty = self.check_expr(call_args[i]);
 			if (arg_ty == null || arg_ty.kind == DataType.NONE) continue;
 
-			self.match_type_param(p.type_node!, arg_ty, type_params, inferred.data);
+			self.match_type_param(p.type_node, arg_ty, type_params, inferred.data);
 		}
 
 		// Pass 2: Infer from lambda arguments using already-known type parameters.
@@ -73,7 +73,7 @@ impl BodyChecker {
 				val lam_ty = self.check_expr(call_args[i], partial_fn_ty);
 				self.lambda_inferring_return = prev_inf_ret;
 				if (self.errors.len == saved_errs && lam_ty?.kind == DataType.FN) {
-					self.match_type_param(p.type_node!, lam_ty, type_params, inferred.data);
+					self.match_type_param(p.type_node, lam_ty, type_params, inferred.data);
 				}
 			}
 		}
@@ -125,7 +125,7 @@ impl BodyChecker {
 		}
 		if (node is ErrorUnionType as eu) {
 			val ok_t = if (eu.ok_type != null)
-				self.resolve_type_with_partial_tparams(eu.ok_type!, type_params, inferred, self_ty)
+				self.resolve_type_with_partial_tparams(eu.ok_type, type_params, inferred, self_ty)
 			else self.prims().t_none();
 			val err_t = self.resolve_type_with_partial_tparams(eu.err_type, type_params, inferred, self_ty);
 			if (err_t.is_fault()) return self.arena.error_union_type(ok_t, err_t);
@@ -242,7 +242,7 @@ impl BodyChecker {
 				if (arg_ty.kind == DataType.ERROR_UNION) {
 					val a_eu = arg_ty.as_error_union()!;
 					if (eu.ok_type != null) {
-						self.match_type_param(eu.ok_type!, a_eu.ok, type_params, inferred);
+						self.match_type_param(eu.ok_type, a_eu.ok, type_params, inferred);
 					}
 					self.match_type_param(eu.err_type, a_eu.err, type_params, inferred);
 				}

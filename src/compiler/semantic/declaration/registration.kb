@@ -117,13 +117,13 @@ impl DeclarationCollector {
 				);
 				return;
 			}
-			if (st_sym == null || st_sym!.type_ptr.kind != DataType.STRUCT) {
+			if (st_sym == null || st_sym.type_ptr.kind != DataType.STRUCT) {
 				self.report_error(node, "Cannot impl methods for unknown type '${im.struct_name}'");
 				return;
 			}
 
-			val st_type = st_sym!.type_ptr;
-			val st_c_name = st_sym!.c_name;
+			val st_type = st_sym.type_ptr;
+			val st_c_name = st_sym.c_name;
 			val st_info = st_type.as_struct()!;
 
 			self.current_self_type = st_type;
@@ -177,12 +177,12 @@ impl DeclarationCollector {
 				};
 			} else if (p.type_node != null) {
 				if (p.type_node is VariadicType) is_vararg = true;
-				pt = self.resolve_ast_type(p.type_node!);
+				pt = self.resolve_ast_type(p.type_node);
 			}
 			param_types += pt;
 		}
 
-		val ret_type = if (f.return_type != null) self.resolve_ast_type(f.return_type!)
+		val ret_type = if (f.return_type != null) self.resolve_ast_type(f.return_type)
 		else self.infer_decl_return_type(f) ?: self.prims().t_none();
 
 		// A function-instance method view owns its own FnType (built at view
@@ -332,7 +332,7 @@ impl DeclarationCollector {
 			if (u.target is IdentifierExpr as id) {
 				for (p in f.params) {
 					if (p.name == id.name && p.type_node != null) {
-						return self.resolve_ast_type(p.type_node!);
+						return self.resolve_ast_type(p.type_node);
 					}
 				}
 			}
@@ -343,7 +343,7 @@ impl DeclarationCollector {
 				&& obj_id.name == "self"
 				&& self.current_self_type?.kind == DataType.STRUCT
 			) {
-				val s_info = self.current_self_type!.as_struct()!;
+				val s_info = self.current_self_type.as_struct()!;
 				for (fld in s_info.fields) {
 					if (fld.name == mem.member) {
 						return fld.type_ptr;
@@ -363,12 +363,12 @@ impl DeclarationCollector {
 		if (stmt == null) return;
 
 		when (stmt) {
-			is ReturnStmt as ret -> if (ret.value != null) out_returns.add(ret.value!);
+			is ReturnStmt as ret -> if (ret.value != null) out_returns.add(ret.value);
 			is BlockStmt as b -> for (s in b.statements) self.collect_return_exprs(s, out_returns);
 			is WhenStmt as ws -> for (arm in ws.arms) self.collect_return_exprs(arm.body, out_returns);
 			is IfStmt as ifs -> {
 				self.collect_return_exprs(ifs.then_branch, out_returns);
-				if (ifs.else_branch != null) self.collect_return_exprs(ifs.else_branch!, out_returns);
+				if (ifs.else_branch != null) self.collect_return_exprs(ifs.else_branch, out_returns);
 				return;
 			}
 		}
@@ -388,11 +388,11 @@ impl DeclarationCollector {
 
 		if (f.body is BlockStmt as blk) {
 			var rets = List<&AstNode>();
-			if (f.body != null) self.collect_return_exprs(f.body!, &rets);
+			if (f.body != null) self.collect_return_exprs(f.body, &rets);
 			if (rets.empty()) {
 				f.return_type = self.arena.node(
 					NodeData.NamedType("none", List<&AstNode>()),
-					f.body!.line, f.body!.col
+					f.body.line, f.body.col
 				);
 
 				return self.prims().t_none();
@@ -406,13 +406,13 @@ impl DeclarationCollector {
 				if (ty == null) return null;
 				if (first_ty == null) {
 					first_ty = ty;
-				} else if (!first_ty.equals(ty!)) {
+				} else if (!first_ty.equals(ty)) {
 					if (
 						first_ty.is_integer() &&
-						ty!.is_integer() &&
-						ty!.size > first_ty.size
+						ty.is_integer() &&
+						ty.size > first_ty.size
 					) first_ty = ty;
-					else if (!first_ty!.can_assign(ty!)) return null;
+					else if (!first_ty.can_assign(ty)) return null;
 				}
 			}
 			if (first_ty != null) {
@@ -461,12 +461,12 @@ impl DeclarationCollector {
 				f.params[i] = Param(p.name, rt, p.receiver, p.default_val);
 			} else if (p.type_node != null) {
 				if (p.type_node is VariadicType) is_vararg = true;
-				pt = self.resolve_ast_type(p.type_node!);
+				pt = self.resolve_ast_type(p.type_node);
 			}
 			param_types += pt;
 		}
 
-		val ret_type = if (f.return_type != null) self.resolve_ast_type(f.return_type!)
+		val ret_type = if (f.return_type != null) self.resolve_ast_type(f.return_type)
 		else self.infer_decl_return_type(f) ?: self.prims().t_none();
 
 		val fn_type = self.arena.fn_type(param_types, ret_type, is_vararg);
@@ -530,12 +530,12 @@ impl DeclarationCollector {
 						);
 					}
 					if (p.type_node is VariadicType) is_vararg = true;
-					val pt = if (p.type_node != null) self.resolve_ast_type(p.type_node!)
+					val pt = if (p.type_node != null) self.resolve_ast_type(p.type_node)
 						else self.prims().t_none();
 					param_types += pt;
 				}
 
-				val ret_type = if (f.return_type != null) self.resolve_ast_type(f.return_type!)
+				val ret_type = if (f.return_type != null) self.resolve_ast_type(f.return_type)
 					else self.infer_decl_return_type(f) ?: self.prims().t_none();
 
 				val rec_sig = self.symtab.get_node_instance(m_node)?.sig;
@@ -586,7 +586,7 @@ impl DeclarationCollector {
 			return;
 		}
 
-		val assoc_decls = trait_info!.assoc_types;
+		val assoc_decls = trait_info.assoc_types;
 		for (b in im.assoc_bindings) {
 			val declared = assoc_decls.any { a -> a == b.name };
 

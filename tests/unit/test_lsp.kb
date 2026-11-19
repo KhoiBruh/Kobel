@@ -1013,6 +1013,114 @@ pub fn check(a: bool, b: bool, c: bool): i64 {
 	println("  [PASS] test_lint_warnings_and_quickfixes");
 }
 
+fn test_null_smart_cast_and_unwrap_lint() {
+	val src = """mod sample.smart_cast_lint;
+
+struct Node {
+	pub val_num: i64
+}
+
+struct Holder {
+	pub node: ?*Node
+}
+
+fn take_node(n: *Node): i64 => n.val_num;
+
+fn check_cases(h: *Holder, p: ?*Node, fb: *Node): i64 {
+	var total: i64 = 0;
+	if (h.node != null) total += take_node(h.node!);
+	val picked = if (h.node != null) take_node(h.node!) else take_node(fb);
+	total += picked;
+	if (p != null && p!.val_num > 0) total += 1;
+	if (p == null) return total;
+	total += take_node(p!);
+	return total;
+}
+
+fn keep_real_unwrap(p: ?*Node): i64 => take_node(p!);
+""";
+	val vpath = "C:/Users/Admin/CLionProjects/Kobel/tests/unit/smart_cast_lint_virtual.kb";
+	val vuri = path_to_uri(vpath);
+	val a = AnalysisResult(vpath, src, "", false);
+
+	var err_cnt: usz = 0;
+	for (d in a.diagnostics) if (d.severity == 1) err_cnt++;
+	assert_eq_usz(err_cnt, 0, "smart-casted redundant '!' must not fail compilation");
+
+	assert_eq_usz(
+		count_diag_code(a.diagnostics, "unnecessary-non-null-assert"),
+		4,
+		"expected 4 unnecessary-non-null-assert warnings (real unwrap must not warn)"
+	);
+
+	// Verify Unnecessary tag (1) on emitted diagnostics
+	var tagged_cnt: usz = 0;
+	for (d in a.diagnostics) {
+		if (d.code == "unnecessary-non-null-assert") {
+			for (t in d.tags) if (t == 1) tagged_cnt++;
+		}
+	}
+	assert_eq_usz(tagged_cnt, 4, "all unnecessary-non-null-assert diags must carry tag 1");
+
+	// Verify single + batch QuickFixes and apply batch QuickFix
+	val dj = JsonValue.arr();
+	for (d in a.diagnostics) dj += d.to_json();
+	val actions = code_actions_json(
+		a.index, a.tokens, vpath, src, 12, 0, 22, 0, dj, &a.lint_fixes
+	);
+	val single = find_action_by_title(actions, "Remove redundant '!'");
+	assert_true(single != null, "single QuickFix 'Remove redundant !' must exist");
+	val batch = find_action_by_title(actions, "Remove all 4 redundant '!' assertion(s)");
+	assert_true(batch != null, "batch QuickFix for all 4 redundant '!' must exist");
+
+	val fixed = apply_action_edits(src, batch!, vuri);
+	assert_true("take_node(h.node);" in fixed, "batch fix removed redundant '!' on member");
+	assert_true("p != null && p.val_num > 0" in fixed, "batch fix removed redundant '!' in &&");
+	assert_true("take_node(p);" in fixed, "batch fix removed redundant '!' after early return");
+	assert_true("take_node(p!);" in fixed, "batch fix preserved genuinely nullable '!'");
+
+	val after = AnalysisResult(vpath, fixed, "", false);
+	var after_errs: usz = 0;
+	for (d in after.diagnostics) if (d.severity == 1) after_errs++;
+	assert_eq_usz(after_errs, 0, "code after removing redundant '!' must have zero errors");
+	assert_eq_usz(
+		count_diag_code(after.diagnostics, "unnecessary-non-null-assert"),
+		0,
+		"zero unnecessary-non-null-assert warnings after batch QuickFix"
+	);
+
+	// Negative test: invalidation after reassignment to null must be a compile error
+	val bad_src = """mod sample.smart_cast_bad;
+
+struct Node { pub v: i64 }
+struct Holder { pub node: ?*Node }
+
+fn take(n: *Node): i64 => n.v;
+
+fn invalidated(h: &Holder): i64 {
+	if (h.node != null) {
+		h.node = null;
+		return take(h.node);
+	}
+	return 0;
+}
+
+fn non_null_bang(n: *Node): i64 => take(n!);
+""";
+	val bad_a = AnalysisResult(
+		"C:/Users/Admin/CLionProjects/Kobel/tests/unit/smart_cast_bad_virtual.kb",
+		bad_src, "", false
+	);
+	var bad_errs: usz = 0;
+	for (d in bad_a.diagnostics) if (d.severity == 1) bad_errs++;
+	assert_eq_usz(
+		bad_errs, 2,
+		"reassigned-to-null member use and '!' on intrinsically non-null pointer must both error"
+	);
+
+	println("  [PASS] test_null_smart_cast_and_unwrap_lint");
+}
+
 pub fn main() {
 	println("Running LSP unit tests...");
 	test_json_and_uri();
@@ -1023,5 +1131,6 @@ pub fn main() {
 	test_dead_code_and_quickfixes();
 	test_object_lsp_and_privacy();
 	test_lint_warnings_and_quickfixes();
+	test_null_smart_cast_and_unwrap_lint();
 	println("All LSP unit tests passed.");
 }

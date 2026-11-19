@@ -89,13 +89,13 @@ impl BodyChecker {
 					self.report_error(node, "Leading '.' member access is only allowed inside a 'when (subject)' pattern");
 					return self.prims().t_none();
 				}
-				val subj_copy = self.copy_expr(self.when_subject!);
+				val subj_copy = self.copy_expr(self.when_subject);
 				self.set_resolved(node, subj_copy);
 				return self.check_expr(subj_copy);
 			}
 
 			if (id.name == "Self" && self.current_self_type != null) {
-				val cur_self = self.current_self_type!;
+				val cur_self = self.current_self_type;
 				val cur_st = cur_self.as_struct();
 				if (cur_st != null && cur_st.is_object) {
 					self.report_error(node, "Object '${cur_st.name}' cannot be used as a value");
@@ -111,19 +111,19 @@ impl BodyChecker {
 				return self.prims().t_none();
 			}
 
-			if (sym!.kind == SymbolKind.OBJECT) {
+			if (sym.kind == SymbolKind.OBJECT) {
 				self.report_error(node, "Object '${id.name}' cannot be used as a value");
 				return self.prims().t_none();
 			}
 
-			if (sym!.is_moved && !self.is_assign_target) {
+			if (sym.is_moved && !self.is_assign_target) {
 				self.report_error(node, "Use of moved value '${id.name}'");
 				return self.prims().t_none();
 			}
 
 			if (
-				sym!.type_ptr.kind == DataType.FN
-				&& sym!.kind in [SymbolKind.PARAM, SymbolKind.VAR]
+				sym.type_ptr.kind == DataType.FN
+				&& sym.kind in [SymbolKind.PARAM, SymbolKind.VAR]
 				&& !self.allowing_fn_param_ref
 			) {
 				self.report_error(
@@ -139,10 +139,20 @@ impl BodyChecker {
 				}
 			}
 
-			if (!sym!.c_name.empty() && sym!.c_name != id.name) {
-				self.set_ident_name(node, sym!.c_name);
+			if (!sym.c_name.empty() && sym.c_name != id.name) {
+				self.set_ident_name(node, sym.c_name);
 			}
-			return sym!.type_ptr;
+			val ty = sym.type_ptr;
+			if (
+				!self.is_assign_target
+				&& ty.kind == DataType.POINTER
+				&& ty.as_pointer()!.nullable
+				&& self.is_path_non_null(id.name)
+			) {
+				val pt = ty.as_pointer()!;
+				return self.arena.pointer_type(pt.pointee, pt.mutable);
+			}
+			return ty;
 		}
 		return self.prims().t_none();
 	}
@@ -174,7 +184,7 @@ impl BodyChecker {
 				self.unwrap_group_mut(bin.right) is ArrayLiteralExpr
 			);
 
-			var lt_num = self.check_expr(bin.left, num_expected);
+			val lt_num = self.check_expr(bin.left, num_expected);
 			self.in_elvis_lhs = false;
 			var lt = lt_num;
 			if (bin.op == TokenType.KW_IN && self.unwrap_group_mut(bin.right) is ArrayLiteralExpr as al) {
@@ -184,7 +194,18 @@ impl BodyChecker {
 			}
 			var r_expected: ?*Type = num_expected;
 			if (lt.is_numeric()) r_expected = lt;
-			var rt = self.check_expr(bin.right, r_expected);
+			var rt = self.prims().t_none();
+			if (bin.op in [TokenType.AND_AND, TokenType.OR_OR]) {
+				self.symtab.enter_scope(false);
+				self.push_non_null_scope();
+				if (bin.op == TokenType.AND_AND) self.apply_truthy_null_guards(bin.left);
+				else self.apply_falsy_null_guards(bin.left);
+				rt = self.check_expr(bin.right, r_expected);
+				self.pop_non_null_scope();
+				self.symtab.exit_scope();
+			} else {
+				rt = self.check_expr(bin.right, r_expected);
+			}
 
 			self.in_safe_nav_context = prev_sn;
 			self.in_elvis_lhs = prev_elvis;
@@ -214,7 +235,7 @@ impl BodyChecker {
 
 	fn is_safe_nav_expr(*self, expr: ?*AstNode): bool {
 		if (expr == null) return false;
-		val cur = self.unwrap_group(expr!);
+		val cur = self.unwrap_group(expr);
 		if (cur is MemberExpr as mem) return mem.is_safe;
 		if (cur is CallExpr as call && call.callee is MemberExpr as cmem) return cmem.is_safe;
 		return false;
@@ -226,10 +247,10 @@ impl BodyChecker {
 		val prev_elvis = self.in_elvis_lhs;
 		self.in_safe_nav_context = true;
 		self.in_elvis_lhs = self.is_safe_nav_expr(bin.left);
-		var lt_num = self.check_expr(bin.left, num_expected);
+		val lt_num = self.check_expr(bin.left, num_expected);
 		self.in_safe_nav_context = prev_sn;
 		self.in_elvis_lhs = prev_elvis;
-		var lt = lt_num;
+		val lt = lt_num;
 		val is_safe_nav = self.is_safe_nav_expr(bin.left);
 		self.ensure(
 			lt.kind in [DataType.POINTER, DataType.STR] || is_safe_nav,
@@ -255,7 +276,7 @@ impl BodyChecker {
 			val lt_is_null_lit = lt.kind == DataType.POINTER &&
 				lt.as_pointer()!.pointee.kind == DataType.NONE;
 			self.ensure(
-				lt.can_assign(rt!) || lt_is_null_lit || rt!.can_assign(lt),
+				lt.can_assign(rt) || lt_is_null_lit || rt.can_assign(lt),
 				bin.right,
 				"Right-hand side of Elvis operator '?:' has incompatible type"
 			);
@@ -269,7 +290,7 @@ impl BodyChecker {
 			val pt = lt.as_pointer()!;
 			if (pt.pointee.kind == DataType.NONE && !is_jump && rt != null) return rt;
 			if (pt.nullable) {
-				val r_non_null_ptr = rt != null && rt!.kind == DataType.POINTER && !rt!.as_pointer()!.nullable;
+				val r_non_null_ptr = rt != null && rt.kind == DataType.POINTER && !rt.as_pointer()!.nullable;
 				if (is_jump || r_non_null_ptr) {
 					return self.arena.pointer_type(pt.pointee, pt.mutable);
 				}
@@ -514,10 +535,12 @@ impl BodyChecker {
 					vname = mem.member;
 					is_explicit_enum_mem = true;
 				}
-			} else if (unwrapped_el is IdentifierExpr as id) {
-				if (self.symtab.lookup(id.name) == null && ei.find_member(id.name) != null) {
-					vname = id.name;
-				}
+			} else if (
+				unwrapped_el is IdentifierExpr as id &&
+				self.symtab.lookup(id.name) == null &&
+				ei.find_member(id.name) != null
+			) {
+				vname = id.name;
 			}
 
 			if (!vname.empty()) {
@@ -548,7 +571,7 @@ impl BodyChecker {
 					return subj_ty;
 				}
 				val lit = self.arena.node(
-					NodeData.LiteralExpr(mi!.lit_kind, mi!.raw_text),
+					NodeData.LiteralExpr(mi.lit_kind, mi.raw_text),
 					unwrapped_el.line, unwrapped_el.col
 				);
 				val carrier = self.arena.create_val(
@@ -604,10 +627,7 @@ impl BodyChecker {
 		var targs = List<&AstNode>();
 		targs += self.arena.ast_type_from_type(elem_ty);
 		val tmpl = self.find_struct_template_for("Range");
-		if (tmpl != null) {
-			val range_ty = self.instantiate_template_struct(tmpl, targs);
-			return range_ty;
-		}
+		if (tmpl != null) return self.instantiate_template_struct(tmpl, targs);
 
 		self.report_error(node, "Type 'Range' not found");
 		return self.prims().t_none();
@@ -633,19 +653,19 @@ impl BodyChecker {
 				}
 				val op_eu = op_ty.as_error_union()!;
 				val ret_ty = self.current_fn_return_type;
-				if (self.in_main_fn && (ret_ty == null || ret_ty!.kind == DataType.NONE)) {
+				if (self.in_main_fn && (ret_ty == null || ret_ty.kind == DataType.NONE)) {
 					self.symtab.sem.main_uses_any_fault = true;
 					return op_eu.ok;
 				}
-				if (ret_ty == null || ret_ty!.kind != DataType.ERROR_UNION) {
-					val ret_desc = if (ret_ty != null) self.type_display(ret_ty!) else "none";
+				if (ret_ty == null || ret_ty.kind != DataType.ERROR_UNION) {
+					val ret_desc = if (ret_ty != null) self.type_display(ret_ty) else "none";
 					self.report_error(
 						node,
 						"Cannot propagate error '${self.type_display(op_eu.err)}' with '?' inside function returning '${ret_desc}'"
 					);
 					return op_eu.ok;
 				}
-				val ret_eu = ret_ty!.as_error_union()!;
+				val ret_eu = ret_ty.as_error_union()!;
 				if (!ret_eu.err.equals(op_eu.err)) {
 					self.report_error(
 						node,
@@ -663,6 +683,11 @@ impl BodyChecker {
 					val pt = op_ty.as_pointer()!;
 					if (pt.nullable) {
 						return self.arena.pointer_type(pt.pointee, pt.mutable);
+					}
+					if (self.is_smart_cast_non_null(un.operand)) {
+						val u_key = self.decl_loc_key("U", node);
+						if (!u_key.empty()) self.symtab.sem.unnecessary_unwraps[u_key] = true;
+						return op_ty;
 					}
 				}
 				self.report_error(node, "Force unwrap operator '!' requires a nullable pointer or error union");
@@ -714,8 +739,8 @@ impl BodyChecker {
 					val is_mut = self.is_mutable_addressable(un.operand);
 					if (is_mut) {
 						val exp_ro = expected != null
-							&& expected!.kind == DataType.POINTER
-							&& !expected!.as_pointer()!.mutable;
+							&& expected.kind == DataType.POINTER
+							&& !expected.as_pointer()!.mutable;
 						if (!exp_ro) self.mark_node_mutated(un.operand);
 					}
 					yield self.arena.pointer_type(op_ty, is_mut);
@@ -731,7 +756,7 @@ impl BodyChecker {
 		return when (cur) {
 			is IdentifierExpr as id -> {
 				val sym = self.symtab.lookup(id.name);
-				yield sym != null && sym!.mutable;
+				yield sym != null && sym.mutable;
 			}
 			is MemberExpr as mem -> {
 				val obj_ty = self.node_type_of(mem.object);
@@ -747,7 +772,7 @@ impl BodyChecker {
 			is UnaryExpr as un -> {
 				if (un.op == TokenType.STAR) {
 					val inner_ty = self.node_type_of(un.operand);
-					yield inner_ty != null && inner_ty!.kind == DataType.POINTER && inner_ty!.as_pointer()!.mutable;
+					yield inner_ty != null && inner_ty.kind == DataType.POINTER && inner_ty.as_pointer()!.mutable;
 				}
 				yield false;
 			}
@@ -767,14 +792,30 @@ impl BodyChecker {
 				val eu = branch_hint.as_error_union()!;
 				if (eu.ok.kind != DataType.NONE) branch_hint = eu.ok;
 			}
+			self.symtab.enter_scope(false);
+			self.push_non_null_scope();
+			self.apply_truthy_null_guards(if_e.condition);
 			var then_ty = self.check_expr(if_e.then_branch, branch_hint);
+			self.pop_non_null_scope();
+			self.symtab.exit_scope();
+
 			val else_hint = if (branch_hint != null) branch_hint else then_ty;
+			self.symtab.enter_scope(false);
+			self.push_non_null_scope();
+			self.apply_falsy_null_guards(if_e.condition);
 			val else_ty = self.check_expr(if_e.else_branch, else_hint);
+			self.pop_non_null_scope();
+			self.symtab.exit_scope();
 
 			val can_widen = self.is_untyped_literal(if_e.then_branch) &&
 				else_ty.is_numeric() && !then_ty.equals(else_ty);
 			if (can_widen) {
+				self.symtab.enter_scope(false);
+				self.push_non_null_scope();
+				self.apply_truthy_null_guards(if_e.condition);
 				then_ty = self.check_expr(if_e.then_branch, else_ty);
+				self.pop_non_null_scope();
+				self.symtab.exit_scope();
 			}
 
 			if (then_ty.kind == DataType.POINTER && else_ty.kind == DataType.POINTER) {
@@ -812,15 +853,15 @@ impl BodyChecker {
 
 	fn stmt_always_diverges(&self, node: ?*AstNode): bool {
 		if (node == null) return false;
-		return when (node!) {
+		return when (node) {
 			is ReturnStmt, BreakStmt, ContinueStmt -> true;
 			is BlockStmt as blk -> blk.statements.any { s -> self.stmt_always_diverges(s) };
 			is IfStmt as ifs -> ifs.else_branch != null
 				&& self.stmt_always_diverges(ifs.then_branch)
-				&& self.stmt_always_diverges(ifs.else_branch!);
+				&& self.stmt_always_diverges(ifs.else_branch);
 			is WhenStmt as ws -> {
 				if (ws.arms.empty()) yield false;
-				val cond_ty = if (ws.condition != null) self.node_type_of(ws.condition!) else null;
+				val cond_ty = if (ws.condition != null) self.node_type_of(ws.condition) else null;
 				val has_else = ws.arms.any { a -> a.is_else };
 				val covered = has_else || self.is_when_arms_exhaustive(ws.arms, cond_ty);
 				yield covered && ws.arms.all { a -> self.stmt_always_diverges(a.body) };
@@ -855,7 +896,12 @@ impl BodyChecker {
 				self.catch_yield_expected = ok_ty;
 				self.catch_yield_seen = false;
 				self.symtab.enter_scope(false);
-				for (st in blk.statements) self.check_statement(st);
+				self.push_non_null_scope();
+				for (st in blk.statements) {
+					self.check_statement(st);
+					self.apply_post_stmt_null_guards(st);
+				}
+				self.pop_non_null_scope();
 				self.symtab.exit_scope();
 				val saw_yield = self.catch_yield_seen;
 				self.catch_yield_expected = saved_exp;

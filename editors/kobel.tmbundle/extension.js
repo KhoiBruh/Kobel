@@ -208,6 +208,7 @@ const DEAD_CODE_CODES = new Set([
 const LINT_CODES = new Set([
     'unnecessary-mut-receiver',
     'unnecessary-mut',
+    'unnecessary-non-null-assert',
     'redundant-else',
     'empty-branch',
     'collapsible-if',

@@ -67,13 +67,15 @@ pub struct BodyChecker {
 	pub catch_yield_expected: ?*Type = null,
 	pub catch_yield_seen: bool = false,
 	pub in_main_fn: bool = false,
-	pub current_fn_display_name: str = ""
+	pub current_fn_display_name: str = "",
+	pub non_null_paths: List<str> = List(),
+	pub non_null_marks: List<usz> = List()
 }
 
 impl BodyChecker {
 
 	pub init() {
-		var decl_p = DeclarationCollector();
+		val decl_p = DeclarationCollector();
 		val none_ty = decl_p.symtab.prims!.t_none();
 		return Self(decl_p.symtab, decl_p.arena, none_ty, 0, List<Diagnostic>(), null, false);
 	}
@@ -148,8 +150,75 @@ impl BodyChecker {
 		return "${prefix}:${node.span.file_id}:${node.line}:${node.col}";
 	}
 
+	pub fn push_non_null_scope(&self) {
+		self.non_null_marks += self.non_null_paths.len;
+	}
+
+	pub fn pop_non_null_scope(&self) {
+		if (self.non_null_marks.empty()) return;
+		val mark = self.non_null_marks.pop()!;
+		while (self.non_null_paths.len > mark) self.non_null_paths.pop()!;
+	}
+
+	pub fn add_non_null_path(&self, path: str) {
+		if (path.empty()) return;
+		self.non_null_paths += path;
+	}
+
+	pub fn invalidate_non_null_path(&self, path: str) {
+		if (path.empty()) return;
+		self.non_null_paths += "!${path}";
+	}
+
+	pub fn is_path_non_null(*self, path: str): bool {
+		if (path.empty()) return false;
+		var i = self.non_null_paths.len;
+		while (i > 0) {
+			i--;
+			val entry = self.non_null_paths[i];
+			if (entry == path) return true;
+			if (entry.starts_with("!")) {
+				val inv = entry.slice(1, entry.len);
+				if (path == inv || path.starts_with("${inv}.")) return false;
+			}
+		}
+		return false;
+	}
+
+	pub fn non_null_path_key(*self, node: ?*AstNode): str {
+		val raw = node ?: return "";
+		val cur = self.unwrap_group(raw);
+		return when (cur) {
+			is IdentifierExpr as id -> id.name;
+			is UnaryExpr as un -> if (!un.is_postfix && un.op == TokenType.STAR) {
+				self.non_null_path_key(un.operand)
+			} else "";
+			is MemberExpr as mem -> {
+				val base = self.non_null_path_key(mem.object);
+				if (base.empty()) yield "";
+				yield "${base}.${mem.member}";
+			}
+			else -> "";
+		};
+	}
+
+	pub fn is_smart_cast_non_null(*self, node: ?*AstNode): bool {
+		val raw = node ?: return false;
+		val cur = self.unwrap_group(raw);
+		val path = self.non_null_path_key(cur);
+		if (!path.empty() && self.is_path_non_null(path)) return true;
+		if (cur is IdentifierExpr as id) {
+			val sym = self.symtab.lookup(id.name);
+			val orig = sym?.orig_type;
+			if (orig != null && orig.kind == DataType.POINTER) {
+				return orig.as_pointer()!.nullable;
+			}
+		}
+		return false;
+	}
+
 	pub fn report_warning(&self, node: ?*AstNode, msg: str) {
-		val span = if (node != null) node!.span else Span();
+		val span = if (node != null) node.span else Span();
 		self.warnings += Diagnostic.warning(span, self.symtab.current_module, msg);
 	}
 
@@ -253,7 +322,7 @@ impl BodyChecker {
 	pub fn node_type_of(*self, node: ?*AstNode): ?*Type {
 		if (node == null) return null;
 		if (self.current_rec != null) {
-			val e = self.current_rec!.find_ann(node!);
+			val e = self.current_rec.find_ann(node);
 			if (e?.ty != null) return e.ty;
 		}
 		return self.symtab.get_node_type(node);
@@ -368,7 +437,7 @@ impl BodyChecker {
 		val saved = self.current_rec;
 		if (rec == null) return saved;
 		self.current_rec = rec;
-		self.push_instance_env(rec!);
+		self.push_instance_env(rec);
 		return saved;
 	}
 
@@ -404,7 +473,7 @@ impl BodyChecker {
 
 	fn type_c_size_text(&self, ty: ?*Type): str {
 		if (ty == null) return "0";
-		val n = self.type_c_size_num(ty!);
+		val n = self.type_c_size_num(ty);
 		return "${n}";
 	}
 
@@ -477,11 +546,11 @@ impl BodyChecker {
 
 				if (self.catch_yield_expected != null) {
 					self.catch_yield_seen = true;
-					val exp = self.catch_yield_expected!;
+					val exp = self.catch_yield_expected;
 					if (ys.value != null) {
 						if (ys.value is LambdaExpr)
-							self.report_error(ys.value!, "Cannot yield a lambda/closure from a catch block");
-						val val_ty = self.check_expr(ys.value!, exp);
+							self.report_error(ys.value, "Cannot yield a lambda/closure from a catch block");
+						val val_ty = self.check_expr(ys.value, exp);
 						if (val_ty.kind == DataType.FN)
 							self.report_error(node, "Cannot yield a lambda/closure from a catch block");
 						if (exp.kind == DataType.NONE) {
@@ -510,13 +579,13 @@ impl BodyChecker {
 					self.lambda_has_yield = true;
 					if (ys.value != null) {
 						if (ys.value is LambdaExpr)
-							self.report_error(ys.value!, "Lambda cannot return or yield another lambda/closure");
+							self.report_error(ys.value, "Lambda cannot return or yield another lambda/closure");
 
-						val val_ty = self.check_expr(ys.value!, self.lambda_return_type);
+						val val_ty = self.check_expr(ys.value, self.lambda_return_type);
 						if (val_ty.kind == DataType.FN)
 							self.report_error(node, "Lambda cannot return or yield another lambda/closure");
 
-						if (self.lambda_return_type == null || self.lambda_return_type!.kind == DataType.NONE) {
+						if (self.lambda_return_type == null || self.lambda_return_type.kind == DataType.NONE) {
 							if (self.lambda_inferring_return) {
 								self.lambda_return_type = val_ty;
 							} else {
@@ -524,21 +593,21 @@ impl BodyChecker {
 							}
 						} else {
 							self.ensure(
-								self.lambda_return_type!.can_assign(val_ty),
+								self.lambda_return_type.can_assign(val_ty),
 								node,
 								"Lambda 'yield' value type does not match expected return type"
 							);
 						}
 					} else if (
 						self.lambda_return_type != null &&
-						self.lambda_return_type!.kind != DataType.NONE
+						self.lambda_return_type.kind != DataType.NONE
 					) self.report_error(node, "Lambda returning a value must yield an expression");
 
 					return;
 				}
 
 				if (ys.value != null) {
-					val y_ty = self.check_expr(ys.value!);
+					val y_ty = self.check_expr(ys.value);
 					if (y_ty.kind == DataType.FN) {
 						self.report_error(node, "Cannot yield a lambda/closure from a when expression");
 					}

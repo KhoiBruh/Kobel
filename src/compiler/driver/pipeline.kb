@@ -198,7 +198,7 @@ impl CompileOptions {
 
 		// Build to a staging path: a failed backend must never remove the working
 		// executable, and the linker must not have to overwrite a running image.
-		var compile_cmd = c_compile_cmd(c_tmp_p.raw, stage_p.raw, self.c_compiler, self.quiet);
+		val compile_cmd = c_compile_cmd(c_tmp_p.raw, stage_p.raw, self.c_compiler, self.quiet);
 
 		val exit_code = Process.exec(compile_cmd) !: err -> {
 			if (stage_p.exists()) stage_p.remove() !: {};

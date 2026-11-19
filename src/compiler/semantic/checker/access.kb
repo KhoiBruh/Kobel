@@ -37,14 +37,17 @@ impl BodyChecker {
 
 			var obj_expr = mem.object;
 			if (obj_expr is IdentifierExpr as id && id.name.empty() && self.when_subject != null) {
-				val subj_copy = self.copy_expr(self.when_subject!);
+				val subj_copy = self.copy_expr(self.when_subject);
 				if (self.current_rec != null) self.set_ann_obj(node, subj_copy);
 				else mem.object = subj_copy;
 				obj_expr = subj_copy;
 			}
 			val prev_elvis = self.in_elvis_lhs;
+			val was_assign_target = self.is_assign_target;
 			self.in_elvis_lhs = false;
+			self.is_assign_target = false;
 			var obj_ty = self.check_expr(obj_expr);
+			self.is_assign_target = was_assign_target;
 
 			if (!mem.is_safe && obj_ty.kind == DataType.POINTER && obj_ty.as_pointer()!.nullable) {
 				self.report_error(
@@ -123,6 +126,19 @@ impl BodyChecker {
 			}
 			self.in_elvis_lhs = prev_elvis;
 
+			if (
+				!mem.is_safe &&
+				!was_assign_target &&
+				ret_ty.kind == DataType.POINTER &&
+				ret_ty.as_pointer()!.nullable
+			) {
+				val p_key = self.non_null_path_key(node);
+				if (!p_key.empty() && self.is_path_non_null(p_key)) {
+					val pt = ret_ty.as_pointer()!;
+					ret_ty = self.arena.pointer_type(pt.pointee, pt.mutable);
+				}
+			}
+
 			return ret_ty;
 		}
 		return self.prims().t_none();
@@ -132,7 +148,7 @@ impl BodyChecker {
 		val obj = mem.object;
 		if (obj is IdentifierExpr as enum_id) {
 			val sym = self.symtab.lookup(enum_id.name);
-			val ei = if (sym != null) self.symtab.find_enum_info(sym!.c_name)
+			val ei = if (sym != null) self.symtab.find_enum_info(sym.c_name)
 				else self.symtab.find_enum_info(enum_id.name);
 			if (ei != null) {
 				val mi = ei.find_member(mem.member);
@@ -154,13 +170,13 @@ impl BodyChecker {
 						);
 						return self.prims().t_none();
 					}
-					val err_code: u32 = if (ei.is_fault) mi!.err_code else 0;
+					val err_code: u32 = if (ei.is_fault) mi.err_code else 0;
 					val o_file = if (ei.is_fault) self.node_file_path(node) else "";
 					val o_line: usz = if (ei.is_fault) node.line else 0;
 					val o_col: usz = if (ei.is_fault) node.col else 0;
 					val o_fn = if (ei.is_fault) self.current_fn_display_name else "";
 					var ctor = self.arena.node(NodeData.EnumCtorExpr(
-						ei.c_name, ei.tag_field, mi!.value, "",
+						ei.c_name, ei.tag_field, mi.value, "",
 						List<&AstNode>(), err_code, o_file, o_line, o_col, o_fn
 					), node.line, node.col);
 					ctor.span = node.span;
@@ -168,7 +184,7 @@ impl BodyChecker {
 					return e_sym.type_ptr;
 				}
 
-				val lit = self.arena.node(NodeData.LiteralExpr(mi!.lit_kind, mi!.raw_text), node.line, node.col);
+				val lit = self.arena.node(NodeData.LiteralExpr(mi.lit_kind, mi.raw_text), node.line, node.col);
 				self.set_resolved(node, lit);
 				val carrier = self.arena.create_val(
 					Type(ei.underlying.kind, ei.underlying.size, ei.underlying.align, TypePayload.Enum(ei))
@@ -178,13 +194,15 @@ impl BodyChecker {
 
 			val s_sym = self.symtab.lookup(enum_id.name);
 			var target_ty: ?*Type = null;
-			if (enum_id.name == "Self" && self.current_self_type != null) {
-				target_ty = self.current_self_type;
-			} else if (s_sym != null) {
-				if (s_sym.kind == SymbolKind.STRUCT || s_sym.kind == SymbolKind.OBJECT) {
-					target_ty = s_sym.type_ptr;
-				}
-			}
+			if (
+				enum_id.name == "Self" &&
+				self.current_self_type != null
+			) target_ty = self.current_self_type;
+			else if (
+				s_sym != null &&
+				s_sym.kind in [SymbolKind.STRUCT, SymbolKind.OBJECT]
+			) target_ty = s_sym.type_ptr;
+
 			if (target_ty != null && target_ty.kind == DataType.STRUCT) {
 				val owner_st = target_ty.as_struct();
 				val owner_mod = owner_st?.module ?: "";
@@ -355,7 +373,7 @@ impl BodyChecker {
 
 	pub fn mark_node_mutated(&self, node: ?*AstNode) {
 		if (node == null) return;
-		val cur = self.unwrap_group(node!);
+		val cur = self.unwrap_group(node);
 		when (cur) {
 			is IdentifierExpr -> self.mark_symbol_mutated(cur.name);
 			is MemberExpr -> self.mark_node_mutated(cur.object);
@@ -484,7 +502,7 @@ impl BodyChecker {
 		val obj = self.unwrap_group(obj_node);
 		if (obj is IdentifierExpr as obj_id && obj_id.name == "self") {
 			val self_sym = self.symtab.lookup("self");
-			return self_sym != null && !self_sym!.mutable;
+			return self_sym != null && !self_sym.mutable;
 		}
 		return false;
 	}
@@ -492,15 +510,15 @@ impl BodyChecker {
 	fn check_ident_assignable(&self, op_node: *AstNode, name: str, sym: ?*Symbol, is_update: bool) {
 		if (sym == null) return;
 		val act = if (is_update) "update" else "assign to";
-		when (sym!.kind) {
+		when (sym.kind) {
 			SymbolKind.CONST -> self.report_error(op_node, "Cannot ${act} constant '${name}'");
 			SymbolKind.VAR -> {
-				if (!sym!.mutable) {
+				if (!sym.mutable) {
 					self.report_error(op_node, "Cannot ${act} immutable variable '${name}' declared with 'val'");
 				}
 			}
 			SymbolKind.PARAM -> {
-				if (!sym!.mutable) {
+				if (!sym.mutable) {
 					self.report_error(op_node, "Cannot ${act} immutable parameter '${name}'");
 				}
 			}
@@ -532,7 +550,7 @@ impl BodyChecker {
 				if (sym != null) {
 					if (asgn.op == TokenType.EQUAL) sym.is_moved = false;
 					if (asgn.op == TokenType.EQUAL && sym.orig_type != null) {
-						target_ty = sym.orig_type!;
+						target_ty = sym.orig_type;
 						sym_to_update = sym;
 					}
 				}
@@ -596,6 +614,18 @@ impl BodyChecker {
 				sym_to_update.type_ptr = val_ty;
 				sym_to_update.is_moved = false;
 			}
+			if (asgn.op == TokenType.EQUAL) {
+				val t_path = self.non_null_path_key(target_expr);
+				if (!t_path.empty()) {
+					val assigned_non_null = val_ty.kind == DataType.POINTER && !val_ty.as_pointer()!.nullable;
+					if (assigned_non_null) {
+						self.invalidate_non_null_path(t_path);
+						self.add_non_null_path(t_path);
+					} else {
+						self.invalidate_non_null_path(t_path);
+					}
+				}
+			}
 			return target_ty;
 		}
 		return self.prims().t_none();
@@ -630,7 +660,7 @@ impl BodyChecker {
 		if (t_is_ptr && idx_ty_raw.is_integer()) return null;
 
 		val s_info = t_struct_ty.as_struct();
-		val val_ty_raw = if (rhs != null) self.check_expr(rhs!) else null;
+		val val_ty_raw = if (rhs != null) self.check_expr(rhs) else null;
 
 		var arg_types = List<*Type>();
 		arg_types += t_struct_ty;
@@ -654,7 +684,7 @@ impl BodyChecker {
 		val idx_param_ty = fn_info!.param_types[1];
 		val val_param_ty = fn_info!.param_types[2];
 
-		var operand: &AstNode = if (rhs != null) rhs!
+		val operand = if (rhs != null) rhs
 			else if (val_param_ty.is_float()) self.arena.node(
 				NodeData.LiteralExpr(Literal.FLOAT, "1.0"),
 				node.line, node.col
@@ -673,10 +703,10 @@ impl BodyChecker {
 		self.ensure(idx_param_ty.can_assign(idx_ty_raw), node, "Index type mismatch in index ${what}");
 
 		val val_ty = if (op != TokenType.EQUAL) self.check_expr(val_expr, val_param_ty)
-			else if (rhs != null && self.is_untyped_literal(rhs!)) self.check_expr(rhs!, val_param_ty)
+			else if (rhs != null && self.is_untyped_literal(rhs)) self.check_expr(rhs, val_param_ty)
 			else val_ty_raw;
 		self.ensure(
-			val_ty == null || val_param_ty.can_assign(val_ty!),
+			val_ty == null || val_param_ty.can_assign(val_ty),
 			node,
 			"Value type mismatch in index ${what}"
 		);
@@ -721,16 +751,17 @@ impl BodyChecker {
 			);
 			return target_ty;
 		}
+
 		return self.prims().t_none();
 	}
 
 	pub fn check_cast_expr(&self, node: &AstNode): *Type {
 		if (node is CastExpr as cst) {
-			val src_ty = if (cst.expr != null) self.check_expr(cst.expr!) else self.prims().t_none();
+			val src_ty = if (cst.expr != null) self.check_expr(cst.expr) else self.prims().t_none();
 			val ty = self.resolve_type(cst.target_type);
 			if (self.current_rec != null) self.set_ann_ty(cst.target_type, ty);
 
-			if (cst.expr != null && self.is_null_literal(cst.expr!)) {
+			if (cst.expr != null && self.is_null_literal(cst.expr)) {
 				self.report_error(
 					node,
 					"Cannot cast 'null' with 'as'. Use an explicit type annotation instead"

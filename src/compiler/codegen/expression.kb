@@ -64,7 +64,7 @@ impl CCodeGen {
 
 	pub fn gen_expr_prec(&self, node: ?*AstNode, min_prec: i32): str {
 		if (node == null) return "";
-		val ast_node = node!;
+		val ast_node = node;
 
 		return when (node) {
 			is LiteralExpr -> self.gen_literal_expr(ast_node, node);
@@ -170,7 +170,7 @@ impl CCodeGen {
 				} else if (node.value == null) {
 					wrap_res = "(${node.c_type}){ .is_ok = true }";
 				} else {
-					val ok_s = self.gen_expr(node.value!);
+					val ok_s = self.gen_expr(node.value);
 					wrap_res = "(${node.c_type}){ .is_ok = true, .u = { .ok = ${ok_s} } }";
 				}
 				yield wrap_res;
@@ -654,7 +654,7 @@ impl CCodeGen {
 	// when expressions lower to nested C ternaries, evaluated from the last arm back.
 	fn gen_when_expr(&self, we: *WhenExpr, min_prec: i32): str {
 		if (we.arms.empty()) return "0";
-		val cond = if (we.condition != null) self.gen_expr_prec(we.condition!, PREC_POSTFIX) else "";
+		val cond = if (we.condition != null) self.gen_expr_prec(we.condition, PREC_POSTFIX) else "";
 		val has_else = we.arms.any { arm -> arm.is_else };
 
 		if (we.arms.len == 1) {
@@ -694,7 +694,7 @@ impl CCodeGen {
 
 	pub fn gen_cast_expr(&self, cst: *CastExpr, min_prec: i32): str {
 		val ty = c_type_from_ast(cst.target_type);
-		if (ty == "kobel_str" && cst.expr != null && self.is_pointer_value(cst.expr!)) {
+		if (ty == "kobel_str" && cst.expr != null && self.is_pointer_value(cst.expr)) {
 			return "kobel_from_cstr((const char*)${self.gen_expr_prec(cst.expr, PREC_UNARY)})";
 		}
 		return wrap_prec("(${ty})${self.gen_expr_prec(cst.expr, PREC_UNARY)}", PREC_UNARY, min_prec);
@@ -728,13 +728,13 @@ impl CCodeGen {
 		var prefix = "";
 		var obj_str = "";
 		if (is_e.expr != null) {
-			val unwrapped_subj = unwrap_group_expr(is_e.expr!);
+			val unwrapped_subj = unwrap_group_expr(is_e.expr);
 			if (unwrapped_subj != null && unwrapped_subj is MemberExpr as mem && mem.is_safe) {
 				val base_wrap = self.gen_expr_prec(mem.object, PREC_POSTFIX);
 				prefix = "${base_wrap} != NULL && ";
 				obj_str = "${base_wrap}->${mem.member}";
 			} else {
-				obj_str = self.gen_expr_prec(is_e.expr!, PREC_POSTFIX);
+				obj_str = self.gen_expr_prec(is_e.expr, PREC_POSTFIX);
 			}
 		}
 

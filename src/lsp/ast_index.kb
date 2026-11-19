@@ -753,8 +753,8 @@ impl IndexWalker {
 
 	fn walk_type_node(&self, node: ?*AstNode) {
 		if (node == null) return;
-		val nl = node!.line;
-		val nc = node!.col;
+		val nl = node.line;
+		val nc = node.col;
 		when (node) {
 			is NamedType -> {
 				var key = self.index.resolve_visible_symbol_key(self.cur_file, self.cur_mod, node.name);
@@ -1224,8 +1224,8 @@ impl IndexWalker {
 
 	fn walk_stmt(&self, node: ?*AstNode) {
 		if (node == null) return;
-		val nl = node!.line;
-		val nc = node!.col;
+		val nl = node.line;
+		val nc = node.col;
 		when (node) {
 			is BlockStmt -> {
 				self.push_scope();
@@ -1340,8 +1340,8 @@ impl IndexWalker {
 	fn walk_expr(&self, node: ?*AstNode) {
 		if (node == null) return;
 		val raw_node = node;
-		val nl = node!.line;
-		val nc = node!.col;
+		val nl = node.line;
+		val nc = node.col;
 		val ty_s = self.node_type_str(node);
 		when (node) {
 			is IdentifierExpr -> {

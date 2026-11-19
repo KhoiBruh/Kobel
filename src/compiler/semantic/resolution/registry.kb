@@ -55,7 +55,7 @@ impl TypeResolver {
 
 	pub fn validate_fn_lambda_rules(&self, node: *AstNode, f: *FnDecl) {
 		if (f.return_type != null && f.return_type is FnType) {
-			self.report_error(f.return_type!, "Function cannot return a lambda/closure type");
+			self.report_error(f.return_type, "Function cannot return a lambda/closure type");
 		}
 		var fn_param_count = 0;
 		for (i in 0..<f.params.len) {
@@ -66,9 +66,9 @@ impl TypeResolver {
 					self.report_error(node, "Lambda parameter '${p.name}' cannot have a default value");
 				}
 				if (fn_param_count > 1) {
-					self.report_error(p.type_node!, "Function can have at most one lambda parameter");
+					self.report_error(p.type_node, "Function can have at most one lambda parameter");
 				} else if (i != f.params.len - 1) {
-					self.report_error(p.type_node!, "Lambda parameter must be the last parameter of '${f.name}'");
+					self.report_error(p.type_node, "Lambda parameter must be the last parameter of '${f.name}'");
 				}
 			}
 		}
@@ -210,6 +210,9 @@ impl TypeResolver {
 
 			is NamedType -> {
 				val name = node.name;
+				val sym = self.symtab.lookup(name);
+				if (sym != null) yield sym.type_ptr.size;
+
 				yield when (name) {
 					"i8", "u8", "bool", "char" -> 1;
 					"i16", "u16" -> 2;
@@ -218,11 +221,6 @@ impl TypeResolver {
 					"str" -> 16;
 					else -> 8;
 				};
-
-				val sym = self.symtab.lookup(name);
-				if (sym != null) yield sym.type_ptr.size;
-
-				yield 8;
 			}
 
 			else -> 8;
@@ -261,7 +259,7 @@ impl TypeResolver {
 					self.report_error(arg, "Unknown trait bound '${b}'");
 					continue;
 				}
-				if (!bt!.has_impl(aname)) {
+				if (!bt.has_impl(aname)) {
 					self.report_error(arg, "Type '${aname}' does not implement trait '${b}'");
 				}
 			}

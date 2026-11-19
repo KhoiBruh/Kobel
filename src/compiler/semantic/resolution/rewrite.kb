@@ -79,10 +79,10 @@ impl TypeResolver {
 
 	pub fn rewrite_generics(&self, node: ?&AstNode) {
 		if (node == null) return;
-		if (self.rewrite_type_generics(node!)) return;
-		if (self.rewrite_expr_generics(node!)) return;
-		if (self.rewrite_stmt_generics(node!)) return;
-		self.rewrite_decl_generics(node!);
+		if (self.rewrite_type_generics(node)) return;
+		if (self.rewrite_expr_generics(node)) return;
+		if (self.rewrite_stmt_generics(node)) return;
+		self.rewrite_decl_generics(node);
 	}
 
 	// Rewrite a child node and report the parent as handled.
@@ -109,7 +109,7 @@ impl TypeResolver {
 				yield true;
 			}
 			is ErrorUnionType as eu -> {
-				if (eu.ok_type != null) self.rewrite_generics(eu.ok_type!);
+				if (eu.ok_type != null) self.rewrite_generics(eu.ok_type);
 				self.rewrite_generics(eu.err_type);
 				yield true;
 			}

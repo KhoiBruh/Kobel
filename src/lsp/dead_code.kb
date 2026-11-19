@@ -37,7 +37,7 @@ fn make_dead_diag(
 
 fn is_diverging_call(expr: ?*AstNode): bool {
 	if (expr == null) return false;
-	var cur = expr!;
+	var cur = expr;
 	while (true) {
 		if (cur is GroupExpr as g) cur = g.expr;
 		else break;
@@ -56,13 +56,13 @@ fn is_diverging_call(expr: ?*AstNode): bool {
 
 fn stmt_always_diverges_lsp(node: ?*AstNode): bool {
 	if (node == null) return false;
-	return when (node!) {
+	return when (node) {
 		is ReturnStmt, BreakStmt, ContinueStmt, YieldStmt -> true;
 		is ExprStmt as es -> is_diverging_call(es.expr);
 		is BlockStmt as blk -> blk.statements.any { s -> stmt_always_diverges_lsp(s) };
 		is IfStmt as ifs -> ifs.else_branch != null
 			&& stmt_always_diverges_lsp(ifs.then_branch)
-			&& stmt_always_diverges_lsp(ifs.else_branch!);
+			&& stmt_always_diverges_lsp(ifs.else_branch);
 		is WhenStmt as ws -> !ws.arms.empty()
 			&& ws.arms.any { a -> a.is_else }
 			&& ws.arms.all { a -> stmt_always_diverges_lsp(a.body) };
@@ -72,8 +72,8 @@ fn stmt_always_diverges_lsp(node: ?*AstNode): bool {
 
 fn node_max_line(node: ?*AstNode): usz {
 	if (node == null) return 0;
-	var best = node!.line;
-	when (node!) {
+	var best = node.line;
+	when (node) {
 		is BlockStmt as b -> for (s in b.statements) {
 			val sl = node_max_line(s);
 			if (sl > best) best = sl;
@@ -191,7 +191,7 @@ fn stmt_end_pos(tokens: List<Token>, stmt: *AstNode): Pair<usz, usz> {
 
 fn scan_unreachable_in_expr(node: ?*AstNode, tokens: List<Token>, out: &List<LspDiagnostic>) {
 	if (node == null) return;
-	when (node!) {
+	when (node) {
 		is BinaryExpr as b -> {
 			scan_unreachable_in_expr(b.left, tokens, out);
 			scan_unreachable_in_expr(b.right, tokens, out);
@@ -243,7 +243,7 @@ fn scan_unreachable_in_expr(node: ?*AstNode, tokens: List<Token>, out: &List<Lsp
 
 fn scan_unreachable_in_stmt(node: ?*AstNode, tokens: List<Token>, out: &List<LspDiagnostic>) {
 	if (node == null) return;
-	when (node!) {
+	when (node) {
 		is BlockStmt as blk -> {
 			var div_idx: isz = -1;
 			for (i in 0..<blk.statements.len) {
@@ -272,7 +272,7 @@ fn scan_unreachable_in_stmt(node: ?*AstNode, tokens: List<Token>, out: &List<Lsp
 		is IfStmt as ifs -> {
 			scan_unreachable_in_expr(ifs.condition, tokens, out);
 			scan_unreachable_in_stmt(ifs.then_branch, tokens, out);
-			if (ifs.else_branch != null) scan_unreachable_in_stmt(ifs.else_branch!, tokens, out);
+			if (ifs.else_branch != null) scan_unreachable_in_stmt(ifs.else_branch, tokens, out);
 		}
 		is WhileStmt as ws -> {
 			scan_unreachable_in_expr(ws.condition, tokens, out);
@@ -300,10 +300,10 @@ fn collect_unreachable_in_doc(doc_ast: ?*AstNode, tokens: List<Token>, out: &Lis
 	if (root is Program as prog) {
 		for (decl in prog) {
 			when (decl) {
-				is FnDecl as f -> if (f.body != null) scan_unreachable_in_stmt(f.body!, tokens, out);
+				is FnDecl as f -> if (f.body != null) scan_unreachable_in_stmt(f.body, tokens, out);
 				is ImplDecl as im -> for (m in im.methods) {
 					if (m is FnDecl as mf && mf.body != null) {
-						scan_unreachable_in_stmt(mf.body!, tokens, out);
+						scan_unreachable_in_stmt(mf.body, tokens, out);
 					}
 				}
 				is ObjectDecl as obj -> {
@@ -312,13 +312,13 @@ fn collect_unreachable_in_doc(doc_ast: ?*AstNode, tokens: List<Token>, out: &Lis
 					}
 					for (m in obj.methods) {
 						if (m is FnDecl as mf && mf.body != null) {
-							scan_unreachable_in_stmt(mf.body!, tokens, out);
+							scan_unreachable_in_stmt(mf.body, tokens, out);
 						}
 					}
 				}
 				is TraitDecl as tr -> for (m in tr.methods) {
 					if (m is FnDecl as tm && tm.body != null) {
-						scan_unreachable_in_stmt(tm.body!, tokens, out);
+						scan_unreachable_in_stmt(tm.body, tokens, out);
 					}
 				}
 				is ConstDecl as c -> scan_unreachable_in_expr(c.value, tokens, out);
@@ -525,7 +525,7 @@ pub fn collect_dead_code_diagnostics(
 
 	// 4. Unreachable / unused private module-level declarations
 	if (allow_imports_and_symbols) {
-		var live = compute_live_module_defs(index, doc_mod);
+		val live = compute_live_module_defs(index, doc_mod);
 		defer live.free();
 		for (def in index.defs) {
 			if (!paths_equal(def.file_path, file_path)) continue;

@@ -152,7 +152,11 @@ impl BodyChecker {
 			}
 
 			self.symtab.enter_scope(true);
-			defer self.symtab.exit_scope();
+			self.push_non_null_scope();
+			defer {
+				self.pop_non_null_scope();
+				self.symtab.exit_scope();
+			}
 
 			val is_trait_impl = !self.current_trait_name.empty();
 			val mut_self_key = if (
@@ -184,17 +188,18 @@ impl BodyChecker {
 				is BlockStmt as blk -> {
 					for (stmt in blk.statements) {
 						self.check_statement(stmt);
+						self.apply_post_stmt_null_guards(stmt);
 					}
 					if (f.name != "main" && f.return_type == null && self.current_fn_return_type != null) {
-						val cur_ret = self.current_fn_return_type!;
+						val cur_ret = self.current_fn_return_type;
 						val fn_info_mut = fn_type.as_fn()!;
 						fn_info_mut.return_type = cur_ret;
 						f.return_type = self.arena.ast_type_from_type(cur_ret);
 					}
 				}
 				is ExprStmt as es -> {
-					val eu_ret = if (f.return_type != null && self.current_fn_return_type!.kind == DataType.ERROR_UNION)
-						self.current_fn_return_type!.as_error_union() else null;
+					val eu_ret = if (f.return_type != null && self.current_fn_return_type.kind == DataType.ERROR_UNION)
+						self.current_fn_return_type.as_error_union() else null;
 					var hint: ?*Type = null;
 					if (eu_ret != null) {
 						hint = if (eu_ret.ok.kind != DataType.NONE) eu_ret.ok else self.current_fn_return_type;
@@ -224,7 +229,7 @@ impl BodyChecker {
 						f.return_type = self.arena.ast_type_from_type(body_ty);
 					} else if (eu_ret != null && eu_ret.ok.kind == DataType.NONE && body_ty.kind == DataType.NONE) {
 						// Valid: arrow body returning `none` for `: !E` wraps as Ok.
-					} else if (!self.current_fn_return_type!.can_assign(body_ty)) {
+					} else if (!self.current_fn_return_type.can_assign(body_ty)) {
 						self.report_error(fn_node, "Expression body type does not match function return type");
 					}
 				}
@@ -234,9 +239,7 @@ impl BodyChecker {
 				val sym = self.symtab.lookup(f.params[0].name);
 				if (!mut_self_key.empty()) {
 					self.symtab.sem.checked_mut_self_fns[mut_self_key] = true;
-					if (sym?.mutated == true) {
-						self.symtab.sem.mutated_decl_keys[mut_self_key] = true;
-					}
+					if (sym?.mutated) self.symtab.sem.mutated_decl_keys[mut_self_key] = true;
 				}
 				if (sym != null && !sym.mutated && !is_trait_impl) {
 					self.report_warning(
@@ -288,8 +291,8 @@ impl BodyChecker {
 
 	fn check_const_node(&self, c: *ConstDecl) {
 		var c_expected: ?*Type = null;
-		if (c.type_node != null) c_expected = self.resolve_type(c.type_node!);
-		if (c.value != null) self.check_expr(c.value!, c_expected);
+		if (c.type_node != null) c_expected = self.resolve_type(c.type_node);
+		if (c.value != null) self.check_expr(c.value, c_expected);
 	}
 
 	fn check_method_list(&self, methods: List<&AstNode>, st_info: *StructType) {
@@ -586,7 +589,7 @@ impl BodyChecker {
 				self.leave_module(prev_mod);
 				return true;
 			}
-			val body_ty = self.check_expr(body_expr!);
+			val body_ty = self.check_expr(body_expr);
 			val val_mutated = if (!mut_self_key.empty()) self.symtab.lookup(f.params[0].name)?.mutated == true else false;
 			self.pop_instance(saved_rec, rec);
 			self.symtab.exit_scope();

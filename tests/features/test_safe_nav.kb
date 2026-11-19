@@ -42,6 +42,12 @@ fn test_elvis_jump_on_null(p: ?*Inner): bool {
 	return false;
 }
 
+fn test_member_early_return(mid: *Middle): i32 {
+	if (mid.inner == null) return -1;
+	if (!takes_non_null(mid.inner)) return -2;
+	return mid.inner.count;
+}
+
 fn run_tests(): i32 {
 	var in1 = Inner(true, ItemKind.SECOND, 42, "hello");
 	var mid1 = Middle(&in1);
@@ -115,6 +121,25 @@ fn run_tests(): i32 {
 	if (!test_elvis_jump_on_null(p_null_in)) return 21;
 	val k_no_jump = p_real_in?.kind ?: return 22;
 	if (k_no_jump != ItemKind.SECOND) return 23;
+
+	// 13. Member null smart-cast: if / else / IfExpr / && / || / early-return
+	if (mid1.inner != null) {
+		if (!takes_non_null(mid1.inner)) return 24;
+		if (mid1.inner.count != 42) return 25;
+	} else {
+		return 26;
+	}
+	if (mid1.inner == null) {
+		return 27;
+	} else {
+		if (!takes_non_null(mid1.inner)) return 28;
+	}
+	val expr_cnt = if (mid1.inner != null) mid1.inner.count else -1;
+	if (expr_cnt != 42) return 29;
+	if (!(mid1.inner != null && takes_non_null(mid1.inner))) return 30;
+	if (!(mid_empty.inner == null || takes_non_null(mid_empty.inner))) return 31;
+	if (test_member_early_return(&mid1) != 42) return 32;
+	if (test_member_early_return(&mid_empty) != -1) return 33;
 
 	return 0;
 }

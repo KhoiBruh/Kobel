@@ -532,6 +532,7 @@ void std__process__Process_exit(int32_t code);
 bool test__safe_nav__Inner_check_ok(test__safe_nav__Inner* self);
 bool test__safe_nav__takes_non_null(test__safe_nav__Inner* item);
 bool test__safe_nav__test_elvis_jump_on_null(test__safe_nav__Inner* p);
+int32_t test__safe_nav__test_member_early_return(test__safe_nav__Middle* mid);
 int32_t test__safe_nav__run_tests(void);
 static void __kobel_user_main(void);
 
@@ -553,6 +554,16 @@ return true;
 }
 test__safe_nav__ItemKind k = p->kind;
 return false;
+}
+
+int32_t test__safe_nav__test_member_early_return(test__safe_nav__Middle* mid) {
+if (mid->inner == NULL) {
+return -1;
+}
+if (!test__safe_nav__takes_non_null(mid->inner)) {
+return -2;
+}
+return (*mid->inner).count;
 }
 
 int32_t test__safe_nav__run_tests(void) {
@@ -642,6 +653,39 @@ return 22;
 test__safe_nav__ItemKind k_no_jump = p_real_in->kind;
 if (k_no_jump != 1) {
 return 23;
+}
+if (mid1.inner != NULL) {
+if (!test__safe_nav__takes_non_null(mid1.inner)) {
+return 24;
+}
+if ((*mid1.inner).count != 42) {
+return 25;
+}
+} else {
+return 26;
+}
+if (mid1.inner == NULL) {
+return 27;
+} else {
+if (!test__safe_nav__takes_non_null(mid1.inner)) {
+return 28;
+}
+}
+int32_t expr_cnt = mid1.inner != NULL ? (*mid1.inner).count : -1;
+if (expr_cnt != 42) {
+return 29;
+}
+if (!(mid1.inner != NULL && test__safe_nav__takes_non_null(mid1.inner))) {
+return 30;
+}
+if (!(mid_empty.inner == NULL || test__safe_nav__takes_non_null(mid_empty.inner))) {
+return 31;
+}
+if (test__safe_nav__test_member_early_return(&mid1) != 42) {
+return 32;
+}
+if (test__safe_nav__test_member_early_return(&mid_empty) != -1) {
+return 33;
 }
 return 0;
 }

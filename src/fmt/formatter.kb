@@ -35,7 +35,7 @@ fn strip_cr(src: str): str {
 // (blocks, nested ifs, when) are always emitted on their own indented line.
 fn is_inline_stmt(node: ?*AstNode): bool {
 	if (node == null) return false;
-	val n = node!;
+	val n = node;
 	return when (n) {
 		is BlockStmt, IfStmt, WhenStmt -> false;
 		else -> true;
@@ -122,11 +122,11 @@ impl Formatter {
 		}
 		if (p.type_node != null) {
 			self.buf += ": ";
-			self.format_type(p.type_node!);
+			self.format_type(p.type_node);
 		}
 		if (p.default_val != null) {
 			self.buf += " = ";
-			self.format_expr(p.default_val!);
+			self.format_expr(p.default_val);
 		}
 	}
 
@@ -202,7 +202,7 @@ impl Formatter {
 			}
 			is ErrorUnionType as eu -> {
 				if (eu.ok_type != null) {
-					self.format_type(eu.ok_type!);
+					self.format_type(eu.ok_type);
 					self.buf += " ! ";
 				} else {
 					self.buf += "!";
@@ -265,13 +265,17 @@ impl Formatter {
 					}
 					self.buf += ">";
 				}
+
 				var has_trailing_lambda = false;
 				if (!c.args.empty()) {
 					val last_arg = c.args.last()!;
-					if (last_arg is LambdaExpr as lam) {
-						if (lam.is_trailing) has_trailing_lambda = true;
-					}
+
+					if (
+						last_arg is LambdaExpr as lam &&
+						lam.is_trailing
+					) has_trailing_lambda = true;
 				}
+
 				if (has_trailing_lambda) {
 					val normal_count = c.args.len - 1;
 					if (normal_count > 0) {
@@ -380,7 +384,7 @@ impl Formatter {
 				self.buf += op_to_str(u.op);
 			}
 			is CastExpr as cst -> {
-				if (cst.expr != null) self.format_expr(cst.expr!);
+				if (cst.expr != null) self.format_expr(cst.expr);
 				self.buf += " as ";
 				self.format_type(cst.target_type);
 			}
@@ -410,7 +414,7 @@ impl Formatter {
 			is WhenExpr as we -> {
 				if (we.condition != null) {
 					self.buf += "when (";
-					self.format_expr(we.condition!);
+					self.format_expr(we.condition);
 					self.buf += ") {";
 				} else {
 					self.buf += "when {";
@@ -438,7 +442,7 @@ impl Formatter {
 			}
 			is IsExpr as is_e -> {
 				if (is_e.expr != null) {
-					self.format_expr(is_e.expr!);
+					self.format_expr(is_e.expr);
 					self.buf += " ";
 				}
 				self.buf += "is ";
@@ -484,14 +488,14 @@ impl Formatter {
 						self.buf += "return";
 						if (r.value != null) {
 							self.buf.space();
-							self.format_expr(r.value!);
+							self.format_expr(r.value);
 						}
 					}
 					is YieldStmt as y -> {
 						self.buf += "yield";
 						if (y.value != null) {
 							self.buf.space();
-							self.format_expr(y.value!);
+							self.format_expr(y.value);
 						}
 					}
 					is BreakStmt -> self.buf += "break";
@@ -533,11 +537,11 @@ impl Formatter {
 				self.buf += v.name;
 				if (v.type_annotation != null) {
 					self.buf += ": ";
-					self.format_type(v.type_annotation!);
+					self.format_type(v.type_annotation);
 				}
 				if (v.initializer != null) {
 					self.buf += " = ";
-					self.format_expr(v.initializer!);
+					self.format_expr(v.initializer);
 				}
 				self.buf += ";";
 				self.comments.emit_trailing_on_line(&self.buf, node.line);
@@ -570,7 +574,7 @@ impl Formatter {
 				}
 
 				if (s.else_branch != null) {
-					val else_node = s.else_branch!;
+					val else_node = s.else_branch;
 					if (inline_then) self.buf += " else ";
 					else {
 						self.buf.newline();
@@ -629,7 +633,7 @@ impl Formatter {
 				self.buf += "return";
 				if (r.value != null) {
 					self.buf.space();
-					self.format_expr(r.value!);
+					self.format_expr(r.value);
 				}
 				self.buf += ";";
 				self.comments.emit_trailing_on_line(&self.buf, node.line);
@@ -638,7 +642,7 @@ impl Formatter {
 				self.buf += "yield";
 				if (y.value != null) {
 					self.buf.space();
-					self.format_expr(y.value!);
+					self.format_expr(y.value);
 				}
 				self.buf += ";";
 				self.comments.emit_trailing_on_line(&self.buf, node.line);
@@ -658,7 +662,7 @@ impl Formatter {
 			is WhenStmt as ws -> {
 				if (ws.condition != null) {
 					self.buf += "when (";
-					self.format_expr(ws.condition!);
+					self.format_expr(ws.condition);
 					self.buf += ") {";
 				} else {
 					self.buf += "when {";
@@ -768,7 +772,7 @@ impl Formatter {
 				}
 				if (mem.value != null) {
 					self.buf += " = ";
-					self.format_expr(mem.value!);
+					self.format_expr(mem.value);
 				}
 				if (i + 1 < members.len) self.buf += ",";
 			}
@@ -826,7 +830,7 @@ impl Formatter {
 							self.format_type(f.type_node);
 							if (f.default_val != null) {
 								self.buf += " = ";
-								self.format_expr(f.default_val!);
+								self.format_expr(f.default_val);
 							}
 							if (i + 1 < s.fields.len) self.buf += ",";
 						}
@@ -870,7 +874,7 @@ impl Formatter {
 
 				if (!f.initializer && f.return_type != null) {
 					self.buf += ": ";
-					self.format_type(f.return_type!);
+					self.format_type(f.return_type);
 				}
 
 				if (f.body != null) {
@@ -878,7 +882,7 @@ impl Formatter {
 					when (body) {
 						is BlockStmt -> {
 							self.buf += " ";
-							self.format_stmt(f.body!);
+							self.format_stmt(f.body);
 						}
 						is ExprStmt as es -> {
 							self.buf += " => ";
@@ -887,7 +891,7 @@ impl Formatter {
 						}
 						else -> {
 							self.buf += " ";
-							self.format_stmt(f.body!);
+							self.format_stmt(f.body);
 						}
 					}
 				} else self.buf += ";";
@@ -989,10 +993,10 @@ impl Formatter {
 				self.buf += c.name;
 				if (c.type_node != null) {
 					self.buf += ": ";
-					self.format_type(c.type_node!);
+					self.format_type(c.type_node);
 				}
 				self.buf += " = ";
-				if (c.value != null) self.format_expr(c.value!);
+				if (c.value != null) self.format_expr(c.value);
 				self.buf += ";";
 				self.comments.emit_trailing_on_line(&self.buf, node.line);
 			}

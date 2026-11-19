@@ -15,9 +15,10 @@ use compiler.semantic.types.*;
  * Inspects a parsed module AST + token stream + `SemanticTable` mutability
  * records to emit actionable cleanup diagnostics and exact edit specs:
  *
- *   Group 1 (Mutability warnings from BodyChecker semantic truth):
+ *   Group 1 (Mutability & null-safety warnings from BodyChecker semantic truth):
  *     - `unnecessary-mut-receiver`: `&self` never mutated -> `*self`
  *     - `unnecessary-mut`: `var` never mutated -> `val`
+ *     - `unnecessary-non-null-assert`: redundant `!` on smart-casted non-null pointer
  *
  *   Group 2 (Control-flow & expression simplifications, AST + token precise):
  *     - `redundant-else`: `else` after diverging `then` branch
@@ -342,31 +343,32 @@ fn bool_literal_state(node: *AstNode): i32 {
 	return -1;
 }
 
-fn expr_start_pos(node: *AstNode): Pair<usz, usz> {
-	return when (node) {
-		is BinaryExpr as b -> expr_start_pos(b.left);
-		is AssignExpr as a -> expr_start_pos(a.target);
-		is CatchExpr as c -> expr_start_pos(c.expr);
-		is MemberExpr as m -> if (is_empty_ident(m.object)) {
-			Pair(node.line, node.col)
-		} else {
-			expr_start_pos(m.object)
-		};
-		is IndexExpr as ix -> expr_start_pos(ix.target);
-		is CallExpr as cl -> expr_start_pos(cl.callee);
-		is CastExpr as cs -> if (cs.expr != null) expr_start_pos(cs.expr!) else Pair(node.line, node.col);
-		is IsExpr as ise -> if (ise.expr != null) expr_start_pos(ise.expr!) else Pair(node.line, node.col);
-		is UpdateExpr as u -> expr_start_pos(u.target);
-		is UnaryExpr as un -> {
-			if (un.is_postfix) yield expr_start_pos(un.operand);
-			if (un.op == TokenType.BANG && (un.operand is IsExpr || is_kw_in_binary(un.operand))) {
-				yield expr_start_pos(un.operand);
-			}
-			yield Pair(node.line, node.col);
-		}
-		else -> Pair(node.line, node.col);
-	};
-}
+fn expr_start_pos(node: *AstNode): Pair<usz, usz> => when (node) {
+	is BinaryExpr as b -> expr_start_pos(b.left);
+	is AssignExpr as a -> expr_start_pos(a.target);
+	is CatchExpr as c -> expr_start_pos(c.expr);
+	is MemberExpr as m -> if (is_empty_ident(m.object))
+		Pair(node.line, node.col)
+	else expr_start_pos(m.object);
+
+	is IndexExpr as ix -> expr_start_pos(ix.target);
+	is CallExpr as cl -> expr_start_pos(cl.callee);
+	is CastExpr as cs -> if (cs.expr != null) expr_start_pos(cs.expr) else Pair(node.line, node.col);
+	is IsExpr as ise -> if (ise.expr != null) expr_start_pos(ise.expr) else Pair(node.line, node.col);
+	is UpdateExpr as u -> expr_start_pos(u.target);
+	is UnaryExpr as un -> {
+		if (un.is_postfix) yield expr_start_pos(un.operand);
+		if (
+			un.op == TokenType.BANG && (
+				un.operand is IsExpr || is_kw_in_binary(un.operand)
+			)
+		) yield expr_start_pos(un.operand);
+
+		yield Pair(node.line, node.col);
+	}
+
+	else -> Pair(node.line, node.col);
+};
 
 fn type_end_pos(tokens: List<Token>, node: *AstNode): Pair<usz, usz> {
 	val sl = if (node.line > 0) node.line else 1;
@@ -380,12 +382,14 @@ fn type_end_pos(tokens: List<Token>, node: *AstNode): Pair<usz, usz> {
 			val oi = find_token_index_exact(tokens, sl, sc);
 			if (oi >= 0) {
 				val ci = find_matching_delim_index(
-					tokens, oi as usz, TokenType.OPEN_BRACKET, TokenType.CLOSE_BRACKET
+					tokens, oi as usz,
+					TokenType.OPEN_BRACKET, TokenType.CLOSE_BRACKET
 				);
 				if (ci >= 0) yield token_end_pos(tokens[ci as usz]);
 			}
 			yield Pair(sl, sc + 1);
 		}
+
 		is ArrayLiteralExpr -> {
 			val oi = find_token_index_exact(tokens, sl, sc);
 			if (oi >= 0) {
@@ -396,6 +400,7 @@ fn type_end_pos(tokens: List<Token>, node: *AstNode): Pair<usz, usz> {
 			}
 			yield Pair(sl, sc + 1);
 		}
+
 		is NamedType as nt -> {
 			if (!nt.type_args.empty()) {
 				val last_ta = nt.type_args.last()!;
@@ -417,6 +422,7 @@ fn type_end_pos(tokens: List<Token>, node: *AstNode): Pair<usz, usz> {
 			}
 			yield Pair(sl, sc + nt.name.len);
 		}
+
 		else -> expr_end_pos(tokens, node);
 	};
 }
@@ -581,7 +587,7 @@ fn expr_end_pos(tokens: List<Token>, node: *AstNode): Pair<usz, usz> {
 
 fn has_unaliased_is_expr(node: ?*AstNode): bool {
 	if (node == null) return false;
-	return when (node!) {
+	return when (node) {
 		is IsExpr as ise -> ise.alias.empty();
 		is GroupExpr as g -> has_unaliased_is_expr(g.expr);
 		is BinaryExpr as b -> has_unaliased_is_expr(b.left) || has_unaliased_is_expr(b.right);
@@ -596,7 +602,7 @@ fn has_unaliased_is_expr(node: ?*AstNode): bool {
 
 fn expr_has_side_effect(node: ?*AstNode): bool {
 	if (node == null) return false;
-	return when (node!) {
+	return when (node) {
 		is CallExpr, AssignExpr, UpdateExpr, CatchExpr -> true;
 		is UnaryExpr as u -> if (u.is_postfix) true else expr_has_side_effect(u.operand);
 		is BinaryExpr as b -> expr_has_side_effect(b.left) || expr_has_side_effect(b.right);
@@ -673,7 +679,7 @@ fn negate_condition_text(
 
 fn bool_return_state(stmt: ?*AstNode): i32 {
 	if (stmt == null) return -1;
-	var cur = stmt!;
+	var cur = stmt;
 	if (cur is BlockStmt as blk) {
 		if (blk.statements.len != 1) return -1;
 		cur = blk.statements[0];
@@ -852,17 +858,17 @@ impl LintCollector {
 
 	fn check_prefer_expression_body(&self, fn_node: *AstNode, f: *FnDecl) {
 		if (f.name == "main" || f.body == null) return;
-		if (f.body! is BlockStmt as blk && blk.statements.len == 1) {
+		if (f.body is BlockStmt as blk && blk.statements.len == 1) {
 			val only = blk.statements[0];
 			if (only is ReturnStmt as ret && ret.value != null) {
-				val (blk_end_l, blk_end_c) = stmt_end_pos(self.tokens, f.body!);
-				val (lbrace_l, lbrace_c) = Pair(f.body!.line, f.body!.col);
-				val (val_sl, val_sc) = expr_start_pos(ret.value!);
+				val (blk_end_l, blk_end_c) = stmt_end_pos(self.tokens, f.body);
+				val (lbrace_l, lbrace_c) = Pair(f.body.line, f.body.col);
+				val (val_sl, val_sc) = expr_start_pos(ret.value);
 				val (ret_end_l, ret_end_c) = stmt_end_pos(self.tokens, only);
 				if (self.mapper.has_comment_pos(lbrace_l, lbrace_c, val_sl, val_sc)) return;
 				if (self.mapper.has_comment_pos(ret_end_l, ret_end_c, blk_end_l, blk_end_c)) return;
 
-				val (val_el, val_ec) = expr_end_pos(self.tokens, ret.value!);
+				val (val_el, val_ec) = expr_end_pos(self.tokens, ret.value);
 				val expr_raw = self.mapper.slice_pos(val_sl, val_sc, val_el, val_ec).trim();
 				if (expr_raw.empty()) return;
 
@@ -923,12 +929,12 @@ impl LintCollector {
 
 	fn check_trailing_return(&self, f: *FnDecl) {
 		if (f.body == null) return;
-		if (f.return_type != null && f.return_type!.span.file_id > 0) {
-			if (f.return_type! is NamedType as nt) {
+		if (f.return_type != null && f.return_type.span.file_id > 0) {
+			if (f.return_type is NamedType as nt) {
 				if (nt.name != "none" && nt.name != "void") return;
 			} else return;
 		}
-		if (f.body! is BlockStmt as blk && !blk.statements.empty()) {
+		if (f.body is BlockStmt as blk && !blk.statements.empty()) {
 			val last_stmt = blk.statements.last()!;
 			if (last_stmt is ReturnStmt as ret && ret.value == null) {
 				val (el1, ec1) = stmt_end_pos(self.tokens, last_stmt);
@@ -951,12 +957,12 @@ impl LintCollector {
 	}
 
 	fn check_empty_if(&self, if_node: *AstNode, ifs: *IfStmt): bool {
-		if (ifs.else_branch != null && ifs.else_branch! is BlockStmt as eb && eb.statements.empty()) {
+		if (ifs.else_branch != null && ifs.else_branch is BlockStmt as eb && eb.statements.empty()) {
 			val (then_el, then_ec) = stmt_end_pos(self.tokens, ifs.then_branch);
 			val else_i = find_token_index_at_or_after(self.tokens, then_el, then_ec);
 			if (else_i < self.tokens.len && self.tokens[else_i].type == TokenType.KW_ELSE) {
 				val else_tok = self.tokens[else_i];
-				val (eb_el, eb_ec) = stmt_end_pos(self.tokens, ifs.else_branch!);
+				val (eb_el, eb_ec) = stmt_end_pos(self.tokens, ifs.else_branch);
 				if (!self.mapper.has_comment_pos(then_el, then_ec, eb_el, eb_ec)) {
 					var edits = List<LintEditSpec>();
 					edits += LintEditSpec(then_el, then_ec, eb_el, eb_ec, "");
@@ -1061,19 +1067,19 @@ impl LintCollector {
 	fn check_redundant_else(&self, if_node: *AstNode, ifs: *IfStmt, in_block: bool, is_else_if_child: bool) {
 		if (!in_block || is_else_if_child) return;
 		if (if_node.addr() in self.handled_bool_if_addrs) return;
-		if (ifs.else_branch == null || ifs.else_branch! is IfStmt) return;
-		if (ifs.else_branch! is BlockStmt as eb && eb.statements.empty()) return;
+		if (ifs.else_branch == null || ifs.else_branch is IfStmt) return;
+		if (ifs.else_branch is BlockStmt as eb && eb.statements.empty()) return;
 		if (!stmt_always_diverges_lsp(ifs.then_branch)) return;
 
 		val (then_el, then_ec) = stmt_end_pos(self.tokens, ifs.then_branch);
 		val else_i = find_token_index_at_or_after(self.tokens, then_el, then_ec);
 		if (else_i >= self.tokens.len || self.tokens[else_i].type != TokenType.KW_ELSE) return;
 		val else_tok = self.tokens[else_i];
-		val (eb_el, eb_ec) = stmt_end_pos(self.tokens, ifs.else_branch!);
+		val (eb_el, eb_ec) = stmt_end_pos(self.tokens, ifs.else_branch);
 		val if_indent = self.mapper.line_indent(if_node.line);
 
 		var edits = List<LintEditSpec>();
-		val eb_node = ifs.else_branch!;
+		val eb_node = ifs.else_branch;
 		if (eb_node is BlockStmt) {
 			if (else_i + 1 < self.tokens.len && self.tokens[else_i + 1].type == TokenType.OPEN_BRACE) {
 				val lbrace = self.tokens[else_i + 1];
@@ -1123,14 +1129,14 @@ impl LintCollector {
 			}
 		}
 		if (inner_node == null) return;
-		if (inner_node! is IfStmt as inner) {
+		if (inner_node is IfStmt as inner) {
 			if (inner.else_branch != null) return;
 			// Keep brace safety when outer wasn't directly inside a block
 			if (!in_block && !wrapped) return;
 
 			val (o_lp, o_rp) = self.find_if_cond_parens(outer_node) !: return;
-			val (i_lp, i_rp) = self.find_if_cond_parens(inner_node!) !: return;
-			if (self.mapper.has_comment_pos(o_rp.line, o_rp.col + 1, inner_node!.line, inner_node!.col)) return;
+			val (i_lp, i_rp) = self.find_if_cond_parens(inner_node) !: return;
+			if (self.mapper.has_comment_pos(o_rp.line, o_rp.col + 1, inner_node.line, inner_node.col)) return;
 
 			val c1_raw = self.mapper.slice_pos(o_lp.line, o_lp.col + 1, o_rp.line, o_rp.col).trim();
 			val c2_raw = self.mapper.slice_pos(i_lp.line, i_lp.col + 1, i_rp.line, i_rp.col).trim();
@@ -1142,7 +1148,7 @@ impl LintCollector {
 				val p2 = if (expr_needs_parens_for_and(inner.condition)) "(${c2_raw})" else c2_raw;
 				val merged = "${p1} && ${p2}";
 				val (outer_el, outer_ec) = stmt_end_pos(self.tokens, outer_node);
-				val (inner_el, inner_ec) = stmt_end_pos(self.tokens, inner_node!);
+				val (inner_el, inner_ec) = stmt_end_pos(self.tokens, inner_node);
 				if (!wrapped) {
 					edits += LintEditSpec(o_lp.line, o_lp.col + 1, i_rp.line, i_rp.col, merged);
 				} else if (!self.mapper.has_comment_pos(inner_el, inner_ec, outer_el, outer_ec)) {
@@ -1167,7 +1173,7 @@ impl LintCollector {
 			}
 
 			self.emit(
-				inner_node!.line, inner_node!.col, inner_node!.line, inner_node!.col + 2,
+				inner_node.line, inner_node.col, inner_node.line, inner_node.col + 2,
 				"Nested 'if' can be combined with outer 'if' using '&&'",
 				"collapsible-if",
 				false,
@@ -1180,20 +1186,20 @@ impl LintCollector {
 	fn check_redundant_return_var(&self, s0: *AstNode, s1: *AstNode): bool {
 		if (s0 is VarDeclStmt as vd && s1 is ReturnStmt as ret) {
 			if (vd.initializer == null) return false;
-			if (vd.type_annotation != null && vd.type_annotation!.span.file_id > 0) return false;
+			if (vd.type_annotation != null && vd.type_annotation.span.file_id > 0) return false;
 			if (ret.value == null) return false;
 
 			val ret_inner = unwrap_group_ast(ret.value);
 			if (ret_inner == null) return false;
-			if (ret_inner! is IdentifierExpr as ret_id) {
+			if (ret_inner is IdentifierExpr as ret_id) {
 				if (ret_id.name != vd.name) return false;
 			} else {
 				return false;
 			}
-			if (vd.initializer! is LiteralExpr as lit && lit.literal_kind == Literal.NULL_VAL) return false;
+			if (vd.initializer is LiteralExpr as lit && lit.literal_kind == Literal.NULL_VAL) return false;
 
-			val (init_sl, init_sc) = expr_start_pos(vd.initializer!);
-			val (init_el, init_ec) = expr_end_pos(self.tokens, vd.initializer!);
+			val (init_sl, init_sc) = expr_start_pos(vd.initializer);
+			val (init_el, init_ec) = expr_end_pos(self.tokens, vd.initializer);
 			// Keep multiline initializers (e.g. multi-line `when` / `!:`) intact for readability
 			if (init_sl != init_el || init_sl != s0.line) return false;
 
@@ -1304,16 +1310,36 @@ impl LintCollector {
 		return false;
 	}
 
+	fn check_unnecessary_unwrap(&self, expr: *AstNode, un: *UnaryExpr) {
+		if (!un.is_postfix || un.op != TokenType.BANG) return;
+		if (!self.has_symtab || self.file_id == 0) return;
+		val u_key = "U:${self.file_id}:${expr.line}:${expr.col}";
+		if (!self.symtab.sem.unnecessary_unwraps.get_or(u_key, false)) return;
+		val tok_i = find_token_index_exact(self.tokens, expr.line, expr.col);
+		if (tok_i < 0 || self.tokens[tok_i as usz].type != TokenType.BANG) return;
+		var edits = List<LintEditSpec>();
+		edits += LintEditSpec(expr.line, expr.col, expr.line, expr.col + 1, "");
+		self.emit(
+			expr.line, expr.col, expr.line, expr.col + 1,
+			"Unnecessary non-null assertion '!'; expression is already known to be non-null",
+			"unnecessary-non-null-assert",
+			true,
+			"Remove redundant '!'",
+			edits
+		);
+	}
+
 	fn walk_expr(&self, node: ?*AstNode) {
 		if (node == null) return;
-		when (node!) {
+		when (node) {
 			is BinaryExpr as b -> {
-				if (self.check_bool_compare_expr(node!, b)) return;
+				if (self.check_bool_compare_expr(node, b)) return;
 				self.walk_expr(b.left);
 				self.walk_expr(b.right);
 			}
 			is UnaryExpr as u -> {
-				if (self.check_double_not_expr(node!, u)) return;
+				self.check_unnecessary_unwrap(node, u);
+				if (self.check_double_not_expr(node, u)) return;
 				self.walk_expr(u.operand);
 			}
 			is CallExpr as c -> {
@@ -1366,7 +1392,7 @@ impl LintCollector {
 
 	fn walk_stmt(&self, node: ?*AstNode, in_block: bool, is_else_if_child: bool) {
 		if (node == null) return;
-		when (node!) {
+		when (node) {
 			is BlockStmt as blk -> {
 				val n = blk.statements.len;
 				for (i in 0..<n) {
@@ -1382,24 +1408,24 @@ impl LintCollector {
 			}
 			is ExprStmt as es -> self.walk_expr(es.expr);
 			is VarDeclStmt as vd -> {
-				self.check_var_mutability(node!, vd);
+				self.check_var_mutability(node, vd);
 				self.walk_expr(vd.initializer);
 			}
 			is DestructDeclStmt as dd -> self.walk_expr(dd.initializer);
 			is IfStmt as ifs -> {
 				self.walk_expr(ifs.condition);
-				val did_empty = self.check_empty_if(node!, ifs);
-				val did_bool = self.check_single_if_bool_return(node!, ifs);
+				val did_empty = self.check_empty_if(node, ifs);
+				val did_bool = self.check_single_if_bool_return(node, ifs);
 				if (!did_empty && !did_bool) {
-					self.check_redundant_else(node!, ifs, in_block, is_else_if_child);
-					self.check_collapsible_if(node!, ifs, in_block);
+					self.check_redundant_else(node, ifs, in_block, is_else_if_child);
+					self.check_collapsible_if(node, ifs, in_block);
 				}
 				self.walk_stmt(ifs.then_branch, ifs.then_branch is BlockStmt, false);
 				if (ifs.else_branch != null) {
 					self.walk_stmt(
-						ifs.else_branch!,
-						ifs.else_branch! is BlockStmt,
-						ifs.else_branch! is IfStmt
+						ifs.else_branch,
+						ifs.else_branch is BlockStmt,
+						ifs.else_branch is IfStmt
 					);
 				}
 			}
@@ -1431,7 +1457,7 @@ impl LintCollector {
 		if (f.body == null) return;
 		self.check_prefer_expression_body(fn_node, f);
 		self.check_trailing_return(f);
-		self.walk_stmt(f.body!, f.body! is BlockStmt, false);
+		self.walk_stmt(f.body, f.body is BlockStmt, false);
 	}
 
 	pub fn collect(&self) {

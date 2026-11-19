@@ -193,19 +193,15 @@ pub fn eu_type_token(ty: *Type): str {
 
 impl Type {
 
-	pub fn as_pointer(*self): ?*TypePayload.Pointer {
-		return when (self.data) {
-			is TypePayload.Pointer as p -> p;
-			else -> null;
-		};
-	}
+	pub fn as_pointer(*self) => when (self.data) {
+		is TypePayload.Pointer as p -> p;
+		else -> null;
+	};
 
-	pub fn as_array(*self): ?*TypePayload.Array {
-		return when (self.data) {
-			is TypePayload.Array as p -> p;
-			else -> null;
-		};
-	}
+	pub fn as_array(*self) => when (self.data) {
+		is TypePayload.Array as p -> p;
+		else -> null;
+	};
 
 	pub fn as_struct(*self): ?&StructType {
 		val data = self.data;
@@ -231,12 +227,10 @@ impl Type {
 		};
 	}
 
-	pub fn as_error_union(*self): ?*TypePayload.ErrorUnion {
-		return when (self.data) {
-			is TypePayload.ErrorUnion as p -> p;
-			else -> null;
-		};
-	}
+	pub fn as_error_union(*self) => when (self.data) {
+		is TypePayload.ErrorUnion as p -> p;
+		else -> null;
+	};
 
 	// Appends a method to a canonical built-in primitive type from `PrimTypes`.
 	pub fn add_method(*self, mi: *MethodInfo) {
@@ -394,17 +388,24 @@ impl Type {
 			val eu = self.as_error_union()!;
 			if (source.kind == DataType.ERROR_UNION) return self.equals(source);
 			if (eu.err.equals(source)) return true;
-			if (eu.ok.kind != DataType.NONE && eu.ok.can_assign(source)) return true;
-			return false;
+
+			return eu.ok.kind != DataType.NONE && eu.ok.can_assign(source);
 		}
 
 		// Enum raw-value coercion to/from its underlying primitive type.
-		if (self.is_enum() && !self.as_enum()!.is_payload) {
-			if (!source.is_enum() && self.as_enum()!.underlying.can_assign(source)) return true;
-		}
-		if (source.is_enum() && !source.as_enum()!.is_payload) {
-			if (!self.is_enum() && self.can_assign(source.as_enum()!.underlying)) return true;
-		}
+		if (
+			self.is_enum() &&
+			!self.as_enum()!.is_payload &&
+			!source.is_enum() &&
+			self.as_enum()!.underlying.can_assign(source)
+		) return true;
+
+		if (
+			source.is_enum() &&
+			!source.as_enum()!.is_payload &&
+			!self.is_enum() &&
+			self.can_assign(source.as_enum()!.underlying)
+		) return true;
 
 		// 1. Integer coercion
 		if (self.is_integer() && source.is_integer()) return true;

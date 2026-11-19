@@ -70,21 +70,18 @@ impl Arena {
 
 }
 
-pub fn eu_ast_type_token(node: ?*AstNode): str {
-	if (node == null) return "none";
-	return when (node!) {
-		is NamedType as nt -> nt.name;
-		is PointerType as pt -> {
-			val q = if (pt.nullable) "q" else "";
-			val m = if (pt.mutable) "mut_" else "";
-			yield "${q}${m}ptr_${eu_ast_type_token(pt.pointee)}";
-		}
-		is ArrayType as at -> "arr${at.size}_${eu_ast_type_token(at.element_type)}";
-		is ErrorUnionType as eu -> "eu_${eu_ast_type_token(eu.ok_type)}__${eu_ast_type_token(eu.err_type)}";
-		is FnType -> "fn";
-		else -> "none";
-	};
-}
+pub fn eu_ast_type_token(node: ?*AstNode): str => when (node) {
+	is NamedType as nt -> nt.name;
+	is PointerType as pt -> {
+		val q = if (pt.nullable) "q" else "";
+		val m = if (pt.mutable) "mut_" else "";
+		yield "${q}${m}ptr_${eu_ast_type_token(pt.pointee)}";
+	}
+	is ArrayType as at -> "arr${at.size}_${eu_ast_type_token(at.element_type)}";
+	is ErrorUnionType as eu -> "eu_${eu_ast_type_token(eu.ok_type)}__${eu_ast_type_token(eu.err_type)}";
+	is FnType -> "fn";
+	else -> "none";
+};
 
 pub fn eu_c_name_from_ast(eu: *ErrorUnionType): str
 	=> "__kobel_eu_${eu_ast_type_token(eu.ok_type)}__${eu_ast_type_token(eu.err_type)}";

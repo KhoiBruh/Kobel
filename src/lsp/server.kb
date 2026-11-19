@@ -229,7 +229,7 @@ impl LanguageServer {
 					self.invalidate_cache();
 					self.arena.free();
 					if (self.is_shutdown) Process.exit(0);
-					else Process.exit(1);
+					Process.exit(1);
 				}
 
 				Method.DID_OPEN.value -> {

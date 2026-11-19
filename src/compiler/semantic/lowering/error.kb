@@ -64,7 +64,7 @@ impl LoweringPass {
 	}
 
 	fn fn_decl_ret_type(*self, f: *FnDecl): ?*Type {
-		if (f.return_type != null) return self.resolve_ast_type_via_symtab(f.return_type!);
+		if (f.return_type != null) return self.resolve_ast_type_via_symtab(f.return_type);
 		val sym = self.symtab.lookup(f.name) ?: self.symtab.gen.find_instance_symbol(f.name) ?: return null;
 		if (sym.type_ptr.kind == DataType.FN) return sym.type_ptr.as_fn()!.return_type;
 		return null;
@@ -88,7 +88,7 @@ impl LoweringPass {
 		defer self.in_any_fault_main = prev_any_main;
 
 		if (f.body == null) return;
-		val body = f.body!;
+		val body = f.body;
 
 		if (body is BlockStmt as blk) {
 			self.lower_eu_block(blk);
@@ -168,12 +168,10 @@ impl LoweringPass {
 		return w;
 	}
 
-	fn make_main_ok_wrap(&self, line: usz, col: usz): &AstNode {
-		return self.arena.node(
-			NodeData.ErrorUnionWrapExpr("__kobel_main_result", true, null, true, "", 0, 0),
-			line, col
-		);
-	}
+	fn make_main_ok_wrap(&self, line: usz, col: usz) => self.arena.node(
+		NodeData.ErrorUnionWrapExpr("__kobel_main_result", true, null, true, "", 0, 0),
+		line, col
+	);
 
 	fn make_main_err_wrap(&self, fault_expr: &AstNode, loc_node: *AstNode): &AstNode {
 		val fail_file = self.symtab.file_path_of(loc_node.span.file_id);
@@ -195,7 +193,7 @@ impl LoweringPass {
 
 		val tmp_name = "__mf_tmp_${self.next_eu_id()}";
 		val f_ty = self.type_of(fault_expr);
-		val ty_ast = if (f_ty != null) self.arena.ast_type_from_type(f_ty!) else null;
+		val ty_ast = if (f_ty != null) self.arena.ast_type_from_type(f_ty) else null;
 		prelude.add(self.arena.node(
 			NodeData.VarDeclStmt(false, tmp_name, ty_ast, fault_expr),
 			loc_node.line, loc_node.col
@@ -251,18 +249,18 @@ impl LoweringPass {
 		for (s in blk.statements) {
 			when (s) {
 				is YieldStmt as ys -> {
-					if (ys.value != null) ys.value = self.wrap_for_eu(ys.value!, target_ty);
+					if (ys.value != null) ys.value = self.wrap_for_eu(ys.value, target_ty);
 				}
 				is BlockStmt as sub -> self.wrap_block_yields_for_eu(sub, target_ty);
 				is IfStmt as ifs -> {
 					if (ifs.then_branch is BlockStmt as tb) self.wrap_block_yields_for_eu(tb, target_ty);
 					else if (ifs.then_branch is YieldStmt as tys && tys.value != null) {
-						tys.value = self.wrap_for_eu(tys.value!, target_ty);
+						tys.value = self.wrap_for_eu(tys.value, target_ty);
 					}
 					if (ifs.else_branch != null) {
-						if (ifs.else_branch! is BlockStmt as eb) self.wrap_block_yields_for_eu(eb, target_ty);
-						else if (ifs.else_branch! is YieldStmt as eys && eys.value != null) {
-							eys.value = self.wrap_for_eu(eys.value!, target_ty);
+						if (ifs.else_branch is BlockStmt as eb) self.wrap_block_yields_for_eu(eb, target_ty);
+						else if (ifs.else_branch is YieldStmt as eys && eys.value != null) {
+							eys.value = self.wrap_for_eu(eys.value, target_ty);
 						}
 					}
 				}
@@ -348,7 +346,7 @@ impl LoweringPass {
 				}
 			}
 			is CastExpr as cst -> {
-				if (cst.expr != null) cst.expr = self.wrap_expr_for_eu(cst.expr!);
+				if (cst.expr != null) cst.expr = self.wrap_expr_for_eu(cst.expr);
 			}
 			is ArrayLiteralExpr as al -> {
 				for (i in 0..<al.elements.len) al.elements[i] = self.wrap_expr_for_eu(al.elements[i]);
@@ -364,7 +362,7 @@ impl LoweringPass {
 				}
 			}
 			is WhenExpr as we -> {
-				if (we.condition != null) we.condition = self.wrap_expr_for_eu(we.condition!);
+				if (we.condition != null) we.condition = self.wrap_expr_for_eu(we.condition);
 				val we_ty = self.type_of(node);
 				for (i in 0..<we.arms.len) {
 					var arm = we.arms[i];
@@ -386,7 +384,7 @@ impl LoweringPass {
 				}
 			}
 			is IsExpr as ise -> {
-				if (ise.expr != null) ise.expr = self.wrap_expr_for_eu(ise.expr!);
+				if (ise.expr != null) ise.expr = self.wrap_expr_for_eu(ise.expr);
 			}
 			is StructCtorExpr as sc -> {
 				for (i in 0..<sc.args.len) sc.args[i] = self.wrap_expr_for_eu(sc.args[i]);
@@ -407,7 +405,7 @@ impl LoweringPass {
 					val members = ei.members;
 					for (m in members) {
 						if (m.value == ec.tag_value && m.payload_ty != null) {
-							val fields = m.payload_ty!.as_struct()!.fields;
+							val fields = m.payload_ty.as_struct()!.fields;
 							for (i in 0..<ec.args.len) {
 								if (i < fields.len && fields[i].type_ptr.kind == DataType.ERROR_UNION) {
 									ec.args[i] = self.wrap_for_eu(ec.args[i], fields[i].type_ptr);
@@ -441,7 +439,7 @@ impl LoweringPass {
 				}
 			}
 			is ErrorUnionWrapExpr as w -> {
-				if (w.value != null) w.value = self.wrap_expr_for_eu(w.value!);
+				if (w.value != null) w.value = self.wrap_expr_for_eu(w.value);
 			}
 			is LambdaExpr as lam -> {
 				val linfo = self.symtab.get_lambda_info(node);
@@ -492,7 +490,7 @@ impl LoweringPass {
 
 	fn expr_needs_eu_lower(&self, node: ?*AstNode): bool {
 		if (node == null) return false;
-		return when (node!) {
+		return when (node) {
 			is CatchExpr -> true;
 			is UnaryExpr as u -> (u.is_postfix && u.op == TokenType.QUESTION) || self.expr_needs_eu_lower(u.operand);
 			is GroupExpr as g -> self.expr_needs_eu_lower(g.expr);
@@ -651,14 +649,14 @@ impl LoweringPass {
 			}
 			is VarDeclStmt as vd -> {
 				if (vd.initializer != null) {
-					vd.initializer = self.wrap_expr_for_eu(vd.initializer!);
-					if (vd.type_annotation != null && vd.type_annotation! is ErrorUnionType) {
-						val var_ty = self.resolve_ast_type_via_symtab(vd.type_annotation!);
+					vd.initializer = self.wrap_expr_for_eu(vd.initializer);
+					if (vd.type_annotation != null && vd.type_annotation is ErrorUnionType) {
+						val var_ty = self.resolve_ast_type_via_symtab(vd.type_annotation);
 						if (var_ty?.kind == DataType.ERROR_UNION) {
-							vd.initializer = self.wrap_for_eu(vd.initializer!, var_ty);
+							vd.initializer = self.wrap_for_eu(vd.initializer, var_ty);
 						}
 					}
-					vd.initializer = self.lower_eu_expr(vd.initializer!, prelude, true);
+					vd.initializer = self.lower_eu_expr(vd.initializer, prelude, true);
 				}
 				return node;
 			}
@@ -670,11 +668,11 @@ impl LoweringPass {
 			is ReturnStmt as ret -> {
 				if (self.in_any_fault_main) {
 					if (ret.value != null) {
-						ret.value = self.wrap_expr_for_eu(ret.value!);
-						ret.value = self.lower_eu_expr(ret.value!, prelude, false);
-						val rty = self.type_of(ret.value!);
+						ret.value = self.wrap_expr_for_eu(ret.value);
+						ret.value = self.lower_eu_expr(ret.value, prelude, false);
+						val rty = self.type_of(ret.value);
 						if (rty?.is_fault()) {
-							ret.value = self.wrap_main_fault_expr(ret.value!, node, prelude);
+							ret.value = self.wrap_main_fault_expr(ret.value, node, prelude);
 						}
 					} else {
 						ret.value = self.make_main_ok_wrap(node.line, node.col);
@@ -682,21 +680,21 @@ impl LoweringPass {
 					return node;
 				}
 				if (ret.value != null) {
-					ret.value = self.wrap_expr_for_eu(ret.value!);
+					ret.value = self.wrap_expr_for_eu(ret.value);
 					if (self.current_fn_ret_type?.kind == DataType.ERROR_UNION) {
-						ret.value = self.wrap_for_eu(ret.value!, self.current_fn_ret_type!);
+						ret.value = self.wrap_for_eu(ret.value, self.current_fn_ret_type);
 					}
-					ret.value = self.lower_eu_expr(ret.value!, prelude, false);
+					ret.value = self.lower_eu_expr(ret.value, prelude, false);
 				} else if (self.current_fn_ret_type?.kind == DataType.ERROR_UNION) {
-					val eu = self.current_fn_ret_type!.as_error_union()!;
-					ret.value = self.make_eu_wrap(eu.c_name, true, null, self.current_fn_ret_type!, node.line, node.col);
+					val eu = self.current_fn_ret_type.as_error_union()!;
+					ret.value = self.make_eu_wrap(eu.c_name, true, null, self.current_fn_ret_type, node.line, node.col);
 				}
 				return node;
 			}
 			is YieldStmt as ys -> {
 				if (ys.value != null) {
-					ys.value = self.wrap_expr_for_eu(ys.value!);
-					ys.value = self.lower_eu_expr(ys.value!, prelude, false);
+					ys.value = self.wrap_expr_for_eu(ys.value);
+					ys.value = self.lower_eu_expr(ys.value, prelude, false);
 				}
 				return node;
 			}
@@ -705,12 +703,12 @@ impl LoweringPass {
 				ifs.condition = self.lower_eu_expr(ifs.condition, prelude, false);
 				ifs.then_branch = self.lower_eu_branch(ifs.then_branch);
 				if (ifs.else_branch != null) {
-					if (ifs.else_branch! is IfStmt) {
+					if (ifs.else_branch is IfStmt) {
 						var elif_pre = List<&AstNode>();
-						val low_elif = self.lower_eu_stmt_single(ifs.else_branch!, &elif_pre);
+						val low_elif = self.lower_eu_stmt_single(ifs.else_branch, &elif_pre);
 						ifs.else_branch = self.ensure_block_for_prelude(elif_pre, low_elif);
 					} else {
-						ifs.else_branch = self.lower_eu_branch(ifs.else_branch!);
+						ifs.else_branch = self.lower_eu_branch(ifs.else_branch);
 					}
 				}
 				return node;
@@ -741,8 +739,8 @@ impl LoweringPass {
 			}
 			is WhenStmt as ws -> {
 				if (ws.condition != null) {
-					ws.condition = self.wrap_expr_for_eu(ws.condition!);
-					ws.condition = self.lower_eu_expr(ws.condition!, prelude, false);
+					ws.condition = self.wrap_expr_for_eu(ws.condition);
+					ws.condition = self.lower_eu_expr(ws.condition, prelude, false);
 				}
 				var split_idx: usz = ws.arms.len;
 				for (i in 0..<ws.arms.len) {
@@ -946,18 +944,18 @@ impl LoweringPass {
 
 				if (allow_top_catch) return node;
 
-				if (res_ty == null || res_ty!.kind == DataType.NONE) {
+				if (res_ty == null || res_ty.kind == DataType.NONE) {
 					prelude.add(self.arena.node(NodeData.ExprStmt(node), node.line, node.col));
 					return node;
 				}
 				val cname = "__eu_catch_${self.next_eu_id()}";
 				val hoisted = self.arena.node(
-					NodeData.VarDeclStmt(true, cname, self.arena.ast_type_from_type(res_ty!), node),
+					NodeData.VarDeclStmt(true, cname, self.arena.ast_type_from_type(res_ty), node),
 					node.line, node.col
 				);
 				prelude.add(hoisted);
 				val cid = self.arena.node(NodeData.IdentifierExpr(cname), node.line, node.col);
-				self.symtab.set_node_type(cid, res_ty!);
+				self.symtab.set_node_type(cid, res_ty);
 				return cid;
 			}
 			is BinaryExpr as b -> {
@@ -1001,7 +999,7 @@ impl LoweringPass {
 				if (self.expr_needs_eu_lower(ie.then_branch) || self.expr_needs_eu_lower(ie.else_branch)) {
 					ie.condition = self.lower_eu_expr(ie.condition, prelude, false);
 					val res_ty = self.type_of(node);
-					if (res_ty == null || res_ty!.kind == DataType.NONE) {
+					if (res_ty == null || res_ty.kind == DataType.NONE) {
 						var t_stmts = List<&AstNode>();
 						var t_pre = List<&AstNode>();
 						val lt = self.lower_eu_expr(ie.then_branch, &t_pre, true);
@@ -1028,13 +1026,13 @@ impl LoweringPass {
 					}
 					val cname = "__eu_if_${self.next_eu_id()}";
 					prelude.add(self.arena.node(
-						NodeData.VarDeclStmt(true, cname, self.arena.ast_type_from_type(res_ty!), null),
+						NodeData.VarDeclStmt(true, cname, self.arena.ast_type_from_type(res_ty), null),
 						node.line, node.col
 					));
 					var t_pre = List<&AstNode>();
 					val lt = self.lower_eu_expr(ie.then_branch, &t_pre, true);
 					val cid_t = self.arena.node(NodeData.IdentifierExpr(cname), node.line, node.col);
-					self.symtab.set_node_type(cid_t, res_ty!);
+					self.symtab.set_node_type(cid_t, res_ty);
 					var t_stmts = List<&AstNode>();
 					for (ps in t_pre) t_stmts += ps;
 					t_stmts += self.arena.node(
@@ -1044,7 +1042,7 @@ impl LoweringPass {
 					var e_pre = List<&AstNode>();
 					val le = self.lower_eu_expr(ie.else_branch, &e_pre, true);
 					val cid_e = self.arena.node(NodeData.IdentifierExpr(cname), node.line, node.col);
-					self.symtab.set_node_type(cid_e, res_ty!);
+					self.symtab.set_node_type(cid_e, res_ty);
 					var e_stmts = List<&AstNode>();
 					for (ps in e_pre) e_stmts += ps;
 					e_stmts += self.arena.node(
@@ -1060,14 +1058,14 @@ impl LoweringPass {
 						node.line, node.col
 					));
 					val cid_res = self.arena.node(NodeData.IdentifierExpr(cname), node.line, node.col);
-					self.symtab.set_node_type(cid_res, res_ty!);
+					self.symtab.set_node_type(cid_res, res_ty);
 					return cid_res;
 				}
 				ie.condition = self.lower_eu_expr(ie.condition, prelude, false);
 				return node;
 			}
 			is WhenExpr as we -> {
-				if (we.condition != null) we.condition = self.lower_eu_expr(we.condition!, prelude, false);
+				if (we.condition != null) we.condition = self.lower_eu_expr(we.condition, prelude, false);
 				val res_ty = self.type_of(node);
 				val has_val_res = (res_ty?.kind ?: DataType.NONE) != DataType.NONE;
 				var split_idx: usz = we.arms.len;
@@ -1148,7 +1146,7 @@ impl LoweringPass {
 				return node;
 			}
 			is CastExpr as cst -> {
-				if (cst.expr != null) cst.expr = self.lower_eu_expr(cst.expr!, prelude, false);
+				if (cst.expr != null) cst.expr = self.lower_eu_expr(cst.expr, prelude, false);
 				return node;
 			}
 			is ArrayLiteralExpr as al -> {
@@ -1156,7 +1154,7 @@ impl LoweringPass {
 				return node;
 			}
 			is IsExpr as ise -> {
-				if (ise.expr != null) ise.expr = self.lower_eu_expr(ise.expr!, prelude, false);
+				if (ise.expr != null) ise.expr = self.lower_eu_expr(ise.expr, prelude, false);
 				return node;
 			}
 			is StructCtorExpr as sc -> {
@@ -1168,7 +1166,7 @@ impl LoweringPass {
 				return node;
 			}
 			is ErrorUnionWrapExpr as w -> {
-				if (w.value != null) w.value = self.lower_eu_expr(w.value!, prelude, false);
+				if (w.value != null) w.value = self.lower_eu_expr(w.value, prelude, false);
 				return node;
 			}
 			else -> return node;

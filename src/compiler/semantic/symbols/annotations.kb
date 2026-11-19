@@ -82,5 +82,7 @@ pub struct SemanticTable {
 	// Cross-pass mutability tracking keyed by decl_key for LSP unmutated `var` / `&self` lints
 	pub checked_var_decls: HashMap<str, bool> = HashMap(),
 	pub checked_mut_self_fns: HashMap<str, bool> = HashMap(),
-	pub mutated_decl_keys: HashMap<str, bool> = HashMap()
+	pub mutated_decl_keys: HashMap<str, bool> = HashMap(),
+	// Postfix `!` locations ("U:<fid>:<line>:<col>") on pointers already proven non-null
+	pub unnecessary_unwraps: HashMap<str, bool> = HashMap()
 }

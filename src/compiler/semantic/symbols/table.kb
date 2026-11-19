@@ -63,7 +63,7 @@ impl SymbolTable {
 
 	pub fn set_node_type(*self, node: ?*AstNode, ty: ?*Type) {
 		if (node == null || ty == null) return;
-		self.sem.node_types[node.addr()] = ty!;
+		self.sem.node_types[node.addr()] = ty;
 	}
 
 	pub fn get_node_type(*self, node: ?*AstNode): ?*Type {
@@ -74,7 +74,7 @@ impl SymbolTable {
 
 	pub fn set_resolved_method(*self, node: ?*AstNode, mi: ?*MethodInfo) {
 		if (node == null || mi == null) return;
-		self.sem.resolved_methods[node.addr()] = mi!;
+		self.sem.resolved_methods[node.addr()] = mi;
 	}
 
 	pub fn get_resolved_method(*self, node: ?*AstNode): ?*MethodInfo {
@@ -85,7 +85,7 @@ impl SymbolTable {
 
 	pub fn set_resolved_node(*self, node: ?*AstNode, r: ?&AstNode) {
 		if (node == null || r == null) return;
-		self.sem.resolved_nodes[node.addr()] = r!;
+		self.sem.resolved_nodes[node.addr()] = r;
 	}
 
 	pub fn get_resolved_node(*self, node: ?*AstNode): ?&AstNode {
@@ -96,7 +96,7 @@ impl SymbolTable {
 
 	pub fn set_node_instance(*self, node: ?*AstNode, rec: ?&InstanceRecord) {
 		if (node == null || rec == null) return;
-		self.sem.node_instances[node.addr()] = rec!;
+		self.sem.node_instances[node.addr()] = rec;
 	}
 
 	pub fn get_node_instance(*self, node: ?*AstNode): ?&InstanceRecord {

@@ -55,7 +55,7 @@ impl LoweringPass {
 						if (rec != null) {
 							f.body = self.lower_stmt(self.decl.materialize_body(rec));
 						} else if (f.body != null) {
-							f.body = self.lower_stmt(f.body!);
+							f.body = self.lower_stmt(f.body);
 						}
 						self.lower_eu_fn_decl(f);
 					}
@@ -68,13 +68,13 @@ impl LoweringPass {
 						val obj_sym = self.symtab.lookup(obj.name);
 						for (cnode in obj.consts) {
 							if (cnode is ConstDecl as c && c.value != null) {
-								c.value = self.lower_expr(c.value!);
+								c.value = self.lower_expr(c.value);
 							}
 						}
 						self.lower_method_container(obj.methods, obj_sym?.type_ptr);
 					}
 					is ConstDecl as c -> {
-						if (c.value != null) c.value = self.lower_expr(c.value!);
+						if (c.value != null) c.value = self.lower_expr(c.value);
 					}
 				}
 			}
@@ -92,7 +92,7 @@ impl LoweringPass {
 				if (rec != null) {
 					mf.body = self.lower_stmt(self.decl.materialize_body(rec));
 				} else if (mf.body != null) {
-					mf.body = self.lower_stmt(mf.body!);
+					mf.body = self.lower_stmt(mf.body);
 				}
 				self.lower_eu_fn_decl(mf);
 			}
@@ -118,7 +118,7 @@ impl LoweringPass {
 				es.expr = self.lower_expr(es.expr);
 			}
 			is VarDeclStmt as vd -> {
-				if (vd.initializer != null) vd.initializer = self.lower_expr(vd.initializer!);
+				if (vd.initializer != null) vd.initializer = self.lower_expr(vd.initializer);
 			}
 			is DestructDeclStmt as ds -> {
 				ds.initializer = self.lower_expr(ds.initializer);
@@ -127,7 +127,7 @@ impl LoweringPass {
 				ifs.condition = self.lower_expr(ifs.condition);
 				ifs.then_branch = self.lower_stmt(ifs.then_branch);
 				if (ifs.else_branch != null) {
-					ifs.else_branch = self.lower_stmt(ifs.else_branch!);
+					ifs.else_branch = self.lower_stmt(ifs.else_branch);
 				}
 			}
 			is WhileStmt as wh -> {
@@ -135,16 +135,16 @@ impl LoweringPass {
 				wh.body = self.lower_stmt(wh.body);
 			}
 			is ForStmt as fr -> {
-				if (fr.iterable != null) fr.iterable = self.lower_expr(fr.iterable!);
-				if (fr.range_start != null) fr.range_start = self.lower_expr(fr.range_start!);
-				if (fr.range_end != null) fr.range_end = self.lower_expr(fr.range_end!);
+				if (fr.iterable != null) fr.iterable = self.lower_expr(fr.iterable);
+				if (fr.range_start != null) fr.range_start = self.lower_expr(fr.range_start);
+				if (fr.range_end != null) fr.range_end = self.lower_expr(fr.range_end);
 				fr.body = self.lower_stmt(fr.body);
 			}
 			is ReturnStmt as ret -> {
-				if (ret.value != null) ret.value = self.lower_expr(ret.value!);
+				if (ret.value != null) ret.value = self.lower_expr(ret.value);
 			}
 			is WhenStmt as ws -> {
-				if (ws.condition != null) ws.condition = self.lower_expr(ws.condition!);
+				if (ws.condition != null) ws.condition = self.lower_expr(ws.condition);
 				for (i in 0..<ws.arms.len) {
 					var arm = ws.arms[i];
 					arm.body = self.lower_stmt(arm.body);
@@ -155,7 +155,7 @@ impl LoweringPass {
 				}
 			}
 			is YieldStmt as ys -> {
-				if (ys.value != null) ys.value = self.lower_expr(ys.value!);
+				if (ys.value != null) ys.value = self.lower_expr(ys.value);
 			}
 			is DeferStmt as ds -> {
 				ds.body = self.lower_stmt(ds.body);
@@ -210,7 +210,7 @@ impl LoweringPass {
 				up.target = self.lower_expr(up.target);
 			}
 			is CastExpr as cst -> {
-				if (cst.expr != null) cst.expr = self.lower_expr(cst.expr!);
+				if (cst.expr != null) cst.expr = self.lower_expr(cst.expr);
 			}
 			is GroupExpr as g -> {
 				g.expr = self.lower_expr(g.expr);
@@ -224,7 +224,7 @@ impl LoweringPass {
 				ie.else_branch = self.lower_expr(ie.else_branch);
 			}
 			is WhenExpr as we -> {
-				if (we.condition != null) we.condition = self.lower_expr(we.condition!);
+				if (we.condition != null) we.condition = self.lower_expr(we.condition);
 				for (i in 0..<we.arms.len) {
 					var arm = we.arms[i];
 					arm.body = self.lower_arm_body(arm.body);
@@ -236,7 +236,7 @@ impl LoweringPass {
 			}
 			is InterpExpr as ip -> {
 				for (i in 0..<ip.parts.len) {
-					var part = ip.parts[i];
+					val part = ip.parts[i];
 					when (part) {
 						is InterpPart.Literal as lit -> {
 							ip.parts[i] = InterpPart.Literal(self.lower_expr(lit.node));
@@ -249,7 +249,7 @@ impl LoweringPass {
 				out = self.lower_interp(node, ip);
 			}
 			is IsExpr as ise -> {
-				if (ise.expr != null) ise.expr = self.lower_expr(ise.expr!);
+				if (ise.expr != null) ise.expr = self.lower_expr(ise.expr);
 			}
 			is StructCtorExpr as sc -> {
 				for (i in 0..<sc.args.len) sc.args[i] = self.lower_expr(sc.args[i]);
@@ -267,7 +267,7 @@ impl LoweringPass {
 				else ce.handler = self.lower_expr(ce.handler);
 			}
 			is ErrorUnionWrapExpr as w -> {
-				if (w.value != null) w.value = self.lower_expr(w.value!);
+				if (w.value != null) w.value = self.lower_expr(w.value);
 			}
 		}
 		return out;
@@ -314,14 +314,17 @@ impl LoweringPass {
 			return self.lowered(node, cat);
 		}
 
-		if (bin.op in [TokenType.EQUAL_EQUAL, TokenType.BANG_EQUAL]) {
-			if (self.is_str_expr(bin.left) && self.is_str_expr(bin.right)) {
-				val is_neq = bin.op == TokenType.BANG_EQUAL;
-				val eq = self.arena.make_str_eq(
-					is_neq, bin.left, bin.right, node.line, node.col
-				);
-				return self.lowered(node, eq);
-			}
+		if (
+			bin.op in [TokenType.EQUAL_EQUAL, TokenType.BANG_EQUAL] &&
+			self.is_str_expr(bin.left) &&
+			self.is_str_expr(bin.right)
+		) {
+			val is_neq = bin.op == TokenType.BANG_EQUAL;
+			val eq = self.arena.make_str_eq(
+				is_neq, bin.left, bin.right,
+				node.line, node.col
+			);
+			return self.lowered(node, eq);
 		}
 
 		if (bin.op == TokenType.KW_IN && bin.right is ArrayLiteralExpr as al) {

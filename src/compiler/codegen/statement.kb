@@ -103,7 +103,7 @@ impl CCodeGen {
 			ty_str = c_type_from_ast(t_ann);
 		} else if (vd.initializer != null) {
 			val init_e = vd.initializer;
-			ty_str = self.c_type_or(init_e!, "int32_t");
+			ty_str = self.c_type_or(init_e, "int32_t");
 		}
 
 		var init_e = vd.initializer;
@@ -140,7 +140,7 @@ impl CCodeGen {
 		}
 
 		if (vd.initializer != null) {
-			val init_s = self.gen_expr(vd.initializer!);
+			val init_s = self.gen_expr(vd.initializer);
 			self.out += ty_str;
 			self.out += ' ';
 			self.out += vd.name;
@@ -769,11 +769,11 @@ impl CCodeGen {
 				self.mark_current_scope_jumped();
 				if (ys.value != null) {
 					var ret_ty = self.current_fn_ret_type;
-					if (ret_ty.empty() || ret_ty == "void") ret_ty = self.c_type_or(ys.value!, "int32_t");
+					if (ret_ty.empty() || ret_ty == "void") ret_ty = self.c_type_or(ys.value, "int32_t");
 					self.out += "{\n";
 					self.out += ret_ty;
 					self.out += " __ret_tmp = ";
-					self.out += self.gen_expr(ys.value!);
+					self.out += self.gen_expr(ys.value);
 					self.out += ";\n";
 					self.gen_defers_unwind(0);
 					self.out += "return __ret_tmp;\n";
@@ -786,7 +786,7 @@ impl CCodeGen {
 			}
 			if (ys.value != null) {
 				self.out += "return ";
-				self.out += self.gen_expr(ys.value!);
+				self.out += self.gen_expr(ys.value);
 				self.out += ";\n";
 				return;
 			}
@@ -796,7 +796,7 @@ impl CCodeGen {
 		if (raw_y is CatchExpr as yce) {
 			self.gen_catch_with_target(yce, self.yield_target);
 		} else if (!self.yield_target.empty()) {
-			val val_str = if (ys.value != null) self.gen_expr(ys.value!) else "";
+			val val_str = if (ys.value != null) self.gen_expr(ys.value) else "";
 			if (!val_str.empty()) {
 				self.out += self.yield_target;
 				self.out += " = ";
@@ -804,7 +804,7 @@ impl CCodeGen {
 				self.out += ";\n";
 			}
 		} else if (ys.value != null) {
-			self.out += self.gen_expr(ys.value!);
+			self.out += self.gen_expr(ys.value);
 			self.out += ";\n";
 		}
 		if (!self.yield_exit_label.empty()) {
@@ -839,7 +839,7 @@ impl CCodeGen {
 	}
 
 	fn gen_when_stmt(&self, ws: *WhenStmt) {
-		val cond = if (ws.condition != null) self.gen_expr_prec(ws.condition!, PREC_POSTFIX) else "";
+		val cond = if (ws.condition != null) self.gen_expr_prec(ws.condition, PREC_POSTFIX) else "";
 		var first = true;
 		for (arm in ws.arms) {
 			var cast_decl = "";
@@ -896,7 +896,7 @@ impl CCodeGen {
 					return "${target_name}* ${bound_name} = (${target_name}*)"
 							"(&${subj}->${pat_info.payload_path});";
 				}
-				
+
 				return "${target_name}* ${bound_name} = (${target_name}*)${var_name};";
 			}
 
@@ -933,7 +933,7 @@ impl CCodeGen {
 	}
 
 	pub fn gen_when_with_target(&self, we: *WhenExpr, target_name: str, is_ret: bool) {
-		val cond = if (we.condition != null) self.gen_expr_prec(we.condition!, PREC_POSTFIX) else "";
+		val cond = if (we.condition != null) self.gen_expr_prec(we.condition, PREC_POSTFIX) else "";
 		var first = true;
 
 		val prev_target = self.yield_target;
@@ -1058,7 +1058,7 @@ impl CCodeGen {
 			err_c = c_type_from_type(eu.err);
 		}
 		val raw_h = unwrap_group_expr(ce.handler);
-		val has_block = raw_h != null && raw_h! is BlockStmt;
+		val has_block = raw_h != null && raw_h is BlockStmt;
 		val end_label = "__catch_end_${cid}";
 
 		self.out += "{\n";

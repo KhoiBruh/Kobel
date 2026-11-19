@@ -51,7 +51,7 @@ pub fn print_diagnostics(diags: List<Diagnostic>, default_file: str, loader: ?*M
 	defer seen.free();
 
 	var printed_count = 0;
-	val src_map = if (loader != null) &loader!.sources else null;
+	val src_map = if (loader != null) &loader.sources else null;
 
 	for (d in diags) {
 		var diag = d;
@@ -78,7 +78,7 @@ pub fn print_warnings(warnings: List<Diagnostic>, default_file: str, loader: ?*M
 	var seen = HashSet<str>();
 	defer seen.free();
 
-	val src_map = if (loader != null) &loader!.sources else null;
+	val src_map = if (loader != null) &loader.sources else null;
 
 	for (w in warnings) {
 		var diag = w;

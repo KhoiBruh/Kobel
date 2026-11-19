@@ -187,15 +187,15 @@ impl DceWalker {
 
 	fn eu_dep_of_ast(*self, n: ?*AstNode): str {
 		if (n == null) return "";
-		if (n! is NamedType as nt) return nt.name;
-		if (n! is ErrorUnionType as eu) return eu_c_name_from_ast(eu);
+		if (n is NamedType as nt) return nt.name;
+		if (n is ErrorUnionType as eu) return eu_c_name_from_ast(eu);
 		return "";
 	}
 
 	fn mark_type_obj(&self, ty: ?*Type) {
 		if (ty == null) return;
 
-		val t = ty!;
+		val t = ty;
 		if (t.is_enum()) {
 			self.mark_type(t.as_enum()!.c_name);
 			return;
@@ -231,7 +231,7 @@ impl DceWalker {
 
 	fn mark_type_ast(&self, node: ?*AstNode) {
 		if (node == null) return;
-		when (node!) {
+		when (node) {
 			is NamedType as nt -> self.mark_type(nt.name);
 			is PointerType as pt -> self.mark_type_ast(pt.pointee);
 			is ArrayType as at -> self.mark_type_ast(at.element_type);
@@ -241,11 +241,11 @@ impl DceWalker {
 				self.mark_type_ast(ft.return_type);
 			}
 			is ErrorUnionType as eu -> {
-				if (eu.ok_type != null) self.mark_type_ast(eu.ok_type!);
+				if (eu.ok_type != null) self.mark_type_ast(eu.ok_type);
 				self.mark_type_ast(eu.err_type);
 				val cname = eu_c_name_from_ast(eu);
 				if (cname !in self.eu_seen) {
-					val ok_c = if (eu.ok_type != null) c_type_from_ast(eu.ok_type!) else "void";
+					val ok_c = if (eu.ok_type != null) c_type_from_ast(eu.ok_type) else "void";
 					val err_c = c_type_from_ast(eu.err_type);
 					var deps = List<str>();
 					val od = self.eu_dep_of_ast(eu.ok_type);
@@ -260,7 +260,7 @@ impl DceWalker {
 
 	fn walk_node(&self, node: ?*AstNode) {
 		if (node == null) return;
-		val cur = node!;
+		val cur = node;
 		self.mark_type_obj(self.cg.node_type(cur));
 		val mi = self.cg.symtab?.get_resolved_method(cur);
 		if (mi != null) {

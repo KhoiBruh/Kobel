@@ -51,7 +51,7 @@ impl CCodeGen {
 							// Enums lower to their underlying integer type; member access becomes
 							// an integer literal during semantic analysis.
 							val under = if (e.underlying_type != null) {
-								c_type_from_ast(e.underlying_type!)
+								c_type_from_ast(e.underlying_type)
 							} else "int32_t";
 							self.out += "typedef ";
 							self.out += under;
@@ -250,7 +250,7 @@ impl CCodeGen {
 	}
 
 	fn gen_const_macro(&self, c: *ConstDecl) {
-		val c_val_str = if (c.value != null) self.gen_expr_prec(c.value!, PREC_POSTFIX) else "0";
+		val c_val_str = if (c.value != null) self.gen_expr_prec(c.value, PREC_POSTFIX) else "0";
 		self.out += "#define ";
 		self.out += c.name;
 		self.out += ' ';
@@ -530,7 +530,7 @@ impl CCodeGen {
 					self.out += "${elem_c}* ${p.name}_data, size_t ${p.name}_len";
 					continue;
 				}
-				var p_ty = if (p.type_node != null) c_type_from_ast(p.type_node!) else "void*";
+				var p_ty = if (p.type_node != null) c_type_from_ast(p.type_node) else "void*";
 
 				if (
 					!self_c_type.empty() &&
@@ -635,7 +635,7 @@ impl CCodeGen {
 		} else if (
 			f_body is BlockStmt &&
 			f.return_type != null &&
-			f.return_type! is ErrorUnionType as eu &&
+			f.return_type is ErrorUnionType as eu &&
 			self.ast_is_none_or_null(eu.ok_type)
 		) {
 			self.out += "    return (${ret_ty}){ .is_ok = true };\n";
@@ -660,7 +660,7 @@ impl CCodeGen {
 				self.out += "        return 1;\n";
 				self.out += "    }\n";
 				self.out += "    return 0;\n";
-			} else if (f.return_type != null && f.return_type! is ErrorUnionType as meu) {
+			} else if (f.return_type != null && f.return_type is ErrorUnionType) {
 				val sep = if (has_cli_args) ", " else "";
 				self.out += "    kobel_loc __main_fail_loc = { NULL, 0, 0, \"main\" };\n";
 				self.out += "    ${ret_ty} __eu_main = __kobel_user_main(&__main_fail_loc${sep}${args_pass});\n";
@@ -682,7 +682,7 @@ impl CCodeGen {
 // arrow body (used by both the prototype and the definition).
 	pub fn fn_ret_c_type(*self, f: *FnDecl): str {
 		if (f.name == "main" && f.return_type == null) return "void";
-		if (f.return_type != null) return c_type_from_ast(f.return_type!);
+		if (f.return_type != null) return c_type_from_ast(f.return_type);
 
 		val f_body = f.body;
 		if (f_body is ExprStmt) {
@@ -694,7 +694,7 @@ impl CCodeGen {
 
 	pub fn collect_lambdas_in_node(*self, node: ?&AstNode, out: &List<&AstNode>) {
 		if (node == null) return;
-		val cur = node!;
+		val cur = node;
 		when (cur) {
 			is LambdaExpr as lam -> {
 				self.collect_lambdas_in_node(lam.body, out);
@@ -785,7 +785,7 @@ impl CCodeGen {
 		if (node is LambdaExpr as lam) {
 			val info = self.lambda_info_of(node);
 			if (info.id == 0 || info.fn_type == null) return;
-			val fn_info = info.fn_type!.as_fn()!;
+			val fn_info = info.fn_type.as_fn()!;
 			val ret_c = c_type_from_type(fn_info.return_type);
 
 			if (!info.captures.empty()) {
@@ -793,7 +793,7 @@ impl CCodeGen {
 				self.out += info.id;
 				self.out += " {\n";
 				for (cap in info.captures) {
-					val cap_c = if (cap.ty != null) c_type_from_type(cap.ty!) else "int32_t";
+					val cap_c = if (cap.ty != null) c_type_from_type(cap.ty) else "int32_t";
 					self.out += "    ";
 					self.out += cap_c;
 					if (cap.is_mutable) self.out += '*';

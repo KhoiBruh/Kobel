@@ -137,21 +137,21 @@ impl DeclarationCollector {
 	}
 
 	pub fn find_fn_template(&self, name: str): ?*GenericTemplate {
-		var r = self.to_resolver();
+		val r = self.to_resolver();
 		val res = r.find_fn_template(name);
 		self.apply_resolver(r);
 		return res;
 	}
 
 	pub fn find_struct_template(&self, name: str): ?*GenericTemplate {
-		var r = self.to_resolver();
+		val r = self.to_resolver();
 		val res = r.find_struct_template(name);
 		self.apply_resolver(r);
 		return res;
 	}
 
 	pub fn find_method_template(&self, name: str, self_type: str = ""): ?*GenericTemplate {
-		var r = self.to_resolver();
+		val r = self.to_resolver();
 		val res = r.find_method_template(name, self_type);
 		self.apply_resolver(r);
 		return res;
@@ -170,7 +170,7 @@ impl DeclarationCollector {
 	}
 
 	pub fn template_in_module(&self, module: str, name: str): bool {
-		var r = self.to_resolver();
+		val r = self.to_resolver();
 		val res = r.template_in_module(module, name);
 		self.apply_resolver(r);
 		return res;
@@ -315,9 +315,9 @@ impl DeclarationCollector {
 	pub fn collect_object(&self, node: &AstNode) {
 		if (node is ObjectDecl as obj) {
 			val obj_sym = self.symtab.lookup_in_module(self.current_module, obj.name);
-			if (obj_sym == null || obj_sym!.kind != SymbolKind.OBJECT) return;
-			val obj_ty = obj_sym!.type_ptr;
-			val obj_c_name = obj_sym!.c_name;
+			if (obj_sym == null || obj_sym.kind != SymbolKind.OBJECT) return;
+			val obj_ty = obj_sym.type_ptr;
+			val obj_c_name = obj_sym.c_name;
 			val obj_info = obj_ty.as_struct()!;
 			val orig_name = obj.name;
 
@@ -420,11 +420,11 @@ impl DeclarationCollector {
 					self.report_error(node, "Top-level function '${f.name}' cannot have a 'self' parameter");
 				}
 				if (p.type_node is VariadicType) is_vararg = true;
-				val p_type = if (p.type_node != null) self.resolve_ast_type(p.type_node!) else self.prims().t_none();
+				val p_type = if (p.type_node != null) self.resolve_ast_type(p.type_node) else self.prims().t_none();
 				param_types += p_type;
 			}
 
-			var ret_type = if (f.return_type != null) self.resolve_ast_type(f.return_type!)
+			val ret_type = if (f.return_type != null) self.resolve_ast_type(f.return_type)
 			else if (f.name == "main") self.prims().t_none()
 			else self.infer_decl_return_type(f) ?: self.prims().t_none();
 
@@ -442,7 +442,7 @@ impl DeclarationCollector {
 
 	pub fn collect_enum(&self, node: &AstNode) {
 		if (node is EnumDecl as e) {
-			val under_type = if (e.underlying_type != null) self.resolve_ast_type(e.underlying_type!)
+			val under_type = if (e.underlying_type != null) self.resolve_ast_type(e.underlying_type)
 			else self.prims().t_prim(Type.i32());
 
 			val is_payload = e.members.any { m -> !m.payload.empty() };
@@ -496,13 +496,13 @@ impl DeclarationCollector {
 		when (under_type) {
 			.is_integer() -> {
 				v = current_int_val;
-				if (m.value != null) v = self.enum_const_i64(m.value!);
+				if (m.value != null) v = self.enum_const_i64(m.value);
 				raw_text = "${v}";
 				lit_kind = Literal.INTEGER;
 			}
 			.kind == DataType.STR -> {
 				lit_kind = Literal.STRING;
-				raw_text = self.eval_str_enum_member(node, m);
+				raw_text = self.eval_str_enum_member(m);
 			}
 			.kind == DataType.CHAR -> {
 				lit_kind = Literal.CHARACTER;
@@ -521,17 +521,17 @@ impl DeclarationCollector {
 		return self.arena.create_val(EnumMemberInfo(m.name, v, null, "", raw_text, lit_kind));
 	}
 
-	fn eval_str_enum_member(&self, node: *AstNode, m: EnumMember): str {
+	fn eval_str_enum_member(&self, m: EnumMember): str {
 		if (m.value == null) return "\"${m.name}\"";
 		if (m.value is LiteralExpr as lit && lit.literal_kind == Literal.STRING) return lit.raw_text;
-		self.report_error(m.value!, "Enum member value for 'str' enum must be a string literal");
+		self.report_error(m.value, "Enum member value for 'str' enum must be a string literal");
 		return "\"${m.name}\"";
 	}
 
 	fn eval_char_enum_member(&self, node: *AstNode, m: EnumMember): str {
 		if (m.value != null) {
 			if (m.value is LiteralExpr as lit && lit.literal_kind == Literal.CHARACTER) return lit.raw_text;
-			self.report_error(m.value!, "Enum member value for 'char' enum must be a character literal");
+			self.report_error(m.value, "Enum member value for 'char' enum must be a character literal");
 			return "'?'";
 		}
 		self.report_error(node, "Enum member '${m.name}' of 'char' enum requires an explicit character literal");
@@ -543,7 +543,7 @@ impl DeclarationCollector {
 			if (m.value is LiteralExpr as lit && lit.literal_kind in [Literal.FLOAT, Literal.INTEGER]) {
 				return lit.raw_text;
 			}
-			self.report_error(m.value!, "Enum member value for float enum must be a number literal");
+			self.report_error(m.value, "Enum member value for float enum must be a number literal");
 			return "0.0";
 		}
 		self.report_error(node, "Enum member '${m.name}' of float enum requires an explicit float literal");
@@ -553,7 +553,7 @@ impl DeclarationCollector {
 	fn eval_bool_enum_member(&self, node: *AstNode, m: EnumMember): str {
 		if (m.value != null) {
 			if (m.value is LiteralExpr as lit && lit.literal_kind == Literal.BOOLEAN) return lit.raw_text;
-			self.report_error(m.value!, "Enum member value for 'bool' enum must be a bool literal");
+			self.report_error(m.value, "Enum member value for 'bool' enum must be a bool literal");
 			return "false";
 		}
 		self.report_error(node, "Enum member '${m.name}' of 'bool' enum requires an explicit bool literal");
@@ -698,7 +698,7 @@ impl DeclarationCollector {
 
 	fn collect_const_named(&self, node: &AstNode, owner_prefix: str = "") {
 		if (node is ConstDecl as c) {
-			val c_type = if (c.type_node != null) self.resolve_ast_type(c.type_node!)
+			val c_type = if (c.type_node != null) self.resolve_ast_type(c.type_node)
 			else self.infer_const_type(c.value) ?: self.prims().t_prim(Type.i32());
 			if (c_type.kind == DataType.FN) {
 				self.report_error(node, "Constant '${c.name}' cannot have a lambda/closure type");
