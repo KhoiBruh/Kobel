@@ -230,6 +230,10 @@ impl LoweringPass {
 			return expr;
 		}
 
+		if (cur is BinaryExpr as b && b.op == TokenType.QUESTION_COLON && cur_ty?.equals(target_ty)) {
+			return expr;
+		}
+
 		if (cur is CatchExpr && cur_ty?.equals(target_ty)) return expr;
 
 		if (cur is ErrorUnionWrapExpr && cur_ty?.equals(target_ty)) return expr;
@@ -494,7 +498,10 @@ impl LoweringPass {
 			is CatchExpr -> true;
 			is UnaryExpr as u -> (u.is_postfix && u.op == TokenType.QUESTION) || self.expr_needs_eu_lower(u.operand);
 			is GroupExpr as g -> self.expr_needs_eu_lower(g.expr);
-			is BinaryExpr as b -> self.expr_needs_eu_lower(b.left) || self.expr_needs_eu_lower(b.right);
+			is BinaryExpr as b -> (
+				b.op == TokenType.QUESTION_COLON
+				&& self.type_of(node)?.kind == DataType.ERROR_UNION
+			) || self.expr_needs_eu_lower(b.left) || self.expr_needs_eu_lower(b.right);
 			is CallExpr as c -> {
 				if (self.expr_needs_eu_lower(c.callee)) yield true;
 				for (a in c.args) if (self.expr_needs_eu_lower(a)) yield true;
@@ -959,6 +966,43 @@ impl LoweringPass {
 				return cid;
 			}
 			is BinaryExpr as b -> {
+				if (b.op == TokenType.QUESTION_COLON && self.type_of(node)?.kind == DataType.ERROR_UNION) {
+					val eu_ty = self.type_of(node)!;
+					val eu = eu_ty.as_error_union()!;
+					val low_l = self.lower_eu_expr(b.left, prelude, false);
+					val l_ty = self.type_of(low_l);
+					val tmp_name = "__eu_elvis_${self.next_eu_id()}";
+					val ty_ast = if (l_ty != null) self.arena.ast_type_from_type(l_ty) else null;
+					prelude.add(self.arena.node(
+						NodeData.VarDeclStmt(false, tmp_name, ty_ast, low_l),
+						node.line, node.col
+					));
+					val tmp_cond = self.arena.node(NodeData.IdentifierExpr(tmp_name), node.line, node.col);
+					val tmp_ok = self.arena.node(NodeData.IdentifierExpr(tmp_name), node.line, node.col);
+					if (l_ty != null) {
+						self.symtab.set_node_type(tmp_cond, l_ty);
+						val ok_ty = if (l_ty.kind == DataType.POINTER && l_ty.as_pointer()!.nullable)
+							self.arena.pointer_type(l_ty.as_pointer()!.pointee, l_ty.as_pointer()!.mutable)
+						else l_ty;
+						self.symtab.set_node_type(tmp_ok, ok_ty);
+					}
+					val null_lit = self.arena.node(NodeData.LiteralExpr(Literal.NULL_VAL, "null"), node.line, node.col);
+					var lhs_check: &AstNode = tmp_cond;
+					if (l_ty?.kind == DataType.STR) {
+						val data_mem = self.arena.node(NodeData.MemberExpr(tmp_cond, "data", false), node.line, node.col);
+						val ch_ptr = self.arena.nullable_pointer_type(self.symtab.prims!.t_char(), false);
+						self.symtab.set_node_type(data_mem, ch_ptr);
+						lhs_check = data_mem;
+					}
+					val cond = self.arena.node(NodeData.BinaryExpr(lhs_check, TokenType.BANG_EQUAL, null_lit), node.line, node.col);
+					self.symtab.set_node_type(cond, self.symtab.prims!.t_bool());
+					val then_br = self.make_eu_wrap(eu.c_name, true, tmp_ok, eu_ty, node.line, node.col);
+					val low_r = self.lower_eu_expr(b.right, prelude, false);
+					val else_br = self.wrap_for_eu(low_r, eu_ty);
+					val if_n = self.arena.node(NodeData.IfExpr(cond, then_br, else_br), node.line, node.col);
+					self.symtab.set_node_type(if_n, eu_ty);
+					return if_n;
+				}
 				if (b.op in [TokenType.AND_AND, TokenType.OR_OR] && self.expr_needs_eu_lower(b.right)) {
 					b.left = self.lower_eu_expr(b.left, prelude, false);
 					val cname = "__eu_sc_${self.next_eu_id()}";

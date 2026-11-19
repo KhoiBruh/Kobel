@@ -1280,6 +1280,115 @@ fn test_idioms(p: ?*Box, fb: *Box, n: i64, it: Item, def_pl: Payload): i64 {
 	println("  [PASS] test_group3_idiom_lints_and_quickfixes");
 }
 
+fn test_kblint_engine_and_custom_rules() {
+	val src = """mod sample.kblint_custom;
+
+use std.collections.List;
+use std.io.println;
+
+struct Bag {
+	pub len: usz
+}
+
+impl Bag {
+	pub fn empty(*self): bool => self.len == 0;
+}
+
+fn legacy_log(msg: str) { println(msg); }
+
+fn demo(n: i64): bool {
+	var xs = List<i64>();
+	xs += n;
+	legacy_log("hi");
+	val is_z = xs.len == 0;
+	val same = n == n;
+	return is_z || same;
+}
+""";
+	val vpath = "C:/Users/Admin/CLionProjects/Kobel/tests/unit/kblint_custom_virtual.kb";
+	val vuri = path_to_uri(vpath);
+
+	// 1. Default built-in .kblint rules: prefer-empty + self-comparison (self.len == 0 must NOT warn)
+	val a_builtin = AnalysisResult(vpath, src, "", false);
+	assert_eq_usz(count_diag_code(a_builtin.diagnostics, "prefer-empty"), 1, "expected 1 prefer-empty (not self.len == 0)");
+	assert_eq_usz(count_diag_code(a_builtin.diagnostics, "self-comparison"), 1, "expected 1 self-comparison");
+
+	var saw_kobel_lint_source = false;
+	for (d in a_builtin.diagnostics) {
+		if (d.code == "prefer-empty" && d.to_json().get_str("source", "") == "kobel-lint") {
+			saw_kobel_lint_source = true;
+		}
+	}
+	assert_true(saw_kobel_lint_source, "lint diagnostic JSON must emit source='kobel-lint'");
+
+	// 2. Custom .kblint rule + disable directive + malformed rule tolerance
+	val custom_kblint = """
+disable: ["self-comparison"]
+
+rule "broken-rule" {
+	match:   ((( broken syntax
+	message: "Should be ignored safely"
+}
+
+rule "no-legacy-log" {
+	match:   legacy_log($args...)
+	fix:     println($args...)
+	title:   "Replace legacy_log with println"
+	message: "Use 'println($args...)' instead of deprecated 'legacy_log'"
+}
+""";
+	var custom_rs = load_kblint_ruleset("", custom_kblint);
+	defer custom_rs.free();
+
+	val a_custom = AnalysisResult(vpath, src, "", false, &custom_rs);
+	assert_eq_usz(count_diag_code(a_custom.diagnostics, "self-comparison"), 0, "disable directive suppressed self-comparison");
+	assert_eq_usz(count_diag_code(a_custom.diagnostics, "no-legacy-log"), 1, "custom .kblint rule matched legacy_log");
+	assert_eq_usz(count_diag_code(a_custom.diagnostics, "prefer-empty"), 1, "built-in prefer-empty still active");
+
+	val dj = JsonValue.arr();
+	for (d in a_custom.diagnostics) dj += d.to_json();
+	val acts = code_actions_json(
+		a_custom.index, a_custom.tokens, vpath, src, 0, 0, 40, 0, dj, &a_custom.lint_fixes
+	);
+	val custom_act = find_action_by_title(acts, "Replace legacy_log with println");
+	assert_true(custom_act != null, "custom .kblint QuickFix action must exist");
+	val fixed1 = apply_action_edits(src, custom_act!, vuri);
+	assert_true("println(\"hi\");" in fixed1, "custom QuickFix rewrote legacy_log to println");
+
+	val empty_act = find_action_by_title(acts, "Simplify to 'xs.empty()'");
+	assert_true(empty_act != null, "prefer-empty QuickFix must exist");
+	val fixed2 = apply_action_edits(fixed1, empty_act!, vuri);
+	assert_true("val is_z = xs.empty();" in fixed2, "prefer-empty QuickFix rewrote xs.len == 0");
+
+	val after = AnalysisResult(vpath, fixed2, "", false, &custom_rs);
+	var after_errs: usz = 0;
+	for (d in after.diagnostics) if (d.severity == 1) after_errs++;
+	assert_eq_usz(after_errs, 0, "fixed source after custom .kblint QuickFixes must have zero errors");
+	assert_eq_usz(count_diag_code(after.diagnostics, "no-legacy-log"), 0, "no-legacy-log cleared");
+	assert_eq_usz(count_diag_code(after.diagnostics, "prefer-empty"), 0, "prefer-empty cleared");
+
+	// 3. Disambiguating import across two wildcard modules must NOT emit duplicate-import
+	val disambig_src = """mod sample.disambig;
+
+use compiler.ast.*;
+use compiler.semantic.types.*;
+use compiler.semantic.types.StructField;
+
+fn check(f: StructField): str => f.name;
+""";
+	val a_disambig = AnalysisResult(
+		"C:/Users/Admin/CLionProjects/Kobel/tests/unit/disambig_virtual.kb",
+		disambig_src, "", false
+	);
+	assert_eq_usz(
+		count_diag_code(a_disambig.diagnostics, "duplicate-import"),
+		0,
+		"disambiguating explicit import between two wildcard modules must not be flagged"
+	);
+
+	println("  [PASS] test_kblint_engine_and_custom_rules");
+}
+
 pub fn main() {
 	println("Running LSP unit tests...");
 	test_json_and_uri();
@@ -1292,5 +1401,6 @@ pub fn main() {
 	test_lint_warnings_and_quickfixes();
 	test_null_smart_cast_and_unwrap_lint();
 	test_group3_idiom_lints_and_quickfixes();
+	test_kblint_engine_and_custom_rules();
 	println("All LSP unit tests passed.");
 }

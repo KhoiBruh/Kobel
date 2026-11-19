@@ -106,7 +106,7 @@ impl StringBuilder {
 		if (n == 0) return;
 
 		if (self.len + n + 1 >= self.cap) self.grow(self.len + n + 1);
-		memset(&self.buf[self.len], c.code() as i32, n);
+		memset(&self.buf[self.len], c.code(), n);
 		self.len += n;
 	}
 

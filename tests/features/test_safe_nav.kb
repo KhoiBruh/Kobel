@@ -42,6 +42,18 @@ fn test_elvis_jump_on_null(p: ?*Inner): bool {
 	return false;
 }
 
+fault NavErr {
+	Missing
+}
+
+fn test_bool_safe_return(mid: *Middle): bool {
+	return mid.inner?.is_active;
+}
+
+fn test_elvis_to_eu(mid: *Middle): *Inner ! NavErr {
+	return mid.inner ?: NavErr.Missing;
+}
+
 fn test_member_early_return(mid: *Middle): i32 {
 	if (mid.inner == null) return -1;
 	if (!takes_non_null(mid.inner)) return -2;
@@ -140,6 +152,19 @@ fn run_tests(): i32 {
 	if (!(mid_empty.inner == null || takes_non_null(mid_empty.inner))) return 31;
 	if (test_member_early_return(&mid1) != 42) return 32;
 	if (test_member_early_return(&mid_empty) != -1) return 33;
+
+	// 14. Bool safe-nav in return/value position and Elvis-to-ErrorUnion
+	if (!test_bool_safe_return(&mid1)) return 34;
+	if (test_bool_safe_return(&mid_empty)) return 35;
+	val ok_flag = mid1.inner?.check_ok();
+	val null_flag = mid_empty.inner?.check_ok();
+	if (!ok_flag || null_flag) return 36;
+	val got_ok = test_elvis_to_eu(&mid1) !: return 37;
+	if (got_ok.count != 42) return 38;
+	val got_err_ok = test_elvis_to_eu(&mid_empty) !: err -> {
+		yield &in1;
+	};
+	if (got_err_ok.count != 42) return 39;
 
 	return 0;
 }

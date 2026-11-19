@@ -21,8 +21,7 @@ pub object Heap {
 	// Raw byte allocation returning explicit OOM error on failure.
 	pub fn try_alloc(size: usz): &u8 ! MemErr {
 		val req = if (size == 0) 1 else size;
-		val raw = malloc(req) ?: return MemErr.OutOfMemory;
-		return raw;
+		return malloc(req) ?: MemErr.OutOfMemory;
 	}
 
 	// Fallible allocation of `count` elements of `T`.

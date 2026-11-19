@@ -163,7 +163,7 @@ impl BodyChecker {
 			self.is_stmt_level = false;
 
 			if (bin.op == TokenType.QUESTION_COLON) {
-				return self.check_elvis_expr(node, bin, was_stmt);
+				return self.check_elvis_expr(node, bin, was_stmt, expected);
 			}
 
 			val num_expected = if (expected?.is_numeric()) expected else null;
@@ -241,7 +241,13 @@ impl BodyChecker {
 		return false;
 	}
 
-	fn check_elvis_expr(&self, node: &AstNode, bin: &BinaryExpr, was_stmt: bool): *Type {
+	fn check_elvis_expr(
+		&self,
+		node: &AstNode,
+		bin: &BinaryExpr,
+		was_stmt: bool,
+		expected: ?*Type = null
+	): *Type {
 		val num_expected: ?*Type = null;
 		val prev_sn = self.in_safe_nav_context;
 		val prev_elvis = self.in_elvis_lhs;
@@ -270,9 +276,20 @@ impl BodyChecker {
 			);
 			self.check_statement(bin.right);
 		} else {
+			val lt_non_null = if (lt.kind == DataType.POINTER && lt.as_pointer()!.nullable)
+				self.arena.pointer_type(lt.as_pointer()!.pointee, lt.as_pointer()!.mutable)
+			else lt;
+			val can_eu_elvis = expected != null
+				&& expected.kind == DataType.ERROR_UNION
+				&& expected.as_error_union()!.ok.can_assign(lt_non_null);
+			val rhs_expected = if (can_eu_elvis) expected else lt;
+
 			self.is_stmt_level = was_stmt;
-			rt = self.check_expr(bin.right, lt);
+			rt = self.check_expr(bin.right, rhs_expected);
 			self.is_stmt_level = false;
+			if (can_eu_elvis && rt != null && expected!.as_error_union()!.err.can_assign(rt)) {
+				return expected!;
+			}
 			val lt_is_null_lit = lt.kind == DataType.POINTER &&
 				lt.as_pointer()!.pointee.kind == DataType.NONE;
 			self.ensure(

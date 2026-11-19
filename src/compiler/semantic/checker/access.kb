@@ -109,7 +109,7 @@ impl BodyChecker {
 				if (ret_ty.kind == DataType.POINTER) {
 					val pt = ret_ty.as_pointer();
 					ret_ty = self.arena.nullable_pointer_type(pt!.pointee, pt!.mutable);
-				} else if (ret_ty.kind != DataType.STR) {
+				} else if (ret_ty.kind !in [DataType.STR, DataType.BOOL]) {
 					val scalar_safe = self.type_has_safe_default(ret_ty);
 					val allow_safe = prev_elvis || (self.in_safe_nav_context && scalar_safe);
 					self.ensure(

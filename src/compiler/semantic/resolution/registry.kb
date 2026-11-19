@@ -77,7 +77,7 @@ impl TypeResolver {
 	fn collect_generic_container_methods(&self, methods: List<&AstNode>, owner_name: str, is_object: bool) {
 		for (m in methods) {
 			if (m is FnDecl as f) {
-				if (f.type_params.len == 0) continue;
+				if (f.type_params.empty()) continue;
 				self.validate_fn_lambda_rules(m, f);
 				if (is_object) {
 					for (p in f.params) {

@@ -222,11 +222,15 @@ const LINT_CODES = new Set([
     'prefer-safe-nav',
     'redundant-cast',
     'single-arm-when',
-    'duplicate-import'
+    'duplicate-import',
+    'prefer-empty',
+    'self-comparison'
 ]);
 
 function isLintDiag(d) {
-    return Boolean(d && typeof d.code === 'string' && LINT_CODES.has(d.code));
+    if (!d) return false;
+    if (d.source === 'kobel-lint') return true;
+    return typeof d.code === 'string' && LINT_CODES.has(d.code);
 }
 
 function isDeadCodeDiag(d) {

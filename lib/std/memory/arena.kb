@@ -57,7 +57,7 @@ impl Arena {
 	pub fn empty() => Self(null, 65536);
 
 	fn ensure_state(&self): &ArenaState {
-		if (self.state != null) return self.state!;
+		if (self.state != null) return self.state;
 		val st = Heap.create_val<ArenaState>(ArenaState(null, self.block_size));
 		self.state = st;
 		return st;
@@ -78,7 +78,7 @@ impl Arena {
 
 	pub fn reset(*self) {
 		if (self.state == null) return;
-		var curr = self.state!.current;
+		var curr = self.state.current;
 		while (curr != null) {
 			curr.used = 0;
 			curr = curr.next;
@@ -88,7 +88,7 @@ impl Arena {
 	pub fn total_allocated(*self): usz {
 		if (self.state == null) return 0;
 		var total: usz = 0;
-		var curr = self.state!.current;
+		var curr = self.state.current;
 		while (curr != null) {
 			total += curr.size;
 			curr = curr.next;
@@ -99,7 +99,7 @@ impl Arena {
 	pub fn free(&self) {
 		if (self.state == null) return;
 
-		val st = self.state!;
+		val st = self.state;
 		var curr = st.current;
 		while (curr != null) {
 			val next_blk = curr.next;

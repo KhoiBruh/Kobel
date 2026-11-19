@@ -70,7 +70,11 @@ pub struct LanguageServer {
 	pub is_shutdown: bool,
 	pub workspace_root: str,
 	pub cache: List<AnalysisCacheEntry>,
-	pub arena: Arena
+	pub arena: Arena,
+	pub kblint_rules: KblintRuleSet = KblintRuleSet(),
+	pub kblint_loaded: bool = false,
+	pub kblint_root: str = "",
+	pub kblint_dotfile_text: str = ""
 }
 
 impl LanguageServer {
@@ -78,6 +82,19 @@ impl LanguageServer {
 	pub init() => Self(
 		DocumentStore(), false, "", List<AnalysisCacheEntry>(), Arena(262144)
 	);
+
+	fn ensure_kblint_rules(&self): *KblintRuleSet {
+		val ws_path = find_workspace_kblint_path(self.workspace_root);
+		val cur_text = if (!ws_path.empty()) (Path(ws_path).read_text() !: "") else "";
+		if (!self.kblint_loaded || self.kblint_root != self.workspace_root || self.kblint_dotfile_text != cur_text) {
+			if (self.kblint_loaded) self.kblint_rules.free();
+			self.kblint_rules = load_kblint_ruleset(self.workspace_root);
+			self.kblint_loaded = true;
+			self.kblint_root = self.workspace_root;
+			self.kblint_dotfile_text = cur_text;
+		}
+		return &self.kblint_rules;
+	}
 
 	fn get_analysis(&self, uri: str, doc_path: str, doc_text: str, need_ws: bool = false): *AnalysisResult {
 		val doc = self.docs.get_doc(uri) !: Document(uri, doc_path, doc_text, -1);
@@ -105,7 +122,8 @@ impl LanguageServer {
 			self.cache.data[0].analysis.free();
 			self.cache.remove_at(0)!;
 		}
-		val created = AnalysisResult(doc_path, doc_text, self.workspace_root, need_ws);
+		val ruleset = self.ensure_kblint_rules();
+		val created = AnalysisResult(doc_path, doc_text, self.workspace_root, need_ws, ruleset);
 		var entry = AnalysisCacheEntry();
 		entry.uri = uri;
 		entry.version = doc.version;

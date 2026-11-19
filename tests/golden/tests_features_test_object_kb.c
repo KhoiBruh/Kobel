@@ -676,11 +676,8 @@ __kobel_eu_mut_ptr_i32__std__memory__MemErr std__memory__Heap_try_create_i32(siz
 
 __kobel_eu_mut_ptr_u8__std__memory__MemErr std__memory__Heap_try_alloc(size_t size) {
 size_t req = size == 0 ? 1 : size;
-uint8_t* raw = malloc(req);
-if (raw == NULL) {
-return (__kobel_eu_mut_ptr_u8__std__memory__MemErr){ .is_ok = false, .u = { .err = (std__memory__MemErr){ .tag = 0, .__err_code = 1U, .__origin = { "lib/std/memory/heap.kb", 24, 41, "Heap_try_alloc" } } } };
-}
-return (__kobel_eu_mut_ptr_u8__std__memory__MemErr){ .is_ok = true, .u = { .ok = raw } };
+uint8_t* __eu_elvis_1 = malloc(req);
+return __eu_elvis_1 != NULL ? (__kobel_eu_mut_ptr_u8__std__memory__MemErr){ .is_ok = true, .u = { .ok = __eu_elvis_1 } } : (__kobel_eu_mut_ptr_u8__std__memory__MemErr){ .is_ok = false, .u = { .err = (std__memory__MemErr){ .tag = 0, .__err_code = 1U, .__origin = { "lib/std/memory/heap.kb", 24, 31, "Heap_try_alloc" } } } };
 }
 
 bool str_empty(kobel_str self) {
@@ -854,16 +851,16 @@ void std__memory__Heap_free_i32(int32_t* ptr) {
 }
 
 int32_t* std__memory__Heap_create_i32(size_t count) {
-    return __kobel_unwrap___kobel_eu_mut_ptr_i32__std__memory__MemErr(std__memory__Heap_try_create_i32(count), "lib/std/memory/heap.kb", 44, 63, "Heap_create_i32");
+    return __kobel_unwrap___kobel_eu_mut_ptr_i32__std__memory__MemErr(std__memory__Heap_try_create_i32(count), "lib/std/memory/heap.kb", 43, 63, "Heap_create_i32");
 }
 
 __kobel_eu_mut_ptr_i32__std__memory__MemErr std__memory__Heap_try_create_i32(size_t count) {
 size_t bytes = count * 4;
-__kobel_eu_mut_ptr_u8__std__memory__MemErr __eu_prop_5 = std__memory__Heap_try_alloc(bytes);
-if (!__eu_prop_5.is_ok) {
-return (__kobel_eu_mut_ptr_i32__std__memory__MemErr){ .is_ok = false, .u = { .err = __eu_prop_5.u.err } };
+__kobel_eu_mut_ptr_u8__std__memory__MemErr __eu_prop_6 = std__memory__Heap_try_alloc(bytes);
+if (!__eu_prop_6.is_ok) {
+return (__kobel_eu_mut_ptr_i32__std__memory__MemErr){ .is_ok = false, .u = { .err = __eu_prop_6.u.err } };
 }
-uint8_t* raw = __eu_prop_5.u.ok;
+uint8_t* raw = __eu_prop_6.u.ok;
 return (__kobel_eu_mut_ptr_i32__std__memory__MemErr){ .is_ok = true, .u = { .ok = (int32_t*)raw } };
 }
 

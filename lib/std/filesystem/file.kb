@@ -108,7 +108,7 @@ impl File {
 
 	pub fn write_all(*self, content: str): !FsErr {
 		if (self.handle == null) return FsErr.NotOpen;
-		if (content.len == 0) return;
+		if (content.empty()) return;
 		val written = fwrite(content.data, 1, content.len, self.handle);
 		if (written != content.len) return FsErr.WriteFailed;
 	}

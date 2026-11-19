@@ -590,7 +590,7 @@ impl BodyChecker {
 				return true;
 			}
 			val body_ty = self.check_expr(body_expr);
-			val val_mutated = if (!mut_self_key.empty()) self.symtab.lookup(f.params[0].name)?.mutated == true else false;
+			val val_mutated = if (!mut_self_key.empty()) self.symtab.lookup(f.params[0].name)?.mutated else false;
 			self.pop_instance(saved_rec, rec);
 			self.symtab.exit_scope();
 

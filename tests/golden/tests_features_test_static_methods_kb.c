@@ -772,6 +772,7 @@ static inline uint8_t* __kobel_unwrap___kobel_eu_mut_ptr_u8__std__memory__MemErr
 
 __kobel_eu_mut_ptr_u8__std__memory__MemErr std__memory__Heap_try_alloc(size_t size);
 kobel_str std__string__str_from_bytes(uint8_t* buf, size_t len);
+bool str_empty(kobel_str self);
 std__filesystem__FsErr std__filesystem__fs_err_from_code(int32_t code);
 __kobel_eu_std__filesystem__File__std__filesystem__FsErr std__filesystem__File_open(kobel_str path, kobel_str mode);
 void std__filesystem__File_close(std__filesystem__File* self);
@@ -796,17 +797,18 @@ __kobel_eu_mut_ptr_u8__std__memory__MemErr std__memory__Heap_try_create_u8(size_
 
 __kobel_eu_mut_ptr_u8__std__memory__MemErr std__memory__Heap_try_alloc(size_t size) {
 size_t req = size == 0 ? 1 : size;
-uint8_t* raw = malloc(req);
-if (raw == NULL) {
-return (__kobel_eu_mut_ptr_u8__std__memory__MemErr){ .is_ok = false, .u = { .err = (std__memory__MemErr){ .tag = 0, .__err_code = 1U, .__origin = { "lib/std/memory/heap.kb", 24, 41, "Heap_try_alloc" } } } };
-}
-return (__kobel_eu_mut_ptr_u8__std__memory__MemErr){ .is_ok = true, .u = { .ok = raw } };
+uint8_t* __eu_elvis_1 = malloc(req);
+return __eu_elvis_1 != NULL ? (__kobel_eu_mut_ptr_u8__std__memory__MemErr){ .is_ok = true, .u = { .ok = __eu_elvis_1 } } : (__kobel_eu_mut_ptr_u8__std__memory__MemErr){ .is_ok = false, .u = { .err = (std__memory__MemErr){ .tag = 0, .__err_code = 1U, .__origin = { "lib/std/memory/heap.kb", 24, 31, "Heap_try_alloc" } } } };
 }
 
 kobel_str std__string__str_from_bytes(uint8_t* buf, size_t len) {
 std__string__StrRaw r = (std__string__StrRaw){ (const char*)buf, len };
 kobel_str* sp = (kobel_str*)&r;
 return *sp;
+}
+
+bool str_empty(kobel_str self) {
+    return self.len == 0;
 }
 
 std__filesystem__FsErr std__filesystem__fs_err_from_code(int32_t code) {
@@ -833,7 +835,7 @@ __kobel_eu_none__std__filesystem__FsErr std__filesystem__File_write_all(std__fil
 if (self->handle == NULL) {
 return (__kobel_eu_none__std__filesystem__FsErr){ .is_ok = false, .u = { .err = (std__filesystem__FsErr){ .tag = 6, .__err_code = 12U, .__origin = { "lib/std/filesystem/file.kb", 110, 40, "File_write_all" } } } };
 }
-if (content.len == 0) {
+if (str_empty(content)) {
 return (__kobel_eu_none__std__filesystem__FsErr){ .is_ok = true };
 }
 size_t written = fwrite(content.data, 1, content.len, self->handle);
@@ -897,36 +899,36 @@ return (__kobel_eu_none__std__filesystem__FsErr){ .is_ok = false, .u = { .err = 
 }
 
 __kobel_eu_str__std__filesystem__FsErr std__filesystem__Path_read_text(std__filesystem__Path* self) {
-__kobel_eu_std__filesystem__File__std__filesystem__FsErr __eu_prop_3 = std__filesystem__File_open(self->raw, KOBEL_STR("rb"));
-if (!__eu_prop_3.is_ok) {
-return (__kobel_eu_str__std__filesystem__FsErr){ .is_ok = false, .u = { .err = __eu_prop_3.u.err } };
-}
-std__filesystem__File f = __eu_prop_3.u.ok;
-__kobel_eu_str__std__filesystem__FsErr __eu_prop_4 = std__filesystem__File_read_all(&f);
+__kobel_eu_std__filesystem__File__std__filesystem__FsErr __eu_prop_4 = std__filesystem__File_open(self->raw, KOBEL_STR("rb"));
 if (!__eu_prop_4.is_ok) {
+return (__kobel_eu_str__std__filesystem__FsErr){ .is_ok = false, .u = { .err = __eu_prop_4.u.err } };
+}
+std__filesystem__File f = __eu_prop_4.u.ok;
+__kobel_eu_str__std__filesystem__FsErr __eu_prop_5 = std__filesystem__File_read_all(&f);
+if (!__eu_prop_5.is_ok) {
 {
-__kobel_eu_str__std__filesystem__FsErr __ret_tmp = (__kobel_eu_str__std__filesystem__FsErr){ .is_ok = false, .u = { .err = __eu_prop_4.u.err } };
+__kobel_eu_str__std__filesystem__FsErr __ret_tmp = (__kobel_eu_str__std__filesystem__FsErr){ .is_ok = false, .u = { .err = __eu_prop_5.u.err } };
 std__filesystem__File_close(&f);
 return __ret_tmp;
 }
 }
 {
-__kobel_eu_str__std__filesystem__FsErr __ret_tmp = (__kobel_eu_str__std__filesystem__FsErr){ .is_ok = true, .u = { .ok = __eu_prop_4.u.ok } };
+__kobel_eu_str__std__filesystem__FsErr __ret_tmp = (__kobel_eu_str__std__filesystem__FsErr){ .is_ok = true, .u = { .ok = __eu_prop_5.u.ok } };
 std__filesystem__File_close(&f);
 return __ret_tmp;
 }
 }
 
 __kobel_eu_none__std__filesystem__FsErr std__filesystem__Path_write_text(std__filesystem__Path* self, kobel_str content) {
-__kobel_eu_std__filesystem__File__std__filesystem__FsErr __eu_prop_5 = std__filesystem__File_open(self->raw, KOBEL_STR("wb"));
-if (!__eu_prop_5.is_ok) {
-return (__kobel_eu_none__std__filesystem__FsErr){ .is_ok = false, .u = { .err = __eu_prop_5.u.err } };
-}
-std__filesystem__File f = __eu_prop_5.u.ok;
-__kobel_eu_none__std__filesystem__FsErr __eu_prop_6 = std__filesystem__File_write_all(&f, content);
+__kobel_eu_std__filesystem__File__std__filesystem__FsErr __eu_prop_6 = std__filesystem__File_open(self->raw, KOBEL_STR("wb"));
 if (!__eu_prop_6.is_ok) {
+return (__kobel_eu_none__std__filesystem__FsErr){ .is_ok = false, .u = { .err = __eu_prop_6.u.err } };
+}
+std__filesystem__File f = __eu_prop_6.u.ok;
+__kobel_eu_none__std__filesystem__FsErr __eu_prop_7 = std__filesystem__File_write_all(&f, content);
+if (!__eu_prop_7.is_ok) {
 {
-__kobel_eu_none__std__filesystem__FsErr __ret_tmp = (__kobel_eu_none__std__filesystem__FsErr){ .is_ok = false, .u = { .err = __eu_prop_6.u.err } };
+__kobel_eu_none__std__filesystem__FsErr __ret_tmp = (__kobel_eu_none__std__filesystem__FsErr){ .is_ok = false, .u = { .err = __eu_prop_7.u.err } };
 std__filesystem__File_close(&f);
 return __ret_tmp;
 }
@@ -1055,11 +1057,11 @@ void std__memory__Heap_free_u8(uint8_t* ptr) {
 
 __kobel_eu_mut_ptr_u8__std__memory__MemErr std__memory__Heap_try_create_u8(size_t count) {
 size_t bytes = count * 1;
-__kobel_eu_mut_ptr_u8__std__memory__MemErr __eu_prop_9 = std__memory__Heap_try_alloc(bytes);
-if (!__eu_prop_9.is_ok) {
-return (__kobel_eu_mut_ptr_u8__std__memory__MemErr){ .is_ok = false, .u = { .err = __eu_prop_9.u.err } };
+__kobel_eu_mut_ptr_u8__std__memory__MemErr __eu_prop_10 = std__memory__Heap_try_alloc(bytes);
+if (!__eu_prop_10.is_ok) {
+return (__kobel_eu_mut_ptr_u8__std__memory__MemErr){ .is_ok = false, .u = { .err = __eu_prop_10.u.err } };
 }
-uint8_t* raw = __eu_prop_9.u.ok;
+uint8_t* raw = __eu_prop_10.u.ok;
 return (__kobel_eu_mut_ptr_u8__std__memory__MemErr){ .is_ok = true, .u = { .ok = (uint8_t*)raw } };
 }
 

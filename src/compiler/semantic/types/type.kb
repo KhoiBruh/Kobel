@@ -280,18 +280,15 @@ impl Type {
 
 	pub fn is_float(*self) => self.kind in [DataType.F32, DataType.F64];
 
-	pub fn is_enum(*self): bool => when (self.data) {
-		is TypePayload.Enum -> true;
-		else -> false;
-	};
+	pub fn is_enum(*self) => self.data is TypePayload.Enum;
 
-	pub fn is_fault(*self): bool
-		=> self.kind == DataType.STRUCT && self.as_struct()!.is_fault;
+	pub fn is_fault(*self) => self.kind == DataType.STRUCT && self.as_struct()!.is_fault;
 
 	pub fn is_numeric(*self) => self.is_integer() || self.is_float();
 
 	pub fn is_list(*self): bool {
 		if (self.kind != DataType.STRUCT) return false;
+
 		val s = self.as_struct();
 		if (s!.module !in ["std.collections.list", "std.collections"]) return false;
 

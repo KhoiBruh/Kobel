@@ -572,7 +572,12 @@ impl BodyChecker {
 					}
 				} else {
 					var hint = self.current_fn_return_type;
-					if (hint?.kind == DataType.ERROR_UNION) {
+					val unwrapped_ret = self.unwrap_group(ret.value);
+					var keep_eu_hint = unwrapped_ret is IfExpr || unwrapped_ret is WhenExpr;
+					if (unwrapped_ret is BinaryExpr as rb && rb.op == TokenType.QUESTION_COLON) {
+						keep_eu_hint = true;
+					}
+					if (hint?.kind == DataType.ERROR_UNION && !keep_eu_hint) {
 						val eu = hint.as_error_union()!;
 						if (eu.ok.kind != DataType.NONE) hint = eu.ok;
 					}

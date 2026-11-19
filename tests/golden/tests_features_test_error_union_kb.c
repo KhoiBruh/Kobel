@@ -871,11 +871,8 @@ __kobel_eu_mut_ptr_u8__std__memory__MemErr std__memory__Heap_try_create_u8(size_
 
 __kobel_eu_mut_ptr_u8__std__memory__MemErr std__memory__Heap_try_alloc(size_t size) {
 size_t req = size == 0 ? 1 : size;
-uint8_t* raw = malloc(req);
-if (raw == NULL) {
-return (__kobel_eu_mut_ptr_u8__std__memory__MemErr){ .is_ok = false, .u = { .err = (std__memory__MemErr){ .tag = 0, .__err_code = 1U, .__origin = { "lib/std/memory/heap.kb", 24, 41, "Heap_try_alloc" } } } };
-}
-return (__kobel_eu_mut_ptr_u8__std__memory__MemErr){ .is_ok = true, .u = { .ok = raw } };
+uint8_t* __eu_elvis_1 = malloc(req);
+return __eu_elvis_1 != NULL ? (__kobel_eu_mut_ptr_u8__std__memory__MemErr){ .is_ok = true, .u = { .ok = __eu_elvis_1 } } : (__kobel_eu_mut_ptr_u8__std__memory__MemErr){ .is_ok = false, .u = { .err = (std__memory__MemErr){ .tag = 0, .__err_code = 1U, .__origin = { "lib/std/memory/heap.kb", 24, 31, "Heap_try_alloc" } } } };
 }
 
 kobel_str std__string__str_from_bytes(uint8_t* buf, size_t len) {
@@ -1093,11 +1090,11 @@ return __ret_tmp;
 }
 
 __kobel_eu_i32__test__error_union__ParseErr test__error_union__propagate_basic(kobel_str s) {
-__kobel_eu_i32__test__error_union__ParseErr __eu_prop_1 = test__error_union__parse_pos(s);
-if (!__eu_prop_1.is_ok) {
-return (__kobel_eu_i32__test__error_union__ParseErr){ .is_ok = false, .u = { .err = __eu_prop_1.u.err } };
+__kobel_eu_i32__test__error_union__ParseErr __eu_prop_2 = test__error_union__parse_pos(s);
+if (!__eu_prop_2.is_ok) {
+return (__kobel_eu_i32__test__error_union__ParseErr){ .is_ok = false, .u = { .err = __eu_prop_2.u.err } };
 }
-int32_t n = __eu_prop_1.u.ok;
+int32_t n = __eu_prop_2.u.ok;
 return (__kobel_eu_i32__test__error_union__ParseErr){ .is_ok = true, .u = { .ok = n + 10 } };
 }
 
@@ -1105,16 +1102,16 @@ __kobel_eu_i32__test__error_union__ParseErr test__error_union__propagate_map(kob
 if (flag < 0) {
 return (__kobel_eu_i32__test__error_union__ParseErr){ .is_ok = false, .u = { .err = (test__error_union__ParseErr){ .tag = 0, .__err_code = 12U, .__origin = { "tests/features/test_error_union.kb", 79, 31, "propagate_map" } } } };
 }
-__kobel_eu_i32__test__error_union__ParseErr __eu_prop_2 = test__error_union__parse_pos(s);
-if (!__eu_prop_2.is_ok) {
-return (__kobel_eu_i32__test__error_union__ParseErr){ .is_ok = false, .u = { .err = __eu_prop_2.u.err } };
-}
-int32_t a = __eu_prop_2.u.ok;
-__kobel_eu_i32__test__error_union__ParseErr __eu_prop_3 = test__error_union__parse_pos(KOBEL_STR("42"));
+__kobel_eu_i32__test__error_union__ParseErr __eu_prop_3 = test__error_union__parse_pos(s);
 if (!__eu_prop_3.is_ok) {
 return (__kobel_eu_i32__test__error_union__ParseErr){ .is_ok = false, .u = { .err = __eu_prop_3.u.err } };
 }
-int32_t b = __eu_prop_3.u.ok;
+int32_t a = __eu_prop_3.u.ok;
+__kobel_eu_i32__test__error_union__ParseErr __eu_prop_4 = test__error_union__parse_pos(KOBEL_STR("42"));
+if (!__eu_prop_4.is_ok) {
+return (__kobel_eu_i32__test__error_union__ParseErr){ .is_ok = false, .u = { .err = __eu_prop_4.u.err } };
+}
+int32_t b = __eu_prop_4.u.ok;
 return (__kobel_eu_i32__test__error_union__ParseErr){ .is_ok = true, .u = { .ok = a + b } };
 }
 
@@ -1126,9 +1123,9 @@ return (__kobel_eu_none__test__error_union__IoErr){ .is_ok = false, .u = { .err 
 }
 
 __kobel_eu_i32__test__error_union__IoErr test__error_union__void_outer(bool ok) {
-__kobel_eu_none__test__error_union__IoErr __eu_prop_4 = test__error_union__void_inner(ok);
-if (!__eu_prop_4.is_ok) {
-return (__kobel_eu_i32__test__error_union__IoErr){ .is_ok = false, .u = { .err = __eu_prop_4.u.err } };
+__kobel_eu_none__test__error_union__IoErr __eu_prop_5 = test__error_union__void_inner(ok);
+if (!__eu_prop_5.is_ok) {
+return (__kobel_eu_i32__test__error_union__IoErr){ .is_ok = false, .u = { .err = __eu_prop_5.u.err } };
 }
 return (__kobel_eu_i32__test__error_union__IoErr){ .is_ok = true, .u = { .ok = 123 } };
 }
@@ -1146,11 +1143,11 @@ int32_t total = 0;
 int32_t cur = 3;
 int32_t calls = 0;
 while (true) {
-__kobel_eu_i32__test__error_union__IoErr __eu_prop_5 = test__error_union__step_val(cur, &calls);
-if (!__eu_prop_5.is_ok) {
-return (__kobel_eu_i32__test__error_union__IoErr){ .is_ok = false, .u = { .err = __eu_prop_5.u.err } };
+__kobel_eu_i32__test__error_union__IoErr __eu_prop_6 = test__error_union__step_val(cur, &calls);
+if (!__eu_prop_6.is_ok) {
+return (__kobel_eu_i32__test__error_union__IoErr){ .is_ok = false, .u = { .err = __eu_prop_6.u.err } };
 }
-if (!(__eu_prop_5.u.ok > 1)) {
+if (!(__eu_prop_6.u.ok > 1)) {
 break;
 }
 total += cur;
@@ -1168,51 +1165,51 @@ __kobel_eu_bool__test__error_union__IoErr test__error_union__ok_bool(bool b) {
 
 __kobel_eu_bool__test__error_union__IoErr test__error_union__propagate_short_circuit(bool fail_rhs) {
 int32_t called = 0;
-__kobel_eu_bool__test__error_union__IoErr __eu_prop_6 = test__error_union__ok_bool(false);
-if (!__eu_prop_6.is_ok) {
-return (__kobel_eu_bool__test__error_union__IoErr){ .is_ok = false, .u = { .err = __eu_prop_6.u.err } };
+__kobel_eu_bool__test__error_union__IoErr __eu_prop_7 = test__error_union__ok_bool(false);
+if (!__eu_prop_7.is_ok) {
+return (__kobel_eu_bool__test__error_union__IoErr){ .is_ok = false, .u = { .err = __eu_prop_7.u.err } };
 }
-bool __eu_sc_7 = false;
-if (__eu_prop_6.u.ok) {
-__kobel_eu_i32__test__error_union__IoErr __eu_prop_8 = test__error_union__step_val(fail_rhs ? 0 : 1, &called);
-if (!__eu_prop_8.is_ok) {
-return (__kobel_eu_bool__test__error_union__IoErr){ .is_ok = false, .u = { .err = __eu_prop_8.u.err } };
-}
-__eu_sc_7 = __eu_prop_8.u.ok > 0;
-}
-bool a = __eu_sc_7;
-if (a || called != 0) {
-return (__kobel_eu_bool__test__error_union__IoErr){ .is_ok = false, .u = { .err = (test__error_union__IoErr){ .tag = 1, .__err_code = 11U, .__origin = { "tests/features/test_error_union.kb", 118, 36, "propagate_short_circuit" } } } };
-}
-__kobel_eu_bool__test__error_union__IoErr __eu_prop_9 = test__error_union__ok_bool(true);
+bool __eu_sc_8 = false;
+if (__eu_prop_7.u.ok) {
+__kobel_eu_i32__test__error_union__IoErr __eu_prop_9 = test__error_union__step_val(fail_rhs ? 0 : 1, &called);
 if (!__eu_prop_9.is_ok) {
 return (__kobel_eu_bool__test__error_union__IoErr){ .is_ok = false, .u = { .err = __eu_prop_9.u.err } };
 }
-bool __eu_sc_10 = true;
-if (!__eu_prop_9.u.ok) {
-__kobel_eu_i32__test__error_union__IoErr __eu_prop_11 = test__error_union__step_val(0, &called);
-if (!__eu_prop_11.is_ok) {
-return (__kobel_eu_bool__test__error_union__IoErr){ .is_ok = false, .u = { .err = __eu_prop_11.u.err } };
+__eu_sc_8 = __eu_prop_9.u.ok > 0;
 }
-__eu_sc_10 = __eu_prop_11.u.ok > 0;
+bool a = __eu_sc_8;
+if (a || called != 0) {
+return (__kobel_eu_bool__test__error_union__IoErr){ .is_ok = false, .u = { .err = (test__error_union__IoErr){ .tag = 1, .__err_code = 11U, .__origin = { "tests/features/test_error_union.kb", 118, 36, "propagate_short_circuit" } } } };
 }
-bool b = __eu_sc_10;
-if (!b || called != 0) {
-return (__kobel_eu_bool__test__error_union__IoErr){ .is_ok = false, .u = { .err = (test__error_union__IoErr){ .tag = 1, .__err_code = 11U, .__origin = { "tests/features/test_error_union.kb", 121, 37, "propagate_short_circuit" } } } };
+__kobel_eu_bool__test__error_union__IoErr __eu_prop_10 = test__error_union__ok_bool(true);
+if (!__eu_prop_10.is_ok) {
+return (__kobel_eu_bool__test__error_union__IoErr){ .is_ok = false, .u = { .err = __eu_prop_10.u.err } };
 }
-__kobel_eu_bool__test__error_union__IoErr __eu_prop_12 = test__error_union__ok_bool(true);
+bool __eu_sc_11 = true;
+if (!__eu_prop_10.u.ok) {
+__kobel_eu_i32__test__error_union__IoErr __eu_prop_12 = test__error_union__step_val(0, &called);
 if (!__eu_prop_12.is_ok) {
 return (__kobel_eu_bool__test__error_union__IoErr){ .is_ok = false, .u = { .err = __eu_prop_12.u.err } };
 }
-bool __eu_sc_13 = false;
-if (__eu_prop_12.u.ok) {
-__kobel_eu_i32__test__error_union__IoErr __eu_prop_14 = test__error_union__step_val(5, &called);
-if (!__eu_prop_14.is_ok) {
-return (__kobel_eu_bool__test__error_union__IoErr){ .is_ok = false, .u = { .err = __eu_prop_14.u.err } };
+__eu_sc_11 = __eu_prop_12.u.ok > 0;
 }
-__eu_sc_13 = __eu_prop_14.u.ok > 0;
+bool b = __eu_sc_11;
+if (!b || called != 0) {
+return (__kobel_eu_bool__test__error_union__IoErr){ .is_ok = false, .u = { .err = (test__error_union__IoErr){ .tag = 1, .__err_code = 11U, .__origin = { "tests/features/test_error_union.kb", 121, 37, "propagate_short_circuit" } } } };
 }
-bool c = __eu_sc_13;
+__kobel_eu_bool__test__error_union__IoErr __eu_prop_13 = test__error_union__ok_bool(true);
+if (!__eu_prop_13.is_ok) {
+return (__kobel_eu_bool__test__error_union__IoErr){ .is_ok = false, .u = { .err = __eu_prop_13.u.err } };
+}
+bool __eu_sc_14 = false;
+if (__eu_prop_13.u.ok) {
+__kobel_eu_i32__test__error_union__IoErr __eu_prop_15 = test__error_union__step_val(5, &called);
+if (!__eu_prop_15.is_ok) {
+return (__kobel_eu_bool__test__error_union__IoErr){ .is_ok = false, .u = { .err = __eu_prop_15.u.err } };
+}
+__eu_sc_14 = __eu_prop_15.u.ok > 0;
+}
+bool c = __eu_sc_14;
 return (__kobel_eu_bool__test__error_union__IoErr){ .is_ok = true, .u = { .ok = c && called == 1 } };
 }
 
@@ -1249,71 +1246,71 @@ return __ret_tmp;
 static __kobel_main_result __kobel_user_main(void) {
 __kobel_eu_i32__test__error_union__IoErr ok_r = (__kobel_eu_i32__test__error_union__IoErr){ .is_ok = true, .u = { .ok = 42 } };
 __kobel_eu_i32__test__error_union__IoErr err_r = (__kobel_eu_i32__test__error_union__IoErr){ .is_ok = false, .u = { .err = (test__error_union__IoErr){ .tag = 0, .__err_code = 10U, .__origin = { "tests/features/test_error_union.kb", 145, 32, "main" } } } };
-int32_t __eu_catch_15;
+int32_t __eu_catch_16;
 {
 __kobel_eu_i32__test__error_union__IoErr __eu_src_3 = ok_r;
 if (__eu_src_3.is_ok) {
-__eu_catch_15 = __eu_src_3.u.ok;
-} else {
-__eu_catch_15 = -1;
-}
-}
-testsupport__assert__assert_eq_i32(__eu_catch_15, 42, KOBEL_STR("ok_r recovers to 42"));
-int32_t __eu_catch_16;
-{
-__kobel_eu_i32__test__error_union__IoErr __eu_src_4 = err_r;
-if (__eu_src_4.is_ok) {
-__eu_catch_16 = __eu_src_4.u.ok;
+__eu_catch_16 = __eu_src_3.u.ok;
 } else {
 __eu_catch_16 = -1;
 }
 }
-testsupport__assert__assert_eq_i32(__eu_catch_16, -1, KOBEL_STR("err_r recovers to -1"));
-err_r = (__kobel_eu_i32__test__error_union__IoErr){ .is_ok = true, .u = { .ok = 99 } };
+testsupport__assert__assert_eq_i32(__eu_catch_16, 42, KOBEL_STR("ok_r recovers to 42"));
 int32_t __eu_catch_17;
 {
-__kobel_eu_i32__test__error_union__IoErr __eu_src_5 = err_r;
-if (__eu_src_5.is_ok) {
-__eu_catch_17 = __eu_src_5.u.ok;
+__kobel_eu_i32__test__error_union__IoErr __eu_src_4 = err_r;
+if (__eu_src_4.is_ok) {
+__eu_catch_17 = __eu_src_4.u.ok;
 } else {
 __eu_catch_17 = -1;
 }
 }
-testsupport__assert__assert_eq_i32(__eu_catch_17, 99, KOBEL_STR("reassigned err_r recovers to 99"));
+testsupport__assert__assert_eq_i32(__eu_catch_17, -1, KOBEL_STR("err_r recovers to -1"));
+err_r = (__kobel_eu_i32__test__error_union__IoErr){ .is_ok = true, .u = { .ok = 99 } };
+int32_t __eu_catch_18;
+{
+__kobel_eu_i32__test__error_union__IoErr __eu_src_5 = err_r;
+if (__eu_src_5.is_ok) {
+__eu_catch_18 = __eu_src_5.u.ok;
+} else {
+__eu_catch_18 = -1;
+}
+}
+testsupport__assert__assert_eq_i32(__eu_catch_18, 99, KOBEL_STR("reassigned err_r recovers to 99"));
 err_r = (__kobel_eu_i32__test__error_union__IoErr){ .is_ok = false, .u = { .err = (test__error_union__IoErr){ .tag = 1, .__err_code = 11U, .__origin = { "tests/features/test_error_union.kb", 150, 15, "main" } } } };
 testsupport__assert__assert_eq_i32(test__error_union__accept_eu((__kobel_eu_i32__test__error_union__IoErr){ .is_ok = true, .u = { .ok = 17 } }), 17, KOBEL_STR("naked ok wraps into call arg"));
 testsupport__assert__assert_eq_i32(test__error_union__accept_eu((__kobel_eu_i32__test__error_union__IoErr){ .is_ok = false, .u = { .err = (test__error_union__IoErr){ .tag = 0, .__err_code = 10U, .__origin = { "tests/features/test_error_union.kb", 154, 31, "main" } } } }), -50, KOBEL_STR("naked fault wraps into call arg"));
 test__error_union__Wrapper w = (test__error_union__Wrapper){ (__kobel_eu_i32__test__error_union__IoErr){ .is_ok = true, .u = { .ok = 8 } } };
-int32_t __eu_catch_18;
+int32_t __eu_catch_19;
 {
 __kobel_eu_i32__test__error_union__IoErr __eu_src_6 = w.res;
 if (__eu_src_6.is_ok) {
-__eu_catch_18 = __eu_src_6.u.ok;
+__eu_catch_19 = __eu_src_6.u.ok;
 } else {
-__eu_catch_18 = 0;
+__eu_catch_19 = 0;
 }
 }
-testsupport__assert__assert_eq_i32(__eu_catch_18, 8, KOBEL_STR("struct field error union wraps ok"));
-int32_t __eu_catch_19;
+testsupport__assert__assert_eq_i32(__eu_catch_19, 8, KOBEL_STR("struct field error union wraps ok"));
+int32_t __eu_catch_20;
 {
 __kobel_eu_i32__test__error_union__IoErr __eu_src_7 = test__error_union__half_arrow(20);
 if (__eu_src_7.is_ok) {
-__eu_catch_19 = __eu_src_7.u.ok;
+__eu_catch_20 = __eu_src_7.u.ok;
 } else {
-__eu_catch_19 = -1;
+__eu_catch_20 = -1;
 }
 }
-testsupport__assert__assert_eq_i32(__eu_catch_19, 10, KOBEL_STR("arrow fn ok branch"));
-int32_t __eu_catch_20;
+testsupport__assert__assert_eq_i32(__eu_catch_20, 10, KOBEL_STR("arrow fn ok branch"));
+int32_t __eu_catch_21;
 {
 __kobel_eu_i32__test__error_union__IoErr __eu_src_8 = test__error_union__half_arrow(-2);
 if (__eu_src_8.is_ok) {
-__eu_catch_20 = __eu_src_8.u.ok;
+__eu_catch_21 = __eu_src_8.u.ok;
 } else {
-__eu_catch_20 = -9;
+__eu_catch_21 = -9;
 }
 }
-testsupport__assert__assert_eq_i32(__eu_catch_20, -9, KOBEL_STR("arrow fn fault branch"));
+testsupport__assert__assert_eq_i32(__eu_catch_21, -9, KOBEL_STR("arrow fn fault branch"));
 int32_t arrow_hits = 0;
 {
 __kobel_eu_none__test__error_union__IoErr __eu_src_9 = test__error_union__check_void_arrow(&arrow_hits);
@@ -1380,26 +1377,26 @@ goto __catch_end_14;
 __catch_end_14:;
 }
 testsupport__assert__assert_eq_i32(r_chain, 321, KOBEL_STR("chained !: falls through to final fallback"));
-__kobel_eu_i32__test__error_union__IoErr __eu_catch_21;
-__kobel_eu_i32__test__error_union__ParseErr __eu_src_21 = test__error_union__parse_pos(KOBEL_STR(""));
+__kobel_eu_i32__test__error_union__IoErr __eu_catch_22;
+__kobel_eu_i32__test__error_union__ParseErr __eu_src_22 = test__error_union__parse_pos(KOBEL_STR(""));
 {
-if (__eu_src_21.is_ok) {
-__eu_catch_21 = (__kobel_eu_i32__test__error_union__IoErr){ .is_ok = true, .u = { .ok = __eu_src_21.u.ok } };
+if (__eu_src_22.is_ok) {
+__eu_catch_22 = (__kobel_eu_i32__test__error_union__IoErr){ .is_ok = true, .u = { .ok = __eu_src_22.u.ok } };
 } else {
-__eu_catch_21 = test__error_union__half_arrow(12);
+__eu_catch_22 = test__error_union__half_arrow(12);
 }
 }
-__kobel_eu_i32__test__error_union__IoErr r_evolve = __eu_catch_21;
-int32_t __eu_catch_22;
+__kobel_eu_i32__test__error_union__IoErr r_evolve = __eu_catch_22;
+int32_t __eu_catch_23;
 {
 __kobel_eu_i32__test__error_union__IoErr __eu_src_16 = r_evolve;
 if (__eu_src_16.is_ok) {
-__eu_catch_22 = __eu_src_16.u.ok;
+__eu_catch_23 = __eu_src_16.u.ok;
 } else {
-__eu_catch_22 = -1;
+__eu_catch_23 = -1;
 }
 }
-testsupport__assert__assert_eq_i32(__eu_catch_22, 6, KOBEL_STR("recovery returning different error union works"));
+testsupport__assert__assert_eq_i32(__eu_catch_23, 6, KOBEL_STR("recovery returning different error union works"));
 int32_t r_yield_block;
 {
 __kobel_eu_i32__test__error_union__ParseErr __eu_src_17 = test__error_union__parse_pos(KOBEL_STR("big"));
@@ -1516,66 +1513,66 @@ testsupport__assert__assert_eq_i32(break_sum, 0 + 1 + 2, KOBEL_STR("break inside
 testsupport__assert__assert_eq_i32(test__error_union__catch_with_defers(false, false), 10, KOBEL_STR("ok catch skips handler defer"));
 testsupport__assert__assert_eq_i32(test__error_union__catch_with_defers(true, true), 77 + 1 + 10, KOBEL_STR("early yield runs inner defer only once"));
 testsupport__assert__assert_eq_i32(test__error_union__catch_with_defers(true, false), 88 + 2 + 10, KOBEL_STR("final yield runs inner defer cleanly"));
-int32_t __eu_catch_23;
+int32_t __eu_catch_24;
 {
 __kobel_eu_i32__test__error_union__ParseErr __eu_src_20 = test__error_union__propagate_basic(KOBEL_STR("42"));
 if (__eu_src_20.is_ok) {
-__eu_catch_23 = __eu_src_20.u.ok;
-} else {
-__eu_catch_23 = -1;
-}
-}
-testsupport__assert__assert_eq_i32(__eu_catch_23, 52, KOBEL_STR("? unwraps ok and continues"));
-int32_t __eu_catch_24;
-{
-__kobel_eu_i32__test__error_union__ParseErr __eu_src_21 = test__error_union__propagate_map(KOBEL_STR("42"), 1);
-if (__eu_src_21.is_ok) {
-__eu_catch_24 = __eu_src_21.u.ok;
+__eu_catch_24 = __eu_src_20.u.ok;
 } else {
 __eu_catch_24 = -1;
 }
 }
-testsupport__assert__assert_eq_i32(__eu_catch_24, 84, KOBEL_STR("multiple ? in same fn"));
+testsupport__assert__assert_eq_i32(__eu_catch_24, 52, KOBEL_STR("? unwraps ok and continues"));
 int32_t __eu_catch_25;
 {
-__kobel_eu_i32__test__error_union__IoErr __eu_src_22 = test__error_union__void_outer(true);
-if (__eu_src_22.is_ok) {
-__eu_catch_25 = __eu_src_22.u.ok;
+__kobel_eu_i32__test__error_union__ParseErr __eu_src_21 = test__error_union__propagate_map(KOBEL_STR("42"), 1);
+if (__eu_src_21.is_ok) {
+__eu_catch_25 = __eu_src_21.u.ok;
 } else {
 __eu_catch_25 = -1;
 }
 }
-testsupport__assert__assert_eq_i32(__eu_catch_25, 123, KOBEL_STR("!E ? statement propagation ok"));
+testsupport__assert__assert_eq_i32(__eu_catch_25, 84, KOBEL_STR("multiple ? in same fn"));
 int32_t __eu_catch_26;
+{
+__kobel_eu_i32__test__error_union__IoErr __eu_src_22 = test__error_union__void_outer(true);
+if (__eu_src_22.is_ok) {
+__eu_catch_26 = __eu_src_22.u.ok;
+} else {
+__eu_catch_26 = -1;
+}
+}
+testsupport__assert__assert_eq_i32(__eu_catch_26, 123, KOBEL_STR("!E ? statement propagation ok"));
+int32_t __eu_catch_27;
 {
 __kobel_eu_i32__test__error_union__IoErr __eu_src_23 = test__error_union__void_outer(false);
 if (__eu_src_23.is_ok) {
-__eu_catch_26 = __eu_src_23.u.ok;
+__eu_catch_27 = __eu_src_23.u.ok;
 } else {
-__eu_catch_26 = -99;
+__eu_catch_27 = -99;
 }
 }
-testsupport__assert__assert_eq_i32(__eu_catch_26, -99, KOBEL_STR("!E ? statement propagation propagates fault"));
-int32_t __eu_catch_27;
+testsupport__assert__assert_eq_i32(__eu_catch_27, -99, KOBEL_STR("!E ? statement propagation propagates fault"));
+int32_t __eu_catch_28;
 {
 __kobel_eu_i32__test__error_union__IoErr __eu_src_24 = test__error_union__propagate_while();
 if (__eu_src_24.is_ok) {
-__eu_catch_27 = __eu_src_24.u.ok;
+__eu_catch_28 = __eu_src_24.u.ok;
 } else {
-__eu_catch_27 = -1;
+__eu_catch_28 = -1;
 }
 }
-testsupport__assert__assert_eq_i32(__eu_catch_27, 5, KOBEL_STR("while condition with ? re-evaluates properly"));
-bool __eu_catch_28;
+testsupport__assert__assert_eq_i32(__eu_catch_28, 5, KOBEL_STR("while condition with ? re-evaluates properly"));
+bool __eu_catch_29;
 {
 __kobel_eu_bool__test__error_union__IoErr __eu_src_25 = test__error_union__propagate_short_circuit(true);
 if (__eu_src_25.is_ok) {
-__eu_catch_28 = __eu_src_25.u.ok;
+__eu_catch_29 = __eu_src_25.u.ok;
 } else {
-__eu_catch_28 = false;
+__eu_catch_29 = false;
 }
 }
-testsupport__assert__assert_true(__eu_catch_28, KOBEL_STR("&& and || with ? preserve short-circuit"));
+testsupport__assert__assert_true(__eu_catch_29, KOBEL_STR("&& and || with ? preserve short-circuit"));
 testsupport__assert__assert_eq_i32(__kobel_unwrap___kobel_eu_i32__test__error_union__IoErr(test__error_union__half_arrow(18), "tests/features/test_error_union.kb", 219, 32, "main"), 9, KOBEL_STR("postfix ! force-unwraps grouped T ! E ok value"));
 __kobel_unwrap___kobel_eu_none__test__error_union__IoErr(test__error_union__check_void_block(1), "tests/features/test_error_union.kb", 220, 21, "main");
 __kobel_eu_i32__test__error_union__ParseErr bad_c = test__error_union__parse_pos(KOBEL_STR("1a3"));
@@ -1642,16 +1639,16 @@ test__error_union__CustomFmt f_custom = (test__error_union__CustomFmt){ .tag = 0
 testsupport__assert__assert_eq_str(test__error_union__CustomFmt_to_str(&f_custom), KOBEL_STR("CustomCode(77)"), KOBEL_STR("custom Stringer impl overrides default fault interpolation"));
 __kobel_eu_i32__testsupport__errdefs__NetErr ext_ok = testsupport__errdefs__ping(5);
 __kobel_eu_i32__testsupport__errdefs__NetErr ext_err = testsupport__errdefs__ping(-3);
-int32_t __eu_catch_29;
+int32_t __eu_catch_30;
 {
 __kobel_eu_i32__testsupport__errdefs__NetErr __eu_src_29 = ext_ok;
 if (__eu_src_29.is_ok) {
-__eu_catch_29 = __eu_src_29.u.ok;
+__eu_catch_30 = __eu_src_29.u.ok;
 } else {
-__eu_catch_29 = -1;
+__eu_catch_30 = -1;
 }
 }
-testsupport__assert__assert_eq_i32(__eu_catch_29, 50, KOBEL_STR("cross-module fault fn ok"));
+testsupport__assert__assert_eq_i32(__eu_catch_30, 50, KOBEL_STR("cross-module fault fn ok"));
 testsupport__assert__assert_true(ext_err.is_ok == false && ext_err.u.err.tag == testsupport__errdefs__NetErr__Closed__TAG, KOBEL_STR("aliased cross-module fault match in is"));
 int32_t ext_when;
 if (ext_err.is_ok == true) {
@@ -1677,34 +1674,34 @@ testsupport__assert__assert_true(err.tag == testsupport__errdefs__NetErr__Timeou
 __catch_end_31:;
 }
 test__error_union__Holder_eu_i32_test__error_union__IoErr hb = (test__error_union__Holder_eu_i32_test__error_union__IoErr){ test__error_union__half_arrow(14) };
-int32_t __eu_catch_30;
+int32_t __eu_catch_31;
 {
 __kobel_eu_i32__test__error_union__IoErr __eu_src_32 = test__error_union__Holder_eu_i32_test__error_union__IoErr_get_item(&hb);
 if (__eu_src_32.is_ok) {
-__eu_catch_30 = __eu_src_32.u.ok;
+__eu_catch_31 = __eu_src_32.u.ok;
 } else {
-__eu_catch_30 = -1;
+__eu_catch_31 = -1;
 }
 }
-testsupport__assert__assert_eq_i32(__eu_catch_30, 7, KOBEL_STR("generic struct holding T ! E"));
+testsupport__assert__assert_eq_i32(__eu_catch_31, 7, KOBEL_STR("generic struct holding T ! E"));
 testsupport__assert__assert_eq_i32(test__error_union__unwrap_or_generic_i32((__kobel_eu_i32__test__error_union__IoErr){ .is_ok = false, .u = { .err = (test__error_union__IoErr){ .tag = 0, .__err_code = 10U, .__origin = { "tests/features/test_error_union.kb", 283, 44, "main" } } } }, 55), 55, KOBEL_STR("generic fn with T ! E parameter"));
-__kobel_eu_i32__testsupport__errdefs__NetErr __eu_prop_31 = testsupport__errdefs__ping(5);
-if (!__eu_prop_31.is_ok) {
-return (__kobel_main_result){ .is_ok = false, .code = __eu_prop_31.u.err.__err_code, .origin = __eu_prop_31.u.err.__origin, .fail_at = { "tests/features/test_error_union.kb", 286, 21, "main" } };
-}
-int32_t r_net = __eu_prop_31.u.ok;
-testsupport__assert__assert_eq_i32(r_net, 50, KOBEL_STR("main() propagates NetErr with ?"));
-__kobel_eu_i32__test__error_union__IoErr __eu_prop_32 = test__error_union__void_outer(true);
+__kobel_eu_i32__testsupport__errdefs__NetErr __eu_prop_32 = testsupport__errdefs__ping(5);
 if (!__eu_prop_32.is_ok) {
-return (__kobel_main_result){ .is_ok = false, .code = __eu_prop_32.u.err.__err_code, .origin = __eu_prop_32.u.err.__origin, .fail_at = { "tests/features/test_error_union.kb", 288, 29, "main" } };
+return (__kobel_main_result){ .is_ok = false, .code = __eu_prop_32.u.err.__err_code, .origin = __eu_prop_32.u.err.__origin, .fail_at = { "tests/features/test_error_union.kb", 286, 21, "main" } };
 }
-int32_t r_io = __eu_prop_32.u.ok;
-testsupport__assert__assert_eq_i32(r_io, 123, KOBEL_STR("main() propagates IoErr with ?"));
-__kobel_eu_i32__test__error_union__ParseErr __eu_prop_33 = test__error_union__propagate_basic(KOBEL_STR("42"));
+int32_t r_net = __eu_prop_32.u.ok;
+testsupport__assert__assert_eq_i32(r_net, 50, KOBEL_STR("main() propagates NetErr with ?"));
+__kobel_eu_i32__test__error_union__IoErr __eu_prop_33 = test__error_union__void_outer(true);
 if (!__eu_prop_33.is_ok) {
-return (__kobel_main_result){ .is_ok = false, .code = __eu_prop_33.u.err.__err_code, .origin = __eu_prop_33.u.err.__origin, .fail_at = { "tests/features/test_error_union.kb", 290, 37, "main" } };
+return (__kobel_main_result){ .is_ok = false, .code = __eu_prop_33.u.err.__err_code, .origin = __eu_prop_33.u.err.__origin, .fail_at = { "tests/features/test_error_union.kb", 288, 29, "main" } };
 }
-int32_t r_parse = __eu_prop_33.u.ok;
+int32_t r_io = __eu_prop_33.u.ok;
+testsupport__assert__assert_eq_i32(r_io, 123, KOBEL_STR("main() propagates IoErr with ?"));
+__kobel_eu_i32__test__error_union__ParseErr __eu_prop_34 = test__error_union__propagate_basic(KOBEL_STR("42"));
+if (!__eu_prop_34.is_ok) {
+return (__kobel_main_result){ .is_ok = false, .code = __eu_prop_34.u.err.__err_code, .origin = __eu_prop_34.u.err.__origin, .fail_at = { "tests/features/test_error_union.kb", 290, 37, "main" } };
+}
+int32_t r_parse = __eu_prop_34.u.ok;
 testsupport__assert__assert_eq_i32(r_parse, 52, KOBEL_STR("main() propagates ParseErr with ?"));
 std__io__println(KOBEL_STR("[PASS] test_error_union passed all assertions!"));
     return (__kobel_main_result){ .is_ok = true };
@@ -1739,16 +1736,16 @@ return __ret_tmp;
 }
 
 uint8_t* std__memory__Heap_create_u8(size_t count) {
-    return __kobel_unwrap___kobel_eu_mut_ptr_u8__std__memory__MemErr(std__memory__Heap_try_create_u8(count), "lib/std/memory/heap.kb", 44, 63, "Heap_create_u8");
+    return __kobel_unwrap___kobel_eu_mut_ptr_u8__std__memory__MemErr(std__memory__Heap_try_create_u8(count), "lib/std/memory/heap.kb", 43, 63, "Heap_create_u8");
 }
 
 __kobel_eu_mut_ptr_u8__std__memory__MemErr std__memory__Heap_try_create_u8(size_t count) {
 size_t bytes = count * 1;
-__kobel_eu_mut_ptr_u8__std__memory__MemErr __eu_prop_34 = std__memory__Heap_try_alloc(bytes);
-if (!__eu_prop_34.is_ok) {
-return (__kobel_eu_mut_ptr_u8__std__memory__MemErr){ .is_ok = false, .u = { .err = __eu_prop_34.u.err } };
+__kobel_eu_mut_ptr_u8__std__memory__MemErr __eu_prop_35 = std__memory__Heap_try_alloc(bytes);
+if (!__eu_prop_35.is_ok) {
+return (__kobel_eu_mut_ptr_u8__std__memory__MemErr){ .is_ok = false, .u = { .err = __eu_prop_35.u.err } };
 }
-uint8_t* raw = __eu_prop_34.u.ok;
+uint8_t* raw = __eu_prop_35.u.ok;
 return (__kobel_eu_mut_ptr_u8__std__memory__MemErr){ .is_ok = true, .u = { .ok = (uint8_t*)raw } };
 }
 

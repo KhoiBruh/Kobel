@@ -511,8 +511,48 @@ typedef int32_t test__safe_nav__ItemKind;
 typedef struct test__safe_nav__Inner test__safe_nav__Inner;
 typedef struct test__safe_nav__Middle test__safe_nav__Middle;
 typedef struct test__safe_nav__Outer test__safe_nav__Outer;
+typedef struct test__safe_nav__NavErr test__safe_nav__NavErr;
+typedef struct test__safe_nav__NavErr__Missing test__safe_nav__NavErr__Missing;
+#define test__safe_nav__NavErr__Missing__TAG 0
+typedef struct __kobel_eu_ptr_test__safe_nav__Inner__test__safe_nav__NavErr __kobel_eu_ptr_test__safe_nav__Inner__test__safe_nav__NavErr;
 
 
+static inline kobel_fault_meta __kobel_lookup_fault(uint32_t code) {
+    switch (code) {
+        case 8U: return (kobel_fault_meta){ 8U, "NavErr.Missing", "NavErr.Missing" };
+        default: return (kobel_fault_meta){ code, "UnknownFault", "Unknown error" };
+    }
+}
+
+static inline void __kobel_report_fault(
+    const char* kind,
+    uint32_t code,
+    kobel_loc origin,
+    kobel_loc fail_at
+) {
+    kobel_fault_meta meta = __kobel_lookup_fault(code);
+    if (meta.desc && meta.name && strcmp(meta.desc, meta.name) != 0) {
+        fprintf(stderr, "panic: %s E%04u (%s): %s\n", kind, (unsigned)code, meta.name, meta.desc);
+    } else if (meta.name) {
+        fprintf(stderr, "panic: %s E%04u (%s)\n", kind, (unsigned)code, meta.name);
+    } else {
+        fprintf(stderr, "panic: %s E%04u\n", kind, (unsigned)code);
+    }
+    if (origin.file && origin.file[0] != 0) {
+        fprintf(stderr, "  origin: %s:%zu:%zu", origin.file, origin.line, origin.col);
+        if (origin.fn && origin.fn[0] != 0) fprintf(stderr, " in %s", origin.fn);
+        fputc(10, stderr);
+    }
+    if (fail_at.file && fail_at.file[0] != 0) {
+        bool same = origin.file && strcmp(origin.file, fail_at.file) == 0
+            && origin.line == fail_at.line && origin.col == fail_at.col;
+        if (!same) {
+            fprintf(stderr, "  at:     %s:%zu:%zu", fail_at.file, fail_at.line, fail_at.col);
+            if (fail_at.fn && fail_at.fn[0] != 0) fprintf(stderr, " in %s", fail_at.fn);
+            fputc(10, stderr);
+        }
+    }
+}
 struct test__safe_nav__Inner {
     bool is_active;
     test__safe_nav__ItemKind kind;
@@ -528,10 +568,48 @@ struct test__safe_nav__Outer {
     test__safe_nav__Middle* middle;
 };
 
+struct test__safe_nav__NavErr__Missing {
+    char __empty;
+};
+struct test__safe_nav__NavErr {
+    int32_t tag;
+    uint32_t __err_code;
+    kobel_loc __origin;
+    union {
+        struct test__safe_nav__NavErr__Missing Missing;
+    } u;
+};
+
+static inline kobel_str __kobel_fault_str_test__safe_nav__NavErr(test__safe_nav__NavErr e) {
+    switch (e.tag) {
+        case 0: return KOBEL_STR("NavErr.Missing");
+        default: return KOBEL_STR("NavErr");
+    }
+}
+
+struct __kobel_eu_ptr_test__safe_nav__Inner__test__safe_nav__NavErr {
+    bool is_ok;
+    union {
+        test__safe_nav__Inner* ok;
+        test__safe_nav__NavErr err;
+    } u;
+};
+
+static inline test__safe_nav__Inner* __kobel_unwrap___kobel_eu_ptr_test__safe_nav__Inner__test__safe_nav__NavErr(__kobel_eu_ptr_test__safe_nav__Inner__test__safe_nav__NavErr r, const char* file, size_t line, size_t col, const char* fn) {
+    if (!r.is_ok) {
+        kobel_loc at = { file, line, col, fn };
+        __kobel_report_fault("unwrapped error", r.u.err.__err_code, r.u.err.__origin, at);
+        exit(1);
+    }
+    return r.u.ok;
+}
+
 void std__process__Process_exit(int32_t code);
 bool test__safe_nav__Inner_check_ok(test__safe_nav__Inner* self);
 bool test__safe_nav__takes_non_null(test__safe_nav__Inner* item);
 bool test__safe_nav__test_elvis_jump_on_null(test__safe_nav__Inner* p);
+bool test__safe_nav__test_bool_safe_return(test__safe_nav__Middle* mid);
+__kobel_eu_ptr_test__safe_nav__Inner__test__safe_nav__NavErr test__safe_nav__test_elvis_to_eu(test__safe_nav__Middle* mid);
 int32_t test__safe_nav__test_member_early_return(test__safe_nav__Middle* mid);
 int32_t test__safe_nav__run_tests(void);
 static void __kobel_user_main(void);
@@ -554,6 +632,15 @@ return true;
 }
 test__safe_nav__ItemKind k = p->kind;
 return false;
+}
+
+bool test__safe_nav__test_bool_safe_return(test__safe_nav__Middle* mid) {
+return mid->inner != NULL && mid->inner->is_active;
+}
+
+__kobel_eu_ptr_test__safe_nav__Inner__test__safe_nav__NavErr test__safe_nav__test_elvis_to_eu(test__safe_nav__Middle* mid) {
+test__safe_nav__Inner* __eu_elvis_2 = mid->inner;
+return __eu_elvis_2 != NULL ? (__kobel_eu_ptr_test__safe_nav__Inner__test__safe_nav__NavErr){ .is_ok = true, .u = { .ok = __eu_elvis_2 } } : (__kobel_eu_ptr_test__safe_nav__Inner__test__safe_nav__NavErr){ .is_ok = false, .u = { .err = (test__safe_nav__NavErr){ .tag = 0, .__err_code = 8U, .__origin = { "tests/features/test_safe_nav.kb", 54, 28, "test_elvis_to_eu" } } } };
 }
 
 int32_t test__safe_nav__test_member_early_return(test__safe_nav__Middle* mid) {
@@ -686,6 +773,45 @@ return 32;
 }
 if (test__safe_nav__test_member_early_return(&mid_empty) != -1) {
 return 33;
+}
+if (!test__safe_nav__test_bool_safe_return(&mid1)) {
+return 34;
+}
+if (test__safe_nav__test_bool_safe_return(&mid_empty)) {
+return 35;
+}
+bool ok_flag = mid1.inner != NULL && test__safe_nav__Inner_check_ok(mid1.inner);
+bool null_flag = mid_empty.inner != NULL && test__safe_nav__Inner_check_ok(mid_empty.inner);
+if (!ok_flag || null_flag) {
+return 36;
+}
+test__safe_nav__Inner* got_ok;
+{
+__kobel_eu_ptr_test__safe_nav__Inner__test__safe_nav__NavErr __eu_src_1 = test__safe_nav__test_elvis_to_eu(&mid1);
+if (__eu_src_1.is_ok) {
+got_ok = __eu_src_1.u.ok;
+} else {
+return 37;
+}
+}
+if (got_ok->count != 42) {
+return 38;
+}
+test__safe_nav__Inner* got_err_ok;
+{
+__kobel_eu_ptr_test__safe_nav__Inner__test__safe_nav__NavErr __eu_src_2 = test__safe_nav__test_elvis_to_eu(&mid_empty);
+if (__eu_src_2.is_ok) {
+got_err_ok = __eu_src_2.u.ok;
+} else {
+test__safe_nav__NavErr err = __eu_src_2.u.err;
+(void)err;
+got_err_ok = &in1;
+goto __catch_end_2;
+}
+__catch_end_2:;
+}
+if (got_err_ok->count != 42) {
+return 39;
 }
 return 0;
 }

@@ -1,0 +1,1097 @@
+mod lsp;
+
+use std.collections.*;
+use std.filesystem.*;
+use std.memory.Arena;
+use std.string.*;
+
+use compiler.ast.*;
+use compiler.lexer.*;
+use compiler.parser.*;
+use compiler.semantic.symbols.*;
+use compiler.semantic.types.*;
+
+/*
+ * ============================================================================
+ * lsp.kblint — Declarative `.kblint` AST Pattern-Matching & Rewrite Engine
+ *
+ * Parses declarative `.kblint` rule definitions (both built-in rules and
+ * optional workspace `.kblint` dotfiles) using Kobel's own Lexer + Parser:
+ *
+ *   rule "prefer-not-in" {
+ *       match:   !($x in $col)
+ *       where:   is_single_line($x) && is_single_line($col)
+ *       fix:     $x !in $col
+ *       message: "Prefer '$x !in $col' instead of negated 'in'"
+ *   }
+ *
+ * Metavariables (`$x`, `$T`, `$field`, `$args...`) are desugared into
+ * sentinel identifiers before parsing, unified recursively against document
+ * AST nodes, filtered by semantic/structural `where:` predicates, and
+ * interpolated back into `fix:` / `message:` / `title:` templates.
+ * ============================================================================
+ */
+
+const KBLINT_VAR_PREFIX: str = "__kblint_var_";
+const KBLINT_REST_PREFIX: str = "__kblint_rest_";
+
+pub const BUILTIN_KBLINT_RULES: str = """
+// Built-in declarative Kobel lint rules (.kblint)
+
+rule "prefer-not-in" {
+	match:   !($x in $col)
+	where:   is_single_line($x) && is_single_line($col) && !followed_by_dot($node)
+	fix:     $x !in $col
+	message: "Prefer '$x !in $col' instead of negated 'in'"
+}
+
+rule "prefer-not-is" {
+	match:   !($x is $T)
+	where:   no_alias($node) && is_single_line($x) && is_single_line($T) && !followed_by_dot($node)
+	fix:     $x !is $T
+	message: "Prefer '$x !is $T' instead of negated 'is'"
+}
+
+rule "redundant-bool-compare-eq-true" {
+	code:    "redundant-bool-compare"
+	match:   $c == true
+	where:   is_bool($c) && is_single_line($c)
+	fix:     $c
+	message: "Redundant boolean comparison; simplify to '$c'"
+}
+
+rule "redundant-bool-compare-true-eq" {
+	code:    "redundant-bool-compare"
+	match:   true == $c
+	where:   is_bool($c) && is_single_line($c)
+	fix:     $c
+	message: "Redundant boolean comparison; simplify to '$c'"
+}
+
+rule "redundant-bool-compare-ne-false" {
+	code:    "redundant-bool-compare"
+	match:   $c != false
+	where:   is_bool($c) && is_single_line($c)
+	fix:     $c
+	message: "Redundant boolean comparison; simplify to '$c'"
+}
+
+rule "redundant-bool-compare-false-ne" {
+	code:    "redundant-bool-compare"
+	match:   false != $c
+	where:   is_bool($c) && is_single_line($c)
+	fix:     $c
+	message: "Redundant boolean comparison; simplify to '$c'"
+}
+
+rule "redundant-bool-compare-eq-false" {
+	code:    "redundant-bool-compare"
+	match:   $c == false
+	where:   is_bool($c) && is_single_line($c)
+	fix:     $not(c)
+	message: "Redundant boolean comparison; simplify to '$not(c)'"
+}
+
+rule "redundant-bool-compare-false-eq" {
+	code:    "redundant-bool-compare"
+	match:   false == $c
+	where:   is_bool($c) && is_single_line($c)
+	fix:     $not(c)
+	message: "Redundant boolean comparison; simplify to '$not(c)'"
+}
+
+rule "redundant-bool-compare-ne-true" {
+	code:    "redundant-bool-compare"
+	match:   $c != true
+	where:   is_bool($c) && is_single_line($c)
+	fix:     $not(c)
+	message: "Redundant boolean comparison; simplify to '$not(c)'"
+}
+
+rule "redundant-bool-compare-true-ne" {
+	code:    "redundant-bool-compare"
+	match:   true != $c
+	where:   is_bool($c) && is_single_line($c)
+	fix:     $not(c)
+	message: "Redundant boolean comparison; simplify to '$not(c)'"
+}
+
+rule "redundant-double-not" {
+	code:    "redundant-bool-compare"
+	match:   !!$c
+	where:   is_bool($c) && !is_negated_op($c) && is_single_line($c)
+	fix:     $c
+	message: "Redundant double negation; simplify to '$c'"
+}
+
+rule "redundant-double-not-grouped" {
+	code:    "redundant-bool-compare"
+	match:   !(!$c)
+	where:   is_bool($c) && !is_negated_op($c) && is_single_line($c)
+	fix:     $c
+	message: "Redundant double negation; simplify to '$c'"
+}
+
+rule "prefer-safe-nav-elvis-ne" {
+	code:    "prefer-safe-nav"
+	match:   if ($x != null) $x else $fb
+	where:   is_nullable_ptr($x) && is_path($x) && !is_null($fb) && !is_elvis_complex($fb) && is_single_line($x) && is_single_line($fb)
+	fix:     $x ?: $fb
+	message: "Prefer null-safe expression '$x ?: $fb'"
+}
+
+rule "prefer-safe-nav-elvis-ne-rev" {
+	code:    "prefer-safe-nav"
+	match:   if (null != $x) $x else $fb
+	where:   is_nullable_ptr($x) && is_path($x) && !is_null($fb) && !is_elvis_complex($fb) && is_single_line($x) && is_single_line($fb)
+	fix:     $x ?: $fb
+	message: "Prefer null-safe expression '$x ?: $fb'"
+}
+
+rule "prefer-safe-nav-elvis-eq" {
+	code:    "prefer-safe-nav"
+	match:   if ($x == null) $fb else $x
+	where:   is_nullable_ptr($x) && is_path($x) && !is_null($fb) && !is_elvis_complex($fb) && is_single_line($x) && is_single_line($fb)
+	fix:     $x ?: $fb
+	message: "Prefer null-safe expression '$x ?: $fb'"
+}
+
+rule "prefer-safe-nav-elvis-eq-rev" {
+	code:    "prefer-safe-nav"
+	match:   if (null == $x) $fb else $x
+	where:   is_nullable_ptr($x) && is_path($x) && !is_null($fb) && !is_elvis_complex($fb) && is_single_line($x) && is_single_line($fb)
+	fix:     $x ?: $fb
+	message: "Prefer null-safe expression '$x ?: $fb'"
+}
+
+rule "prefer-safe-nav-field-null" {
+	code:    "prefer-safe-nav"
+	match:   if ($x != null) $x.$field else null
+	where:   is_nullable_ptr($x) && is_path($x) && is_ptr($then) && is_single_line($x)
+	fix:     $x?.$field
+	message: "Prefer null-safe expression '$x?.$field'"
+}
+
+rule "prefer-safe-nav-field-null-eq" {
+	code:    "prefer-safe-nav"
+	match:   if ($x == null) null else $x.$field
+	where:   is_nullable_ptr($x) && is_path($x) && is_ptr($else) && is_single_line($x)
+	fix:     $x?.$field
+	message: "Prefer null-safe expression '$x?.$field'"
+}
+
+rule "prefer-safe-nav-field-elvis" {
+	code:    "prefer-safe-nav"
+	match:   if ($x != null) $x.$field else $fb
+	where:   is_nullable_ptr($x) && is_path($x) && is_safe_nav_type($then) && !is_null($fb) && !is_elvis_complex($fb) && is_single_line($x) && is_single_line($fb)
+	fix:     $x?.$field ?: $fb
+	message: "Prefer null-safe expression '$x?.$field ?: $fb'"
+}
+
+rule "prefer-safe-nav-field-elvis-eq" {
+	code:    "prefer-safe-nav"
+	match:   if ($x == null) $fb else $x.$field
+	where:   is_nullable_ptr($x) && is_path($x) && is_safe_nav_type($else) && !is_null($fb) && !is_elvis_complex($fb) && is_single_line($x) && is_single_line($fb)
+	fix:     $x?.$field ?: $fb
+	message: "Prefer null-safe expression '$x?.$field ?: $fb'"
+}
+
+rule "prefer-safe-nav-call-null" {
+	code:    "prefer-safe-nav"
+	match:   if ($x != null) $x.$method($args...) else null
+	where:   is_nullable_ptr($x) && is_path($x) && is_ptr($then) && is_single_line($x) && is_single_line($args)
+	fix:     $x?.$method($args...)
+	message: "Prefer null-safe expression '$x?.$method($args...)'"
+}
+
+rule "prefer-safe-nav-call-elvis" {
+	code:    "prefer-safe-nav"
+	match:   if ($x != null) $x.$method($args...) else $fb
+	where:   is_nullable_ptr($x) && is_path($x) && is_safe_nav_type($then) && !is_null($fb) && !is_elvis_complex($fb) && is_single_line($x) && is_single_line($args) && is_single_line($fb)
+	fix:     $x?.$method($args...) ?: $fb
+	message: "Prefer null-safe expression '$x?.$method($args...) ?: $fb'"
+}
+
+rule "prefer-safe-nav-call-elvis-eq" {
+	code:    "prefer-safe-nav"
+	match:   if ($x == null) $fb else $x.$method($args...)
+	where:   is_nullable_ptr($x) && is_path($x) && is_safe_nav_type($else) && !is_null($fb) && !is_elvis_complex($fb) && is_single_line($x) && is_single_line($args) && is_single_line($fb)
+	fix:     $x?.$method($args...) ?: $fb
+	message: "Prefer null-safe expression '$x?.$method($args...) ?: $fb'"
+}
+
+rule "prefer-safe-nav-stmt" {
+	code:    "prefer-safe-nav"
+	kind:    stmt
+	match:   if ($x != null) $x.$method($args...);
+	where:   is_nullable_ptr($x) && is_path($x) && is_void($then_stmt) && is_single_line($x) && is_single_line($args)
+	fix:     $x?.$method($args...);
+	message: "Prefer safe call '$x?.$method($args...);'"
+}
+
+rule "redundant-boolean-return-true" {
+	code:    "redundant-boolean-return"
+	kind:    stmt
+	match:   if ($c) return true; else return false;
+	where:   is_bool($c) && is_single_line($c)
+	fix:     return $c;
+	message: "Redundant boolean return; simplify to 'return $c;'"
+}
+
+rule "redundant-boolean-return-false" {
+	code:    "redundant-boolean-return"
+	kind:    stmt
+	match:   if ($c) return false; else return true;
+	where:   is_bool($c) && is_single_line($c)
+	fix:     return $not(c);
+	message: "Redundant boolean return; simplify to 'return $not(c);'"
+}
+
+rule "prefer-empty" {
+	match:   $x.len == 0
+	where:   has_method($x, "empty") && !is_self($x) && is_single_line($x)
+	fix:     $x.empty()
+	message: "Prefer '$x.empty()' instead of '$x.len == 0'"
+}
+
+rule "self-comparison-eq" {
+	code:    "self-comparison"
+	match:   $x == $x
+	where:   is_pure($x) && is_single_line($x)
+	message: "Comparing '$x' to itself is always true"
+}
+
+rule "self-comparison-ne" {
+	code:    "self-comparison"
+	match:   $x != $x
+	where:   is_pure($x) && is_single_line($x)
+	message: "Comparing '$x' to itself is always false"
+}
+""";
+
+pub struct KblintRule {
+	pub id: str,
+	pub code: str,
+	pub is_stmt: bool,
+	pub pattern: *AstNode,
+	pub where_expr: str,
+	pub fix_tpl: str,
+	pub title_tpl: str,
+	pub message_tpl: str,
+	pub severity: i64,
+	pub unnecessary: bool
+}
+
+pub struct KblintRuleSet {
+	pub expr_rules: List<KblintRule> = List(),
+	pub stmt_rules: List<KblintRule> = List(),
+	pub disabled_codes: HashSet<str> = HashSet(),
+	pub arena: Arena = Arena.empty()
+}
+
+impl KblintRuleSet {
+
+	pub fn free(&self) {
+		self.expr_rules.free();
+		self.stmt_rules.free();
+		self.disabled_codes.free();
+		self.arena.free();
+	}
+
+	pub fn is_code_disabled(*self, code: str): bool => code in self.disabled_codes;
+
+}
+
+struct KblintBindings {
+	pub nodes: HashMap<str, *AstNode> = HashMap(),
+	pub texts: HashMap<str, str> = HashMap()
+}
+
+impl KblintBindings {
+
+	pub fn free(*self) {
+		self.nodes.free();
+		self.texts.free();
+	}
+
+}
+
+// ============================================================================
+// Pattern Desugaring & `.kblint` Rule File Parser
+// ============================================================================
+
+fn kblint_is_ident_start(ch: char): bool =>
+	(ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || ch == '_';
+
+fn kblint_is_ident_cont(ch: char): bool =>
+	kblint_is_ident_start(ch) || (ch >= '0' && ch <= '9');
+
+/*
+ * Rewrite `$name` -> `__kblint_var_name` and `$name...` -> `__kblint_rest_name`
+ * outside string literals so Kobel's own Lexer + Parser can parse patterns directly.
+ */
+fn desugar_kblint_pattern(raw: str): str {
+	var sb = StringBuilder();
+	var i: usz = 0;
+	var in_str = false;
+	var quote: char = '"';
+	while (i < raw.len) {
+		val ch = raw[i];
+		if (in_str) {
+			sb += ch;
+			if (ch == '\\' && i + 1 < raw.len) {
+				i++;
+				sb += raw[i];
+			} else if (ch == quote) {
+				in_str = false;
+			}
+			i++;
+			continue;
+		}
+		if (ch == '"' || ch == '\'') {
+			in_str = true;
+			quote = ch;
+			sb += ch;
+			i++;
+			continue;
+		}
+		if (ch == '$' && i + 1 < raw.len && kblint_is_ident_start(raw[i + 1])) {
+			var j = i + 1;
+			while (j < raw.len && kblint_is_ident_cont(raw[j])) j++;
+			val name = raw.slice(i + 1, j);
+			val is_rest = j + 2 < raw.len && raw[j] == '.' && raw[j + 1] == '.' && raw[j + 2] == '.';
+			if (is_rest) {
+				sb += KBLINT_REST_PREFIX;
+				sb += name;
+				i = j + 3;
+			} else {
+				sb += KBLINT_VAR_PREFIX;
+				sb += name;
+				i = j;
+			}
+			continue;
+		}
+		sb += ch;
+		i++;
+	}
+	return sb.to_str();
+}
+
+fn kblint_meta_var_name(ident: str): str {
+	if (ident.starts_with(KBLINT_VAR_PREFIX)) {
+		return ident.slice(KBLINT_VAR_PREFIX.len, ident.len);
+	}
+	return "";
+}
+
+fn kblint_meta_rest_name(ident: str): str {
+	if (ident.starts_with(KBLINT_REST_PREFIX)) {
+		return ident.slice(KBLINT_REST_PREFIX.len, ident.len);
+	}
+	return "";
+}
+
+fn kblint_strip_quotes(s: str): str {
+	val t = s.trim();
+	if (t.len >= 2 && t[0] == '"' && t[t.len - 1] == '"') {
+		return t.slice(1, t.len - 1);
+	}
+	return t;
+}
+
+fn kblint_find_char(s: str, ch: char): isz {
+	for (i in 0..<s.len) {
+		if (s[i] == ch) return i as isz;
+	}
+	return -1;
+}
+
+fn kblint_split_str(s: str, sep: str): List<str> {
+	var out = List<str>();
+	if (sep.empty()) {
+		out += s;
+		return out;
+	}
+	var start: usz = 0;
+	var i: usz = 0;
+	while (i + sep.len <= s.len) {
+		if (s.slice(i, i + sep.len) == sep) {
+			out += s.slice(start, i);
+			i += sep.len;
+			start = i;
+		} else {
+			i++;
+		}
+	}
+	out += s.slice(start, s.len);
+	return out;
+}
+
+fn kblint_parse_pattern_ast(raw: str, is_stmt: bool, arena: Arena): ?*AstNode {
+	val desugared = desugar_kblint_pattern(raw);
+	if (desugared.empty()) return null;
+	var lex = Lexer(desugared);
+	val toks = lex.tokenize();
+	if (toks.empty()) return null;
+	var parser = Parser(toks, arena);
+	val node: *AstNode = if (is_stmt) parser.parse_statement() else parser.parse_expression(Precedence.ASSIGN);
+	val ok = parser.errors.empty();
+	parser.errors.free();
+	if (!ok) return null;
+	return node;
+}
+
+fn kblint_parse_disable_list(val_str: str, out: &HashSet<str>) {
+	var i: usz = 0;
+	while (i < val_str.len) {
+		if (val_str[i] == '"') {
+			val start = i + 1;
+			i++;
+			while (i < val_str.len && val_str[i] != '"') i++;
+			if (i > start) out += val_str.slice(start, i);
+		}
+		i++;
+	}
+}
+
+pub fn parse_kblint_source(src: str, ruleset: &KblintRuleSet) {
+	val lines = src.split('\n');
+	var i: usz = 0;
+	while (i < lines.len) {
+		val raw_ln = lines[i].trim();
+		i++;
+		if (raw_ln.empty() || raw_ln.starts_with("//") || raw_ln.starts_with("#")) continue;
+
+		if (raw_ln.starts_with("disable:")) {
+			kblint_parse_disable_list(raw_ln.slice(8, raw_ln.len), &ruleset.disabled_codes);
+			continue;
+		}
+
+		if (!raw_ln.starts_with("rule ")) continue;
+		val q1 = kblint_find_char(raw_ln, '"');
+		if (q1 < 0) continue;
+		val rest = raw_ln.slice((q1 as usz) + 1, raw_ln.len);
+		val q2 = kblint_find_char(rest, '"');
+		if (q2 < 0) continue;
+		val rule_id = rest.slice(0, q2 as usz);
+
+		var code = rule_id;
+		var is_stmt = false;
+		var match_str = "";
+		var where_str = "";
+		var fix_str = "";
+		var title_str = "";
+		var msg_str = "";
+		var severity: i64 = LINT_SEV_WARNING;
+		var unnecessary = false;
+
+		// Read fields until closing '}' line
+		while (i < lines.len) {
+			val fln = lines[i].trim();
+			i++;
+			if (fln == "}") break;
+			if (fln.empty() || fln.starts_with("//") || fln.starts_with("#")) continue;
+			val colon = kblint_find_char(fln, ':');
+			if (colon <= 0) continue;
+			val key = fln.slice(0, colon as usz).trim();
+			val value = fln.slice((colon as usz) + 1, fln.len).trim();
+			when (key) {
+				"code" -> code = kblint_strip_quotes(value);
+				"kind" -> is_stmt = kblint_strip_quotes(value) == "stmt";
+				"match" -> match_str = value;
+				"where" -> where_str = value;
+				"fix" -> fix_str = value;
+				"title" -> title_str = kblint_strip_quotes(value);
+				"message" -> msg_str = kblint_strip_quotes(value);
+				"unnecessary" -> unnecessary = value == "true";
+				"severity" -> {
+					val sv = kblint_strip_quotes(value);
+					if (sv == "info" || sv == "information") severity = 3;
+					else if (sv == "hint") severity = 4;
+					else severity = LINT_SEV_WARNING;
+				}
+				else -> {}
+			}
+		}
+
+		if (match_str.empty() || msg_str.empty()) continue;
+		val pat_node = kblint_parse_pattern_ast(match_str, is_stmt, ruleset.arena) ?: continue;
+		val rule = KblintRule(
+			rule_id, code, is_stmt, pat_node, where_str,
+			fix_str, title_str, msg_str, severity, unnecessary
+		);
+		if (is_stmt) ruleset.stmt_rules += rule;
+		else ruleset.expr_rules += rule;
+	}
+}
+
+pub fn find_workspace_kblint_path(workspace_root: str): str {
+	if (workspace_root.empty()) return "";
+	val dot_p = Path(workspace_root).join(".kblint");
+	if (dot_p.exists()) return dot_p.raw;
+	return "";
+}
+
+pub fn load_kblint_ruleset(workspace_root: str = "", extra_kblint_src: str = ""): KblintRuleSet {
+	var rs = KblintRuleSet(List<KblintRule>(), List<KblintRule>(), HashSet<str>(), Arena(65536));
+	parse_kblint_source(BUILTIN_KBLINT_RULES, &rs);
+	val ws_file = find_workspace_kblint_path(workspace_root);
+	if (!ws_file.empty()) {
+		val ws_src = Path(ws_file).read_text() !: "";
+		if (!ws_src.empty()) parse_kblint_source(ws_src, &rs);
+	}
+	if (!extra_kblint_src.empty()) {
+		parse_kblint_source(extra_kblint_src, &rs);
+	}
+	return rs;
+}
+
+// ============================================================================
+// AST Structural Equality & Pattern Unifier
+// ============================================================================
+
+fn kblint_unwrap_stmt(node: *AstNode): *AstNode {
+	if (node is BlockStmt as blk && blk.statements.len == 1) {
+		return kblint_unwrap_stmt(blk.statements[0]);
+	}
+	if (node is ExprStmt as es) return es.expr;
+	return node;
+}
+
+fn kblint_ast_equal(a: ?*AstNode, b: ?*AstNode): bool {
+	if (a == null && b == null) return true;
+	if (a == null || b == null) return false;
+	val na = unwrap_group_ast(a) ?: return false;
+	val nb = unwrap_group_ast(b) ?: return false;
+	return when (na) {
+		is IdentifierExpr as ia -> {
+			if (nb is IdentifierExpr as ib) yield ia.name == ib.name;
+			yield false;
+		}
+		is LiteralExpr as la -> {
+			if (nb is LiteralExpr as lb) yield la.literal_kind == lb.literal_kind && la.raw_text == lb.raw_text;
+			yield false;
+		}
+		is MemberExpr as ma -> {
+			if (nb is MemberExpr as mb) yield ma.is_safe == mb.is_safe
+				&& ma.member == mb.member
+				&& kblint_ast_equal(ma.object, mb.object);
+			yield false;
+		}
+		is BinaryExpr as ba -> {
+			if (nb is BinaryExpr as bb) yield ba.op == bb.op
+				&& kblint_ast_equal(ba.left, bb.left)
+				&& kblint_ast_equal(ba.right, bb.right);
+			yield false;
+		}
+		is UnaryExpr as ua -> {
+			if (nb is UnaryExpr as ub) yield ua.op == ub.op
+				&& ua.is_postfix == ub.is_postfix
+				&& kblint_ast_equal(ua.operand, ub.operand);
+			yield false;
+		}
+		is IndexExpr as ixa -> {
+			if (nb is IndexExpr as ixb) yield kblint_ast_equal(ixa.target, ixb.target)
+				&& kblint_ast_equal(ixa.index, ixb.index);
+			yield false;
+		}
+		is CallExpr as ca -> {
+			if (nb is CallExpr as cb && ca.args.len == cb.args.len) {
+				if (!kblint_ast_equal(ca.callee, cb.callee)) yield false;
+				for (i in 0..<ca.args.len) {
+					if (!kblint_ast_equal(ca.args[i], cb.args[i])) yield false;
+				}
+				yield true;
+			}
+			yield false;
+		}
+		is NamedType as ta -> {
+			if (nb is NamedType as tb) yield ta.name == tb.name && ta.type_args.len == tb.type_args.len;
+			yield false;
+		}
+		else -> false;
+	};
+}
+
+fn kblint_bind_node(bindings: &KblintBindings, name: str, target: *AstNode): bool {
+	val existing = bindings.nodes[name];
+	if (existing != null) {
+		return kblint_ast_equal(*existing, target);
+	}
+	bindings.nodes[name] = target;
+	return true;
+}
+
+fn kblint_bind_text(bindings: &KblintBindings, name: str, text: str): bool {
+	val existing = bindings.texts[name];
+	if (existing != null) {
+		return *existing == text;
+	}
+	bindings.texts[name] = text;
+	return true;
+}
+
+fn kblint_match_node(
+	pat: *AstNode,
+	target: *AstNode,
+	tokens: List<Token>,
+	mapper: *SourceMapper,
+	bindings: &KblintBindings
+): bool {
+	// Pattern metavariable: expression or type wildcard
+	if (pat is IdentifierExpr as pid) {
+		val mname = kblint_meta_var_name(pid.name);
+		if (!mname.empty()) {
+			return kblint_bind_node(bindings, mname, target);
+		}
+		if (target is IdentifierExpr as tid) {
+			if (pid.name == tid.name || tid.name.ends_with("__${pid.name}")) return true;
+			val (tel, tec) = expr_end_pos(tokens, target);
+			return mapper.slice_pos(target.line, target.col, tel, tec).trim() == pid.name;
+		}
+		return false;
+	}
+	if (pat is NamedType as pnt) {
+		val mname = kblint_meta_var_name(pnt.name);
+		if (!mname.empty()) {
+			val (tel, tec) = type_end_pos(tokens, target);
+			val ty_txt = mapper.slice_pos(target.line, target.col, tel, tec).trim();
+			if (ty_txt.empty()) return false;
+			if (!kblint_bind_node(bindings, mname, target)) return false;
+			return kblint_bind_text(bindings, mname, ty_txt);
+		}
+		if (target is NamedType as tnt) return pnt.name == tnt.name;
+		return false;
+	}
+
+	// Unwrap single-statement BlockStmt / ExprStmt when matching statements
+	if (pat is ExprStmt as pes) {
+		val t_un = kblint_unwrap_stmt(target);
+		return kblint_match_node(pes.expr, t_un, tokens, mapper, bindings);
+	}
+
+	return when (pat) {
+		is LiteralExpr as pl -> {
+			if (target is LiteralExpr as tl) {
+				yield pl.literal_kind == tl.literal_kind && pl.raw_text == tl.raw_text;
+			}
+			yield false;
+		}
+		is GroupExpr as pg -> {
+			if (target is GroupExpr as tg) yield kblint_match_node(pg.expr, tg.expr, tokens, mapper, bindings);
+			yield false;
+		}
+		is BinaryExpr as pb -> {
+			if (target is BinaryExpr as tb && pb.op == tb.op) {
+				yield kblint_match_node(pb.left, tb.left, tokens, mapper, bindings)
+					&& kblint_match_node(pb.right, tb.right, tokens, mapper, bindings);
+			}
+			yield false;
+		}
+		is UnaryExpr as pu -> {
+			if (target is UnaryExpr as tu && pu.op == tu.op && pu.is_postfix == tu.is_postfix) {
+				// For prefix `!`, verify the source token is literally `!` (not synthetic `!in`/`!is`)
+				if (!pu.is_postfix && pu.op == TokenType.BANG) {
+					val ti = find_token_index_exact(tokens, target.line, target.col);
+					if (ti < 0 || tokens[ti as usz].type != TokenType.BANG) yield false;
+				}
+				yield kblint_match_node(pu.operand, tu.operand, tokens, mapper, bindings);
+			}
+			yield false;
+		}
+		is MemberExpr as pm -> {
+			if (target is MemberExpr as tm && pm.is_safe == tm.is_safe) {
+				if (!kblint_match_node(pm.object, tm.object, tokens, mapper, bindings)) yield false;
+				val mname = kblint_meta_var_name(pm.member);
+				if (!mname.empty()) {
+					yield kblint_bind_text(bindings, mname, tm.member);
+				}
+				yield pm.member == tm.member;
+			}
+			yield false;
+		}
+		is CallExpr as pc -> {
+			if (target is CallExpr as tc) {
+				if (!kblint_match_node(pc.callee, tc.callee, tokens, mapper, bindings)) yield false;
+				if (pc.args.len == 1 && pc.args[0] is IdentifierExpr as paid) {
+					val rname = kblint_meta_rest_name(paid.name);
+					if (!rname.empty()) {
+						var args_txt = "";
+						if (!tc.args.empty()) {
+							val (asl, asc) = expr_start_pos(tc.args[0]);
+							val (ael, aec) = expr_end_pos(tokens, tc.args.last()!);
+							args_txt = mapper.slice_pos(asl, asc, ael, aec).trim();
+						}
+						yield kblint_bind_text(bindings, rname, args_txt);
+					}
+				}
+				if (pc.args.len != tc.args.len) yield false;
+				for (i in 0..<pc.args.len) {
+					if (!kblint_match_node(pc.args[i], tc.args[i], tokens, mapper, bindings)) yield false;
+				}
+				yield true;
+			}
+			yield false;
+		}
+		is IndexExpr as pix -> {
+			if (target is IndexExpr as tix) {
+				yield kblint_match_node(pix.target, tix.target, tokens, mapper, bindings)
+					&& kblint_match_node(pix.index, tix.index, tokens, mapper, bindings);
+			}
+			yield false;
+		}
+		is IsExpr as pis -> {
+			if (target is IsExpr as tis && pis.expr != null && tis.expr != null) {
+				if (!kblint_match_node(pis.expr, tis.expr, tokens, mapper, bindings)) yield false;
+				yield kblint_match_node(pis.target_type, tis.target_type, tokens, mapper, bindings);
+			}
+			yield false;
+		}
+		is CastExpr as pcs -> {
+			if (target is CastExpr as tcs && pcs.expr != null && tcs.expr != null) {
+				if (!kblint_match_node(pcs.expr, tcs.expr, tokens, mapper, bindings)) yield false;
+				yield kblint_match_node(pcs.target_type, tcs.target_type, tokens, mapper, bindings);
+			}
+			yield false;
+		}
+		is IfExpr as pie -> {
+			if (target is IfExpr as tie) {
+				if (!kblint_match_node(pie.condition, tie.condition, tokens, mapper, bindings)) yield false;
+				if (!kblint_match_node(pie.then_branch, tie.then_branch, tokens, mapper, bindings)) yield false;
+				if (!kblint_match_node(pie.else_branch, tie.else_branch, tokens, mapper, bindings)) yield false;
+				bindings.nodes["then"] = tie.then_branch;
+				bindings.nodes["else"] = tie.else_branch;
+				yield true;
+			}
+			yield false;
+		}
+		is IfStmt as pif -> {
+			if (target is IfStmt as tif) {
+				if ((pif.else_branch == null) != (tif.else_branch == null)) yield false;
+				if (!kblint_match_node(pif.condition, tif.condition, tokens, mapper, bindings)) yield false;
+				val p_then = kblint_unwrap_stmt(pif.then_branch);
+				val t_then = kblint_unwrap_stmt(tif.then_branch);
+				if (!kblint_match_node(p_then, t_then, tokens, mapper, bindings)) yield false;
+				bindings.nodes["then_stmt"] = t_then;
+				if (pif.else_branch != null && tif.else_branch != null) {
+					val p_else = kblint_unwrap_stmt(pif.else_branch);
+					val t_else = kblint_unwrap_stmt(tif.else_branch);
+					if (!kblint_match_node(p_else, t_else, tokens, mapper, bindings)) yield false;
+					bindings.nodes["else_stmt"] = t_else;
+				}
+				yield true;
+			}
+			yield false;
+		}
+		is ReturnStmt as prs -> {
+			val t_un = kblint_unwrap_stmt(target);
+			if (t_un is ReturnStmt as trs) {
+				if (prs.value == null && trs.value == null) yield true;
+				if (prs.value != null && trs.value != null) {
+					yield kblint_match_node(prs.value, trs.value, tokens, mapper, bindings);
+				}
+			}
+			yield false;
+		}
+		else -> false;
+	};
+}
+
+// ============================================================================
+// Semantic & Structural `where:` Predicate Evaluator
+// ============================================================================
+
+fn kblint_binding_text(
+	name: str,
+	bindings: *KblintBindings,
+	tokens: List<Token>,
+	mapper: *SourceMapper
+): str {
+	val txt_ptr = bindings.texts[name];
+	if (txt_ptr != null) return *txt_ptr;
+	val node_ptr = bindings.nodes[name];
+	if (node_ptr == null) return "";
+	val n = *node_ptr;
+	val (sl, sc) = expr_start_pos(n);
+	val (el, ec) = expr_end_pos(tokens, n);
+	return mapper.slice_pos(sl, sc, el, ec).trim();
+}
+
+fn kblint_eval_atom(
+	atom: str,
+	matched_node: *AstNode,
+	bindings: *KblintBindings,
+	symtab: SymbolTable,
+	has_symtab: bool,
+	tokens: List<Token>,
+	mapper: *SourceMapper
+): bool {
+	val s = atom.trim();
+	if (s.empty() || s == "true") return true;
+	if (s == "false") return false;
+	val lp = kblint_find_char(s, '(');
+	if (lp <= 0 || s[s.len - 1] != ')') return false;
+	val fn_name = s.slice(0, lp as usz).trim();
+	val raw_args = s.slice((lp as usz) + 1, s.len - 1).trim();
+
+	val parts = raw_args.split(',');
+	var arg0_name = if (!parts.empty()) parts[0].trim() else "";
+	if (arg0_name.starts_with("$")) arg0_name = arg0_name.slice(1, arg0_name.len);
+	var arg0_node: ?*AstNode = null;
+	if (arg0_name == "node") {
+		arg0_node = matched_node;
+	} else {
+		val p = bindings.nodes[arg0_name];
+		if (p != null) arg0_node = *p;
+	}
+
+	return when (fn_name) {
+		"is_bool" -> {
+			val n = arg0_node ?: return false;
+			if (!has_symtab) yield true;
+			val ty = symtab.get_node_type(n) ?: return false;
+			yield ty.kind == DataType.BOOL;
+		}
+		"is_nullable_ptr" -> {
+			val n = arg0_node ?: return false;
+			if (!has_symtab) yield true;
+			val ty = symtab.get_node_type(n) ?: return false;
+			yield ty.kind == DataType.POINTER && ty.as_pointer()!.nullable;
+		}
+		"is_ptr" -> {
+			val n = arg0_node ?: return false;
+			if (!has_symtab) yield true;
+			val ty = symtab.get_node_type(n) ?: return false;
+			yield ty.kind == DataType.POINTER;
+		}
+		"is_void" -> {
+			val n = arg0_node ?: return false;
+			if (!has_symtab) yield true;
+			val ty = symtab.get_node_type(n) ?: return false;
+			yield ty.kind == DataType.NONE;
+		}
+		"is_safe_nav_type" -> {
+			val n = arg0_node ?: return false;
+			if (!has_symtab) yield true;
+			val ty = symtab.get_node_type(n) ?: return false;
+			yield is_safe_nav_compatible_type(ty);
+		}
+		"is_path" -> {
+			val n = arg0_node ?: return false;
+			yield !simple_path_key(n).empty();
+		}
+		"is_pure" -> {
+			val n = arg0_node ?: return false;
+			yield !expr_has_side_effect(n);
+		}
+		"is_null" -> is_null_lit(arg0_node);
+		"is_block" -> arg0_node != null && (arg0_node is BlockStmt);
+		"is_elvis_complex" -> arg0_node != null && expr_needs_parens_for_elvis_rhs(arg0_node);
+		"is_self" -> {
+			val n = arg0_node ?: return false;
+			val cur = unwrap_group_ast(n) ?: return false;
+			if (cur is IdentifierExpr as id) yield id.name == "self";
+			yield false;
+		}
+		"is_negated_op" -> {
+			val n = arg0_node ?: return false;
+			val cur = unwrap_group_ast(n) ?: return false;
+			yield (cur is IsExpr) || is_kw_in_binary(cur);
+		}
+		"no_alias" -> {
+			val n = arg0_node ?: return false;
+			var cur: *AstNode = n;
+			if (cur is UnaryExpr as un) cur = un.operand;
+			if (cur is GroupExpr as g) cur = g.expr;
+			if (cur is IsExpr as ise) yield ise.alias.empty();
+			yield false;
+		}
+		"followed_by_dot" -> {
+			val n = arg0_node ?: return false;
+			val (el, ec) = expr_end_pos(tokens, n);
+			val ti = find_token_index_at_or_after(tokens, el, ec);
+			yield ti < tokens.len && tokens[ti].type in [TokenType.DOT, TokenType.QUESTION_DOT];
+		}
+		"is_single_line" -> {
+			val txt = kblint_binding_text(arg0_name, bindings, tokens, mapper);
+			yield "\n" !in txt;
+		}
+		"has_method" -> {
+			val n = arg0_node ?: return false;
+			if (!has_symtab || parts.len < 2) yield false;
+			val mname = kblint_strip_quotes(parts[1]);
+			val raw_ty = symtab.get_node_type(n) ?: return false;
+			val base_ty = if (raw_ty.kind == DataType.POINTER) raw_ty.as_pointer()!.pointee else raw_ty;
+			if (base_ty.kind == DataType.STR) {
+				yield symtab.find_prim_method(DataType.STR, mname) != null;
+			}
+			val st = base_ty.as_struct() ?: return false;
+			yield st.find_method(mname) != null;
+		}
+		else -> false;
+	};
+}
+
+fn kblint_eval_where(
+	where_str: str,
+	matched_node: *AstNode,
+	bindings: *KblintBindings,
+	symtab: SymbolTable,
+	has_symtab: bool,
+	tokens: List<Token>,
+	mapper: *SourceMapper
+): bool {
+	val trimmed = where_str.trim();
+	if (trimmed.empty()) return true;
+
+	// Split by `||` first (lowest precedence), then `&&`, then unary `!`
+	val or_parts = kblint_split_str(trimmed, "||");
+	for (or_p in or_parts) {
+		val and_parts = kblint_split_str(or_p, "&&");
+		var all_ok = true;
+		for (and_p in and_parts) {
+			var term = and_p.trim();
+			var neg = false;
+			while (term.starts_with("!")) {
+				neg = !neg;
+				term = term.slice(1, term.len).trim();
+			}
+			val res = kblint_eval_atom(term, matched_node, bindings, symtab, has_symtab, tokens, mapper);
+			val final_res = if (neg) !res else res;
+			if (!final_res) {
+				all_ok = false;
+				break;
+			}
+		}
+		if (all_ok) return true;
+	}
+	return false;
+}
+
+// ============================================================================
+// Template Renderer & Rule Execution
+// ============================================================================
+
+fn kblint_render_template(
+	tpl: str,
+	bindings: *KblintBindings,
+	tokens: List<Token>,
+	mapper: *SourceMapper
+): str {
+	var sb = StringBuilder();
+	var i: usz = 0;
+	while (i < tpl.len) {
+		if (tpl[i] == '$' && i + 1 < tpl.len && kblint_is_ident_start(tpl[i + 1])) {
+			var j = i + 1;
+			while (j < tpl.len && kblint_is_ident_cont(tpl[j])) j++;
+			val name = tpl.slice(i + 1, j);
+			// Built-in smart negation helper: `$not(var_name)`
+			if (name == "not" && j < tpl.len && tpl[j] == '(') {
+				var k = j + 1;
+				while (k < tpl.len && tpl[k] != ')') k++;
+				if (k < tpl.len) {
+					val inner_name = tpl.slice(j + 1, k).trim();
+					val node_ptr = bindings.nodes[inner_name];
+					val raw_txt = kblint_binding_text(inner_name, bindings, tokens, mapper);
+					if (node_ptr != null && !raw_txt.empty()) {
+						sb += negate_condition_text(*node_ptr, raw_txt, tokens, mapper);
+					} else {
+						sb += "!${raw_txt}";
+					}
+					i = k + 1;
+					continue;
+				}
+			}
+			val is_rest = j + 2 < tpl.len && tpl[j] == '.' && tpl[j + 1] == '.' && tpl[j + 2] == '.';
+			sb += kblint_binding_text(name, bindings, tokens, mapper);
+			i = if (is_rest) j + 3 else j;
+			continue;
+		}
+		sb += tpl[i];
+		i++;
+	}
+	return sb.to_str();
+}
+
+impl LintCollector {
+
+	fn run_kblint_expr_rules(&self, node: *AstNode): bool {
+		val rs = self.ruleset ?: return false;
+		for (rule in rs.expr_rules) {
+			if (rs.is_code_disabled(rule.code)) continue;
+			var bindings = KblintBindings();
+			if (kblint_match_node(rule.pattern, node, self.tokens, &self.mapper, &bindings)) {
+				val ok = kblint_eval_where(
+					rule.where_expr, node, &bindings,
+					self.symtab, self.has_symtab, self.tokens, &self.mapper
+				);
+				if (ok) {
+					val (sl, sc) = expr_start_pos(node);
+					val (el, ec) = expr_end_pos(self.tokens, node);
+					val msg = kblint_render_template(rule.message_tpl, &bindings, self.tokens, &self.mapper);
+					var edits = List<LintEditSpec>();
+					var fix_title = "";
+					if (!rule.fix_tpl.empty()) {
+						val repl = kblint_render_template(rule.fix_tpl, &bindings, self.tokens, &self.mapper);
+						if (!repl.empty()) {
+							edits += LintEditSpec(sl, sc, el, ec, repl);
+							fix_title = if (!rule.title_tpl.empty())
+								kblint_render_template(rule.title_tpl, &bindings, self.tokens, &self.mapper)
+							else
+								"Simplify to '${repl}'";
+						}
+					}
+					self.emit(
+						sl, sc, el, ec,
+						msg, rule.code, rule.unnecessary,
+						fix_title, edits
+					);
+					bindings.free();
+					return true;
+				}
+			}
+			bindings.free();
+		}
+		return false;
+	}
+
+	fn run_kblint_stmt_rules(&self, node: *AstNode): bool {
+		val rs = self.ruleset ?: return false;
+		for (rule in rs.stmt_rules) {
+			if (rs.is_code_disabled(rule.code)) continue;
+			var bindings = KblintBindings();
+			if (kblint_match_node(rule.pattern, node, self.tokens, &self.mapper, &bindings)) {
+				val ok = kblint_eval_where(
+					rule.where_expr, node, &bindings,
+					self.symtab, self.has_symtab, self.tokens, &self.mapper
+				);
+				if (ok) {
+					val (el, ec) = stmt_end_pos(self.tokens, node);
+					val msg = kblint_render_template(rule.message_tpl, &bindings, self.tokens, &self.mapper);
+					var edits = List<LintEditSpec>();
+					var fix_title = "";
+					if (!rule.fix_tpl.empty()) {
+						val repl = kblint_render_template(rule.fix_tpl, &bindings, self.tokens, &self.mapper);
+						if (!repl.empty()) {
+							edits += LintEditSpec(node.line, node.col, el, ec, repl);
+							fix_title = if (!rule.title_tpl.empty())
+								kblint_render_template(rule.title_tpl, &bindings, self.tokens, &self.mapper)
+							else
+								"Simplify to '${repl}'";
+						}
+					}
+					self.emit(
+						node.line, node.col, el, ec,
+						msg, rule.code, rule.unnecessary,
+						fix_title, edits
+					);
+					bindings.free();
+					return true;
+				}
+			}
+			bindings.free();
+		}
+		return false;
+	}
+
+}
