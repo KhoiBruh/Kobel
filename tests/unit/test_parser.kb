@@ -555,6 +555,14 @@ fn test_object_and_empty_struct_parsing() {
 	check_bad_program_syntax("object WithField { x: i32 }", "Must reject fields inside object");
 	check_bad_program_syntax("object WithInit { init() {} }", "Must reject init constructor inside object");
 	check_bad_program_syntax("object WithOp { op plus(*self, x: i32): i32 => x; }", "Must reject operators inside object");
+	check_bad_program_syntax(
+		"enum BadPayload { Fn(a: i32, b: bool = false), Ok }",
+		"Must reject default value in payload enum variant without hanging"
+	);
+	check_bad_program_syntax(
+		"enum StrayToken { A, ) B }",
+		"Must recover from stray token in enum without infinite loop"
+	);
 
 	println("  [PASS] test_object_and_empty_struct_parsing");
 }

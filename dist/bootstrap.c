@@ -11447,7 +11447,12 @@ std__collections__List_compiler__ast__EnumMember compiler__parser__Parser_parse_
 compiler__parser__Parser_consume(self, 17, kobel_concat(3, KOBEL_STR("Expected '{' before "), kind_label, KOBEL_STR(" members")));
 std__collections__List_compiler__ast__EnumMember members = std__collections__List_compiler__ast__EnumMember_init(NULL, 0);
 while (!compiler__parser__Parser_check(self, 18) && !compiler__parser__Parser_is_end(self)) {
+size_t start_pos = self->current;
 compiler__lexer__Token m_tok = compiler__parser__Parser_consume(self, 44, kobel_concat(3, KOBEL_STR("Expected "), kind_label, KOBEL_STR(" variant name")));
+if (self->current == start_pos) {
+compiler__parser__Parser_advance(self);
+continue;
+}
 std__collections__List_compiler__ast__EnumField payload = std__collections__List_compiler__ast__EnumField_init(NULL, 0);
 kobel_str desc = KOBEL_STR("");
 if (compiler__parser__Parser_check(self, 15) && !allow_value && compiler__parser__Parser_peek_at(self, 1).type == 43) {
@@ -11457,10 +11462,22 @@ desc = compiler__parser__Parser_extract_fault_desc(self, d_tok);
 compiler__parser__Parser_consume(self, 16, KOBEL_STR("Expected ')' after fault variant description"));
 } else if (compiler__parser__Parser_match_token(self, 15)) {
 while (!compiler__parser__Parser_check(self, 16) && !compiler__parser__Parser_is_end(self)) {
+size_t f_start = self->current;
 compiler__lexer__Token f_tok = compiler__parser__Parser_consume(self, 44, kobel_concat(3, KOBEL_STR("Expected field name in "), kind_label, KOBEL_STR(" variant")));
+if (self->current == f_start) {
+compiler__parser__Parser_advance(self);
+continue;
+}
 compiler__parser__Parser_consume(self, 1, KOBEL_STR("Expected ':' after field name"));
 std__collections__List_compiler__ast__EnumField_plus_assign(&payload, (compiler__ast__EnumField){ f_tok.text, compiler__parser__Parser_parse_type(self) });
+if (compiler__parser__Parser_match_token(self, 5)) {
+compiler__parser__Parser_error(self, compiler__parser__Parser_previous(self), kobel_concat(3, KOBEL_STR("Payload "), kind_label, KOBEL_STR(" variant fields cannot have default values")));
+compiler__parser__Parser_parse_expression(self, 0);
+}
 if (!compiler__parser__Parser_match_token(self, 2)) {
+if (self->current == f_start) {
+compiler__parser__Parser_advance(self);
+}
 break;
 }
 }
@@ -11486,6 +11503,9 @@ m_val = parsed_val;
 }
 std__collections__List_compiler__ast__EnumMember_plus_assign(&members, (compiler__ast__EnumMember){ m_tok.text, m_val, m_tok.line, m_tok.col, payload, desc, 0 });
 compiler__parser__Parser_match_token(self, 2);
+if (self->current == start_pos) {
+compiler__parser__Parser_advance(self);
+}
 }
 compiler__parser__Parser_consume(self, 18, kobel_concat(3, KOBEL_STR("Expected '}' after "), kind_label, KOBEL_STR(" members")));
 return members;

@@ -441,7 +441,12 @@ impl Parser {
 		var members = List<EnumMember>();
 
 		while (!self.check(TokenType.CLOSE_BRACE) && !self.is_end()) {
+			val start_pos = self.current;
 			val m_tok = self.consume(TokenType.IDENTIFIER, "Expected ${kind_label} variant name");
+			if (self.current == start_pos) {
+				self.advance();
+				continue;
+			}
 
 			// `Variant("desc")` or `Variant(field: Type, ...)` (plus optional trailing `("desc")`)
 			var payload = List<EnumField>();
@@ -453,10 +458,22 @@ impl Parser {
 				self.consume(TokenType.CLOSE_PAREN, "Expected ')' after fault variant description");
 			} else if (self.match_token(TokenType.OPEN_PAREN)) {
 				while (!self.check(TokenType.CLOSE_PAREN) && !self.is_end()) {
+					val f_start = self.current;
 					val f_tok = self.consume(TokenType.IDENTIFIER, "Expected field name in ${kind_label} variant");
+					if (self.current == f_start) {
+						self.advance();
+						continue;
+					}
 					self.consume(TokenType.COLON, "Expected ':' after field name");
 					payload += EnumField(f_tok.text, self.parse_type());
-					if (!self.match_token(TokenType.COMMA)) break;
+					if (self.match_token(TokenType.EQUAL)) {
+						self.error(self.previous(), "Payload ${kind_label} variant fields cannot have default values");
+						self.parse_expression(Precedence.NONE);
+					}
+					if (!self.match_token(TokenType.COMMA)) {
+						if (self.current == f_start) self.advance();
+						break;
+					}
 				}
 				self.consume(TokenType.CLOSE_PAREN, "Expected ')' after ${kind_label} variant fields");
 				if (self.check(TokenType.OPEN_PAREN) && !allow_value && self.peek_at(1).type == TokenType.STRING) {
@@ -480,6 +497,7 @@ impl Parser {
 			members += EnumMember(m_tok.text, m_val, m_tok.line, m_tok.col, payload, desc);
 
 			self.match_token(TokenType.COMMA);
+			if (self.current == start_pos) self.advance();
 		}
 
 		self.consume(TokenType.CLOSE_BRACE, "Expected '}' after ${kind_label} members");
