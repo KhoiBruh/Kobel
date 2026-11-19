@@ -1,0 +1,445 @@
+mod lsp;
+
+use std.collections.*;
+use std.string.*;
+
+use compiler.ast.*;
+use compiler.lexer.*;
+use compiler.semantic.symbols.*;
+use compiler.semantic.types.*;
+
+/*
+ * ============================================================================
+ * lsp.inlay — Inferred Type Inlay Hints (`textDocument/inlayHint`)
+ *
+ * Walks the current document AST with `SymbolTable` type annotations to emit
+ * LSP InlayHint items (`kind = 1` / Type) within the requested viewport range:
+ *   - Unannotated local `val` / `var` bindings (`VarDeclStmt`)
+ *   - Destructuring bindings (`DestructDeclStmt`)
+ *   - `for` loop variables (`ForStmt`)
+ *   - Error-catch bindings (`expr !: err -> ...`)
+ *   - Functions / methods with omitted (inferred) return type (`=> expr`)
+ *   - Lambda parameters with omitted types (`{ x -> ... }`)
+ * ============================================================================
+ */
+
+const INLAY_KIND_TYPE: i64 = 1;
+
+pub fn strip_module_prefix(name: str): str {
+	var last_sep: isz = -1;
+	var i: usz = 0;
+	while (i + 1 < name.len) {
+		if (name[i] == '_' && name[i + 1] == '_') {
+			last_sep = (i + 2) as isz;
+			i += 2;
+		} else {
+			i++;
+		}
+	}
+	if (last_sep > 0 && (last_sep as usz) < name.len) {
+		return name.slice(last_sep as usz, name.len);
+	}
+	return name;
+}
+
+pub fn format_pretty_type(symtab: SymbolTable, ty: ?*Type): str {
+	val t = ty ?: return "";
+	if (t.kind == DataType.NONE) return "";
+	if (t.is_enum()) {
+		val ei = t.as_enum()!;
+		if (!ei.name.empty()) return strip_module_prefix(ei.name);
+	}
+	return when (t.kind) {
+		DataType.POINTER -> {
+			val ptr = t.as_pointer()!;
+			val q = if (ptr.nullable) "?" else "";
+			val sym = if (ptr.mutable) "&" else "*";
+			val inner = format_pretty_type(symtab, ptr.pointee);
+			val inner_s = if (inner.empty()) "none" else inner;
+			yield "${q}${sym}${inner_s}";
+		}
+		DataType.ARRAY -> {
+			val arr = t.as_array()!;
+			yield "[${format_pretty_type(symtab, arr.elem)}]";
+		}
+		DataType.STRUCT -> {
+			val s = t.as_struct()!;
+			val rec_p = symtab.gen.record_map.get(s.c_name) ?: symtab.gen.record_map.get(s.name);
+			if (rec_p != null) {
+				val rec = rec_p.read();
+				val base = strip_module_prefix(rec.template.name);
+				if (!rec.args.empty()) {
+					var sb = StringBuilder();
+					sb += base;
+					sb += "<";
+					for (i in 0..<rec.args.len) {
+						if (i > 0) sb += ", ";
+						val a_s = format_pretty_type(symtab, rec.args[i]);
+						sb += if (a_s.empty()) "none" else a_s;
+					}
+					sb += ">";
+					yield sb.to_str();
+				}
+				yield base;
+			}
+			yield strip_module_prefix(s.name);
+		}
+		DataType.FN -> {
+			val fn_info = t.as_fn()!;
+			var sb = StringBuilder();
+			sb += "(";
+			for (i in 0..<fn_info.param_types.len) {
+				if (i > 0) sb += ", ";
+				if (fn_info.is_variadic && i == fn_info.param_types.len - 1) sb += "..";
+				val p_s = format_pretty_type(symtab, fn_info.param_types[i]);
+				sb += if (p_s.empty()) "none" else p_s;
+			}
+			sb += ") -> ";
+			val r_s = format_pretty_type(symtab, fn_info.return_type);
+			sb += if (r_s.empty()) "none" else r_s;
+			yield sb.to_str();
+		}
+		DataType.ERROR_UNION -> {
+			val eu = t.as_error_union()!;
+			val err_s = format_pretty_type(symtab, eu.err);
+			if (eu.ok.kind == DataType.NONE) yield "!${err_s}";
+			yield "${format_pretty_type(symtab, eu.ok)} ! ${err_s}";
+		}
+		else -> t.to_str();
+	};
+}
+
+fn inlay_type_str(symtab: SymbolTable, ty: ?*Type): str {
+	val s = format_pretty_type(symtab, ty);
+	if (s.empty() || s == "none" || s == "any") return "";
+	return s;
+}
+
+fn inlay_for_elem_type(symtab: SymbolTable, fs: *ForStmt): ?*Type {
+	if (fs.is_range) {
+		if (fs.range_start != null) return symtab.get_node_type(fs.range_start);
+		if (fs.range_end != null) return symtab.get_node_type(fs.range_end);
+		return null;
+	}
+	val it_node = fs.iterable ?: return null;
+	val raw_ty = symtab.get_node_type(it_node) ?: return null;
+	val base_ty = if (raw_ty.kind == DataType.POINTER) raw_ty.as_pointer()!.pointee else raw_ty;
+	if (base_ty.kind == DataType.ARRAY) return base_ty.as_array()!.elem;
+	if (base_ty.kind == DataType.STR) return symtab.prims?.t_char();
+	val st = base_ty.as_struct() ?: return null;
+	val get_m = st.find_method("get");
+	if (get_m != null && get_m.fn_type.kind == DataType.FN) {
+		return get_m.fn_type.as_fn()!.return_type;
+	}
+	return null;
+}
+
+fn inlay_destruct_field_type(symtab: SymbolTable, init_node: *AstNode, idx: usz): ?*Type {
+	val raw_ty = symtab.get_node_type(init_node) ?: return null;
+	val base_ty = if (raw_ty.kind == DataType.POINTER) raw_ty.as_pointer()!.pointee else raw_ty;
+	val st = base_ty.as_struct() ?: return null;
+	val unpack_m = st.find_method("unpack");
+	if (unpack_m != null && unpack_m.fn_type.kind == DataType.FN) {
+		val fn_info = unpack_m.fn_type.as_fn()!;
+		// `op unpack(*self, a: &T1, b: &T2)` -> parameter at idx + 1 is `&Ti`
+		val p_idx = idx + 1;
+		if (p_idx < fn_info.param_types.len) {
+			val pt = fn_info.param_types[p_idx];
+			if (pt.kind == DataType.POINTER) return pt.as_pointer()!.pointee;
+			return pt;
+		}
+	}
+	if (idx < st.fields.len) return st.fields[idx].type_ptr;
+	return null;
+}
+
+struct InlayCollector {
+	pub doc_ast: *AstNode,
+	pub tokens: List<Token>,
+	pub symtab: SymbolTable,
+	pub has_symtab: bool,
+	pub start_line0: usz,
+	pub end_line0: usz,
+	pub out: &JsonValue
+}
+
+impl InlayCollector {
+
+	fn add_type_hint(&self, line1: usz, end_col1: usz, ty_str: str) {
+		if (ty_str.empty() || line1 == 0) return;
+		val l0 = line1 - 1;
+		if (l0 < self.start_line0 || l0 > self.end_line0) return;
+		val c0 = if (end_col1 > 0) end_col1 - 1 else 0;
+
+		val pos = JsonValue.obj();
+		pos["line"] = JsonValue.num(l0);
+		pos["character"] = JsonValue.num(c0);
+
+		val hint = JsonValue.obj();
+		hint["position"] = pos;
+		hint["label"] = JsonValue.str(": ${ty_str}");
+		hint["kind"] = JsonValue.num(INLAY_KIND_TYPE);
+		hint["paddingLeft"] = JsonValue.bool(false);
+		hint["paddingRight"] = JsonValue.bool(false);
+		self.out += hint;
+	}
+
+	fn emit_var_decl_hint(&self, node: *AstNode, vd: *VarDeclStmt) {
+		if (vd.name.empty() || vd.name == "_" || vd.initializer == null) return;
+		if (vd.type_annotation != null && vd.type_annotation.span.file_id > 0) return;
+		val ty = self.symtab.get_node_type(vd.initializer) ?: return;
+		val ty_s = inlay_type_str(self.symtab, ty);
+		if (ty_s.empty()) return;
+
+		val tok = find_ident_token_after(self.tokens, node.line, node.col, vd.name);
+		if (tok.line == 0) return;
+		self.add_type_hint(tok.line, tok.col + tok.text.len, ty_s);
+	}
+
+	fn emit_destruct_hints(&self, node: *AstNode, dd: *DestructDeclStmt) {
+		var cur_l = node.line;
+		var cur_c = node.col;
+		for (i in 0..<dd.names.len) {
+			val nm = dd.names[i];
+			if (nm.empty() || nm == "_") continue;
+			val tok = find_ident_token_after(self.tokens, cur_l, cur_c, nm);
+			if (tok.line == 0) continue;
+			cur_l = tok.line;
+			cur_c = tok.col + tok.text.len;
+			val fty = inlay_destruct_field_type(self.symtab, dd.initializer, i);
+			val ty_s = inlay_type_str(self.symtab, fty);
+			if (!ty_s.empty()) self.add_type_hint(tok.line, tok.col + tok.text.len, ty_s);
+		}
+	}
+
+	fn emit_for_hint(&self, node: *AstNode, fs: *ForStmt) {
+		val vn = fs.var_name;
+		if (vn.empty() || vn == "_" || "(" in vn) return;
+		val elem_ty = inlay_for_elem_type(self.symtab, fs);
+		val ty_s = inlay_type_str(self.symtab, elem_ty);
+		if (ty_s.empty()) return;
+		val tok = find_ident_token_after(self.tokens, node.line, node.col, vn);
+		if (tok.line == 0) return;
+		self.add_type_hint(tok.line, tok.col + tok.text.len, ty_s);
+	}
+
+	fn emit_fn_return_hint(&self, fn_node: *AstNode, f: *FnDecl) {
+		if (f.initializer || f.body == null) return;
+
+		// Locate the closing ')' of the function parameter list; only emit when `=>` follows directly
+		var idx = find_token_index_at_or_after(self.tokens, fn_node.line, fn_node.col);
+		var found_open = false;
+		while (idx < self.tokens.len) {
+			val tt = self.tokens[idx].type;
+			if (tt == TokenType.OPEN_PAREN) {
+				found_open = true;
+				break;
+			}
+			if (tt in [TokenType.OPEN_BRACE, TokenType.FAT_ARROW, TokenType.SEMI_COLON]) break;
+			idx++;
+		}
+		if (!found_open) return;
+		val close_i = find_matching_delim_index(
+			self.tokens, idx, TokenType.OPEN_PAREN, TokenType.CLOSE_PAREN
+		);
+		if (close_i < 0) return;
+		val next_i = (close_i as usz) + 1;
+		if (next_i >= self.tokens.len || self.tokens[next_i].type != TokenType.FAT_ARROW) return;
+
+		var ret_expr: ?*AstNode = f.body;
+		if (f.body is ExprStmt as es) {
+			ret_expr = es.expr;
+		} else if (f.body is ReturnStmt as rs) {
+			ret_expr = rs.value;
+		} else if (f.body is BlockStmt as blk && blk.statements.len == 1) {
+			val st = blk.statements[0];
+			if (st is ReturnStmt as rs) ret_expr = rs.value;
+			else if (st is ExprStmt as es) ret_expr = es.expr;
+		}
+		val ret_ty = if (ret_expr != null) self.symtab.get_node_type(ret_expr) else null;
+		val ty_s = inlay_type_str(self.symtab, ret_ty);
+		if (ty_s.empty()) return;
+
+		val rp = self.tokens[close_i as usz];
+		self.add_type_hint(rp.line, rp.col + 1, ty_s);
+	}
+
+	fn emit_lambda_param_hints(&self, node: *AstNode, lam: *LambdaExpr) {
+		if (lam.params.empty() || !self.symtab.has_lambda_info(node)) return;
+		val linfo = self.symtab.get_lambda_info(node);
+		val fn_ty = linfo.fn_type ?: return;
+		if (fn_ty.kind != DataType.FN) return;
+		val fn_info = fn_ty.as_fn()!;
+		var cur_l = node.line;
+		var cur_c = node.col;
+		for (i in 0..<lam.params.len) {
+			val p = lam.params[i];
+			if (p.name.empty() || p.name == "_") continue;
+			if (p.type_node != null && p.type_node.span.file_id > 0) continue;
+			if (i >= fn_info.param_types.len) break;
+			val ty_s = inlay_type_str(self.symtab, fn_info.param_types[i]);
+			if (ty_s.empty()) continue;
+			val tok = find_ident_token_after(self.tokens, cur_l, cur_c, p.name);
+			if (tok.line == 0) continue;
+			cur_l = tok.line;
+			cur_c = tok.col + tok.text.len;
+			self.add_type_hint(tok.line, tok.col + tok.text.len, ty_s);
+		}
+	}
+
+	fn walk_expr(&self, node: ?*AstNode) {
+		if (node == null) return;
+		when (node) {
+			is BinaryExpr as b -> {
+				self.walk_expr(b.left);
+				self.walk_expr(b.right);
+			}
+			is UnaryExpr as u -> self.walk_expr(u.operand);
+			is CallExpr as c -> {
+				self.walk_expr(c.callee);
+				for (a in c.args) self.walk_expr(a);
+			}
+			is MemberExpr as m -> self.walk_expr(m.object);
+			is IndexExpr as ix -> {
+				self.walk_expr(ix.target);
+				self.walk_expr(ix.index);
+			}
+			is AssignExpr as a -> {
+				self.walk_expr(a.target);
+				self.walk_expr(a.value);
+			}
+			is CastExpr as cs -> self.walk_expr(cs.expr);
+			is GroupExpr as g -> self.walk_expr(g.expr);
+			is ArrayLiteralExpr as al -> for (el in al.elements) self.walk_expr(el);
+			is IfExpr as ie -> {
+				self.walk_expr(ie.condition);
+				self.walk_expr(ie.then_branch);
+				self.walk_expr(ie.else_branch);
+			}
+			is WhenExpr as we -> {
+				self.walk_expr(we.condition);
+				for (arm in we.arms) {
+					if (arm.body is BlockStmt) self.walk_stmt(arm.body);
+					else self.walk_expr(arm.body);
+				}
+			}
+			is InterpExpr as ip -> {
+				for (part in ip.parts) {
+					if (part is InterpPart.Hole) self.walk_expr(part.node);
+				}
+			}
+			is IsExpr as ise -> self.walk_expr(ise.expr);
+			is LambdaExpr as lam -> {
+				self.emit_lambda_param_hints(node, lam);
+				self.walk_stmt(lam.body);
+			}
+			is CatchExpr as ce -> {
+				self.walk_expr(ce.expr);
+				if (!ce.err_name.empty() && ce.err_name != "_") {
+					val src_ty = self.symtab.get_node_type(ce.expr);
+					if (src_ty?.kind == DataType.ERROR_UNION) {
+						val err_s = inlay_type_str(self.symtab, src_ty.as_error_union()!.err);
+						if (!err_s.empty()) {
+							val tok = find_ident_token_after(self.tokens, node.line, node.col, ce.err_name);
+							if (tok.line > 0) self.add_type_hint(tok.line, tok.col + tok.text.len, err_s);
+						}
+					}
+				}
+				if (ce.handler is BlockStmt) self.walk_stmt(ce.handler);
+				else self.walk_expr(ce.handler);
+			}
+			is ErrorUnionWrapExpr as eu -> self.walk_expr(eu.value);
+			else -> {}
+		}
+	}
+
+	fn walk_stmt(&self, node: ?*AstNode) {
+		if (node == null) return;
+		when (node) {
+			is BlockStmt as blk -> for (st in blk.statements) self.walk_stmt(st);
+			is ExprStmt as es -> self.walk_expr(es.expr);
+			is VarDeclStmt as vd -> {
+				self.emit_var_decl_hint(node, vd);
+				self.walk_expr(vd.initializer);
+			}
+			is DestructDeclStmt as dd -> {
+				self.emit_destruct_hints(node, dd);
+				self.walk_expr(dd.initializer);
+			}
+			is IfStmt as ifs -> {
+				self.walk_expr(ifs.condition);
+				self.walk_stmt(ifs.then_branch);
+				self.walk_stmt(ifs.else_branch);
+			}
+			is WhileStmt as ws -> {
+				self.walk_expr(ws.condition);
+				self.walk_stmt(ws.body);
+			}
+			is ForStmt as fs -> {
+				self.emit_for_hint(node, fs);
+				self.walk_expr(fs.iterable);
+				self.walk_expr(fs.range_start);
+				self.walk_expr(fs.range_end);
+				self.walk_stmt(fs.body);
+			}
+			is ReturnStmt as rs -> self.walk_expr(rs.value);
+			is YieldStmt as ys -> self.walk_expr(ys.value);
+			is DeferStmt as ds -> self.walk_stmt(ds.body);
+			is WhenStmt as wh -> {
+				self.walk_expr(wh.condition);
+				for (arm in wh.arms) self.walk_stmt(arm.body);
+			}
+			else -> self.walk_expr(node);
+		}
+	}
+
+	fn walk_fn(&self, fn_node: *AstNode, f: *FnDecl) {
+		if (!f.type_params.empty() || f.body == null) return;
+		self.emit_fn_return_hint(fn_node, f);
+		self.walk_stmt(f.body);
+	}
+
+	pub fn collect(&self) {
+		if (!self.has_symtab) return;
+		if (self.doc_ast is Program as prog) {
+			for (decl in prog) {
+				when (decl) {
+					is FnDecl as f -> self.walk_fn(decl, f);
+					is ImplDecl as im -> {
+						if (!im.type_params.empty()) continue;
+						for (m in im.methods) {
+							if (m is FnDecl as mf) self.walk_fn(m, mf);
+						}
+					}
+					is ObjectDecl as obj -> {
+						for (cnode in obj.consts) {
+							if (cnode is ConstDecl as oc) self.walk_expr(oc.value);
+						}
+						for (m in obj.methods) {
+							if (m is FnDecl as mf) self.walk_fn(m, mf);
+						}
+					}
+					is ConstDecl as c -> self.walk_expr(c.value);
+					else -> {}
+				}
+			}
+		}
+	}
+
+}
+
+pub fn collect_inlay_hints_json(
+	doc_ast: ?*AstNode,
+	symtab: SymbolTable,
+	has_symtab: bool,
+	tokens: List<Token>,
+	start_line0: usz,
+	end_line0: usz
+): *JsonValue {
+	val out = JsonValue.arr();
+	val root = doc_ast ?: return out;
+	if (!has_symtab) return out;
+	var collector = InlayCollector(root, tokens, symtab, has_symtab, start_line0, end_line0, out);
+	collector.collect();
+	return out;
+}

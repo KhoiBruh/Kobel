@@ -193,6 +193,7 @@ const ANALYSIS_METHOD_WS = {
     'textDocument/codeAction': false,
     'textDocument/signatureHelp': false,
     'textDocument/completion': false,
+    'textDocument/inlayHint': false,
     'textDocument/references': true,
     'textDocument/prepareRename': true,
     'textDocument/rename': true
@@ -1667,6 +1668,47 @@ function activate(context) {
             }
         }, '.', ':', '(')
     );
+
+    // 12b. Inlay Hints Provider (inferred types)
+    if (typeof vscode.languages.registerInlayHintsProvider === 'function') {
+        context.subscriptions.push(
+            vscode.languages.registerInlayHintsProvider('kobel', {
+                async provideInlayHints(document, range) {
+                    const cfg = vscode.workspace && typeof vscode.workspace.getConfiguration === 'function'
+                        ? vscode.workspace.getConfiguration('kobel')
+                        : null;
+                    if (cfg && cfg.get('inlayHints.enabled', true) === false) {
+                        return [];
+                    }
+                    try {
+                        client.flushDidChange(document);
+                        const hints = await client.sendRequest('textDocument/inlayHint', {
+                            textDocument: { uri: document.uri.toString() },
+                            range: {
+                                start: { line: range.start.line, character: range.start.character },
+                                end: { line: range.end.line, character: range.end.character }
+                            }
+                        });
+                        if (Array.isArray(hints)) {
+                            return hints.map(h => {
+                                const pos = new vscode.Position(h.position.line, h.position.character);
+                                const kind = h.kind === 1
+                                    ? vscode.InlayHintKind.Type
+                                    : vscode.InlayHintKind.Parameter;
+                                const item = new vscode.InlayHint(pos, String(h.label || ''), kind);
+                                item.paddingLeft = Boolean(h.paddingLeft);
+                                item.paddingRight = Boolean(h.paddingRight);
+                                return item;
+                            });
+                        }
+                    } catch (e) {
+                        client.log(`[InlayHint error] ${e.message}`);
+                    }
+                    return [];
+                }
+            })
+        );
+    }
 
     // 13. Explicit Commands
     context.subscriptions.push(

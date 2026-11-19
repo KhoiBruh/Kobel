@@ -96,6 +96,11 @@
             "hint"
           ],
           "description": "Severity level used for Kobel simplification lints in VS Code ('server' uses warning)."
+        },
+        "kobel.inlayHints.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show inferred type inlay hints for variables, destructuring, loops, error catches, arrow functions, and lambdas."
         }
       }
     }

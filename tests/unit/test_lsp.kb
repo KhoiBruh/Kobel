@@ -1389,6 +1389,133 @@ fn check(f: StructField): str => f.name;
 	println("  [PASS] test_kblint_engine_and_custom_rules");
 }
 
+fn has_inlay_label(hints: *JsonValue, label: str): bool {
+	if (!hints.is_arr()) return false;
+	for (h in hints.arr_val) {
+		if (h.get_str("label", "") == label) return true;
+	}
+	return false;
+}
+
+fn test_inlay_hints() {
+	val src = """mod sample.inlay_demo;
+
+use std.collections.*;
+
+fault DemoErr {
+	Fail
+}
+
+struct BoxVal {
+	pub v: i64
+}
+
+fn might_fail(ok: bool): i64 ! DemoErr => if (ok) 42 else DemoErr.Fail;
+
+fn add_arrow(a: i64, b: i64) => a + b;
+
+fn apply_fn(x: i64, f: (i64) -> i64): i64 => f(x);
+
+fn run_demo(): i64 {
+	val inferred_num = add_arrow(1, 2);
+	val explicit_num: i64 = 10;
+	val bx = BoxVal(inferred_num);
+	val (p_first, p_second) = Pair(bx.v, "hi");
+	var xs = List<i64>();
+	xs += p_first;
+	var mp = HashMap<str, i64>();
+	mp["k"] = p_first;
+	var sum: i64 = explicit_num + (p_second.len as i64) + (mp.len as i64);
+	for (item in xs) sum += item;
+	val got = might_fail(true) !: err -> {
+		val _e = err;
+		yield 0;
+	};
+	val mapped = apply_fn(got) { v -> v * 2 };
+	return sum + mapped;
+}
+""";
+	val vpath = "C:/Users/Admin/CLionProjects/Kobel/tests/unit/inlay_demo_virtual.kb";
+	val a = AnalysisResult(vpath, src, "", false);
+
+	var err_cnt: usz = 0;
+	for (d in a.diagnostics) if (d.severity == 1) err_cnt++;
+	assert_eq_usz(err_cnt, 0, "inlay demo must compile with zero errors");
+
+	val hints = a.inlay_hints(0, 100);
+	assert_true(hints.is_arr(), "inlay_hints must return JSON array");
+	assert_true(has_inlay_label(hints, ": i64"), "must infer i64 for arrow fn / val / for / lambda");
+	assert_true(has_inlay_label(hints, ": BoxVal"), "must infer BoxVal for val bx");
+	assert_true(has_inlay_label(hints, ": List<i64>"), "must pretty-format generic List<i64>");
+	assert_true(has_inlay_label(hints, ": HashMap<str, i64>"), "must pretty-format generic HashMap<str, i64>");
+	assert_true(has_inlay_label(hints, ": str"), "must infer str for destructured p_second");
+	assert_true(has_inlay_label(hints, ": DemoErr"), "must infer DemoErr for catch err");
+
+	// Explicit type annotation (`val explicit_num: i64 = 10;`, line 20 0-based) must NOT emit a hint
+	val explicit_line_hints = a.inlay_hints(20, 20);
+	assert_eq_usz(explicit_line_hints.arr_val.len, 0, "explicitly typed val must not emit inlay hint");
+
+	// Range filtering: arrow fn `fn add_arrow(a: i64, b: i64) => a + b;` is on line 14 (0-based)
+	val arrow_hints = a.inlay_hints(14, 14);
+	assert_eq_usz(arrow_hints.arr_val.len, 1, "arrow fn with omitted return type must emit 1 inlay hint");
+	assert_eq_str(arrow_hints.arr_val[0].get_str("label", ""), ": i64", "arrow fn return hint must be ': i64'");
+
+	JsonValue.free_tree(hints);
+	JsonValue.free_tree(explicit_line_hints);
+	JsonValue.free_tree(arrow_hints);
+	println("  [PASS] test_inlay_hints");
+}
+
+fn test_payload_enum_hover_and_def() {
+	val src = """mod sample.payload_hover;
+
+use std.collections.*;
+
+enum ExprNode {
+	Num(value: i64),
+	ArrayLit(elements: List<i64>)
+}
+
+fn count_elems(n: *ExprNode): usz {
+	if (n is ExprNode.ArrayLit as al) {
+		return al.elements.len;
+	}
+	return 0;
+}
+""";
+	val vpath = "C:/Users/Admin/CLionProjects/Kobel/tests/unit/payload_hover_virtual.kb";
+	val vuri = path_to_uri(vpath);
+	val a = AnalysisResult(vpath, src, "", false);
+
+	var err_cnt: usz = 0;
+	for (d in a.diagnostics) if (d.severity == 1) err_cnt++;
+	assert_eq_usz(err_cnt, 0, "payload_hover demo must compile with zero errors");
+
+	// Hover on `al` at line 11, col 9 (`\t\treturn al.elements.len;`)
+	val hov_al = a.hover_at(11, 9);
+	assert_true(!hov_al.is_null(), "hover on is-alias 'al' must not be null");
+	val al_md = hov_al["contents"].get_str("value", "");
+	assert_true(al_md.contains("val al: ExprNode.ArrayLit"), "hover on 'al' must show clean ExprNode.ArrayLit");
+	assert_true(!al_md.contains("__"), "hover on 'al' must not leak C-mangled name");
+
+	// Hover on `elements` at line 11, col 12 (`\t\treturn al.elements.len;`)
+	val hov_el = a.hover_at(11, 12);
+	assert_true(!hov_el.is_null(), "hover on payload field 'elements' must not be null");
+	val el_md = hov_el["contents"].get_str("value", "");
+	assert_true(el_md.contains("elements: List<i64>"), "hover on 'elements' must show field signature");
+
+	// Go-to-Definition on `elements` must jump to line 6 (`\tArrayLit(elements: List<i64>)`)
+	val def_el = a.definition_at(vuri, 11, 12);
+	assert_true(!def_el.is_null(), "definition on payload field 'elements' must not be null");
+	val def_line = def_el["range"]["start"].get_num("line", -1);
+	assert_eq_usz(def_line as usz, 6, "definition of 'elements' must point to enum payload field declaration");
+
+	JsonValue.free_tree(hov_al);
+	JsonValue.free_tree(hov_el);
+	JsonValue.free_tree(def_el);
+	println("  [PASS] test_payload_enum_hover_and_def");
+}
+
 pub fn main() {
 	println("Running LSP unit tests...");
 	test_json_and_uri();
@@ -1402,5 +1529,7 @@ pub fn main() {
 	test_null_smart_cast_and_unwrap_lint();
 	test_group3_idiom_lints_and_quickfixes();
 	test_kblint_engine_and_custom_rules();
+	test_inlay_hints();
+	test_payload_enum_hover_and_def();
 	println("All LSP unit tests passed.");
 }

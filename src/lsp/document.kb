@@ -87,6 +87,7 @@ pub fn path_to_uri(path: str): str {
 	val norm = path.to_posix_path();
 	var sb = StringBuilder();
 	defer sb.free();
+
 	sb += "file://";
 	if (norm.len > 0 && norm[0] != '/') sb += '/';
 
@@ -96,6 +97,7 @@ pub fn path_to_uri(path: str): str {
 		else if (c == ':' && i == 1) sb += "%3A";
 		else sb += c;
 	}
+
 	return sb.to_str();
 }
 

@@ -37,6 +37,7 @@ pub enum Method: str {
 	DOCUMENT_SYMBOL = "textDocument/documentSymbol",
 	WORKSPACE_SYMBOL = "workspace/symbol",
 	COMPLETION = "textDocument/completion",
+	INLAY_HINT = "textDocument/inlayHint",
 	PUBLISH_DIAGNOSTICS = "textDocument/publishDiagnostics"
 }
 
@@ -197,6 +198,7 @@ impl LanguageServer {
 					caps["documentFormattingProvider"] = JsonValue.bool(true);
 					caps["documentSymbolProvider"] = JsonValue.bool(true);
 					caps["workspaceSymbolProvider"] = JsonValue.bool(true);
+					caps["inlayHintProvider"] = JsonValue.bool(true);
 
 					val rename_opts = JsonValue.obj();
 					rename_opts["prepareProvider"] = JsonValue.bool(true);
@@ -509,6 +511,20 @@ impl LanguageServer {
 						var empty_analysis = AnalysisResult("", "", self.workspace_root);
 						defer empty_analysis.free();
 						send_response(id, empty_analysis.complete_at(0, 0));
+					}
+				}
+
+				Method.INLAY_HINT.value -> {
+					val uri = params.get_obj("textDocument").get_str("uri", "");
+					val range_obj = params.get_obj("range");
+					val s_line = range_obj.get_obj("start").get_num("line", 0) as usz;
+					val e_line = range_obj.get_obj("end").get_num("line", 999999) as usz;
+					val doc_res = self.docs.get_doc(uri);
+					if (doc_res is Document as doc) {
+						val analysis = self.get_analysis(uri, doc.path, doc.text);
+						send_response(id, analysis.inlay_hints(s_line, e_line));
+					} else {
+						send_response(id, JsonValue.arr());
 					}
 				}
 

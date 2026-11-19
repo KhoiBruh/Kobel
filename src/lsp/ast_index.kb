@@ -721,7 +721,101 @@ impl IndexWalker {
 	fn node_type_str(*self, node: ?*AstNode): str {
 		if (node == null || !self.index.has_symtab) return "";
 		val ty = self.index.symtab.get_node_type(node) ?: return "";
-		return ty.to_str();
+		return format_pretty_type(self.index.symtab, ty);
+	}
+
+	fn format_named_type_pretty(*self, name: str): str {
+		if (self.index.has_symtab) {
+			val rec_p = self.index.symtab.gen.record_map.get(name);
+			if (rec_p != null) {
+				val rec = rec_p.read();
+				val base = strip_module_prefix(rec.template.name);
+				if (!rec.args.empty()) {
+					var sb = StringBuilder();
+					defer sb.free();
+					sb += base;
+					sb += "<";
+					for (i in 0..<rec.args.len) {
+						if (i > 0) sb += ", ";
+						val a_s = format_pretty_type(self.index.symtab, rec.args[i]);
+						sb += if (a_s.empty()) "none" else a_s;
+					}
+					sb += ">";
+					return sb.to_str();
+				}
+				return base;
+			}
+		}
+		val vp_res = self.resolve_variant_named_type(name);
+		if (vp_res is Pair<str, str> as vpair) {
+			val vdef_res = self.index.get_def(vpair.first);
+			if (vdef_res is DefInfo as vdef && !vdef.container.empty()) {
+				return "${vdef.container}.${vdef.name}";
+			}
+			return vpair.second;
+		}
+		val c_key = self.index.c_name_to_key.get_or(name, "");
+		if (!c_key.empty()) {
+			val def_res = self.index.get_def(c_key);
+			if (def_res is DefInfo as def && !def.name.empty()) return def.name;
+		}
+		return strip_module_prefix(name);
+	}
+
+	fn format_type_node_pretty(*self, node: ?*AstNode): str {
+		if (node == null) return "none";
+		when (node) {
+			is NamedType -> {
+				val base = self.format_named_type_pretty(node.name);
+				if (node.type_args.empty()) return base;
+				var sb = StringBuilder();
+				defer sb.free();
+				sb += base;
+				sb += "<";
+				for (i in 0..<node.type_args.len) {
+					if (i > 0) sb += ", ";
+					sb += self.format_type_node_pretty(node.type_args[i]);
+				}
+				sb += ">";
+				return sb.to_str();
+			}
+			is PointerType -> {
+				val prefix = (if (node.nullable) "?" else "") + (if (node.mutable) "&" else "*");
+				return prefix + self.format_type_node_pretty(node.pointee);
+			}
+			is VariadicType -> return ".." + self.format_type_node_pretty(node.element_type);
+			is ArrayType -> return "[${self.format_type_node_pretty(node.element_type)}; ${node.size}]";
+			is ArrayLiteralExpr -> {
+				var sb = StringBuilder();
+				defer sb.free();
+				sb += "[";
+				for (i in 0..<node.elements.len) {
+					if (i > 0) sb += ", ";
+					sb += self.format_type_node_pretty(node.elements[i]);
+				}
+				sb += "]";
+				return sb.to_str();
+			}
+			is FnType -> {
+				var sb = StringBuilder();
+				defer sb.free();
+				sb += "fn(";
+				for (i in 0..<node.param_types.len) {
+					if (i > 0) sb += ", ";
+					sb += self.format_type_node_pretty(node.param_types[i]);
+				}
+				sb += "): ";
+				sb += self.format_type_node_pretty(node.return_type);
+				return sb.to_str();
+			}
+			is ErrorUnionType -> {
+				if (node.ok_type != null) {
+					return "${self.format_type_node_pretty(node.ok_type!)} ! ${self.format_type_node_pretty(node.err_type)}";
+				}
+				return "!${self.format_type_node_pretty(node.err_type)}";
+			}
+			else -> return "any";
+		}
 	}
 
 	fn resolve_variant_named_type(*self, type_name: str): Pair<str, str> ! IndexErr {
@@ -1245,7 +1339,7 @@ impl IndexWalker {
 			if (p.type_node != null) self.walk_type_node(p.type_node);
 			if (p.default_val != null) self.walk_expr(p.default_val);
 			if (p.name != "self") {
-				val pt = format_type_node(p.type_node);
+				val pt = self.format_type_node_pretty(p.type_node);
 				self.bind_local(p.name, SymRole.PARAM, p_line, p_col, pt, false);
 				val p_tok = find_param_token_after(self.tokens, p_line, p_col, p.name);
 				if (p_tok.line > 0) {
@@ -1276,7 +1370,7 @@ impl IndexWalker {
 				if (node.type_annotation != null) self.walk_type_node(node.type_annotation);
 				if (node.initializer != null) self.walk_expr(node.initializer);
 				var ty_s = self.node_type_str(node.initializer);
-				if (ty_s.empty() && node.type_annotation != null) ty_s = format_type_node(node.type_annotation);
+				if (ty_s.empty() && node.type_annotation != null) ty_s = self.format_type_node_pretty(node.type_annotation);
 				if (ty_s.empty()) ty_s = "any";
 				val d_idx = self.bind_local(node.name, SymRole.LOCAL, nl, nc, ty_s, node.mutable);
 				if (d_idx >= 0 && node.mutable && self.index.has_symtab && self.cur_file_id > 0) {
@@ -1552,14 +1646,17 @@ impl IndexWalker {
 				if (node.expr != null) self.walk_expr(node.expr);
 				self.walk_type_node(node.target_type);
 				if (!node.alias.empty()) {
-					self.bind_local(node.alias, SymRole.LOCAL, nl, nc, format_type_node(node.target_type), false);
+					self.bind_local(
+						node.alias, SymRole.LOCAL, nl, nc,
+						self.format_type_node_pretty(node.target_type), false
+					);
 				}
 			}
 			is LambdaExpr -> {
 				self.push_scope();
 				for (p in node.params) {
 					if (p.type_node != null) self.walk_type_node(p.type_node);
-					val pt = if (p.type_node != null) format_type_node(p.type_node) else "any";
+					val pt = if (p.type_node != null) self.format_type_node_pretty(p.type_node) else "any";
 					self.bind_local(p.name, SymRole.PARAM, nl, nc, pt, false);
 				}
 				self.walk_stmt(node.body);
@@ -1572,7 +1669,8 @@ impl IndexWalker {
 					var err_ty_s = "any";
 					val src_ty = if (self.index.has_symtab) unwrap_base_type(self.index.symtab.get_node_type(node.expr)) else null;
 					if (src_ty?.kind == DataType.ERROR_UNION) {
-						err_ty_s = src_ty.as_error_union()!.err.to_str();
+						val pretty_err = format_pretty_type(self.index.symtab, src_ty.as_error_union()!.err);
+						if (!pretty_err.empty()) err_ty_s = pretty_err;
 					}
 					val e_tok = find_ident_token_after(self.tokens, nl, nc, node.err_name);
 					val el = if (e_tok.line > 0) e_tok.line else nl;
@@ -1623,6 +1721,26 @@ impl IndexWalker {
 				m_key, self.cur_file, self.cur_mod, ml, mc, m.name.len,
 				true, false, false, name
 			));
+			var cur_l = ml;
+			var cur_c = mc + m.name.len;
+			val v_container = "${name}.${m.name}";
+			for (pf in m.payload) {
+				val f_key = "field:${self.cur_mod}:${v_container}:${pf.name}";
+				val f_tok = find_param_token_after(self.tokens, cur_l, cur_c, pf.name);
+				val fl = if (f_tok.line > 0) f_tok.line else pf.type_node.line;
+				val fc = if (f_tok.col > 0) f_tok.col else pf.type_node.col;
+				val ft = format_type_node(pf.type_node);
+				self.index.add_def(DefInfo(
+					f_key, pf.name, SymRole.FIELD, self.cur_file, self.cur_mod, v_container,
+					fl, fc, pf.name.len, "${pf.name}: ${ft}", ft, is_public, true
+				));
+				self.index.add_ref(RefInfo(
+					f_key, self.cur_file, self.cur_mod, fl, fc, pf.name.len,
+					true, false, false, ft
+				));
+				cur_l = fl;
+				cur_c = fc + pf.name.len;
+			}
 		}
 	}
 

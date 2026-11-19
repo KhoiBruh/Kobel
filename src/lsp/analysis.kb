@@ -678,15 +678,17 @@ impl AnalysisResult {
 		// 3. Fallback: SymbolTable lookup
 		if (self.has_symtab && tok.type == TokenType.IDENTIFIER) {
 			val sym = self.symtab.lookup(tok.text) ?: return JsonValue.null_val();
+			val ty_s = format_pretty_type(self.symtab, sym.type_ptr);
+			val ty_lbl = if (!ty_s.empty()) ty_s else sym.type_ptr.to_str();
 			var md = "```kobel\n";
 			md = when (sym.kind) {
-				SymbolKind.FN -> "${md}fn ${sym.name}: ${sym.type_ptr.to_str()}";
+				SymbolKind.FN -> "${md}fn ${sym.name}: ${ty_lbl}";
 				SymbolKind.STRUCT -> "${md}struct ${sym.name}";
 				SymbolKind.ENUM -> "${md}enum ${sym.name}";
-				SymbolKind.VAR -> "${md}var ${sym.name}: ${sym.type_ptr.to_str()}";
-				SymbolKind.CONST -> "${md}const ${sym.name}: ${sym.type_ptr.to_str()}";
-				SymbolKind.PARAM -> "${md}param ${sym.name}: ${sym.type_ptr.to_str()}";
-				else -> "${md}${sym.name}: ${sym.type_ptr.to_str()}";
+				SymbolKind.VAR -> "${md}var ${sym.name}: ${ty_lbl}";
+				SymbolKind.CONST -> "${md}const ${sym.name}: ${ty_lbl}";
+				SymbolKind.PARAM -> "${md}param ${sym.name}: ${ty_lbl}";
+				else -> "${md}${sym.name}: ${ty_lbl}";
 			};
 			md = "${md}\n```";
 
@@ -1168,5 +1170,8 @@ impl AnalysisResult {
 		defer arena.free();
 		return Self.format_document_with_arena(text, arena);
 	}
+
+	pub fn inlay_hints(*self, start_line0: usz, end_line0: usz): *JsonValue =>
+		collect_inlay_hints_json(self.doc_ast, self.symtab, self.has_symtab, self.tokens, start_line0, end_line0);
 
 }
