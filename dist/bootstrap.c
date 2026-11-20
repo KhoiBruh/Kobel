@@ -1026,6 +1026,7 @@ typedef struct compiler__semantic__declaration__DeclarationCollector compiler__s
 typedef struct compiler__semantic__lowering__PendingResolve compiler__semantic__lowering__PendingResolve;
 typedef struct compiler__semantic__lowering__LoopLowerer compiler__semantic__lowering__LoopLowerer;
 typedef struct compiler__semantic__lowering__LoweringPass compiler__semantic__lowering__LoweringPass;
+typedef struct compiler__semantic__checker__MoveStateEntry compiler__semantic__checker__MoveStateEntry;
 typedef struct compiler__semantic__checker__BodyChecker compiler__semantic__checker__BodyChecker;
 typedef struct compiler__semantic__checker__ArrowCandidate compiler__semantic__checker__ArrowCandidate;
 typedef struct compiler__codegen__ErrorUnionDesc compiler__codegen__ErrorUnionDesc;
@@ -1246,6 +1247,7 @@ typedef struct std__collections__List_lsp__AnalysisCacheEntry std__collections__
 typedef struct std__collections__List_compiler__loader__ModuleFile std__collections__List_compiler__loader__ModuleFile;
 typedef struct std__collections__Pair_std__collections__List_compiler__ast__WhenArm_std__collections__List_compiler__ast__WhenArm std__collections__Pair_std__collections__List_compiler__ast__WhenArm_std__collections__List_compiler__ast__WhenArm;
 typedef struct std__collections__List_compiler__semantic__lowering__PendingResolve std__collections__List_compiler__semantic__lowering__PendingResolve;
+typedef struct std__collections__List_compiler__semantic__checker__MoveStateEntry std__collections__List_compiler__semantic__checker__MoveStateEntry;
 typedef struct std__collections__List_ptr_compiler__semantic__checker__ArrowCandidate std__collections__List_ptr_compiler__semantic__checker__ArrowCandidate;
 typedef struct std__collections__List_compiler__codegen__ConditionAlias std__collections__List_compiler__codegen__ConditionAlias;
 typedef struct std__collections__Pair_compiler__lexer__Token_compiler__lexer__Token std__collections__Pair_compiler__lexer__Token_compiler__lexer__Token;
@@ -1299,6 +1301,7 @@ typedef struct __kobel_eu_std__collections__List_str__std__filesystem__FsErr __k
 typedef struct __kobel_eu_mut_ptr_compiler__loader__ModuleFile__std__memory__MemErr __kobel_eu_mut_ptr_compiler__loader__ModuleFile__std__memory__MemErr;
 typedef struct __kobel_eu_mut_ptr_compiler__loader__CachedSource__std__memory__MemErr __kobel_eu_mut_ptr_compiler__loader__CachedSource__std__memory__MemErr;
 typedef struct __kobel_eu_mut_ptr_mut_ptr_compiler__semantic__symbols__AnnotationEntry__std__memory__MemErr __kobel_eu_mut_ptr_mut_ptr_compiler__semantic__symbols__AnnotationEntry__std__memory__MemErr;
+typedef struct __kobel_eu_mut_ptr_compiler__semantic__checker__MoveStateEntry__std__memory__MemErr __kobel_eu_mut_ptr_compiler__semantic__checker__MoveStateEntry__std__memory__MemErr;
 typedef struct __kobel_eu_mut_ptr_compiler__semantic__lowering__PendingResolve__std__memory__MemErr __kobel_eu_mut_ptr_compiler__semantic__lowering__PendingResolve__std__memory__MemErr;
 typedef struct __kobel_eu_mut_ptr_compiler__semantic__symbols__ScopeEntry__std__memory__MemErr __kobel_eu_mut_ptr_compiler__semantic__symbols__ScopeEntry__std__memory__MemErr;
 typedef struct __kobel_eu_compiler__core__Diagnostic__std__collections__CollectionErr __kobel_eu_compiler__core__Diagnostic__std__collections__CollectionErr;
@@ -1992,6 +1995,9 @@ struct compiler__semantic__symbols__Symbol {
     bool is_moved;
     bool is_vararg;
     kobel_str decl_key;
+    compiler__ast__AstNode* untyped_int_decl;
+    compiler__ast__AstNode* untyped_int_init;
+    bool untyped_int_signed;
 };
 
 struct compiler__semantic__symbols__ScopeEntry {
@@ -2017,6 +2023,11 @@ struct compiler__semantic__lowering__PendingResolve {
 
 struct compiler__semantic__lowering__LoopLowerer {
     std__memory__Arena arena;
+};
+
+struct compiler__semantic__checker__MoveStateEntry {
+    compiler__semantic__symbols__Symbol* sym;
+    bool is_moved;
 };
 
 struct compiler__semantic__checker__ArrowCandidate {
@@ -2966,6 +2977,12 @@ struct std__collections__List_compiler__semantic__lowering__PendingResolve {
     size_t cap;
 };
 
+struct std__collections__List_compiler__semantic__checker__MoveStateEntry {
+    compiler__semantic__checker__MoveStateEntry* data;
+    size_t len;
+    size_t cap;
+};
+
 struct std__collections__List_ptr_compiler__semantic__checker__ArrowCandidate {
     compiler__semantic__checker__ArrowCandidate** data;
     size_t len;
@@ -3779,6 +3796,23 @@ struct __kobel_eu_mut_ptr_mut_ptr_compiler__semantic__symbols__AnnotationEntry__
 };
 
 static inline compiler__semantic__symbols__AnnotationEntry** __kobel_unwrap___kobel_eu_mut_ptr_mut_ptr_compiler__semantic__symbols__AnnotationEntry__std__memory__MemErr(__kobel_eu_mut_ptr_mut_ptr_compiler__semantic__symbols__AnnotationEntry__std__memory__MemErr r, const char* file, size_t line, size_t col, const char* fn) {
+    if (!r.is_ok) {
+        kobel_loc at = { file, line, col, fn };
+        __kobel_report_fault("unwrapped error", r.u.err.__err_code, r.u.err.__origin, at);
+        exit(1);
+    }
+    return r.u.ok;
+}
+
+struct __kobel_eu_mut_ptr_compiler__semantic__checker__MoveStateEntry__std__memory__MemErr {
+    bool is_ok;
+    union {
+        compiler__semantic__checker__MoveStateEntry* ok;
+        std__memory__MemErr err;
+    } u;
+};
+
+static inline compiler__semantic__checker__MoveStateEntry* __kobel_unwrap___kobel_eu_mut_ptr_compiler__semantic__checker__MoveStateEntry__std__memory__MemErr(__kobel_eu_mut_ptr_compiler__semantic__checker__MoveStateEntry__std__memory__MemErr r, const char* file, size_t line, size_t col, const char* fn) {
     if (!r.is_ok) {
         kobel_loc at = { file, line, col, fn };
         __kobel_report_fault("unwrapped error", r.u.err.__err_code, r.u.err.__origin, at);
@@ -5369,6 +5403,7 @@ struct compiler__semantic__checker__BodyChecker {
     std__collections__List_str non_null_paths;
     std__collections__List_usz non_null_marks;
     kobel_str target_module;
+    bool defer_untyped_int_finalize;
 };
 
 struct compiler__codegen__ErrorUnionDesc {
@@ -6465,6 +6500,14 @@ void compiler__semantic__checker__BodyChecker_invalidate_non_null_path(compiler_
 bool compiler__semantic__checker__BodyChecker_is_path_non_null(compiler__semantic__checker__BodyChecker* self, kobel_str path);
 kobel_str compiler__semantic__checker__BodyChecker_non_null_path_key(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* node);
 bool compiler__semantic__checker__BodyChecker_is_smart_cast_non_null(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* node);
+std__collections__List_compiler__semantic__checker__MoveStateEntry compiler__semantic__checker__BodyChecker_snapshot_move_state(compiler__semantic__checker__BodyChecker* self);
+void compiler__semantic__checker__BodyChecker_restore_move_state(compiler__semantic__checker__BodyChecker* self, std__collections__List_compiler__semantic__checker__MoveStateEntry* snap);
+void compiler__semantic__checker__BodyChecker_merge_move_state(compiler__semantic__checker__BodyChecker* self, std__collections__List_compiler__semantic__checker__MoveStateEntry* a, std__collections__List_compiler__semantic__checker__MoveStateEntry* b);
+bool compiler__semantic__checker__BodyChecker_is_untyped_int_literal(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* node);
+bool compiler__semantic__checker__BodyChecker_is_neg_untyped_int_literal(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* node);
+bool compiler__semantic__checker__BodyChecker_can_adopt_untyped_int(compiler__semantic__checker__BodyChecker* self, compiler__semantic__symbols__Symbol* sym, compiler__semantic__types__Type* ty);
+void compiler__semantic__checker__BodyChecker_adopt_untyped_int_var(compiler__semantic__checker__BodyChecker* self, compiler__semantic__symbols__Symbol* sym, compiler__semantic__types__Type* ty);
+compiler__semantic__symbols__Symbol* compiler__semantic__checker__BodyChecker_lookup_untyped_int_sym(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* expr);
 void compiler__semantic__checker__BodyChecker_report_warning(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* node, kobel_str msg);
 void compiler__semantic__checker__BodyChecker_report_error(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* node, kobel_str msg);
 compiler__semantic__types__Type* compiler__semantic__checker__BodyChecker_resolve_type(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* node);
@@ -6499,7 +6542,7 @@ void compiler__semantic__checker__BodyChecker_check_statement(compiler__semantic
 bool compiler__semantic__checker__BodyChecker_is_untyped_literal(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* node);
 compiler__semantic__types__Type* compiler__semantic__checker__BodyChecker_check_literal_expr(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* node, compiler__semantic__types__Type* expected);
 void compiler__semantic__checker__BodyChecker_record_lambda_capture(compiler__semantic__checker__BodyChecker* self, compiler__semantic__symbols__Symbol* sym);
-compiler__semantic__types__Type* compiler__semantic__checker__BodyChecker_check_ident_expr(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* node);
+compiler__semantic__types__Type* compiler__semantic__checker__BodyChecker_check_ident_expr(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* node, compiler__semantic__types__Type* expected);
 compiler__semantic__types__Type* compiler__semantic__checker__BodyChecker_check_binary_expr(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* node, compiler__semantic__types__Type* expected);
 bool compiler__semantic__checker__BodyChecker_is_safe_nav_expr(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* expr);
 compiler__semantic__types__Type* compiler__semantic__checker__BodyChecker_check_elvis_expr(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* node, compiler__ast__NodeData__BinaryExpr* bin, bool was_stmt, compiler__semantic__types__Type* expected);
@@ -7593,6 +7636,14 @@ std__collections__List_compiler__semantic__lowering__PendingResolve std__collect
 void std__collections__List_compiler__semantic__lowering__PendingResolve_add(std__collections__List_compiler__semantic__lowering__PendingResolve* self, compiler__semantic__lowering__PendingResolve value);
 void std__collections__List_compiler__semantic__lowering__PendingResolve_grow(std__collections__List_compiler__semantic__lowering__PendingResolve* self);
 void std__collections__List_compiler__semantic__lowering__PendingResolve_plus_assign(std__collections__List_compiler__semantic__lowering__PendingResolve* self, compiler__semantic__lowering__PendingResolve value);
+compiler__semantic__checker__MoveStateEntry std__collections__List_compiler__semantic__checker__MoveStateEntry_at(std__collections__List_compiler__semantic__checker__MoveStateEntry* self, size_t i);
+std__collections__List_compiler__semantic__checker__MoveStateEntry std__collections__List_compiler__semantic__checker__MoveStateEntry_init(compiler__semantic__checker__MoveStateEntry* items_data, size_t items_len);
+void std__collections__List_compiler__semantic__checker__MoveStateEntry_add(std__collections__List_compiler__semantic__checker__MoveStateEntry* self, compiler__semantic__checker__MoveStateEntry value);
+void std__collections__List_compiler__semantic__checker__MoveStateEntry_grow(std__collections__List_compiler__semantic__checker__MoveStateEntry* self);
+void std__collections__List_compiler__semantic__checker__MoveStateEntry_free(std__collections__List_compiler__semantic__checker__MoveStateEntry self);
+compiler__semantic__checker__MoveStateEntry std__collections__List_compiler__semantic__checker__MoveStateEntry_get(std__collections__List_compiler__semantic__checker__MoveStateEntry* self, size_t index);
+compiler__semantic__checker__MoveStateEntry std__collections__List_compiler__semantic__checker__MoveStateEntry_set(std__collections__List_compiler__semantic__checker__MoveStateEntry* self, size_t index, compiler__semantic__checker__MoveStateEntry value);
+void std__collections__List_compiler__semantic__checker__MoveStateEntry_plus_assign(std__collections__List_compiler__semantic__checker__MoveStateEntry* self, compiler__semantic__checker__MoveStateEntry value);
 size_t std__collections__List_ptr_compiler__semantic__checker__ArrowCandidate_count(std__collections__List_ptr_compiler__semantic__checker__ArrowCandidate* self);
 compiler__semantic__checker__ArrowCandidate* std__collections__List_ptr_compiler__semantic__checker__ArrowCandidate_at(std__collections__List_ptr_compiler__semantic__checker__ArrowCandidate* self, size_t i);
 std__collections__List_ptr_compiler__semantic__checker__ArrowCandidate std__collections__List_ptr_compiler__semantic__checker__ArrowCandidate_init(compiler__semantic__checker__ArrowCandidate** items_data, size_t items_len);
@@ -7980,6 +8031,12 @@ compiler__semantic__lowering__PendingResolve* std__memory__Heap_create_compiler_
 __kobel_eu_mut_ptr_compiler__semantic__lowering__PendingResolve__std__memory__MemErr std__memory__Heap_try_create_compiler__semantic__lowering__PendingResolve(size_t count);
 compiler__semantic__lowering__PendingResolve* std__memory__Heap_resize_compiler__semantic__lowering__PendingResolve(compiler__semantic__lowering__PendingResolve* ptr, size_t count);
 __kobel_eu_mut_ptr_compiler__semantic__lowering__PendingResolve__std__memory__MemErr std__memory__Heap_try_resize_compiler__semantic__lowering__PendingResolve(compiler__semantic__lowering__PendingResolve* ptr, size_t count);
+compiler__semantic__checker__MoveStateEntry* std__memory__Heap_null_ptr_compiler__semantic__checker__MoveStateEntry(void);
+compiler__semantic__checker__MoveStateEntry* std__memory__Heap_create_compiler__semantic__checker__MoveStateEntry(size_t count);
+__kobel_eu_mut_ptr_compiler__semantic__checker__MoveStateEntry__std__memory__MemErr std__memory__Heap_try_create_compiler__semantic__checker__MoveStateEntry(size_t count);
+compiler__semantic__checker__MoveStateEntry* std__memory__Heap_resize_compiler__semantic__checker__MoveStateEntry(compiler__semantic__checker__MoveStateEntry* ptr, size_t count);
+__kobel_eu_mut_ptr_compiler__semantic__checker__MoveStateEntry__std__memory__MemErr std__memory__Heap_try_resize_compiler__semantic__checker__MoveStateEntry(compiler__semantic__checker__MoveStateEntry* ptr, size_t count);
+void std__memory__Heap_free_compiler__semantic__checker__MoveStateEntry(compiler__semantic__checker__MoveStateEntry* ptr);
 compiler__semantic__checker__ArrowCandidate** std__memory__Heap_null_ptr_ptr_compiler__semantic__checker__ArrowCandidate(void);
 compiler__semantic__checker__ArrowCandidate** std__memory__Heap_create_ptr_compiler__semantic__checker__ArrowCandidate(size_t count);
 __kobel_eu_mut_ptr_ptr_compiler__semantic__checker__ArrowCandidate__std__memory__MemErr std__memory__Heap_try_create_ptr_compiler__semantic__checker__ArrowCandidate(size_t count);
@@ -8270,7 +8327,7 @@ if (first) {
 prefix = ws;
 first = false;
 } else {
-int32_t match_len = 0;
+size_t match_len = 0;
 size_t max_l = prefix.len < ws.len ? prefix.len : ws.len;
 while (match_len < max_l && prefix.data[match_len] == ws.data[match_len]) {
 match_len++;
@@ -8347,7 +8404,7 @@ return (__kobel_eu_usz__std__string__SearchErr){ .is_ok = false, .u = { .err = (
 
 kobel_str str_filter(kobel_str self, kobel_closure predicate) {
 uint8_t* buf = std__memory__Heap_create_u8(self.len + 1);
-int32_t w = 0;
+size_t w = 0;
 {
 size_t __for_n = self.len;
 size_t __for_i = 0;
@@ -8720,7 +8777,7 @@ kobel_str str_trim(kobel_str self) {
 if (str_empty(self)) {
 return self;
 }
-int32_t start = 0;
+size_t start = 0;
 while (start < self.len) {
 char c = self.data[start];
 if (!char_is_whitespace(c)) {
@@ -8782,12 +8839,12 @@ return parts;
 
 std__collections__List_str str_split_lines(kobel_str self) {
 std__collections__List_str res = std__collections__List_str_init(NULL, 0);
-int32_t start = 0;
-int32_t i = 0;
+size_t start = 0;
+size_t i = 0;
 while (i < self.len) {
 char c = self.data[i];
 if (c == '\n') {
-int32_t line_end = i;
+size_t line_end = i;
 if (line_end > start && self.data[line_end - 1] == '\r') {
 line_end--;
 }
@@ -8817,7 +8874,7 @@ return KOBEL_STR("");
 if (lines.len == 1) {
 return std__collections__List_str_get(&lines, 0);
 }
-int32_t start_idx = 0;
+size_t start_idx = 0;
 if (str_blank(std__collections__List_str_get(&lines, 0))) {
 start_idx = 1;
 }
@@ -12148,7 +12205,7 @@ return kobel_streq(suffix, KOBEL_STR("F")) || kobel_streq(suffix, KOBEL_STR("D")
 }
 
 bool compiler__parser__str_has_hole(kobel_str text) {
-int32_t i = 0;
+size_t i = 0;
 while (i < text.len) {
 char c = text.data[i];
 if (c == '\\') {
@@ -12205,7 +12262,7 @@ if (!compiler__parser__str_has_esc_dollar(text)) {
 return text;
 }
 kobel_str out = KOBEL_STR("");
-int32_t i = 0;
+size_t i = 0;
 while (i < text.len) {
 if (text.data[i] == '\\' && i + 1 < text.len) {
 if (text.data[i + 1] == '\\') {
@@ -14884,8 +14941,8 @@ return assignable_match;
 
 compiler__semantic__types__Type* std__memory__Arena_struct_type(std__memory__Arena* self, kobel_str name, std__collections__List_compiler__semantic__types__StructField fields) {
 std__collections__List_compiler__semantic__types__StructField layout_fields = fields;
-int32_t max_align = 1;
-int32_t current_offset = 0;
+size_t max_align = 1;
+size_t current_offset = 0;
 {
 size_t __for_e = layout_fields.len;
 size_t __for_i = __for_e;
@@ -14925,7 +14982,7 @@ __for_i = __for_i - 1;
 }
 }
 }
-int32_t total_rem = current_offset % max_align;
+size_t total_rem = current_offset % max_align;
 if (total_rem != 0) {
 current_offset += max_align - total_rem;
 }
@@ -15304,8 +15361,8 @@ return str_starts_with(s->name, KOBEL_STR("std__collections__list__List")) || st
 
 void compiler__semantic__types__Type_layout_struct(compiler__semantic__types__Type* self) {
 compiler__semantic__types__StructType* st = compiler__semantic__types__Type_as_struct(self);
-int32_t max_align = 1;
-int32_t offset = 0;
+size_t max_align = 1;
+size_t offset = 0;
 {
 size_t __for_e = st->fields.len;
 size_t __for_i = __for_e;
@@ -15345,7 +15402,7 @@ __for_i = __for_i - 1;
 }
 }
 }
-int32_t total = offset % max_align;
+size_t total = offset % max_align;
 if (total != 0) {
 offset += max_align - total;
 }
@@ -17186,7 +17243,7 @@ compiler__semantic__types__StructType* st = compiler__semantic__types__Type_as_s
 st->c_name = cname;
 st->module = tmpl->module;
 compiler__semantic__symbols__SymbolTable_register_struct_type(&self->symtab, s_type);
-compiler__semantic__symbols__GenericRegistry_add_inst(&self->symtab.gen, std__memory__Arena_create_val_compiler__semantic__symbols__Symbol(&self->arena, (compiler__semantic__symbols__Symbol){ cname, cname, 4, s_type, false, decl->public, (*tmpl->node).line, (*tmpl->node).col, tmpl->node, NULL, false, false, false, KOBEL_STR("") }));
+compiler__semantic__symbols__GenericRegistry_add_inst(&self->symtab.gen, std__memory__Arena_create_val_compiler__semantic__symbols__Symbol(&self->arena, (compiler__semantic__symbols__Symbol){ cname, cname, 4, s_type, false, decl->public, (*tmpl->node).line, (*tmpl->node).col, tmpl->node, NULL, false, false, false, KOBEL_STR(""), NULL, NULL, false }));
 size_t mark = compiler__semantic__resolution__TypeSubst_push(&self->subst, compiler__semantic__symbols__GenericTemplate_param_names(tmpl), args, compiler__semantic__types__PrimTypes_t_none(compiler__semantic__resolution__TypeResolver_prims(self)));
 bool has_private = false;
 std__collections__List_compiler__semantic__types__StructField fields = std__collections__List_compiler__semantic__types__StructField_init(NULL, 0);
@@ -17571,7 +17628,7 @@ __for_i = __for_i + 1;
 compiler__semantic__types__Type* ret_type = f->return_type != NULL ? compiler__semantic__resolution__TypeResolver_resolve_ast_type(self, f->return_type) : compiler__semantic__types__PrimTypes_t_none(compiler__semantic__resolution__TypeResolver_prims(self));
 compiler__semantic__types__Type* fn_type = sig;
 if (fn_type == NULL) fn_type = std__memory__Arena_fn_type(&self->arena, param_types, ret_type, is_vararg);
-compiler__semantic__symbols__GenericRegistry_add_inst(&self->symtab.gen, std__memory__Arena_create_val_compiler__semantic__symbols__Symbol(&self->arena, (compiler__semantic__symbols__Symbol){ final_name, final_name, 3, fn_type, false, f->public, node->line, node->col, node, NULL, false, false, false, KOBEL_STR("") }));
+compiler__semantic__symbols__GenericRegistry_add_inst(&self->symtab.gen, std__memory__Arena_create_val_compiler__semantic__symbols__Symbol(&self->arena, (compiler__semantic__symbols__Symbol){ final_name, final_name, 3, fn_type, false, f->public, node->line, node->col, node, NULL, false, false, false, KOBEL_STR(""), NULL, NULL, false }));
 f->name = final_name;
 }
 }
@@ -19369,7 +19426,7 @@ st->c_name = c_name;
 st->module = self->current_module;
 st->is_defined = false;
 compiler__semantic__symbols__SymbolTable_register_struct_type(&self->symtab, s_type);
-bool ok = compiler__semantic__symbols__SymbolTable_define_global(&self->symtab, (compiler__semantic__symbols__Symbol){ s->name, c_name, 4, s_type, false, s->public, node->line, node->col, node, NULL, false, false, false, KOBEL_STR("") });
+bool ok = compiler__semantic__symbols__SymbolTable_define_global(&self->symtab, (compiler__semantic__symbols__Symbol){ s->name, c_name, 4, s_type, false, s->public, node->line, node->col, node, NULL, false, false, false, KOBEL_STR(""), NULL, NULL, false });
 if (!ok) {
 compiler__semantic__declaration__DeclarationCollector_report_error(self, node, kobel_concat(3, KOBEL_STR("Duplicate struct declaration '"), s->name, KOBEL_STR("'")));
 }
@@ -19383,7 +19440,7 @@ st->c_name = c_name;
 st->module = self->current_module;
 st->is_defined = true;
 st->is_object = true;
-bool ok = compiler__semantic__symbols__SymbolTable_define_global(&self->symtab, (compiler__semantic__symbols__Symbol){ obj->name, c_name, 5, o_type, false, obj->public, node->line, node->col, node, NULL, false, false, false, KOBEL_STR("") });
+bool ok = compiler__semantic__symbols__SymbolTable_define_global(&self->symtab, (compiler__semantic__symbols__Symbol){ obj->name, c_name, 5, o_type, false, obj->public, node->line, node->col, node, NULL, false, false, false, KOBEL_STR(""), NULL, NULL, false });
 if (!ok) {
 compiler__semantic__declaration__DeclarationCollector_report_error(self, node, kobel_concat(3, KOBEL_STR("Duplicate object declaration '"), obj->name, KOBEL_STR("'")));
 }
@@ -19461,7 +19518,7 @@ __for_i = __for_i + 1;
 }
 fwd_st->has_private = fwd_private;
 compiler__semantic__types__Type_layout_struct(fwd_type);
-compiler__semantic__symbols__SymbolTable_define_global(&self->symtab, (compiler__semantic__symbols__Symbol){ def_name, fwd_st->c_name, 4, fwd_type, false, s->public, node->line, node->col, node, NULL, false, false, false, KOBEL_STR("") });
+compiler__semantic__symbols__SymbolTable_define_global(&self->symtab, (compiler__semantic__symbols__Symbol){ def_name, fwd_st->c_name, 4, fwd_type, false, s->public, node->line, node->col, node, NULL, false, false, false, KOBEL_STR(""), NULL, NULL, false });
 return;
 }
 kobel_str c_name = compiler__semantic__declaration__DeclarationCollector_c_name_for(self, s->name);
@@ -19469,7 +19526,7 @@ compiler__semantic__types__Type* s_type = std__memory__Arena_struct_type(&self->
 compiler__semantic__types__StructType* s_info = compiler__semantic__types__Type_as_struct(s_type);
 s_info->c_name = c_name;
 compiler__semantic__symbols__SymbolTable_register_struct_type(&self->symtab, s_type);
-bool ok = compiler__semantic__symbols__SymbolTable_define_global(&self->symtab, (compiler__semantic__symbols__Symbol){ s->name, c_name, 4, s_type, false, s->public, node->line, node->col, node, NULL, false, false, false, KOBEL_STR("") });
+bool ok = compiler__semantic__symbols__SymbolTable_define_global(&self->symtab, (compiler__semantic__symbols__Symbol){ s->name, c_name, 4, s_type, false, s->public, node->line, node->col, node, NULL, false, false, false, KOBEL_STR(""), NULL, NULL, false });
 if (!ok) {
 compiler__semantic__declaration__DeclarationCollector_report_error(self, node, kobel_concat(3, KOBEL_STR("Duplicate struct declaration '"), s->name, KOBEL_STR("'")));
 }
@@ -19526,7 +19583,7 @@ __for_i = __for_i + 1;
 compiler__semantic__types__Type* ret_type = f->return_type != NULL ? compiler__semantic__declaration__DeclarationCollector_resolve_ast_type(self, f->return_type) : kobel_streq(f->name, KOBEL_STR("main")) ? compiler__semantic__types__PrimTypes_t_none(compiler__semantic__declaration__DeclarationCollector_prims(self)) : compiler__semantic__declaration__DeclarationCollector_infer_decl_return_type(self, f) != NULL ? compiler__semantic__declaration__DeclarationCollector_infer_decl_return_type(self, f) : compiler__semantic__types__PrimTypes_t_none(compiler__semantic__declaration__DeclarationCollector_prims(self));
 compiler__semantic__types__Type* fn_type = std__memory__Arena_fn_type(&self->arena, param_types, ret_type, is_vararg);
 kobel_str c_name = compiler__semantic__declaration__DeclarationCollector_c_name_for(self, f->name);
-bool ok = compiler__semantic__symbols__SymbolTable_define_global(&self->symtab, (compiler__semantic__symbols__Symbol){ f->name, c_name, 3, fn_type, false, f->public, node->line, node->col, node, NULL, false, false, false, KOBEL_STR("") });
+bool ok = compiler__semantic__symbols__SymbolTable_define_global(&self->symtab, (compiler__semantic__symbols__Symbol){ f->name, c_name, 3, fn_type, false, f->public, node->line, node->col, node, NULL, false, false, false, KOBEL_STR(""), NULL, NULL, false });
 if (!ok) {
 compiler__semantic__declaration__DeclarationCollector_report_error(self, node, kobel_concat(3, KOBEL_STR("Duplicate function declaration '"), f->name, KOBEL_STR("'")));
 }
@@ -19576,7 +19633,7 @@ __for_i = __for_i + 1;
 kobel_str c_name = compiler__semantic__declaration__DeclarationCollector_c_name_for(self, e->name);
 compiler__semantic__types__EnumInfo* info = std__memory__Arena_create_val_compiler__semantic__types__EnumInfo(&self->arena, (compiler__semantic__types__EnumInfo){ e->name, c_name, under_type, members, false, KOBEL_STR("tag"), false });
 compiler__semantic__types__Type* carrier = std__memory__Arena_create_val_compiler__semantic__types__Type(&self->arena, (compiler__semantic__types__Type){ under_type->kind, under_type->size, under_type->align, (compiler__semantic__types__TypePayload){ .tag = 5, .u.Enum = { info } }, NULL });
-bool ok = compiler__semantic__symbols__SymbolTable_define_global(&self->symtab, (compiler__semantic__symbols__Symbol){ e->name, c_name, 6, carrier, false, e->public, node->line, node->col, node, NULL, false, false, false, KOBEL_STR("") });
+bool ok = compiler__semantic__symbols__SymbolTable_define_global(&self->symtab, (compiler__semantic__symbols__Symbol){ e->name, c_name, 6, carrier, false, e->public, node->line, node->col, node, NULL, false, false, false, KOBEL_STR(""), NULL, NULL, false });
 if (!ok) {
 compiler__semantic__declaration__DeclarationCollector_report_error(self, node, kobel_concat(3, KOBEL_STR("Duplicate enum declaration '"), e->name, KOBEL_STR("'")));
 }
@@ -19725,11 +19782,11 @@ if (v_ty->size == 0) {
 v_ty->size = 1;
 v_ty->align = 1;
 }
-compiler__semantic__symbols__SymbolTable_define_global(&self->symtab, (compiler__semantic__symbols__Symbol){ v_name, v_c, 4, v_ty, false, public, m.line, m.col, node, NULL, false, false, false, KOBEL_STR("") });
+compiler__semantic__symbols__SymbolTable_define_global(&self->symtab, (compiler__semantic__symbols__Symbol){ v_name, v_c, 4, v_ty, false, public, m.line, m.col, node, NULL, false, false, false, KOBEL_STR(""), NULL, NULL, false });
 if (compiler__semantic__symbols__SymbolTable_lookup(&self->symtab, m.name) == NULL) {
-compiler__semantic__symbols__SymbolTable_define_global(&self->symtab, (compiler__semantic__symbols__Symbol){ m.name, v_c, 4, v_ty, false, public, m.line, m.col, node, NULL, false, false, false, KOBEL_STR("") });
+compiler__semantic__symbols__SymbolTable_define_global(&self->symtab, (compiler__semantic__symbols__Symbol){ m.name, v_c, 4, v_ty, false, public, m.line, m.col, node, NULL, false, false, false, KOBEL_STR(""), NULL, NULL, false });
 }
-compiler__semantic__symbols__SymbolTable_define_global(&self->symtab, (compiler__semantic__symbols__Symbol){ kobel_concat(2, v_name, KOBEL_STR("__TAG")), kobel_concat(2, v_c, KOBEL_STR("__TAG")), 1, tag_ty, false, false, m.line, m.col, NULL, NULL, false, false, false, KOBEL_STR("") });
+compiler__semantic__symbols__SymbolTable_define_global(&self->symtab, (compiler__semantic__symbols__Symbol){ kobel_concat(2, v_name, KOBEL_STR("__TAG")), kobel_concat(2, v_c, KOBEL_STR("__TAG")), 1, tag_ty, false, false, m.line, m.col, NULL, NULL, false, false, false, KOBEL_STR(""), NULL, NULL, false });
 uint32_t err_code = is_fault ? compiler__semantic__symbols__SymbolTable_alloc_fault_code(&self->symtab) : 0;
 kobel_str desc = is_fault ? (!str_empty(m.description) ? m.description : kobel_concat(3, name, KOBEL_STR("."), m.name)) : KOBEL_STR("");
 compiler__semantic__types__EnumMemberInfo* mi = std__memory__Arena_create_val_compiler__semantic__types__EnumMemberInfo(&self->arena, (compiler__semantic__types__EnumMemberInfo){ m.name, idx, v_ty, kobel_concat(2, KOBEL_STR("u."), m.name), KOBEL_STR(""), 0, err_code, desc });
@@ -19766,7 +19823,7 @@ enum_ty->align = max_align;
 enum_ty->size = body_off + pay;
 compiler__semantic__types__EnumInfo* info = std__memory__Arena_create_val_compiler__semantic__types__EnumInfo(&self->arena, (compiler__semantic__types__EnumInfo){ name, c_name, under_type, members, true, KOBEL_STR("tag"), is_fault });
 compiler__semantic__symbols__SymbolTable_register_enum_info(&self->symtab, info);
-bool ok = compiler__semantic__symbols__SymbolTable_define_global(&self->symtab, (compiler__semantic__symbols__Symbol){ name, c_name, 4, enum_ty, false, public, node->line, node->col, node, NULL, false, false, false, KOBEL_STR("") });
+bool ok = compiler__semantic__symbols__SymbolTable_define_global(&self->symtab, (compiler__semantic__symbols__Symbol){ name, c_name, 4, enum_ty, false, public, node->line, node->col, node, NULL, false, false, false, KOBEL_STR(""), NULL, NULL, false });
 if (!ok) {
 kobel_str kind_lbl = is_fault ? KOBEL_STR("fault") : KOBEL_STR("enum");
 compiler__semantic__declaration__DeclarationCollector_report_error(self, node, kobel_concat(5, KOBEL_STR("Duplicate "), kind_lbl, KOBEL_STR(" declaration '"), name, KOBEL_STR("'")));
@@ -19849,7 +19906,7 @@ c->type_node = std__memory__Arena_ast_type_from_type(&self->arena, c_type);
 }
 kobel_str full_name = str_empty(owner_prefix) ? c->name : kobel_concat(3, owner_prefix, KOBEL_STR("__"), c->name);
 kobel_str c_name = compiler__semantic__declaration__DeclarationCollector_c_name_for(self, full_name);
-bool ok = compiler__semantic__symbols__SymbolTable_define_global(&self->symtab, (compiler__semantic__symbols__Symbol){ full_name, c_name, 1, c_type, false, c->public, node->line, node->col, node, NULL, false, false, false, KOBEL_STR("") });
+bool ok = compiler__semantic__symbols__SymbolTable_define_global(&self->symtab, (compiler__semantic__symbols__Symbol){ full_name, c_name, 1, c_type, false, c->public, node->line, node->col, node, NULL, false, false, false, KOBEL_STR(""), NULL, NULL, false });
 if (!ok) {
 compiler__semantic__declaration__DeclarationCollector_report_error(self, node, kobel_concat(3, KOBEL_STR("Duplicate const declaration '"), c->name, KOBEL_STR("'")));
 }
@@ -25151,12 +25208,18 @@ return lowered;
 }
 }
 }
+compiler__semantic__symbols__Symbol* untyped_target_sym = compiler__semantic__checker__BodyChecker_lookup_untyped_int_sym(self, target_expr);
 bool prev_asgn_target = self->is_assign_target;
+bool prev_defer_int = self->defer_untyped_int_finalize;
 if (asgn->op == 5) {
 self->is_assign_target = true;
 }
+if (untyped_target_sym != NULL) {
+self->defer_untyped_int_finalize = true;
+}
 compiler__semantic__types__Type* target_ty = compiler__semantic__checker__BodyChecker_check_expr(self, asgn->target, NULL);
 self->is_assign_target = prev_asgn_target;
+self->defer_untyped_int_finalize = prev_defer_int;
 compiler__semantic__symbols__Symbol* sym_to_update = NULL;
 {
 compiler__ast__NodeData__IdentifierExpr* id = NULL;
@@ -25175,8 +25238,23 @@ sym_to_update = sym;
 }
 bool prev_stmt = self->is_stmt_level;
 self->is_stmt_level = was_stmt;
-compiler__semantic__types__Type* val_ty = compiler__semantic__checker__BodyChecker_check_expr(self, asgn->value, target_ty);
+compiler__semantic__types__Type* val_expected = untyped_target_sym != NULL ? NULL : target_ty;
+compiler__semantic__types__Type* val_ty = compiler__semantic__checker__BodyChecker_check_expr(self, asgn->value, val_expected);
 self->is_stmt_level = prev_stmt;
+if (untyped_target_sym != NULL && untyped_target_sym->untyped_int_decl != NULL) {
+if (compiler__semantic__checker__BodyChecker_is_untyped_int_literal(self, asgn->value)) {
+if (asgn->op == 5 && compiler__semantic__checker__BodyChecker_is_neg_untyped_int_literal(self, asgn->value)) {
+untyped_target_sym->untyped_int_signed = true;
+}
+} else if (compiler__semantic__checker__BodyChecker_can_adopt_untyped_int(self, untyped_target_sym, val_ty)) {
+compiler__semantic__checker__BodyChecker_adopt_untyped_int_var(self, untyped_target_sym, val_ty);
+target_ty = val_ty;
+compiler__semantic__checker__BodyChecker_annotate_type(self, asgn->target, val_ty);
+} else {
+untyped_target_sym->untyped_int_decl = NULL;
+untyped_target_sym->untyped_int_init = NULL;
+}
+}
 if (asgn->op != 5) {
 bool t_is_ptr = target_ty->kind == 16;
 compiler__semantic__types__Type* t_struct_ty = t_is_ptr ? (*compiler__semantic__types__Type_as_pointer(target_ty)).pointee : target_ty;
@@ -25308,7 +25386,10 @@ return lowered;
 }
 }
 }
+bool prev_defer_int = self->defer_untyped_int_finalize;
+self->defer_untyped_int_finalize = true;
 compiler__semantic__types__Type* target_ty = compiler__semantic__checker__BodyChecker_check_expr(self, u->target, NULL);
+self->defer_untyped_int_finalize = prev_defer_int;
 compiler__semantic__checker__BodyChecker_check_lvalue_mutability(self, target_expr, node, true);
 compiler__semantic__checker__BodyChecker_ensure(self, compiler__semantic__types__Type_is_numeric(target_ty), node, KOBEL_STR("Increment/decrement operator requires numeric operand"));
 return target_ty;
@@ -26889,7 +26970,7 @@ while (__for_go) {
 size_t i = __for_i;
 compiler__ast__Param p = std__collections__List_compiler__ast__Param_get(&lam->params, i);
 compiler__semantic__types__Type* p_ty = std__collections__List_ptr_compiler__semantic__types__Type_get(&resolved_param_types, i);
-bool ok = compiler__semantic__symbols__SymbolTable_define(&self->symtab, (compiler__semantic__symbols__Symbol){ p.name, p.name, 2, p_ty, false, false, node->line, node->col, NULL, NULL, false, false, false, KOBEL_STR("") });
+bool ok = compiler__semantic__symbols__SymbolTable_define(&self->symtab, (compiler__semantic__symbols__Symbol){ p.name, p.name, 2, p_ty, false, false, node->line, node->col, NULL, NULL, false, false, false, KOBEL_STR(""), NULL, NULL, false });
 if (!ok) {
 compiler__semantic__checker__BodyChecker_report_error(self, node, kobel_concat(3, KOBEL_STR("Duplicate lambda parameter '"), p.name, KOBEL_STR("'")));
 }
@@ -27225,7 +27306,7 @@ return callee_ty;
 
 compiler__semantic__checker__BodyChecker compiler__semantic__checker__BodyChecker_init_2(compiler__semantic__symbols__SymbolTable symtab, compiler__semantic__declaration__DeclarationCollector decl) {
 compiler__semantic__types__Type* none_ty = compiler__semantic__types__PrimTypes_t_none(symtab.prims);
-compiler__semantic__checker__BodyChecker bc = (compiler__semantic__checker__BodyChecker){ symtab, decl.arena, none_ty, 0, std__collections__List_compiler__core__Diagnostic_init(NULL, 0), NULL, true, 0, std__collections__List_mut_ptr_compiler__ast__AstNode_init(NULL, 0), false, false, false, 0, false, compiler__semantic__declaration__DeclarationCollector_init_0(), false, false, false, false, NULL, std__collections__List_str_init(NULL, 0), std__collections__List_ptr_compiler__semantic__types__Type_init(NULL, 0), false, std__collections__List_compiler__core__Diagnostic_init(NULL, 0), KOBEL_STR(""), NULL, false, NULL, NULL, false, false, std__collections__List_compiler__semantic__symbols__LambdaCapture_init(NULL, 0), false, NULL, false, false, KOBEL_STR(""), std__collections__List_str_init(NULL, 0), std__collections__List_usz_init(NULL, 0), KOBEL_STR("") };
+compiler__semantic__checker__BodyChecker bc = (compiler__semantic__checker__BodyChecker){ symtab, decl.arena, none_ty, 0, std__collections__List_compiler__core__Diagnostic_init(NULL, 0), NULL, true, 0, std__collections__List_mut_ptr_compiler__ast__AstNode_init(NULL, 0), false, false, false, 0, false, compiler__semantic__declaration__DeclarationCollector_init_0(), false, false, false, false, NULL, std__collections__List_str_init(NULL, 0), std__collections__List_ptr_compiler__semantic__types__Type_init(NULL, 0), false, std__collections__List_compiler__core__Diagnostic_init(NULL, 0), KOBEL_STR(""), NULL, false, NULL, NULL, false, false, std__collections__List_compiler__semantic__symbols__LambdaCapture_init(NULL, 0), false, NULL, false, false, KOBEL_STR(""), std__collections__List_str_init(NULL, 0), std__collections__List_usz_init(NULL, 0), KOBEL_STR(""), false };
 bc.decl = decl;
 bc.has_decl = true;
 bc.symtab.prims = decl.symtab.prims;
@@ -27318,9 +27399,9 @@ void compiler__semantic__checker__BodyChecker_pop_non_null_scope(compiler__seman
 if (std__collections__List_usz_empty(&self->non_null_marks)) {
 return;
 }
-size_t mark = __kobel_unwrap___kobel_eu_usz__std__collections__CollectionErr(std__collections__List_usz_pop(&self->non_null_marks), "src/compiler/semantic/checker/checker.kb", 160, 39, "BodyChecker_pop_non_null_scope");
+size_t mark = __kobel_unwrap___kobel_eu_usz__std__collections__CollectionErr(std__collections__List_usz_pop(&self->non_null_marks), "src/compiler/semantic/checker/checker.kb", 166, 39, "BodyChecker_pop_non_null_scope");
 while (self->non_null_paths.len > mark) {
-__kobel_unwrap___kobel_eu_str__std__collections__CollectionErr(std__collections__List_str_pop(&self->non_null_paths), "src/compiler/semantic/checker/checker.kb", 161, 67, "BodyChecker_pop_non_null_scope");
+__kobel_unwrap___kobel_eu_str__std__collections__CollectionErr(std__collections__List_str_pop(&self->non_null_paths), "src/compiler/semantic/checker/checker.kb", 167, 67, "BodyChecker_pop_non_null_scope");
 }
 }
 
@@ -27404,6 +27485,183 @@ return (*compiler__semantic__types__Type_as_pointer(orig)).nullable;
 }
 }
 return false;
+}
+
+std__collections__List_compiler__semantic__checker__MoveStateEntry compiler__semantic__checker__BodyChecker_snapshot_move_state(compiler__semantic__checker__BodyChecker* self) {
+std__collections__List_compiler__semantic__checker__MoveStateEntry snap = std__collections__List_compiler__semantic__checker__MoveStateEntry_init(NULL, 0);
+compiler__semantic__symbols__Scope* cur = self->symtab.current_scope;
+while (cur != NULL) {
+{
+size_t __for_n = std__collections__List_compiler__semantic__symbols__ScopeEntry_count(&cur->entries);
+size_t __for_i = 0;
+while (__for_i < __for_n) {
+compiler__semantic__symbols__ScopeEntry e = std__collections__List_compiler__semantic__symbols__ScopeEntry_at(&cur->entries, __for_i);
+if ((*e.sym).kind == 0 || (*e.sym).kind == 2) {
+std__collections__List_compiler__semantic__checker__MoveStateEntry_plus_assign(&snap, (compiler__semantic__checker__MoveStateEntry){ e.sym, (*e.sym).is_moved });
+}
+__for_i = __for_i + 1;
+}
+}
+if (cur->is_fn_boundary) {
+break;
+}
+cur = cur->parent;
+}
+return snap;
+}
+
+void compiler__semantic__checker__BodyChecker_restore_move_state(compiler__semantic__checker__BodyChecker* self, std__collections__List_compiler__semantic__checker__MoveStateEntry* snap) {
+{
+size_t __for_e = snap->len;
+size_t __for_i = __for_e;
+__for_i = 0;
+bool __for_up = __for_i <= __for_e;
+bool __for_go = false;
+if (__for_up) {
+__for_go = __for_i < __for_e;
+} else {
+__for_go = __for_i > __for_e;
+}
+while (__for_go) {
+size_t i = __for_i;
+compiler__semantic__checker__MoveStateEntry e = std__collections__List_compiler__semantic__checker__MoveStateEntry_at(snap, i);
+(*e.sym).is_moved = e.is_moved;
+if (__for_up) {
+__for_go = __for_i + 1 < __for_e;
+} else {
+__for_go = __for_i - 1 > __for_e;
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = __for_i + 1;
+} else {
+__for_i = __for_i - 1;
+}
+}
+}
+}
+}
+
+void compiler__semantic__checker__BodyChecker_merge_move_state(compiler__semantic__checker__BodyChecker* self, std__collections__List_compiler__semantic__checker__MoveStateEntry* a, std__collections__List_compiler__semantic__checker__MoveStateEntry* b) {
+size_t n = a->len < b->len ? a->len : b->len;
+{
+size_t __for_e = n;
+size_t __for_i = __for_e;
+__for_i = 0;
+bool __for_up = __for_i <= __for_e;
+bool __for_go = false;
+if (__for_up) {
+__for_go = __for_i < __for_e;
+} else {
+__for_go = __for_i > __for_e;
+}
+while (__for_go) {
+size_t i = __for_i;
+compiler__semantic__checker__MoveStateEntry ea = std__collections__List_compiler__semantic__checker__MoveStateEntry_at(a, i);
+compiler__semantic__checker__MoveStateEntry eb = std__collections__List_compiler__semantic__checker__MoveStateEntry_at(b, i);
+(*ea.sym).is_moved = ea.is_moved || eb.is_moved;
+if (__for_up) {
+__for_go = __for_i + 1 < __for_e;
+} else {
+__for_go = __for_i - 1 > __for_e;
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = __for_i + 1;
+} else {
+__for_i = __for_i - 1;
+}
+}
+}
+}
+}
+
+bool compiler__semantic__checker__BodyChecker_is_untyped_int_literal(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* node) {
+compiler__ast__AstNode* raw = node;
+if (raw == NULL) {
+return false;
+}
+compiler__ast__AstNode* cur = compiler__semantic__checker__BodyChecker_unwrap_group(self, raw);
+{
+compiler__ast__NodeData__LiteralExpr* lit = NULL;
+if (cur != NULL && cur->data.tag == compiler__ast__NodeData__LiteralExpr__TAG && (lit = (compiler__ast__NodeData__LiteralExpr*)(&cur->data.u.LiteralExpr), 1)) {
+return lit->literal_kind == 0 && str_empty(str_num_suffix(lit->raw_text));
+}
+}
+{
+compiler__ast__NodeData__UnaryExpr* un = NULL;
+if (cur != NULL && cur->data.tag == compiler__ast__NodeData__UnaryExpr__TAG && (un = (compiler__ast__NodeData__UnaryExpr*)(&cur->data.u.UnaryExpr), 1) && !un->is_postfix && (un->op == 7 || un->op == 6)) {
+return compiler__semantic__checker__BodyChecker_is_untyped_int_literal(self, un->operand);
+}
+}
+return false;
+}
+
+bool compiler__semantic__checker__BodyChecker_is_neg_untyped_int_literal(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* node) {
+compiler__ast__AstNode* raw = node;
+if (raw == NULL) {
+return false;
+}
+compiler__ast__AstNode* cur = compiler__semantic__checker__BodyChecker_unwrap_group(self, raw);
+{
+compiler__ast__NodeData__UnaryExpr* un = NULL;
+if (cur != NULL && cur->data.tag == compiler__ast__NodeData__UnaryExpr__TAG && (un = (compiler__ast__NodeData__UnaryExpr*)(&cur->data.u.UnaryExpr), 1) && !un->is_postfix && un->op == 7) {
+return compiler__semantic__checker__BodyChecker_is_untyped_int_literal(self, un->operand);
+}
+}
+return false;
+}
+
+bool compiler__semantic__checker__BodyChecker_can_adopt_untyped_int(compiler__semantic__checker__BodyChecker* self, compiler__semantic__symbols__Symbol* sym, compiler__semantic__types__Type* ty) {
+if (ty == NULL || !compiler__semantic__types__Type_is_integer(ty)) {
+return false;
+}
+if (sym->untyped_int_signed) {
+return ty->kind == 3 || ty->kind == 4 || ty->kind == 5 || ty->kind == 6 || ty->kind == 7;
+}
+return true;
+}
+
+void compiler__semantic__checker__BodyChecker_adopt_untyped_int_var(compiler__semantic__checker__BodyChecker* self, compiler__semantic__symbols__Symbol* sym, compiler__semantic__types__Type* ty) {
+compiler__ast__AstNode* decl_node = sym->untyped_int_decl;
+compiler__ast__AstNode* init_node = sym->untyped_int_init;
+sym->type_ptr = ty;
+sym->untyped_int_decl = NULL;
+sym->untyped_int_init = NULL;
+if (decl_node != NULL) {
+{
+compiler__ast__NodeData__VarDeclStmt* vd = NULL;
+if (self->current_rec != NULL) {
+compiler__semantic__checker__BodyChecker_set_ann_var_ty(self, decl_node, ty);
+} else if (decl_node != NULL && decl_node->data.tag == compiler__ast__NodeData__VarDeclStmt__TAG && (vd = (compiler__ast__NodeData__VarDeclStmt*)(&decl_node->data.u.VarDeclStmt), 1)) {
+vd->type_annotation = std__memory__Arena_ast_type_from_type(&self->arena, ty);
+}
+}
+}
+if (init_node != NULL) {
+compiler__semantic__checker__BodyChecker_annotate_type(self, init_node, ty);
+}
+}
+
+compiler__semantic__symbols__Symbol* compiler__semantic__checker__BodyChecker_lookup_untyped_int_sym(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* expr) {
+compiler__ast__AstNode* raw = expr;
+if (raw == NULL) {
+return NULL;
+}
+compiler__ast__AstNode* cur = compiler__semantic__checker__BodyChecker_unwrap_group(self, raw);
+{
+compiler__ast__NodeData__IdentifierExpr* id = NULL;
+if (cur != NULL && cur->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (id = (compiler__ast__NodeData__IdentifierExpr*)(&cur->data.u.IdentifierExpr), 1)) {
+compiler__semantic__symbols__Symbol* sym = compiler__semantic__symbols__SymbolTable_lookup_local_mut(&self->symtab, id->name);
+if (sym == NULL) {
+return NULL;
+}
+if (sym->untyped_int_decl != NULL) {
+return sym;
+}
+}
+}
+return NULL;
 }
 
 void compiler__semantic__checker__BodyChecker_report_warning(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* node, kobel_str msg) {
@@ -27731,7 +27989,7 @@ return compiler__semantic__checker__BodyChecker_check_literal_expr(self, node, e
 } else if (target != NULL && target->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG) {
 void* __orig_target = (void*)target;
 compiler__ast__NodeData__IdentifierExpr* target = (compiler__ast__NodeData__IdentifierExpr*)((&((compiler__ast__AstNode*)__orig_target)->data.u.IdentifierExpr));
-return compiler__semantic__checker__BodyChecker_check_ident_expr(self, node);
+return compiler__semantic__checker__BodyChecker_check_ident_expr(self, node, expected);
 } else if (target != NULL && target->data.tag == compiler__ast__NodeData__BinaryExpr__TAG) {
 void* __orig_target = (void*)target;
 compiler__ast__NodeData__BinaryExpr* target = (compiler__ast__NodeData__BinaryExpr*)((&((compiler__ast__AstNode*)__orig_target)->data.u.BinaryExpr));
@@ -28011,7 +28269,7 @@ return;
 std__collections__List_compiler__semantic__symbols__LambdaCapture_plus_assign(&self->lambda_captures, (compiler__semantic__symbols__LambdaCapture){ sym->name, cap_ty, sym->mutable });
 }
 
-compiler__semantic__types__Type* compiler__semantic__checker__BodyChecker_check_ident_expr(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* node) {
+compiler__semantic__types__Type* compiler__semantic__checker__BodyChecker_check_ident_expr(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* node, compiler__semantic__types__Type* expected) {
 {
 compiler__ast__NodeData__IdentifierExpr* id = NULL;
 if (node != NULL && node->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (id = (compiler__ast__NodeData__IdentifierExpr*)(&node->data.u.IdentifierExpr), 1)) {
@@ -28061,6 +28319,17 @@ compiler__semantic__checker__BodyChecker_record_lambda_capture(self, outer_sym);
 if (!str_empty(sym->c_name) && !kobel_streq(sym->c_name, id->name)) {
 compiler__semantic__checker__BodyChecker_set_ident_name(self, node, sym->c_name);
 }
+if (!self->is_assign_target && sym->untyped_int_decl != NULL) {
+compiler__semantic__symbols__Symbol* mut_sym = compiler__semantic__symbols__SymbolTable_lookup_local_mut(&self->symtab, id->name);
+if (mut_sym != NULL && mut_sym->untyped_int_decl != NULL) {
+if (compiler__semantic__checker__BodyChecker_can_adopt_untyped_int(self, mut_sym, expected)) {
+compiler__semantic__checker__BodyChecker_adopt_untyped_int_var(self, mut_sym, expected);
+} else if (!self->defer_untyped_int_finalize) {
+mut_sym->untyped_int_decl = NULL;
+mut_sym->untyped_int_init = NULL;
+}
+}
+}
 compiler__semantic__types__Type* ty = sym->type_ptr;
 if (!self->is_assign_target && ty->kind == 16 && (*compiler__semantic__types__Type_as_pointer(ty)).nullable && compiler__semantic__checker__BodyChecker_is_path_non_null(self, id->name)) {
 compiler__semantic__types__TypePayload__Pointer* pt = compiler__semantic__types__Type_as_pointer(ty);
@@ -28089,7 +28358,13 @@ if (is_cmp) {
 self->in_safe_nav_context = true;
 }
 self->in_elvis_lhs = bin->op == 69 && compiler__semantic__checker__BodyChecker_unwrap_group_mut(self, bin->right) != NULL && compiler__semantic__checker__BodyChecker_unwrap_group_mut(self, bin->right)->data.tag == compiler__ast__NodeData__ArrayLiteralExpr__TAG;
+compiler__semantic__symbols__Symbol* left_untyped_sym = num_expected == NULL ? compiler__semantic__checker__BodyChecker_lookup_untyped_int_sym(self, bin->left) : NULL;
+bool prev_defer_int = self->defer_untyped_int_finalize;
+if (left_untyped_sym != NULL) {
+self->defer_untyped_int_finalize = true;
+}
 compiler__semantic__types__Type* lt_num = compiler__semantic__checker__BodyChecker_check_expr(self, bin->left, num_expected);
+self->defer_untyped_int_finalize = prev_defer_int;
 self->in_elvis_lhs = false;
 compiler__semantic__types__Type* lt = lt_num;
 {
@@ -28101,7 +28376,7 @@ return compiler__semantic__checker__BodyChecker_check_in_list_op(self, node, bin
 }
 }
 compiler__semantic__types__Type* r_expected = num_expected;
-if (compiler__semantic__types__Type_is_numeric(lt)) {
+if (compiler__semantic__types__Type_is_numeric(lt) && left_untyped_sym == NULL) {
 r_expected = lt;
 }
 compiler__semantic__types__Type* rt = compiler__semantic__types__PrimTypes_t_none(compiler__semantic__checker__BodyChecker_prims(self));
@@ -28121,6 +28396,18 @@ rt = compiler__semantic__checker__BodyChecker_check_expr(self, bin->right, r_exp
 }
 self->in_safe_nav_context = prev_sn;
 self->in_elvis_lhs = prev_elvis;
+if (left_untyped_sym != NULL && left_untyped_sym->untyped_int_decl != NULL) {
+if (!compiler__semantic__checker__BodyChecker_is_untyped_int_literal(self, bin->right)) {
+if (compiler__semantic__checker__BodyChecker_can_adopt_untyped_int(self, left_untyped_sym, rt)) {
+compiler__semantic__checker__BodyChecker_adopt_untyped_int_var(self, left_untyped_sym, rt);
+lt = rt;
+compiler__semantic__checker__BodyChecker_annotate_type(self, bin->left, rt);
+} else {
+left_untyped_sym->untyped_int_decl = NULL;
+left_untyped_sym->untyped_int_init = NULL;
+}
+}
+}
 if (compiler__semantic__checker__BodyChecker_is_untyped_literal(self, bin->left) && compiler__semantic__types__Type_is_numeric(rt) && !compiler__semantic__types__Type_equals(lt, rt)) {
 lt = compiler__semantic__checker__BodyChecker_check_expr(self, bin->left, rt);
 }
@@ -28638,12 +28925,15 @@ if ((*eu->ok).kind != 0) {
 branch_hint = eu->ok;
 }
 }
+std__collections__List_compiler__semantic__checker__MoveStateEntry move_before = compiler__semantic__checker__BodyChecker_snapshot_move_state(self);
 compiler__semantic__symbols__SymbolTable_enter_scope(&self->symtab, false);
 compiler__semantic__checker__BodyChecker_push_non_null_scope(self);
 compiler__semantic__checker__BodyChecker_apply_truthy_null_guards(self, if_e->condition);
 compiler__semantic__types__Type* then_ty = compiler__semantic__checker__BodyChecker_check_expr(self, if_e->then_branch, branch_hint);
 compiler__semantic__checker__BodyChecker_pop_non_null_scope(self);
 compiler__semantic__symbols__SymbolTable_exit_scope(&self->symtab);
+std__collections__List_compiler__semantic__checker__MoveStateEntry after_then = compiler__semantic__checker__BodyChecker_snapshot_move_state(self);
+compiler__semantic__checker__BodyChecker_restore_move_state(self, &move_before);
 compiler__semantic__types__Type* else_hint = branch_hint;
 if (else_hint == NULL) else_hint = then_ty;
 compiler__semantic__symbols__SymbolTable_enter_scope(&self->symtab, false);
@@ -28652,6 +28942,8 @@ compiler__semantic__checker__BodyChecker_apply_falsy_null_guards(self, if_e->con
 compiler__semantic__types__Type* else_ty = compiler__semantic__checker__BodyChecker_check_expr(self, if_e->else_branch, else_hint);
 compiler__semantic__checker__BodyChecker_pop_non_null_scope(self);
 compiler__semantic__symbols__SymbolTable_exit_scope(&self->symtab);
+std__collections__List_compiler__semantic__checker__MoveStateEntry after_else = compiler__semantic__checker__BodyChecker_snapshot_move_state(self);
+compiler__semantic__checker__BodyChecker_merge_move_state(self, &after_then, &after_else);
 bool can_widen = compiler__semantic__checker__BodyChecker_is_untyped_literal(self, if_e->then_branch) && compiler__semantic__types__Type_is_numeric(else_ty) && !compiler__semantic__types__Type_equals(then_ty, else_ty);
 if (can_widen) {
 compiler__semantic__symbols__SymbolTable_enter_scope(&self->symtab, false);
@@ -28674,7 +28966,13 @@ then_ty = std__memory__Arena_nullable_pointer_type(&self->arena, t_ptr->pointee,
 }
 } else if (expected != NULL && expected->kind == 20) {
 if (compiler__semantic__types__Type_can_assign(expected, then_ty) && compiler__semantic__types__Type_can_assign(expected, else_ty)) {
-return expected;
+{
+compiler__semantic__types__Type* __ret_tmp = expected;
+std__collections__List_compiler__semantic__checker__MoveStateEntry_free(after_else);
+std__collections__List_compiler__semantic__checker__MoveStateEntry_free(after_then);
+std__collections__List_compiler__semantic__checker__MoveStateEntry_free(move_before);
+return __ret_tmp;
+}
 }
 } else if (!compiler__semantic__types__Type_equals(then_ty, else_ty)) {
 if (then_ty->kind == 20 && compiler__semantic__types__Type_can_assign(then_ty, else_ty)) {
@@ -28687,7 +28985,13 @@ then_ty = std__memory__Arena_error_union_type(&self->arena, then_ty, else_ty);
 }
 }
 compiler__semantic__checker__BodyChecker_ensure(self, compiler__semantic__types__Type_can_assign(then_ty, else_ty), node, KOBEL_STR("If expression branches have incompatible types"));
-return then_ty;
+{
+compiler__semantic__types__Type* __ret_tmp = then_ty;
+std__collections__List_compiler__semantic__checker__MoveStateEntry_free(after_else);
+std__collections__List_compiler__semantic__checker__MoveStateEntry_free(after_then);
+std__collections__List_compiler__semantic__checker__MoveStateEntry_free(move_before);
+return __ret_tmp;
+}
 }
 }
 return compiler__semantic__types__PrimTypes_t_none(compiler__semantic__checker__BodyChecker_prims(self));
@@ -28745,13 +29049,16 @@ return false;
 compiler__semantic__types__Type* compiler__semantic__checker__BodyChecker_check_catch_handler(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* node, compiler__ast__NodeData__CatchExpr* ce, compiler__semantic__types__Type* ok_ty, compiler__semantic__types__Type* err_ty, compiler__semantic__types__Type* expected, bool was_stmt) {
 if (!str_empty(ce->err_name)) {
 compiler__semantic__symbols__SymbolTable_enter_scope(&self->symtab, false);
-compiler__semantic__symbols__SymbolTable_define(&self->symtab, (compiler__semantic__symbols__Symbol){ ce->err_name, ce->err_name, 0, err_ty, false, false, node->line, node->col, NULL, NULL, false, false, false, KOBEL_STR("") });
+compiler__semantic__symbols__SymbolTable_define(&self->symtab, (compiler__semantic__symbols__Symbol){ ce->err_name, ce->err_name, 0, err_ty, false, false, node->line, node->col, NULL, NULL, false, false, false, KOBEL_STR(""), NULL, NULL, false });
 }
+std__collections__List_compiler__semantic__checker__MoveStateEntry move_before = compiler__semantic__checker__BodyChecker_snapshot_move_state(self);
 compiler__ast__AstNode* h = ce->handler;
 if ((h != NULL && h->data.tag == compiler__ast__NodeData__ReturnStmt__TAG) || (h != NULL && h->data.tag == compiler__ast__NodeData__BreakStmt__TAG) || (h != NULL && h->data.tag == compiler__ast__NodeData__ContinueStmt__TAG) || (h != NULL && h->data.tag == compiler__ast__NodeData__YieldStmt__TAG)) {
 compiler__semantic__checker__BodyChecker_check_statement(self, h);
+compiler__semantic__checker__BodyChecker_restore_move_state(self, &move_before);
 {
 compiler__semantic__types__Type* __ret_tmp = ok_ty;
+std__collections__List_compiler__semantic__checker__MoveStateEntry_free(move_before);
 {
 if (!str_empty(ce->err_name)) {
 compiler__semantic__symbols__SymbolTable_exit_scope(&self->symtab);
@@ -28782,11 +29089,19 @@ compiler__semantic__symbols__SymbolTable_exit_scope(&self->symtab);
 bool saw_yield = self->catch_yield_seen;
 self->catch_yield_expected = saved_exp;
 self->catch_yield_seen = saved_seen;
+if (compiler__semantic__checker__BodyChecker_stmt_always_diverges(self, h)) {
+compiler__semantic__checker__BodyChecker_restore_move_state(self, &move_before);
+} else {
+std__collections__List_compiler__semantic__checker__MoveStateEntry after_h = compiler__semantic__checker__BodyChecker_snapshot_move_state(self);
+compiler__semantic__checker__BodyChecker_merge_move_state(self, &after_h, &move_before);
+std__collections__List_compiler__semantic__checker__MoveStateEntry_free(after_h);
+}
 if (ok_ty->kind != 0 && !saw_yield && !compiler__semantic__checker__BodyChecker_stmt_always_diverges(self, h)) {
 compiler__semantic__checker__BodyChecker_report_error(self, h, kobel_concat(3, KOBEL_STR("Recovery block in '!:' must yield a value of type '"), compiler__semantic__checker__BodyChecker_type_display(self, ok_ty), KOBEL_STR("' or diverge")));
 }
 {
 compiler__semantic__types__Type* __ret_tmp = ok_ty;
+std__collections__List_compiler__semantic__checker__MoveStateEntry_free(move_before);
 {
 if (!str_empty(ce->err_name)) {
 compiler__semantic__symbols__SymbolTable_exit_scope(&self->symtab);
@@ -28799,10 +29114,14 @@ compiler__semantic__types__Type* h_expected = expected != NULL && expected->kind
 self->is_stmt_level = was_stmt;
 compiler__semantic__types__Type* h_ty = compiler__semantic__checker__BodyChecker_check_expr(self, h, h_expected);
 self->is_stmt_level = false;
+std__collections__List_compiler__semantic__checker__MoveStateEntry after_h = compiler__semantic__checker__BodyChecker_snapshot_move_state(self);
+compiler__semantic__checker__BodyChecker_merge_move_state(self, &after_h, &move_before);
 if (ok_ty->kind == 0) {
 compiler__semantic__checker__BodyChecker_ensure(self, h_ty->kind == 0, h, kobel_concat(3, KOBEL_STR("Recovery handler for '!"), compiler__semantic__checker__BodyChecker_type_display(self, err_ty), KOBEL_STR("' must evaluate to 'none'")));
 {
 compiler__semantic__types__Type* __ret_tmp = ok_ty;
+std__collections__List_compiler__semantic__checker__MoveStateEntry_free(after_h);
+std__collections__List_compiler__semantic__checker__MoveStateEntry_free(move_before);
 {
 if (!str_empty(ce->err_name)) {
 compiler__semantic__symbols__SymbolTable_exit_scope(&self->symtab);
@@ -28814,6 +29133,8 @@ return __ret_tmp;
 if (h_ty->kind == 20 && compiler__semantic__types__Type_equals((*compiler__semantic__types__Type_as_error_union(h_ty)).ok, ok_ty)) {
 {
 compiler__semantic__types__Type* __ret_tmp = h_ty;
+std__collections__List_compiler__semantic__checker__MoveStateEntry_free(after_h);
+std__collections__List_compiler__semantic__checker__MoveStateEntry_free(move_before);
 {
 if (!str_empty(ce->err_name)) {
 compiler__semantic__symbols__SymbolTable_exit_scope(&self->symtab);
@@ -28825,6 +29146,8 @@ return __ret_tmp;
 compiler__semantic__checker__BodyChecker_ensure(self, compiler__semantic__types__Type_can_assign(ok_ty, h_ty), h, kobel_concat(5, KOBEL_STR("Recovery handler type '"), compiler__semantic__checker__BodyChecker_type_display(self, h_ty), KOBEL_STR("' does not match expected type '"), compiler__semantic__checker__BodyChecker_type_display(self, ok_ty), KOBEL_STR("'")));
 {
 compiler__semantic__types__Type* __ret_tmp = ok_ty;
+std__collections__List_compiler__semantic__checker__MoveStateEntry_free(after_h);
+std__collections__List_compiler__semantic__checker__MoveStateEntry_free(move_before);
 {
 if (!str_empty(ce->err_name)) {
 compiler__semantic__symbols__SymbolTable_exit_scope(&self->symtab);
@@ -28833,6 +29156,7 @@ compiler__semantic__symbols__SymbolTable_exit_scope(&self->symtab);
 return __ret_tmp;
 }
 }
+std__collections__List_compiler__semantic__checker__MoveStateEntry_free(move_before);
 {
 if (!str_empty(ce->err_name)) {
 compiler__semantic__symbols__SymbolTable_exit_scope(&self->symtab);
@@ -29631,6 +29955,9 @@ bool saved_catch_seen = self->catch_yield_seen;
 self->catch_yield_expected = NULL;
 self->catch_yield_seen = false;
 self->when_depth++;
+std__collections__List_compiler__semantic__checker__MoveStateEntry move_before = compiler__semantic__checker__BodyChecker_snapshot_move_state(self);
+std__collections__List_compiler__semantic__checker__MoveStateEntry merged = std__collections__List_compiler__semantic__checker__MoveStateEntry_init(NULL, 0);
+bool has_fallthrough = false;
 compiler__semantic__types__Type* result_ty = expected;
 bool has_else = false;
 {
@@ -29641,6 +29968,7 @@ compiler__ast__WhenArm arm = std__collections__List_compiler__ast__WhenArm_at(&w
 if (arm.is_else) {
 has_else = true;
 }
+compiler__semantic__checker__BodyChecker_restore_move_state(self, &move_before);
 compiler__semantic__types__Type* smart_cast_ty = compiler__semantic__checker__BodyChecker_resolve_arm_patterns(self, arm.patterns, we->condition, cond_ty);
 kobel_str sym = compiler__semantic__checker__BodyChecker_arm_smart_cast_sym(self, arm.patterns, we->condition);
 bool mutable = compiler__semantic__checker__BodyChecker_arm_smart_cast_mutable(self, arm.patterns, we->condition);
@@ -29652,6 +29980,45 @@ arm_hint = eu->ok;
 }
 }
 compiler__semantic__types__Type* body_ty = compiler__semantic__checker__BodyChecker_check_arm_body(self, arm.body, sym, smart_cast_ty, mutable, arm_hint);
+if (!compiler__semantic__checker__BodyChecker_stmt_always_diverges(self, arm.body)) {
+std__collections__List_compiler__semantic__checker__MoveStateEntry after_arm = compiler__semantic__checker__BodyChecker_snapshot_move_state(self);
+if (!has_fallthrough) {
+merged = after_arm;
+has_fallthrough = true;
+} else {
+size_t n = merged.len < after_arm.len ? merged.len : after_arm.len;
+{
+size_t __for_e = n;
+size_t __for_i = __for_e;
+__for_i = 0;
+bool __for_up = __for_i <= __for_e;
+bool __for_go = false;
+if (__for_up) {
+__for_go = __for_i < __for_e;
+} else {
+__for_go = __for_i > __for_e;
+}
+while (__for_go) {
+size_t i = __for_i;
+compiler__semantic__checker__MoveStateEntry prev = std__collections__List_compiler__semantic__checker__MoveStateEntry_get(&merged, i);
+std__collections__List_compiler__semantic__checker__MoveStateEntry_set(&merged, i, (compiler__semantic__checker__MoveStateEntry){ prev.sym, prev.is_moved || std__collections__List_compiler__semantic__checker__MoveStateEntry_get(&after_arm, i).is_moved });
+if (__for_up) {
+__for_go = __for_i + 1 < __for_e;
+} else {
+__for_go = __for_i - 1 > __for_e;
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = __for_i + 1;
+} else {
+__for_i = __for_i - 1;
+}
+}
+}
+}
+std__collections__List_compiler__semantic__checker__MoveStateEntry_free(after_arm);
+}
+}
 if (result_ty == NULL) {
 result_ty = body_ty;
 } else {
@@ -29684,6 +30051,11 @@ __for_i = __for_i + 1;
 self->when_depth--;
 self->catch_yield_expected = saved_catch_exp;
 self->catch_yield_seen = saved_catch_seen;
+if (has_fallthrough) {
+compiler__semantic__checker__BodyChecker_restore_move_state(self, &merged);
+} else {
+compiler__semantic__checker__BodyChecker_restore_move_state(self, &move_before);
+}
 bool is_exhaustive = compiler__semantic__checker__BodyChecker_check_when_exhaustiveness(self, node, we, cond_ty);
 if (has_else && is_exhaustive) {
 compiler__semantic__checker__BodyChecker_report_error(self, node, KOBEL_STR("Redundant 'else' arm: all cases are already covered"));
@@ -29692,9 +30064,19 @@ if (!has_else && !is_exhaustive) {
 compiler__semantic__checker__BodyChecker_report_error(self, node, KOBEL_STR("'when' expression is not exhaustive and requires an 'else' arm"));
 }
 if (result_ty == NULL) {
-return compiler__semantic__types__PrimTypes_t_none(compiler__semantic__checker__BodyChecker_prims(self));
+{
+compiler__semantic__types__Type* __ret_tmp = compiler__semantic__types__PrimTypes_t_none(compiler__semantic__checker__BodyChecker_prims(self));
+std__collections__List_compiler__semantic__checker__MoveStateEntry_free(merged);
+std__collections__List_compiler__semantic__checker__MoveStateEntry_free(move_before);
+return __ret_tmp;
 }
-return result_ty;
+}
+{
+compiler__semantic__types__Type* __ret_tmp = result_ty;
+std__collections__List_compiler__semantic__checker__MoveStateEntry_free(merged);
+std__collections__List_compiler__semantic__checker__MoveStateEntry_free(move_before);
+return __ret_tmp;
+}
 }
 }
 return compiler__semantic__types__PrimTypes_t_none(compiler__semantic__checker__BodyChecker_prims(self));
@@ -29987,7 +30369,7 @@ kobel_str compiler__semantic__checker__BodyChecker_arm_smart_cast_sym(compiler__
 if (cond == NULL || patterns.len != 1) {
 return KOBEL_STR("");
 }
-compiler__ast__AstNode* pat = __kobel_unwrap___kobel_eu_mut_ptr_compiler__ast__AstNode__std__collections__CollectionErr(std__collections__List_mut_ptr_compiler__ast__AstNode_first(&patterns), "src/compiler/semantic/checker/pattern.kb", 267, 29, "BodyChecker_arm_smart_cast_sym");
+compiler__ast__AstNode* pat = __kobel_unwrap___kobel_eu_mut_ptr_compiler__ast__AstNode__std__collections__CollectionErr(std__collections__List_mut_ptr_compiler__ast__AstNode_first(&patterns), "src/compiler/semantic/checker/pattern.kb", 292, 29, "BodyChecker_arm_smart_cast_sym");
 {
 compiler__ast__NodeData__IsExpr* is_e = NULL;
 if (pat != NULL && pat->data.tag == compiler__ast__NodeData__IsExpr__TAG && (is_e = (compiler__ast__NodeData__IsExpr*)(&pat->data.u.IsExpr), 1)) {
@@ -30012,7 +30394,7 @@ bool compiler__semantic__checker__BodyChecker_arm_smart_cast_mutable(compiler__s
 if (cond == NULL || patterns.len != 1) {
 return false;
 }
-compiler__ast__AstNode* pat = __kobel_unwrap___kobel_eu_mut_ptr_compiler__ast__AstNode__std__collections__CollectionErr(std__collections__List_mut_ptr_compiler__ast__AstNode_first(&patterns), "src/compiler/semantic/checker/pattern.kb", 278, 29, "BodyChecker_arm_smart_cast_mutable");
+compiler__ast__AstNode* pat = __kobel_unwrap___kobel_eu_mut_ptr_compiler__ast__AstNode__std__collections__CollectionErr(std__collections__List_mut_ptr_compiler__ast__AstNode_first(&patterns), "src/compiler/semantic/checker/pattern.kb", 303, 29, "BodyChecker_arm_smart_cast_mutable");
 {
 compiler__ast__NodeData__IsExpr* is_e = NULL;
 if (pat != NULL && pat->data.tag == compiler__ast__NodeData__IsExpr__TAG && (is_e = (compiler__ast__NodeData__IsExpr*)(&pat->data.u.IsExpr), 1)) {
@@ -30036,7 +30418,7 @@ return false;
 
 compiler__semantic__types__Type* compiler__semantic__checker__BodyChecker_resolve_arm_patterns(compiler__semantic__checker__BodyChecker* self, std__collections__List_mut_ptr_compiler__ast__AstNode patterns, compiler__ast__AstNode* cond, compiler__semantic__types__Type* cond_ty) {
 if (!str_empty(compiler__semantic__checker__BodyChecker_arm_smart_cast_sym(self, patterns, cond))) {
-compiler__ast__AstNode* pat = __kobel_unwrap___kobel_eu_mut_ptr_compiler__ast__AstNode__std__collections__CollectionErr(std__collections__List_mut_ptr_compiler__ast__AstNode_first(&patterns), "src/compiler/semantic/checker/pattern.kb", 297, 30, "BodyChecker_resolve_arm_patterns");
+compiler__ast__AstNode* pat = __kobel_unwrap___kobel_eu_mut_ptr_compiler__ast__AstNode__std__collections__CollectionErr(std__collections__List_mut_ptr_compiler__ast__AstNode_first(&patterns), "src/compiler/semantic/checker/pattern.kb", 322, 30, "BodyChecker_resolve_arm_patterns");
 {
 compiler__ast__NodeData__IsExpr* is_e = NULL;
 if (pat != NULL && pat->data.tag == compiler__ast__NodeData__IsExpr__TAG && (is_e = (compiler__ast__NodeData__IsExpr*)(&pat->data.u.IsExpr), 1)) {
@@ -30219,7 +30601,7 @@ return compiler__semantic__checker__BodyChecker_check_when_arm_body(self, body, 
 kobel_str outer_key = compiler__semantic__symbols__SymbolTable_lookup(&self->symtab, sym) != NULL ? compiler__semantic__symbols__SymbolTable_lookup(&self->symtab, sym)->decl_key : kobel_null_str();
 if (outer_key.data == NULL) outer_key = KOBEL_STR("");
 compiler__semantic__symbols__SymbolTable_enter_scope(&self->symtab, false);
-compiler__semantic__symbols__Symbol shadow = (compiler__semantic__symbols__Symbol){ sym, sym, 0, smart_cast_ty, mutable, false, 0, 0, NULL, NULL, false, false, false, KOBEL_STR("") };
+compiler__semantic__symbols__Symbol shadow = (compiler__semantic__symbols__Symbol){ sym, sym, 0, smart_cast_ty, mutable, false, 0, 0, NULL, NULL, false, false, false, KOBEL_STR(""), NULL, NULL, false };
 shadow.decl_key = outer_key;
 compiler__semantic__symbols__SymbolTable_define(&self->symtab, shadow);
 {
@@ -30829,7 +31211,7 @@ if (fn_info->is_variadic && i == f->params.len - 1) {
 p_ty = std__memory__Arena_array_type(&self->arena, p_ty, 0);
 is_vararg = true;
 }
-compiler__semantic__symbols__Symbol sym = (compiler__semantic__symbols__Symbol){ p.name, p.name, 2, p_ty, p.receiver == 2, false, fn_node->line, fn_node->col, NULL, NULL, false, false, false, KOBEL_STR("") };
+compiler__semantic__symbols__Symbol sym = (compiler__semantic__symbols__Symbol){ p.name, p.name, 2, p_ty, p.receiver == 2, false, fn_node->line, fn_node->col, NULL, NULL, false, false, false, KOBEL_STR(""), NULL, NULL, false };
 sym.is_vararg = is_vararg;
 if (i == 0 && !str_empty(mut_self_key)) {
 sym.decl_key = mut_self_key;
@@ -31417,7 +31799,7 @@ while (__for_go) {
 size_t i = __for_i;
 compiler__ast__Param p = std__collections__List_compiler__ast__Param_get(&f->params, i);
 compiler__semantic__types__Type* p_ty = i < fn_info->param_types.len ? std__collections__List_ptr_compiler__semantic__types__Type_get(&fn_info->param_types, i) : compiler__semantic__types__PrimTypes_t_none(compiler__semantic__checker__BodyChecker_prims(self));
-compiler__semantic__symbols__Symbol sym = (compiler__semantic__symbols__Symbol){ p.name, p.name, 2, p_ty, p.receiver == 2, false, (*c->node).line, (*c->node).col, NULL, NULL, false, false, false, KOBEL_STR("") };
+compiler__semantic__symbols__Symbol sym = (compiler__semantic__symbols__Symbol){ p.name, p.name, 2, p_ty, p.receiver == 2, false, (*c->node).line, (*c->node).col, NULL, NULL, false, false, false, KOBEL_STR(""), NULL, NULL, false };
 if (i == 0 && !str_empty(mut_self_key)) {
 sym.decl_key = mut_self_key;
 }
@@ -31540,6 +31922,7 @@ var_ty = compiler__semantic__checker__BodyChecker_check_expr_stmt(self, vd->init
 compiler__semantic__checker__BodyChecker_report_error(self, node, kobel_concat(3, KOBEL_STR("Variable '"), vd->name, KOBEL_STR("' without type must have initializer")));
 }
 }
+bool is_untyped_int_var = vd->type_annotation == NULL && has_init && compiler__semantic__checker__BodyChecker_is_untyped_int_literal(self, vd->initializer);
 if (vd->type_annotation == NULL && has_init) {
 if (self->current_rec != NULL) {
 compiler__semantic__checker__BodyChecker_set_ann_var_ty(self, node, var_ty);
@@ -31550,7 +31933,12 @@ vd->type_annotation = std__memory__Arena_ast_type_from_type(&self->arena, var_ty
 if (var_ty->kind == 19) {
 compiler__semantic__checker__BodyChecker_report_error(self, node, KOBEL_STR("Lambda closure cannot be stored in a variable; pass it directly to a function call"));
 }
-compiler__semantic__symbols__Symbol sym = (compiler__semantic__symbols__Symbol){ vd->name, vd->name, 0, var_ty, vd->mutable, false, node->line, node->col, NULL, NULL, false, false, false, KOBEL_STR("") };
+compiler__semantic__symbols__Symbol sym = (compiler__semantic__symbols__Symbol){ vd->name, vd->name, 0, var_ty, vd->mutable, false, node->line, node->col, NULL, NULL, false, false, false, KOBEL_STR(""), NULL, NULL, false };
+if (is_untyped_int_var) {
+sym.untyped_int_decl = node;
+sym.untyped_int_init = vd->initializer;
+sym.untyped_int_signed = compiler__semantic__checker__BodyChecker_is_neg_untyped_int_literal(self, vd->initializer);
+}
 if (vd->mutable && vd->initializer != NULL) {
 kobel_str v_key = compiler__semantic__checker__BodyChecker_decl_loc_key(self, KOBEL_STR("V"), node);
 if (!str_empty(v_key)) {
@@ -31676,7 +32064,7 @@ __for_go = __for_i > __for_e;
 while (__for_go) {
 size_t i = __for_i;
 if (!kobel_streq(std__collections__List_str_get(&ds->names, i), KOBEL_STR("_"))) {
-compiler__semantic__symbols__Symbol sym = (compiler__semantic__symbols__Symbol){ std__collections__List_str_get(&ds->names, i), std__collections__List_str_get(&ds->names, i), 0, elem_t, ds->mutable, false, node->line, node->col, NULL, NULL, false, false, false, KOBEL_STR("") };
+compiler__semantic__symbols__Symbol sym = (compiler__semantic__symbols__Symbol){ std__collections__List_str_get(&ds->names, i), std__collections__List_str_get(&ds->names, i), 0, elem_t, ds->mutable, false, node->line, node->col, NULL, NULL, false, false, false, KOBEL_STR(""), NULL, NULL, false };
 bool ok = compiler__semantic__symbols__SymbolTable_define(&self->symtab, sym);
 compiler__semantic__checker__BodyChecker_ensure(self, ok, node, kobel_concat(3, KOBEL_STR("Variable '"), std__collections__List_str_get(&ds->names, i), KOBEL_STR("' is already defined in this scope")));
 }
@@ -31712,7 +32100,7 @@ size_t i = __for_i;
 if (!kobel_streq(std__collections__List_str_get(&ds->names, i), KOBEL_STR("_"))) {
 compiler__semantic__types__Type* param_t = std__collections__List_ptr_compiler__semantic__types__Type_get(&fn_t->param_types, i + 1);
 compiler__semantic__types__Type* var_t = param_t->kind == 16 ? (*compiler__semantic__types__Type_as_pointer(param_t)).pointee : param_t;
-compiler__semantic__symbols__Symbol sym = (compiler__semantic__symbols__Symbol){ std__collections__List_str_get(&ds->names, i), std__collections__List_str_get(&ds->names, i), 0, var_t, ds->mutable, false, node->line, node->col, NULL, NULL, false, false, false, KOBEL_STR("") };
+compiler__semantic__symbols__Symbol sym = (compiler__semantic__symbols__Symbol){ std__collections__List_str_get(&ds->names, i), std__collections__List_str_get(&ds->names, i), 0, var_t, ds->mutable, false, node->line, node->col, NULL, NULL, false, false, false, KOBEL_STR(""), NULL, NULL, false };
 bool ok = compiler__semantic__symbols__SymbolTable_define(&self->symtab, sym);
 compiler__semantic__checker__BodyChecker_ensure(self, ok, node, kobel_concat(3, KOBEL_STR("Variable '"), std__collections__List_str_get(&ds->names, i), KOBEL_STR("' is already defined in this scope")));
 }
@@ -31807,7 +32195,7 @@ return;
 compiler__semantic__types__Type* non_null_ty = std__memory__Arena_pointer_type(&self->arena, ptr_ty->pointee, ptr_ty->mutable);
 compiler__semantic__types__Type* orig_ty = sym->orig_type;
 if (orig_ty == NULL) orig_ty = sym->type_ptr;
-compiler__semantic__symbols__Symbol promoted = (compiler__semantic__symbols__Symbol){ var_name, sym->c_name, sym->kind, non_null_ty, sym->mutable, sym->public, 0, 0, NULL, orig_ty, false, false, false, KOBEL_STR("") };
+compiler__semantic__symbols__Symbol promoted = (compiler__semantic__symbols__Symbol){ var_name, sym->c_name, sym->kind, non_null_ty, sym->mutable, sym->public, 0, 0, NULL, orig_ty, false, false, false, KOBEL_STR(""), NULL, NULL, false };
 promoted.decl_key = sym->decl_key;
 compiler__semantic__symbols__SymbolTable_define(&self->symtab, promoted);
 }
@@ -31980,6 +32368,7 @@ void compiler__semantic__checker__BodyChecker_check_if_stmt(compiler__semantic__
 compiler__ast__NodeData__IfStmt* if_s = NULL;
 if (node != NULL && node->data.tag == compiler__ast__NodeData__IfStmt__TAG && (if_s = (compiler__ast__NodeData__IfStmt*)(&node->data.u.IfStmt), 1)) {
 std__collections__List_mut_ptr_compiler__ast__AstNode conds = compiler__semantic__checker__BodyChecker_collect_and_conditions(self, if_s->condition);
+std__collections__List_compiler__semantic__checker__MoveStateEntry move_before = compiler__semantic__checker__BodyChecker_snapshot_move_state(self);
 compiler__semantic__symbols__SymbolTable_enter_scope(&self->symtab, false);
 compiler__semantic__checker__BodyChecker_push_non_null_scope(self);
 std__collections__List_str no_alias_syms = std__collections__List_str_init(NULL, 0);
@@ -32012,7 +32401,7 @@ if (cast_ty != NULL) {
 {
 compiler__ast__NodeData__IdentifierExpr* id = NULL;
 if (!str_empty(is_e->alias)) {
-compiler__semantic__symbols__Symbol sym = (compiler__semantic__symbols__Symbol){ is_e->alias, is_e->alias, 0, cast_ty, false, false, 0, 0, NULL, NULL, false, false, false, KOBEL_STR("") };
+compiler__semantic__symbols__Symbol sym = (compiler__semantic__symbols__Symbol){ is_e->alias, is_e->alias, 0, cast_ty, false, false, 0, 0, NULL, NULL, false, false, false, KOBEL_STR(""), NULL, NULL, false };
 compiler__semantic__symbols__SymbolTable_define(&self->symtab, sym);
 } else if (is_e->expr != NULL && is_e->expr->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (id = (compiler__ast__NodeData__IdentifierExpr*)(&is_e->expr->data.u.IdentifierExpr), 1)) {
 compiler__semantic__symbols__Symbol* subj_sym = compiler__semantic__symbols__SymbolTable_lookup(&self->symtab, id->name);
@@ -32043,7 +32432,7 @@ __for_go = __for_i > __for_e;
 }
 while (__for_go) {
 size_t i = __for_i;
-compiler__semantic__symbols__Symbol shadow = (compiler__semantic__symbols__Symbol){ std__collections__List_str_get(&no_alias_syms, i), std__collections__List_str_get(&no_alias_syms, i), 0, std__collections__List_ptr_compiler__semantic__types__Type_get(&no_alias_tys, i), std__collections__List_bool_get(&no_alias_muts, i), false, 0, 0, NULL, NULL, false, false, false, KOBEL_STR("") };
+compiler__semantic__symbols__Symbol shadow = (compiler__semantic__symbols__Symbol){ std__collections__List_str_get(&no_alias_syms, i), std__collections__List_str_get(&no_alias_syms, i), 0, std__collections__List_ptr_compiler__semantic__types__Type_get(&no_alias_tys, i), std__collections__List_bool_get(&no_alias_muts, i), false, 0, 0, NULL, NULL, false, false, false, KOBEL_STR(""), NULL, NULL, false };
 shadow.decl_key = std__collections__List_str_get(&no_alias_keys, i);
 compiler__semantic__symbols__SymbolTable_define(&self->symtab, shadow);
 if (__for_up) {
@@ -32063,6 +32452,9 @@ __for_i = __for_i - 1;
 compiler__semantic__checker__BodyChecker_check_statement(self, if_s->then_branch);
 compiler__semantic__checker__BodyChecker_pop_non_null_scope(self);
 compiler__semantic__symbols__SymbolTable_exit_scope(&self->symtab);
+bool then_diverges = compiler__semantic__checker__BodyChecker_stmt_always_diverges(self, if_s->then_branch);
+std__collections__List_compiler__semantic__checker__MoveStateEntry after_then = compiler__semantic__checker__BodyChecker_snapshot_move_state(self);
+compiler__semantic__checker__BodyChecker_restore_move_state(self, &move_before);
 if (if_s->else_branch != NULL) {
 compiler__semantic__symbols__SymbolTable_enter_scope(&self->symtab, false);
 compiler__semantic__checker__BodyChecker_push_non_null_scope(self);
@@ -32084,7 +32476,7 @@ compiler__semantic__types__Type* cast_ty = compiler__semantic__checker__BodyChec
 if (cast_ty != NULL) {
 compiler__semantic__symbols__Symbol* subj_sym = compiler__semantic__symbols__SymbolTable_lookup(&self->symtab, id->name);
 bool mutable = subj_sym != NULL ? subj_sym->mutable : false;
-compiler__semantic__symbols__Symbol shadow = (compiler__semantic__symbols__Symbol){ id->name, id->name, 0, cast_ty, mutable, false, 0, 0, NULL, NULL, false, false, false, KOBEL_STR("") };
+compiler__semantic__symbols__Symbol shadow = (compiler__semantic__symbols__Symbol){ id->name, id->name, 0, cast_ty, mutable, false, 0, 0, NULL, NULL, false, false, false, KOBEL_STR(""), NULL, NULL, false };
 shadow.decl_key = subj_sym != NULL ? subj_sym->decl_key : kobel_null_str();
 if (shadow.decl_key.data == NULL) shadow.decl_key = KOBEL_STR("");
 compiler__semantic__symbols__SymbolTable_define(&self->symtab, shadow);
@@ -32096,7 +32488,25 @@ compiler__semantic__symbols__SymbolTable_define(&self->symtab, shadow);
 compiler__semantic__checker__BodyChecker_check_statement(self, if_s->else_branch);
 compiler__semantic__checker__BodyChecker_pop_non_null_scope(self);
 compiler__semantic__symbols__SymbolTable_exit_scope(&self->symtab);
+bool else_diverges = compiler__semantic__checker__BodyChecker_stmt_always_diverges(self, if_s->else_branch);
+std__collections__List_compiler__semantic__checker__MoveStateEntry after_else = compiler__semantic__checker__BodyChecker_snapshot_move_state(self);
+if (then_diverges && !else_diverges) {
+compiler__semantic__checker__BodyChecker_restore_move_state(self, &after_else);
+} else if (!then_diverges && else_diverges) {
+compiler__semantic__checker__BodyChecker_restore_move_state(self, &after_then);
+} else {
+compiler__semantic__checker__BodyChecker_merge_move_state(self, &after_then, &after_else);
 }
+std__collections__List_compiler__semantic__checker__MoveStateEntry_free(after_else);
+} else {
+if (then_diverges) {
+compiler__semantic__checker__BodyChecker_restore_move_state(self, &move_before);
+} else {
+compiler__semantic__checker__BodyChecker_merge_move_state(self, &after_then, &move_before);
+}
+}
+std__collections__List_compiler__semantic__checker__MoveStateEntry_free(after_then);
+std__collections__List_compiler__semantic__checker__MoveStateEntry_free(move_before);
 }
 }
 }
@@ -32124,7 +32534,12 @@ compiler__semantic__checker__BodyChecker_apply_truthy_null_guards(self, unwrappe
 __for_i = __for_i + 1;
 }
 }
+std__collections__List_compiler__semantic__checker__MoveStateEntry move_before = compiler__semantic__checker__BodyChecker_snapshot_move_state(self);
 compiler__semantic__checker__BodyChecker_check_statement(self, wh->body);
+std__collections__List_compiler__semantic__checker__MoveStateEntry after_body = compiler__semantic__checker__BodyChecker_snapshot_move_state(self);
+compiler__semantic__checker__BodyChecker_merge_move_state(self, &after_body, &move_before);
+std__collections__List_compiler__semantic__checker__MoveStateEntry_free(after_body);
+std__collections__List_compiler__semantic__checker__MoveStateEntry_free(move_before);
 {
 compiler__semantic__checker__BodyChecker_pop_non_null_scope(self);
 compiler__semantic__symbols__SymbolTable_exit_scope(&self->symtab);
@@ -32220,6 +32635,11 @@ compiler__semantic__checker__BodyChecker_ensure(self, ret_ok, node, KOBEL_STR("N
 }
 }
 
+static bool __lambda_fn_56(void* __raw_env, compiler__ast__WhenArm a) {
+    (void)__raw_env;
+    return a.is_else;
+}
+
 void compiler__semantic__checker__BodyChecker_check_when_stmt(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* node) {
 {
 compiler__ast__NodeData__WhenStmt* ws = NULL;
@@ -32228,11 +32648,15 @@ if (ws->condition != NULL && compiler__semantic__checker__BodyChecker_expr_has_c
 compiler__semantic__checker__BodyChecker_report_error(self, ws->condition, KOBEL_STR("Function or method call is not allowed in 'when' subject; bind the result to a variable first"));
 }
 compiler__semantic__types__Type* cond_ty = ws->condition != NULL ? compiler__semantic__checker__BodyChecker_check_expr(self, ws->condition, NULL) : NULL;
+std__collections__List_compiler__semantic__checker__MoveStateEntry move_before = compiler__semantic__checker__BodyChecker_snapshot_move_state(self);
+std__collections__List_compiler__semantic__checker__MoveStateEntry merged = std__collections__List_compiler__semantic__checker__MoveStateEntry_init(NULL, 0);
+bool has_fallthrough = false;
 {
 size_t __for_n = std__collections__List_compiler__ast__WhenArm_count(&ws->arms);
 size_t __for_i = 0;
 while (__for_i < __for_n) {
 compiler__ast__WhenArm arm = std__collections__List_compiler__ast__WhenArm_at(&ws->arms, __for_i);
+compiler__semantic__checker__BodyChecker_restore_move_state(self, &move_before);
 compiler__semantic__types__Type* smart_cast_ty = compiler__semantic__checker__BodyChecker_resolve_arm_patterns(self, arm.patterns, ws->condition, cond_ty);
 kobel_str sym = compiler__semantic__checker__BodyChecker_arm_smart_cast_sym(self, arm.patterns, ws->condition);
 bool mutable = compiler__semantic__checker__BodyChecker_arm_smart_cast_mutable(self, arm.patterns, ws->condition);
@@ -32240,7 +32664,7 @@ if (!str_empty(sym) && smart_cast_ty != NULL) {
 kobel_str outer_key = compiler__semantic__symbols__SymbolTable_lookup(&self->symtab, sym) != NULL ? compiler__semantic__symbols__SymbolTable_lookup(&self->symtab, sym)->decl_key : kobel_null_str();
 if (outer_key.data == NULL) outer_key = KOBEL_STR("");
 compiler__semantic__symbols__SymbolTable_enter_scope(&self->symtab, false);
-compiler__semantic__symbols__Symbol s = (compiler__semantic__symbols__Symbol){ sym, sym, 0, smart_cast_ty, mutable, false, 0, 0, NULL, NULL, false, false, false, KOBEL_STR("") };
+compiler__semantic__symbols__Symbol s = (compiler__semantic__symbols__Symbol){ sym, sym, 0, smart_cast_ty, mutable, false, 0, 0, NULL, NULL, false, false, false, KOBEL_STR(""), NULL, NULL, false };
 s.decl_key = outer_key;
 compiler__semantic__symbols__SymbolTable_define(&self->symtab, s);
 compiler__semantic__checker__BodyChecker_check_statement(self, arm.body);
@@ -32248,9 +32672,63 @@ compiler__semantic__symbols__SymbolTable_exit_scope(&self->symtab);
 } else {
 compiler__semantic__checker__BodyChecker_check_statement(self, arm.body);
 }
+if (!compiler__semantic__checker__BodyChecker_stmt_always_diverges(self, arm.body)) {
+std__collections__List_compiler__semantic__checker__MoveStateEntry after_arm = compiler__semantic__checker__BodyChecker_snapshot_move_state(self);
+if (!has_fallthrough) {
+merged = after_arm;
+has_fallthrough = true;
+} else {
+size_t n = merged.len < after_arm.len ? merged.len : after_arm.len;
+{
+size_t __for_e = n;
+size_t __for_i = __for_e;
+__for_i = 0;
+bool __for_up = __for_i <= __for_e;
+bool __for_go = false;
+if (__for_up) {
+__for_go = __for_i < __for_e;
+} else {
+__for_go = __for_i > __for_e;
+}
+while (__for_go) {
+size_t i = __for_i;
+compiler__semantic__checker__MoveStateEntry prev = std__collections__List_compiler__semantic__checker__MoveStateEntry_get(&merged, i);
+std__collections__List_compiler__semantic__checker__MoveStateEntry_set(&merged, i, (compiler__semantic__checker__MoveStateEntry){ prev.sym, prev.is_moved || std__collections__List_compiler__semantic__checker__MoveStateEntry_get(&after_arm, i).is_moved });
+if (__for_up) {
+__for_go = __for_i + 1 < __for_e;
+} else {
+__for_go = __for_i - 1 > __for_e;
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = __for_i + 1;
+} else {
+__for_i = __for_i - 1;
+}
+}
+}
+}
+std__collections__List_compiler__semantic__checker__MoveStateEntry_free(after_arm);
+}
+}
 __for_i = __for_i + 1;
 }
 }
+bool has_else = std__collections__List_compiler__ast__WhenArm_any(&ws->arms, (kobel_closure){ (void*)__lambda_fn_56, NULL });
+bool covered = has_else || compiler__semantic__checker__BodyChecker_is_when_arms_exhaustive(self, ws->arms, cond_ty);
+if (!covered) {
+if (!has_fallthrough) {
+compiler__semantic__checker__BodyChecker_restore_move_state(self, &move_before);
+} else {
+compiler__semantic__checker__BodyChecker_merge_move_state(self, &merged, &move_before);
+}
+} else if (has_fallthrough) {
+compiler__semantic__checker__BodyChecker_restore_move_state(self, &merged);
+} else {
+compiler__semantic__checker__BodyChecker_restore_move_state(self, &move_before);
+}
+std__collections__List_compiler__semantic__checker__MoveStateEntry_free(merged);
+std__collections__List_compiler__semantic__checker__MoveStateEntry_free(move_before);
 }
 }
 }
@@ -33220,15 +33698,6 @@ kobel_str compiler__codegen__CCodeGen_gen_expr(compiler__codegen__CCodeGen* self
     return compiler__codegen__CCodeGen_gen_expr_prec(self, node, compiler__codegen__PREC_NONE);
 }
 
-struct __lambda_env_56 {
-    compiler__codegen__CCodeGen** self;
-};
-
-static kobel_str __lambda_fn_56(void* __raw_env, compiler__ast__AstNode* a) {
-    struct __lambda_env_56* __env = (struct __lambda_env_56*)__raw_env;
-    return compiler__codegen__CCodeGen_gen_expr((*(__env->self)), a);
-}
-
 struct __lambda_env_57 {
     compiler__codegen__CCodeGen** self;
 };
@@ -33244,6 +33713,15 @@ struct __lambda_env_58 {
 
 static kobel_str __lambda_fn_58(void* __raw_env, compiler__ast__AstNode* a) {
     struct __lambda_env_58* __env = (struct __lambda_env_58*)__raw_env;
+    return compiler__codegen__CCodeGen_gen_expr((*(__env->self)), a);
+}
+
+struct __lambda_env_59 {
+    compiler__codegen__CCodeGen** self;
+};
+
+static kobel_str __lambda_fn_59(void* __raw_env, compiler__ast__AstNode* a) {
+    struct __lambda_env_59* __env = (struct __lambda_env_59*)__raw_env;
     return compiler__codegen__CCodeGen_gen_expr((*(__env->self)), a);
 }
 
@@ -33335,7 +33813,7 @@ return compiler__codegen__CCodeGen_gen_is_expr(self, ast_node, node, min_prec);
 } else if (node != NULL && node->data.tag == compiler__ast__NodeData__StructCtorExpr__TAG) {
 void* __orig_node = (void*)node;
 compiler__ast__NodeData__StructCtorExpr* node = (compiler__ast__NodeData__StructCtorExpr*)((&((compiler__ast__AstNode*)__orig_node)->data.u.StructCtorExpr));
-std__collections__List_str ctor_args = std__collections__std__collections__List_mut_ptr_compiler__ast__AstNode_map_str(&node->args, (kobel_closure){ (void*)__lambda_fn_56, (void*)&(struct __lambda_env_56){ &self } });
+std__collections__List_str ctor_args = std__collections__std__collections__List_mut_ptr_compiler__ast__AstNode_map_str(&node->args, (kobel_closure){ (void*)__lambda_fn_57, (void*)&(struct __lambda_env_57){ &self } });
 kobel_str joined = str_join(KOBEL_STR(", "), ctor_args);
 return kobel_concat(5, KOBEL_STR("("), node->c_name, KOBEL_STR("){ "), joined, KOBEL_STR(" }"));
 } else if (node != NULL && node->data.tag == compiler__ast__NodeData__EnumCtorExpr__TAG) {
@@ -33348,14 +33826,14 @@ kobel_str hdr = kobel_concat(15, KOBEL_STR("."), node->tag_field, KOBEL_STR(" = 
 if (str_empty(node->payload_path)) {
 return kobel_concat(5, KOBEL_STR("("), node->c_name, KOBEL_STR("){ "), hdr, KOBEL_STR(" }"));
 }
-std__collections__List_str ctor_args = std__collections__std__collections__List_mut_ptr_compiler__ast__AstNode_map_str(&node->args, (kobel_closure){ (void*)__lambda_fn_57, (void*)&(struct __lambda_env_57){ &self } });
+std__collections__List_str ctor_args = std__collections__std__collections__List_mut_ptr_compiler__ast__AstNode_map_str(&node->args, (kobel_closure){ (void*)__lambda_fn_58, (void*)&(struct __lambda_env_58){ &self } });
 kobel_str joined = str_join(KOBEL_STR(", "), ctor_args);
 return kobel_concat(9, KOBEL_STR("("), node->c_name, KOBEL_STR("){ "), hdr, KOBEL_STR(", ."), node->payload_path, KOBEL_STR(" = { "), joined, KOBEL_STR(" } }"));
 }
 if (str_empty(node->payload_path)) {
 return kobel_concat(7, KOBEL_STR("("), node->c_name, KOBEL_STR("){ ."), node->tag_field, KOBEL_STR(" = "), i64_to_str(node->tag_value), KOBEL_STR(" }"));
 }
-std__collections__List_str ctor_args = std__collections__std__collections__List_mut_ptr_compiler__ast__AstNode_map_str(&node->args, (kobel_closure){ (void*)__lambda_fn_58, (void*)&(struct __lambda_env_58){ &self } });
+std__collections__List_str ctor_args = std__collections__std__collections__List_mut_ptr_compiler__ast__AstNode_map_str(&node->args, (kobel_closure){ (void*)__lambda_fn_59, (void*)&(struct __lambda_env_59){ &self } });
 kobel_str joined = str_join(KOBEL_STR(", "), ctor_args);
 return kobel_concat(11, KOBEL_STR("("), node->c_name, KOBEL_STR("){ ."), node->tag_field, KOBEL_STR(" = "), i64_to_str(node->tag_value), KOBEL_STR(", ."), node->payload_path, KOBEL_STR(" = { "), joined, KOBEL_STR(" } }"));
 } else if (node != NULL && node->data.tag == compiler__ast__NodeData__ErrorUnionWrapExpr__TAG) {
@@ -33411,12 +33889,12 @@ __for_i = __for_i + 1;
 return name;
 }
 
-struct __lambda_env_59 {
+struct __lambda_env_60 {
     compiler__codegen__CCodeGen* self;
 };
 
-static kobel_str __lambda_fn_59(void* __raw_env, compiler__semantic__symbols__LambdaCapture cap) {
-    struct __lambda_env_59* __env = (struct __lambda_env_59*)__raw_env;
+static kobel_str __lambda_fn_60(void* __raw_env, compiler__semantic__symbols__LambdaCapture cap) {
+    struct __lambda_env_60* __env = (struct __lambda_env_60*)__raw_env;
 kobel_str expr_s = compiler__codegen__CCodeGen_gen_ident_expr((__env->self), cap.name);
 return cap.is_mutable ? kobel_concat(2, KOBEL_STR("&"), expr_s) : expr_s;
 }
@@ -33429,7 +33907,7 @@ return KOBEL_STR("(kobel_closure){ NULL, NULL }");
 if (std__collections__List_compiler__semantic__symbols__LambdaCapture_empty(&info.captures)) {
 return kobel_concat(3, KOBEL_STR("(kobel_closure){ (void*)__lambda_fn_"), usz_to_str(info.id), KOBEL_STR(", NULL }"));
 }
-std__collections__List_str cap_inits = std__collections__std__collections__List_compiler__semantic__symbols__LambdaCapture_map_str(&info.captures, (kobel_closure){ (void*)__lambda_fn_59, (void*)&(struct __lambda_env_59){ self } });
+std__collections__List_str cap_inits = std__collections__std__collections__List_compiler__semantic__symbols__LambdaCapture_map_str(&info.captures, (kobel_closure){ (void*)__lambda_fn_60, (void*)&(struct __lambda_env_60){ self } });
 kobel_str joined = str_join(KOBEL_STR(", "), cap_inits);
 return kobel_concat(7, KOBEL_STR("(kobel_closure){ (void*)__lambda_fn_"), usz_to_str(info.id), KOBEL_STR(", (void*)&(struct __lambda_env_"), usz_to_str(info.id), KOBEL_STR("){ "), joined, KOBEL_STR(" } }"));
 }
@@ -33913,7 +34391,7 @@ kobel_str val_s = compiler__codegen__CCodeGen_gen_expr(self, asgn->value);
 return compiler__codegen__wrap_prec(kobel_concat(5, tgt, KOBEL_STR(" "), op_str, KOBEL_STR(" "), val_s), compiler__codegen__PREC_ASSIGN, min_prec);
 }
 
-static bool __lambda_fn_60(void* __raw_env, compiler__ast__WhenArm arm) {
+static bool __lambda_fn_61(void* __raw_env, compiler__ast__WhenArm arm) {
     (void)__raw_env;
     return arm.is_else;
 }
@@ -33923,7 +34401,7 @@ if (std__collections__List_compiler__ast__WhenArm_empty(&we->arms)) {
 return KOBEL_STR("0");
 }
 kobel_str cond = we->condition != NULL ? compiler__codegen__CCodeGen_gen_expr_prec(self, we->condition, compiler__codegen__PREC_POSTFIX) : KOBEL_STR("");
-bool has_else = std__collections__List_compiler__ast__WhenArm_any(&we->arms, (kobel_closure){ (void*)__lambda_fn_60, NULL });
+bool has_else = std__collections__List_compiler__ast__WhenArm_any(&we->arms, (kobel_closure){ (void*)__lambda_fn_61, NULL });
 if (we->arms.len == 1) {
 compiler__ast__WhenArm only = std__collections__List_compiler__ast__WhenArm_get(&we->arms, 0);
 if (only.is_else || !has_else) {
@@ -34367,14 +34845,14 @@ kobel_str body = str_strip_char(str_strip_suffix(raw, sfx.len), '_');
 return kobel_streq(sfx, KOBEL_STR("Z")) ? kobel_concat(3, KOBEL_STR("((intptr_t)"), body, KOBEL_STR("LL)")) : kobel_streq(sfx, KOBEL_STR("L")) ? kobel_concat(2, body, KOBEL_STR("LL")) : kobel_streq(sfx, KOBEL_STR("S")) ? kobel_concat(3, KOBEL_STR("((int16_t)"), body, KOBEL_STR(")")) : kobel_streq(sfx, KOBEL_STR("B")) ? kobel_concat(3, KOBEL_STR("((int8_t)"), body, KOBEL_STR(")")) : kobel_streq(sfx, KOBEL_STR("U")) ? kobel_concat(2, body, KOBEL_STR("U")) : kobel_streq(sfx, KOBEL_STR("UZ")) ? kobel_concat(3, KOBEL_STR("((size_t)"), body, KOBEL_STR("ULL)")) : kobel_streq(sfx, KOBEL_STR("UL")) ? kobel_concat(2, body, KOBEL_STR("ULL")) : kobel_streq(sfx, KOBEL_STR("UB")) ? kobel_concat(3, KOBEL_STR("((uint8_t)"), body, KOBEL_STR(")")) : kobel_streq(sfx, KOBEL_STR("US")) ? kobel_concat(3, KOBEL_STR("((uint16_t)"), body, KOBEL_STR(")")) : body;
 }
 
-static bool __lambda_fn_61(void* __raw_env, char c) {
+static bool __lambda_fn_62(void* __raw_env, char c) {
     (void)__raw_env;
     return c == '.' || c == 'e' || c == 'E';
 }
 
 kobel_str compiler__codegen__c_format_float_literal(kobel_str raw) {
 kobel_str text = str_strip_char(raw, '_');
-if (str_any(text, (kobel_closure){ (void*)__lambda_fn_61, NULL })) {
+if (str_any(text, (kobel_closure){ (void*)__lambda_fn_62, NULL })) {
 return text;
 }
 size_t len = text.len;
@@ -35746,18 +36224,18 @@ std__string__StringBuilder_plus_assign_2(&self->out, KOBEL_STR("}\n\n"));
 }
 }
 
-static bool __lambda_fn_62(void* __raw_env, compiler__ast__AstNode* p) {
+static bool __lambda_fn_63(void* __raw_env, compiler__ast__AstNode* p) {
     (void)__raw_env;
     return p != NULL && p->data.tag == compiler__ast__NodeData__IsExpr__TAG;
 }
 
-static bool __lambda_fn_63(void* __raw_env, compiler__ast__WhenArm arm) {
+static bool __lambda_fn_64(void* __raw_env, compiler__ast__WhenArm arm) {
     (void)__raw_env;
-    return (arm.body != NULL && arm.body->data.tag == compiler__ast__NodeData__BlockStmt__TAG) || std__collections__List_mut_ptr_compiler__ast__AstNode_any(&arm.patterns, (kobel_closure){ (void*)__lambda_fn_62, NULL });
+    return (arm.body != NULL && arm.body->data.tag == compiler__ast__NodeData__BlockStmt__TAG) || std__collections__List_mut_ptr_compiler__ast__AstNode_any(&arm.patterns, (kobel_closure){ (void*)__lambda_fn_63, NULL });
 }
 
 bool compiler__ast__NodeData__WhenExpr_has_blocks(compiler__ast__NodeData__WhenExpr* self) {
-    return std__collections__List_compiler__ast__WhenArm_any(&self->arms, (kobel_closure){ (void*)__lambda_fn_63, NULL });
+    return std__collections__List_compiler__ast__WhenArm_any(&self->arms, (kobel_closure){ (void*)__lambda_fn_64, NULL });
 }
 
 kobel_str compiler__codegen__CCodeGen_gen_cond(compiler__codegen__CCodeGen* self, compiler__ast__AstNode* cond) {
@@ -37814,7 +38292,7 @@ self->cursor++;
 
 std__collections__List_fmt__Comment fmt__Comment_extract(kobel_str src) {
 std__collections__List_fmt__Comment comments = std__collections__List_fmt__Comment_init(NULL, 0);
-int32_t i = 0;
+size_t i = 0;
 size_t len = src.len;
 int32_t line = 1;
 int32_t col = 1;
@@ -37908,7 +38386,7 @@ col++;
 continue;
 }
 if (c == '/' && i + 1 < len && src.data[i + 1] == '/') {
-int32_t start_i = i;
+size_t start_i = i;
 int32_t start_col = col;
 int32_t start_line = line;
 i += 2;
@@ -37922,7 +38400,7 @@ std__collections__List_fmt__Comment_plus_assign(&comments, (fmt__Comment){ text,
 continue;
 }
 if (c == '/' && i + 1 < len && src.data[i + 1] == '*') {
-int32_t start_i = i;
+size_t start_i = i;
 int32_t start_col = col;
 int32_t start_line = line;
 i += 2;
@@ -39969,12 +40447,12 @@ return fallback.raw;
 return KOBEL_STR("");
 }
 
-struct __lambda_env_64 {
+struct __lambda_env_65 {
     kobel_str owned_path;
 };
 
-static bool __lambda_fn_64(void* __raw_env, compiler__loader__LoadedModule lm) {
-    struct __lambda_env_64* __env = (struct __lambda_env_64*)__raw_env;
+static bool __lambda_fn_65(void* __raw_env, compiler__loader__LoadedModule lm) {
+    struct __lambda_env_65* __env = (struct __lambda_env_65*)__raw_env;
     return lsp__paths_equal(lm.path, (__env->owned_path));
 }
 
@@ -40104,7 +40582,7 @@ __for_i = __for_i + 1;
 }
 }
 if (use_in_place) {
-bool already_loaded_live = vfs != NULL && std__collections__List_compiler__loader__LoadedModule_any(&loader.ordered, (kobel_closure){ (void*)__lambda_fn_64, (void*)&(struct __lambda_env_64){ owned_path } });
+bool already_loaded_live = vfs != NULL && std__collections__List_compiler__loader__LoadedModule_any(&loader.ordered, (kobel_closure){ (void*)__lambda_fn_65, (void*)&(struct __lambda_env_65){ owned_path } });
 if (!already_loaded_live) {
 __kobel_eu_mut_ptr_compiler__ast__AstNode__compiler__loader__LoaderErr ov_res = compiler__loader__ModuleLoader_parse_source(&loader, owned_path, owned_source, doc_mod);
 {
@@ -43854,17 +44332,17 @@ return true;
 return false;
 }
 
-static bool __lambda_fn_65(void* __raw_env, compiler__ast__AstNode* s) {
+static bool __lambda_fn_66(void* __raw_env, compiler__ast__AstNode* s) {
     (void)__raw_env;
     return lsp__stmt_always_diverges_lsp(s);
 }
 
-static bool __lambda_fn_66(void* __raw_env, compiler__ast__WhenArm a) {
+static bool __lambda_fn_67(void* __raw_env, compiler__ast__WhenArm a) {
     (void)__raw_env;
     return a.is_else;
 }
 
-static bool __lambda_fn_67(void* __raw_env, compiler__ast__WhenArm a) {
+static bool __lambda_fn_68(void* __raw_env, compiler__ast__WhenArm a) {
     (void)__raw_env;
     return lsp__stmt_always_diverges_lsp(a.body);
 }
@@ -43880,13 +44358,13 @@ compiler__ast__NodeData__ExprStmt* es = (compiler__ast__NodeData__ExprStmt*)(&no
 return lsp__is_diverging_call(es->expr);
 } else if (node != NULL && node->data.tag == compiler__ast__NodeData__BlockStmt__TAG) {
 compiler__ast__NodeData__BlockStmt* blk = (compiler__ast__NodeData__BlockStmt*)(&node->data.u.BlockStmt);
-return std__collections__List_mut_ptr_compiler__ast__AstNode_any(&blk->statements, (kobel_closure){ (void*)__lambda_fn_65, NULL });
+return std__collections__List_mut_ptr_compiler__ast__AstNode_any(&blk->statements, (kobel_closure){ (void*)__lambda_fn_66, NULL });
 } else if (node != NULL && node->data.tag == compiler__ast__NodeData__IfStmt__TAG) {
 compiler__ast__NodeData__IfStmt* ifs = (compiler__ast__NodeData__IfStmt*)(&node->data.u.IfStmt);
 return ifs->else_branch != NULL && lsp__stmt_always_diverges_lsp(ifs->then_branch) && lsp__stmt_always_diverges_lsp(ifs->else_branch);
 } else if (node != NULL && node->data.tag == compiler__ast__NodeData__WhenStmt__TAG) {
 compiler__ast__NodeData__WhenStmt* ws = (compiler__ast__NodeData__WhenStmt*)(&node->data.u.WhenStmt);
-return !std__collections__List_compiler__ast__WhenArm_empty(&ws->arms) && std__collections__List_compiler__ast__WhenArm_any(&ws->arms, (kobel_closure){ (void*)__lambda_fn_66, NULL }) && std__collections__List_compiler__ast__WhenArm_all(&ws->arms, (kobel_closure){ (void*)__lambda_fn_67, NULL });
+return !std__collections__List_compiler__ast__WhenArm_empty(&ws->arms) && std__collections__List_compiler__ast__WhenArm_any(&ws->arms, (kobel_closure){ (void*)__lambda_fn_67, NULL }) && std__collections__List_compiler__ast__WhenArm_all(&ws->arms, (kobel_closure){ (void*)__lambda_fn_68, NULL });
 } else {
 return false;
 }
@@ -44390,7 +44868,7 @@ kobel_str lsp__method_struct_key(kobel_str method_key) {
 if (!str_starts_with(method_key, KOBEL_STR("method:"))) {
 return KOBEL_STR("");
 }
-int32_t c1 = 6;
+size_t c1 = 6;
 intptr_t c2 = -1;
 intptr_t c3 = -1;
 {
@@ -44818,7 +45296,7 @@ kobel_str lsp__uri_to_path(kobel_str uri) {
 kobel_str s = uri;
 s = s.len >= 8 && kobel_streq(kobel_slice(s, 0, 8), KOBEL_STR("file:///")) ? kobel_slice(s, 8, s.len) : s.len >= 7 && kobel_streq(kobel_slice(s, 0, 7), KOBEL_STR("file://")) ? kobel_slice(s, 7, s.len) : s;
 std__string__StringBuilder sb = std__string__StringBuilder_init(32);
-int32_t i = 0;
+size_t i = 0;
 while (i < s.len) {
 char c = s.data[i];
 if (c == '%' && i + 2 < s.len) {
@@ -53284,7 +53762,7 @@ size_t std__collections__HashMap_str_str_count(std__collections__HashMap_str_str
 }
 
 std__collections__Pair_str_str std__collections__HashMap_str_str_at(std__collections__HashMap_str_str* self, size_t i) {
-int32_t seen = 0;
+size_t seen = 0;
 {
 size_t __for_e = self->cap;
 size_t __for_i = __for_e;
@@ -53656,7 +54134,7 @@ size_t std__collections__HashSet_str_count(std__collections__HashSet_str* self) 
 }
 
 kobel_str std__collections__HashSet_str_at(std__collections__HashSet_str* self, size_t i) {
-int32_t seen = 0;
+size_t seen = 0;
 {
 size_t __for_e = self->cap;
 size_t __for_i = __for_e;
@@ -54357,7 +54835,7 @@ size_t std__collections__HashMap_str_compiler__loader__OverrideEntry_count(std__
 }
 
 std__collections__Pair_str_compiler__loader__OverrideEntry std__collections__HashMap_str_compiler__loader__OverrideEntry_at(std__collections__HashMap_str_compiler__loader__OverrideEntry* self, size_t i) {
-int32_t seen = 0;
+size_t seen = 0;
 {
 size_t __for_e = self->cap;
 size_t __for_i = __for_e;
@@ -54617,7 +55095,7 @@ size_t std__collections__HashMap_str_compiler__loader__CachedSource_count(std__c
 }
 
 std__collections__Pair_str_compiler__loader__CachedSource std__collections__HashMap_str_compiler__loader__CachedSource_at(std__collections__HashMap_str_compiler__loader__CachedSource* self, size_t i) {
-int32_t seen = 0;
+size_t seen = 0;
 {
 size_t __for_e = self->cap;
 size_t __for_i = __for_e;
@@ -54820,7 +55298,7 @@ self->cap = new_cap;
 }
 
 size_t std__collections__List_ptr_compiler__semantic__types__MethodInfo_count_where(std__collections__List_ptr_compiler__semantic__types__MethodInfo* self, kobel_closure predicate) {
-int32_t n = 0;
+size_t n = 0;
 {
 size_t __for_n = std__collections__List_ptr_compiler__semantic__types__MethodInfo_count(self);
 size_t __for_i = 0;
@@ -60827,7 +61305,7 @@ size_t std__collections__HashMap_str_std__collections__List_compiler__lexer__Tok
 }
 
 std__collections__Pair_str_std__collections__List_compiler__lexer__Token std__collections__HashMap_str_std__collections__List_compiler__lexer__Token_at(std__collections__HashMap_str_std__collections__List_compiler__lexer__Token* self, size_t i) {
-int32_t seen = 0;
+size_t seen = 0;
 {
 size_t __for_e = self->cap;
 size_t __for_i = __for_e;
@@ -61340,7 +61818,7 @@ size_t std__collections__HashMap_str_lsp__Document_count(std__collections__HashM
 }
 
 std__collections__Pair_str_lsp__Document std__collections__HashMap_str_lsp__Document_at(std__collections__HashMap_str_lsp__Document* self, size_t i) {
-int32_t seen = 0;
+size_t seen = 0;
 {
 size_t __for_e = self->cap;
 size_t __for_i = __for_e;
@@ -62226,6 +62704,84 @@ self->cap = new_cap;
 
 void std__collections__List_compiler__semantic__lowering__PendingResolve_plus_assign(std__collections__List_compiler__semantic__lowering__PendingResolve* self, compiler__semantic__lowering__PendingResolve value) {
     std__collections__List_compiler__semantic__lowering__PendingResolve_add(self, value);
+}
+
+compiler__semantic__checker__MoveStateEntry std__collections__List_compiler__semantic__checker__MoveStateEntry_at(std__collections__List_compiler__semantic__checker__MoveStateEntry* self, size_t i) {
+    return self->data[i];
+}
+
+std__collections__List_compiler__semantic__checker__MoveStateEntry std__collections__List_compiler__semantic__checker__MoveStateEntry_init(compiler__semantic__checker__MoveStateEntry* items_data, size_t items_len) {
+if (items_len == 0) {
+return (std__collections__List_compiler__semantic__checker__MoveStateEntry){ std__memory__Heap_null_ptr_compiler__semantic__checker__MoveStateEntry(), 0, 0 };
+}
+size_t cap = items_len < 4 ? 4 : items_len;
+compiler__semantic__checker__MoveStateEntry* buf = std__memory__Heap_create_compiler__semantic__checker__MoveStateEntry(cap);
+{
+size_t __for_e = items_len;
+size_t __for_i = __for_e;
+__for_i = 0;
+bool __for_up = __for_i <= __for_e;
+bool __for_go = false;
+if (__for_up) {
+__for_go = __for_i < __for_e;
+} else {
+__for_go = __for_i > __for_e;
+}
+while (__for_go) {
+size_t i = __for_i;
+buf[i] = items_data[i];
+if (__for_up) {
+__for_go = __for_i + 1 < __for_e;
+} else {
+__for_go = __for_i - 1 > __for_e;
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = __for_i + 1;
+} else {
+__for_i = __for_i - 1;
+}
+}
+}
+}
+return (std__collections__List_compiler__semantic__checker__MoveStateEntry){ buf, items_len, cap };
+}
+
+void std__collections__List_compiler__semantic__checker__MoveStateEntry_add(std__collections__List_compiler__semantic__checker__MoveStateEntry* self, compiler__semantic__checker__MoveStateEntry value) {
+if (self->len == self->cap) {
+std__collections__List_compiler__semantic__checker__MoveStateEntry_grow(self);
+}
+self->data[self->len] = value;
+self->len++;
+}
+
+void std__collections__List_compiler__semantic__checker__MoveStateEntry_grow(std__collections__List_compiler__semantic__checker__MoveStateEntry* self) {
+if (self->cap == 0) {
+self->data = std__memory__Heap_create_compiler__semantic__checker__MoveStateEntry(4);
+self->cap = 4;
+return;
+}
+size_t new_cap = self->cap * 2;
+self->data = std__memory__Heap_resize_compiler__semantic__checker__MoveStateEntry(self->data, new_cap);
+self->cap = new_cap;
+}
+
+void std__collections__List_compiler__semantic__checker__MoveStateEntry_free(std__collections__List_compiler__semantic__checker__MoveStateEntry self) {
+if (self.cap > 0) {
+std__memory__Heap_free_compiler__semantic__checker__MoveStateEntry(self.data);
+}
+}
+
+compiler__semantic__checker__MoveStateEntry std__collections__List_compiler__semantic__checker__MoveStateEntry_get(std__collections__List_compiler__semantic__checker__MoveStateEntry* self, size_t index) {
+    return self->data[index];
+}
+
+compiler__semantic__checker__MoveStateEntry std__collections__List_compiler__semantic__checker__MoveStateEntry_set(std__collections__List_compiler__semantic__checker__MoveStateEntry* self, size_t index, compiler__semantic__checker__MoveStateEntry value) {
+    return self->data[index] = value;
+}
+
+void std__collections__List_compiler__semantic__checker__MoveStateEntry_plus_assign(std__collections__List_compiler__semantic__checker__MoveStateEntry* self, compiler__semantic__checker__MoveStateEntry value) {
+    std__collections__List_compiler__semantic__checker__MoveStateEntry_add(self, value);
 }
 
 size_t std__collections__List_ptr_compiler__semantic__checker__ArrowCandidate_count(std__collections__List_ptr_compiler__semantic__checker__ArrowCandidate* self) {
@@ -64869,6 +65425,42 @@ return (__kobel_eu_mut_ptr_compiler__semantic__lowering__PendingResolve__std__me
 return (__kobel_eu_mut_ptr_compiler__semantic__lowering__PendingResolve__std__memory__MemErr){ .is_ok = true, .u = { .ok = (compiler__semantic__lowering__PendingResolve*)raw } };
 }
 
+compiler__semantic__checker__MoveStateEntry* std__memory__Heap_null_ptr_compiler__semantic__checker__MoveStateEntry(void) {
+    return (compiler__semantic__checker__MoveStateEntry*)kobel_null_ptr();
+}
+
+compiler__semantic__checker__MoveStateEntry* std__memory__Heap_create_compiler__semantic__checker__MoveStateEntry(size_t count) {
+    return __kobel_unwrap___kobel_eu_mut_ptr_compiler__semantic__checker__MoveStateEntry__std__memory__MemErr(std__memory__Heap_try_create_compiler__semantic__checker__MoveStateEntry(count), "lib/std/memory/heap.kb", 47, 63, "Heap_create_compiler__semantic__checker__MoveStateEntry");
+}
+
+__kobel_eu_mut_ptr_compiler__semantic__checker__MoveStateEntry__std__memory__MemErr std__memory__Heap_try_create_compiler__semantic__checker__MoveStateEntry(size_t count) {
+size_t bytes = count * 16;
+__kobel_eu_mut_ptr_u8__std__memory__MemErr __eu_prop_156 = std__memory__Heap_try_alloc(bytes);
+if (!__eu_prop_156.is_ok) {
+return (__kobel_eu_mut_ptr_compiler__semantic__checker__MoveStateEntry__std__memory__MemErr){ .is_ok = false, .u = { .err = __eu_prop_156.u.err } };
+}
+uint8_t* raw = __eu_prop_156.u.ok;
+return (__kobel_eu_mut_ptr_compiler__semantic__checker__MoveStateEntry__std__memory__MemErr){ .is_ok = true, .u = { .ok = (compiler__semantic__checker__MoveStateEntry*)raw } };
+}
+
+compiler__semantic__checker__MoveStateEntry* std__memory__Heap_resize_compiler__semantic__checker__MoveStateEntry(compiler__semantic__checker__MoveStateEntry* ptr, size_t count) {
+    return __kobel_unwrap___kobel_eu_mut_ptr_compiler__semantic__checker__MoveStateEntry__std__memory__MemErr(std__memory__Heap_try_resize_compiler__semantic__checker__MoveStateEntry(ptr, count), "lib/std/memory/heap.kb", 57, 73, "Heap_resize_compiler__semantic__checker__MoveStateEntry");
+}
+
+__kobel_eu_mut_ptr_compiler__semantic__checker__MoveStateEntry__std__memory__MemErr std__memory__Heap_try_resize_compiler__semantic__checker__MoveStateEntry(compiler__semantic__checker__MoveStateEntry* ptr, size_t count) {
+size_t bytes = count * 16;
+size_t req = bytes == 0 ? 1 : bytes;
+uint8_t* raw = kobel_realloc((uint8_t*)ptr, req);
+if (raw == NULL) {
+return (__kobel_eu_mut_ptr_compiler__semantic__checker__MoveStateEntry__std__memory__MemErr){ .is_ok = false, .u = { .err = (std__memory__MemErr){ .tag = 0, .__err_code = 1U, .__origin = { "lib/std/memory/heap.kb", 42, 60, "Heap_try_resize_compiler__semantic__checker__MoveStateEntry" } } } };
+}
+return (__kobel_eu_mut_ptr_compiler__semantic__checker__MoveStateEntry__std__memory__MemErr){ .is_ok = true, .u = { .ok = (compiler__semantic__checker__MoveStateEntry*)raw } };
+}
+
+void std__memory__Heap_free_compiler__semantic__checker__MoveStateEntry(compiler__semantic__checker__MoveStateEntry* ptr) {
+    kobel_free((uint8_t*)ptr);
+}
+
 compiler__semantic__checker__ArrowCandidate** std__memory__Heap_null_ptr_ptr_compiler__semantic__checker__ArrowCandidate(void) {
     return (compiler__semantic__checker__ArrowCandidate**)kobel_null_ptr();
 }
@@ -64879,11 +65471,11 @@ compiler__semantic__checker__ArrowCandidate** std__memory__Heap_create_ptr_compi
 
 __kobel_eu_mut_ptr_ptr_compiler__semantic__checker__ArrowCandidate__std__memory__MemErr std__memory__Heap_try_create_ptr_compiler__semantic__checker__ArrowCandidate(size_t count) {
 size_t bytes = count * 8;
-__kobel_eu_mut_ptr_u8__std__memory__MemErr __eu_prop_156 = std__memory__Heap_try_alloc(bytes);
-if (!__eu_prop_156.is_ok) {
-return (__kobel_eu_mut_ptr_ptr_compiler__semantic__checker__ArrowCandidate__std__memory__MemErr){ .is_ok = false, .u = { .err = __eu_prop_156.u.err } };
+__kobel_eu_mut_ptr_u8__std__memory__MemErr __eu_prop_157 = std__memory__Heap_try_alloc(bytes);
+if (!__eu_prop_157.is_ok) {
+return (__kobel_eu_mut_ptr_ptr_compiler__semantic__checker__ArrowCandidate__std__memory__MemErr){ .is_ok = false, .u = { .err = __eu_prop_157.u.err } };
 }
-uint8_t* raw = __eu_prop_156.u.ok;
+uint8_t* raw = __eu_prop_157.u.ok;
 return (__kobel_eu_mut_ptr_ptr_compiler__semantic__checker__ArrowCandidate__std__memory__MemErr){ .is_ok = true, .u = { .ok = (compiler__semantic__checker__ArrowCandidate**)raw } };
 }
 
@@ -64911,11 +65503,11 @@ compiler__codegen__ConditionAlias* std__memory__Heap_create_compiler__codegen__C
 
 __kobel_eu_mut_ptr_compiler__codegen__ConditionAlias__std__memory__MemErr std__memory__Heap_try_create_compiler__codegen__ConditionAlias(size_t count) {
 size_t bytes = count * 48;
-__kobel_eu_mut_ptr_u8__std__memory__MemErr __eu_prop_157 = std__memory__Heap_try_alloc(bytes);
-if (!__eu_prop_157.is_ok) {
-return (__kobel_eu_mut_ptr_compiler__codegen__ConditionAlias__std__memory__MemErr){ .is_ok = false, .u = { .err = __eu_prop_157.u.err } };
+__kobel_eu_mut_ptr_u8__std__memory__MemErr __eu_prop_158 = std__memory__Heap_try_alloc(bytes);
+if (!__eu_prop_158.is_ok) {
+return (__kobel_eu_mut_ptr_compiler__codegen__ConditionAlias__std__memory__MemErr){ .is_ok = false, .u = { .err = __eu_prop_158.u.err } };
 }
-uint8_t* raw = __eu_prop_157.u.ok;
+uint8_t* raw = __eu_prop_158.u.ok;
 return (__kobel_eu_mut_ptr_compiler__codegen__ConditionAlias__std__memory__MemErr){ .is_ok = true, .u = { .ok = (compiler__codegen__ConditionAlias*)raw } };
 }
 
@@ -64947,11 +65539,11 @@ lsp__JsonArrRef* std__memory__Heap_create_lsp__JsonArrRef(size_t count) {
 
 __kobel_eu_mut_ptr_lsp__JsonArrRef__std__memory__MemErr std__memory__Heap_try_create_lsp__JsonArrRef(size_t count) {
 size_t bytes = count * 8;
-__kobel_eu_mut_ptr_u8__std__memory__MemErr __eu_prop_158 = std__memory__Heap_try_alloc(bytes);
-if (!__eu_prop_158.is_ok) {
-return (__kobel_eu_mut_ptr_lsp__JsonArrRef__std__memory__MemErr){ .is_ok = false, .u = { .err = __eu_prop_158.u.err } };
+__kobel_eu_mut_ptr_u8__std__memory__MemErr __eu_prop_159 = std__memory__Heap_try_alloc(bytes);
+if (!__eu_prop_159.is_ok) {
+return (__kobel_eu_mut_ptr_lsp__JsonArrRef__std__memory__MemErr){ .is_ok = false, .u = { .err = __eu_prop_159.u.err } };
 }
-uint8_t* raw = __eu_prop_158.u.ok;
+uint8_t* raw = __eu_prop_159.u.ok;
 return (__kobel_eu_mut_ptr_lsp__JsonArrRef__std__memory__MemErr){ .is_ok = true, .u = { .ok = (lsp__JsonArrRef*)raw } };
 }
 
@@ -64977,11 +65569,11 @@ std__memory__ArenaState* std__memory__Heap_create_std__memory__ArenaState(size_t
 
 __kobel_eu_mut_ptr_std__memory__ArenaState__std__memory__MemErr std__memory__Heap_try_create_std__memory__ArenaState(size_t count) {
 size_t bytes = count * 16;
-__kobel_eu_mut_ptr_u8__std__memory__MemErr __eu_prop_160 = std__memory__Heap_try_alloc(bytes);
-if (!__eu_prop_160.is_ok) {
-return (__kobel_eu_mut_ptr_std__memory__ArenaState__std__memory__MemErr){ .is_ok = false, .u = { .err = __eu_prop_160.u.err } };
+__kobel_eu_mut_ptr_u8__std__memory__MemErr __eu_prop_161 = std__memory__Heap_try_alloc(bytes);
+if (!__eu_prop_161.is_ok) {
+return (__kobel_eu_mut_ptr_std__memory__ArenaState__std__memory__MemErr){ .is_ok = false, .u = { .err = __eu_prop_161.u.err } };
 }
-uint8_t* raw = __eu_prop_160.u.ok;
+uint8_t* raw = __eu_prop_161.u.ok;
 return (__kobel_eu_mut_ptr_std__memory__ArenaState__std__memory__MemErr){ .is_ok = true, .u = { .ok = (std__memory__ArenaState*)raw } };
 }
 
@@ -65010,7 +65602,7 @@ compiler__semantic__symbols__SemanticTable* std__memory__Arena_create_compiler__
 }
 
 compiler__semantic__symbols__Symbol* std__memory__Arena_create_compiler__semantic__symbols__Symbol(std__memory__Arena* self) {
-    return (compiler__semantic__symbols__Symbol*)std__memory__Arena_alloc_bytes(self, 112, 8);
+    return (compiler__semantic__symbols__Symbol*)std__memory__Arena_alloc_bytes(self, 136, 8);
 }
 
 compiler__semantic__symbols__ModuleScope* std__memory__Arena_create_compiler__semantic__symbols__ModuleScope(std__memory__Arena* self) {

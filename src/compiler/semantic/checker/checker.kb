@@ -30,6 +30,11 @@ use compiler.semantic.resolution.*;
 use compiler.semantic.declaration.*;
 use compiler.semantic.lowering.*;
 
+pub struct MoveStateEntry {
+	pub sym: &Symbol,
+	pub is_moved: bool
+}
+
 pub struct BodyChecker {
 	pub symtab: SymbolTable = SymbolTable(),
 	pub arena: Arena = Arena(),
@@ -70,7 +75,8 @@ pub struct BodyChecker {
 	pub current_fn_display_name: str = "",
 	pub non_null_paths: List<str> = List(),
 	pub non_null_marks: List<usz> = List(),
-	pub target_module: str = ""
+	pub target_module: str = "",
+	pub defer_untyped_int_finalize: bool = false
 }
 
 impl BodyChecker {
@@ -216,6 +222,94 @@ impl BodyChecker {
 			}
 		}
 		return false;
+	}
+
+	pub fn snapshot_move_state(*self): List<MoveStateEntry> {
+		var snap = List<MoveStateEntry>();
+		var cur: ?&Scope = self.symtab.current_scope;
+		while (cur != null) {
+			for (e in cur.entries) {
+				if (e.sym.kind in [SymbolKind.VAR, SymbolKind.PARAM]) {
+					snap += MoveStateEntry(e.sym, e.sym.is_moved);
+				}
+			}
+			if (cur.is_fn_boundary) break;
+			cur = cur.parent;
+		}
+		return snap;
+	}
+
+	pub fn restore_move_state(*self, snap: *List<MoveStateEntry>) {
+		for (i in 0..<snap.len) {
+			val e = snap.at(i);
+			e.sym.is_moved = e.is_moved;
+		}
+	}
+
+	pub fn merge_move_state(*self, a: *List<MoveStateEntry>, b: *List<MoveStateEntry>) {
+		val n = if (a.len < b.len) a.len else b.len;
+		for (i in 0..<n) {
+			val ea = a.at(i);
+			val eb = b.at(i);
+			ea.sym.is_moved = ea.is_moved || eb.is_moved;
+		}
+	}
+
+	pub fn is_untyped_int_literal(*self, node: ?*AstNode): bool {
+		val raw = node ?: return false;
+		val cur = self.unwrap_group(raw);
+		if (cur is LiteralExpr as lit) {
+			return lit.literal_kind == Literal.INTEGER && lit.raw_text.num_suffix().empty();
+		}
+		if (cur is UnaryExpr as un && !un.is_postfix && un.op in [TokenType.MINUS, TokenType.PLUS]) {
+			return self.is_untyped_int_literal(un.operand);
+		}
+		return false;
+	}
+
+	pub fn is_neg_untyped_int_literal(*self, node: ?*AstNode): bool {
+		val raw = node ?: return false;
+		val cur = self.unwrap_group(raw);
+		if (cur is UnaryExpr as un && !un.is_postfix && un.op == TokenType.MINUS) {
+			return self.is_untyped_int_literal(un.operand);
+		}
+		return false;
+	}
+
+	pub fn can_adopt_untyped_int(*self, sym: *Symbol, ty: ?*Type): bool {
+		if (ty == null || !ty.is_integer()) return false;
+		if (sym.untyped_int_signed) {
+			return ty.kind in [DataType.I8, DataType.I16, DataType.I32, DataType.I64, DataType.ISZ];
+		}
+		return true;
+	}
+
+	pub fn adopt_untyped_int_var(&self, sym: &Symbol, ty: *Type) {
+		val decl_node = sym.untyped_int_decl;
+		val init_node = sym.untyped_int_init;
+		sym.type_ptr = ty;
+		sym.untyped_int_decl = null;
+		sym.untyped_int_init = null;
+		if (decl_node != null) {
+			if (self.current_rec != null) {
+				self.set_ann_var_ty(decl_node, ty);
+			} else if (decl_node is VarDeclStmt as vd) {
+				vd.type_annotation = self.arena.ast_type_from_type(ty);
+			}
+		}
+		if (init_node != null) {
+			self.annotate_type(init_node, ty);
+		}
+	}
+
+	pub fn lookup_untyped_int_sym(*self, expr: ?*AstNode): ?&Symbol {
+		val raw = expr ?: return null;
+		val cur = self.unwrap_group(raw);
+		if (cur is IdentifierExpr as id) {
+			val sym = self.symtab.lookup_local_mut(id.name) ?: return null;
+			if (sym.untyped_int_decl != null) return sym;
+		}
+		return null;
 	}
 
 	pub fn report_warning(&self, node: ?*AstNode, msg: str) {
@@ -494,7 +588,7 @@ impl BodyChecker {
 		val target = node;
 		return when (target) {
 			is LiteralExpr -> self.check_literal_expr(node, expected);
-			is IdentifierExpr -> self.check_ident_expr(node);
+			is IdentifierExpr -> self.check_ident_expr(node, expected);
 			is BinaryExpr -> self.check_binary_expr(node, expected);
 			is UnaryExpr -> self.check_unary_expr(node, expected);
 			is CallExpr -> self.check_call_expr(node, expected);

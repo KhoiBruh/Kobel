@@ -540,10 +540,14 @@ impl BodyChecker {
 				}
 			}
 
+			val untyped_target_sym = self.lookup_untyped_int_sym(target_expr);
 			val prev_asgn_target = self.is_assign_target;
+			val prev_defer_int = self.defer_untyped_int_finalize;
 			if (asgn.op == TokenType.EQUAL) self.is_assign_target = true;
+			if (untyped_target_sym != null) self.defer_untyped_int_finalize = true;
 			var target_ty = self.check_expr(asgn.target);
 			self.is_assign_target = prev_asgn_target;
+			self.defer_untyped_int_finalize = prev_defer_int;
 			var sym_to_update: ?&Symbol = null;
 			if (target_expr is IdentifierExpr as id) {
 				val sym = self.symtab.lookup_local_mut(id.name);
@@ -557,8 +561,24 @@ impl BodyChecker {
 			}
 			val prev_stmt = self.is_stmt_level;
 			self.is_stmt_level = was_stmt;
-			val val_ty = self.check_expr(asgn.value, target_ty);
+			val val_expected: ?*Type = if (untyped_target_sym != null) null else target_ty;
+			val val_ty = self.check_expr(asgn.value, val_expected);
 			self.is_stmt_level = prev_stmt;
+
+			if (untyped_target_sym != null && untyped_target_sym.untyped_int_decl != null) {
+				if (self.is_untyped_int_literal(asgn.value)) {
+					if (asgn.op == TokenType.EQUAL && self.is_neg_untyped_int_literal(asgn.value)) {
+						untyped_target_sym.untyped_int_signed = true;
+					}
+				} else if (self.can_adopt_untyped_int(untyped_target_sym, val_ty)) {
+					self.adopt_untyped_int_var(untyped_target_sym, val_ty);
+					target_ty = val_ty;
+					self.annotate_type(asgn.target, val_ty);
+				} else {
+					untyped_target_sym.untyped_int_decl = null;
+					untyped_target_sym.untyped_int_init = null;
+				}
+			}
 
 			if (asgn.op != TokenType.EQUAL) {
 				val t_is_ptr = target_ty.kind == DataType.POINTER;
@@ -742,7 +762,10 @@ impl BodyChecker {
 				}
 			}
 
+			val prev_defer_int = self.defer_untyped_int_finalize;
+			self.defer_untyped_int_finalize = true;
 			val target_ty = self.check_expr(u.target);
+			self.defer_untyped_int_finalize = prev_defer_int;
 			self.check_lvalue_mutability(target_expr, node, true);
 			self.ensure(
 				target_ty.is_numeric(),

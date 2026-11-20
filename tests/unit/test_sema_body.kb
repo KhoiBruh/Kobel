@@ -3,9 +3,11 @@ mod test.bootstrap_sema_body;
 use std.io.print;
 use std.io.println;
 
+use compiler.ast.*;
 use compiler.lexer.Lexer;
 use compiler.parser.*;
 
+use compiler.semantic.types.DataType;
 use compiler.semantic.checker.BodyChecker;
 
 
@@ -330,6 +332,100 @@ fn test_val_immutability() {
 	var bp11 = BodyChecker();
 	bp11.check_program(p11.parse_program());
 	assert_true(bp11.errors.len >= 1, "Must catch move method call on pointer receiver");
+
+	// 6l: Flow-sensitive move: early return in if keeps value alive after if
+	val src12 = """
+		struct Resource { pub id: i32 }
+		impl Resource {
+		    pub fn consume(self): i32 => self.id;
+		}
+		fn test(flag: bool): i32 {
+		    val r = Resource(1);
+		    if (flag) {
+		        r.consume();
+		        return 0;
+		    }
+		    return r.consume();
+		}
+	""";
+	var l12 = Lexer(src12);
+	var p12 = Parser(l12.tokenize());
+	var bp12 = BodyChecker();
+	bp12.check_program(p12.parse_program());
+	assert_eq_usz(bp12.errors.len, 0, "Early-return branch move must not poison fallthrough");
+
+	// 6m: Flow-sensitive move: non-diverging if branch move poisons fallthrough
+	val src13 = """
+		struct Resource { pub id: i32 }
+		impl Resource {
+		    pub fn consume(self): i32 => self.id;
+		}
+		fn test(flag: bool): i32 {
+		    val r = Resource(1);
+		    if (flag) {
+		        r.consume();
+		    }
+		    return r.consume();
+		}
+	""";
+	var l13 = Lexer(src13);
+	var p13 = Parser(l13.tokenize());
+	var bp13 = BodyChecker();
+	bp13.check_program(p13.parse_program());
+	assert_true(bp13.errors.len >= 1, "Must catch use of value moved in non-diverging branch");
+
+	// 6n: Deferred untyped integer variable inference from +=, comparison, and return
+	val src14 = """
+		fn count_len(s: str): usz {
+		    var total = 0;
+		    total += s.len;
+		    return total;
+		}
+		fn count_inc(s: str): usz {
+		    var n = 0;
+		    var i = 0;
+		    while (i < s.len) {
+		        n++;
+		        i++;
+		    }
+		    return n;
+		}
+		fn signed_neg(s: str): i64 {
+		    var neg = -1;
+		    neg += 2;
+		    return neg;
+		}
+	""";
+	var l14 = Lexer(src14);
+	var p14 = Parser(l14.tokenize());
+	val prog14 = p14.parse_program();
+	var bp14 = BodyChecker();
+	bp14.check_program(prog14);
+	assert_eq_usz(bp14.errors.len, 0, "Deferred untyped int variable inference must typecheck cleanly");
+	if (prog14 is Program as pr14) {
+		// count_len: var total = 0 -> usz
+		if (pr14.declarations[0] is FnDecl as f0 && f0.body is BlockStmt as b0 && b0.statements[0] is VarDeclStmt as vd0) {
+			assert_true(vd0.type_annotation != null, "total must have inferred type annotation");
+			val ty0 = bp14.resolve_type(vd0.type_annotation!);
+			assert_true(ty0.kind == DataType.USZ, "total += s.len must infer usz");
+		}
+		// count_inc: var n = 0 -> usz (via return), var i = 0 -> usz (via i < s.len)
+		if (pr14.declarations[1] is FnDecl as f1 && f1.body is BlockStmt as b1) {
+			if (b1.statements[0] is VarDeclStmt as vd1) {
+				val ty1 = bp14.resolve_type(vd1.type_annotation!);
+				assert_true(ty1.kind == DataType.USZ, "n++ + return n must infer usz");
+			}
+			if (b1.statements[1] is VarDeclStmt as vd2) {
+				val ty2 = bp14.resolve_type(vd2.type_annotation!);
+				assert_true(ty2.kind == DataType.USZ, "i < s.len must infer usz");
+			}
+		}
+		// signed_neg: var neg = -1 -> i64 (via return)
+		if (pr14.declarations[2] is FnDecl as f2 && f2.body is BlockStmt as b2 && b2.statements[0] is VarDeclStmt as vd3) {
+			val ty3 = bp14.resolve_type(vd3.type_annotation!);
+			assert_true(ty3.kind == DataType.I64, "neg = -1 + return i64 must infer i64");
+		}
+	}
 
 	println("  [PASS] test_val_immutability");
 }

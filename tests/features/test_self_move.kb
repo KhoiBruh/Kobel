@@ -23,6 +23,42 @@ impl Point {
 
 }
 
+fn move_early_return(flag: bool): i32 {
+	val p = Point(10, 20);
+	if (flag) {
+		return p.into_sum();
+	}
+	return p.into_sum() + 1;
+}
+
+fn move_if_else(flag: bool): i32 {
+	val p = Point(3, 4);
+	if (flag) {
+		return p.into_sum();
+	} else {
+		return p.into_sum() * 2;
+	}
+}
+
+fn move_when(tag: i32): i32 {
+	val p = Point(5, 6);
+	when (tag) {
+		0 -> return p.into_sum();
+		else -> return p.into_sum() + 10;
+	}
+}
+
+fn reassign_both_branches(flag: bool): i32 {
+	var p = Point(1, 2);
+	val _ = p.into_sum();
+	if (flag) {
+		p = Point(7, 8);
+	} else {
+		p = Point(9, 10);
+	}
+	return p.into_sum();
+}
+
 fn run_tests(): i32 {
 	var p = Point(10, 20);
 
@@ -41,6 +77,16 @@ fn run_tests(): i32 {
 	// Reassigning allows using p again
 	p = Point(100, 200);
 	if (p.sum() != 300) return 5;
+
+	// Flow-sensitive move across branches
+	if (move_early_return(true) != 30) return 6;
+	if (move_early_return(false) != 31) return 7;
+	if (move_if_else(true) != 7) return 8;
+	if (move_if_else(false) != 14) return 9;
+	if (move_when(0) != 11) return 10;
+	if (move_when(1) != 21) return 11;
+	if (reassign_both_branches(true) != 15) return 12;
+	if (reassign_both_branches(false) != 19) return 13;
 
 	return 0;
 }

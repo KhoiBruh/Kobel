@@ -73,6 +73,8 @@ impl BodyChecker {
 				}
 			}
 
+			val is_untyped_int_var = vd.type_annotation == null && has_init && self.is_untyped_int_literal(vd.initializer);
+
 			if (vd.type_annotation == null && has_init) {
 				if (self.current_rec != null) {
 					self.set_ann_var_ty(node, var_ty);
@@ -86,6 +88,11 @@ impl BodyChecker {
 			}
 
 			var sym = Symbol(vd.name, vd.name, SymbolKind.VAR, var_ty, vd.mutable, false, node.line, node.col, null);
+			if (is_untyped_int_var) {
+				sym.untyped_int_decl = node;
+				sym.untyped_int_init = vd.initializer;
+				sym.untyped_int_signed = self.is_neg_untyped_int_literal(vd.initializer);
+			}
 			if (vd.mutable && vd.initializer != null) {
 				val v_key = self.decl_loc_key("V", node);
 				if (!v_key.empty()) {
@@ -384,6 +391,8 @@ impl BodyChecker {
 	pub fn check_if_stmt(&self, node: &AstNode) {
 		if (node is IfStmt as if_s) {
 			val conds = self.collect_and_conditions(if_s.condition);
+			val move_before = self.snapshot_move_state();
+			defer move_before.free();
 
 			self.symtab.enter_scope(false);
 			self.push_non_null_scope();
@@ -444,6 +453,11 @@ impl BodyChecker {
 			self.pop_non_null_scope();
 			self.symtab.exit_scope();
 
+			val then_diverges = self.stmt_always_diverges(if_s.then_branch);
+			val after_then = self.snapshot_move_state();
+			defer after_then.free();
+			self.restore_move_state(&move_before);
+
 			if (if_s.else_branch != null) {
 				self.symtab.enter_scope(false);
 				self.push_non_null_scope();
@@ -478,6 +492,24 @@ impl BodyChecker {
 				self.check_statement(if_s.else_branch);
 				self.pop_non_null_scope();
 				self.symtab.exit_scope();
+
+				val else_diverges = self.stmt_always_diverges(if_s.else_branch);
+				val after_else = self.snapshot_move_state();
+				defer after_else.free();
+
+				if (then_diverges && !else_diverges) {
+					self.restore_move_state(&after_else);
+				} else if (!then_diverges && else_diverges) {
+					self.restore_move_state(&after_then);
+				} else {
+					self.merge_move_state(&after_then, &after_else);
+				}
+			} else {
+				if (then_diverges) {
+					self.restore_move_state(&move_before);
+				} else {
+					self.merge_move_state(&after_then, &move_before);
+				}
 			}
 		}
 	}
@@ -506,7 +538,12 @@ impl BodyChecker {
 				self.apply_truthy_null_guards(unwrapped_c);
 			}
 
+			val move_before = self.snapshot_move_state();
+			defer move_before.free();
 			self.check_statement(wh.body);
+			val after_body = self.snapshot_move_state();
+			defer after_body.free();
+			self.merge_move_state(&after_body, &move_before);
 		}
 	}
 
@@ -612,7 +649,14 @@ impl BodyChecker {
 			}
 			val cond_ty = if (ws.condition != null) self.check_expr(ws.condition) else null;
 
+			val move_before = self.snapshot_move_state();
+			defer move_before.free();
+			var merged = List<MoveStateEntry>();
+			defer merged.free();
+			var has_fallthrough = false;
+
 			for (arm in ws.arms) {
+				self.restore_move_state(&move_before);
 				val smart_cast_ty = self.resolve_arm_patterns(arm.patterns, ws.condition, cond_ty);
 				val sym = self.arm_smart_cast_sym(arm.patterns, ws.condition);
 				val mutable = self.arm_smart_cast_mutable(arm.patterns, ws.condition);
@@ -628,6 +672,35 @@ impl BodyChecker {
 				} else {
 					self.check_statement(arm.body);
 				}
+
+				if (!self.stmt_always_diverges(arm.body)) {
+					val after_arm = self.snapshot_move_state();
+					if (!has_fallthrough) {
+						merged = after_arm;
+						has_fallthrough = true;
+					} else {
+						val n = if (merged.len < after_arm.len) merged.len else after_arm.len;
+						for (i in 0..<n) {
+							val prev = merged[i];
+							merged[i] = MoveStateEntry(prev.sym, prev.is_moved || after_arm[i].is_moved);
+						}
+						after_arm.free();
+					}
+				}
+			}
+
+			val has_else = ws.arms.any { a -> a.is_else };
+			val covered = has_else || self.is_when_arms_exhaustive(ws.arms, cond_ty);
+			if (!covered) {
+				if (!has_fallthrough) {
+					self.restore_move_state(&move_before);
+				} else {
+					self.merge_move_state(&merged, &move_before);
+				}
+			} else if (has_fallthrough) {
+				self.restore_move_state(&merged);
+			} else {
+				self.restore_move_state(&move_before);
 			}
 		}
 	}

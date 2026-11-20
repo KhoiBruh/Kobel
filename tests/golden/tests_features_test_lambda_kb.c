@@ -1698,7 +1698,7 @@ return true;
 }
 
 size_t std__collections__List_i32_count_where(std__collections__List_i32* self, kobel_closure predicate) {
-int32_t n = 0;
+size_t n = 0;
 {
 size_t __for_n = std__collections__List_i32_count(self);
 size_t __for_i = 0;

@@ -50,7 +50,11 @@ pub struct Symbol {
 	pub is_moved: bool = false,
 	pub is_vararg: bool = false,
 	// Canonical declaration coordinate key ("V:<fid>:<line>:<col>" / "F:...") for mutability tracking across scopes
-	pub decl_key: str = ""
+	pub decl_key: str = "",
+	// Deferred untyped integer variable inference (cleared once concrete integer type is adopted or finalized)
+	pub untyped_int_decl: ?&AstNode = null,
+	pub untyped_int_init: ?*AstNode = null,
+	pub untyped_int_signed: bool = false
 }
 
 impl Symbol {

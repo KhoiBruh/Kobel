@@ -1759,7 +1759,7 @@ size_t std__collections__HashMap_str_i32_count(std__collections__HashMap_str_i32
 }
 
 std__collections__Pair_str_i32 std__collections__HashMap_str_i32_at(std__collections__HashMap_str_i32* self, size_t i) {
-int32_t seen = 0;
+size_t seen = 0;
 {
 size_t __for_e = self->cap;
 size_t __for_i = __for_e;

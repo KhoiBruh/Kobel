@@ -36,10 +36,17 @@ impl BodyChecker {
 			self.catch_yield_expected = null;
 			self.catch_yield_seen = false;
 			self.when_depth++;
+			val move_before = self.snapshot_move_state();
+			defer move_before.free();
+			var merged = List<MoveStateEntry>();
+			defer merged.free();
+			var has_fallthrough = false;
+
 			var result_ty: ?*Type = expected;
 			var has_else = false;
 			for (arm in we.arms) {
 				if (arm.is_else) has_else = true;
+				self.restore_move_state(&move_before);
 
 				val smart_cast_ty = self.resolve_arm_patterns(arm.patterns, we.condition, cond_ty);
 				val sym = self.arm_smart_cast_sym(arm.patterns, we.condition);
@@ -50,6 +57,21 @@ impl BodyChecker {
 					if (eu.ok.kind != DataType.NONE) arm_hint = eu.ok;
 				}
 				val body_ty = self.check_arm_body(arm.body, sym, smart_cast_ty, mutable, arm_hint);
+
+				if (!self.stmt_always_diverges(arm.body)) {
+					val after_arm = self.snapshot_move_state();
+					if (!has_fallthrough) {
+						merged = after_arm;
+						has_fallthrough = true;
+					} else {
+						val n = if (merged.len < after_arm.len) merged.len else after_arm.len;
+						for (i in 0..<n) {
+							val prev = merged[i];
+							merged[i] = MoveStateEntry(prev.sym, prev.is_moved || after_arm[i].is_moved);
+						}
+						after_arm.free();
+					}
+				}
 
 				if (result_ty == null) {
 					result_ty = body_ty;
@@ -86,6 +108,9 @@ impl BodyChecker {
 			self.when_depth--;
 			self.catch_yield_expected = saved_catch_exp;
 			self.catch_yield_seen = saved_catch_seen;
+
+			if (has_fallthrough) self.restore_move_state(&merged);
+			else self.restore_move_state(&move_before);
 
 			val is_exhaustive = self.check_when_exhaustiveness(node, we, cond_ty);
 			if (has_else && is_exhaustive) {

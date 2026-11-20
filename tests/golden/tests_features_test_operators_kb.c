@@ -1828,7 +1828,7 @@ size_t std__collections__HashSet_str_count(std__collections__HashSet_str* self) 
 }
 
 kobel_str std__collections__HashSet_str_at(std__collections__HashSet_str* self, size_t i) {
-int32_t seen = 0;
+size_t seen = 0;
 {
 size_t __for_e = self->cap;
 size_t __for_i = __for_e;

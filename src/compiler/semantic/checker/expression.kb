@@ -82,7 +82,7 @@ impl BodyChecker {
 		self.lambda_captures += LambdaCapture(sym.name, cap_ty, sym.mutable);
 	}
 
-	pub fn check_ident_expr(&self, node: &AstNode): *Type {
+	pub fn check_ident_expr(&self, node: &AstNode, expected: ?*Type = null): *Type {
 		if (node is IdentifierExpr as id) {
 			if (id.name.empty()) {
 				if (self.when_subject == null) {
@@ -142,6 +142,17 @@ impl BodyChecker {
 			if (!sym.c_name.empty() && sym.c_name != id.name) {
 				self.set_ident_name(node, sym.c_name);
 			}
+			if (!self.is_assign_target && sym.untyped_int_decl != null) {
+				val mut_sym = self.symtab.lookup_local_mut(id.name);
+				if (mut_sym != null && mut_sym.untyped_int_decl != null) {
+					if (self.can_adopt_untyped_int(mut_sym, expected)) {
+						self.adopt_untyped_int_var(mut_sym, expected!);
+					} else if (!self.defer_untyped_int_finalize) {
+						mut_sym.untyped_int_decl = null;
+						mut_sym.untyped_int_init = null;
+					}
+				}
+			}
 			val ty = sym.type_ptr;
 			if (
 				!self.is_assign_target
@@ -184,7 +195,11 @@ impl BodyChecker {
 				self.unwrap_group_mut(bin.right) is ArrayLiteralExpr
 			);
 
+			val left_untyped_sym = if (num_expected == null) self.lookup_untyped_int_sym(bin.left) else null;
+			val prev_defer_int = self.defer_untyped_int_finalize;
+			if (left_untyped_sym != null) self.defer_untyped_int_finalize = true;
 			val lt_num = self.check_expr(bin.left, num_expected);
+			self.defer_untyped_int_finalize = prev_defer_int;
 			self.in_elvis_lhs = false;
 			var lt = lt_num;
 			if (bin.op == TokenType.KW_IN && self.unwrap_group_mut(bin.right) is ArrayLiteralExpr as al) {
@@ -193,7 +208,7 @@ impl BodyChecker {
 				return self.check_in_list_op(node, bin, lt, al);
 			}
 			var r_expected: ?*Type = num_expected;
-			if (lt.is_numeric()) r_expected = lt;
+			if (lt.is_numeric() && left_untyped_sym == null) r_expected = lt;
 			var rt = self.prims().t_none();
 			if (bin.op in [TokenType.AND_AND, TokenType.OR_OR]) {
 				self.symtab.enter_scope(false);
@@ -209,6 +224,19 @@ impl BodyChecker {
 
 			self.in_safe_nav_context = prev_sn;
 			self.in_elvis_lhs = prev_elvis;
+
+			if (left_untyped_sym != null && left_untyped_sym.untyped_int_decl != null) {
+				if (!self.is_untyped_int_literal(bin.right)) {
+					if (self.can_adopt_untyped_int(left_untyped_sym, rt)) {
+						self.adopt_untyped_int_var(left_untyped_sym, rt);
+						lt = rt;
+						self.annotate_type(bin.left, rt);
+					} else {
+						left_untyped_sym.untyped_int_decl = null;
+						left_untyped_sym.untyped_int_init = null;
+					}
+				}
+			}
 
 			if (self.is_untyped_literal(bin.left) && rt.is_numeric() && !lt.equals(rt)) {
 				lt = self.check_expr(bin.left, rt);
@@ -809,12 +837,19 @@ impl BodyChecker {
 				val eu = branch_hint.as_error_union()!;
 				if (eu.ok.kind != DataType.NONE) branch_hint = eu.ok;
 			}
+			val move_before = self.snapshot_move_state();
+			defer move_before.free();
+
 			self.symtab.enter_scope(false);
 			self.push_non_null_scope();
 			self.apply_truthy_null_guards(if_e.condition);
 			var then_ty = self.check_expr(if_e.then_branch, branch_hint);
 			self.pop_non_null_scope();
 			self.symtab.exit_scope();
+
+			val after_then = self.snapshot_move_state();
+			defer after_then.free();
+			self.restore_move_state(&move_before);
 
 			val else_hint = branch_hint ?: then_ty;
 			self.symtab.enter_scope(false);
@@ -823,6 +858,10 @@ impl BodyChecker {
 			val else_ty = self.check_expr(if_e.else_branch, else_hint);
 			self.pop_non_null_scope();
 			self.symtab.exit_scope();
+
+			val after_else = self.snapshot_move_state();
+			defer after_else.free();
+			self.merge_move_state(&after_then, &after_else);
 
 			val can_widen = self.is_untyped_literal(if_e.then_branch) &&
 				else_ty.is_numeric() && !then_ty.equals(else_ty);
@@ -901,10 +940,14 @@ impl BodyChecker {
 			if (!ce.err_name.empty()) self.symtab.exit_scope();
 		}
 
+		val move_before = self.snapshot_move_state();
+		defer move_before.free();
+
 		val h = ce.handler;
 		when (h) {
 			is ReturnStmt, BreakStmt, ContinueStmt, YieldStmt -> {
 				self.check_statement(h);
+				self.restore_move_state(&move_before);
 				return ok_ty;
 			}
 			is BlockStmt as blk -> {
@@ -924,6 +967,14 @@ impl BodyChecker {
 				self.catch_yield_expected = saved_exp;
 				self.catch_yield_seen = saved_seen;
 
+				if (self.stmt_always_diverges(h)) {
+					self.restore_move_state(&move_before);
+				} else {
+					val after_h = self.snapshot_move_state();
+					defer after_h.free();
+					self.merge_move_state(&after_h, &move_before);
+				}
+
 				if (ok_ty.kind != DataType.NONE && !saw_yield && !self.stmt_always_diverges(h)) {
 					self.report_error(
 						h,
@@ -937,6 +988,10 @@ impl BodyChecker {
 				self.is_stmt_level = was_stmt;
 				val h_ty = self.check_expr(h, h_expected);
 				self.is_stmt_level = false;
+
+				val after_h = self.snapshot_move_state();
+				defer after_h.free();
+				self.merge_move_state(&after_h, &move_before);
 
 				if (ok_ty.kind == DataType.NONE) {
 					self.ensure(

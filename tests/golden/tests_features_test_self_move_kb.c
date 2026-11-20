@@ -764,6 +764,10 @@ void std__process__Process_exit(int32_t code);
 int32_t test__self_move__Point_sum(test__self_move__Point* self);
 void test__self_move__Point_translate(test__self_move__Point* self, int32_t dx, int32_t dy);
 int32_t test__self_move__Point_into_sum(test__self_move__Point self);
+int32_t test__self_move__move_early_return(bool flag);
+int32_t test__self_move__move_if_else(bool flag);
+int32_t test__self_move__move_when(int32_t tag);
+int32_t test__self_move__reassign_both_branches(bool flag);
 int32_t test__self_move__run_tests(void);
 static void __kobel_user_main(void);
 
@@ -782,6 +786,43 @@ self->y += dy;
 
 int32_t test__self_move__Point_into_sum(test__self_move__Point self) {
     return self.x + self.y;
+}
+
+int32_t test__self_move__move_early_return(bool flag) {
+test__self_move__Point p = (test__self_move__Point){ 10, 20 };
+if (flag) {
+return test__self_move__Point_into_sum(p);
+}
+return test__self_move__Point_into_sum(p) + 1;
+}
+
+int32_t test__self_move__move_if_else(bool flag) {
+test__self_move__Point p = (test__self_move__Point){ 3, 4 };
+if (flag) {
+return test__self_move__Point_into_sum(p);
+} else {
+return test__self_move__Point_into_sum(p) * 2;
+}
+}
+
+int32_t test__self_move__move_when(int32_t tag) {
+test__self_move__Point p = (test__self_move__Point){ 5, 6 };
+if (tag == 0) {
+return test__self_move__Point_into_sum(p);
+} else {
+return test__self_move__Point_into_sum(p) + 10;
+}
+}
+
+int32_t test__self_move__reassign_both_branches(bool flag) {
+test__self_move__Point p = (test__self_move__Point){ 1, 2 };
+int32_t _ = test__self_move__Point_into_sum(p);
+if (flag) {
+p = (test__self_move__Point){ 7, 8 };
+} else {
+p = (test__self_move__Point){ 9, 10 };
+}
+return test__self_move__Point_into_sum(p);
 }
 
 int32_t test__self_move__run_tests(void) {
@@ -803,6 +844,30 @@ return 4;
 p = (test__self_move__Point){ 100, 200 };
 if (test__self_move__Point_sum(&p) != 300) {
 return 5;
+}
+if (test__self_move__move_early_return(true) != 30) {
+return 6;
+}
+if (test__self_move__move_early_return(false) != 31) {
+return 7;
+}
+if (test__self_move__move_if_else(true) != 7) {
+return 8;
+}
+if (test__self_move__move_if_else(false) != 14) {
+return 9;
+}
+if (test__self_move__move_when(0) != 11) {
+return 10;
+}
+if (test__self_move__move_when(1) != 21) {
+return 11;
+}
+if (test__self_move__reassign_both_branches(true) != 15) {
+return 12;
+}
+if (test__self_move__reassign_both_branches(false) != 19) {
+return 13;
 }
 return 0;
 }

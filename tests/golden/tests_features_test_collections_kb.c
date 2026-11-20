@@ -2430,7 +2430,7 @@ void std__collections__List_i32_reverse(std__collections__List_i32* self) {
 if (self->len <= 1) {
 return;
 }
-int32_t left = 0;
+size_t left = 0;
 size_t right = self->len - 1;
 while (left < right) {
 int32_t tmp = self->data[left];
@@ -2558,8 +2558,8 @@ size_t std__collections__List_i32_remove_all(std__collections__List_i32* self, i
 }
 
 size_t std__collections__List_i32_remove_where(std__collections__List_i32* self, kobel_closure predicate) {
-int32_t write = 0;
-int32_t removed = 0;
+size_t write = 0;
+size_t removed = 0;
 {
 size_t __for_e = self->len;
 size_t __for_i = __for_e;
