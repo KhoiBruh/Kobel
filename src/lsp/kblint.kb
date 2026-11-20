@@ -309,7 +309,7 @@ struct KblintBindings {
 
 impl KblintBindings {
 
-	pub fn free(*self) {
+	pub fn free(self) {
 		self.nodes.free();
 		self.texts.free();
 	}
@@ -1053,6 +1053,7 @@ impl LintCollector {
 			if (rs.is_code_disabled(rule.code)) continue;
 			if (!kblint_same_root_kind(rule.pattern, node)) continue;
 			var bindings = KblintBindings();
+			defer bindings.free();
 			if (kblint_match_node(rule.pattern, node, self.tokens, &self.mapper, &bindings)) {
 				val ok = kblint_eval_where(
 					rule.where_expr, node, &bindings,
@@ -1079,11 +1080,9 @@ impl LintCollector {
 						msg, rule.code, rule.unnecessary,
 						fix_title, edits
 					);
-					bindings.free();
 					return true;
 				}
 			}
-			bindings.free();
 		}
 		return false;
 	}
@@ -1094,6 +1093,7 @@ impl LintCollector {
 			if (rs.is_code_disabled(rule.code)) continue;
 			if (!kblint_same_root_kind(rule.pattern, node)) continue;
 			var bindings = KblintBindings();
+			defer bindings.free();
 			if (kblint_match_node(rule.pattern, node, self.tokens, &self.mapper, &bindings)) {
 				val ok = kblint_eval_where(
 					rule.where_expr, node, &bindings,
@@ -1119,11 +1119,9 @@ impl LintCollector {
 						msg, rule.code, rule.unnecessary,
 						fix_title, edits
 					);
-					bindings.free();
 					return true;
 				}
 			}
-			bindings.free();
 		}
 		return false;
 	}

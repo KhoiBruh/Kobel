@@ -115,7 +115,7 @@ impl GenericRegistry {
 		self.inst_map[sym.name] = sym;
 	}
 
-	pub fn free(*self) {
+	pub fn free(self) {
 		self.struct_templates.free();
 		self.fn_templates.free();
 		self.impl_templates.free();

@@ -57,7 +57,7 @@ impl SymbolTable {
 		return st;
 	}
 
-	pub fn free(*self) {
+	pub fn free(self) {
 		self.sem.free();
 		for (m in self.modules) {
 			m.symbols.free();

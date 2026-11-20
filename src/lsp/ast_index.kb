@@ -160,7 +160,7 @@ impl DepGraph {
 		return result;
 	}
 
-	pub fn free(*self) {
+	pub fn free(self) {
 		for ((_k, v) in self.imports_of) v.free();
 		self.imports_of.free();
 		for ((_k, v) in self.dependents_of) v.free();
@@ -206,7 +206,7 @@ pub struct SemanticIndex {
 
 impl SemanticIndex {
 
-	pub fn free(*self) {
+	pub fn free(self) {
 		for (d in self.defs) {
 			d.param_names.free();
 			d.param_types.free();

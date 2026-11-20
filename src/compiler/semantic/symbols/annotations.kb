@@ -89,19 +89,31 @@ pub struct SemanticTable {
 
 impl SemanticTable {
 
-	pub fn free(*self) {
+	pub fn free(&self) {
 		self.node_types.free();
+		self.node_types = HashMap();
 		self.resolved_methods.free();
+		self.resolved_methods = HashMap();
 		self.resolved_nodes.free();
+		self.resolved_nodes = HashMap();
 		self.node_instances.free();
+		self.node_instances = HashMap();
 		self.is_patterns.free();
+		self.is_patterns = HashMap();
 		self.predicate_patterns.free();
+		self.predicate_patterns = HashMap();
 		self.lambdas.free();
+		self.lambdas = HashMap();
 		self.closure_calls.free();
+		self.closure_calls = HashMap();
 		self.checked_var_decls.free();
+		self.checked_var_decls = HashMap();
 		self.checked_mut_self_fns.free();
+		self.checked_mut_self_fns = HashMap();
 		self.mutated_decl_keys.free();
+		self.mutated_decl_keys = HashMap();
 		self.unnecessary_unwraps.free();
+		self.unnecessary_unwraps = HashMap();
 	}
 
 }

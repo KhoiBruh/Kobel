@@ -40,7 +40,7 @@ impl ReachableSet {
 
 	pub fn has_const(*self, name: str) => !self.active || name in self.consts;
 
-	pub fn free(*self) {
+	pub fn free(self) {
 		self.fns.free();
 		self.types.free();
 		self.consts.free();
@@ -72,7 +72,7 @@ struct DceWalker {
 
 impl DceWalker {
 
-	fn free(*self) {
+	fn free(self) {
 		self.fn_nodes.free();
 		self.fn_owners.free();
 		self.struct_map.free();
@@ -446,6 +446,7 @@ impl CCodeGen {
 
 	pub fn compute_reachable(*self, prog: *Program): ReachableSet {
 		var w = DceWalker(self);
+		defer w.free();
 		if (!w.index_program(prog)) {
 			// Walk all indexed items anyway so `error_unions` descriptors stay complete.
 			for (decl in prog) {
@@ -476,7 +477,6 @@ impl CCodeGen {
 			w.fns.free();
 			w.types.free();
 			w.consts.free();
-			w.free();
 			return ReachableSet(false, HashSet<str>(), HashSet<str>(), HashSet<str>(), eus);
 		}
 		w.mark_fn("main");
@@ -485,7 +485,6 @@ impl CCodeGen {
 		val types = w.types;
 		val consts = w.consts;
 		val eus = w.error_unions;
-		w.free();
 		return ReachableSet(true, fns, types, consts, eus);
 	}
 

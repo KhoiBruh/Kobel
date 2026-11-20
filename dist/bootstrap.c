@@ -6024,7 +6024,7 @@ __kobel_eu_str__compiler__loader__LoaderErr compiler__loader__detect_project_roo
 bool compiler__loader__str_less(kobel_str a, kobel_str b);
 void compiler__loader__sort_strings(std__collections__List_str* items);
 compiler__loader__ModuleLoader compiler__loader__ModuleLoader_init(kobel_str entry_dir, std__collections__List_str extra_roots, std__memory__Arena arena);
-void compiler__loader__ModuleLoader_free_buffers(compiler__loader__ModuleLoader* self);
+void compiler__loader__ModuleLoader_free_buffers(compiler__loader__ModuleLoader self);
 compiler__ast__AstNode* compiler__loader__ModuleLoader_module_decl(compiler__loader__ModuleLoader* self, std__collections__List_str path, kobel_str full_path, size_t line, size_t col);
 compiler__ast__AstNode* compiler__loader__ModuleLoader_program(compiler__loader__ModuleLoader* self, std__collections__List_mut_ptr_compiler__ast__AstNode declarations, size_t line, size_t col);
 size_t compiler__loader__ModuleLoader_count(compiler__loader__ModuleLoader* self);
@@ -6589,8 +6589,8 @@ bool compiler__semantic__checker__BodyChecker_struct_implements_iterable(compile
 bool compiler__codegen__ReachableSet_has_fn(compiler__codegen__ReachableSet* self, kobel_str name);
 bool compiler__codegen__ReachableSet_has_type(compiler__codegen__ReachableSet* self, kobel_str name);
 bool compiler__codegen__ReachableSet_has_const(compiler__codegen__ReachableSet* self, kobel_str name);
-void compiler__codegen__ReachableSet_free(compiler__codegen__ReachableSet* self);
-void compiler__codegen__DceWalker_free(compiler__codegen__DceWalker* self);
+void compiler__codegen__ReachableSet_free(compiler__codegen__ReachableSet self);
+void compiler__codegen__DceWalker_free(compiler__codegen__DceWalker self);
 void compiler__codegen__DceWalker_index_fn(compiler__codegen__DceWalker* self, compiler__ast__AstNode* node, compiler__ast__NodeData__FnDecl* f, kobel_str owner);
 bool compiler__codegen__DceWalker_index_program(compiler__codegen__DceWalker* self, compiler__ast__NodeData__Program* prog);
 void compiler__codegen__DceWalker_mark_fn(compiler__codegen__DceWalker* self, kobel_str name);
@@ -6887,7 +6887,7 @@ __kobel_eu_none__lsp__JsonErr lsp__JsonParser_expect_literal(lsp__JsonParser* se
 __kobel_eu_mut_ptr_lsp__JsonValue__lsp__JsonErr lsp__JsonParser_parse_value(lsp__JsonParser* self);
 void lsp__KblintRuleSet_free(lsp__KblintRuleSet* self);
 bool lsp__KblintRuleSet_is_code_disabled(lsp__KblintRuleSet* self, kobel_str code);
-void lsp__KblintBindings_free(lsp__KblintBindings* self);
+void lsp__KblintBindings_free(lsp__KblintBindings self);
 bool lsp__kblint_is_ident_start(char ch);
 bool lsp__kblint_is_ident_cont(char ch);
 kobel_str lsp__desugar_kblint_pattern(kobel_str raw);
@@ -14063,13 +14063,13 @@ std__collections__List_str_plus_assign(&roots, std__filesystem__Path_join(&proj_
 return (compiler__loader__ModuleLoader){ roots, std__collections__List_compiler__loader__LoadedModule_init(NULL, 0), std__collections__List_compiler__loader__LoadedModule_init(NULL, 0), std__collections__List_compiler__core__Diagnostic_init(NULL, 0), arena, std__collections__HashSet_str_init(0), compiler__core__SourceMap_init(), NULL };
 }
 
-void compiler__loader__ModuleLoader_free_buffers(compiler__loader__ModuleLoader* self) {
-std__collections__List_str_free(self->roots);
-std__collections__List_compiler__loader__LoadedModule_free(self->modules);
-std__collections__List_compiler__loader__LoadedModule_free(self->ordered);
-std__collections__List_compiler__core__Diagnostic_free(self->errors);
-std__collections__HashSet_str_free(self->known);
-compiler__core__SourceMap_free(self->sources);
+void compiler__loader__ModuleLoader_free_buffers(compiler__loader__ModuleLoader self) {
+std__collections__List_str_free(self.roots);
+std__collections__List_compiler__loader__LoadedModule_free(self.modules);
+std__collections__List_compiler__loader__LoadedModule_free(self.ordered);
+std__collections__List_compiler__core__Diagnostic_free(self.errors);
+std__collections__HashSet_str_free(self.known);
+compiler__core__SourceMap_free(self.sources);
 }
 
 compiler__ast__AstNode* compiler__loader__ModuleLoader_module_decl(compiler__loader__ModuleLoader* self, std__collections__List_str path, kobel_str full_path, size_t line, size_t col) {
@@ -32379,35 +32379,35 @@ bool compiler__codegen__ReachableSet_has_const(compiler__codegen__ReachableSet* 
     return !self->active || std__collections__HashSet_str_contains(&self->consts, name);
 }
 
-void compiler__codegen__ReachableSet_free(compiler__codegen__ReachableSet* self) {
-std__collections__HashSet_str_free(self->fns);
-std__collections__HashSet_str_free(self->types);
-std__collections__HashSet_str_free(self->consts);
+void compiler__codegen__ReachableSet_free(compiler__codegen__ReachableSet self) {
+std__collections__HashSet_str_free(self.fns);
+std__collections__HashSet_str_free(self.types);
+std__collections__HashSet_str_free(self.consts);
 {
-size_t __for_n = std__collections__List_compiler__codegen__ErrorUnionDesc_count(&self->error_unions);
+size_t __for_n = std__collections__List_compiler__codegen__ErrorUnionDesc_count(&self.error_unions);
 size_t __for_i = 0;
 while (__for_i < __for_n) {
-compiler__codegen__ErrorUnionDesc eu = std__collections__List_compiler__codegen__ErrorUnionDesc_at(&self->error_unions, __for_i);
+compiler__codegen__ErrorUnionDesc eu = std__collections__List_compiler__codegen__ErrorUnionDesc_at(&self.error_unions, __for_i);
 std__collections__List_str_free(eu.deps);
 __for_i = __for_i + 1;
 }
 }
-std__collections__List_compiler__codegen__ErrorUnionDesc_free(self->error_unions);
+std__collections__List_compiler__codegen__ErrorUnionDesc_free(self.error_unions);
 }
 
-void compiler__codegen__DceWalker_free(compiler__codegen__DceWalker* self) {
-std__collections__HashMap_str_mut_ptr_compiler__ast__AstNode_free(self->fn_nodes);
-std__collections__HashMap_str_str_free(self->fn_owners);
-std__collections__HashMap_str_mut_ptr_compiler__ast__AstNode_free(self->struct_map);
-std__collections__HashMap_str_mut_ptr_compiler__ast__AstNode_free(self->enum_map);
-std__collections__HashMap_str_mut_ptr_compiler__ast__AstNode_free(self->fault_map);
-std__collections__HashSet_str_free(self->all_types);
-std__collections__HashMap_str_str_free(self->variant_to_enum);
-std__collections__HashMap_str_mut_ptr_compiler__ast__AstNode_free(self->const_map);
-std__collections__HashSet_str_free(self->eu_seen);
-std__collections__List_str_free(self->fn_queue);
-std__collections__List_str_free(self->type_queue);
-std__collections__List_str_free(self->const_queue);
+void compiler__codegen__DceWalker_free(compiler__codegen__DceWalker self) {
+std__collections__HashMap_str_mut_ptr_compiler__ast__AstNode_free(self.fn_nodes);
+std__collections__HashMap_str_str_free(self.fn_owners);
+std__collections__HashMap_str_mut_ptr_compiler__ast__AstNode_free(self.struct_map);
+std__collections__HashMap_str_mut_ptr_compiler__ast__AstNode_free(self.enum_map);
+std__collections__HashMap_str_mut_ptr_compiler__ast__AstNode_free(self.fault_map);
+std__collections__HashSet_str_free(self.all_types);
+std__collections__HashMap_str_str_free(self.variant_to_enum);
+std__collections__HashMap_str_mut_ptr_compiler__ast__AstNode_free(self.const_map);
+std__collections__HashSet_str_free(self.eu_seen);
+std__collections__List_str_free(self.fn_queue);
+std__collections__List_str_free(self.type_queue);
+std__collections__List_str_free(self.const_queue);
 }
 
 void compiler__codegen__DceWalker_index_fn(compiler__codegen__DceWalker* self, compiler__ast__AstNode* node, compiler__ast__NodeData__FnDecl* f, kobel_str owner) {
@@ -33157,8 +33157,11 @@ std__collections__List_compiler__codegen__ErrorUnionDesc eus = w.error_unions;
 std__collections__HashSet_str_free(w.fns);
 std__collections__HashSet_str_free(w.types);
 std__collections__HashSet_str_free(w.consts);
-compiler__codegen__DceWalker_free(&w);
-return (compiler__codegen__ReachableSet){ false, std__collections__HashSet_str_init(0), std__collections__HashSet_str_init(0), std__collections__HashSet_str_init(0), eus };
+{
+compiler__codegen__ReachableSet __ret_tmp = (compiler__codegen__ReachableSet){ false, std__collections__HashSet_str_init(0), std__collections__HashSet_str_init(0), std__collections__HashSet_str_init(0), eus };
+compiler__codegen__DceWalker_free(w);
+return __ret_tmp;
+}
 }
 compiler__codegen__DceWalker_mark_fn(&w, KOBEL_STR("main"));
 compiler__codegen__DceWalker_drain(&w);
@@ -33166,8 +33169,11 @@ std__collections__HashSet_str fns = w.fns;
 std__collections__HashSet_str types = w.types;
 std__collections__HashSet_str consts = w.consts;
 std__collections__List_compiler__codegen__ErrorUnionDesc eus = w.error_unions;
-compiler__codegen__DceWalker_free(&w);
-return (compiler__codegen__ReachableSet){ true, fns, types, consts, eus };
+{
+compiler__codegen__ReachableSet __ret_tmp = (compiler__codegen__ReachableSet){ true, fns, types, consts, eus };
+compiler__codegen__DceWalker_free(w);
+return __ret_tmp;
+}
 }
 
 kobel_str compiler__codegen__wrap_prec(kobel_str s, int32_t prec, int32_t min_prec) {
@@ -34782,7 +34788,7 @@ kobel_str __ret_tmp = std__string__StringBuilder_to_str(&self->out);
 std__collections__HashSet_str_free(emitted);
 std__collections__List_mut_ptr_compiler__ast__AstNode_free(order);
 std__collections__HashSet_str_free(pending);
-compiler__codegen__ReachableSet_free(&live);
+compiler__codegen__ReachableSet_free(live);
 std__string__StringBuilder_free(self->out);
 return __ret_tmp;
 }
@@ -40376,7 +40382,6 @@ __for_i = __for_i + 1;
 }
 }
 std__collections__HashSet_usz_free(mut_self_lines);
-compiler__loader__ModuleLoader_free_buffers(&loader);
 std__collections__List_compiler__core__Diagnostic_free(decl_p.errors);
 std__collections__List_compiler__core__Diagnostic_free(body_p.errors);
 std__collections__List_compiler__core__Diagnostic_free(body_p.warnings);
@@ -40385,16 +40390,17 @@ std__collections__List_usz_free(body_p.non_null_marks);
 {
 lsp__AnalysisResult __ret_tmp = (lsp__AnalysisResult){ diagnostics, body_p.symtab, true, tokens, index, owned_path, owned_source, arena, doc_mod, dep_paths, doc_ast, lint_fixes };
 std__collections__List_compiler__loader__ModuleFile_free(pkg_files);
+compiler__loader__ModuleLoader_free_buffers(loader);
 std__collections__List_str_free(extra_roots);
 return __ret_tmp;
 }
 }
 std__memory__Arena_free(&arena);
-compiler__loader__ModuleLoader_free_buffers(&loader);
 compiler__semantic__symbols__SymbolTable empty_symtab = compiler__semantic__symbols__SymbolTable_init(std__memory__Arena_empty());
 {
 lsp__AnalysisResult __ret_tmp = (lsp__AnalysisResult){ diagnostics, empty_symtab, false, tokens, (lsp__SemanticIndex){ std__collections__List_lsp__DefInfo_init(NULL, 0), std__collections__HashMap_str_usz_init(0), std__collections__List_lsp__RefInfo_init(NULL, 0), std__collections__HashMap_str_std__collections__List_usz_init(0), std__collections__HashMap_str_std__collections__List_usz_init(0), std__collections__HashSet_str_init(0), std__collections__HashMap_str_std__collections__List_lsp__ImportInfo_init(0), std__collections__HashMap_str_std__collections__List_lsp__ImplMissingInfo_init(0), (lsp__DepGraph){ std__collections__HashMap_str_std__collections__List_str_init(0), std__collections__HashMap_str_std__collections__List_str_init(0), std__collections__HashMap_str_std__collections__List_str_init(0) }, compiler__semantic__symbols__SymbolTable_init(std__memory__Arena_empty()), false, std__collections__HashMap_str_std__collections__List_compiler__lexer__Token_init(0), std__collections__HashMap_str_str_init(0), std__collections__HashMap_usz_str_init(0), std__collections__HashMap_usz_str_init(0), std__collections__HashMap_str_str_init(0), std__collections__HashMap_str_str_init(0), std__collections__HashMap_str_str_init(0), std__collections__HashMap_str_str_init(0), std__collections__HashMap_str_str_init(0) }, owned_path, owned_source, std__memory__Arena_empty(), doc_mod, dep_paths, NULL, std__collections__List_lsp__LintFix_init(NULL, 0) };
 std__collections__List_compiler__loader__ModuleFile_free(pkg_files);
+compiler__loader__ModuleLoader_free_buffers(loader);
 std__collections__List_str_free(extra_roots);
 return __ret_tmp;
 }
@@ -46248,9 +46254,9 @@ bool lsp__KblintRuleSet_is_code_disabled(lsp__KblintRuleSet* self, kobel_str cod
     return std__collections__HashSet_str_contains(&self->disabled_codes, code);
 }
 
-void lsp__KblintBindings_free(lsp__KblintBindings* self) {
-std__collections__HashMap_str_ptr_compiler__ast__AstNode_free(self->nodes);
-std__collections__HashMap_str_str_free(self->texts);
+void lsp__KblintBindings_free(lsp__KblintBindings self) {
+std__collections__HashMap_str_ptr_compiler__ast__AstNode_free(self.nodes);
+std__collections__HashMap_str_str_free(self.texts);
 }
 
 bool lsp__kblint_is_ident_start(char ch) {
@@ -47599,12 +47605,15 @@ fix_title = !str_empty(rule.title_tpl) ? lsp__kblint_render_template(rule.title_
 }
 }
 lsp__LintCollector_emit(self, sl, sc, el, ec, msg, rule.code, rule.unnecessary, fix_title, edits, KOBEL_STR("quickfix"), 0, 0, 0, 0, lsp__LINT_SEV_WARNING);
-lsp__KblintBindings_free(&bindings);
-return true;
+{
+bool __ret_tmp = true;
+lsp__KblintBindings_free(bindings);
+return __ret_tmp;
 }
 }
-lsp__KblintBindings_free(&bindings);
+}
 __for_i = __for_i + 1;
+lsp__KblintBindings_free(bindings);
 }
 }
 return false;
@@ -47647,12 +47656,15 @@ fix_title = !str_empty(rule.title_tpl) ? lsp__kblint_render_template(rule.title_
 }
 }
 lsp__LintCollector_emit(self, node->line, node->col, el, ec, msg, rule.code, rule.unnecessary, fix_title, edits, KOBEL_STR("quickfix"), 0, 0, 0, 0, lsp__LINT_SEV_WARNING);
-lsp__KblintBindings_free(&bindings);
-return true;
+{
+bool __ret_tmp = true;
+lsp__KblintBindings_free(bindings);
+return __ret_tmp;
 }
 }
-lsp__KblintBindings_free(&bindings);
+}
 __for_i = __for_i + 1;
+lsp__KblintBindings_free(bindings);
 }
 }
 return false;

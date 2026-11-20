@@ -39,8 +39,9 @@ impl Compiler {
 		self.arena.reset();
 	}
 
-	pub fn free(&self) {
-		self.arena.free();
+	pub fn free(self) {
+		var a = self.arena;
+		a.free();
 	}
 
 	// ------------------------------------------------------------------------

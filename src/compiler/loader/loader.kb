@@ -289,7 +289,7 @@ impl ModuleLoader {
 		);
 	}
 
-	pub fn free_buffers(*self) {
+	pub fn free_buffers(self) {
 		self.roots.free();
 		self.modules.free();
 		self.ordered.free();
