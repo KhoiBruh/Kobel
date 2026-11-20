@@ -1026,6 +1026,19 @@ impl AnalysisResult {
 // Hierarchical Document Symbol Outline & Formatting Providers
 // ============================================================================
 
+fn make_symbol_range(l0: usz, c0: usz, end_c0: usz): *JsonValue {
+	val range = JsonValue.obj();
+	val s_pos = JsonValue.obj();
+	s_pos["line"] = JsonValue.num(l0);
+	s_pos["character"] = JsonValue.num(c0);
+	val e_pos = JsonValue.obj();
+	e_pos["line"] = JsonValue.num(l0);
+	e_pos["character"] = JsonValue.num(end_c0);
+	range["start"] = s_pos;
+	range["end"] = e_pos;
+	return range;
+}
+
 fn make_doc_symbol(name: str, kind: i64, line1: usz, col1: usz, children: ?*JsonValue = null): *JsonValue {
 	val item = JsonValue.obj();
 	item["name"] = JsonValue.str(name);
@@ -1033,18 +1046,10 @@ fn make_doc_symbol(name: str, kind: i64, line1: usz, col1: usz, children: ?*Json
 
 	val l0 = if (line1 > 0) line1 - 1 else 0;
 	val c0 = if (col1 > 0) col1 - 1 else 0;
-	val range = JsonValue.obj();
-	val s_pos = JsonValue.obj();
-	s_pos["line"] = JsonValue.num(l0);
-	s_pos["character"] = JsonValue.num(c0);
-	val e_pos = JsonValue.obj();
-	e_pos["line"] = JsonValue.num(l0);
-	e_pos["character"] = JsonValue.num(c0 + name.len);
-	range["start"] = s_pos;
-	range["end"] = e_pos;
+	val end_c0 = c0 + name.len;
 
-	item["range"] = range;
-	item["selectionRange"] = range;
+	item["range"] = make_symbol_range(l0, c0, end_c0);
+	item["selectionRange"] = make_symbol_range(l0, c0, end_c0);
 	if (children != null) item["children"] = children;
 	return item;
 }

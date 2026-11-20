@@ -6763,6 +6763,7 @@ lsp__JsonValue* lsp__AnalysisResult_complete_at(lsp__AnalysisResult* self, size_
 lsp__JsonValue* lsp__AnalysisResult_signature_help_at(lsp__AnalysisResult* self, size_t line0, size_t col0);
 lsp__JsonValue* lsp__AnalysisResult_document_highlights(lsp__AnalysisResult* self, size_t line0, size_t col0);
 lsp__JsonValue* lsp__AnalysisResult_workspace_symbols(lsp__AnalysisResult* self, kobel_str query);
+lsp__JsonValue* lsp__make_symbol_range(size_t l0, size_t c0, size_t end_c0);
 lsp__JsonValue* lsp__make_doc_symbol(kobel_str name, int64_t kind, size_t line1, size_t col1, lsp__JsonValue* children);
 lsp__JsonValue* lsp__AnalysisResult_document_symbols_with_arena(kobel_str source, std__memory__Arena arena);
 lsp__JsonValue* lsp__AnalysisResult_format_document_with_arena(kobel_str text, std__memory__Arena arena);
@@ -40888,23 +40889,28 @@ __for_i = __for_i + 1;
 return arr;
 }
 
-lsp__JsonValue* lsp__make_doc_symbol(kobel_str name, int64_t kind, size_t line1, size_t col1, lsp__JsonValue* children) {
-lsp__JsonValue* item = lsp__JsonValue_obj();
-lsp__JsonValue_set(item, KOBEL_STR("name"), lsp__JsonValue_str(name));
-lsp__JsonValue_set(item, KOBEL_STR("kind"), lsp__JsonValue_num(kind));
-size_t l0 = line1 > 0 ? line1 - 1 : 0;
-size_t c0 = col1 > 0 ? col1 - 1 : 0;
+lsp__JsonValue* lsp__make_symbol_range(size_t l0, size_t c0, size_t end_c0) {
 lsp__JsonValue* range = lsp__JsonValue_obj();
 lsp__JsonValue* s_pos = lsp__JsonValue_obj();
 lsp__JsonValue_set(s_pos, KOBEL_STR("line"), lsp__JsonValue_num(l0));
 lsp__JsonValue_set(s_pos, KOBEL_STR("character"), lsp__JsonValue_num(c0));
 lsp__JsonValue* e_pos = lsp__JsonValue_obj();
 lsp__JsonValue_set(e_pos, KOBEL_STR("line"), lsp__JsonValue_num(l0));
-lsp__JsonValue_set(e_pos, KOBEL_STR("character"), lsp__JsonValue_num(c0 + name.len));
+lsp__JsonValue_set(e_pos, KOBEL_STR("character"), lsp__JsonValue_num(end_c0));
 lsp__JsonValue_set(range, KOBEL_STR("start"), s_pos);
 lsp__JsonValue_set(range, KOBEL_STR("end"), e_pos);
-lsp__JsonValue_set(item, KOBEL_STR("range"), range);
-lsp__JsonValue_set(item, KOBEL_STR("selectionRange"), range);
+return range;
+}
+
+lsp__JsonValue* lsp__make_doc_symbol(kobel_str name, int64_t kind, size_t line1, size_t col1, lsp__JsonValue* children) {
+lsp__JsonValue* item = lsp__JsonValue_obj();
+lsp__JsonValue_set(item, KOBEL_STR("name"), lsp__JsonValue_str(name));
+lsp__JsonValue_set(item, KOBEL_STR("kind"), lsp__JsonValue_num(kind));
+size_t l0 = line1 > 0 ? line1 - 1 : 0;
+size_t c0 = col1 > 0 ? col1 - 1 : 0;
+size_t end_c0 = c0 + name.len;
+lsp__JsonValue_set(item, KOBEL_STR("range"), lsp__make_symbol_range(l0, c0, end_c0));
+lsp__JsonValue_set(item, KOBEL_STR("selectionRange"), lsp__make_symbol_range(l0, c0, end_c0));
 if (children != NULL) {
 lsp__JsonValue_set(item, KOBEL_STR("children"), children);
 }

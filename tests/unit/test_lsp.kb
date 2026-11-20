@@ -1571,6 +1571,15 @@ pub fn run(): i64 => helper(41);
 	snap_pool.destroy();
 	assert_eq_usz(snap_pool.live_bytes(), 0, "destroying snapshot pool must reclaim 100% of bytes");
 	vfs.free();
+	// 4. Document symbols must never alias range/selectionRange (regression for 0xC0000374 in free_tree)
+	var sym_pool = HeapPool.create();
+	val prev_sym = sym_pool.push();
+	val tmp_arena = Arena(65536);
+	val doc_syms = AnalysisResult.document_symbols_with_arena(src1, tmp_arena);
+	assert_true(doc_syms.is_arr() && doc_syms.arr_val.len >= 2, "document_symbols must return outline items");
+	JsonValue.free_tree(doc_syms);
+	HeapPool.pop(prev_sym);
+	sym_pool.destroy();
 	println("  [PASS] test_pool_isolation_and_vfs_cache");
 }
 
