@@ -98,7 +98,7 @@ impl SourceCache {
 		val prev = HeapPool.push_default();
 		if (existing != null) {
 			val cur = existing.read();
-			Heap.drop_str(cur.text);
+			if (!cur.text.empty()) self.retired += cur.text;
 			val dup_text = Heap.dup_str(text);
 			self.overrides[cur.key] = OverrideEntry(cur.key, dup_text);
 		} else {
@@ -115,7 +115,7 @@ impl SourceCache {
 		val cur = existing.read();
 		val prev = HeapPool.push_default();
 		self.overrides.remove(cur.key);
-		Heap.drop_str(cur.text);
+		if (!cur.text.empty()) self.retired += cur.text;
 		Heap.drop_str(cur.key);
 		HeapPool.pop(prev);
 	}
@@ -171,7 +171,7 @@ impl SourceCache {
 	pub fn file_count(*self) => self.disk_files.len;
 
 	pub fn total_bytes(*self): usz {
-		var total: usz = 0;
+		var total = 0;
 		for ((_, cs) in self.disk_files) total += cs.text.len;
 		for ((_, ov) in self.overrides) total += ov.text.len;
 		return total;

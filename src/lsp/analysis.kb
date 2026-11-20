@@ -337,11 +337,18 @@ pub fn keyword_hover(kw: str): str => when (kw) {
 	else -> "";
 };
 
-fn add_completion_item(arr: &JsonValue, label: str, kind: i64, detail: str) {
+fn add_completion_item(
+	arr: &JsonValue,
+	label: str,
+	kind: i64,
+	detail: str,
+	sort_text: str = ""
+) {
 	val item = JsonValue.obj();
 	item["label"] = JsonValue.str(label);
 	item["kind"] = JsonValue.num(kind);
 	if (detail.len > 0) item["detail"] = JsonValue.str(detail);
+	if (sort_text.len > 0) item["sortText"] = JsonValue.str(sort_text);
 	arr += item;
 }
 
@@ -771,100 +778,693 @@ impl AnalysisResult {
 		return JsonValue.null_val();
 	}
 
-	pub fn complete_at(*self, line0: usz = 0, col0: usz = 0): *JsonValue {
-		val items = JsonValue.arr();
-		val line1 = line0 + 1;
-		val col1 = col0 + 1;
+	fn strip_type_base(*self, raw_ty: str): str {
+		var ts = raw_ty.trim();
+		while (!ts.empty() && (ts[0] == '?' || ts[0] == '*' || ts[0] == '&')) {
+			ts = ts.slice(1, ts.len).trim();
+		}
+		if (ts.ends_with("?")) ts = ts.slice(0, ts.len - 1).trim();
+		if (ts.starts_with("[")) return "__array__";
+		val lt = ts.index_of("<") !: ts.len;
+		if (lt < ts.len) ts = ts.slice(0, lt).trim();
+		val base_pair = self.index.c_inst_to_base.get_or(ts, "");
+		if (!base_pair.empty()) {
+			val colon = base_pair.index_of(":") !: base_pair.len;
+			return if (colon < base_pair.len) base_pair.slice(colon + 1, base_pair.len) else base_pair;
+		}
+		return strip_module_prefix(ts);
+	}
 
-		// Check if cursor is right after `.` or `?.` for member completion
-		var prev_dot = false;
-		var recv_tok = Token(TokenType.UNKNOWN, "", 0, 0);
-		for (i in 0..<self.tokens.len) {
-			val t = self.tokens[i];
-			if (
-				t.line == line1 &&
-				t.type in [TokenType.DOT, TokenType.QUESTION_DOT] && (
-					t.col + t.text.len == col1 || (
-						i + 1 < self.tokens.len && self.tokens[i + 1].col <= col1 &&
-						col1 <= self.tokens[i + 1].col + self.tokens[i + 1].text.len
-					)
-				)
-			) {
-				prev_dot = true;
-				if (i > 0 && self.tokens[i - 1].line == line1) recv_tok = self.tokens[i - 1];
+	fn extract_index_elem_type(raw_ty: str): str {
+		var ts = raw_ty.trim();
+		while (!ts.empty() && (ts[0] == '?' || ts[0] == '*' || ts[0] == '&')) {
+			ts = ts.slice(1, ts.len).trim();
+		}
+		if (ts == "str") return "char";
+		if (ts.starts_with("[") && ts.ends_with("]")) {
+			val inner = ts.slice(1, ts.len - 1).trim();
+			val semi = inner.index_of(";") !: inner.len;
+			return if (semi < inner.len) inner.slice(0, semi).trim() else inner;
+		}
+		val lt = ts.index_of("<") !: ts.len;
+		if (lt < ts.len && ts.ends_with(">")) {
+			val base = ts.slice(0, lt).trim();
+			val args = ts.slice(lt + 1, ts.len - 1).trim();
+			if (base.ends_with("HashMap")) {
+				// Extract value type (second generic arg at top-level comma)
+				var depth: i32 = 0;
+				for (i in 0..<args.len) {
+					val ch = args[i];
+					if (ch == '<' || ch == '[') depth++;
+					else if (ch == '>' || ch == ']') { if (depth > 0) depth--; }
+					else if (ch == ',' && depth == 0) return args.slice(i + 1, args.len).trim();
+				}
+			}
+			return args;
+		}
+		return "";
+	}
+
+	fn find_enclosing_fn_line(tokens: List<Token>, before_idx: isz): usz {
+		if (before_idx < 0) return 0;
+		var brace_depth: i32 = 0;
+		var cur = before_idx;
+		while (cur >= 0) {
+			val t = tokens[cur as usz];
+			if (t.type == TokenType.CLOSE_BRACE) {
+				brace_depth++;
+			} else if (t.type == TokenType.OPEN_BRACE) {
+				if (brace_depth > 0) {
+					brace_depth--;
+				} else {
+					// Walk slightly backwards across the header before `{` to see if it's fn/init/op
+					var h = cur - 1;
+					var p_depth: i32 = 0;
+					while (h >= 0) {
+						val ht = tokens[h as usz];
+						if (ht.type == TokenType.CLOSE_PAREN) p_depth++;
+						else if (ht.type == TokenType.OPEN_PAREN) { if (p_depth > 0) p_depth--; }
+						else if (p_depth == 0 && ht.type in [TokenType.KW_FN, TokenType.KW_INIT, TokenType.KW_OP]) {
+							return ht.line;
+						} else if (p_depth == 0 && ht.type in [TokenType.SEMI_COLON, TokenType.OPEN_BRACE, TokenType.CLOSE_BRACE]) {
+							break;
+						}
+						h--;
+					}
+				}
+			}
+			cur--;
+		}
+		return 0;
+	}
+
+	fn find_enclosing_impl_type(tokens: List<Token>, before_idx: isz): str {
+		if (before_idx < 0) return "";
+		var brace_depth: i32 = 0;
+		var cur = before_idx;
+		while (cur >= 0) {
+			val t = tokens[cur as usz];
+			if (t.type == TokenType.CLOSE_BRACE) {
+				brace_depth++;
+			} else if (t.type == TokenType.OPEN_BRACE) {
+				if (brace_depth > 0) {
+					brace_depth--;
+				} else {
+					// Check if this `{` belongs to `impl [Trait for] TypeName`
+					var h = cur - 1;
+					var last_ident = "";
+					var angle_depth: i32 = 0;
+					while (h >= 0) {
+						val ht = tokens[h as usz];
+						if (ht.type == TokenType.GREATER) angle_depth++;
+						else if (ht.type == TokenType.LESS) { if (angle_depth > 0) angle_depth--; }
+						else if (angle_depth == 0 && ht.type == TokenType.IDENTIFIER && last_ident.empty()) {
+							last_ident = ht.text;
+						} else if (angle_depth == 0 && ht.type == TokenType.KW_IMPL) {
+							return last_ident;
+						} else if (angle_depth == 0 && ht.type in [TokenType.SEMI_COLON, TokenType.OPEN_BRACE, TokenType.CLOSE_BRACE]) {
+							break;
+						}
+						h--;
+					}
+				}
+			}
+			cur--;
+		}
+		return "";
+	}
+
+	fn resolve_ident_type_at(
+		*self,
+		tokens: List<Token>,
+		tok: Token,
+		is_call: bool,
+		fn_line: usz,
+		before_idx: isz
+	): str {
+		if (tok.text == "self") {
+			val ref_res = self.index.find_ref_at(self.file_path, tok.line, tok.col);
+			if (ref_res is RefInfo as r && !r.type_str.empty()) return r.type_str;
+			return Self.find_enclosing_impl_type(tokens, before_idx);
+		}
+		val ref_res = self.index.find_ref_at(self.file_path, tok.line, tok.col);
+		if (ref_res is RefInfo as r && !r.target_key.empty()) {
+			val def_res = self.index.get_def(r.target_key);
+			if (def_res is DefInfo as d) {
+				if (is_call && d.role in [SymRole.FN, SymRole.METHOD]) {
+					if (!d.return_type.empty()) return d.return_type;
+				}
+				if (d.role in [SymRole.STRUCT, SymRole.ENUM, SymRole.OBJECT]) return d.name;
+				if (!d.type_str.empty()) return d.type_str;
+			}
+			if (!r.type_str.empty()) return r.type_str;
+		}
+		// Fallback for incomplete/shifted lines: look up local/param or top-level def by name
+		var best_local_line: usz = 0;
+		var best_local_ty = "";
+		for (d in self.index.defs) {
+			if (d.name != tok.text) continue;
+			if (d.role in [SymRole.LOCAL, SymRole.PARAM]) {
+				if (!paths_equal(d.file_path, self.file_path)) continue;
+				if (d.line <= tok.line && d.line >= fn_line && d.line >= best_local_line) {
+					best_local_line = d.line;
+					best_local_ty = d.type_str;
+				}
+			}
+		}
+		if (!best_local_ty.empty()) return best_local_ty;
+
+		for (d in self.index.defs) {
+			if (d.name != tok.text) continue;
+			if (is_call && d.role in [SymRole.FN, SymRole.METHOD] && !d.return_type.empty()) {
+				return d.return_type;
+			}
+			if (d.role in [SymRole.STRUCT, SymRole.ENUM, SymRole.OBJECT]) return d.name;
+			if (d.role == SymRole.CONST && d.container.empty() && !d.type_str.empty()) return d.type_str;
+		}
+		return tok.text;
+	}
+
+	fn resolve_chain_type_at(*self, tokens: List<Token>, dot_idx: isz, fn_line: usz): str {
+		// Walk backwards from dot_idx - 1 collecting chained segments (reversed), then step forward
+		var seg_names = List<str>();
+		var seg_toks = List<Token>();
+		var seg_is_call = List<bool>();
+		var seg_is_index = List<bool>();
+		defer seg_names.free();
+		defer seg_toks.free();
+		defer seg_is_call.free();
+		defer seg_is_index.free();
+
+		var cur = dot_idx - 1;
+		while (cur >= 0) {
+			var is_idx = false;
+			var is_call = false;
+			// Skip trailing `(...)` or `[...]` or `!`
+			while (cur >= 0) {
+				val ty = tokens[cur as usz].type;
+				if (ty == TokenType.BANG) {
+					cur--;
+				} else if (ty == TokenType.CLOSE_BRACKET) {
+					is_idx = true;
+					var d: i32 = 1;
+					cur--;
+					while (cur >= 0 && d > 0) {
+						val t2 = tokens[cur as usz].type;
+						if (t2 == TokenType.CLOSE_BRACKET) d++;
+						else if (t2 == TokenType.OPEN_BRACKET) d--;
+						cur--;
+					}
+				} else if (ty == TokenType.CLOSE_PAREN) {
+					is_call = true;
+					var d: i32 = 1;
+					cur--;
+					while (cur >= 0 && d > 0) {
+						val t2 = tokens[cur as usz].type;
+						if (t2 == TokenType.CLOSE_PAREN) d++;
+						else if (t2 == TokenType.OPEN_PAREN) d--;
+						cur--;
+					}
+					// Also skip generic `<...>` before `(`
+					if (cur >= 0 && tokens[cur as usz].type == TokenType.GREATER) {
+						var ad: i32 = 1;
+						cur--;
+						while (cur >= 0 && ad > 0) {
+							val t2 = tokens[cur as usz].type;
+							if (t2 == TokenType.GREATER) ad++;
+							else if (t2 == TokenType.LESS) ad--;
+							cur--;
+						}
+					}
+				} else {
+					break;
+				}
+			}
+			if (cur < 0) break;
+			val tok = tokens[cur as usz];
+			if (tok.type != TokenType.IDENTIFIER) break;
+
+			seg_names += tok.text;
+			seg_toks += tok;
+			seg_is_call += is_call;
+			seg_is_index += is_idx;
+			cur--;
+
+			if (cur >= 0 && tokens[cur as usz].type in [TokenType.DOT, TokenType.QUESTION_DOT]) {
+				cur--;
+				continue;
+			}
+			break;
+		}
+		if (seg_names.empty()) return "";
+
+		// Step forward from the root (last pushed element)
+		val root_i = seg_names.len - 1;
+		var cur_ty = self.resolve_ident_type_at(tokens, seg_toks[root_i], seg_is_call[root_i], fn_line, dot_idx);
+		if (seg_is_index[root_i]) {
+			val elem = Self.extract_index_elem_type(cur_ty);
+			if (!elem.empty()) cur_ty = elem;
+		}
+
+		var k = root_i;
+		while (k > 0) {
+			k--;
+			val base = self.strip_type_base(cur_ty);
+			val member = seg_names[k];
+			val want_call = seg_is_call[k];
+			var next_ty = "";
+			if ((base == "str" || base == "__array__") && member == "len") {
+				next_ty = "usz";
+			} else {
+				for (d in self.index.defs) {
+					if (d.container != base || d.name != member) continue;
+					if (want_call && d.role == SymRole.METHOD) {
+						next_ty = d.return_type;
+						break;
+					} else if (!want_call && d.role == SymRole.FIELD) {
+						next_ty = d.type_str;
+						break;
+					} else if (d.role == SymRole.METHOD && next_ty.empty()) {
+						next_ty = d.return_type;
+					}
+				}
+			}
+			if (next_ty.empty()) return "";
+			cur_ty = next_ty;
+			if (seg_is_index[k]) {
+				val elem = Self.extract_index_elem_type(cur_ty);
+				if (!elem.empty()) cur_ty = elem;
+			}
+		}
+		return cur_ty;
+	}
+
+	fn add_fs_module_completions(
+		items: &JsonValue,
+		seen: &HashSet<str>,
+		root_dir: str,
+		prefix: str
+	) {
+		if (root_dir.empty()) return;
+		var rel = "";
+		if (!prefix.empty()) {
+			val trimmed = if (prefix.ends_with(".")) prefix.slice(0, prefix.len - 1) else prefix;
+			var rsb = StringBuilder();
+			defer rsb.free();
+			for (ci in 0..<trimmed.len) {
+				val ch = trimmed[ci];
+				rsb += if (ch == '.') '/' else ch;
+			}
+			rel = rsb.to_str();
+		}
+		val target_dir = if (rel.empty()) root_dir else root_dir.join_path(rel);
+		val p = Path(target_dir);
+		if (!p.exists() || !p.is_dir()) return;
+		val names = p.list_dir() !: return;
+		defer names.free();
+		for (entry in names) {
+			if (entry.empty() || entry.starts_with(".")) continue;
+			val full = target_dir.join_path(entry);
+			var seg = "";
+			if (Path(full).is_dir()) {
+				seg = entry;
+			} else if (entry.ends_with(".kb")) {
+				seg = entry.slice(0, entry.len - 3);
+			}
+			if (seg.empty() || seg == "main") continue;
+			if (!seen.contains(seg)) {
+				seen.add(seg);
+				val detail = if (prefix.empty()) "module ${seg}" else "module ${prefix}${seg}";
+				add_completion_item(items, seg, Completion.MODULE.value, detail, "0_${seg}");
+			}
+		}
+	}
+
+	fn complete_use_context(
+		*self,
+		tokens: List<Token>,
+		items: &JsonValue,
+		line1: usz,
+		col1: usz,
+		workspace_root: str
+	): bool {
+		// Check if line1 starts with `use`
+		var first_idx: isz = -1;
+		for (i in 0..<tokens.len) {
+			if (tokens[i].line == line1) {
+				first_idx = i as isz;
 				break;
+			}
+			if (tokens[i].line > line1) break;
+		}
+		if (first_idx < 0 || tokens[first_idx as usz].type != TokenType.KW_USE) return false;
+
+		// Build typed module prefix between `use` and cursor
+		var sb = StringBuilder();
+		defer sb.free();
+		var i = (first_idx + 1) as usz;
+		while (i < tokens.len && tokens[i].line == line1) {
+			val t = tokens[i];
+			if (t.col >= col1) break;
+			if (t.type == TokenType.DOT) {
+				sb += ".";
+			} else if (t.type == TokenType.IDENTIFIER) {
+				if (t.col + t.text.len < col1) sb += t.text;
+			}
+			i++;
+		}
+		val prefix = sb.to_str();
+		var seen = HashSet<str>();
+		defer seen.free();
+
+		// 1. Discover modules from filesystem (`src/` and `lib/`) so unimported modules appear too
+		val proj_root = if (!workspace_root.empty()) workspace_root
+			else (detect_project_root(self.file_path.dir_of()) !: "");
+		if (!proj_root.empty()) {
+			Self.add_fs_module_completions(items, &seen, proj_root.join_path("src"), prefix);
+			Self.add_fs_module_completions(items, &seen, proj_root.join_path("lib"), prefix);
+		}
+
+		// 2. Collect next module path segments from indexed definitions
+		for (def in self.index.defs) {
+			val m = def.module_name;
+			if (m.empty()) continue;
+			if (prefix.empty()) {
+				val dot = m.index_of(".") !: m.len;
+				val seg = m.slice(0, dot);
+				if (!seg.empty() && seg !in seen) {
+					seen += seg;
+					add_completion_item(items, seg, Completion.MODULE.value, "module", "0_${seg}");
+				}
+			} else if (m.starts_with(prefix) && m.len > prefix.len) {
+				val rest = m.slice(prefix.len, m.len);
+				val dot = rest.index_of(".") !: rest.len;
+				val seg = rest.slice(0, dot);
+				if (!seg.empty() && seg !in seen) {
+					seen += seg;
+					add_completion_item(items, seg, Completion.MODULE.value, "module ${prefix}${seg}", "0_${seg}");
+				}
 			}
 		}
 
-		if (prev_dot && recv_tok.type == TokenType.IDENTIFIER) {
-			var seen = HashSet<str>();
-			// Check if receiver is a struct/enum type name or variable with known type
-			var target_type_name = recv_tok.text;
-			val recv_ref = self.index.find_ref_at(self.file_path, recv_tok.line, recv_tok.col) !: RefInfo("", "", "", 0, 0, 0);
-			if (!recv_ref.target_key.empty() && !recv_ref.type_str.empty()) {
-				var ts = recv_ref.type_str;
-				if (ts.starts_with("*")) ts = ts.slice(1, ts.len);
-				else if (ts.starts_with("&")) ts = ts.slice(1, ts.len);
-				if (ts.ends_with("?")) ts = ts.slice(0, ts.len - 1);
-				val lt = ts.index_of("<") !: ts.len;
-				if (lt < ts.len) ts = ts.slice(0, lt);
-				val base_pair = self.index.c_inst_to_base.get_or(ts, "");
-				if (!base_pair.empty()) {
-					val colon = base_pair.index_of(":") !: base_pair.len;
-					target_type_name = if (colon < base_pair.len) base_pair.slice(colon + 1, base_pair.len)
-						else base_pair;
-				} else {
-					target_type_name = ts;
-				}
-			}
-
+		// 3. If prefix is `mod.path.` matching an exact module, also offer `*` and public symbols in it
+		if (prefix.ends_with(".")) {
+			val exact_mod = prefix.slice(0, prefix.len - 1);
+			var mod_has_syms = false;
 			for (def in self.index.defs) {
-				if (def.container != target_type_name) continue;
+				if (def.module_name != exact_mod) continue;
+				if (!def.is_public || !def.container.empty()) continue;
+				if (def.role !in [SymRole.FN, SymRole.STRUCT, SymRole.ENUM, SymRole.OBJECT, SymRole.TRAIT, SymRole.CONST]) continue;
+				mod_has_syms = true;
 				if (def.name in seen) continue;
 				seen += def.name;
 				val k = when (def.role) {
-					SymRole.FIELD -> Completion.FIELD.value;
-					SymRole.METHOD -> Completion.METHOD.value;
+					SymRole.FN -> Completion.FUNCTION.value;
+					SymRole.STRUCT -> Completion.STRUCT.value;
+					SymRole.ENUM -> Completion.ENUM.value;
 					SymRole.CONST -> Completion.CONSTANT.value;
-					SymRole.ENUM_VARIANT -> Completion.ENUM_MEMBER.value;
-					else -> Completion.VARIABLE.value;
+					else -> Completion.TYPE.value;
 				};
-				add_completion_item(items, def.name, k, def.signature);
+				add_completion_item(items, def.name, k, def.signature, "1_${def.name}");
 			}
-			if (!seen.empty()) return items;
+			if ((mod_has_syms || !seen.empty()) && "*" !in seen) {
+				add_completion_item(items, "*", Completion.KEYWORD.value, "Import all from ${exact_mod}", "0_*");
+			}
 		}
+		return true;
+	}
 
-		// 1. Language Keywords (including new Kobel keywords)
-		val kws = Array<str>(
-			"fn", "val", "var", "const", "struct", "enum", "trait", "impl",
-			"when", "if", "else", "while", "for", "in", "return", "yield",
-			"pub", "use", "mod", "extern", "defer", "is", "op", "init",
-			"true", "false", "null", "as", "break", "continue"
-		);
-		for (kw in kws) add_completion_item(items, kw, Completion.KEYWORD.value, "keyword");
+	fn is_type_context(tokens: List<Token>, prev_idx: isz): bool {
+		if (prev_idx < 0) return false;
+		var idx = prev_idx;
+		// Skip pointer/nullable prefixes `*`, `&`, `?` right before cursor
+		while (idx >= 0 && tokens[idx as usz].type in [TokenType.STAR, TokenType.AMPERSAND, TokenType.QUESTION]) {
+			idx--;
+		}
+		if (idx < 0) return false;
+		val t = tokens[idx as usz];
+		if (t.type in [TokenType.COLON, TokenType.KW_IS, TokenType.KW_AS, TokenType.KW_IMPL]) return true;
+		// `impl Trait for <Type>`
+		if (t.type == TokenType.KW_FOR) {
+			var k = idx - 1;
+			while (k >= 0 && tokens[k as usz].line == t.line) {
+				if (tokens[k as usz].type == TokenType.KW_IMPL) return true;
+				k--;
+			}
+		}
+		// Error-union fault type: `: T ! <Fault>` or `: !<Fault>`
+		if (t.type == TokenType.BANG && idx > 0) {
+			var k = idx - 1;
+			while (k >= 0 && tokens[k as usz].line == t.line) {
+				if (tokens[k as usz].type == TokenType.COLON) return true;
+				if (tokens[k as usz].type in [TokenType.EQUAL, TokenType.OPEN_PAREN, TokenType.OPEN_BRACE, TokenType.SEMI_COLON]) break;
+				k--;
+			}
+		}
+		if (t.type == TokenType.LESS && idx > 0 && tokens[(idx - 1) as usz].type == TokenType.IDENTIFIER) {
+			val prev_name = tokens[(idx - 1) as usz].text;
+			if (!prev_name.empty() && prev_name[0] >= 'A' && prev_name[0] <= 'Z') return true;
+		}
+		return false;
+	}
 
-		// 2. Built-in & Standard Types
+	fn is_def_visible_here(*self, def: *DefInfo): bool {
+		if (paths_equal(def.file_path, self.file_path)) return true;
+		if (!self.module_name.empty() && def.module_name == self.module_name) return true;
+		return def.is_public;
+	}
+
+	fn complete_type_context(*self, items: &JsonValue, impl_type: str) {
+		var added = HashSet<str>();
+		defer added.free();
+
+		if (!impl_type.empty()) {
+			added += "Self";
+			add_completion_item(items, "Self", Completion.TYPE.value, impl_type, "0_Self");
+		}
+		for (def in self.index.defs) {
+			if (def.role !in [SymRole.STRUCT, SymRole.ENUM, SymRole.TRAIT, SymRole.OBJECT]) continue;
+			if (!self.is_def_visible_here(&def)) continue;
+			if (def.name.empty() || def.name in added) continue;
+			added += def.name;
+			val is_local_mod = paths_equal(def.file_path, self.file_path)
+				|| (!self.module_name.empty() && def.module_name == self.module_name);
+			val prefix = if (is_local_mod) "0_" else "2_";
+			val k = when (def.role) {
+				SymRole.STRUCT -> Completion.STRUCT.value;
+				SymRole.ENUM -> Completion.ENUM.value;
+				else -> Completion.TYPE.value;
+			};
+			add_completion_item(items, def.name, k, def.signature, "${prefix}${def.name}");
+		}
 		val prims = Array<str>(
 			"i8", "i16", "i32", "i64", "isz",
 			"u8", "u16", "u32", "u64", "usz",
 			"f32", "f64", "bool", "char", "str", "none",
 			"Range", "Array", "List", "HashMap", "HashSet"
 		);
-		for (pt in prims) add_completion_item(items, pt, Completion.TYPE.value, "type");
+		for (pt in prims) {
+			if (pt !in added) {
+				added += pt;
+				add_completion_item(items, pt, Completion.TYPE.value, "type", "1_${pt}");
+			}
+		}
+	}
 
-		// 3. Local variables/params in current file + module & imported symbols
+	// Returns `"impl"`, `"trait"`, `"struct"`, `"object"`, `"top"`, or `""` (inside a fn/stmt block)
+	fn enclosing_decl_block_kind(tokens: List<Token>, before_idx: isz): str {
+		if (before_idx < 0) return "top";
+		var brace_depth: i32 = 0;
+		var cur = before_idx;
+		while (cur >= 0) {
+			val t = tokens[cur as usz];
+			if (t.type == TokenType.CLOSE_BRACE) {
+				brace_depth++;
+			} else if (t.type == TokenType.OPEN_BRACE) {
+				if (brace_depth > 0) {
+					brace_depth--;
+				} else {
+					var h = cur - 1;
+					var p_depth: i32 = 0;
+					var a_depth: i32 = 0;
+					while (h >= 0) {
+						val ht = tokens[h as usz];
+						if (ht.type == TokenType.CLOSE_PAREN) p_depth++;
+						else if (ht.type == TokenType.OPEN_PAREN) { if (p_depth > 0) p_depth--; }
+						else if (ht.type == TokenType.GREATER) a_depth++;
+						else if (ht.type == TokenType.LESS) { if (a_depth > 0) a_depth--; }
+						else if (p_depth == 0 && a_depth == 0) {
+							when (ht.type) {
+								TokenType.KW_FN, TokenType.KW_INIT, TokenType.KW_OP -> return "";
+								TokenType.KW_IMPL -> return "impl";
+								TokenType.KW_TRAIT -> return "trait";
+								TokenType.KW_STRUCT -> return "struct";
+								TokenType.IDENTIFIER -> if (ht.text == "object") return "object";
+								TokenType.SEMI_COLON, TokenType.OPEN_BRACE, TokenType.CLOSE_BRACE -> return "";
+								else -> {}
+							}
+						}
+						h--;
+					}
+					return "";
+				}
+			}
+			cur--;
+		}
+		return "top";
+	}
+
+	fn complete_decl_block_context(items: &JsonValue, block_kind: str): bool {
+		if (block_kind == "impl") {
+			val kws = Array<str>("pub", "fn", "init", "op", "const");
+			for (kw in kws) add_completion_item(items, kw, Completion.KEYWORD.value, "impl member", "0_${kw}");
+			return true;
+		}
+		if (block_kind == "object") {
+			val kws = Array<str>("pub", "fn", "const");
+			for (kw in kws) add_completion_item(items, kw, Completion.KEYWORD.value, "object member", "0_${kw}");
+			return true;
+		}
+		if (block_kind == "trait") {
+			val kws = Array<str>("fn", "op", "type");
+			for (kw in kws) add_completion_item(items, kw, Completion.KEYWORD.value, "trait member", "0_${kw}");
+			return true;
+		}
+		if (block_kind == "struct") {
+			add_completion_item(items, "pub", Completion.KEYWORD.value, "public field", "0_pub");
+			return true;
+		}
+		if (block_kind == "top") {
+			val kws = Array<str>(
+				"pub", "fn", "struct", "enum", "fault", "trait",
+				"impl", "object", "const", "use", "mod", "extern"
+			);
+			for (kw in kws) add_completion_item(items, kw, Completion.KEYWORD.value, "declaration", "0_${kw}");
+			return true;
+		}
+		return false;
+	}
+
+	pub fn complete_at(*self, line0: usz = 0, col0: usz = 0): *JsonValue =>
+		self.complete_at_with_tokens(line0, col0, self.tokens, "");
+
+	pub fn complete_at_with_tokens(
+		*self,
+		line0: usz,
+		col0: usz,
+		cur_tokens: List<Token>,
+		workspace_root: str = ""
+	): *JsonValue {
+		val items = JsonValue.arr();
+		val line1 = line0 + 1;
+		val col1 = col0 + 1;
+
+		// 0. Context: `use ...` module & symbol import completion
+		if (self.complete_use_context(cur_tokens, items, line1, col1, workspace_root)) return items;
+
+		// Locate last token strictly before cursor (and handle partial identifier currently being typed)
+		var last_idx: isz = -1;
+		for (i in 0..<cur_tokens.len) {
+			val t = cur_tokens[i];
+			if (t.line < line1 || (t.line == line1 && t.col < col1)) last_idx = i as isz;
+			else break;
+		}
+		var before_partial = last_idx;
+		if (last_idx >= 0) {
+			val lt = cur_tokens[last_idx as usz];
+			if (
+				lt.line == line1 &&
+				lt.type == TokenType.IDENTIFIER &&
+				lt.col <= col1 &&
+				col1 <= lt.col + lt.text.len
+			) {
+				before_partial = last_idx - 1;
+			}
+		}
+
+		val fn_line = Self.find_enclosing_fn_line(cur_tokens, before_partial);
+		val impl_type = Self.find_enclosing_impl_type(cur_tokens, before_partial);
+
+		// 1. Context: Member completion after `.` or `?.` (supports chained calls/fields/indexing & nullable ptrs)
+		if (
+			before_partial >= 0 &&
+			cur_tokens[before_partial as usz].line == line1 &&
+			cur_tokens[before_partial as usz].type in [TokenType.DOT, TokenType.QUESTION_DOT]
+		) {
+			val raw_ty = self.resolve_chain_type_at(cur_tokens, before_partial, fn_line);
+			val target_type_name = if (!raw_ty.empty()) self.strip_type_base(raw_ty) else "";
+			var seen = HashSet<str>();
+			defer seen.free();
+
+			if (target_type_name == "str" || target_type_name == "__array__") {
+				seen += "len";
+				add_completion_item(items, "len", Completion.FIELD.value, "len: usz", "0_len");
+			}
+			if (!target_type_name.empty()) {
+				for (def in self.index.defs) {
+					if (def.container != target_type_name) continue;
+					if (def.name.empty() || def.name == "init" || def.signature.starts_with("op ")) continue;
+					if (def.role != SymRole.ENUM_VARIANT && !self.is_def_visible_here(&def)) continue;
+					if (def.name in seen) continue;
+					seen += def.name;
+					val k = when (def.role) {
+						SymRole.FIELD -> Completion.FIELD.value;
+						SymRole.METHOD -> Completion.METHOD.value;
+						SymRole.CONST -> Completion.CONSTANT.value;
+						SymRole.ENUM_VARIANT -> Completion.ENUM_MEMBER.value;
+						else -> Completion.VARIABLE.value;
+					};
+					val sort_p = if (def.role == SymRole.METHOD) "1_" else "0_";
+					add_completion_item(items, def.name, k, def.signature, "${sort_p}${def.name}");
+				}
+			}
+			return items;
+		}
+
+		// 2. Context: Type position (`: `, `is `, `as `, `?*`, `List<`)
+		if (Self.is_type_context(cur_tokens, before_partial)) {
+			self.complete_type_context(items, impl_type);
+			return items;
+		}
+
+		// 2b. Context: Declaration-level block (`impl { }`, `trait { }`, `struct { }`, `object { }`, or top-level)
+		if (fn_line == 0) {
+			val decl_kind = Self.enclosing_decl_block_kind(cur_tokens, before_partial);
+			if (!decl_kind.empty() && Self.complete_decl_block_context(items, decl_kind)) {
+				return items;
+			}
+		}
+
+		// 3. Context: General expression/statement completion (locals in current fn > module > imported > types > keywords)
 		var added = HashSet<str>();
+		defer added.free();
+
+		if (!impl_type.empty()) {
+			added += "self";
+			add_completion_item(items, "self", Completion.VARIABLE.value, "self: ${impl_type}", "0_self");
+		}
+
 		for (def in self.index.defs) {
+			var sort_p = "2_";
 			if (def.role in [SymRole.LOCAL, SymRole.PARAM]) {
 				if (!paths_equal(def.file_path, self.file_path)) continue;
-				if (def.line > line1) continue;
+				if (def.line > line1 || def.line < fn_line) continue;
+				sort_p = "0_";
 			} else if (
-				def.role in [SymRole.FIELD, SymRole.METHOD, SymRole.ENUM_VARIANT]
+				def.role in [SymRole.FIELD, SymRole.METHOD, SymRole.ENUM_VARIANT, SymRole.MODULE]
 				|| (def.role == SymRole.CONST && !def.container.empty())
 			) {
 				continue;
+			} else {
+				if (!self.is_def_visible_here(&def)) continue;
+				if (
+					paths_equal(def.file_path, self.file_path)
+					|| (!self.module_name.empty() && def.module_name == self.module_name)
+				) {
+					sort_p = "1_";
+				}
 			}
-			if (def.name in added) continue;
+			if (def.name.empty() || def.name in added) continue;
 			added += def.name;
 			val k = when (def.role) {
 				SymRole.FN -> Completion.FUNCTION.value;
@@ -876,7 +1476,47 @@ impl AnalysisResult {
 				SymRole.MODULE -> Completion.MODULE.value;
 				else -> Completion.VARIABLE.value;
 			};
-			add_completion_item(items, def.name, k, def.signature);
+			add_completion_item(items, def.name, k, def.signature, "${sort_p}${def.name}");
+		}
+
+		// Also pick up newly typed local `val`/`var` declarations in the enclosing fn before cursor
+		if (fn_line > 0) {
+			for (ti in 0..<cur_tokens.len) {
+				val t = cur_tokens[ti];
+				if (t.line < fn_line) continue;
+				if (t.line >= line1) break;
+				if (t.type in [TokenType.KW_VAL, TokenType.KW_VAR] && ti + 1 < cur_tokens.len) {
+					val nt = cur_tokens[ti + 1];
+					if (nt.type == TokenType.IDENTIFIER && nt.text != "_" && nt.text !in added) {
+						added += nt.text;
+						add_completion_item(items, nt.text, Completion.VARIABLE.value, "local", "0_${nt.text}");
+					}
+				}
+			}
+		}
+
+		val prims = Array<str>(
+			"i8", "i16", "i32", "i64", "isz",
+			"u8", "u16", "u32", "u64", "usz",
+			"f32", "f64", "bool", "char", "str", "none",
+			"Range", "Array", "List", "HashMap", "HashSet"
+		);
+		for (pt in prims) {
+			if (pt !in added) {
+				added += pt;
+				add_completion_item(items, pt, Completion.TYPE.value, "type", "3_${pt}");
+			}
+		}
+
+		val kws = Array<str>(
+			"val", "var", "if", "else", "while", "for", "in",
+			"when", "return", "yield", "defer", "is", "as",
+			"true", "false", "null", "break", "continue"
+		);
+		for (kw in kws) {
+			if (kw !in added) {
+				add_completion_item(items, kw, Completion.KEYWORD.value, "keyword", "4_${kw}");
+			}
 		}
 
 		return items;
@@ -917,14 +1557,17 @@ impl AnalysisResult {
 		return sig_obj;
 	}
 
-	pub fn signature_help_at(*self, line0: usz, col0: usz): *JsonValue {
+	pub fn signature_help_at(*self, line0: usz, col0: usz): *JsonValue =>
+		self.signature_help_at_with_tokens(line0, col0, self.tokens);
+
+	pub fn signature_help_at_with_tokens(*self, line0: usz, col0: usz, cur_tokens: List<Token>): *JsonValue {
 		val line1 = line0 + 1;
 		val col1 = col0 + 1;
 
 		// Walk backwards through tokens before cursor to find enclosing `(`
 		var idx: isz = -1;
-		for (i in 0..<self.tokens.len) {
-			val t = self.tokens[i];
+		for (i in 0..<cur_tokens.len) {
+			val t = cur_tokens[i];
 			if (t.line < line1 || (t.line == line1 && t.col < col1)) idx = i as isz;
 			else break;
 		}
@@ -937,7 +1580,7 @@ impl AnalysisResult {
 		var open_idx: isz = -1;
 		var cur = idx;
 		while (cur >= 0) {
-			val t = self.tokens[cur as usz];
+			val t = cur_tokens[cur as usz];
 			when (t.type) {
 				TokenType.CLOSE_PAREN -> paren_depth++;
 				TokenType.OPEN_PAREN -> {
@@ -962,10 +1605,10 @@ impl AnalysisResult {
 
 		// Support generic calls like `foo<T, U>(...)` and `List<str>(...)`
 		var callee_idx = open_idx - 1;
-		if (self.tokens[callee_idx as usz].type == TokenType.GREATER) {
+		if (cur_tokens[callee_idx as usz].type == TokenType.GREATER) {
 			var angle_depth: i32 = 0;
 			while (callee_idx >= 0) {
-				val ty = self.tokens[callee_idx as usz].type;
+				val ty = cur_tokens[callee_idx as usz].type;
 				if (ty == TokenType.GREATER) angle_depth++;
 				else if (ty == TokenType.LESS) {
 					angle_depth--;
@@ -979,11 +1622,11 @@ impl AnalysisResult {
 		}
 		if (callee_idx < 0) return JsonValue.null_val();
 
-		val callee_tok = self.tokens[callee_idx as usz];
+		val callee_tok = cur_tokens[callee_idx as usz];
 		if (callee_tok.type != TokenType.IDENTIFIER) return JsonValue.null_val();
 
 		val is_member_call = callee_idx > 0
-			&& self.tokens[(callee_idx - 1) as usz].type in [TokenType.DOT, TokenType.QUESTION_DOT];
+			&& cur_tokens[(callee_idx - 1) as usz].type in [TokenType.DOT, TokenType.QUESTION_DOT];
 
 		var def = DefInfo("", "", SymRole.FN, "", "", "", 0, 0, 0, "", "");
 		val ref_res = self.index.find_ref_at(self.file_path, callee_tok.line, callee_tok.col);

@@ -81,6 +81,8 @@ pub struct AnalysisCacheEntry {
 	pub analysis: AnalysisResult = AnalysisResult()
 }
 
+const MAX_GOOD_CACHE: usz = 4;
+
 pub struct LanguageServer {
 	pub docs: DocumentStore,
 	pub vfs: SourceCache,
@@ -92,7 +94,8 @@ pub struct LanguageServer {
 	pub kblint_rules: KblintRuleSet = KblintRuleSet(),
 	pub kblint_loaded: bool = false,
 	pub kblint_root: str = "",
-	pub kblint_dotfile_text: str = ""
+	pub kblint_dotfile_text: str = "",
+	pub good_cache: List<AnalysisCacheEntry> = List()
 }
 
 impl LanguageServer {
@@ -169,19 +172,66 @@ impl LanguageServer {
 		return &self.cache.data[self.cache.len - 1].analysis;
 	}
 
-	fn invalidate_uri(&self, uri: str) {
+	fn stash_good_entry(&self, entry: AnalysisCacheEntry) {
 		val prev = HeapPool.push_default();
 		var i: usz = 0;
-		while (i < self.cache.len) {
-			if (self.cache.data[i].uri == uri) {
-				self.cache.data[i].pool.destroy();
-				self.cache.remove_at(i)!;
+		while (i < self.good_cache.len) {
+			if (self.good_cache.data[i].uri == entry.uri) {
+				self.good_cache.data[i].pool.destroy();
+				self.good_cache.remove_at(i)!;
+			} else {
+				i++;
+			}
+		}
+		while (self.good_cache.len >= MAX_GOOD_CACHE) {
+			self.good_cache.data[0].pool.destroy();
+			self.good_cache.remove_at(0)!;
+		}
+		self.good_cache.add(entry);
+		HeapPool.pop(prev);
+	}
+
+	fn drop_good_uri(&self, uri: str) {
+		val prev = HeapPool.push_default();
+		var i: usz = 0;
+		while (i < self.good_cache.len) {
+			if (self.good_cache.data[i].uri == uri) {
+				self.good_cache.data[i].pool.destroy();
+				self.good_cache.remove_at(i)!;
 			} else {
 				i++;
 			}
 		}
 		HeapPool.pop(prev);
-		if (self.cache.empty()) self.vfs.flush_retired();
+	}
+
+	fn find_good_analysis(*self, uri: str): ?*AnalysisResult {
+		for (i in 0..<self.good_cache.len) {
+			if (self.good_cache.data[i].uri == uri) return &self.good_cache.data[i].analysis;
+		}
+		return null;
+	}
+
+	fn invalidate_uri(&self, uri: str) {
+		val prev = HeapPool.push_default();
+		var i: usz = 0;
+		while (i < self.cache.len) {
+			if (self.cache.data[i].uri == uri) {
+				var item = self.cache.data[i];
+				self.cache.remove_at(i)!;
+				if (item.analysis.has_symtab) {
+					HeapPool.pop(prev);
+					self.stash_good_entry(item);
+					val _ = HeapPool.push_default();
+				} else {
+					item.pool.destroy();
+				}
+			} else {
+				i++;
+			}
+		}
+		HeapPool.pop(prev);
+		if (self.cache.empty() && self.good_cache.empty()) self.vfs.flush_retired();
 	}
 
 	// Selectively evict snapshots affected by `changed_uri` / `changed_path` while keeping
@@ -214,14 +264,21 @@ impl LanguageServer {
 			}
 			if (affected) {
 				val prev = HeapPool.push_default();
-				self.cache.data[i].pool.destroy();
+				var item = self.cache.data[i];
 				self.cache.remove_at(i)!;
 				HeapPool.pop(prev);
+				if (item.uri == changed_uri && item.analysis.has_symtab) {
+					self.stash_good_entry(item);
+				} else {
+					val p2 = HeapPool.push_default();
+					item.pool.destroy();
+					HeapPool.pop(p2);
+				}
 			} else {
 				i++;
 			}
 		}
-		if (self.cache.empty()) self.vfs.flush_retired();
+		if (self.cache.empty() && self.good_cache.empty()) self.vfs.flush_retired();
 	}
 
 	fn trim_cache(&self, keep: usz) {
@@ -230,8 +287,12 @@ impl LanguageServer {
 			self.cache.data[0].pool.destroy();
 			self.cache.remove_at(0)!;
 		}
+		while (self.good_cache.len > keep) {
+			self.good_cache.data[0].pool.destroy();
+			self.good_cache.remove_at(0)!;
+		}
 		HeapPool.pop(prev);
-		if (self.cache.empty()) self.vfs.flush_retired();
+		if (self.cache.empty() && self.good_cache.empty()) self.vfs.flush_retired();
 	}
 
 	fn invalidate_cache(&self) {
@@ -241,6 +302,11 @@ impl LanguageServer {
 		}
 		self.cache.free();
 		self.cache = List<AnalysisCacheEntry>();
+		for (i in 0..<self.good_cache.len) {
+			self.good_cache.data[i].pool.destroy();
+		}
+		self.good_cache.free();
+		self.good_cache = List<AnalysisCacheEntry>();
 		HeapPool.pop(prev);
 		self.vfs.flush_retired();
 	}
@@ -248,6 +314,7 @@ impl LanguageServer {
 	fn memory_stats_json(*self): *JsonValue {
 		var snap_bytes: usz = 0;
 		for (i in 0..<self.cache.len) snap_bytes += self.cache.data[i].pool.live_bytes();
+		for (i in 0..<self.good_cache.len) snap_bytes += self.good_cache.data[i].pool.live_bytes();
 		val kblint_bytes = self.kblint_pool.live_bytes();
 		val def_bytes = Heap.default_live_bytes();
 		val vfs_bytes = self.vfs.total_bytes();
@@ -427,9 +494,10 @@ impl LanguageServer {
 				val uri = text_doc.get_str("uri", "");
 				val path_tmp = uri_to_path(uri);
 				self.invalidate_dependents(uri, path_tmp);
+				self.drop_good_uri(uri);
 				self.docs.remove(uri);
 				self.vfs.remove_override(path_tmp);
-				if (self.cache.empty()) self.vfs.flush_retired();
+				if (self.cache.empty() && self.good_cache.empty()) self.vfs.flush_retired();
 
 				val p = JsonValue.obj();
 				p["uri"] = JsonValue.str(uri);
@@ -447,7 +515,7 @@ impl LanguageServer {
 					self.invalidate_dependents(ch_uri, ch_path);
 					self.vfs.invalidate_disk(ch_path);
 				}
-				if (self.cache.empty()) self.vfs.flush_retired();
+				if (self.cache.empty() && self.good_cache.empty()) self.vfs.flush_retired();
 			}
 
 			Method.MEMORY_STATS.value -> {
@@ -598,7 +666,8 @@ impl LanguageServer {
 				val doc_res = self.docs.get_doc(uri);
 				if (doc_res is Document as doc && !doc.text.empty()) {
 					val analysis = self.get_analysis(doc.uri, doc.path, doc.text);
-					send_response(id, analysis.signature_help_at(line, char_col));
+					val target = if (!analysis.has_symtab) (self.find_good_analysis(doc.uri) ?: analysis) else analysis;
+					send_response(id, target.signature_help_at_with_tokens(line, char_col, analysis.tokens));
 				} else {
 					send_response(id, JsonValue.null_val());
 				}
@@ -659,7 +728,11 @@ impl LanguageServer {
 				val doc_res = self.docs.get_doc(uri);
 				if (doc_res is Document as doc) {
 					val analysis = self.get_analysis(doc.uri, doc.path, doc.text);
-					send_response(id, analysis.complete_at(line, char_col));
+					val target = if (!analysis.has_symtab) (self.find_good_analysis(doc.uri) ?: analysis) else analysis;
+					send_response(
+						id,
+						target.complete_at_with_tokens(line, char_col, analysis.tokens, self.workspace_root)
+					);
 				} else {
 					val empty_analysis = AnalysisResult("", "", self.workspace_root);
 					send_response(id, empty_analysis.complete_at(0, 0));

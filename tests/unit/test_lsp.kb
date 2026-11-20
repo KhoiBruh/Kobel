@@ -1709,6 +1709,178 @@ fn work(): List<i32> {
 	println("  [PASS] test_resource_lint_type_action_and_sig_help");
 }
 
+fn has_comp_label(arr: *JsonValue, label: str): bool {
+	if (!arr.is_arr()) return false;
+	for (it in arr.arr_val) {
+		if (it.get_str("label", "") == label) return true;
+	}
+	return false;
+}
+
+fn test_context_aware_completion() {
+	val src = """mod sample.ctx_comp;
+
+use std.collections.*;
+
+struct Inner {
+	pub name: str,
+	pub score: i32
+}
+
+impl Inner {
+	pub fn bump(&self): i32 => self.score + 1;
+}
+
+struct Outer {
+	pub inner: Inner,
+	pub opt_inner: ?*Inner
+}
+
+impl Outer {
+	pub fn inspect(*self): i32 {
+		val from_chain = self.inner.score;
+		val str_len = self.inner.name.len;
+		val opt_val = self.opt_inner?.score ?: 0;
+		val typed_x: Inner = self.inner;
+		return from_chain + (str_len as i32) + opt_val + typed_x.score;
+	}
+}
+
+fn first_fn(): i32 {
+	val secret_first_local = 10;
+	return secret_first_local;
+}
+
+fn second_fn(): i32 {
+	val local_two = 20;
+	return local_two;
+}
+""";
+	val vpath = "C:/Users/Admin/CLionProjects/Kobel/tests/unit/ctx_comp_virtual.kb";
+	var a = AnalysisResult(vpath, src, "", false);
+
+	// 1. Chained member completion on `self.inner.score` (right after `self.inner.`)
+	val p_chain = find_line_col(src, "self.inner.score");
+	val c_chain = a.complete_at(p_chain.first, p_chain.second + 11);
+	assert_true(has_comp_label(c_chain, "name"), "chained self.inner. must suggest field 'name'");
+	assert_true(has_comp_label(c_chain, "score"), "chained self.inner. must suggest field 'score'");
+	assert_true(has_comp_label(c_chain, "bump"), "chained self.inner. must suggest method 'bump'");
+	assert_true(!has_comp_label(c_chain, "return"), "member completion must not leak keywords");
+
+	// 2. Chained built-in str member completion on `self.inner.name.len` (right after `self.inner.name.`)
+	val p_str = find_line_col(src, "self.inner.name.len");
+	val c_str = a.complete_at(p_str.first, p_str.second + 16);
+	assert_true(has_comp_label(c_str, "len"), "chained str member completion must suggest 'len'");
+
+	// 3. Nullable pointer member completion on `self.opt_inner?.score` (right after `?.`)
+	val p_opt = find_line_col(src, "self.opt_inner?.score");
+	val c_opt = a.complete_at(p_opt.first, p_opt.second + 16);
+	assert_true(has_comp_label(c_opt, "score"), "nullable pointer ?. must unwrap ?*Inner and suggest 'score'");
+	assert_true(has_comp_label(c_opt, "bump"), "nullable pointer ?. must suggest method 'bump'");
+
+	// 4. Type-position completion on `val typed_x: Inner` (right after `: `)
+	val p_ty = find_line_col(src, "typed_x: Inner");
+	val c_ty = a.complete_at(p_ty.first, p_ty.second + 9);
+	assert_true(has_comp_label(c_ty, "Inner"), "type context must suggest struct 'Inner'");
+	assert_true(has_comp_label(c_ty, "Self"), "type context inside impl must suggest 'Self'");
+	assert_true(has_comp_label(c_ty, "usz"), "type context must suggest primitive 'usz'");
+	assert_true(!has_comp_label(c_ty, "return"), "type context must not suggest statement keywords");
+	assert_true(!has_comp_label(c_ty, "from_chain"), "type context must not suggest local variables");
+
+	// 5. `use std.` module completion
+	val p_use = find_line_col(src, "use std.collections.*;");
+	val c_use = a.complete_at(p_use.first, p_use.second + 8);
+	assert_true(has_comp_label(c_use, "collections"), "use std. must suggest 'collections' module");
+
+	// 6. Local scope isolation inside `second_fn`
+	val p_sec = find_line_col(src, "return local_two;");
+	val c_sec = a.complete_at(p_sec.first, p_sec.second + 7);
+	assert_true(has_comp_label(c_sec, "local_two"), "second_fn must see its own local 'local_two'");
+	assert_true(!has_comp_label(c_sec, "secret_first_local"), "second_fn must not see locals from first_fn");
+
+	// 7. Mid-keystroke broken syntax (`self.` and `use compiler.`) using last-good index + live tokens
+	val broken_src = """mod sample.ctx_comp;
+
+use std.collections.*;
+use compiler.
+
+struct Inner {
+	pub name: str,
+	pub score: i32
+}
+
+struct Outer {
+	pub inner: Inner,
+	pub opt_inner: ?*Inner
+}
+
+impl Outer {
+	pub fn inspect(*self, source_arg: str): i32 {
+		val fresh_local = 1;
+		self.
+		if (source_arg.len > 0) return fresh_local;
+		return 0;
+	}
+}
+""";
+	var broken_a = AnalysisResult(vpath, broken_src, "C:/Users/Admin/CLionProjects/Kobel", false);
+	assert_true(!broken_a.has_symtab, "broken buffer must fail parse and trigger last-good fallback");
+
+	val p_bdot = find_line_col(broken_src, "self.");
+	val c_bdot = a.complete_at_with_tokens(
+		p_bdot.first, p_bdot.second + 5, broken_a.tokens, "C:/Users/Admin/CLionProjects/Kobel"
+	);
+	assert_true(has_comp_label(c_bdot, "inner"), "mid-keystroke self. must suggest field 'inner' via last-good index");
+	assert_true(has_comp_label(c_bdot, "opt_inner"), "mid-keystroke self. must suggest field 'opt_inner'");
+	assert_true(has_comp_label(c_bdot, "inspect"), "mid-keystroke self. must suggest method 'inspect'");
+
+	val p_buse = find_line_col(broken_src, "use compiler.");
+	val c_buse = broken_a.complete_at_with_tokens(
+		p_buse.first, p_buse.second + 13, broken_a.tokens, "C:/Users/Admin/CLionProjects/Kobel"
+	);
+	assert_true(has_comp_label(c_buse, "lexer"), "mid-keystroke use compiler. must discover 'lexer' from src/");
+	assert_true(has_comp_label(c_buse, "loader"), "mid-keystroke use compiler. must discover 'loader' from src/");
+	assert_true(has_comp_label(c_buse, "semantic"), "mid-keystroke use compiler. must discover 'semantic' from src/");
+
+	val c_bfresh = a.complete_at_with_tokens(
+		p_bdot.first, p_bdot.second, broken_a.tokens, "C:/Users/Admin/CLionProjects/Kobel"
+	);
+	assert_true(has_comp_label(c_bfresh, "fresh_local"), "mid-keystroke completion must pick up newly typed local 'fresh_local'");
+
+	// 8. Declaration-block context inside `impl Outer {` (not inside any fn)
+	val p_impl = find_line_col(src, "pub fn inspect");
+	val c_impl = a.complete_at(p_impl.first, p_impl.second);
+	assert_true(has_comp_label(c_impl, "init"), "impl block must suggest 'init'");
+	assert_true(has_comp_label(c_impl, "fn"), "impl block must suggest 'fn'");
+	assert_true(has_comp_label(c_impl, "pub"), "impl block must suggest 'pub'");
+	assert_true(!has_comp_label(c_impl, "i32"), "impl block must not suggest primitive types like 'i32'");
+	assert_true(!has_comp_label(c_impl, "if"), "impl block must not suggest statement keywords like 'if'");
+
+	// 9. `impl <Type>` type-position completion + cross-module privacy & no MODULE noise
+	val p_impl_hdr = find_line_col(src, "impl Outer");
+	val c_impl_hdr = a.complete_at(p_impl_hdr.first, p_impl_hdr.second + 8);
+	assert_true(has_comp_label(c_impl_hdr, "Outer"), "impl <Type> must suggest struct 'Outer'");
+	assert_true(!has_comp_label(c_impl_hdr, "fn"), "impl <Type> must not suggest declaration keywords");
+	assert_true(!has_comp_label(c_sec, "std.collections"), "expr completion must not include module paths");
+	assert_true(!has_comp_label(c_sec, "ArenaBlock"), "expr completion must not expose private symbols from other modules");
+
+	JsonValue.free_tree(c_chain);
+	JsonValue.free_tree(c_str);
+	JsonValue.free_tree(c_opt);
+	JsonValue.free_tree(c_ty);
+	JsonValue.free_tree(c_use);
+	JsonValue.free_tree(c_sec);
+	JsonValue.free_tree(c_bdot);
+	JsonValue.free_tree(c_buse);
+	JsonValue.free_tree(c_bfresh);
+	JsonValue.free_tree(c_impl);
+	JsonValue.free_tree(c_impl_hdr);
+	broken_a.free();
+	a.free();
+
+	println("  [PASS] test_context_aware_completion");
+}
+
 pub fn main() {
 	println("Running LSP unit tests...");
 	test_json_and_uri();
@@ -1726,5 +1898,6 @@ pub fn main() {
 	test_payload_enum_hover_and_def();
 	test_pool_isolation_and_vfs_cache();
 	test_resource_lint_type_action_and_sig_help();
+	test_context_aware_completion();
 	println("All LSP unit tests passed.");
 }
