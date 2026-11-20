@@ -1580,6 +1580,33 @@ pub fn run(): i64 => helper(41);
 	JsonValue.free_tree(doc_syms);
 	HeapPool.pop(prev_sym);
 	sym_pool.destroy();
+	// 5. Built-in member hover (`str.len`, `[T; N].len`), expected-type `HashMap()` assign, and `for (0..<n)`
+	val builtin_src = """mod sample.builtin_hover;
+
+use std.collections.*;
+
+pub struct BoxStr {
+	pub text: str = ""
+}
+
+pub fn measure(items: HashMap<str, BoxStr>): usz {
+	var total: usz = 0;
+	for ((_, b) in items) total += b.text.len;
+	for (0..<2) total += 1;
+	return total;
+}
+""";
+	val bpath = "C:/Users/Admin/CLionProjects/Kobel/tests/unit/builtin_hover_virtual.kb";
+	var ba = AnalysisResult(bpath, builtin_src, "", false);
+	assert_eq_usz(ba.diagnostics.len, 0, "builtin_hover snippet must have 0 errors and 0 warnings");
+	// Hover on `len` in `\tfor ((_, b) in items) total += b.text.len;` (line 10, col 39)
+	val hov_len = ba.hover_at(10, 39);
+	assert_true(!hov_len.is_null(), "hover on str.len must not be null");
+	val len_md = hov_len["contents"].get_str("value", "");
+	assert_true(len_md.contains("len: usz"), "hover on str.len must show 'len: usz'");
+	JsonValue.free_tree(hov_len);
+	ba.free();
+
 	println("  [PASS] test_pool_isolation_and_vfs_cache");
 }
 

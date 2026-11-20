@@ -6419,9 +6419,9 @@ compiler__semantic__types__Type* compiler__semantic__checker__BodyChecker_lower_
 compiler__semantic__types__Type* compiler__semantic__checker__BodyChecker_lower_index_write(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* node, compiler__ast__NodeData__IndexExpr* idx, compiler__lexer__TokenType op, compiler__ast__AstNode* rhs, kobel_str what);
 compiler__semantic__types__Type* compiler__semantic__checker__BodyChecker_check_update_expr(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* node);
 compiler__semantic__types__Type* compiler__semantic__checker__BodyChecker_check_cast_expr(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* node);
-compiler__semantic__types__Type* compiler__semantic__checker__BodyChecker_check_call_expr(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* node);
+compiler__semantic__types__Type* compiler__semantic__checker__BodyChecker_check_call_expr(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* node, compiler__semantic__types__Type* expected);
 compiler__semantic__types__Type* compiler__semantic__checker__BodyChecker_check_explicit_generic_call(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* node, compiler__ast__NodeData__CallExpr* call, compiler__ast__NodeData__IdentifierExpr* cid);
-compiler__semantic__types__Type* compiler__semantic__checker__BodyChecker_check_inferred_generic_call(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* node, compiler__ast__NodeData__CallExpr* call, compiler__ast__NodeData__IdentifierExpr* cid);
+compiler__semantic__types__Type* compiler__semantic__checker__BodyChecker_check_inferred_generic_call(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* node, compiler__ast__NodeData__CallExpr* call, compiler__ast__NodeData__IdentifierExpr* cid, compiler__semantic__types__Type* expected);
 compiler__semantic__types__Type* compiler__semantic__checker__BodyChecker_check_enum_value_ctor(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* node, compiler__semantic__types__Type* enum_ty, compiler__ast__NodeData__CallExpr* call);
 compiler__semantic__types__Type* compiler__semantic__checker__BodyChecker_check_char_ctor(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* node, compiler__semantic__types__Type* char_ty, compiler__ast__NodeData__CallExpr* call);
 compiler__semantic__types__Type* compiler__semantic__checker__BodyChecker_check_str_ctor(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* node, compiler__semantic__types__Type* str_ty, compiler__ast__NodeData__CallExpr* call);
@@ -13418,6 +13418,17 @@ return compiler__parser__Parser_node(self, (compiler__ast__NodeData){ .tag = 34,
 compiler__ast__AstNode* compiler__parser__Parser_parse_for_stmt(compiler__parser__Parser* self) {
 compiler__lexer__Token kw = compiler__parser__Parser_advance(self);
 compiler__parser__Parser_consume(self, 15, KOBEL_STR("Expected '(' after 'for'"));
+bool has_var = true;
+bool is_paren_destruct = false;
+if (compiler__parser__Parser_check(self, 15)) {
+size_t k = 1;
+while (compiler__parser__Parser_peek_at(self, k).type != 76 && compiler__parser__Parser_peek_at(self, k).type != 16) {
+k++;
+}
+if (compiler__parser__Parser_peek_at(self, k).type == 16 && compiler__parser__Parser_peek_at(self, k + 1).type == 69) {
+is_paren_destruct = true;
+}
+}
 kobel_str var_name;
 if (compiler__parser__Parser_match_token(self, 54)) {
 compiler__parser__Parser_consume(self, 15, KOBEL_STR("Expected '(' after 'val' in destructuring loop"));
@@ -13451,7 +13462,8 @@ compiler__parser__Parser_consume(self, 16, KOBEL_STR("Expected ')' after destruc
 raw_names = kobel_concat(2, raw_names, KOBEL_STR(")"));
 var_name = raw_names;
 goto __when_end_49;
-} else if (compiler__parser__Parser_match_token(self, 15)) {
+} else if (is_paren_destruct) {
+compiler__parser__Parser_advance(self);
 compiler__lexer__Token n1 = compiler__parser__Parser_consume(self, 44, KOBEL_STR("Expected variable name in destructuring pattern"));
 kobel_str raw_names = kobel_concat(2, KOBEL_STR("("), n1.text);
 while (compiler__parser__Parser_match_token(self, 2)) {
@@ -13466,11 +13478,18 @@ compiler__parser__Parser_consume(self, 16, KOBEL_STR("Expected ')' after destruc
 raw_names = kobel_concat(2, raw_names, KOBEL_STR(")"));
 var_name = raw_names;
 goto __when_end_49;
+} else if (compiler__parser__Parser_check(self, 44) && compiler__parser__Parser_peek_at(self, 1).type == 69) {
+var_name = compiler__parser__Parser_advance(self).text;
+goto __when_end_49;
 } else {
-var_name = compiler__parser__Parser_consume(self, 44, KOBEL_STR("Expected loop variable name")).text;
+has_var = false;
+var_name = KOBEL_STR("");
+goto __when_end_49;
 }
 __when_end_49:;
+if (has_var) {
 compiler__parser__Parser_consume(self, 69, KOBEL_STR("Expected 'in' after loop variable"));
+}
 compiler__ast__AstNode* first = compiler__parser__Parser_parse_expression(self, 7);
 bool is_range = false;
 bool is_open = false;
@@ -13525,6 +13544,9 @@ is_half_open = bin->op == 30;
 range_start = bin->left;
 range_end = bin->right;
 } else {
+if (!has_var) {
+compiler__parser__Parser_error(self, kw, KOBEL_STR("Expected 'in' after loop variable or a range expression (e.g. 'for (0..<n)')"));
+}
 iterable = iter;
 }
 }
@@ -13912,7 +13934,7 @@ break;
 curr = parent;
 count++;
 }
-return (__kobel_eu_str__compiler__loader__LoaderErr){ .is_ok = false, .u = { .err = (compiler__loader__LoaderErr){ .tag = 1, .__err_code = 31U, .__origin = { "src/compiler/loader/loader.kb", 230, 18, "detect_project_root" } } } };
+return (__kobel_eu_str__compiler__loader__LoaderErr){ .is_ok = false, .u = { .err = (compiler__loader__LoaderErr){ .tag = 1, .__err_code = 31U, .__origin = { "src/compiler/loader/loader.kb", 236, 18, "detect_project_root" } } } };
 }
 
 bool compiler__loader__str_less(kobel_str a, kobel_str b) {
@@ -14079,7 +14101,7 @@ __for_i = __for_i + 1;
 }
 }
 {
-__kobel_eu_mut_ptr_compiler__ast__AstNode__compiler__loader__LoaderErr __ret_tmp = (__kobel_eu_mut_ptr_compiler__ast__AstNode__compiler__loader__LoaderErr){ .is_ok = false, .u = { .err = (compiler__loader__LoaderErr){ .tag = 3, .__err_code = 33U, .__origin = { "src/compiler/loader/loader.kb", 322, 20, "ModuleLoader_parse_source" } } } };
+__kobel_eu_mut_ptr_compiler__ast__AstNode__compiler__loader__LoaderErr __ret_tmp = (__kobel_eu_mut_ptr_compiler__ast__AstNode__compiler__loader__LoaderErr){ .is_ok = false, .u = { .err = (compiler__loader__LoaderErr){ .tag = 3, .__err_code = 33U, .__origin = { "src/compiler/loader/loader.kb", 328, 20, "ModuleLoader_parse_source" } } } };
 std__collections__List_compiler__lexer__Token_free(tokens);
 return __ret_tmp;
 }
@@ -14099,7 +14121,7 @@ __for_i = __for_i + 1;
 }
 }
 {
-__kobel_eu_mut_ptr_compiler__ast__AstNode__compiler__loader__LoaderErr __ret_tmp = (__kobel_eu_mut_ptr_compiler__ast__AstNode__compiler__loader__LoaderErr){ .is_ok = false, .u = { .err = (compiler__loader__LoaderErr){ .tag = 4, .__err_code = 34U, .__origin = { "src/compiler/loader/loader.kb", 334, 20, "ModuleLoader_parse_source" } } } };
+__kobel_eu_mut_ptr_compiler__ast__AstNode__compiler__loader__LoaderErr __ret_tmp = (__kobel_eu_mut_ptr_compiler__ast__AstNode__compiler__loader__LoaderErr){ .is_ok = false, .u = { .err = (compiler__loader__LoaderErr){ .tag = 4, .__err_code = 34U, .__origin = { "src/compiler/loader/loader.kb", 340, 20, "ModuleLoader_parse_source" } } } };
 std__collections__List_compiler__lexer__Token_free(tokens);
 return __ret_tmp;
 }
@@ -14122,7 +14144,7 @@ __kobel_eu_str__std__filesystem__FsErr __eu_src_53 = std__filesystem__Path_read_
 if (__eu_src_53.is_ok) {
 __eu_catch_21 = __eu_src_53.u.ok;
 } else {
-return (__kobel_eu_str__compiler__loader__LoaderErr){ .is_ok = false, .u = { .err = (compiler__loader__LoaderErr){ .tag = 2, .__err_code = 32U, .__origin = { "src/compiler/loader/loader.kb", 347, 43, "ModuleLoader_read_source_file" } } } };
+return (__kobel_eu_str__compiler__loader__LoaderErr){ .is_ok = false, .u = { .err = (compiler__loader__LoaderErr){ .tag = 2, .__err_code = 32U, .__origin = { "src/compiler/loader/loader.kb", 353, 43, "ModuleLoader_read_source_file" } } } };
 }
 }
 return (__kobel_eu_str__compiler__loader__LoaderErr){ .is_ok = true, .u = { .ok = __eu_catch_21 } };
@@ -14169,7 +14191,7 @@ __kobel_eu_std__collections__List_str__std__filesystem__FsErr __eu_src_54 = std_
 if (__eu_src_54.is_ok) {
 entries = __eu_src_54.u.ok;
 } else {
-return (__kobel_eu_std__collections__List_compiler__loader__ModuleFile__compiler__loader__LoaderErr){ .is_ok = false, .u = { .err = (compiler__loader__LoaderErr){ .tag = 2, .__err_code = 32U, .__origin = { "src/compiler/loader/loader.kb", 367, 55, "ModuleLoader_find_module_files" } } } };
+return (__kobel_eu_std__collections__List_compiler__loader__ModuleFile__compiler__loader__LoaderErr){ .is_ok = false, .u = { .err = (compiler__loader__LoaderErr){ .tag = 2, .__err_code = 32U, .__origin = { "src/compiler/loader/loader.kb", 373, 55, "ModuleLoader_find_module_files" } } } };
 }
 }
 std__collections__List_str kb_files = std__collections__List_str_filter(&entries, (kobel_closure){ (void*)__lambda_fn_17, NULL });
@@ -14199,7 +14221,7 @@ return (__kobel_eu_std__collections__List_compiler__loader__ModuleFile__compiler
 __for_i = __for_i + 1;
 }
 }
-return (__kobel_eu_std__collections__List_compiler__loader__ModuleFile__compiler__loader__LoaderErr){ .is_ok = false, .u = { .err = (compiler__loader__LoaderErr){ .tag = 0, .__err_code = 30U, .__origin = { "src/compiler/loader/loader.kb", 384, 19, "ModuleLoader_find_module_files" } } } };
+return (__kobel_eu_std__collections__List_compiler__loader__ModuleFile__compiler__loader__LoaderErr){ .is_ok = false, .u = { .err = (compiler__loader__LoaderErr){ .tag = 0, .__err_code = 30U, .__origin = { "src/compiler/loader/loader.kb", 390, 19, "ModuleLoader_find_module_files" } } } };
 }
 
 __kobel_eu_compiler__loader__ModuleFile__compiler__loader__LoaderErr compiler__loader__ModuleLoader_find_module(compiler__loader__ModuleLoader* self, kobel_str module_name) {
@@ -14209,7 +14231,7 @@ return (__kobel_eu_compiler__loader__ModuleFile__compiler__loader__LoaderErr){ .
 }
 std__collections__List_compiler__loader__ModuleFile files = __eu_prop_24.u.ok;
 if (std__collections__List_compiler__loader__ModuleFile_empty(&files)) {
-return (__kobel_eu_compiler__loader__ModuleFile__compiler__loader__LoaderErr){ .is_ok = false, .u = { .err = (compiler__loader__LoaderErr){ .tag = 0, .__err_code = 30U, .__origin = { "src/compiler/loader/loader.kb", 389, 38, "ModuleLoader_find_module" } } } };
+return (__kobel_eu_compiler__loader__ModuleFile__compiler__loader__LoaderErr){ .is_ok = false, .u = { .err = (compiler__loader__LoaderErr){ .tag = 0, .__err_code = 30U, .__origin = { "src/compiler/loader/loader.kb", 395, 38, "ModuleLoader_find_module" } } } };
 }
 return (__kobel_eu_compiler__loader__ModuleFile__compiler__loader__LoaderErr){ .is_ok = true, .u = { .ok = std__collections__List_compiler__loader__ModuleFile_get(&files, 0) } };
 }
@@ -23439,7 +23461,9 @@ std__collections__List_mut_ptr_compiler__ast__AstNode_plus_assign(pre, compiler_
 } else {
 std__collections__List_mut_ptr_compiler__ast__AstNode_plus_assign(pre, compiler__semantic__lowering__LoopLowerer_for_by_dir(self, compiler__semantic__lowering__LoopLowerer_for_set_go(self, compiler__semantic__lowering__LoopLowerer_for_i_cmp(self, 23, line, col), line, col), compiler__semantic__lowering__LoopLowerer_for_set_go(self, compiler__semantic__lowering__LoopLowerer_for_i_cmp(self, 24, line, col), line, col), line, col));
 }
+if (!str_empty(fs->var_name)) {
 std__collections__List_mut_ptr_compiler__ast__AstNode_plus_assign(head, compiler__semantic__lowering__LoopLowerer_loop_var_or_destruct(self, fs->var_name, compiler__semantic__lowering__LoopLowerer_for_id(self, KOBEL_STR("__for_i"), line, col), line, col));
+}
 if (fs->is_open || fs->is_half_open) {
 compiler__ast__AstNode* up_inc = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 9, .u.BinaryExpr = { compiler__semantic__lowering__LoopLowerer_for_id(self, KOBEL_STR("__for_i"), line, col), 6, compiler__semantic__lowering__LoopLowerer_for_num(self, KOBEL_STR("1"), line, col) } }, line, col);
 compiler__ast__AstNode* up_chk = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 9, .u.BinaryExpr = { up_inc, 12, compiler__semantic__lowering__LoopLowerer_for_id(self, KOBEL_STR("__for_e"), line, col) } }, line, col);
@@ -25342,7 +25366,7 @@ return ty;
 return compiler__semantic__types__PrimTypes_t_none(compiler__semantic__checker__BodyChecker_prims(self));
 }
 
-compiler__semantic__types__Type* compiler__semantic__checker__BodyChecker_check_call_expr(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* node) {
+compiler__semantic__types__Type* compiler__semantic__checker__BodyChecker_check_call_expr(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* node, compiler__semantic__types__Type* expected) {
 {
 compiler__ast__NodeData__CallExpr* call = NULL;
 if (node != NULL && node->data.tag == compiler__ast__NodeData__CallExpr__TAG && (call = (compiler__ast__NodeData__CallExpr*)(&node->data.u.CallExpr), 1)) {
@@ -25422,7 +25446,7 @@ return explicit_ty;
 {
 compiler__ast__NodeData__IdentifierExpr* cid = NULL;
 if (std__collections__List_mut_ptr_compiler__ast__AstNode_empty(&call->type_args) && callee != NULL && callee->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (cid = (compiler__ast__NodeData__IdentifierExpr*)(&callee->data.u.IdentifierExpr), 1)) {
-compiler__semantic__types__Type* inferred_ty = compiler__semantic__checker__BodyChecker_check_inferred_generic_call(self, node, call, cid);
+compiler__semantic__types__Type* inferred_ty = compiler__semantic__checker__BodyChecker_check_inferred_generic_call(self, node, call, cid, expected);
 if (inferred_ty != NULL) {
 return inferred_ty;
 }
@@ -25494,7 +25518,7 @@ return compiler__semantic__checker__BodyChecker_check_struct_ctor(self, new_call
 return NULL;
 }
 
-compiler__semantic__types__Type* compiler__semantic__checker__BodyChecker_check_inferred_generic_call(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* node, compiler__ast__NodeData__CallExpr* call, compiler__ast__NodeData__IdentifierExpr* cid) {
+compiler__semantic__types__Type* compiler__semantic__checker__BodyChecker_check_inferred_generic_call(compiler__semantic__checker__BodyChecker* self, compiler__ast__AstNode* node, compiler__ast__NodeData__CallExpr* call, compiler__ast__NodeData__IdentifierExpr* cid, compiler__semantic__types__Type* expected) {
 compiler__semantic__symbols__Symbol* local_sym = compiler__semantic__symbols__SymbolTable_lookup(&self->symtab, cid->name);
 if (local_sym != NULL && (local_sym->kind == 0 || local_sym->kind == 2 || local_sym->kind == 3 || local_sym->kind == 4 || local_sym->kind == 5)) {
 return NULL;
@@ -25529,19 +25553,33 @@ compiler__semantic__symbols__GenericTemplate* st = compiler__semantic__checker__
 {
 compiler__ast__NodeData__StructDecl* s_tmpl = NULL;
 if (st != NULL && st->node != NULL && st->node->data.tag == compiler__ast__NodeData__StructDecl__TAG && (s_tmpl = (compiler__ast__NodeData__StructDecl*)(&st->node->data.u.StructDecl), 1)) {
+compiler__semantic__types__Type* resolved_cty = NULL;
 std__collections__List_mut_ptr_compiler__ast__AstNode inferred_targs = compiler__semantic__checker__BodyChecker_infer_type_args_for_struct(self, s_tmpl, call->args);
 if (!std__collections__List_mut_ptr_compiler__ast__AstNode_empty(&inferred_targs)) {
 compiler__semantic__types__Type* cty = compiler__semantic__checker__BodyChecker_instantiate_template_struct(self, st, inferred_targs);
 if (cty->kind == 18) {
-kobel_str cname = (*compiler__semantic__types__Type_as_struct(cty)).name;
+resolved_cty = cty;
+}
+} else if (expected != NULL) {
+compiler__semantic__types__Type* exp_ty = expected->kind == 20 ? (*compiler__semantic__types__Type_as_error_union(expected)).ok : expected;
+compiler__semantic__types__StructType* exp_st = compiler__semantic__types__Type_as_struct(exp_ty);
+if (exp_st != NULL) {
+compiler__semantic__symbols__InstanceRecord** rec_p = std__collections__HashMap_str_mut_ptr_compiler__semantic__symbols__InstanceRecord_get(&self->symtab.gen.record_map, exp_st->c_name);
+if (rec_p == NULL) rec_p = std__collections__HashMap_str_mut_ptr_compiler__semantic__symbols__InstanceRecord_get(&self->symtab.gen.record_map, exp_st->name);
+if (rec_p != NULL && (**rec_p).template == st) {
+resolved_cty = exp_ty;
+}
+}
+}
+if (resolved_cty != NULL && resolved_cty->kind == 18) {
+kobel_str cname = (*compiler__semantic__types__Type_as_struct(resolved_cty)).name;
 compiler__ast__AstNode* callee_id = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 8, .u.IdentifierExpr = { cname } }, node->line, node->col);
 compiler__ast__AstNode* new_call = std__memory__Arena_node(&self->arena, (compiler__ast__NodeData){ .tag = 11, .u.CallExpr = { callee_id, call->args, std__collections__List_mut_ptr_compiler__ast__AstNode_init(NULL, 0) } }, node->line, node->col);
 {
 compiler__ast__NodeData__CallExpr* new_cc = NULL;
 if (new_call != NULL && new_call->data.tag == compiler__ast__NodeData__CallExpr__TAG && (new_cc = (compiler__ast__NodeData__CallExpr*)(&new_call->data.u.CallExpr), 1)) {
 compiler__semantic__checker__BodyChecker_set_resolved(self, node, new_call);
-return compiler__semantic__checker__BodyChecker_check_struct_ctor(self, new_call, cty, new_cc, false);
-}
+return compiler__semantic__checker__BodyChecker_check_struct_ctor(self, new_call, resolved_cty, new_cc, false);
 }
 }
 }
@@ -25859,7 +25897,7 @@ size_t min_user_args = fn_info->param_types.len >= 2 ? fn_info->param_types.len 
 if (call->args.len < min_user_args) {
 compiler__semantic__checker__BodyChecker_report_error(self, node, kobel_concat(3, KOBEL_STR("Argument count mismatch in method call '"), mem->member, KOBEL_STR("'")));
 } else {
-compiler__semantic__types__Type* elem_ty = __kobel_unwrap___kobel_eu_ptr_compiler__semantic__types__Type__std__collections__CollectionErr(std__collections__List_ptr_compiler__semantic__types__Type_last(&fn_info->param_types), "src/compiler/semantic/checker/call.kb", 514, 45, "BodyChecker_bind_method_call");
+compiler__semantic__types__Type* elem_ty = __kobel_unwrap___kobel_eu_ptr_compiler__semantic__types__Type__std__collections__CollectionErr(std__collections__List_ptr_compiler__semantic__types__Type_last(&fn_info->param_types), "src/compiler/semantic/checker/call.kb", 527, 45, "BodyChecker_bind_method_call");
 {
 size_t __for_e = min_user_args;
 size_t __for_i = __for_e;
@@ -27705,7 +27743,7 @@ return compiler__semantic__checker__BodyChecker_check_unary_expr(self, node, exp
 } else if (target != NULL && target->data.tag == compiler__ast__NodeData__CallExpr__TAG) {
 void* __orig_target = (void*)target;
 compiler__ast__NodeData__CallExpr* target = (compiler__ast__NodeData__CallExpr*)((&((compiler__ast__AstNode*)__orig_target)->data.u.CallExpr));
-return compiler__semantic__checker__BodyChecker_check_call_expr(self, node);
+return compiler__semantic__checker__BodyChecker_check_call_expr(self, node, expected);
 } else if (target != NULL && target->data.tag == compiler__ast__NodeData__MemberExpr__TAG) {
 void* __orig_target = (void*)target;
 compiler__ast__NodeData__MemberExpr* target = (compiler__ast__NodeData__MemberExpr*)((&((compiler__ast__AstNode*)__orig_target)->data.u.MemberExpr));
@@ -28844,7 +28882,6 @@ __for_go = __for_i < __for_e;
 __for_go = __for_i > __for_e;
 }
 while (__for_go) {
-size_t k = __for_i;
 std__collections__List_ptr_compiler__semantic__types__Type_add(&inferred, compiler__semantic__types__PrimTypes_t_none(compiler__semantic__checker__BodyChecker_prims(self)));
 if (__for_up) {
 __for_go = __for_i + 1 < __for_e;
@@ -29219,7 +29256,7 @@ compiler__semantic__types__Type* res = compiler__semantic__checker__BodyChecker_
 self->current_self_type = saved_self;
 if (self->errors.len > saved_errs) {
 while (self->errors.len > saved_errs) {
-__kobel_unwrap___kobel_eu_compiler__core__Diagnostic__std__collections__CollectionErr(std__collections__List_compiler__core__Diagnostic_pop(&self->errors), "src/compiler/semantic/checker/inference.kb", 140, 22, "BodyChecker_resolve_type_with_partial_tparams");
+__kobel_unwrap___kobel_eu_compiler__core__Diagnostic__std__collections__CollectionErr(std__collections__List_compiler__core__Diagnostic_pop(&self->errors), "src/compiler/semantic/checker/inference.kb", 138, 22, "BodyChecker_resolve_type_with_partial_tparams");
 }
 return compiler__semantic__types__PrimTypes_t_none(compiler__semantic__checker__BodyChecker_prims(self));
 }
@@ -29245,7 +29282,6 @@ __for_go = __for_i < __for_e;
 __for_go = __for_i > __for_e;
 }
 while (__for_go) {
-size_t k = __for_i;
 std__collections__List_ptr_compiler__semantic__types__Type_add(&inferred, compiler__semantic__types__PrimTypes_t_none(compiler__semantic__checker__BodyChecker_prims(self)));
 if (__for_up) {
 __for_go = __for_i + 1 < __for_e;
@@ -37628,7 +37664,6 @@ __for_go = __for_i < __for_e;
 __for_go = __for_i > __for_e;
 }
 while (__for_go) {
-size_t i = __for_i;
 std__string__StringBuilder_plus_assign_2_2(&self->sb, '\t');
 if (__for_up) {
 __for_go = __for_i + 1 < __for_e;
@@ -37657,7 +37692,6 @@ __for_go = __for_i < __for_e;
 __for_go = __for_i > __for_e;
 }
 while (__for_go) {
-size_t j = __for_i;
 std__string__StringBuilder_plus_assign_2_2(&self->sb, ' ');
 if (__for_up) {
 __for_go = __for_i + 1 < __for_e;
@@ -38781,8 +38815,10 @@ fmt__FormatBuffer_dedent(&self->buf);
 } else if (node != NULL && node->data.tag == compiler__ast__NodeData__ForStmt__TAG) {
 compiler__ast__NodeData__ForStmt* f = (compiler__ast__NodeData__ForStmt*)(&node->data.u.ForStmt);
 fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR("for ("));
+if (!str_empty(f->var_name)) {
 fmt__FormatBuffer_plus_assign_2(&self->buf, f->var_name);
 fmt__FormatBuffer_plus_assign_2(&self->buf, KOBEL_STR(" in "));
+}
 if (f->is_range) {
 fmt__Formatter_format_expr(self, f->range_start);
 if (f->is_open) {
@@ -39588,13 +39624,13 @@ if (__eu_src_118.is_ok) {
 src = __eu_src_118.u.ok;
 } else {
 std__io__println(kobel_concat(3, KOBEL_STR("Error: cannot read '"), path, KOBEL_STR("' for formatting")));
-return (__kobel_eu_none__fmt__FmtErr){ .is_ok = false, .u = { .err = (fmt__FmtErr){ .tag = 1, .__err_code = 47U, .__origin = { "src/fmt/formatter.kb", 1062, 17, "Formatter_format_file_with_arena" } } } };
+return (__kobel_eu_none__fmt__FmtErr){ .is_ok = false, .u = { .err = (fmt__FmtErr){ .tag = 1, .__err_code = 47U, .__origin = { "src/fmt/formatter.kb", 1064, 17, "Formatter_format_file_with_arena" } } } };
 }
 __catch_end_118:;
 }
 if (str_empty(src)) {
 std__io__println(kobel_concat(3, KOBEL_STR("Error: cannot format '"), path, KOBEL_STR("': file is empty")));
-return (__kobel_eu_none__fmt__FmtErr){ .is_ok = false, .u = { .err = (fmt__FmtErr){ .tag = 2, .__err_code = 48U, .__origin = { "src/fmt/formatter.kb", 1066, 17, "Formatter_format_file_with_arena" } } } };
+return (__kobel_eu_none__fmt__FmtErr){ .is_ok = false, .u = { .err = (fmt__FmtErr){ .tag = 2, .__err_code = 48U, .__origin = { "src/fmt/formatter.kb", 1068, 17, "Formatter_format_file_with_arena" } } } };
 }
 kobel_str formatted;
 {
@@ -39603,7 +39639,7 @@ if (__eu_src_119.is_ok) {
 formatted = __eu_src_119.u.ok;
 } else {
 std__io__println(kobel_concat(3, KOBEL_STR("Error: cannot format '"), path, KOBEL_STR("': source has syntax errors")));
-return (__kobel_eu_none__fmt__FmtErr){ .is_ok = false, .u = { .err = (fmt__FmtErr){ .tag = 3, .__err_code = 49U, .__origin = { "src/fmt/formatter.kb", 1071, 17, "Formatter_format_file_with_arena" } } } };
+return (__kobel_eu_none__fmt__FmtErr){ .is_ok = false, .u = { .err = (fmt__FmtErr){ .tag = 3, .__err_code = 49U, .__origin = { "src/fmt/formatter.kb", 1073, 17, "Formatter_format_file_with_arena" } } } };
 }
 __catch_end_119:;
 }
@@ -39612,7 +39648,7 @@ if (write_in_place) {
 __kobel_eu_none__std__filesystem__FsErr __eu_src_120 = std__filesystem__Path_write_text(&fp, formatted);
 if (!__eu_src_120.is_ok) {
 std__io__println(kobel_concat(2, KOBEL_STR("Error: Failed to write to "), path));
-return (__kobel_eu_none__fmt__FmtErr){ .is_ok = false, .u = { .err = (fmt__FmtErr){ .tag = 4, .__err_code = 50U, .__origin = { "src/fmt/formatter.kb", 1077, 18, "Formatter_format_file_with_arena" } } } };
+return (__kobel_eu_none__fmt__FmtErr){ .is_ok = false, .u = { .err = (fmt__FmtErr){ .tag = 4, .__err_code = 50U, .__origin = { "src/fmt/formatter.kb", 1079, 18, "Formatter_format_file_with_arena" } } } };
 }
 __catch_end_120:;
 }
@@ -39626,10 +39662,10 @@ std__io__print(formatted);
 __kobel_eu_none__fmt__FmtErr fmt__Formatter_format_files(std__collections__List_str files, bool write_in_place, fmt__FormatOptions options) {
 if (std__collections__List_str_empty(&files)) {
 std__io__println(KOBEL_STR("Error: No files specified to format"));
-return (__kobel_eu_none__fmt__FmtErr){ .is_ok = false, .u = { .err = (fmt__FmtErr){ .tag = 0, .__err_code = 46U, .__origin = { "src/fmt/formatter.kb", 1102, 17, "Formatter_format_files" } } } };
+return (__kobel_eu_none__fmt__FmtErr){ .is_ok = false, .u = { .err = (fmt__FmtErr){ .tag = 0, .__err_code = 46U, .__origin = { "src/fmt/formatter.kb", 1104, 17, "Formatter_format_files" } } } };
 }
 std__memory__Arena arena = std__memory__Arena_init(262144);
-fmt__FmtErr first_err = (fmt__FmtErr){ .tag = 5, .__err_code = 51U, .__origin = { "src/fmt/formatter.kb", 1107, 25, "Formatter_format_files" } };
+fmt__FmtErr first_err = (fmt__FmtErr){ .tag = 5, .__err_code = 51U, .__origin = { "src/fmt/formatter.kb", 1109, 25, "Formatter_format_files" } };
 size_t fail_count = 0;
 {
 size_t __for_n = std__collections__List_str_count(&files);
@@ -39661,7 +39697,7 @@ return __ret_tmp;
 }
 if (fail_count > 1) {
 {
-__kobel_eu_none__fmt__FmtErr __ret_tmp = (__kobel_eu_none__fmt__FmtErr){ .is_ok = false, .u = { .err = (fmt__FmtErr){ .tag = 5, .__err_code = 51U, .__origin = { "src/fmt/formatter.kb", 1117, 36, "Formatter_format_files" } } } };
+__kobel_eu_none__fmt__FmtErr __ret_tmp = (__kobel_eu_none__fmt__FmtErr){ .is_ok = false, .u = { .err = (fmt__FmtErr){ .tag = 5, .__err_code = 51U, .__origin = { "src/fmt/formatter.kb", 1119, 36, "Formatter_format_files" } } } };
 std__memory__Arena_free(&arena);
 return __ret_tmp;
 }
@@ -39682,7 +39718,7 @@ while (__for_i < __for_n) {
 compiler__lexer__Token tok = std__collections__List_compiler__lexer__Token_at(&tokens, __for_i);
 if (tok.type == 77) {
 std__collections__List_compiler__lexer__Token_free(tokens);
-return (__kobel_eu_str__fmt__FmtErr){ .is_ok = false, .u = { .err = (fmt__FmtErr){ .tag = 3, .__err_code = 49U, .__origin = { "src/fmt/formatter.kb", 1160, 17, "format_source_checked_with_arena" } } } };
+return (__kobel_eu_str__fmt__FmtErr){ .is_ok = false, .u = { .err = (fmt__FmtErr){ .tag = 3, .__err_code = 49U, .__origin = { "src/fmt/formatter.kb", 1162, 17, "format_source_checked_with_arena" } } } };
 }
 __for_i = __for_i + 1;
 }
@@ -39691,7 +39727,7 @@ compiler__ast__AstNode* program = compiler__parser__Parser_parse_program(&parser
 if (!std__collections__List_compiler__core__Diagnostic_empty(&parser.errors)) {
 std__collections__List_compiler__lexer__Token_free(parser.tokens);
 std__collections__List_compiler__core__Diagnostic_free(parser.errors);
-return (__kobel_eu_str__fmt__FmtErr){ .is_ok = false, .u = { .err = (fmt__FmtErr){ .tag = 3, .__err_code = 49U, .__origin = { "src/fmt/formatter.kb", 1168, 16, "format_source_checked_with_arena" } } } };
+return (__kobel_eu_str__fmt__FmtErr){ .is_ok = false, .u = { .err = (fmt__FmtErr){ .tag = 3, .__err_code = 49U, .__origin = { "src/fmt/formatter.kb", 1170, 16, "format_source_checked_with_arena" } } } };
 }
 std__collections__List_fmt__Comment comments = fmt__Comment_extract(normalized);
 fmt__CommentTable comment_table = (fmt__CommentTable){ comments, 0 };
@@ -43319,6 +43355,33 @@ kobel_str v_key = kobel_concat(6, KOBEL_STR("variant:"), self->cur_when_enum_mod
 if (std__collections__HashMap_str_usz_contains(&(*self->index).def_by_key, v_key)) {
 target_key = v_key;
 }
+}
+}
+}
+if (str_empty(target_key) && (*self->index).has_symtab && !str_empty(ty_s)) {
+compiler__semantic__types__Type* rec_ty = lsp__unwrap_base_type(compiler__semantic__symbols__SymbolTable_get_node_type(&(*self->index).symtab, node->object));
+if (rec_ty != NULL) {
+kobel_str b_key = KOBEL_STR("");
+kobel_str b_mod = KOBEL_STR("");
+kobel_str b_container = KOBEL_STR("");
+if (rec_ty->kind == 15 && (kobel_streq(node->member, KOBEL_STR("len")) || kobel_streq(node->member, KOBEL_STR("data")))) {
+b_key = kobel_concat(2, KOBEL_STR("builtin:str:"), node->member);
+b_mod = KOBEL_STR("std.str");
+b_container = KOBEL_STR("str");
+} else if (rec_ty->kind == 17 && kobel_streq(node->member, KOBEL_STR("len"))) {
+b_key = KOBEL_STR("builtin:array:len");
+b_mod = KOBEL_STR("std.collections");
+b_container = KOBEL_STR("Array");
+} else if (compiler__semantic__types__Type_as_enum(rec_ty) != NULL && compiler__semantic__types__Type_as_enum(rec_ty)->is_fault && (kobel_streq(node->member, KOBEL_STR("code")) || kobel_streq(node->member, KOBEL_STR("name")) || kobel_streq(node->member, KOBEL_STR("message")) || kobel_streq(node->member, KOBEL_STR("description")))) {
+b_key = kobel_concat(2, KOBEL_STR("builtin:fault:"), node->member);
+b_mod = KOBEL_STR("");
+b_container = (*compiler__semantic__types__Type_as_enum(rec_ty)).name;
+}
+if (!str_empty(b_key)) {
+if (!std__collections__HashMap_str_usz_contains(&(*self->index).def_by_key, b_key)) {
+lsp__SemanticIndex_add_def(self->index, (lsp__DefInfo){ b_key, node->member, 5, KOBEL_STR(""), b_mod, b_container, 0, 0, node->member.len, kobel_concat(3, node->member, KOBEL_STR(": "), ty_s), ty_s, true, false, false, false, std__collections__List_str_init(NULL, 0), std__collections__List_str_init(NULL, 0), KOBEL_STR(""), true, false, false, false });
+}
+target_key = b_key;
 }
 }
 }
@@ -49906,7 +49969,7 @@ lsp__JsonValue_free_tree(rpc);
 lsp__JsonValue_free_tree(result);
 std__collections__List_str_free(msg->obj_keys);
 std__collections__List_ptr_lsp__JsonValue_free(msg->obj_vals);
-std__memory__Heap_free_lsp__JsonValue((lsp__JsonValue*)msg);
+std__memory__Heap_free_lsp__JsonValue(msg);
 }
 
 void lsp__send_error(lsp__JsonValue* id, int64_t code, kobel_str message) {
@@ -49923,7 +49986,7 @@ lsp__JsonValue_free_tree(rpc);
 lsp__JsonValue_free_tree(err);
 std__collections__List_str_free(msg->obj_keys);
 std__collections__List_ptr_lsp__JsonValue_free(msg->obj_vals);
-std__memory__Heap_free_lsp__JsonValue((lsp__JsonValue*)msg);
+std__memory__Heap_free_lsp__JsonValue(msg);
 }
 
 void lsp__send_notification(kobel_str method, lsp__JsonValue* params) {
@@ -51270,12 +51333,7 @@ raw_msg = __eu_src_168.u.ok;
 } else {
 lsp__ProtocolErr err = __eu_src_168.u.err;
 (void)err;
-if (err.tag == lsp__ProtocolErr__EndOfStream__TAG) {
-void* __orig_err = (void*)&err;
-lsp__ProtocolErr__EndOfStream* err = (lsp__ProtocolErr__EndOfStream*)((&((lsp__ProtocolErr*)__orig_err)->u.EndOfStream));
-return false;
-}
-return true;
+return !(err.tag == lsp__ProtocolErr__EndOfStream__TAG);
 }
 __catch_end_168:;
 }

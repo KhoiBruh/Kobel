@@ -40,7 +40,7 @@ pub fn send_response(id: *JsonValue, result: *JsonValue) {
 	JsonValue.free_tree(result);
 	msg.obj_keys.free();
 	msg.obj_vals.free();
-	Heap.free(msg as &JsonValue);
+	Heap.free(msg);
 }
 
 pub fn send_error(id: *JsonValue, code: i64, message: str) {
@@ -57,7 +57,7 @@ pub fn send_error(id: *JsonValue, code: i64, message: str) {
 	JsonValue.free_tree(err);
 	msg.obj_keys.free();
 	msg.obj_vals.free();
-	Heap.free(msg as &JsonValue);
+	Heap.free(msg);
 }
 
 pub fn send_notification(method: str, params: *JsonValue) {

@@ -332,10 +332,29 @@ fn test_when_patterns() {
 	assert_eq_i32(test_when_stmt('?'), -1, "when stmt '?'");
 }
 
+fn test_count_for_loops() {
+	var hits = 0;
+	for (0..<5) hits += 1;
+	assert_eq_i32(hits, 5, "for (0..<5) runs 5 times");
+
+	hits = 0;
+	for (1..4) hits += 1;
+	assert_eq_i32(hits, 4, "for (1..4) runs 4 times");
+
+	hits = 0;
+	for (0>..<4) hits += 1;
+	assert_eq_i32(hits, 3, "for (0>..<4) runs 3 times");
+
+	hits = 0;
+	for (0..<0) hits += 1;
+	assert_eq_i32(hits, 0, "for (0..<0) runs 0 times");
+}
+
 pub fn main() {
 	println("=== Running Range Feature Tests ===");
 	test_range_values();
 	test_direct_for_loops();
+	test_count_for_loops();
 	test_range_variable_iteration();
 	test_containment();
 	test_when_patterns();

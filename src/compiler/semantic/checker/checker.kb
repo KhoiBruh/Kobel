@@ -497,7 +497,7 @@ impl BodyChecker {
 			is IdentifierExpr -> self.check_ident_expr(node);
 			is BinaryExpr -> self.check_binary_expr(node, expected);
 			is UnaryExpr -> self.check_unary_expr(node, expected);
-			is CallExpr -> self.check_call_expr(node);
+			is CallExpr -> self.check_call_expr(node, expected);
 			is MemberExpr -> self.check_member_expr(node);
 			is IndexExpr -> self.check_index_expr(node);
 			is AssignExpr -> self.check_assign_expr(node);

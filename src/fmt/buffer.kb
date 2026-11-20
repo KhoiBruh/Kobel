@@ -25,11 +25,11 @@ impl FormatBuffer {
 		if (!self.at_line_start) return;
 
 		// 1. Emit block indentation tabs
-		for (i in 0..<self.indent_level) self.sb += '\t';
+		for (0..<self.indent_level) self.sb += '\t';
 
 		// 2. Emit alignment spaces (Smart Tabs: spaces for alignment)
 		if (self.options.use_smart_tabs) {
-			for (j in 0..<self.align_spaces) self.sb += ' ';
+			for (0..<self.align_spaces) self.sb += ' ';
 		}
 
 		self.current_col = self.indent_level * self.options.tab_size + self.align_spaces;

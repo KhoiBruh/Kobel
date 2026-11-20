@@ -190,7 +190,7 @@ impl str {
 		val buf = Heap.create<u8>(self.len * n + 1);
 		var w = 0;
 
-		for (k in 0..<n) {
+		for (0..<n) {
 			memcpy(&buf[w], self.data as *none, self.len);
 			w += self.len;
 		}

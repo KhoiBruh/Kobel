@@ -376,8 +376,10 @@ impl LoopLowerer {
 			);
 		}
 
-		// val <v> = __for_i;
-		head += self.loop_var_or_destruct(fs.var_name, self.for_id("__for_i", line, col), line, col);
+		// val <v> = __for_i; (omitted for variable-less count loops like `for (0..<n)`)
+		if (!fs.var_name.empty()) {
+			head += self.loop_var_or_destruct(fs.var_name, self.for_id("__for_i", line, col), line, col);
+		}
 
 		// Next element check
 		if (fs.is_open || fs.is_half_open) {

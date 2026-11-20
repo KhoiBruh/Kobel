@@ -30,9 +30,7 @@ impl BodyChecker {
 
 		val num_tparams = type_params.len;
 		var inferred = List<*Type>();
-		for (k in 0..<num_tparams) {
-			inferred.add(self.prims().t_none());
-		}
+		for (0..<num_tparams) inferred.add(self.prims().t_none());
 
 		val params = fn_decl.params;
 		if (is_method && self_ty != null && params.len > 0 && params[0].type_node != null) {
@@ -154,9 +152,7 @@ impl BodyChecker {
 
 		val num_tparams = type_params.len;
 		var inferred = List<*Type>();
-		for (k in 0..<num_tparams) {
-			inferred.add(self.prims().t_none());
-		}
+		for (0..<num_tparams) inferred.add(self.prims().t_none());
 
 		val fields = decl.fields;
 		for (i in 0..<call_args.len) {

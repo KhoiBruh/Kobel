@@ -1595,6 +1595,40 @@ impl IndexWalker {
 					}
 				}
 
+				if (target_key.empty() && self.index.has_symtab && !ty_s.empty()) {
+					val rec_ty = unwrap_base_type(self.index.symtab.get_node_type(node.object));
+					if (rec_ty != null) {
+						var b_key = "";
+						var b_mod = "";
+						var b_container = "";
+						if (rec_ty.kind == DataType.STR && node.member in ["len", "data"]) {
+							b_key = "builtin:str:${node.member}";
+							b_mod = "std.str";
+							b_container = "str";
+						} else if (rec_ty.kind == DataType.ARRAY && node.member == "len") {
+							b_key = "builtin:array:len";
+							b_mod = "std.collections";
+							b_container = "Array";
+						} else if (
+							rec_ty.as_enum()?.is_fault &&
+							node.member in ["code", "name", "message", "description"]
+						) {
+							b_key = "builtin:fault:${node.member}";
+							b_mod = "";
+							b_container = rec_ty.as_enum()!.name;
+						}
+						if (!b_key.empty()) {
+							if (b_key !in self.index.def_by_key) {
+								self.index.add_def(DefInfo(
+									b_key, node.member, SymRole.FIELD, "", b_mod, b_container,
+									0, 0, node.member.len, "${node.member}: ${ty_s}", ty_s, true
+								));
+							}
+							target_key = b_key;
+						}
+					}
+				}
+
 				if (!target_key.empty()) {
 					self.record_use(target_key, ml, mc, node.member.len, ty_s);
 				}

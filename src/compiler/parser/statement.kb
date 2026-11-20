@@ -100,8 +100,23 @@ impl Parser {
 		val kw = self.advance(); // 'for'
 		self.consume(TokenType.OPEN_PAREN, "Expected '(' after 'for'");
 
-		val var_name = when (self) {
-			.match_token(TokenType.KW_VAL) -> {
+		var has_var = true;
+		var is_paren_destruct = false;
+		if (self.check(TokenType.OPEN_PAREN)) {
+			var k: usz = 1;
+			while (self.peek_at(k).type != TokenType.END_OF_FILE && self.peek_at(k).type != TokenType.CLOSE_PAREN) {
+				k++;
+			}
+			if (
+				self.peek_at(k).type == TokenType.CLOSE_PAREN &&
+				self.peek_at(k + 1).type == TokenType.KW_IN
+			) {
+				is_paren_destruct = true;
+			}
+		}
+
+		val var_name = when {
+			self.match_token(TokenType.KW_VAL) -> {
 				self.consume(TokenType.OPEN_PAREN, "Expected '(' after 'val' in destructuring loop");
 				val n1 = self.consume(TokenType.IDENTIFIER, "Expected variable name in destructuring pattern");
 				var raw_names = "(${n1.text}";
@@ -117,7 +132,7 @@ impl Parser {
 				yield raw_names;
 			}
 
-			.match_token(TokenType.KW_VAR) -> {
+			self.match_token(TokenType.KW_VAR) -> {
 				self.consume(TokenType.OPEN_PAREN, "Expected '(' after 'var' in destructuring loop");
 				val n1 = self.consume(TokenType.IDENTIFIER, "Expected variable name in destructuring pattern");
 				var raw_names = "var (${n1.text}";
@@ -133,7 +148,8 @@ impl Parser {
 				yield raw_names;
 			}
 
-			.match_token(TokenType.OPEN_PAREN) -> {
+			is_paren_destruct -> {
+				self.advance(); // '('
 				val n1 = self.consume(TokenType.IDENTIFIER, "Expected variable name in destructuring pattern");
 				var raw_names = "(${n1.text}";
 				while (self.match_token(TokenType.COMMA)) {
@@ -148,10 +164,17 @@ impl Parser {
 				yield raw_names;
 			}
 
-			else -> self.consume(TokenType.IDENTIFIER, "Expected loop variable name").text;
+			self.check(TokenType.IDENTIFIER) && self.peek_at(1).type == TokenType.KW_IN -> {
+				yield self.advance().text;
+			}
+
+			else -> {
+				has_var = false;
+				yield "";
+			}
 		};
 
-		self.consume(TokenType.KW_IN, "Expected 'in' after loop variable");
+		if (has_var) self.consume(TokenType.KW_IN, "Expected 'in' after loop variable");
 
 		val first = self.parse_expression(Precedence.RANGE);
 
@@ -214,6 +237,9 @@ impl Parser {
 					range_start = bin.left;
 					range_end = bin.right;
 				} else {
+					if (!has_var) {
+						self.error(kw, "Expected 'in' after loop variable or a range expression (e.g. 'for (0..<n)')");
+					}
 					iterable = iter;
 				}
 			}

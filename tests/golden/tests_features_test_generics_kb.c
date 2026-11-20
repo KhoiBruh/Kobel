@@ -755,11 +755,16 @@ typedef struct {
 typedef struct std__memory__MemErr std__memory__MemErr;
 typedef struct std__memory__MemErr__OutOfMemory std__memory__MemErr__OutOfMemory;
 #define std__memory__MemErr__OutOfMemory__TAG 0
+typedef struct test__generics__Holder test__generics__Holder;
 typedef struct std__collections__List_i32 std__collections__List_i32;
+typedef struct std__collections__HashMap_str_i32 std__collections__HashMap_str_i32;
 typedef struct std__collections__List_std__collections__List_i32 std__collections__List_std__collections__List_i32;
-typedef struct __kobel_eu_mut_ptr_std__collections__List_i32__std__memory__MemErr __kobel_eu_mut_ptr_std__collections__List_i32__std__memory__MemErr;
+typedef struct __kobel_eu_mut_ptr_bool__std__memory__MemErr __kobel_eu_mut_ptr_bool__std__memory__MemErr;
 typedef struct __kobel_eu_mut_ptr_u8__std__memory__MemErr __kobel_eu_mut_ptr_u8__std__memory__MemErr;
+typedef struct __kobel_eu_mut_ptr_usz__std__memory__MemErr __kobel_eu_mut_ptr_usz__std__memory__MemErr;
 typedef struct __kobel_eu_mut_ptr_i32__std__memory__MemErr __kobel_eu_mut_ptr_i32__std__memory__MemErr;
+typedef struct __kobel_eu_mut_ptr_str__std__memory__MemErr __kobel_eu_mut_ptr_str__std__memory__MemErr;
+typedef struct __kobel_eu_mut_ptr_std__collections__List_i32__std__memory__MemErr __kobel_eu_mut_ptr_std__collections__List_i32__std__memory__MemErr;
 
 
 static inline kobel_fault_meta __kobel_lookup_fault(uint32_t code) {
@@ -823,21 +828,30 @@ struct std__collections__List_i32 {
     size_t cap;
 };
 
+struct std__collections__HashMap_str_i32 {
+    kobel_str* keys;
+    int32_t* values;
+    size_t* hashes;
+    bool* occupied;
+    size_t len;
+    size_t cap;
+};
+
 struct std__collections__List_std__collections__List_i32 {
     std__collections__List_i32* data;
     size_t len;
     size_t cap;
 };
 
-struct __kobel_eu_mut_ptr_std__collections__List_i32__std__memory__MemErr {
+struct __kobel_eu_mut_ptr_bool__std__memory__MemErr {
     bool is_ok;
     union {
-        std__collections__List_i32* ok;
+        bool* ok;
         std__memory__MemErr err;
     } u;
 };
 
-static inline std__collections__List_i32* __kobel_unwrap___kobel_eu_mut_ptr_std__collections__List_i32__std__memory__MemErr(__kobel_eu_mut_ptr_std__collections__List_i32__std__memory__MemErr r, const char* file, size_t line, size_t col, const char* fn) {
+static inline bool* __kobel_unwrap___kobel_eu_mut_ptr_bool__std__memory__MemErr(__kobel_eu_mut_ptr_bool__std__memory__MemErr r, const char* file, size_t line, size_t col, const char* fn) {
     if (!r.is_ok) {
         kobel_loc at = { file, line, col, fn };
         __kobel_report_fault("unwrapped error", r.u.err.__err_code, r.u.err.__origin, at);
@@ -863,6 +877,23 @@ static inline uint8_t* __kobel_unwrap___kobel_eu_mut_ptr_u8__std__memory__MemErr
     return r.u.ok;
 }
 
+struct __kobel_eu_mut_ptr_usz__std__memory__MemErr {
+    bool is_ok;
+    union {
+        size_t* ok;
+        std__memory__MemErr err;
+    } u;
+};
+
+static inline size_t* __kobel_unwrap___kobel_eu_mut_ptr_usz__std__memory__MemErr(__kobel_eu_mut_ptr_usz__std__memory__MemErr r, const char* file, size_t line, size_t col, const char* fn) {
+    if (!r.is_ok) {
+        kobel_loc at = { file, line, col, fn };
+        __kobel_report_fault("unwrapped error", r.u.err.__err_code, r.u.err.__origin, at);
+        exit(1);
+    }
+    return r.u.ok;
+}
+
 struct __kobel_eu_mut_ptr_i32__std__memory__MemErr {
     bool is_ok;
     union {
@@ -880,8 +911,50 @@ static inline int32_t* __kobel_unwrap___kobel_eu_mut_ptr_i32__std__memory__MemEr
     return r.u.ok;
 }
 
+struct __kobel_eu_mut_ptr_str__std__memory__MemErr {
+    bool is_ok;
+    union {
+        kobel_str* ok;
+        std__memory__MemErr err;
+    } u;
+};
+
+static inline kobel_str* __kobel_unwrap___kobel_eu_mut_ptr_str__std__memory__MemErr(__kobel_eu_mut_ptr_str__std__memory__MemErr r, const char* file, size_t line, size_t col, const char* fn) {
+    if (!r.is_ok) {
+        kobel_loc at = { file, line, col, fn };
+        __kobel_report_fault("unwrapped error", r.u.err.__err_code, r.u.err.__origin, at);
+        exit(1);
+    }
+    return r.u.ok;
+}
+
+struct __kobel_eu_mut_ptr_std__collections__List_i32__std__memory__MemErr {
+    bool is_ok;
+    union {
+        std__collections__List_i32* ok;
+        std__memory__MemErr err;
+    } u;
+};
+
+static inline std__collections__List_i32* __kobel_unwrap___kobel_eu_mut_ptr_std__collections__List_i32__std__memory__MemErr(__kobel_eu_mut_ptr_std__collections__List_i32__std__memory__MemErr r, const char* file, size_t line, size_t col, const char* fn) {
+    if (!r.is_ok) {
+        kobel_loc at = { file, line, col, fn };
+        __kobel_report_fault("unwrapped error", r.u.err.__err_code, r.u.err.__origin, at);
+        exit(1);
+    }
+    return r.u.ok;
+}
+
+struct test__generics__Holder {
+    std__collections__List_i32 items;
+    std__collections__HashMap_str_i32 map;
+};
+
+size_t std__traits__hash_str(kobel_str s);
+size_t str_hash(kobel_str self);
 __kobel_eu_mut_ptr_u8__std__memory__MemErr std__memory__Heap_try_alloc(size_t size);
 void std__process__Process_exit(int32_t code);
+std__collections__List_i32 test__generics__make_empty_list(void);
 int32_t test__generics__run_tests(void);
 static void __kobel_user_main(void);
 std__collections__List_i32 std__collections__List_i32_init(int32_t* items_data, size_t items_len);
@@ -889,6 +962,9 @@ void std__collections__List_i32_add(std__collections__List_i32* self, int32_t va
 void std__collections__List_i32_grow(std__collections__List_i32* self);
 int32_t std__collections__List_i32_get(std__collections__List_i32* self, size_t index);
 void std__collections__List_i32_plus_assign(std__collections__List_i32* self, int32_t value);
+std__collections__HashMap_str_i32 std__collections__HashMap_str_i32_init(size_t init_cap);
+void std__collections__HashMap_str_i32_grow(std__collections__HashMap_str_i32* self);
+void std__collections__HashMap_str_i32_set(std__collections__HashMap_str_i32* self, kobel_str key, int32_t value);
 std__collections__List_i32 test__generics__wrap_i32(int32_t x);
 int32_t test__generics__twice_i32(int32_t x);
 std__collections__List_std__collections__List_i32 std__collections__List_std__collections__List_i32_init(std__collections__List_i32* items_data, size_t items_len);
@@ -897,17 +973,68 @@ void std__collections__List_std__collections__List_i32_grow(std__collections__Li
 std__collections__List_i32 std__collections__List_std__collections__List_i32_get(std__collections__List_std__collections__List_i32* self, size_t index);
 void std__collections__List_std__collections__List_i32_plus_assign(std__collections__List_std__collections__List_i32* self, std__collections__List_i32 value);
 kobel_str test__generics__id_str(kobel_str x);
+kobel_str* std__memory__Heap_null_ptr_str(void);
+kobel_str* std__memory__Heap_create_str(size_t count);
+__kobel_eu_mut_ptr_str__std__memory__MemErr std__memory__Heap_try_create_str(size_t count);
+void std__memory__Heap_free_str(kobel_str* ptr);
 int32_t* std__memory__Heap_null_ptr_i32(void);
 int32_t* std__memory__Heap_create_i32(size_t count);
 __kobel_eu_mut_ptr_i32__std__memory__MemErr std__memory__Heap_try_create_i32(size_t count);
 int32_t* std__memory__Heap_resize_i32(int32_t* ptr, size_t count);
 __kobel_eu_mut_ptr_i32__std__memory__MemErr std__memory__Heap_try_resize_i32(int32_t* ptr, size_t count);
+void std__memory__Heap_free_i32(int32_t* ptr);
+size_t* std__memory__Heap_null_ptr_usz(void);
+bool* std__memory__Heap_null_ptr_bool(void);
+size_t* std__memory__Heap_create_usz(size_t count);
+__kobel_eu_mut_ptr_usz__std__memory__MemErr std__memory__Heap_try_create_usz(size_t count);
+bool* std__memory__Heap_create_bool(size_t count);
+__kobel_eu_mut_ptr_bool__std__memory__MemErr std__memory__Heap_try_create_bool(size_t count);
+void std__memory__Heap_free_usz(size_t* ptr);
+void std__memory__Heap_free_bool(bool* ptr);
 int32_t test__generics__id_i32(int32_t x);
 std__collections__List_i32* std__memory__Heap_null_ptr_std__collections__List_i32(void);
 std__collections__List_i32* std__memory__Heap_create_std__collections__List_i32(size_t count);
 __kobel_eu_mut_ptr_std__collections__List_i32__std__memory__MemErr std__memory__Heap_try_create_std__collections__List_i32(size_t count);
 std__collections__List_i32* std__memory__Heap_resize_std__collections__List_i32(std__collections__List_i32* ptr, size_t count);
 __kobel_eu_mut_ptr_std__collections__List_i32__std__memory__MemErr std__memory__Heap_try_resize_std__collections__List_i32(std__collections__List_i32* ptr, size_t count);
+
+size_t std__traits__hash_str(kobel_str s) {
+int32_t h = 5381;
+{
+size_t __for_e = s.len;
+size_t __for_i = __for_e;
+__for_i = 0;
+bool __for_up = __for_i <= __for_e;
+bool __for_go = false;
+if (__for_up) {
+__for_go = __for_i < __for_e;
+} else {
+__for_go = __for_i > __for_e;
+}
+while (__for_go) {
+size_t i = __for_i;
+int32_t c = (int32_t)(uint8_t)s.data[i];
+h = h * 33 + c;
+if (__for_up) {
+__for_go = __for_i + 1 < __for_e;
+} else {
+__for_go = __for_i - 1 > __for_e;
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = __for_i + 1;
+} else {
+__for_i = __for_i - 1;
+}
+}
+}
+}
+return h;
+}
+
+size_t str_hash(kobel_str self) {
+    return std__traits__hash_str(self);
+}
 
 __kobel_eu_mut_ptr_u8__std__memory__MemErr std__memory__Heap_try_alloc(size_t size) {
 size_t req = size == 0 ? 1 : size;
@@ -917,6 +1044,10 @@ return __eu_elvis_1 != NULL ? (__kobel_eu_mut_ptr_u8__std__memory__MemErr){ .is_
 
 void std__process__Process_exit(int32_t code) {
     exit(code);
+}
+
+std__collections__List_i32 test__generics__make_empty_list(void) {
+    return std__collections__List_i32_init(NULL, 0);
 }
 
 int32_t test__generics__run_tests(void) {
@@ -957,6 +1088,18 @@ return 9;
 }
 if (std__collections__List_i32_get(&inferred_inner, 0) != 99) {
 return 10;
+}
+test__generics__Holder h = (test__generics__Holder){ std__collections__List_i32_init(NULL, 0), std__collections__HashMap_str_i32_init(0) };
+std__collections__List_i32_plus_assign(&h.items, 5);
+std__collections__HashMap_str_i32_set(&h.map, KOBEL_STR("a"), 1);
+h.items = std__collections__List_i32_init(NULL, 0);
+h.map = std__collections__HashMap_str_i32_init(0);
+if (h.items.len != 0 || h.map.len != 0) {
+return 11;
+}
+std__collections__List_i32 empty_ret = test__generics__make_empty_list();
+if (empty_ret.len != 0) {
+return 12;
 }
 return 0;
 }
@@ -1034,6 +1177,159 @@ int32_t std__collections__List_i32_get(std__collections__List_i32* self, size_t 
 
 void std__collections__List_i32_plus_assign(std__collections__List_i32* self, int32_t value) {
     std__collections__List_i32_add(self, value);
+}
+
+std__collections__HashMap_str_i32 std__collections__HashMap_str_i32_init(size_t init_cap) {
+if (init_cap == 0) {
+return (std__collections__HashMap_str_i32){ std__memory__Heap_null_ptr_str(), std__memory__Heap_null_ptr_i32(), std__memory__Heap_null_ptr_usz(), std__memory__Heap_null_ptr_bool(), 0, 0 };
+}
+size_t cap = init_cap;
+if (cap < 8) {
+cap = 8;
+}
+kobel_str* keys = std__memory__Heap_create_str(cap);
+int32_t* values = std__memory__Heap_create_i32(cap);
+size_t* hashes = std__memory__Heap_create_usz(cap);
+bool* occ = std__memory__Heap_create_bool(cap);
+{
+size_t __for_e = cap;
+size_t __for_i = __for_e;
+__for_i = 0;
+bool __for_up = __for_i <= __for_e;
+bool __for_go = false;
+if (__for_up) {
+__for_go = __for_i < __for_e;
+} else {
+__for_go = __for_i > __for_e;
+}
+while (__for_go) {
+size_t i = __for_i;
+occ[i] = false;
+if (__for_up) {
+__for_go = __for_i + 1 < __for_e;
+} else {
+__for_go = __for_i - 1 > __for_e;
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = __for_i + 1;
+} else {
+__for_i = __for_i - 1;
+}
+}
+}
+}
+return (std__collections__HashMap_str_i32){ keys, values, hashes, occ, 0, cap };
+}
+
+void std__collections__HashMap_str_i32_grow(std__collections__HashMap_str_i32* self) {
+size_t old_cap = self->cap;
+kobel_str* old_keys = self->keys;
+int32_t* old_vals = self->values;
+size_t* old_hashes = self->hashes;
+bool* old_occ = self->occupied;
+size_t new_cap = old_cap < 8 ? 16 : old_cap * 2;
+kobel_str* keys = std__memory__Heap_create_str(new_cap);
+int32_t* values = std__memory__Heap_create_i32(new_cap);
+size_t* hashes = std__memory__Heap_create_usz(new_cap);
+bool* new_occ = std__memory__Heap_create_bool(new_cap);
+{
+size_t __for_e = new_cap;
+size_t __for_i = __for_e;
+__for_i = 0;
+bool __for_up = __for_i <= __for_e;
+bool __for_go = false;
+if (__for_up) {
+__for_go = __for_i < __for_e;
+} else {
+__for_go = __for_i > __for_e;
+}
+while (__for_go) {
+size_t j = __for_i;
+new_occ[j] = false;
+if (__for_up) {
+__for_go = __for_i + 1 < __for_e;
+} else {
+__for_go = __for_i - 1 > __for_e;
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = __for_i + 1;
+} else {
+__for_i = __for_i - 1;
+}
+}
+}
+}
+if (old_cap > 0) {
+{
+size_t __for_e = old_cap;
+size_t __for_i = __for_e;
+__for_i = 0;
+bool __for_up = __for_i <= __for_e;
+bool __for_go = false;
+if (__for_up) {
+__for_go = __for_i < __for_e;
+} else {
+__for_go = __for_i > __for_e;
+}
+while (__for_go) {
+size_t i = __for_i;
+if (old_occ[i]) {
+size_t h = old_hashes[i];
+size_t idx = h % new_cap;
+while (new_occ[idx]) {
+idx = (idx + 1) % new_cap;
+}
+keys[idx] = old_keys[i];
+values[idx] = old_vals[i];
+hashes[idx] = h;
+new_occ[idx] = true;
+}
+if (__for_up) {
+__for_go = __for_i + 1 < __for_e;
+} else {
+__for_go = __for_i - 1 > __for_e;
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = __for_i + 1;
+} else {
+__for_i = __for_i - 1;
+}
+}
+}
+}
+std__memory__Heap_free_str(old_keys);
+std__memory__Heap_free_i32(old_vals);
+std__memory__Heap_free_usz(old_hashes);
+std__memory__Heap_free_bool(old_occ);
+}
+self->keys = keys;
+self->values = values;
+self->hashes = hashes;
+self->occupied = new_occ;
+self->cap = new_cap;
+}
+
+void std__collections__HashMap_str_i32_set(std__collections__HashMap_str_i32* self, kobel_str key, int32_t value) {
+if (self->cap == 0 || self->len * 10 >= self->cap * 7) {
+std__collections__HashMap_str_i32_grow(self);
+}
+size_t h = str_hash(key);
+size_t idx = h % self->cap;
+while (self->occupied[idx]) {
+if (self->hashes[idx] == h && kobel_streq(self->keys[idx], key)) {
+self->values[idx] = value;
+return;
+}
+idx = (idx + 1) % self->cap;
+}
+self->keys[idx] = key;
+self->values[idx] = value;
+self->hashes[idx] = h;
+self->occupied[idx] = true;
+self->len++;
 }
 
 std__collections__List_i32 test__generics__wrap_i32(int32_t x) {
@@ -1115,6 +1411,28 @@ kobel_str test__generics__id_str(kobel_str x) {
 return x;
 }
 
+kobel_str* std__memory__Heap_null_ptr_str(void) {
+    return (kobel_str*)kobel_null_ptr();
+}
+
+kobel_str* std__memory__Heap_create_str(size_t count) {
+    return __kobel_unwrap___kobel_eu_mut_ptr_str__std__memory__MemErr(std__memory__Heap_try_create_str(count), "lib/std/memory/heap.kb", 47, 63, "Heap_create_str");
+}
+
+__kobel_eu_mut_ptr_str__std__memory__MemErr std__memory__Heap_try_create_str(size_t count) {
+size_t bytes = count * 16;
+__kobel_eu_mut_ptr_u8__std__memory__MemErr __eu_prop_4 = std__memory__Heap_try_alloc(bytes);
+if (!__eu_prop_4.is_ok) {
+return (__kobel_eu_mut_ptr_str__std__memory__MemErr){ .is_ok = false, .u = { .err = __eu_prop_4.u.err } };
+}
+uint8_t* raw = __eu_prop_4.u.ok;
+return (__kobel_eu_mut_ptr_str__std__memory__MemErr){ .is_ok = true, .u = { .ok = (kobel_str*)raw } };
+}
+
+void std__memory__Heap_free_str(kobel_str* ptr) {
+    kobel_free((uint8_t*)ptr);
+}
+
 int32_t* std__memory__Heap_null_ptr_i32(void) {
     return (int32_t*)kobel_null_ptr();
 }
@@ -1147,6 +1465,54 @@ return (__kobel_eu_mut_ptr_i32__std__memory__MemErr){ .is_ok = false, .u = { .er
 return (__kobel_eu_mut_ptr_i32__std__memory__MemErr){ .is_ok = true, .u = { .ok = (int32_t*)raw } };
 }
 
+void std__memory__Heap_free_i32(int32_t* ptr) {
+    kobel_free((uint8_t*)ptr);
+}
+
+size_t* std__memory__Heap_null_ptr_usz(void) {
+    return (size_t*)kobel_null_ptr();
+}
+
+bool* std__memory__Heap_null_ptr_bool(void) {
+    return (bool*)kobel_null_ptr();
+}
+
+size_t* std__memory__Heap_create_usz(size_t count) {
+    return __kobel_unwrap___kobel_eu_mut_ptr_usz__std__memory__MemErr(std__memory__Heap_try_create_usz(count), "lib/std/memory/heap.kb", 47, 63, "Heap_create_usz");
+}
+
+__kobel_eu_mut_ptr_usz__std__memory__MemErr std__memory__Heap_try_create_usz(size_t count) {
+size_t bytes = count * 8;
+__kobel_eu_mut_ptr_u8__std__memory__MemErr __eu_prop_7 = std__memory__Heap_try_alloc(bytes);
+if (!__eu_prop_7.is_ok) {
+return (__kobel_eu_mut_ptr_usz__std__memory__MemErr){ .is_ok = false, .u = { .err = __eu_prop_7.u.err } };
+}
+uint8_t* raw = __eu_prop_7.u.ok;
+return (__kobel_eu_mut_ptr_usz__std__memory__MemErr){ .is_ok = true, .u = { .ok = (size_t*)raw } };
+}
+
+bool* std__memory__Heap_create_bool(size_t count) {
+    return __kobel_unwrap___kobel_eu_mut_ptr_bool__std__memory__MemErr(std__memory__Heap_try_create_bool(count), "lib/std/memory/heap.kb", 47, 63, "Heap_create_bool");
+}
+
+__kobel_eu_mut_ptr_bool__std__memory__MemErr std__memory__Heap_try_create_bool(size_t count) {
+size_t bytes = count * 1;
+__kobel_eu_mut_ptr_u8__std__memory__MemErr __eu_prop_8 = std__memory__Heap_try_alloc(bytes);
+if (!__eu_prop_8.is_ok) {
+return (__kobel_eu_mut_ptr_bool__std__memory__MemErr){ .is_ok = false, .u = { .err = __eu_prop_8.u.err } };
+}
+uint8_t* raw = __eu_prop_8.u.ok;
+return (__kobel_eu_mut_ptr_bool__std__memory__MemErr){ .is_ok = true, .u = { .ok = (bool*)raw } };
+}
+
+void std__memory__Heap_free_usz(size_t* ptr) {
+    kobel_free((uint8_t*)ptr);
+}
+
+void std__memory__Heap_free_bool(bool* ptr) {
+    kobel_free((uint8_t*)ptr);
+}
+
 int32_t test__generics__id_i32(int32_t x) {
 return x;
 }
@@ -1161,11 +1527,11 @@ std__collections__List_i32* std__memory__Heap_create_std__collections__List_i32(
 
 __kobel_eu_mut_ptr_std__collections__List_i32__std__memory__MemErr std__memory__Heap_try_create_std__collections__List_i32(size_t count) {
 size_t bytes = count * 24;
-__kobel_eu_mut_ptr_u8__std__memory__MemErr __eu_prop_6 = std__memory__Heap_try_alloc(bytes);
-if (!__eu_prop_6.is_ok) {
-return (__kobel_eu_mut_ptr_std__collections__List_i32__std__memory__MemErr){ .is_ok = false, .u = { .err = __eu_prop_6.u.err } };
+__kobel_eu_mut_ptr_u8__std__memory__MemErr __eu_prop_9 = std__memory__Heap_try_alloc(bytes);
+if (!__eu_prop_9.is_ok) {
+return (__kobel_eu_mut_ptr_std__collections__List_i32__std__memory__MemErr){ .is_ok = false, .u = { .err = __eu_prop_9.u.err } };
 }
-uint8_t* raw = __eu_prop_6.u.ok;
+uint8_t* raw = __eu_prop_9.u.ok;
 return (__kobel_eu_mut_ptr_std__collections__List_i32__std__memory__MemErr){ .is_ok = true, .u = { .ok = (std__collections__List_i32*)raw } };
 }
 

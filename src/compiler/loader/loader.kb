@@ -168,7 +168,7 @@ impl SourceCache {
 		HeapPool.pop(prev);
 	}
 
-	pub fn file_count(*self): usz => self.disk_files.len;
+	pub fn file_count(*self) => self.disk_files.len;
 
 	pub fn total_bytes(*self): usz {
 		var total: usz = 0;
@@ -183,17 +183,23 @@ impl SourceCache {
 			Heap.drop_str(ov.text);
 			Heap.drop_str(ov.key);
 		}
+
 		self.overrides.free();
-		self.overrides = HashMap<str, OverrideEntry>();
+		self.overrides = HashMap();
+
 		for ((_, cs) in self.disk_files) {
 			Heap.drop_str(cs.text);
 			Heap.drop_str(cs.path);
 		}
+
 		self.disk_files.free();
-		self.disk_files = HashMap<str, CachedSource>();
+		self.disk_files = HashMap();
+
 		for (s in self.retired) Heap.drop_str(s);
+
 		self.retired.free();
-		self.retired = List<str>();
+		self.retired = List();
+
 		HeapPool.pop(prev);
 	}
 

@@ -885,6 +885,7 @@ void test__test_range__test_direct_for_loops(void);
 void test__test_range__test_range_variable_iteration(void);
 void test__test_range__test_containment(void);
 void test__test_range__test_when_patterns(void);
+void test__test_range__test_count_for_loops(void);
 static void __kobel_user_main(void);
 bool std__range__Range_char_is_ascending(std__range__Range_char* self);
 bool std__range__Range_char_contains(std__range__Range_char* self, char item);
@@ -1685,10 +1686,135 @@ testsupport__assert__assert_eq_i32(test__test_range__test_when_stmt('5'), 3, KOB
 testsupport__assert__assert_eq_i32(test__test_range__test_when_stmt('?'), -1, KOBEL_STR("when stmt '?'"));
 }
 
+void test__test_range__test_count_for_loops(void) {
+int32_t hits = 0;
+{
+int32_t __for_e = 5;
+int32_t __for_i = __for_e;
+__for_i = 0;
+bool __for_up = __for_i <= __for_e;
+bool __for_go = false;
+if (__for_up) {
+__for_go = __for_i < __for_e;
+} else {
+__for_go = __for_i > __for_e;
+}
+while (__for_go) {
+hits += 1;
+if (__for_up) {
+__for_go = __for_i + 1 < __for_e;
+} else {
+__for_go = __for_i - 1 > __for_e;
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = __for_i + 1;
+} else {
+__for_i = __for_i - 1;
+}
+}
+}
+}
+testsupport__assert__assert_eq_i32(hits, 5, KOBEL_STR("for (0..<5) runs 5 times"));
+hits = 0;
+{
+int32_t __for_e = 4;
+int32_t __for_i = __for_e;
+__for_i = 1;
+bool __for_up = __for_i <= __for_e;
+bool __for_go = false;
+if (__for_up) {
+__for_go = __for_i <= __for_e;
+} else {
+__for_go = __for_i >= __for_e;
+}
+while (__for_go) {
+hits += 1;
+if (__for_up) {
+__for_go = __for_i < __for_e;
+} else {
+__for_go = __for_i > __for_e;
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = __for_i + 1;
+} else {
+__for_i = __for_i - 1;
+}
+}
+}
+}
+testsupport__assert__assert_eq_i32(hits, 4, KOBEL_STR("for (1..4) runs 4 times"));
+hits = 0;
+{
+int32_t __for_e = 4;
+int32_t __for_i = __for_e;
+__for_i = 0;
+bool __for_up = __for_i <= __for_e;
+if (__for_up) {
+__for_i = __for_i + 1;
+} else {
+__for_i = __for_i - 1;
+}
+bool __for_go = false;
+if (__for_up) {
+__for_go = __for_i < __for_e;
+} else {
+__for_go = __for_i > __for_e;
+}
+while (__for_go) {
+hits += 1;
+if (__for_up) {
+__for_go = __for_i + 1 < __for_e;
+} else {
+__for_go = __for_i - 1 > __for_e;
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = __for_i + 1;
+} else {
+__for_i = __for_i - 1;
+}
+}
+}
+}
+testsupport__assert__assert_eq_i32(hits, 3, KOBEL_STR("for (0>..<4) runs 3 times"));
+hits = 0;
+{
+int32_t __for_e = 0;
+int32_t __for_i = __for_e;
+__for_i = 0;
+bool __for_up = __for_i <= __for_e;
+bool __for_go = false;
+if (__for_up) {
+__for_go = __for_i < __for_e;
+} else {
+__for_go = __for_i > __for_e;
+}
+while (__for_go) {
+hits += 1;
+if (__for_up) {
+__for_go = __for_i + 1 < __for_e;
+} else {
+__for_go = __for_i - 1 > __for_e;
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = __for_i + 1;
+} else {
+__for_i = __for_i - 1;
+}
+}
+}
+}
+testsupport__assert__assert_eq_i32(hits, 0, KOBEL_STR("for (0..<0) runs 0 times"));
+}
+
 static void __kobel_user_main(void) {
 std__io__println(KOBEL_STR("=== Running Range Feature Tests ==="));
 test__test_range__test_range_values();
 test__test_range__test_direct_for_loops();
+test__test_range__test_count_for_loops();
 test__test_range__test_range_variable_iteration();
 test__test_range__test_containment();
 test__test_range__test_when_patterns();

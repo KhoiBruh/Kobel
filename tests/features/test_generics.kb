@@ -23,6 +23,13 @@ fn twice<U>(x: U): U {
 	return y;
 }
 
+struct Holder {
+	pub items: List<i32> = List(),
+	pub map: HashMap<str, i32> = HashMap()
+}
+
+fn make_empty_list(): List<i32> => List();
+
 fn run_tests(): i32 {
 	var inner: List<i32> = wrap<i32>(7);
 	if (inner.len != 1) return 1;
@@ -48,6 +55,16 @@ fn run_tests(): i32 {
 	val inferred_inner = wrap(99);
 	if (inferred_inner.len != 1) return 9;
 	if (inferred_inner[0] != 99) return 10;
+
+	// Expected-type generic struct constructor inference (assignment & return)
+	var h = Holder();
+	h.items += 5;
+	h.map["a"] = 1;
+	h.items = List();
+	h.map = HashMap();
+	if (h.items.len != 0 || h.map.len != 0) return 11;
+	val empty_ret = make_empty_list();
+	if (empty_ret.len != 0) return 12;
 
 	return 0;
 }

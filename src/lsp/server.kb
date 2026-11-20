@@ -276,8 +276,7 @@ impl LanguageServer {
 
 	fn handle_one_message(&self): bool {
 		val raw_msg = read_message() !: err -> {
-			if (err is ProtocolErr.EndOfStream) return false;
-			return true;
+			return err !is ProtocolErr.EndOfStream;
 		};
 
 		val msg = JsonValue.parse(raw_msg) !: return true;

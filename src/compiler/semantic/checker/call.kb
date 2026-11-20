@@ -20,7 +20,7 @@ use compiler.semantic.declaration.*;
 
 impl BodyChecker {
 
-	pub fn check_call_expr(&self, node: &AstNode): *Type {
+	pub fn check_call_expr(&self, node: &AstNode, expected: ?*Type = null): *Type {
 		if (node is CallExpr as call) {
 			// Primitive char constructor: char(code)
 			if (call.callee is IdentifierExpr as id && id.name == "char") {
@@ -81,7 +81,7 @@ impl BodyChecker {
 			}
 
 			if (call.type_args.empty() && callee is IdentifierExpr as cid) {
-				val inferred_ty = self.check_inferred_generic_call(node, call, cid);
+				val inferred_ty = self.check_inferred_generic_call(node, call, cid, expected);
 				if (inferred_ty != null) return inferred_ty;
 			}
 
@@ -164,7 +164,8 @@ impl BodyChecker {
 		&self,
 		node: &AstNode,
 		call: &CallExpr,
-		cid: *IdentifierExpr
+		cid: *IdentifierExpr,
+		expected: ?*Type = null
 	): ?*Type {
 		val local_sym = self.symtab.lookup(cid.name);
 		if (
@@ -203,20 +204,32 @@ impl BodyChecker {
 
 		val st = self.find_struct_template_for(cid.name);
 		if (st != null && st.node is StructDecl as s_tmpl) {
+			var resolved_cty: ?*Type = null;
 			val inferred_targs = self.infer_type_args_for_struct(s_tmpl, call.args);
 			if (!inferred_targs.empty()) {
 				val cty = self.instantiate_template_struct(st, inferred_targs);
-				if (cty.kind == DataType.STRUCT) {
-					val cname = cty.as_struct()!.name;
-					val callee_id = self.arena.node(NodeData.IdentifierExpr(cname), node.line, node.col);
-					val new_call = self.arena.node(
-						NodeData.CallExpr(callee_id, call.args, List<&AstNode>()),
-						node.line, node.col
-					);
-					if (new_call is CallExpr as new_cc) {
-						self.set_resolved(node, new_call);
-						return self.check_struct_ctor(new_call, cty, new_cc, false);
+				if (cty.kind == DataType.STRUCT) resolved_cty = cty;
+			} else if (expected != null) {
+				val exp_ty = if (expected.kind == DataType.ERROR_UNION) expected.as_error_union()!.ok else expected;
+				val exp_st = exp_ty.as_struct();
+				if (exp_st != null) {
+					val rec_p = self.symtab.gen.record_map.get(exp_st.c_name)
+						?: self.symtab.gen.record_map.get(exp_st.name);
+					if (rec_p != null && rec_p.read().template == st) {
+						resolved_cty = exp_ty;
 					}
+				}
+			}
+			if (resolved_cty != null && resolved_cty.kind == DataType.STRUCT) {
+				val cname = resolved_cty.as_struct()!.name;
+				val callee_id = self.arena.node(NodeData.IdentifierExpr(cname), node.line, node.col);
+				val new_call = self.arena.node(
+					NodeData.CallExpr(callee_id, call.args, List<&AstNode>()),
+					node.line, node.col
+				);
+				if (new_call is CallExpr as new_cc) {
+					self.set_resolved(node, new_call);
+					return self.check_struct_ctor(new_call, resolved_cty, new_cc, false);
 				}
 			}
 		}

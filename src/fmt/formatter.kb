@@ -607,8 +607,10 @@ impl Formatter {
 			}
 			is ForStmt as f -> {
 				self.buf += "for (";
-				self.buf += f.var_name;
-				self.buf += " in ";
+				if (!f.var_name.empty()) {
+					self.buf += f.var_name;
+					self.buf += " in ";
+				}
 				if (f.is_range) {
 					self.format_expr(f.range_start!);
 					if (f.is_open) self.buf += ">..<";
