@@ -390,6 +390,9 @@ pub fn code_actions_json(
 	val all_dup_imp_edits = JsonValue.arr();
 	var all_dup_imp_count: usz = 0;
 	var dup_imp_overlap_count: usz = 0;
+	val all_free_edits = JsonValue.arr();
+	var all_free_count: usz = 0;
+	var free_overlap_count: usz = 0;
 	if (effective_fixes != null) {
 		val fixes_list = effective_fixes;
 		for (fi in 0..<fixes_list.len) {
@@ -420,6 +423,12 @@ pub fn code_actions_json(
 					all_dup_imp_count++;
 				}
 				if (overlaps) dup_imp_overlap_count++;
+			} else if (fx.code == "unfreed-resource") {
+				for (ed in fx.edits) {
+					all_free_edits += make_text_edit(ed.line1, ed.col1, ed.end_line1, ed.end_col1, ed.new_text);
+					all_free_count++;
+				}
+				if (overlaps) free_overlap_count++;
 			}
 			if (!overlaps) continue;
 			val edits = JsonValue.arr();
@@ -445,6 +454,12 @@ pub fn code_actions_json(
 		actions += make_code_action(
 			"Remove all ${all_dup_imp_count} redundant import(s)",
 			"quickfix", uri, all_dup_imp_edits
+		);
+	}
+	if (all_free_count > 1 && free_overlap_count > 0) {
+		actions += make_code_action(
+			"Add defer cleanup for all ${all_free_count} unfreed resource(s)",
+			"quickfix", uri, all_free_edits
 		);
 	}
 
@@ -550,6 +565,33 @@ pub fn code_actions_json(
 				"Remove unreachable code",
 				"quickfix", uri, edits, true
 			);
+		}
+	}
+
+	// 7. Refactor: Add explicit type annotation to untyped local `val`/`var` on cursor line
+	if (req_start1 == req_end1) {
+		for (def in index.defs) {
+			if (def.role != SymRole.LOCAL) continue;
+			if (!paths_equal(def.file_path, file_path)) continue;
+			if (def.line != req_start1) continue;
+			if (def.name.empty() || def.name == "_") continue;
+			if (def.type_str.empty() || def.type_str in ["none", "any", "?"]) continue;
+
+			for (ti in 0..<tokens.len) {
+				val tok = tokens[ti];
+				if (tok.line == def.line && tok.col == def.col && tok.type == TokenType.IDENTIFIER && tok.text == def.name) {
+					if (ti + 1 < tokens.len && tokens[ti + 1].type == TokenType.EQUAL) {
+						val ins_col = def.col + def.name.len;
+						val edits = JsonValue.arr();
+						edits += make_text_edit(def.line, ins_col, def.line, ins_col, ": ${def.type_str}");
+						actions += make_code_action(
+							"Add explicit type ': ${def.type_str}'",
+							"refactor.rewrite", uri, edits, false
+						);
+					}
+					break;
+				}
+			}
 		}
 	}
 

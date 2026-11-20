@@ -6803,6 +6803,7 @@ lsp__AnalysisResult lsp__AnalysisResult_init_6(kobel_str path, kobel_str source,
 lsp__JsonValue* lsp__AnalysisResult_hover_at(lsp__AnalysisResult* self, size_t line0, size_t col0);
 lsp__JsonValue* lsp__AnalysisResult_definition_at(lsp__AnalysisResult* self, kobel_str doc_uri, size_t line0, size_t col0);
 lsp__JsonValue* lsp__AnalysisResult_complete_at(lsp__AnalysisResult* self, size_t line0, size_t col0);
+lsp__JsonValue* lsp__AnalysisResult_build_signature_json(kobel_str name, std__collections__List_str param_names, std__collections__List_str param_types, kobel_str return_type, bool skip_self);
 lsp__JsonValue* lsp__AnalysisResult_signature_help_at(lsp__AnalysisResult* self, size_t line0, size_t col0);
 lsp__JsonValue* lsp__AnalysisResult_document_highlights(lsp__AnalysisResult* self, size_t line0, size_t col0);
 lsp__JsonValue* lsp__AnalysisResult_workspace_symbols(lsp__AnalysisResult* self, kobel_str query);
@@ -7012,6 +7013,12 @@ void lsp__LintCollector_check_duplicate_imports(lsp__LintCollector* self, compil
 void lsp__LintCollector_check_redundant_cast(lsp__LintCollector* self, compiler__ast__AstNode* expr, compiler__ast__NodeData__CastExpr* cs);
 void lsp__LintCollector_check_single_arm_when(lsp__LintCollector* self, compiler__ast__AstNode* expr, compiler__ast__NodeData__WhenExpr* we);
 void lsp__LintCollector_walk_expr(lsp__LintCollector* self, compiler__ast__AstNode* node);
+kobel_str lsp__LintCollector_owned_resource_release_method(lsp__LintCollector* self, compiler__semantic__types__Type* ty);
+bool lsp__LintCollector_expr_mentions_ident(lsp__LintCollector* self, compiler__ast__AstNode* node, kobel_str name);
+bool lsp__LintCollector_stmt_mentions_ident(lsp__LintCollector* self, compiler__ast__AstNode* node, kobel_str name);
+bool lsp__LintCollector_expr_releases_or_transfers_var(lsp__LintCollector* self, compiler__ast__AstNode* node, kobel_str name);
+bool lsp__LintCollector_stmt_releases_or_transfers_var(lsp__LintCollector* self, compiler__ast__AstNode* node, kobel_str name);
+void lsp__LintCollector_check_unfreed_resource(lsp__LintCollector* self, compiler__ast__AstNode* vd_node, compiler__ast__NodeData__VarDeclStmt* vd, std__collections__List_mut_ptr_compiler__ast__AstNode stmts, size_t next_idx);
 void lsp__LintCollector_walk_stmt(lsp__LintCollector* self, compiler__ast__AstNode* node, bool in_block, bool is_else_if_child);
 void lsp__LintCollector_walk_fn(lsp__LintCollector* self, compiler__ast__AstNode* fn_node, compiler__ast__NodeData__FnDecl* f, bool is_trait_decl);
 void lsp__LintCollector_collect(lsp__LintCollector* self);
@@ -41186,6 +41193,65 @@ __for_i = __for_i + 1;
 return items;
 }
 
+lsp__JsonValue* lsp__AnalysisResult_build_signature_json(kobel_str name, std__collections__List_str param_names, std__collections__List_str param_types, kobel_str return_type, bool skip_self) {
+size_t start_i = skip_self && !std__collections__List_str_empty(&param_names) && kobel_streq(std__collections__List_str_get(&param_names, 0), KOBEL_STR("self")) ? 1 : 0;
+std__string__StringBuilder label_sb = std__string__StringBuilder_init(32);
+std__string__StringBuilder_plus_assign_2(&label_sb, name);
+std__string__StringBuilder_plus_assign_2(&label_sb, KOBEL_STR("("));
+lsp__JsonValue* params_arr = lsp__JsonValue_arr();
+size_t shown = 0;
+{
+size_t __for_e = param_names.len;
+size_t __for_i = __for_e;
+__for_i = start_i;
+bool __for_up = __for_i <= __for_e;
+bool __for_go = false;
+if (__for_up) {
+__for_go = __for_i < __for_e;
+} else {
+__for_go = __for_i > __for_e;
+}
+while (__for_go) {
+size_t i = __for_i;
+if (shown > 0) {
+std__string__StringBuilder_plus_assign_2(&label_sb, KOBEL_STR(", "));
+}
+kobel_str pt = i < param_types.len && !str_empty(std__collections__List_str_get(&param_types, i)) ? std__collections__List_str_get(&param_types, i) : KOBEL_STR("any");
+kobel_str p_label = kobel_streq(std__collections__List_str_get(&param_names, i), KOBEL_STR("self")) ? pt : kobel_concat(3, std__collections__List_str_get(&param_names, i), KOBEL_STR(": "), pt);
+std__string__StringBuilder_plus_assign_2(&label_sb, p_label);
+lsp__JsonValue* p_obj = lsp__JsonValue_obj();
+lsp__JsonValue_set(p_obj, KOBEL_STR("label"), lsp__JsonValue_str(p_label));
+lsp__JsonValue_plus_assign(params_arr, p_obj);
+shown++;
+if (__for_up) {
+__for_go = __for_i + 1 < __for_e;
+} else {
+__for_go = __for_i - 1 > __for_e;
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = __for_i + 1;
+} else {
+__for_i = __for_i - 1;
+}
+}
+}
+}
+std__string__StringBuilder_plus_assign_2(&label_sb, KOBEL_STR(")"));
+if (!str_empty(return_type) && !kobel_streq(return_type, KOBEL_STR("none"))) {
+std__string__StringBuilder_plus_assign_2(&label_sb, KOBEL_STR(": "));
+std__string__StringBuilder_plus_assign_2(&label_sb, return_type);
+}
+lsp__JsonValue* sig_obj = lsp__JsonValue_obj();
+lsp__JsonValue_set(sig_obj, KOBEL_STR("label"), lsp__JsonValue_str(std__string__StringBuilder_to_str(&label_sb)));
+lsp__JsonValue_set(sig_obj, KOBEL_STR("parameters"), params_arr);
+{
+lsp__JsonValue* __ret_tmp = sig_obj;
+std__string__StringBuilder_free(label_sb);
+return __ret_tmp;
+}
+}
+
 lsp__JsonValue* lsp__AnalysisResult_signature_help_at(lsp__AnalysisResult* self, size_t line0, size_t col0) {
 size_t line1 = line0 + 1;
 size_t col1 = col0 + 1;
@@ -41226,32 +41292,72 @@ __for_i = __for_i - 1;
 if (idx < 0) {
 return lsp__JsonValue_null_val();
 }
-int32_t depth = 0;
+int32_t paren_depth = 0;
+int32_t bracket_depth = 0;
+int32_t brace_depth = 0;
 int64_t commas = 0;
 intptr_t open_idx = -1;
 intptr_t cur = idx;
 while (cur >= 0) {
 compiler__lexer__Token t = std__collections__List_compiler__lexer__Token_get(&self->tokens, (size_t)cur);
 if (t.type == 16) {
-depth++;
+paren_depth++;
 } else if (t.type == 15) {
-if (depth == 0) {
+if (paren_depth == 0 && bracket_depth == 0 && brace_depth == 0) {
 open_idx = cur;
 break;
 }
-depth--;
-} else if (t.type == 2 && depth == 0) {
+if (paren_depth > 0) {
+paren_depth--;
+}
+} else if (t.type == 14) {
+bracket_depth++;
+} else if (t.type == 13) {
+if (bracket_depth > 0) {
+bracket_depth--;
+}
+} else if (t.type == 18) {
+brace_depth++;
+} else if (t.type == 17) {
+if (brace_depth > 0) {
+brace_depth--;
+}
+} else if (t.type == 2) {
+if (paren_depth == 0 && bracket_depth == 0 && brace_depth == 0) {
 commas++;
+}
+} else {
 }
 cur--;
 }
 if (open_idx <= 0) {
 return lsp__JsonValue_null_val();
 }
-compiler__lexer__Token callee_tok = std__collections__List_compiler__lexer__Token_get(&self->tokens, (size_t)(open_idx - 1));
+intptr_t callee_idx = open_idx - 1;
+if (std__collections__List_compiler__lexer__Token_get(&self->tokens, (size_t)callee_idx).type == 11) {
+int32_t angle_depth = 0;
+while (callee_idx >= 0) {
+compiler__lexer__TokenType ty = std__collections__List_compiler__lexer__Token_get(&self->tokens, (size_t)callee_idx).type;
+if (ty == 11) {
+angle_depth++;
+} else if (ty == 12) {
+angle_depth--;
+if (angle_depth == 0) {
+callee_idx--;
+break;
+}
+}
+callee_idx--;
+}
+}
+if (callee_idx < 0) {
+return lsp__JsonValue_null_val();
+}
+compiler__lexer__Token callee_tok = std__collections__List_compiler__lexer__Token_get(&self->tokens, (size_t)callee_idx);
 if (callee_tok.type != 44) {
 return lsp__JsonValue_null_val();
 }
+bool is_member_call = callee_idx > 0 && (std__collections__List_compiler__lexer__Token_get(&self->tokens, (size_t)(callee_idx - 1)).type == 3 || std__collections__List_compiler__lexer__Token_get(&self->tokens, (size_t)(callee_idx - 1)).type == 39);
 lsp__DefInfo def = (lsp__DefInfo){ KOBEL_STR(""), KOBEL_STR(""), 1, KOBEL_STR(""), KOBEL_STR(""), KOBEL_STR(""), 0, 0, 0, KOBEL_STR(""), KOBEL_STR(""), false, false, false, false, std__collections__List_str_init(NULL, 0), std__collections__List_str_init(NULL, 0), KOBEL_STR(""), true, false, false, false };
 __kobel_eu_lsp__RefInfo__lsp__IndexErr ref_res = lsp__SemanticIndex_find_ref_at(&self->index, self->file_path, callee_tok.line, callee_tok.col);
 {
@@ -41272,7 +41378,7 @@ size_t __for_n = std__collections__List_lsp__DefInfo_count(&self->index.defs);
 size_t __for_i = 0;
 while (__for_i < __for_n) {
 lsp__DefInfo d = std__collections__List_lsp__DefInfo_at(&self->index.defs, __for_i);
-if ((d.role == 1 || d.role == 2) && kobel_streq(d.name, callee_tok.text)) {
+if ((d.role == 1 || d.role == 2 || d.role == 3) && kobel_streq(d.name, callee_tok.text)) {
 def = d;
 break;
 }
@@ -41283,47 +41389,63 @@ __for_i = __for_i + 1;
 if (str_empty(def.key)) {
 return lsp__JsonValue_null_val();
 }
-lsp__JsonValue* sig_obj = lsp__JsonValue_obj();
-lsp__JsonValue_set(sig_obj, KOBEL_STR("label"), lsp__JsonValue_str(def.signature));
-lsp__JsonValue* params_arr = lsp__JsonValue_arr();
-{
-size_t __for_e = def.param_names.len;
-size_t __for_i = __for_e;
-__for_i = 0;
-bool __for_up = __for_i <= __for_e;
-bool __for_go = false;
-if (__for_up) {
-__for_go = __for_i < __for_e;
-} else {
-__for_go = __for_i > __for_e;
-}
-while (__for_go) {
-size_t i = __for_i;
-lsp__JsonValue* p_obj = lsp__JsonValue_obj();
-kobel_str pt = i < def.param_types.len ? std__collections__List_str_get(&def.param_types, i) : KOBEL_STR("any");
-lsp__JsonValue_set(p_obj, KOBEL_STR("label"), lsp__JsonValue_str(kobel_concat(3, std__collections__List_str_get(&def.param_names, i), KOBEL_STR(": "), pt)));
-lsp__JsonValue_plus_assign(params_arr, p_obj);
-if (__for_up) {
-__for_go = __for_i + 1 < __for_e;
-} else {
-__for_go = __for_i - 1 > __for_e;
-}
-if (__for_go) {
-if (__for_up) {
-__for_i = __for_i + 1;
-} else {
-__for_i = __for_i - 1;
-}
-}
-}
-}
-lsp__JsonValue_set(sig_obj, KOBEL_STR("parameters"), params_arr);
 lsp__JsonValue* sigs_arr = lsp__JsonValue_arr();
-lsp__JsonValue_plus_assign(sigs_arr, sig_obj);
+int64_t active_sig = 0;
+int64_t active_param = commas;
+if (def.role == 3) {
+int64_t sig_count = 0;
+int64_t best_sig = -1;
+{
+size_t __for_n = std__collections__List_lsp__DefInfo_count(&self->index.defs);
+size_t __for_i = 0;
+while (__for_i < __for_n) {
+lsp__DefInfo d = std__collections__List_lsp__DefInfo_at(&self->index.defs, __for_i);
+bool same_owner = kobel_streq(d.container, def.name) && kobel_streq(d.module_name, def.module_name);
+bool is_init_m = d.role == 2 && (kobel_streq(d.name, KOBEL_STR("init")) || str_starts_with(d.signature, KOBEL_STR("init(")));
+if (same_owner && is_init_m) {
+lsp__JsonValue_plus_assign(sigs_arr, lsp__AnalysisResult_build_signature_json(def.name, d.param_names, d.param_types, def.name, true));
+size_t p_count = !std__collections__List_str_empty(&d.param_names) && kobel_streq(std__collections__List_str_get(&d.param_names, 0), KOBEL_STR("self")) ? d.param_names.len - 1 : d.param_names.len;
+if (best_sig < 0 && (size_t)commas < p_count) {
+best_sig = sig_count;
+}
+sig_count++;
+}
+__for_i = __for_i + 1;
+}
+}
+if (sig_count == 0) {
+std__collections__List_str f_names = std__collections__List_str_init(NULL, 0);
+std__collections__List_str f_types = std__collections__List_str_init(NULL, 0);
+{
+size_t __for_n = std__collections__List_lsp__DefInfo_count(&self->index.defs);
+size_t __for_i = 0;
+while (__for_i < __for_n) {
+lsp__DefInfo d = std__collections__List_lsp__DefInfo_at(&self->index.defs, __for_i);
+if (d.role == 5 && kobel_streq(d.container, def.name) && kobel_streq(d.module_name, def.module_name)) {
+std__collections__List_str_plus_assign(&f_names, d.name);
+std__collections__List_str_plus_assign(&f_types, d.type_str);
+}
+__for_i = __for_i + 1;
+}
+}
+lsp__JsonValue_plus_assign(sigs_arr, lsp__AnalysisResult_build_signature_json(def.name, f_names, f_types, def.name, false));
+std__collections__List_str_free(f_types);
+std__collections__List_str_free(f_names);
+} else if (best_sig >= 0) {
+active_sig = best_sig;
+}
+} else {
+bool skip_self = is_member_call && !std__collections__List_str_empty(&def.param_names) && kobel_streq(std__collections__List_str_get(&def.param_names, 0), KOBEL_STR("self"));
+lsp__JsonValue_plus_assign(sigs_arr, lsp__AnalysisResult_build_signature_json(def.name, def.param_names, def.param_types, def.return_type, skip_self));
+size_t user_params = skip_self ? def.param_names.len - 1 : def.param_names.len;
+if (def.is_vararg && user_params > 0 && active_param >= (int64_t)user_params) {
+active_param = (int64_t)(user_params - 1);
+}
+}
 lsp__JsonValue* res = lsp__JsonValue_obj();
 lsp__JsonValue_set(res, KOBEL_STR("signatures"), sigs_arr);
-lsp__JsonValue_set(res, KOBEL_STR("activeSignature"), lsp__JsonValue_num(0));
-lsp__JsonValue_set(res, KOBEL_STR("activeParameter"), lsp__JsonValue_num(commas));
+lsp__JsonValue_set(res, KOBEL_STR("activeSignature"), lsp__JsonValue_num(active_sig));
+lsp__JsonValue_set(res, KOBEL_STR("activeParameter"), lsp__JsonValue_num(active_param));
 return res;
 }
 
@@ -50179,6 +50301,414 @@ lsp__LintCollector_walk_expr(self, eu->value);
 }
 }
 
+kobel_str lsp__LintCollector_owned_resource_release_method(lsp__LintCollector* self, compiler__semantic__types__Type* ty) {
+compiler__semantic__types__Type* t = ty;
+if (t == NULL) {
+return KOBEL_STR("");
+}
+if (t->kind != 18) {
+return KOBEL_STR("");
+}
+kobel_str cname = (*compiler__semantic__types__Type_as_struct(t)).c_name;
+if (str_starts_with(cname, KOBEL_STR("std__collections__List_")) || str_starts_with(cname, KOBEL_STR("std__collections__HashMap_")) || str_starts_with(cname, KOBEL_STR("std__collections__HashSet_")) || kobel_streq(cname, KOBEL_STR("std__string__StringBuilder")) || kobel_streq(cname, KOBEL_STR("std__memory__Arena"))) {
+return KOBEL_STR("free");
+}
+if (kobel_streq(cname, KOBEL_STR("std__memory__HeapPool"))) {
+return KOBEL_STR("destroy");
+}
+return KOBEL_STR("");
+}
+
+struct __lambda_env_69 {
+    lsp__LintCollector* self;
+    kobel_str name;
+};
+
+static bool __lambda_fn_69(void* __raw_env, compiler__ast__AstNode* a) {
+    struct __lambda_env_69* __env = (struct __lambda_env_69*)__raw_env;
+    return lsp__LintCollector_expr_mentions_ident((__env->self), a, (__env->name));
+}
+
+struct __lambda_env_70 {
+    lsp__LintCollector* self;
+    kobel_str name;
+};
+
+static bool __lambda_fn_70(void* __raw_env, compiler__ast__WhenArm a) {
+    struct __lambda_env_70* __env = (struct __lambda_env_70*)__raw_env;
+    return lsp__LintCollector_expr_mentions_ident((__env->self), a.body, (__env->name));
+}
+
+struct __lambda_env_71 {
+    lsp__LintCollector* self;
+    kobel_str name;
+};
+
+static bool __lambda_fn_71(void* __raw_env, compiler__ast__AstNode* e) {
+    struct __lambda_env_71* __env = (struct __lambda_env_71*)__raw_env;
+    return lsp__LintCollector_expr_mentions_ident((__env->self), e, (__env->name));
+}
+
+bool lsp__LintCollector_expr_mentions_ident(lsp__LintCollector* self, compiler__ast__AstNode* node, kobel_str name) {
+compiler__ast__AstNode* cur = node;
+if (cur == NULL) {
+return false;
+}
+if (cur != NULL && cur->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG) {
+compiler__ast__NodeData__IdentifierExpr* id = (compiler__ast__NodeData__IdentifierExpr*)(&cur->data.u.IdentifierExpr);
+return kobel_streq(id->name, name);
+} else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__GroupExpr__TAG) {
+compiler__ast__NodeData__GroupExpr* g = (compiler__ast__NodeData__GroupExpr*)(&cur->data.u.GroupExpr);
+return lsp__LintCollector_expr_mentions_ident(self, g->expr, name);
+} else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__UnaryExpr__TAG) {
+compiler__ast__NodeData__UnaryExpr* un = (compiler__ast__NodeData__UnaryExpr*)(&cur->data.u.UnaryExpr);
+return lsp__LintCollector_expr_mentions_ident(self, un->operand, name);
+} else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__BinaryExpr__TAG) {
+compiler__ast__NodeData__BinaryExpr* bin = (compiler__ast__NodeData__BinaryExpr*)(&cur->data.u.BinaryExpr);
+return lsp__LintCollector_expr_mentions_ident(self, bin->left, name) || lsp__LintCollector_expr_mentions_ident(self, bin->right, name);
+} else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__MemberExpr__TAG) {
+compiler__ast__NodeData__MemberExpr* mem = (compiler__ast__NodeData__MemberExpr*)(&cur->data.u.MemberExpr);
+return lsp__LintCollector_expr_mentions_ident(self, mem->object, name);
+} else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__IndexExpr__TAG) {
+compiler__ast__NodeData__IndexExpr* idx = (compiler__ast__NodeData__IndexExpr*)(&cur->data.u.IndexExpr);
+return lsp__LintCollector_expr_mentions_ident(self, idx->target, name) || lsp__LintCollector_expr_mentions_ident(self, idx->index, name);
+} else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__CallExpr__TAG) {
+compiler__ast__NodeData__CallExpr* cl = (compiler__ast__NodeData__CallExpr*)(&cur->data.u.CallExpr);
+return lsp__LintCollector_expr_mentions_ident(self, cl->callee, name) || std__collections__List_mut_ptr_compiler__ast__AstNode_any(&cl->args, (kobel_closure){ (void*)__lambda_fn_69, (void*)&(struct __lambda_env_69){ self, name } });
+} else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__AssignExpr__TAG) {
+compiler__ast__NodeData__AssignExpr* asg = (compiler__ast__NodeData__AssignExpr*)(&cur->data.u.AssignExpr);
+return lsp__LintCollector_expr_mentions_ident(self, asg->target, name) || lsp__LintCollector_expr_mentions_ident(self, asg->value, name);
+} else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__CastExpr__TAG) {
+compiler__ast__NodeData__CastExpr* cs = (compiler__ast__NodeData__CastExpr*)(&cur->data.u.CastExpr);
+return lsp__LintCollector_expr_mentions_ident(self, cs->expr, name);
+} else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__IfExpr__TAG) {
+compiler__ast__NodeData__IfExpr* ie = (compiler__ast__NodeData__IfExpr*)(&cur->data.u.IfExpr);
+return lsp__LintCollector_expr_mentions_ident(self, ie->condition, name) || lsp__LintCollector_expr_mentions_ident(self, ie->then_branch, name) || lsp__LintCollector_expr_mentions_ident(self, ie->else_branch, name);
+} else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__WhenExpr__TAG) {
+compiler__ast__NodeData__WhenExpr* we = (compiler__ast__NodeData__WhenExpr*)(&cur->data.u.WhenExpr);
+return lsp__LintCollector_expr_mentions_ident(self, we->condition, name) || std__collections__List_compiler__ast__WhenArm_any(&we->arms, (kobel_closure){ (void*)__lambda_fn_70, (void*)&(struct __lambda_env_70){ self, name } });
+} else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__ArrayLiteralExpr__TAG) {
+compiler__ast__NodeData__ArrayLiteralExpr* al = (compiler__ast__NodeData__ArrayLiteralExpr*)(&cur->data.u.ArrayLiteralExpr);
+return std__collections__List_mut_ptr_compiler__ast__AstNode_any(&al->elements, (kobel_closure){ (void*)__lambda_fn_71, (void*)&(struct __lambda_env_71){ self, name } });
+} else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__CatchExpr__TAG) {
+compiler__ast__NodeData__CatchExpr* ce = (compiler__ast__NodeData__CatchExpr*)(&cur->data.u.CatchExpr);
+return lsp__LintCollector_expr_mentions_ident(self, ce->expr, name) || lsp__LintCollector_expr_mentions_ident(self, ce->handler, name);
+} else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__ErrorUnionWrapExpr__TAG) {
+compiler__ast__NodeData__ErrorUnionWrapExpr* eu = (compiler__ast__NodeData__ErrorUnionWrapExpr*)(&cur->data.u.ErrorUnionWrapExpr);
+return lsp__LintCollector_expr_mentions_ident(self, eu->value, name);
+} else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__LambdaExpr__TAG) {
+compiler__ast__NodeData__LambdaExpr* lam = (compiler__ast__NodeData__LambdaExpr*)(&cur->data.u.LambdaExpr);
+return lsp__LintCollector_stmt_mentions_ident(self, lam->body, name);
+} else {
+return false;
+}
+}
+
+struct __lambda_env_72 {
+    lsp__LintCollector* self;
+    kobel_str name;
+};
+
+static bool __lambda_fn_72(void* __raw_env, compiler__ast__AstNode* s) {
+    struct __lambda_env_72* __env = (struct __lambda_env_72*)__raw_env;
+    return lsp__LintCollector_stmt_mentions_ident((__env->self), s, (__env->name));
+}
+
+struct __lambda_env_73 {
+    lsp__LintCollector* self;
+    kobel_str name;
+};
+
+static bool __lambda_fn_73(void* __raw_env, compiler__ast__WhenArm a) {
+    struct __lambda_env_73* __env = (struct __lambda_env_73*)__raw_env;
+    return lsp__LintCollector_stmt_mentions_ident((__env->self), a.body, (__env->name));
+}
+
+bool lsp__LintCollector_stmt_mentions_ident(lsp__LintCollector* self, compiler__ast__AstNode* node, kobel_str name) {
+compiler__ast__AstNode* cur = node;
+if (cur == NULL) {
+return false;
+}
+if (cur != NULL && cur->data.tag == compiler__ast__NodeData__BlockStmt__TAG) {
+compiler__ast__NodeData__BlockStmt* blk = (compiler__ast__NodeData__BlockStmt*)(&cur->data.u.BlockStmt);
+return std__collections__List_mut_ptr_compiler__ast__AstNode_any(&blk->statements, (kobel_closure){ (void*)__lambda_fn_72, (void*)&(struct __lambda_env_72){ self, name } });
+} else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__ExprStmt__TAG) {
+compiler__ast__NodeData__ExprStmt* es = (compiler__ast__NodeData__ExprStmt*)(&cur->data.u.ExprStmt);
+return lsp__LintCollector_expr_mentions_ident(self, es->expr, name);
+} else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__VarDeclStmt__TAG) {
+compiler__ast__NodeData__VarDeclStmt* vd = (compiler__ast__NodeData__VarDeclStmt*)(&cur->data.u.VarDeclStmt);
+return lsp__LintCollector_expr_mentions_ident(self, vd->initializer, name);
+} else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__DestructDeclStmt__TAG) {
+compiler__ast__NodeData__DestructDeclStmt* dd = (compiler__ast__NodeData__DestructDeclStmt*)(&cur->data.u.DestructDeclStmt);
+return lsp__LintCollector_expr_mentions_ident(self, dd->initializer, name);
+} else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__IfStmt__TAG) {
+compiler__ast__NodeData__IfStmt* ifs = (compiler__ast__NodeData__IfStmt*)(&cur->data.u.IfStmt);
+return lsp__LintCollector_expr_mentions_ident(self, ifs->condition, name) || lsp__LintCollector_stmt_mentions_ident(self, ifs->then_branch, name) || lsp__LintCollector_stmt_mentions_ident(self, ifs->else_branch, name);
+} else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__WhileStmt__TAG) {
+compiler__ast__NodeData__WhileStmt* ws = (compiler__ast__NodeData__WhileStmt*)(&cur->data.u.WhileStmt);
+return lsp__LintCollector_expr_mentions_ident(self, ws->condition, name) || lsp__LintCollector_stmt_mentions_ident(self, ws->body, name);
+} else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__ForStmt__TAG) {
+compiler__ast__NodeData__ForStmt* fs = (compiler__ast__NodeData__ForStmt*)(&cur->data.u.ForStmt);
+return lsp__LintCollector_expr_mentions_ident(self, fs->iterable, name) || lsp__LintCollector_stmt_mentions_ident(self, fs->body, name);
+} else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__ReturnStmt__TAG) {
+compiler__ast__NodeData__ReturnStmt* rs = (compiler__ast__NodeData__ReturnStmt*)(&cur->data.u.ReturnStmt);
+return lsp__LintCollector_expr_mentions_ident(self, rs->value, name);
+} else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__YieldStmt__TAG) {
+compiler__ast__NodeData__YieldStmt* ys = (compiler__ast__NodeData__YieldStmt*)(&cur->data.u.YieldStmt);
+return lsp__LintCollector_expr_mentions_ident(self, ys->value, name);
+} else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__DeferStmt__TAG) {
+compiler__ast__NodeData__DeferStmt* ds = (compiler__ast__NodeData__DeferStmt*)(&cur->data.u.DeferStmt);
+return lsp__LintCollector_stmt_mentions_ident(self, ds->body, name);
+} else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__WhenStmt__TAG) {
+compiler__ast__NodeData__WhenStmt* wh = (compiler__ast__NodeData__WhenStmt*)(&cur->data.u.WhenStmt);
+return lsp__LintCollector_expr_mentions_ident(self, wh->condition, name) || std__collections__List_compiler__ast__WhenArm_any(&wh->arms, (kobel_closure){ (void*)__lambda_fn_73, (void*)&(struct __lambda_env_73){ self, name } });
+} else {
+return lsp__LintCollector_expr_mentions_ident(self, cur, name);
+}
+}
+
+struct __lambda_env_74 {
+    lsp__LintCollector* self;
+    kobel_str name;
+};
+
+static bool __lambda_fn_74(void* __raw_env, compiler__ast__AstNode* a) {
+    struct __lambda_env_74* __env = (struct __lambda_env_74*)__raw_env;
+    return lsp__LintCollector_expr_mentions_ident((__env->self), a, (__env->name));
+}
+
+struct __lambda_env_75 {
+    lsp__LintCollector* self;
+    kobel_str name;
+};
+
+static bool __lambda_fn_75(void* __raw_env, compiler__ast__AstNode* a) {
+    struct __lambda_env_75* __env = (struct __lambda_env_75*)__raw_env;
+    return lsp__LintCollector_expr_releases_or_transfers_var((__env->self), a, (__env->name));
+}
+
+struct __lambda_env_76 {
+    lsp__LintCollector* self;
+    kobel_str name;
+};
+
+static bool __lambda_fn_76(void* __raw_env, compiler__ast__WhenArm a) {
+    struct __lambda_env_76* __env = (struct __lambda_env_76*)__raw_env;
+    return lsp__LintCollector_stmt_releases_or_transfers_var((__env->self), a.body, (__env->name));
+}
+
+bool lsp__LintCollector_expr_releases_or_transfers_var(lsp__LintCollector* self, compiler__ast__AstNode* node, kobel_str name) {
+compiler__ast__AstNode* cur = node;
+if (cur == NULL) {
+return false;
+}
+if (cur != NULL && cur->data.tag == compiler__ast__NodeData__GroupExpr__TAG) {
+compiler__ast__NodeData__GroupExpr* g = (compiler__ast__NodeData__GroupExpr*)(&cur->data.u.GroupExpr);
+return lsp__LintCollector_expr_releases_or_transfers_var(self, g->expr, name);
+} else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__CallExpr__TAG) {
+compiler__ast__NodeData__CallExpr* cl = (compiler__ast__NodeData__CallExpr*)(&cur->data.u.CallExpr);
+if (std__collections__List_mut_ptr_compiler__ast__AstNode_any(&cl->args, (kobel_closure){ (void*)__lambda_fn_74, (void*)&(struct __lambda_env_74){ self, name } })) {
+return true;
+}
+{
+compiler__ast__NodeData__MemberExpr* mem = NULL;
+if (cl->callee != NULL && cl->callee->data.tag == compiler__ast__NodeData__MemberExpr__TAG && (mem = (compiler__ast__NodeData__MemberExpr*)(&cl->callee->data.u.MemberExpr), 1)) {
+compiler__ast__AstNode* obj = lsp__unwrap_group_ast(mem->object);
+{
+compiler__ast__NodeData__IdentifierExpr* id = NULL;
+if (obj != NULL && obj->data.tag == compiler__ast__NodeData__IdentifierExpr__TAG && (id = (compiler__ast__NodeData__IdentifierExpr*)(&obj->data.u.IdentifierExpr), 1) && kobel_streq(id->name, name)) {
+if ((kobel_streq(mem->member, KOBEL_STR("free")) || kobel_streq(mem->member, KOBEL_STR("destroy")) || kobel_streq(mem->member, KOBEL_STR("free_buffers")) || kobel_streq(mem->member, KOBEL_STR("close"))) || str_starts_with(mem->member, KOBEL_STR("into_"))) {
+return true;
+}
+compiler__semantic__types__MethodInfo* mi = compiler__semantic__symbols__SymbolTable_get_resolved_method(&self->symtab, cur);
+if (mi != NULL && mi->is_move) {
+return true;
+}
+}
+}
+}
+}
+return lsp__LintCollector_expr_releases_or_transfers_var(self, cl->callee, name) || std__collections__List_mut_ptr_compiler__ast__AstNode_any(&cl->args, (kobel_closure){ (void*)__lambda_fn_75, (void*)&(struct __lambda_env_75){ self, name } });
+} else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__AssignExpr__TAG) {
+compiler__ast__NodeData__AssignExpr* asg = (compiler__ast__NodeData__AssignExpr*)(&cur->data.u.AssignExpr);
+return lsp__LintCollector_expr_mentions_ident(self, asg->value, name) || lsp__LintCollector_expr_releases_or_transfers_var(self, asg->target, name) || lsp__LintCollector_expr_releases_or_transfers_var(self, asg->value, name);
+} else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__BinaryExpr__TAG) {
+compiler__ast__NodeData__BinaryExpr* bin = (compiler__ast__NodeData__BinaryExpr*)(&cur->data.u.BinaryExpr);
+return lsp__LintCollector_expr_releases_or_transfers_var(self, bin->left, name) || lsp__LintCollector_expr_releases_or_transfers_var(self, bin->right, name);
+} else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__UnaryExpr__TAG) {
+compiler__ast__NodeData__UnaryExpr* un = (compiler__ast__NodeData__UnaryExpr*)(&cur->data.u.UnaryExpr);
+return lsp__LintCollector_expr_releases_or_transfers_var(self, un->operand, name);
+} else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__MemberExpr__TAG) {
+compiler__ast__NodeData__MemberExpr* mem = (compiler__ast__NodeData__MemberExpr*)(&cur->data.u.MemberExpr);
+return lsp__LintCollector_expr_releases_or_transfers_var(self, mem->object, name);
+} else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__IndexExpr__TAG) {
+compiler__ast__NodeData__IndexExpr* idx = (compiler__ast__NodeData__IndexExpr*)(&cur->data.u.IndexExpr);
+return lsp__LintCollector_expr_releases_or_transfers_var(self, idx->target, name) || lsp__LintCollector_expr_releases_or_transfers_var(self, idx->index, name);
+} else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__IfExpr__TAG) {
+compiler__ast__NodeData__IfExpr* ie = (compiler__ast__NodeData__IfExpr*)(&cur->data.u.IfExpr);
+return lsp__LintCollector_expr_releases_or_transfers_var(self, ie->condition, name) || lsp__LintCollector_expr_releases_or_transfers_var(self, ie->then_branch, name) || lsp__LintCollector_expr_releases_or_transfers_var(self, ie->else_branch, name);
+} else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__WhenExpr__TAG) {
+compiler__ast__NodeData__WhenExpr* we = (compiler__ast__NodeData__WhenExpr*)(&cur->data.u.WhenExpr);
+return lsp__LintCollector_expr_releases_or_transfers_var(self, we->condition, name) || std__collections__List_compiler__ast__WhenArm_any(&we->arms, (kobel_closure){ (void*)__lambda_fn_76, (void*)&(struct __lambda_env_76){ self, name } });
+} else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__CatchExpr__TAG) {
+compiler__ast__NodeData__CatchExpr* ce = (compiler__ast__NodeData__CatchExpr*)(&cur->data.u.CatchExpr);
+return lsp__LintCollector_expr_releases_or_transfers_var(self, ce->expr, name) || lsp__LintCollector_stmt_releases_or_transfers_var(self, ce->handler, name);
+} else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__LambdaExpr__TAG) {
+compiler__ast__NodeData__LambdaExpr* lam = (compiler__ast__NodeData__LambdaExpr*)(&cur->data.u.LambdaExpr);
+return lsp__LintCollector_stmt_mentions_ident(self, lam->body, name);
+} else {
+return false;
+}
+}
+
+struct __lambda_env_77 {
+    lsp__LintCollector* self;
+    kobel_str name;
+};
+
+static bool __lambda_fn_77(void* __raw_env, compiler__ast__AstNode* s) {
+    struct __lambda_env_77* __env = (struct __lambda_env_77*)__raw_env;
+    return lsp__LintCollector_stmt_releases_or_transfers_var((__env->self), s, (__env->name));
+}
+
+struct __lambda_env_78 {
+    lsp__LintCollector* self;
+    kobel_str name;
+};
+
+static bool __lambda_fn_78(void* __raw_env, compiler__ast__WhenArm a) {
+    struct __lambda_env_78* __env = (struct __lambda_env_78*)__raw_env;
+    return lsp__LintCollector_stmt_releases_or_transfers_var((__env->self), a.body, (__env->name));
+}
+
+bool lsp__LintCollector_stmt_releases_or_transfers_var(lsp__LintCollector* self, compiler__ast__AstNode* node, kobel_str name) {
+compiler__ast__AstNode* cur = node;
+if (cur == NULL) {
+return false;
+}
+if (cur != NULL && cur->data.tag == compiler__ast__NodeData__BlockStmt__TAG) {
+compiler__ast__NodeData__BlockStmt* blk = (compiler__ast__NodeData__BlockStmt*)(&cur->data.u.BlockStmt);
+return std__collections__List_mut_ptr_compiler__ast__AstNode_any(&blk->statements, (kobel_closure){ (void*)__lambda_fn_77, (void*)&(struct __lambda_env_77){ self, name } });
+} else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__ExprStmt__TAG) {
+compiler__ast__NodeData__ExprStmt* es = (compiler__ast__NodeData__ExprStmt*)(&cur->data.u.ExprStmt);
+return lsp__LintCollector_expr_releases_or_transfers_var(self, es->expr, name);
+} else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__VarDeclStmt__TAG) {
+compiler__ast__NodeData__VarDeclStmt* vd = (compiler__ast__NodeData__VarDeclStmt*)(&cur->data.u.VarDeclStmt);
+return lsp__LintCollector_expr_mentions_ident(self, vd->initializer, name);
+} else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__DestructDeclStmt__TAG) {
+compiler__ast__NodeData__DestructDeclStmt* dd = (compiler__ast__NodeData__DestructDeclStmt*)(&cur->data.u.DestructDeclStmt);
+return lsp__LintCollector_expr_mentions_ident(self, dd->initializer, name);
+} else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__ReturnStmt__TAG) {
+compiler__ast__NodeData__ReturnStmt* rs = (compiler__ast__NodeData__ReturnStmt*)(&cur->data.u.ReturnStmt);
+return lsp__LintCollector_expr_mentions_ident(self, rs->value, name);
+} else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__YieldStmt__TAG) {
+compiler__ast__NodeData__YieldStmt* ys = (compiler__ast__NodeData__YieldStmt*)(&cur->data.u.YieldStmt);
+return lsp__LintCollector_expr_mentions_ident(self, ys->value, name);
+} else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__DeferStmt__TAG) {
+compiler__ast__NodeData__DeferStmt* ds = (compiler__ast__NodeData__DeferStmt*)(&cur->data.u.DeferStmt);
+return lsp__LintCollector_stmt_releases_or_transfers_var(self, ds->body, name);
+} else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__IfStmt__TAG) {
+compiler__ast__NodeData__IfStmt* ifs = (compiler__ast__NodeData__IfStmt*)(&cur->data.u.IfStmt);
+return lsp__LintCollector_expr_releases_or_transfers_var(self, ifs->condition, name) || lsp__LintCollector_stmt_releases_or_transfers_var(self, ifs->then_branch, name) || lsp__LintCollector_stmt_releases_or_transfers_var(self, ifs->else_branch, name);
+} else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__WhileStmt__TAG) {
+compiler__ast__NodeData__WhileStmt* ws = (compiler__ast__NodeData__WhileStmt*)(&cur->data.u.WhileStmt);
+return lsp__LintCollector_expr_releases_or_transfers_var(self, ws->condition, name) || lsp__LintCollector_stmt_releases_or_transfers_var(self, ws->body, name);
+} else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__ForStmt__TAG) {
+compiler__ast__NodeData__ForStmt* fs = (compiler__ast__NodeData__ForStmt*)(&cur->data.u.ForStmt);
+return lsp__LintCollector_expr_releases_or_transfers_var(self, fs->iterable, name) || lsp__LintCollector_stmt_releases_or_transfers_var(self, fs->body, name);
+} else if (cur != NULL && cur->data.tag == compiler__ast__NodeData__WhenStmt__TAG) {
+compiler__ast__NodeData__WhenStmt* wh = (compiler__ast__NodeData__WhenStmt*)(&cur->data.u.WhenStmt);
+return lsp__LintCollector_expr_releases_or_transfers_var(self, wh->condition, name) || std__collections__List_compiler__ast__WhenArm_any(&wh->arms, (kobel_closure){ (void*)__lambda_fn_78, (void*)&(struct __lambda_env_78){ self, name } });
+} else {
+return lsp__LintCollector_expr_releases_or_transfers_var(self, cur, name);
+}
+}
+
+void lsp__LintCollector_check_unfreed_resource(lsp__LintCollector* self, compiler__ast__AstNode* vd_node, compiler__ast__NodeData__VarDeclStmt* vd, std__collections__List_mut_ptr_compiler__ast__AstNode stmts, size_t next_idx) {
+if (!self->has_symtab || self->in_generic) {
+return;
+}
+if (str_empty(vd->name) || str_starts_with(vd->name, KOBEL_STR("_")) || vd->initializer == NULL) {
+return;
+}
+compiler__ast__AstNode* init_raw = lsp__unwrap_group_ast(vd->initializer);
+if (!(init_raw != NULL && init_raw->data.tag == compiler__ast__NodeData__CallExpr__TAG)) {
+return;
+}
+compiler__semantic__types__Type* init_ty = compiler__semantic__symbols__SymbolTable_get_node_type(&self->symtab, vd->initializer);
+if (init_ty == NULL) {
+return;
+}
+kobel_str release_fn = lsp__LintCollector_owned_resource_release_method(self, init_ty);
+if (str_empty(release_fn)) {
+return;
+}
+{
+size_t __for_e = stmts.len;
+size_t __for_i = __for_e;
+__for_i = next_idx;
+bool __for_up = __for_i <= __for_e;
+bool __for_go = false;
+if (__for_up) {
+__for_go = __for_i < __for_e;
+} else {
+__for_go = __for_i > __for_e;
+}
+while (__for_go) {
+size_t j = __for_i;
+if (lsp__LintCollector_stmt_releases_or_transfers_var(self, std__collections__List_mut_ptr_compiler__ast__AstNode_get(&stmts, j), vd->name)) {
+return;
+}
+if (__for_up) {
+__for_go = __for_i + 1 < __for_e;
+} else {
+__for_go = __for_i - 1 > __for_e;
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = __for_i + 1;
+} else {
+__for_i = __for_i - 1;
+}
+}
+}
+}
+kobel_str pretty_ty = lsp__format_pretty_type(self->symtab, init_ty);
+std__collections__Pair_usz_usz __destruct_tmp_90 = lsp__expr_end_pos(self->tokens, vd->initializer);
+size_t init_el;
+size_t init_ec;
+std__collections__Pair_usz_usz_unpack(&__destruct_tmp_90, &init_el, &init_ec);
+size_t semi_idx = lsp__find_token_index_at_or_after(self->tokens, init_el, init_ec);
+size_t ins_l = init_el;
+size_t ins_c = init_ec;
+if (semi_idx < self->tokens.len && std__collections__List_compiler__lexer__Token_get(&self->tokens, semi_idx).type == 0) {
+std__collections__Pair_usz_usz __destruct_tmp_91 = lsp__token_end_pos(std__collections__List_compiler__lexer__Token_get(&self->tokens, semi_idx));
+size_t sl;
+size_t sc;
+std__collections__Pair_usz_usz_unpack(&__destruct_tmp_91, &sl, &sc);
+ins_l = sl;
+ins_c = sc;
+}
+kobel_str indent = lsp__SourceMapper_line_indent(&self->mapper, vd_node->line);
+kobel_str defer_stmt = kobel_concat(7, KOBEL_STR("\n"), indent, KOBEL_STR("defer "), vd->name, KOBEL_STR("."), release_fn, KOBEL_STR("();"));
+size_t name_l = vd_node->line;
+size_t name_c = vd_node->col;
+size_t name_end_c = vd_node->col + vd->name.len;
+size_t ti = lsp__find_token_index_at_or_after(self->tokens, vd_node->line, vd_node->col);
+while (ti < self->tokens.len && std__collections__List_compiler__lexer__Token_get(&self->tokens, ti).line == vd_node->line) {
+if (std__collections__List_compiler__lexer__Token_get(&self->tokens, ti).type == 44 && kobel_streq(std__collections__List_compiler__lexer__Token_get(&self->tokens, ti).text, vd->name)) {
+name_l = std__collections__List_compiler__lexer__Token_get(&self->tokens, ti).line;
+name_c = std__collections__List_compiler__lexer__Token_get(&self->tokens, ti).col;
+name_end_c = name_c + vd->name.len;
+break;
+}
+ti++;
+}
+std__collections__List_lsp__LintEditSpec edits = std__collections__List_lsp__LintEditSpec_init(NULL, 0);
+std__collections__List_lsp__LintEditSpec_plus_assign(&edits, (lsp__LintEditSpec){ ins_l, ins_c, ins_l, ins_c, defer_stmt });
+lsp__LintCollector_emit(self, name_l, name_c, name_l, name_end_c, kobel_concat(9, KOBEL_STR("Owned '"), pretty_ty, KOBEL_STR("' '"), vd->name, KOBEL_STR("' is never freed or transferred; consider adding 'defer "), vd->name, KOBEL_STR("."), release_fn, KOBEL_STR("();'")), KOBEL_STR("unfreed-resource"), false, kobel_concat(5, KOBEL_STR("Add 'defer "), vd->name, KOBEL_STR("."), release_fn, KOBEL_STR("();'")), edits, KOBEL_STR("quickfix"), vd_node->line, vd_node->col, ins_l, ins_c, lsp__LINT_SEV_WARNING);
+}
+
 void lsp__LintCollector_walk_stmt(lsp__LintCollector* self, compiler__ast__AstNode* node, bool in_block, bool is_else_if_child) {
 if (node == NULL) {
 return;
@@ -50200,6 +50730,12 @@ __for_go = __for_i > __for_e;
 while (__for_go) {
 size_t i = __for_i;
 compiler__ast__AstNode* st = std__collections__List_mut_ptr_compiler__ast__AstNode_get(&blk->statements, i);
+{
+compiler__ast__NodeData__VarDeclStmt* vd = NULL;
+if (st != NULL && st->data.tag == compiler__ast__NodeData__VarDeclStmt__TAG && (vd = (compiler__ast__NodeData__VarDeclStmt*)(&st->data.u.VarDeclStmt), 1)) {
+lsp__LintCollector_check_unfreed_resource(self, st, vd, blk->statements, i + 1);
+}
+}
 if (i + 1 < n) {
 compiler__ast__AstNode* nxt = std__collections__List_mut_ptr_compiler__ast__AstNode_get(&blk->statements, i + 1);
 if (!lsp__LintCollector_check_consecutive_bool_return(self, st, nxt)) {
@@ -50620,9 +51156,9 @@ return (__kobel_eu_str__lsp__ProtocolErr){ .is_ok = false, .u = { .err = (lsp__P
 }
 uint8_t* buf;
 {
-__kobel_eu_mut_ptr_u8__std__memory__MemErr __eu_src_158 = std__memory__Heap_try_create_u8(content_length + 1);
-if (__eu_src_158.is_ok) {
-buf = __eu_src_158.u.ok;
+__kobel_eu_mut_ptr_u8__std__memory__MemErr __eu_src_162 = std__memory__Heap_try_create_u8(content_length + 1);
+if (__eu_src_162.is_ok) {
+buf = __eu_src_162.u.ok;
 } else {
 return (__kobel_eu_str__lsp__ProtocolErr){ .is_ok = false, .u = { .err = (lsp__ProtocolErr){ .tag = 1, .__err_code = 63U, .__origin = { "src/lsp/protocol.kb", 138, 73, "read_message" } } } };
 }
@@ -50738,9 +51274,9 @@ size_t line1 = line0 + 1;
 size_t col1 = col0 + 1;
 lsp__RefInfo hit;
 {
-__kobel_eu_lsp__RefInfo__lsp__IndexErr __eu_src_159 = lsp__SemanticIndex_find_ref_at(index, file_path, line1, col1);
-if (__eu_src_159.is_ok) {
-hit = __eu_src_159.u.ok;
+__kobel_eu_lsp__RefInfo__lsp__IndexErr __eu_src_163 = lsp__SemanticIndex_find_ref_at(index, file_path, line1, col1);
+if (__eu_src_163.is_ok) {
+hit = __eu_src_163.u.ok;
 } else {
 return std__collections__List_lsp__RefInfo_init(NULL, 0);
 }
@@ -50748,9 +51284,9 @@ return std__collections__List_lsp__RefInfo_init(NULL, 0);
 std__collections__List_lsp__RefInfo all_refs = lsp__SemanticIndex_find_refs_for_key(index, hit.target_key, include_decl);
 lsp__DefInfo def;
 {
-__kobel_eu_lsp__DefInfo__lsp__IndexErr __eu_src_160 = lsp__SemanticIndex_get_def(index, hit.target_key);
-if (__eu_src_160.is_ok) {
-def = __eu_src_160.u.ok;
+__kobel_eu_lsp__DefInfo__lsp__IndexErr __eu_src_164 = lsp__SemanticIndex_get_def(index, hit.target_key);
+if (__eu_src_164.is_ok) {
+def = __eu_src_164.u.ok;
 } else {
 return all_refs;
 }
@@ -50798,18 +51334,18 @@ return arr;
 lsp__JsonValue* lsp__prepare_rename_json(lsp__SemanticIndex* index, kobel_str file_path, size_t line0, size_t col0) {
 lsp__RefInfo hit;
 {
-__kobel_eu_lsp__RefInfo__lsp__IndexErr __eu_src_161 = lsp__SemanticIndex_find_ref_at(index, file_path, line0 + 1, col0 + 1);
-if (__eu_src_161.is_ok) {
-hit = __eu_src_161.u.ok;
+__kobel_eu_lsp__RefInfo__lsp__IndexErr __eu_src_165 = lsp__SemanticIndex_find_ref_at(index, file_path, line0 + 1, col0 + 1);
+if (__eu_src_165.is_ok) {
+hit = __eu_src_165.u.ok;
 } else {
 return lsp__JsonValue_null_val();
 }
 }
 lsp__DefInfo def;
 {
-__kobel_eu_lsp__DefInfo__lsp__IndexErr __eu_src_162 = lsp__SemanticIndex_get_def(index, hit.target_key);
-if (__eu_src_162.is_ok) {
-def = __eu_src_162.u.ok;
+__kobel_eu_lsp__DefInfo__lsp__IndexErr __eu_src_166 = lsp__SemanticIndex_get_def(index, hit.target_key);
+if (__eu_src_166.is_ok) {
+def = __eu_src_166.u.ok;
 } else {
 return lsp__JsonValue_null_val();
 }
@@ -50829,18 +51365,18 @@ return lsp__JsonValue_null_val();
 }
 lsp__RefInfo hit;
 {
-__kobel_eu_lsp__RefInfo__lsp__IndexErr __eu_src_163 = lsp__SemanticIndex_find_ref_at(index, file_path, line0 + 1, col0 + 1);
-if (__eu_src_163.is_ok) {
-hit = __eu_src_163.u.ok;
+__kobel_eu_lsp__RefInfo__lsp__IndexErr __eu_src_167 = lsp__SemanticIndex_find_ref_at(index, file_path, line0 + 1, col0 + 1);
+if (__eu_src_167.is_ok) {
+hit = __eu_src_167.u.ok;
 } else {
 return lsp__JsonValue_null_val();
 }
 }
 lsp__DefInfo def;
 {
-__kobel_eu_lsp__DefInfo__lsp__IndexErr __eu_src_164 = lsp__SemanticIndex_get_def(index, hit.target_key);
-if (__eu_src_164.is_ok) {
-def = __eu_src_164.u.ok;
+__kobel_eu_lsp__DefInfo__lsp__IndexErr __eu_src_168 = lsp__SemanticIndex_get_def(index, hit.target_key);
+if (__eu_src_168.is_ok) {
+def = __eu_src_168.u.ok;
 } else {
 return lsp__JsonValue_null_val();
 }
@@ -51096,14 +51632,14 @@ lsp__JsonValue* d = std__collections__List_ptr_lsp__JsonValue_at(&diags->arr_val
 kobel_str msg = lsp__JsonValue_get_str(d, KOBEL_STR("message"), KOBEL_STR(""));
 kobel_str sym_name;
 {
-__kobel_eu_str__lsp__IndexErr __eu_src_165 = lsp__extract_ident_from_diag(msg);
-if (__eu_src_165.is_ok) {
-sym_name = __eu_src_165.u.ok;
+__kobel_eu_str__lsp__IndexErr __eu_src_169 = lsp__extract_ident_from_diag(msg);
+if (__eu_src_169.is_ok) {
+sym_name = __eu_src_169.u.ok;
 } else {
 __for_i = __for_i + 1;
 continue;
 }
-__catch_end_165:;
+__catch_end_169:;
 }
 if (std__collections__HashSet_str_contains(&seen_names, sym_name)) {
 __for_i = __for_i + 1;
@@ -51213,6 +51749,9 @@ size_t cast_overlap_count = 0;
 lsp__JsonValue* all_dup_imp_edits = lsp__JsonValue_arr();
 size_t all_dup_imp_count = 0;
 size_t dup_imp_overlap_count = 0;
+lsp__JsonValue* all_free_edits = lsp__JsonValue_arr();
+size_t all_free_count = 0;
+size_t free_overlap_count = 0;
 if (effective_fixes != NULL) {
 std__collections__List_lsp__LintFix* fixes_list = effective_fixes;
 {
@@ -51287,6 +51826,20 @@ __for_i = __for_i + 1;
 if (overlaps) {
 dup_imp_overlap_count++;
 }
+} else if (kobel_streq(fx.code, KOBEL_STR("unfreed-resource"))) {
+{
+size_t __for_n = std__collections__List_lsp__LintEditSpec_count(&fx.edits);
+size_t __for_i = 0;
+while (__for_i < __for_n) {
+lsp__LintEditSpec ed = std__collections__List_lsp__LintEditSpec_at(&fx.edits, __for_i);
+lsp__JsonValue_plus_assign(all_free_edits, lsp__make_text_edit(ed.line1, ed.col1, ed.end_line1, ed.end_col1, ed.new_text));
+all_free_count++;
+__for_i = __for_i + 1;
+}
+}
+if (overlaps) {
+free_overlap_count++;
+}
 }
 if (!overlaps) {
 if (__for_up) {
@@ -51337,6 +51890,9 @@ lsp__JsonValue_plus_assign(actions, lsp__make_code_action(kobel_concat(3, KOBEL_
 }
 if (all_dup_imp_count > 1 && dup_imp_overlap_count > 0) {
 lsp__JsonValue_plus_assign(actions, lsp__make_code_action(kobel_concat(3, KOBEL_STR("Remove all "), usz_to_str(all_dup_imp_count), KOBEL_STR(" redundant import(s)")), KOBEL_STR("quickfix"), uri, all_dup_imp_edits, false));
+}
+if (all_free_count > 1 && free_overlap_count > 0) {
+lsp__JsonValue_plus_assign(actions, lsp__make_code_action(kobel_concat(3, KOBEL_STR("Add defer cleanup for all "), usz_to_str(all_free_count), KOBEL_STR(" unfreed resource(s)")), KOBEL_STR("quickfix"), uri, all_free_edits, false));
 }
 {
 size_t __for_n = std__collections__List_lsp__DefInfo_count(&index->defs);
@@ -51484,6 +52040,73 @@ __for_i = __for_i + 1;
 }
 }
 }
+if (req_start1 == req_end1) {
+{
+size_t __for_n = std__collections__List_lsp__DefInfo_count(&index->defs);
+size_t __for_i = 0;
+while (__for_i < __for_n) {
+lsp__DefInfo def = std__collections__List_lsp__DefInfo_at(&index->defs, __for_i);
+if (def.role != 10) {
+__for_i = __for_i + 1;
+continue;
+}
+if (!lsp__paths_equal(def.file_path, file_path)) {
+__for_i = __for_i + 1;
+continue;
+}
+if (def.line != req_start1) {
+__for_i = __for_i + 1;
+continue;
+}
+if (str_empty(def.name) || kobel_streq(def.name, KOBEL_STR("_"))) {
+__for_i = __for_i + 1;
+continue;
+}
+if (str_empty(def.type_str) || (kobel_streq(def.type_str, KOBEL_STR("none")) || kobel_streq(def.type_str, KOBEL_STR("any")) || kobel_streq(def.type_str, KOBEL_STR("?")))) {
+__for_i = __for_i + 1;
+continue;
+}
+{
+size_t __for_e = tokens.len;
+size_t __for_i = __for_e;
+__for_i = 0;
+bool __for_up = __for_i <= __for_e;
+bool __for_go = false;
+if (__for_up) {
+__for_go = __for_i < __for_e;
+} else {
+__for_go = __for_i > __for_e;
+}
+while (__for_go) {
+size_t ti = __for_i;
+compiler__lexer__Token tok = std__collections__List_compiler__lexer__Token_get(&tokens, ti);
+if (tok.line == def.line && tok.col == def.col && tok.type == 44 && kobel_streq(tok.text, def.name)) {
+if (ti + 1 < tokens.len && std__collections__List_compiler__lexer__Token_get(&tokens, ti + 1).type == 5) {
+size_t ins_col = def.col + def.name.len;
+lsp__JsonValue* edits = lsp__JsonValue_arr();
+lsp__JsonValue_plus_assign(edits, lsp__make_text_edit(def.line, ins_col, def.line, ins_col, kobel_concat(2, KOBEL_STR(": "), def.type_str)));
+lsp__JsonValue_plus_assign(actions, lsp__make_code_action(kobel_concat(3, KOBEL_STR("Add explicit type ': "), def.type_str, KOBEL_STR("'")), KOBEL_STR("refactor.rewrite"), uri, edits, false));
+}
+break;
+}
+if (__for_up) {
+__for_go = __for_i + 1 < __for_e;
+} else {
+__for_go = __for_i - 1 > __for_e;
+}
+if (__for_go) {
+if (__for_up) {
+__for_i = __for_i + 1;
+} else {
+__for_i = __for_i - 1;
+}
+}
+}
+}
+__for_i = __for_i + 1;
+}
+}
+}
 return actions;
 }
 
@@ -51528,9 +52151,9 @@ kobel_str ws_path = lsp__find_workspace_kblint_path(self->workspace_root);
 kobel_str __eu_if_45;
 if (!str_empty(ws_path)) {
 {
-__kobel_eu_str__std__filesystem__FsErr __eu_src_166 = std__filesystem__Path_read_text(&(std__filesystem__Path){ ws_path });
-if (__eu_src_166.is_ok) {
-__eu_if_45 = __eu_src_166.u.ok;
+__kobel_eu_str__std__filesystem__FsErr __eu_src_170 = std__filesystem__Path_read_text(&(std__filesystem__Path){ ws_path });
+if (__eu_src_170.is_ok) {
+__eu_if_45 = __eu_src_170.u.ok;
 } else {
 __eu_if_45 = KOBEL_STR("");
 }
@@ -51554,9 +52177,9 @@ return &self->kblint_rules;
 lsp__AnalysisResult* lsp__LanguageServer_get_analysis(lsp__LanguageServer* self, kobel_str uri, kobel_str doc_path, kobel_str doc_text, bool need_ws) {
 lsp__Document doc;
 {
-__kobel_eu_lsp__Document__lsp__DocumentErr __eu_src_167 = lsp__DocumentStore_get_doc(&self->docs, uri);
-if (__eu_src_167.is_ok) {
-doc = __eu_src_167.u.ok;
+__kobel_eu_lsp__Document__lsp__DocumentErr __eu_src_171 = lsp__DocumentStore_get_doc(&self->docs, uri);
+if (__eu_src_171.is_ok) {
+doc = __eu_src_171.u.ok;
 } else {
 doc = (lsp__Document){ uri, doc_path, doc_text, -1 };
 }
@@ -51817,21 +52440,21 @@ std__memory__HeapPool_destroy(&self->req_pool);
 bool lsp__LanguageServer_handle_one_message(lsp__LanguageServer* self) {
 kobel_str raw_msg;
 {
-__kobel_eu_str__lsp__ProtocolErr __eu_src_168 = lsp__read_message();
-if (__eu_src_168.is_ok) {
-raw_msg = __eu_src_168.u.ok;
+__kobel_eu_str__lsp__ProtocolErr __eu_src_172 = lsp__read_message();
+if (__eu_src_172.is_ok) {
+raw_msg = __eu_src_172.u.ok;
 } else {
-lsp__ProtocolErr err = __eu_src_168.u.err;
+lsp__ProtocolErr err = __eu_src_172.u.err;
 (void)err;
 return !(err.tag == lsp__ProtocolErr__EndOfStream__TAG);
 }
-__catch_end_168:;
+__catch_end_172:;
 }
 lsp__JsonValue* msg;
 {
-__kobel_eu_mut_ptr_lsp__JsonValue__lsp__JsonErr __eu_src_169 = lsp__JsonValue_parse(raw_msg);
-if (__eu_src_169.is_ok) {
-msg = __eu_src_169.u.ok;
+__kobel_eu_mut_ptr_lsp__JsonValue__lsp__JsonErr __eu_src_173 = lsp__JsonValue_parse(raw_msg);
+if (__eu_src_173.is_ok) {
+msg = __eu_src_173.u.ok;
 } else {
 return true;
 }
@@ -52233,9 +52856,9 @@ kobel_str entry = lsp__resolve_project_entry(self->workspace_root);
 if (!str_empty(entry)) {
 kobel_str src;
 {
-__kobel_eu_str__compiler__loader__LoaderErr __eu_src_170 = compiler__loader__SourceCache_read_file(&self->vfs, entry);
-if (__eu_src_170.is_ok) {
-src = __eu_src_170.u.ok;
+__kobel_eu_str__compiler__loader__LoaderErr __eu_src_174 = compiler__loader__SourceCache_read_file(&self->vfs, entry);
+if (__eu_src_174.is_ok) {
+src = __eu_src_174.u.ok;
 } else {
 src = KOBEL_STR("");
 }
@@ -52463,8 +53086,8 @@ std__io__println(KOBEL_STR("Error: No files specified to format"));
 return (__kobel_eu_none__compiler__driver__CompilerErr){ .is_ok = false, .u = { .err = (compiler__driver__CompilerErr){ .tag = 0, .__err_code = 35U, .__origin = { "src/main.kb", 143, 22, "Kobel_run_fmt" } } } };
 }
 {
-__kobel_eu_none__fmt__FmtErr __eu_src_171 = fmt__Formatter_format_files(files, write_in_place, (fmt__FormatOptions){ 4, true, 100, true });
-if (!__eu_src_171.is_ok) {
+__kobel_eu_none__fmt__FmtErr __eu_src_175 = fmt__Formatter_format_files(files, write_in_place, (fmt__FormatOptions){ 4, true, 100, true });
+if (!__eu_src_175.is_ok) {
 return (__kobel_eu_none__compiler__driver__CompilerErr){ .is_ok = false, .u = { .err = (compiler__driver__CompilerErr){ .tag = 3, .__err_code = 38U, .__origin = { "src/main.kb", 146, 70, "Kobel_run_fmt" } } } };
 }
 }

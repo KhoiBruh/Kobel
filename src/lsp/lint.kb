@@ -1515,6 +1515,193 @@ impl LintCollector {
 		}
 	}
 
+	fn owned_resource_release_method(*self, ty: ?*Type): str {
+		val t = ty ?: return "";
+		if (t.kind != DataType.STRUCT) return "";
+		val cname = t.as_struct()!.c_name;
+		if (
+			cname.starts_with("std__collections__List_") ||
+			cname.starts_with("std__collections__HashMap_") ||
+			cname.starts_with("std__collections__HashSet_") ||
+			cname == "std__string__StringBuilder" ||
+			cname == "std__memory__Arena"
+		) return "free";
+		if (cname == "std__memory__HeapPool") return "destroy";
+		return "";
+	}
+
+	fn expr_mentions_ident(*self, node: ?*AstNode, name: str): bool {
+		val cur = node ?: return false;
+		return when (cur) {
+			is IdentifierExpr as id -> id.name == name;
+			is GroupExpr as g -> self.expr_mentions_ident(g.expr, name);
+			is UnaryExpr as un -> self.expr_mentions_ident(un.operand, name);
+			is BinaryExpr as bin -> self.expr_mentions_ident(bin.left, name) || self.expr_mentions_ident(bin.right, name);
+			is MemberExpr as mem -> self.expr_mentions_ident(mem.object, name);
+			is IndexExpr as idx -> self.expr_mentions_ident(idx.target, name) || self.expr_mentions_ident(idx.index, name);
+			is CallExpr as cl -> self.expr_mentions_ident(cl.callee, name) || cl.args.any { a -> self.expr_mentions_ident(a, name) };
+			is AssignExpr as asg -> self.expr_mentions_ident(asg.target, name) || self.expr_mentions_ident(asg.value, name);
+			is CastExpr as cs -> self.expr_mentions_ident(cs.expr, name);
+			is IfExpr as ie -> self.expr_mentions_ident(ie.condition, name)
+				|| self.expr_mentions_ident(ie.then_branch, name)
+				|| self.expr_mentions_ident(ie.else_branch, name);
+			is WhenExpr as we -> self.expr_mentions_ident(we.condition, name)
+				|| we.arms.any { a -> self.expr_mentions_ident(a.body, name) };
+			is ArrayLiteralExpr as al -> al.elements.any { e -> self.expr_mentions_ident(e, name) };
+			is CatchExpr as ce -> self.expr_mentions_ident(ce.expr, name) || self.expr_mentions_ident(ce.handler, name);
+			is ErrorUnionWrapExpr as eu -> self.expr_mentions_ident(eu.value, name);
+			is LambdaExpr as lam -> self.stmt_mentions_ident(lam.body, name);
+			else -> false;
+		};
+	}
+
+	fn stmt_mentions_ident(*self, node: ?*AstNode, name: str): bool {
+		val cur = node ?: return false;
+		return when (cur) {
+			is BlockStmt as blk -> blk.statements.any { s -> self.stmt_mentions_ident(s, name) };
+			is ExprStmt as es -> self.expr_mentions_ident(es.expr, name);
+			is VarDeclStmt as vd -> self.expr_mentions_ident(vd.initializer, name);
+			is DestructDeclStmt as dd -> self.expr_mentions_ident(dd.initializer, name);
+			is IfStmt as ifs -> self.expr_mentions_ident(ifs.condition, name)
+				|| self.stmt_mentions_ident(ifs.then_branch, name)
+				|| self.stmt_mentions_ident(ifs.else_branch, name);
+			is WhileStmt as ws -> self.expr_mentions_ident(ws.condition, name) || self.stmt_mentions_ident(ws.body, name);
+			is ForStmt as fs -> self.expr_mentions_ident(fs.iterable, name) || self.stmt_mentions_ident(fs.body, name);
+			is ReturnStmt as rs -> self.expr_mentions_ident(rs.value, name);
+			is YieldStmt as ys -> self.expr_mentions_ident(ys.value, name);
+			is DeferStmt as ds -> self.stmt_mentions_ident(ds.body, name);
+			is WhenStmt as wh -> self.expr_mentions_ident(wh.condition, name)
+				|| wh.arms.any { a -> self.stmt_mentions_ident(a.body, name) };
+			else -> self.expr_mentions_ident(cur, name);
+		};
+	}
+
+	fn expr_releases_or_transfers_var(*self, node: ?*AstNode, name: str): bool {
+		val cur = node ?: return false;
+		return when (cur) {
+			is GroupExpr as g -> self.expr_releases_or_transfers_var(g.expr, name);
+			is CallExpr as cl -> {
+				if (cl.args.any { a -> self.expr_mentions_ident(a, name) }) yield true;
+				if (cl.callee is MemberExpr as mem) {
+					val obj = unwrap_group_ast(mem.object);
+					if (obj is IdentifierExpr as id && id.name == name) {
+						if (
+							mem.member in ["free", "destroy", "free_buffers", "close"] ||
+							mem.member.starts_with("into_")
+						) yield true;
+						val mi = self.symtab.get_resolved_method(cur);
+						if (mi != null && mi.is_move) yield true;
+					}
+				}
+				yield self.expr_releases_or_transfers_var(cl.callee, name)
+					|| cl.args.any { a -> self.expr_releases_or_transfers_var(a, name) };
+			}
+			is AssignExpr as asg -> self.expr_mentions_ident(asg.value, name)
+				|| self.expr_releases_or_transfers_var(asg.target, name)
+				|| self.expr_releases_or_transfers_var(asg.value, name);
+			is BinaryExpr as bin -> self.expr_releases_or_transfers_var(bin.left, name)
+				|| self.expr_releases_or_transfers_var(bin.right, name);
+			is UnaryExpr as un -> self.expr_releases_or_transfers_var(un.operand, name);
+			is MemberExpr as mem -> self.expr_releases_or_transfers_var(mem.object, name);
+			is IndexExpr as idx -> self.expr_releases_or_transfers_var(idx.target, name)
+				|| self.expr_releases_or_transfers_var(idx.index, name);
+			is IfExpr as ie -> self.expr_releases_or_transfers_var(ie.condition, name)
+				|| self.expr_releases_or_transfers_var(ie.then_branch, name)
+				|| self.expr_releases_or_transfers_var(ie.else_branch, name);
+			is WhenExpr as we -> self.expr_releases_or_transfers_var(we.condition, name)
+				|| we.arms.any { a -> self.stmt_releases_or_transfers_var(a.body, name) };
+			is CatchExpr as ce -> self.expr_releases_or_transfers_var(ce.expr, name)
+				|| self.stmt_releases_or_transfers_var(ce.handler, name);
+			is LambdaExpr as lam -> self.stmt_mentions_ident(lam.body, name);
+			else -> false;
+		};
+	}
+
+	fn stmt_releases_or_transfers_var(*self, node: ?*AstNode, name: str): bool {
+		val cur = node ?: return false;
+		return when (cur) {
+			is BlockStmt as blk -> blk.statements.any { s -> self.stmt_releases_or_transfers_var(s, name) };
+			is ExprStmt as es -> self.expr_releases_or_transfers_var(es.expr, name);
+			is VarDeclStmt as vd -> self.expr_mentions_ident(vd.initializer, name);
+			is DestructDeclStmt as dd -> self.expr_mentions_ident(dd.initializer, name);
+			is ReturnStmt as rs -> self.expr_mentions_ident(rs.value, name);
+			is YieldStmt as ys -> self.expr_mentions_ident(ys.value, name);
+			is DeferStmt as ds -> self.stmt_releases_or_transfers_var(ds.body, name);
+			is IfStmt as ifs -> self.expr_releases_or_transfers_var(ifs.condition, name)
+				|| self.stmt_releases_or_transfers_var(ifs.then_branch, name)
+				|| self.stmt_releases_or_transfers_var(ifs.else_branch, name);
+			is WhileStmt as ws -> self.expr_releases_or_transfers_var(ws.condition, name)
+				|| self.stmt_releases_or_transfers_var(ws.body, name);
+			is ForStmt as fs -> self.expr_releases_or_transfers_var(fs.iterable, name)
+				|| self.stmt_releases_or_transfers_var(fs.body, name);
+			is WhenStmt as wh -> self.expr_releases_or_transfers_var(wh.condition, name)
+				|| wh.arms.any { a -> self.stmt_releases_or_transfers_var(a.body, name) };
+			else -> self.expr_releases_or_transfers_var(cur, name);
+		};
+	}
+
+	fn check_unfreed_resource(
+		&self,
+		vd_node: *AstNode,
+		vd: *VarDeclStmt,
+		stmts: List<&AstNode>,
+		next_idx: usz
+	) {
+		if (!self.has_symtab || self.in_generic) return;
+		if (vd.name.empty() || vd.name.starts_with("_") || vd.initializer == null) return;
+
+		val init_raw = unwrap_group_ast(vd.initializer);
+		if (init_raw !is CallExpr) return;
+
+		val init_ty = self.symtab.get_node_type(vd.initializer) ?: return;
+		val release_fn = self.owned_resource_release_method(init_ty);
+		if (release_fn.empty()) return;
+
+		for (j in next_idx..<stmts.len) {
+			if (self.stmt_releases_or_transfers_var(stmts[j], vd.name)) return;
+		}
+
+		val pretty_ty = format_pretty_type(self.symtab, init_ty);
+		val (init_el, init_ec) = expr_end_pos(self.tokens, vd.initializer);
+		var semi_idx = find_token_index_at_or_after(self.tokens, init_el, init_ec);
+		var ins_l = init_el;
+		var ins_c = init_ec;
+		if (semi_idx < self.tokens.len && self.tokens[semi_idx].type == TokenType.SEMI_COLON) {
+			val (sl, sc) = token_end_pos(self.tokens[semi_idx]);
+			ins_l = sl;
+			ins_c = sc;
+		}
+		val indent = self.mapper.line_indent(vd_node.line);
+		val defer_stmt = "\n${indent}defer ${vd.name}.${release_fn}();";
+
+		var name_l = vd_node.line;
+		var name_c = vd_node.col;
+		var name_end_c = vd_node.col + vd.name.len;
+		var ti = find_token_index_at_or_after(self.tokens, vd_node.line, vd_node.col);
+		while (ti < self.tokens.len && self.tokens[ti].line == vd_node.line) {
+			if (self.tokens[ti].type == TokenType.IDENTIFIER && self.tokens[ti].text == vd.name) {
+				name_l = self.tokens[ti].line;
+				name_c = self.tokens[ti].col;
+				name_end_c = name_c + vd.name.len;
+				break;
+			}
+			ti++;
+		}
+
+		var edits = List<LintEditSpec>();
+		edits += LintEditSpec(ins_l, ins_c, ins_l, ins_c, defer_stmt);
+		self.emit(
+			name_l, name_c, name_l, name_end_c,
+			"Owned '${pretty_ty}' '${vd.name}' is never freed or transferred; consider adding 'defer ${vd.name}.${release_fn}();'",
+			"unfreed-resource",
+			false,
+			"Add 'defer ${vd.name}.${release_fn}();'",
+			edits,
+			"quickfix",
+			vd_node.line, vd_node.col, ins_l, ins_c
+		);
+	}
+
 	fn walk_stmt(&self, node: ?*AstNode, in_block: bool, is_else_if_child: bool) {
 		if (node == null) return;
 		when (node) {
@@ -1522,6 +1709,9 @@ impl LintCollector {
 				val n = blk.statements.len;
 				for (i in 0..<n) {
 					val st = blk.statements[i];
+					if (st is VarDeclStmt as vd) {
+						self.check_unfreed_resource(st, vd, blk.statements, i + 1);
+					}
 					if (i + 1 < n) {
 						val nxt = blk.statements[i + 1];
 						if (!self.check_consecutive_bool_return(st, nxt)) {

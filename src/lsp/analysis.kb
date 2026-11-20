@@ -882,6 +882,41 @@ impl AnalysisResult {
 		return items;
 	}
 
+	fn build_signature_json(
+		name: str,
+		param_names: List<str>,
+		param_types: List<str>,
+		return_type: str,
+		skip_self: bool
+	): *JsonValue {
+		val start_i: usz = if (skip_self && !param_names.empty() && param_names[0] == "self") 1 else 0;
+		var label_sb = StringBuilder();
+		defer label_sb.free();
+		label_sb += name;
+		label_sb += "(";
+		val params_arr = JsonValue.arr();
+		var shown: usz = 0;
+		for (i in start_i..<param_names.len) {
+			if (shown > 0) label_sb += ", ";
+			val pt = if (i < param_types.len && !param_types[i].empty()) param_types[i] else "any";
+			val p_label = if (param_names[i] == "self") pt else "${param_names[i]}: ${pt}";
+			label_sb += p_label;
+			val p_obj = JsonValue.obj();
+			p_obj["label"] = JsonValue.str(p_label);
+			params_arr += p_obj;
+			shown++;
+		}
+		label_sb += ")";
+		if (!return_type.empty() && return_type != "none") {
+			label_sb += ": ";
+			label_sb += return_type;
+		}
+		val sig_obj = JsonValue.obj();
+		sig_obj["label"] = JsonValue.str(label_sb.to_str());
+		sig_obj["parameters"] = params_arr;
+		return sig_obj;
+	}
+
 	pub fn signature_help_at(*self, line0: usz, col0: usz): *JsonValue {
 		val line1 = line0 + 1;
 		val col1 = col0 + 1;
@@ -895,28 +930,60 @@ impl AnalysisResult {
 		}
 		if (idx < 0) return JsonValue.null_val();
 
-		var depth: i32 = 0;
+		var paren_depth: i32 = 0;
+		var bracket_depth: i32 = 0;
+		var brace_depth: i32 = 0;
 		var commas: i64 = 0;
 		var open_idx: isz = -1;
 		var cur = idx;
 		while (cur >= 0) {
 			val t = self.tokens[cur as usz];
-			if (t.type == TokenType.CLOSE_PAREN) depth++;
-			else if (t.type == TokenType.OPEN_PAREN) {
-				if (depth == 0) {
-					open_idx = cur;
-					break;
+			when (t.type) {
+				TokenType.CLOSE_PAREN -> paren_depth++;
+				TokenType.OPEN_PAREN -> {
+					if (paren_depth == 0 && bracket_depth == 0 && brace_depth == 0) {
+						open_idx = cur;
+						break;
+					}
+					if (paren_depth > 0) paren_depth--;
 				}
-				depth--;
-			} else if (t.type == TokenType.COMMA && depth == 0) {
-				commas++;
+				TokenType.CLOSE_BRACKET -> bracket_depth++;
+				TokenType.OPEN_BRACKET -> if (bracket_depth > 0) bracket_depth--;
+				TokenType.CLOSE_BRACE -> brace_depth++;
+				TokenType.OPEN_BRACE -> if (brace_depth > 0) brace_depth--;
+				TokenType.COMMA -> {
+					if (paren_depth == 0 && bracket_depth == 0 && brace_depth == 0) commas++;
+				}
+				else -> {}
 			}
 			cur--;
 		}
 		if (open_idx <= 0) return JsonValue.null_val();
 
-		val callee_tok = self.tokens[(open_idx - 1) as usz];
+		// Support generic calls like `foo<T, U>(...)` and `List<str>(...)`
+		var callee_idx = open_idx - 1;
+		if (self.tokens[callee_idx as usz].type == TokenType.GREATER) {
+			var angle_depth: i32 = 0;
+			while (callee_idx >= 0) {
+				val ty = self.tokens[callee_idx as usz].type;
+				if (ty == TokenType.GREATER) angle_depth++;
+				else if (ty == TokenType.LESS) {
+					angle_depth--;
+					if (angle_depth == 0) {
+						callee_idx--;
+						break;
+					}
+				}
+				callee_idx--;
+			}
+		}
+		if (callee_idx < 0) return JsonValue.null_val();
+
+		val callee_tok = self.tokens[callee_idx as usz];
 		if (callee_tok.type != TokenType.IDENTIFIER) return JsonValue.null_val();
+
+		val is_member_call = callee_idx > 0
+			&& self.tokens[(callee_idx - 1) as usz].type in [TokenType.DOT, TokenType.QUESTION_DOT];
 
 		var def = DefInfo("", "", SymRole.FN, "", "", "", 0, 0, 0, "", "");
 		val ref_res = self.index.find_ref_at(self.file_path, callee_tok.line, callee_tok.col);
@@ -926,7 +993,7 @@ impl AnalysisResult {
 		}
 		if (def.key.empty()) {
 			for (d in self.index.defs) {
-				if (d.role in [SymRole.FN, SymRole.METHOD] && d.name == callee_tok.text) {
+				if (d.role in [SymRole.FN, SymRole.METHOD, SymRole.STRUCT] && d.name == callee_tok.text) {
 					def = d;
 					break;
 				}
@@ -934,24 +1001,57 @@ impl AnalysisResult {
 		}
 		if (def.key.empty()) return JsonValue.null_val();
 
-		val sig_obj = JsonValue.obj();
-		sig_obj["label"] = JsonValue.str(def.signature);
-		val params_arr = JsonValue.arr();
-		for (i in 0..<def.param_names.len) {
-			val p_obj = JsonValue.obj();
-			val pt = if (i < def.param_types.len) def.param_types[i] else "any";
-			p_obj["label"] = JsonValue.str("${def.param_names[i]}: ${pt}");
-			params_arr += p_obj;
-		}
-		sig_obj["parameters"] = params_arr;
-
 		val sigs_arr = JsonValue.arr();
-		sigs_arr += sig_obj;
+		var active_sig: i64 = 0;
+		var active_param: i64 = commas;
+
+		if (def.role == SymRole.STRUCT) {
+			var sig_count: i64 = 0;
+			var best_sig: i64 = -1;
+			for (d in self.index.defs) {
+				val same_owner = d.container == def.name && d.module_name == def.module_name;
+				val is_init_m = d.role == SymRole.METHOD && (d.name == "init" || d.signature.starts_with("init("));
+				if (same_owner && is_init_m) {
+					sigs_arr += Self.build_signature_json(
+						def.name, d.param_names, d.param_types, def.name, true
+					);
+					val p_count = if (!d.param_names.empty() && d.param_names[0] == "self") {
+						d.param_names.len - 1
+					} else d.param_names.len;
+					if (best_sig < 0 && (commas as usz) < p_count) best_sig = sig_count;
+					sig_count++;
+				}
+			}
+			if (sig_count == 0) {
+				var f_names = List<str>();
+				var f_types = List<str>();
+				defer f_names.free();
+				defer f_types.free();
+				for (d in self.index.defs) {
+					if (d.role == SymRole.FIELD && d.container == def.name && d.module_name == def.module_name) {
+						f_names += d.name;
+						f_types += d.type_str;
+					}
+				}
+				sigs_arr += Self.build_signature_json(def.name, f_names, f_types, def.name, false);
+			} else if (best_sig >= 0) {
+				active_sig = best_sig;
+			}
+		} else {
+			val skip_self = is_member_call && !def.param_names.empty() && def.param_names[0] == "self";
+			sigs_arr += Self.build_signature_json(
+				def.name, def.param_names, def.param_types, def.return_type, skip_self
+			);
+			val user_params = if (skip_self) def.param_names.len - 1 else def.param_names.len;
+			if (def.is_vararg && user_params > 0 && active_param >= (user_params as i64)) {
+				active_param = (user_params - 1) as i64;
+			}
+		}
 
 		val res = JsonValue.obj();
 		res["signatures"] = sigs_arr;
-		res["activeSignature"] = JsonValue.num(0);
-		res["activeParameter"] = JsonValue.num(commas);
+		res["activeSignature"] = JsonValue.num(active_sig);
+		res["activeParameter"] = JsonValue.num(active_param);
 		return res;
 	}
 

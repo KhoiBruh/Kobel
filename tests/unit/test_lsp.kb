@@ -365,9 +365,11 @@ fn test_after_return_and_exit(flag: bool, k: Kind): i64 {
 
 pub fn main() {
 	var xs: List<i64> = List();
+	defer xs.free();
 	xs += 1;
 	if (xs.len > 0) println("xs ok");
 	var kvs: List<KV> = List();
+	defer kvs.free();
 	kvs += KV("a", 1);
 	for ((u_k, u_v) in kvs) {
 		if (u_v > 0) println(u_k);
@@ -1610,6 +1612,103 @@ pub fn measure(items: HashMap<str, BoxStr>): usz {
 	println("  [PASS] test_pool_isolation_and_vfs_cache");
 }
 
+fn test_resource_lint_type_action_and_sig_help() {
+	val src = """mod sample.res_sig;
+
+use std.collections.*;
+
+struct PairBox {
+	pub a: i32,
+	pub b: str
+}
+
+impl PairBox {
+	pub fn combine(*self, extra: i32, tag: str): i32 => self.a + extra;
+}
+
+fn gen_pick<T>(first: T, second: T): T => first;
+
+fn work(): List<i32> {
+	var leaked = List<i32>();
+	leaked += 1;
+
+	var freed = List<i32>();
+	defer freed.free();
+	freed += 2;
+
+	var returned = List<i32>();
+	returned += 3;
+
+	val pb = PairBox(10, "hi");
+	val r1 = pb.combine(5, "ok");
+	val r2 = gen_pick<i32>(1, 2);
+	return returned;
+}
+""";
+	val vpath = "C:/Users/Admin/CLionProjects/Kobel/tests/unit/res_sig_virtual.kb";
+	var a = AnalysisResult(vpath, src, "", false);
+
+	// 1. unfreed-resource lint: warns on `leaked`, NOT on `freed` or `returned`
+	assert_eq_usz(
+		count_diag_code(a.diagnostics, "unfreed-resource"),
+		1,
+		"exactly 1 unfreed-resource warning (for leaked only)"
+	);
+
+	// 2. QuickFix for unfreed-resource on line 16 (0-based)
+	val empty_diags = JsonValue.arr();
+	val acts_leak = code_actions_json(
+		&a.index, a.tokens, vpath, src, 16, 0, 16, 20, empty_diags, &a.lint_fixes
+	);
+	var found_defer_fix = false;
+	for (act in acts_leak.arr_val) {
+		val title = act.get_str("title", "");
+		if (title == "Add 'defer leaked.free();'") found_defer_fix = true;
+	}
+	assert_true(found_defer_fix, "code actions must offer Add 'defer leaked.free();'");
+
+	// 3. Refactor Code Action: Add explicit type on `val pb = PairBox(10, "hi");` (line 26, 0-based)
+	val acts_type = code_actions_json(
+		&a.index, a.tokens, vpath, src, 26, 0, 26, 20, empty_diags, &a.lint_fixes
+	);
+	var found_type_fix = false;
+	for (act in acts_type.arr_val) {
+		val title = act.get_str("title", "");
+		if (title == "Add explicit type ': PairBox'") found_type_fix = true;
+	}
+	assert_true(found_type_fix, "code actions must offer Add explicit type ': PairBox'");
+
+	// 4. Signature Help: struct constructor `PairBox(10, "hi")` (line 26, col 22 -> after `, `)
+	val sig_ctor = a.signature_help_at(26, 22);
+	assert_true(!sig_ctor.is_null(), "signature help on struct constructor must not be null");
+	assert_eq_usz(sig_ctor.get_num("activeParameter", -1) as usz, 1, "struct ctor activeParameter must be 1");
+	val ctor_label = sig_ctor["signatures"].arr_val[0].get_str("label", "");
+	assert_true(ctor_label.contains("a: i32") && ctor_label.contains("b: str"), "struct ctor signature must list fields");
+
+	// 5. Signature Help: member call `pb.combine(5, "ok")` (line 27, col 21 -> first arg `5`)
+	val sig_mem = a.signature_help_at(27, 21);
+	assert_true(!sig_mem.is_null(), "signature help on method call must not be null");
+	assert_eq_usz(sig_mem.get_num("activeParameter", -1) as usz, 0, "method call first arg activeParameter must be 0");
+	val mem_params = sig_mem["signatures"].arr_val[0]["parameters"].arr_val;
+	assert_eq_usz(mem_params.len, 2, "method signature help must skip self and expose 2 user params");
+	assert_true(mem_params[0].get_str("label", "") == "extra: i32", "first user param must be extra: i32");
+
+	// 6. Signature Help: generic call `gen_pick<i32>(1, 2)` (line 28, col 27 -> second arg `2`)
+	val sig_gen = a.signature_help_at(28, 27);
+	assert_true(!sig_gen.is_null(), "signature help on generic call must not be null");
+	assert_eq_usz(sig_gen.get_num("activeParameter", -1) as usz, 1, "generic call second arg activeParameter must be 1");
+
+	JsonValue.free_tree(empty_diags);
+	JsonValue.free_tree(acts_leak);
+	JsonValue.free_tree(acts_type);
+	JsonValue.free_tree(sig_ctor);
+	JsonValue.free_tree(sig_mem);
+	JsonValue.free_tree(sig_gen);
+	a.free();
+
+	println("  [PASS] test_resource_lint_type_action_and_sig_help");
+}
+
 pub fn main() {
 	println("Running LSP unit tests...");
 	test_json_and_uri();
@@ -1626,5 +1725,6 @@ pub fn main() {
 	test_inlay_hints();
 	test_payload_enum_hover_and_def();
 	test_pool_isolation_and_vfs_cache();
+	test_resource_lint_type_action_and_sig_help();
 	println("All LSP unit tests passed.");
 }
