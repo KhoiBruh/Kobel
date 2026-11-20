@@ -56,6 +56,149 @@ impl ModuleFile {
 
 }
 
+/*
+ * ============================================================================
+ * SourceCache — Persistent VFS & Disk File Cache for Long-Lived Processes
+ *
+ * Lives on the default (persistent) heap and caches disk files keyed by
+ * normalized path with `(mtime, size)` validation, plus unsaved live editor
+ * overrides. Replaced buffers are queued in `retired` and freed via
+ * `flush_retired()` once no live analysis snapshot references them.
+ * ============================================================================
+ */
+pub struct CachedSource {
+	pub path: str = "",
+	pub mtime: i64 = -1,
+	pub size: i64 = -1,
+	pub text: str = ""
+}
+
+struct OverrideEntry {
+	pub key: str = "",
+	pub text: str = ""
+}
+
+pub struct SourceCache {
+	overrides: HashMap<str, OverrideEntry> = HashMap(),
+	disk_files: HashMap<str, CachedSource> = HashMap(),
+	retired: List<str> = List()
+}
+
+impl SourceCache {
+
+	pub init() => Self(
+		HashMap<str, OverrideEntry>(),
+		HashMap<str, CachedSource>(),
+		List<str>()
+	);
+
+	pub fn set_override(&self, path: str, text: str) {
+		val norm = path.normalize_path();
+		val existing = self.overrides.get(norm);
+		val prev = HeapPool.push_default();
+		if (existing != null) {
+			val cur = existing.read();
+			Heap.drop_str(cur.text);
+			val dup_text = Heap.dup_str(text);
+			self.overrides[cur.key] = OverrideEntry(cur.key, dup_text);
+		} else {
+			val dup_key = Heap.dup_str(norm);
+			val dup_text = Heap.dup_str(text);
+			self.overrides[dup_key] = OverrideEntry(dup_key, dup_text);
+		}
+		HeapPool.pop(prev);
+	}
+
+	pub fn remove_override(&self, path: str) {
+		val norm = path.normalize_path();
+		val existing = self.overrides.get(norm) ?: return;
+		val cur = existing.read();
+		val prev = HeapPool.push_default();
+		self.overrides.remove(cur.key);
+		Heap.drop_str(cur.text);
+		Heap.drop_str(cur.key);
+		HeapPool.pop(prev);
+	}
+
+	pub fn invalidate_disk(&self, path: str) {
+		val norm = path.normalize_path();
+		val existing = self.disk_files.get(norm) ?: return;
+		val cur = existing.read();
+		val prev = HeapPool.push_default();
+		self.disk_files.remove(cur.path);
+		Heap.drop_str(cur.text);
+		Heap.drop_str(cur.path);
+		HeapPool.pop(prev);
+	}
+
+	pub fn read_file(&self, path: str): str ! LoaderErr {
+		val norm = path.normalize_path();
+		val ov_p = self.overrides.get(norm);
+		if (ov_p != null) return ov_p.read().text;
+
+		val p = Path(path);
+		val mt = p.mtime();
+		val sz = p.file_size();
+		val existing = self.disk_files.get(norm);
+		if (existing != null) {
+			val cur = existing.read();
+			if (mt >= 0 && cur.mtime == mt && cur.size == sz) return cur.text;
+		}
+
+		val raw = p.read_text() !: return LoaderErr.IoError;
+		val prev = HeapPool.push_default();
+		val dup_text = Heap.dup_str(raw);
+		if (existing != null) {
+			val cur = existing.read();
+			if (!cur.text.empty()) self.retired += cur.text;
+			self.disk_files[cur.path] = CachedSource(cur.path, mt, sz, dup_text);
+		} else {
+			val dup_key = Heap.dup_str(norm);
+			self.disk_files[dup_key] = CachedSource(dup_key, mt, sz, dup_text);
+		}
+		HeapPool.pop(prev);
+		return dup_text;
+	}
+
+	pub fn flush_retired(&self) {
+		if (self.retired.empty()) return;
+		val prev = HeapPool.push_default();
+		for (s in self.retired) Heap.drop_str(s);
+		self.retired.clear();
+		HeapPool.pop(prev);
+	}
+
+	pub fn file_count(*self): usz => self.disk_files.len;
+
+	pub fn total_bytes(*self): usz {
+		var total: usz = 0;
+		for ((_, cs) in self.disk_files) total += cs.text.len;
+		for ((_, ov) in self.overrides) total += ov.text.len;
+		return total;
+	}
+
+	pub fn free(&self) {
+		val prev = HeapPool.push_default();
+		for ((_, ov) in self.overrides) {
+			Heap.drop_str(ov.text);
+			Heap.drop_str(ov.key);
+		}
+		self.overrides.free();
+		self.overrides = HashMap<str, OverrideEntry>();
+		for ((_, cs) in self.disk_files) {
+			Heap.drop_str(cs.text);
+			Heap.drop_str(cs.path);
+		}
+		self.disk_files.free();
+		self.disk_files = HashMap<str, CachedSource>();
+		for (s in self.retired) Heap.drop_str(s);
+		self.retired.free();
+		self.retired = List<str>();
+		HeapPool.pop(prev);
+	}
+
+}
+
 pub struct ModuleLoader {
 	pub roots: List<str>,
 	pub modules: List<LoadedModule>,
@@ -63,7 +206,8 @@ pub struct ModuleLoader {
 	pub errors: List<Diagnostic>,
 	pub arena: Arena,
 	known: HashSet<str>,
-	pub sources: SourceMap
+	pub sources: SourceMap,
+	pub cache: ?&SourceCache = null
 }
 
 pub fn detect_project_root(start_dir: str): str ! LoaderErr {
@@ -197,6 +341,12 @@ impl ModuleLoader {
 	// File Resolution
 	// ============================================================================
 
+	fn read_source_file(*self, p: Path): str ! LoaderErr {
+		val c = self.cache;
+		if (c != null) return c.read_file(p.raw);
+		return p.read_text() !: return LoaderErr.IoError;
+	}
+
 	pub fn find_module_files(*self, module_name: str): List<ModuleFile> ! LoaderErr {
 		var list = List<ModuleFile>();
 		val rel_file = "${module_name.module_to_rel()}.kb";
@@ -207,7 +357,7 @@ impl ModuleLoader {
 			// 1. Single-file module: <root>/<rel>.kb
 			val cand_p = root_p.join(rel_file);
 			if (cand_p.is_file()) {
-				val src = cand_p.read_text() !: return LoaderErr.IoError;
+				val src = self.read_source_file(cand_p)?;
 				list += ModuleFile(cand_p.raw, src);
 			}
 
@@ -222,7 +372,7 @@ impl ModuleLoader {
 					val f_p = dir_p.join(f);
 					val already = list.any { m -> m.path == f_p.raw };
 					if (!already) {
-						val f_src = f_p.read_text() !: return LoaderErr.IoError;
+						val f_src = self.read_source_file(f_p)?;
 						list += ModuleFile(f_p.raw, f_src);
 					}
 				}

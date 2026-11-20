@@ -3,7 +3,9 @@ mod test_lsp;
 use std.io.println;
 use std.collections.Array;
 use std.filesystem.*;
+use std.memory.*;
 
+use compiler.loader.SourceCache;
 use lsp.*;
 use testsupport.assert.*;
 
@@ -1516,6 +1518,62 @@ fn count_elems(n: *ExprNode): usz {
 	println("  [PASS] test_payload_enum_hover_and_def");
 }
 
+fn test_pool_isolation_and_vfs_cache() {
+	// 1. Repeated AnalysisResult + free() must never double-free (regression for file_tokens crash)
+	val src1 = """mod sample.pool_test;
+fn helper(x: i64): i64 => x + 1;
+pub fn run(): i64 => helper(41);
+""";
+	val vpath = "C:/Users/Admin/CLionProjects/Kobel/tests/unit/pool_test_virtual.kb";
+	for (_i in 0..<4) {
+		var a = AnalysisResult(vpath, src1, "", false);
+		assert_eq_usz(a.diagnostics.len, 0, "clean pool_test snippet must produce zero diagnostics");
+		a.free();
+	}
+
+	// 2. DocumentStore owned strings must not leak across repeated edits
+	var store = DocumentStore();
+	val uri = path_to_uri(vpath);
+	store.set(uri, src1, 1);
+	val base_def = Heap.default_live_bytes();
+	for (v in 2..10) {
+		store.set(uri, src1, v);
+	}
+	assert_eq_usz(
+		Heap.default_live_bytes(), base_def,
+		"DocumentStore repeated edits must keep defaultHeapBytes exact (0 byte leak)"
+	);
+	store.free();
+
+	// 3. SourceCache unsaved overrides & HeapPool snapshot destruction
+	var vfs = SourceCache();
+	val dep_path = "C:/Users/Admin/CLionProjects/Kobel/tests/unit/test_core.kb";
+	val disk_text = vfs.read_file(dep_path) !: "";
+	assert_true(!disk_text.empty(), "SourceCache must read and cache disk file");
+	assert_eq_usz(vfs.file_count(), 1, "SourceCache must record 1 cached disk file");
+	val disk_text2 = vfs.read_file(dep_path) !: "";
+	assert_eq_str(disk_text, disk_text2, "SourceCache disk hit must return identical text");
+
+	vfs.set_override(dep_path, "mod override_live;");
+	val ov_text = vfs.read_file(dep_path) !: "";
+	assert_eq_str(ov_text, "mod override_live;", "SourceCache override must take precedence over disk");
+	vfs.remove_override(dep_path);
+	val back_disk = vfs.read_file(dep_path) !: "";
+	assert_eq_str(back_disk, disk_text, "removing override must restore disk view");
+
+	var snap_pool = HeapPool.create();
+	val prev = snap_pool.push();
+	val pooled_a = AnalysisResult(vpath, src1, "", false, null, &vfs);
+	assert_true(pooled_a.has_symtab, "pooled AnalysisResult must succeed");
+	val live_before = snap_pool.live_bytes();
+	HeapPool.pop(prev);
+	assert_true(live_before > 0, "snapshot pool must hold analysis allocations");
+	snap_pool.destroy();
+	assert_eq_usz(snap_pool.live_bytes(), 0, "destroying snapshot pool must reclaim 100% of bytes");
+	vfs.free();
+	println("  [PASS] test_pool_isolation_and_vfs_cache");
+}
+
 pub fn main() {
 	println("Running LSP unit tests...");
 	test_json_and_uri();
@@ -1531,5 +1589,6 @@ pub fn main() {
 	test_kblint_engine_and_custom_rules();
 	test_inlay_hints();
 	test_payload_enum_hover_and_def();
+	test_pool_isolation_and_vfs_cache();
 	println("All LSP unit tests passed.");
 }

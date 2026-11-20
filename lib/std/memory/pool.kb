@@ -1,0 +1,57 @@
+mod std.memory;
+
+/*
+ * ============================================================================
+ * std.memory.pool — Scoped heap pools for bulk O(1) OS reclamation
+ *
+ * Pushing a `HeapPool` routes every subsequent Kobel allocation (`Heap`,
+ * `Arena`, `List`, `HashMap`, string concat/interpolation) into that pool.
+ * Calling `destroy()` or `reset()` returns 100% of the pool's memory back to
+ * the OS without requiring per-object destructors.
+ * ============================================================================
+ */
+
+extern "C" {
+	fn kobel_pool_create(): ?&u8;
+	fn kobel_pool_destroy(pool: ?&u8): none;
+	fn kobel_pool_reset(pool: ?&u8): none;
+	fn kobel_pool_push(pool: ?&u8): ?&u8;
+	fn kobel_pool_pop(prev: ?&u8): none;
+	fn kobel_pool_live_bytes(pool: ?&u8): usz;
+}
+
+pub struct HeapPool {
+	handle: ?&u8 = null
+}
+
+impl HeapPool {
+
+	pub fn create(): Self => Self(kobel_pool_create());
+
+	pub fn empty(): Self => Self(null);
+
+	pub fn valid(*self): bool => self.handle != null;
+
+	// Activates this pool for subsequent allocations; returns previous handle for `pop`.
+	pub fn push(*self): ?&u8 => kobel_pool_push(self.handle);
+
+	// Temporarily routes allocations to the default (persistent) heap.
+	pub fn push_default(): ?&u8 => kobel_pool_push(null);
+
+	// Restores the pool handle returned by `push` or `push_default`.
+	pub fn pop(prev: ?&u8) => kobel_pool_pop(prev);
+
+	// Reclaims all allocations in this pool while keeping the pool handle reusable.
+	pub fn reset(*self) => kobel_pool_reset(self.handle);
+
+	// Releases 100% of allocations in this pool back to the OS and invalidates the handle.
+	pub fn destroy(&self) {
+		if (self.handle != null) {
+			kobel_pool_destroy(self.handle);
+			self.handle = null;
+		}
+	}
+
+	pub fn live_bytes(*self): usz => kobel_pool_live_bytes(self.handle);
+
+}

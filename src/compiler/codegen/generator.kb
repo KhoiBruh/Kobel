@@ -139,7 +139,7 @@ impl CCodeGen {
 		return self.symtab.file_path_of(node.span.file_id);
 	}
 
-	pub fn enum_has_payload(*self, e: *EnumDecl): bool =>
+	pub fn enum_has_payload(*self, e: *EnumDecl) =>
 		e.members.any { m -> !m.payload.empty() };
 
 }
@@ -147,13 +147,16 @@ impl CCodeGen {
 pub fn c_escape_str(s: str): str {
 	var sb = StringBuilder();
 	for (ch in s) {
-		if (ch == '\\') sb += "\\\\";
-		else if (ch == '"') sb += "\\\"";
-		else if (ch == '\n') sb += "\\n";
-		else if (ch == '\r') sb += "\\r";
-		else if (ch == '\t') sb += "\\t";
-		else sb += ch;
+		when (ch) {
+			'\\' -> sb += "\\\\";
+			'"' -> sb += "\\\"";
+			'\n' -> sb += "\\n";
+			'\r' -> sb += "\\r";
+			'\t' -> sb += "\\t";
+			else -> sb += ch;
+		}
 	}
+
 	return sb.to_str();
 }
 

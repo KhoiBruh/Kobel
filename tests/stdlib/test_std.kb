@@ -437,6 +437,7 @@ fn test_filesystem(): bool {
 	}
 	oop_file.write_text("Kobel OOP Filesystem") !: return false;
 	if (!oop_file.exists() || !oop_file.is_file()) return false;
+	if (oop_file.mtime() <= 0 || oop_file.file_size() != 20) return false;
 	if ((oop_file.read_text() !: return false) != "Kobel OOP Filesystem") return false;
 
 	oop_file.append_text(" - Appended") !: return false;
@@ -485,7 +486,67 @@ fn test_system(): bool {
 	return true;
 }
 
+fn test_heap_pool_and_lazy(): bool {
+	// 1. Empty lazy containers must perform 0 heap allocations and survive free() cleanly
+	val def_before = Heap.default_live_bytes();
+	val empty_list = List<i64>();
+	val empty_map = HashMap<str, i64>();
+	val empty_set = HashSet<str>();
+	if (Heap.default_live_bytes() != def_before) return false;
+	if (!empty_list.empty() || !empty_map.empty() || !empty_set.empty()) return false;
+	empty_list.free();
+	empty_map.free();
+	empty_set.free();
+
+	// 2. Scoped HeapPool isolation, cross-pool grow/free, reset, and destroy
+	var global_list = List<i64>();
+	defer global_list.free();
+	global_list += 10;
+
+	var pool = HeapPool.create();
+	if (!pool.valid() || pool.live_bytes() != 0) return false;
+
+	val prev = pool.push();
+	var pooled_list = List<str>();
+	for (i in 0..<20) pooled_list += "item_${i}";
+	// Cross-pool growth of a default-heap container must safely realloc on its original heap
+	for (i in 0..<16) global_list += i;
+	val used = pool.live_bytes();
+	HeapPool.pop(prev);
+
+	if (used == 0 || global_list.len != 17) return false;
+	pool.reset();
+	if (pool.live_bytes() != 0) return false;
+
+	val prev2 = pool.push();
+	val s = "hello" + " pool";
+	if (s != "hello pool" || pool.live_bytes() == 0) {
+		HeapPool.pop(prev2);
+		pool.destroy();
+		return false;
+	}
+	HeapPool.pop(prev2);
+	pool.destroy();
+	if (pool.valid() || pool.live_bytes() != 0) return false;
+
+	// 3. dup_str / drop_str accounting
+	val b0 = Heap.default_live_bytes();
+	val owned = Heap.dup_str("persistent_buffer");
+	if (owned != "persistent_buffer") return false;
+	if (Heap.default_live_bytes() <= b0) return false;
+	Heap.drop_str(owned);
+	if (Heap.default_live_bytes() != b0) return false;
+
+	return true;
+}
+
 fn run_tests(): i32 {
+	if (!test_heap_pool_and_lazy()) {
+		println("FAIL: test_heap_pool_and_lazy");
+		return 1;
+	}
+	println("PASS: std.memory.pool & lazy collections");
+
 	if (!test_ascii()) {
 		println("FAIL: test_ascii");
 		return 1;

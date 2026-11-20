@@ -2,14 +2,18 @@ mod std.memory;
 
 /*
  * ============================================================================
- * std.memory.heap — Heap allocator (libc malloc/realloc/free)
+ * std.memory.heap — Heap allocator (routed through Kobel scoped heap runtime)
  * ============================================================================
  */
 
-extern "libc" {
-	fn malloc(size: usz): ?&u8;
-	fn realloc(ptr: &u8, size: usz): ?&u8;
-	fn free(ptr: &u8): none;
+extern "C" {
+	fn kobel_alloc(size: usz): ?&u8;
+	fn kobel_realloc(ptr: &u8, size: usz): ?&u8;
+	fn kobel_free(ptr: &u8): none;
+	fn kobel_null_ptr(): &u8;
+	fn kobel_str_clone(s: str): str;
+	fn kobel_str_free(s: str): none;
+	fn kobel_default_heap_bytes(): usz;
 }
 
 pub fault MemErr {
@@ -21,7 +25,7 @@ pub object Heap {
 	// Raw byte allocation returning explicit OOM error on failure.
 	pub fn try_alloc(size: usz): &u8 ! MemErr {
 		val req = if (size == 0) 1 else size;
-		return malloc(req) ?: MemErr.OutOfMemory;
+		return kobel_alloc(req) ?: MemErr.OutOfMemory;
 	}
 
 	// Fallible allocation of `count` elements of `T`.
@@ -35,7 +39,7 @@ pub object Heap {
 	pub fn try_resize<T>(ptr: &T, count: usz): &T ! MemErr {
 		val bytes = count * T.size();
 		val req = if (bytes == 0) 1 else bytes;
-		val raw = realloc(ptr as &u8, req) ?: return MemErr.OutOfMemory;
+		val raw = kobel_realloc(ptr as &u8, req) ?: return MemErr.OutOfMemory;
 		return raw as &T;
 	}
 
@@ -52,9 +56,21 @@ pub object Heap {
 	// Grow/shrink `ptr` to hold `count` elements of `T` (panics on OOM).
 	pub fn resize<T>(ptr: &T, count: usz) => Heap.try_resize<T>(ptr, count)!;
 
-	// Free a block obtained from create/alloc/resize.
-	pub fn free(ptr: &none) => free(ptr as &u8);
+	// Null typed pointer for lazy zero-capacity containers (never dereferenced when cap == 0).
+	pub fn null_ptr<T>(): &T => kobel_null_ptr() as &T;
 
-	pub fn free<T>(ptr: &T) => free(ptr as &u8);
+	// Clones `s` into the currently active heap (returns static "" when empty).
+	pub fn dup_str(s: str): str => kobel_str_clone(s);
+
+	// Frees a string previously created by `Heap.dup_str` (no-op for empty strings).
+	pub fn drop_str(s: str) => kobel_str_free(s);
+
+	// Live byte count allocated on the default (persistent) heap.
+	pub fn default_live_bytes(): usz => kobel_default_heap_bytes();
+
+	// Free a block obtained from create/alloc/resize.
+	pub fn free(ptr: &none) => kobel_free(ptr as &u8);
+
+	pub fn free<T>(ptr: &T) => kobel_free(ptr as &u8);
 
 }

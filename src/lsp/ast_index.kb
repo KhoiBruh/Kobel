@@ -207,6 +207,10 @@ pub struct SemanticIndex {
 impl SemanticIndex {
 
 	pub fn free(*self) {
+		for (d in self.defs) {
+			d.param_names.free();
+			d.param_types.free();
+		}
 		self.defs.free();
 		self.def_by_key.free();
 		self.refs.free();
@@ -217,7 +221,10 @@ impl SemanticIndex {
 		self.seen_refs.free();
 		for ((_k, v) in self.imports_by_file) v.free();
 		self.imports_by_file.free();
-		for ((_k, v) in self.missing_impls_by_file) v.free();
+		for ((_k, v) in self.missing_impls_by_file) {
+			for (mi in v) mi.missing_stubs.free();
+			v.free();
+		}
 		self.missing_impls_by_file.free();
 		self.dep_graph.free();
 		for ((_k, v) in self.file_tokens) v.free();
@@ -1767,7 +1774,8 @@ fn register_c_name_mapping(index: &SemanticIndex, prog: *AstNode) {
 pub fn prepare_semantic_index(
 	loader: *ModuleLoader,
 	doc_path: str = "",
-	doc_source: str = ""
+	doc_source: str = "",
+	doc_tokens: ?*List<Token> = null
 ): SemanticIndex {
 	var index = SemanticIndex();
 
@@ -1782,16 +1790,21 @@ pub fn prepare_semantic_index(
 		val text = if ("\n" in sf.content || ";" in sf.content) sf.content else sf.module_name;
 		if (!text.empty()) src_by_path[s_norm] = text;
 	}
-	if (!doc_path.empty() && !doc_source.empty()) {
-		src_by_path[doc_path.normalize_path()] = doc_source;
+	val doc_norm = if (!doc_path.empty()) doc_path.normalize_path() else "";
+	if (!doc_norm.empty() && !doc_source.empty()) {
+		src_by_path[doc_norm] = doc_source;
 	}
 
-	// Tokenize each loaded module once for exact identifier snapping
+	// Tokenize each loaded module once for exact identifier snapping (reuse doc_tokens for active file)
 	for (lm in loader.ordered) {
 		index.dep_graph.add_module_file(lm.name, lm.path);
 		val norm = lm.path.normalize_path();
 		index.file_modules[norm] = lm.name;
 
+		if (doc_tokens != null && !doc_norm.empty() && norm == doc_norm) {
+			index.file_tokens[norm] = doc_tokens.clone();
+			continue;
+		}
 		val src = src_by_path.get_or(norm, "");
 		if (!src.empty()) {
 			var lex = Lexer(src, lm.file_id);
@@ -1856,11 +1869,13 @@ pub fn finish_semantic_index(
 		walker.walk_body_pass(prog);
 	}
 
-	// Reclaim temporary per-file token buffers after Pass 2 completes
+	// Reclaim temporary per-file token buffers after Pass 2 completes and reset to empty
+	// so `SemanticIndex.free()` never double-frees `file_tokens`.
 	for ((_, tok_list) in index.file_tokens) {
 		tok_list.free();
 	}
 	index.file_tokens.free();
+	index.file_tokens = HashMap<str, List<Token>>();
 }
 
 pub fn build_semantic_index(

@@ -40,6 +40,7 @@ impl Iterable for List<T> {
 impl List<T> {
 
 	pub init(items: ..T) {
+		if (items.len == 0) return Self(Heap.null_ptr<T>(), 0, 0);
 		val cap = if (items.len < 4) 4 else items.len;
 		val buf = Heap.create<T>(cap);
 		for (i in 0..<items.len) {
@@ -79,6 +80,11 @@ impl List<T> {
 	pub fn clear(&self) => self.len = 0;
 
 	fn grow(&self) {
+		if (self.cap == 0) {
+			self.data = Heap.create<T>(4);
+			self.cap = 4;
+			return;
+		}
 		val new_cap = self.cap * 2;
 		self.data = Heap.resize<T>(self.data, new_cap);
 		self.cap = new_cap;
@@ -86,9 +92,9 @@ impl List<T> {
 
 	pub fn reserve(&self, min_cap: usz) {
 		if (min_cap > self.cap) {
-			var new_cap = self.cap;
+			var new_cap = if (self.cap > 0) self.cap else 4;
 			while (new_cap < min_cap) new_cap *= 2;
-			self.data = Heap.resize<T>(self.data, new_cap);
+			self.data = if (self.cap > 0) Heap.resize<T>(self.data, new_cap) else Heap.create<T>(new_cap);
 			self.cap = new_cap;
 		}
 	}
@@ -115,7 +121,8 @@ impl List<T> {
 	}
 
 	pub fn clone(*self): Self {
-		val cap = if (self.cap > 0) self.cap else 4;
+		if (self.len == 0) return Self(Heap.null_ptr<T>(), 0, 0);
+		val cap = if (self.cap > 0) self.cap else self.len;
 		var res = Self(Heap.create<T>(cap), 0, cap);
 		for (data in self) res += data;
 		return res;
@@ -143,9 +150,10 @@ impl List<T> {
 	}
 
 	pub fn sub(*self, start: usz, count: usz): Self {
-		var res = Self(Heap.create<T>(count), 0, count);
-		if (start >= self.len) return res;
+		if (count == 0 || start >= self.len) return Self(Heap.null_ptr<T>(), 0, 0);
 		val end = if (start + count > self.len) self.len else start + count;
+		val actual = end - start;
+		var res = Self(Heap.create<T>(actual), 0, actual);
 		for (i in start..<end) res += self.data[i];
 		return res;
 	}
@@ -271,7 +279,9 @@ impl List<T> {
 		return acc;
 	}
 
-	pub fn free(self) => Heap.free(self.data);
+	pub fn free(self) {
+		if (self.cap > 0) Heap.free(self.data);
+	}
 
 	pub op get(*self, index: usz) => self.data[index];
 

@@ -69,7 +69,8 @@ pub struct BodyChecker {
 	pub in_main_fn: bool = false,
 	pub current_fn_display_name: str = "",
 	pub non_null_paths: List<str> = List(),
-	pub non_null_marks: List<usz> = List()
+	pub non_null_marks: List<usz> = List(),
+	pub target_module: str = ""
 }
 
 impl BodyChecker {

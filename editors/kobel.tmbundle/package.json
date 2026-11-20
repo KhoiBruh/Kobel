@@ -101,6 +101,17 @@
           "type": "boolean",
           "default": true,
           "description": "Show inferred type inlay hints for variables, destructuring, loops, error catches, arrow functions, and lambdas."
+        },
+        "kobel.lsp.maxMemoryMB": {
+          "type": "number",
+          "default": 1024,
+          "minimum": 0,
+          "description": "Soft/hard memory watchdog ceiling in MB for the persistent Kobel Language Server (trims inactive tab cache above 75%, restarts if still above 100%; set to 0 to disable)."
+        },
+        "kobel.lsp.autoRestartOnBuild": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically restart the persistent Kobel Language Server when the workspace compiler binary (e.g. build/kobel.exe) is rebuilt."
         }
       }
     }

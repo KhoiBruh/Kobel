@@ -1,20 +1,30 @@
 mod lsp;
 
 use std.io.*;
-use std.memory.Arena;
+use std.memory.*;
 use std.process.*;
 use std.filesystem.*;
 use std.collections.*;
 
+use compiler.loader.SourceCache;
+
 /*
  * ============================================================================
- * lsp.server — Main LSP Server Event Loop & Capability Dispatcher
+ * lsp.server — Persistent, Pool-Isolated LSP Server Event Loop
  *
- * Handles JSON-RPC 2.0 requests/notifications over stdio, caches semantic
- * analysis per document version, and dispatches navigation, completion,
- * diagnostics, and global dependency/semantic refactoring requests.
+ * Memory isolation across 3 regions guarantees zero heap growth over long
+ * editor sessions:
+ *   1. Default (Persistent) Heap: `DocumentStore`, `SourceCache` VFS, and the
+ *      `LanguageServer.cache` table (all explicitly owned & freed).
+ *   2. Per-Snapshot `HeapPool`: each cached `AnalysisResult` owns a dedicated
+ *      pool; evicting or invalidating calls `pool.destroy()` to return 100% of
+ *      its AST/SymbolTable/SemanticIndex/string memory directly to the OS.
+ *   3. Request Scratch `HeapPool`: every JSON-RPC frame runs inside `req_pool`
+ *      and calls `req_pool.reset()` immediately after sending the response.
  * ============================================================================
  */
+
+const MAX_CACHE_ENTRIES: usz = 6;
 
 pub enum Method: str {
 	INITIALIZE = "initialize",
@@ -25,6 +35,7 @@ pub enum Method: str {
 	DID_CHANGE = "textDocument/didChange",
 	DID_SAVE = "textDocument/didSave",
 	DID_CLOSE = "textDocument/didClose",
+	DID_CHANGE_WATCHED_FILES = "workspace/didChangeWatchedFiles",
 	HOVER = "textDocument/hover",
 	DEFINITION = "textDocument/definition",
 	REFERENCES = "textDocument/references",
@@ -38,6 +49,8 @@ pub enum Method: str {
 	WORKSPACE_SYMBOL = "workspace/symbol",
 	COMPLETION = "textDocument/completion",
 	INLAY_HINT = "textDocument/inlayHint",
+	MEMORY_STATS = "kobel/memoryStats",
+	TRIM_CACHE = "kobel/trimCache",
 	PUBLISH_DIAGNOSTICS = "textDocument/publishDiagnostics"
 }
 
@@ -61,17 +74,21 @@ fn publish_diagnostics_for(uri: str, analysis: *AnalysisResult) {
 
 pub struct AnalysisCacheEntry {
 	pub uri: str = "",
+	pub path: str = "",
 	pub version: i64 = -1,
 	pub is_ws: bool = false,
+	pub pool: HeapPool = HeapPool.empty(),
 	pub analysis: AnalysisResult = AnalysisResult()
 }
 
 pub struct LanguageServer {
 	pub docs: DocumentStore,
+	pub vfs: SourceCache,
 	pub is_shutdown: bool,
 	pub workspace_root: str,
 	pub cache: List<AnalysisCacheEntry>,
-	pub arena: Arena,
+	pub req_pool: HeapPool,
+	pub kblint_pool: HeapPool,
 	pub kblint_rules: KblintRuleSet = KblintRuleSet(),
 	pub kblint_loaded: bool = false,
 	pub kblint_root: str = "",
@@ -81,18 +98,26 @@ pub struct LanguageServer {
 impl LanguageServer {
 
 	pub init() => Self(
-		DocumentStore(), false, "", List<AnalysisCacheEntry>(), Arena(262144)
+		DocumentStore(),
+		SourceCache(),
+		false,
+		"",
+		List<AnalysisCacheEntry>(),
+		HeapPool.create(),
+		HeapPool.create()
 	);
 
 	fn ensure_kblint_rules(&self): *KblintRuleSet {
 		val ws_path = find_workspace_kblint_path(self.workspace_root);
 		val cur_text = if (!ws_path.empty()) (Path(ws_path).read_text() !: "") else "";
 		if (!self.kblint_loaded || self.kblint_root != self.workspace_root || self.kblint_dotfile_text != cur_text) {
-			if (self.kblint_loaded) self.kblint_rules.free();
+			self.kblint_pool.reset();
+			val prev = self.kblint_pool.push();
 			self.kblint_rules = load_kblint_ruleset(self.workspace_root);
+			self.kblint_root = Heap.dup_str(self.workspace_root);
+			self.kblint_dotfile_text = Heap.dup_str(cur_text);
 			self.kblint_loaded = true;
-			self.kblint_root = self.workspace_root;
-			self.kblint_dotfile_text = cur_text;
+			HeapPool.pop(prev);
 		}
 		return &self.kblint_rules;
 	}
@@ -110,430 +135,569 @@ impl LanguageServer {
 		if (hit_idx >= 0) {
 			val idx = hit_idx as usz;
 			if (idx + 1 < self.cache.len) {
+				val prev_def = HeapPool.push_default();
 				val item = self.cache.data[idx];
 				self.cache.remove_at(idx)!;
 				self.cache.add(item);
+				HeapPool.pop(prev_def);
 			}
 			return &self.cache.data[self.cache.len - 1].analysis;
 		}
 
 		self.invalidate_uri(uri);
-		// Keep at most 4 recent analyses resident so tab switching stays hot without unbounded growth.
-		while (self.cache.len >= 4) {
-			self.cache.data[0].analysis.free();
+		// Keep up to MAX_CACHE_ENTRIES recent analyses resident for instant tab switching.
+		val prev_evict = HeapPool.push_default();
+		while (self.cache.len >= MAX_CACHE_ENTRIES) {
+			self.cache.data[0].pool.destroy();
 			self.cache.remove_at(0)!;
 		}
+		HeapPool.pop(prev_evict);
+
 		val ruleset = self.ensure_kblint_rules();
-		val created = AnalysisResult(doc_path, doc_text, self.workspace_root, need_ws, ruleset);
-		var entry = AnalysisCacheEntry();
-		entry.uri = uri;
-		entry.version = doc.version;
-		entry.is_ws = need_ws;
-		entry.analysis = created;
-		self.cache.add(entry);
+		val snap_pool = HeapPool.create();
+		val prev_snap = snap_pool.push();
+		val owned_uri = Heap.dup_str(uri);
+		val owned_path = Heap.dup_str(doc_path);
+		val created = AnalysisResult(
+			owned_path, doc_text, self.workspace_root, need_ws, ruleset, &self.vfs
+		);
+		HeapPool.pop(prev_snap);
+
+		val prev_add = HeapPool.push_default();
+		self.cache.add(AnalysisCacheEntry(owned_uri, owned_path, doc.version, need_ws, snap_pool, created));
+		HeapPool.pop(prev_add);
 		return &self.cache.data[self.cache.len - 1].analysis;
 	}
 
 	fn invalidate_uri(&self, uri: str) {
+		val prev = HeapPool.push_default();
 		var i: usz = 0;
 		while (i < self.cache.len) {
 			if (self.cache.data[i].uri == uri) {
-				self.cache.data[i].analysis.free();
+				self.cache.data[i].pool.destroy();
 				self.cache.remove_at(i)!;
 			} else {
 				i++;
 			}
 		}
+		HeapPool.pop(prev);
+		if (self.cache.empty()) self.vfs.flush_retired();
+	}
+
+	// Selectively evict snapshots affected by `changed_uri` / `changed_path` while keeping
+	// unrelated open tabs hot in cache.
+	fn invalidate_dependents(&self, changed_uri: str, changed_path: str) {
+		var changed_mod = "";
+		for (i in 0..<self.cache.len) {
+			val e = &self.cache.data[i];
+			if (e.uri == changed_uri || (!changed_path.empty() && paths_equal(e.path, changed_path))) {
+				if (!e.analysis.module_name.empty()) {
+					changed_mod = e.analysis.module_name;
+					break;
+				}
+			}
+		}
+
+		var i: usz = 0;
+		while (i < self.cache.len) {
+			val e = &self.cache.data[i];
+			var affected = e.uri == changed_uri
+				|| (!changed_path.empty() && paths_equal(e.path, changed_path))
+				|| (!changed_mod.empty() && e.analysis.module_name == changed_mod);
+			if (!affected && !changed_path.empty()) {
+				for (dep in e.analysis.dep_paths) {
+					if (paths_equal(dep, changed_path)) {
+						affected = true;
+						break;
+					}
+				}
+			}
+			if (affected) {
+				val prev = HeapPool.push_default();
+				self.cache.data[i].pool.destroy();
+				self.cache.remove_at(i)!;
+				HeapPool.pop(prev);
+			} else {
+				i++;
+			}
+		}
+		if (self.cache.empty()) self.vfs.flush_retired();
+	}
+
+	fn trim_cache(&self, keep: usz) {
+		val prev = HeapPool.push_default();
+		while (self.cache.len > keep) {
+			self.cache.data[0].pool.destroy();
+			self.cache.remove_at(0)!;
+		}
+		HeapPool.pop(prev);
+		if (self.cache.empty()) self.vfs.flush_retired();
 	}
 
 	fn invalidate_cache(&self) {
+		val prev = HeapPool.push_default();
 		for (i in 0..<self.cache.len) {
-			self.cache.data[i].analysis.free();
+			self.cache.data[i].pool.destroy();
 		}
 		self.cache.free();
 		self.cache = List<AnalysisCacheEntry>();
+		HeapPool.pop(prev);
+		self.vfs.flush_retired();
+	}
+
+	fn memory_stats_json(*self): *JsonValue {
+		var snap_bytes: usz = 0;
+		for (i in 0..<self.cache.len) snap_bytes += self.cache.data[i].pool.live_bytes();
+		val kblint_bytes = self.kblint_pool.live_bytes();
+		val def_bytes = Heap.default_live_bytes();
+		val vfs_bytes = self.vfs.total_bytes();
+		val obj = JsonValue.obj();
+		obj["defaultHeapBytes"] = JsonValue.num(def_bytes as i64);
+		obj["snapshotPoolBytes"] = JsonValue.num(snap_bytes as i64);
+		obj["kblintPoolBytes"] = JsonValue.num(kblint_bytes as i64);
+		obj["totalPoolBytes"] = JsonValue.num((snap_bytes + kblint_bytes) as i64);
+		obj["snapshotCount"] = JsonValue.num(self.cache.len as i64);
+		obj["vfsFiles"] = JsonValue.num(self.vfs.file_count() as i64);
+		obj["vfsBytes"] = JsonValue.num(vfs_bytes as i64);
+		return obj;
+	}
+
+	fn cleanup_all(&self) {
+		self.invalidate_cache();
+		self.docs.free();
+		self.vfs.free();
+		val prev = HeapPool.push_default();
+		Heap.drop_str(self.workspace_root);
+		self.workspace_root = "";
+		HeapPool.pop(prev);
+		self.kblint_pool.destroy();
+		self.req_pool.destroy();
+	}
+
+	fn handle_one_message(&self): bool {
+		val raw_msg = read_message() !: err -> {
+			if (err is ProtocolErr.EndOfStream) return false;
+			return true;
+		};
+
+		val msg = JsonValue.parse(raw_msg) !: return true;
+		if (!msg.is_obj()) return true;
+
+		val method = msg.get_str("method", "");
+		val id = msg["id"];
+		val params = msg.get_obj("params");
+
+		when (method) {
+			Method.INITIALIZE.value -> {
+				var resolved_root = "";
+				val root_uri = params.get_str("rootUri", "");
+				if (!root_uri.empty()) {
+					resolved_root = uri_to_path(root_uri);
+				} else {
+					val root_path = params.get_str("rootPath", "");
+					if (!root_path.empty()) {
+						resolved_root = root_path;
+					} else {
+						val wf = params.get_arr("workspaceFolders");
+						val wf_uri = wf.at(0)?.get_str("uri", "") ?: "";
+						if (!wf_uri.empty()) resolved_root = uri_to_path(wf_uri);
+					}
+				}
+				val prev_def = HeapPool.push_default();
+				Heap.drop_str(self.workspace_root);
+				self.workspace_root = Heap.dup_str(resolved_root);
+				HeapPool.pop(prev_def);
+
+				val res = JsonValue.obj();
+				val caps = JsonValue.obj();
+
+				caps["textDocumentSync"] = JsonValue.num(1);
+				caps["hoverProvider"] = JsonValue.bool(true);
+				caps["definitionProvider"] = JsonValue.bool(true);
+				caps["referencesProvider"] = JsonValue.bool(true);
+				caps["documentHighlightProvider"] = JsonValue.bool(true);
+				caps["documentFormattingProvider"] = JsonValue.bool(true);
+				caps["documentSymbolProvider"] = JsonValue.bool(true);
+				caps["workspaceSymbolProvider"] = JsonValue.bool(true);
+				caps["inlayHintProvider"] = JsonValue.bool(true);
+
+				val rename_opts = JsonValue.obj();
+				rename_opts["prepareProvider"] = JsonValue.bool(true);
+				caps["renameProvider"] = rename_opts;
+
+				val ca_opts = JsonValue.obj();
+				val ca_kinds = JsonValue.arr();
+				ca_kinds += JsonValue.str("quickfix");
+				ca_kinds += JsonValue.str("refactor");
+				ca_kinds += JsonValue.str("refactor.rewrite");
+				ca_kinds += JsonValue.str("source.organizeImports");
+				ca_opts["codeActionKinds"] = ca_kinds;
+				caps["codeActionProvider"] = ca_opts;
+
+				val sig_opts = JsonValue.obj();
+				val sig_triggers = JsonValue.arr();
+				sig_triggers += JsonValue.str("(");
+				sig_triggers += JsonValue.str(",");
+				sig_opts["triggerCharacters"] = sig_triggers;
+				caps["signatureHelpProvider"] = sig_opts;
+
+				val comp = JsonValue.obj();
+				val triggers = JsonValue.arr();
+				triggers += JsonValue.str(".");
+				triggers += JsonValue.str(":");
+				triggers += JsonValue.str("(");
+				comp["triggerCharacters"] = triggers;
+				caps["completionProvider"] = comp;
+
+				val server_info = JsonValue.obj();
+				server_info["name"] = JsonValue.str("kobel-lsp");
+				server_info["version"] = JsonValue.str("2.1.0");
+
+				res["capabilities"] = caps;
+				res["serverInfo"] = server_info;
+				send_response(id, res);
+			}
+
+			Method.INITIALIZED.value -> {}
+
+			Method.SHUTDOWN.value -> {
+				self.is_shutdown = true;
+				self.invalidate_cache();
+				send_response(id, JsonValue.null_val());
+			}
+
+			Method.EXIT.value -> {
+				val ok = self.is_shutdown;
+				HeapPool.pop(null);
+				self.cleanup_all();
+				if (ok) Process.exit(0);
+				Process.exit(1);
+			}
+
+			Method.DID_OPEN.value -> {
+				val text_doc = params.get_obj("textDocument");
+				val uri = text_doc.get_str("uri", "");
+				val text = text_doc.get_str("text", "");
+				val version = text_doc.get_num("version", 0);
+				val path_tmp = uri_to_path(uri);
+
+				self.invalidate_dependents(uri, path_tmp);
+				self.docs.set(uri, text, version);
+				val doc_res = self.docs.get_doc(uri);
+				if (doc_res is Document as doc) {
+					self.vfs.set_override(doc.path, doc.text);
+					val analysis = self.get_analysis(doc.uri, doc.path, doc.text);
+					publish_diagnostics_for(doc.uri, analysis);
+				}
+			}
+
+			Method.DID_CHANGE.value -> {
+				val text_doc = params.get_obj("textDocument");
+				val uri = text_doc.get_str("uri", "");
+				val version = text_doc.get_num("version", 0);
+				val changes = params.get_arr("contentChanges");
+				if (changes.arr_val.len > 0) {
+					val new_text = changes.at(0)?.get_str("text", "") ?: "";
+					val path_tmp = uri_to_path(uri);
+					self.invalidate_dependents(uri, path_tmp);
+					self.docs.set(uri, new_text, version);
+					val doc_res = self.docs.get_doc(uri);
+					if (doc_res is Document as doc) {
+						self.vfs.set_override(doc.path, doc.text);
+						val analysis = self.get_analysis(doc.uri, doc.path, doc.text);
+						publish_diagnostics_for(doc.uri, analysis);
+					}
+				}
+			}
+
+			Method.DID_SAVE.value -> {
+				val text_doc = params.get_obj("textDocument");
+				val uri = text_doc.get_str("uri", "");
+				val path_tmp = uri_to_path(uri);
+				self.invalidate_dependents(uri, path_tmp);
+				self.vfs.invalidate_disk(path_tmp);
+				val doc_res = self.docs.get_doc(uri);
+				if (doc_res is Document as doc) {
+					val analysis = self.get_analysis(doc.uri, doc.path, doc.text);
+					publish_diagnostics_for(doc.uri, analysis);
+				}
+			}
+
+			Method.DID_CLOSE.value -> {
+				val text_doc = params.get_obj("textDocument");
+				val uri = text_doc.get_str("uri", "");
+				val path_tmp = uri_to_path(uri);
+				self.invalidate_dependents(uri, path_tmp);
+				self.docs.remove(uri);
+				self.vfs.remove_override(path_tmp);
+				if (self.cache.empty()) self.vfs.flush_retired();
+
+				val p = JsonValue.obj();
+				p["uri"] = JsonValue.str(uri);
+				p["diagnostics"] = JsonValue.arr();
+				send_notification(Method.PUBLISH_DIAGNOSTICS.value, p);
+			}
+
+			Method.DID_CHANGE_WATCHED_FILES.value -> {
+				val changes = params.get_arr("changes");
+				for (i in 0..<changes.arr_val.len) {
+					val ch = changes.at(i) ?: continue;
+					val ch_uri = ch.get_str("uri", "");
+					if (ch_uri.empty()) continue;
+					val ch_path = uri_to_path(ch_uri);
+					self.invalidate_dependents(ch_uri, ch_path);
+					self.vfs.invalidate_disk(ch_path);
+				}
+				if (self.cache.empty()) self.vfs.flush_retired();
+			}
+
+			Method.MEMORY_STATS.value -> {
+				send_response(id, self.memory_stats_json());
+			}
+
+			Method.TRIM_CACHE.value -> {
+				val keep_raw = params.get_num("keep", 1);
+				val keep = if (keep_raw < 0) 0 as usz else keep_raw as usz;
+				self.trim_cache(keep);
+				send_response(id, self.memory_stats_json());
+			}
+
+			Method.HOVER.value -> {
+				val text_doc = params.get_obj("textDocument");
+				val uri = text_doc.get_str("uri", "");
+				val pos = params.get_obj("position");
+				val line = pos.get_num("line", 0) as usz;
+				val char_col = pos.get_num("character", 0) as usz;
+
+				val doc_res = self.docs.get_doc(uri);
+				if (doc_res is Document as doc && !doc.text.empty()) {
+					val analysis = self.get_analysis(doc.uri, doc.path, doc.text);
+					send_response(id, analysis.hover_at(line, char_col));
+				} else {
+					send_response(id, JsonValue.null_val());
+				}
+			}
+
+			Method.DEFINITION.value -> {
+				val text_doc = params.get_obj("textDocument");
+				val uri = text_doc.get_str("uri", "");
+				val pos = params.get_obj("position");
+				val line = pos.get_num("line", 0) as usz;
+				val char_col = pos.get_num("character", 0) as usz;
+
+				val doc_res = self.docs.get_doc(uri);
+				if (doc_res is Document as doc && !doc.text.empty()) {
+					val analysis = self.get_analysis(doc.uri, doc.path, doc.text);
+					send_response(id, analysis.definition_at(doc.uri, line, char_col));
+				} else {
+					send_response(id, JsonValue.null_val());
+				}
+			}
+
+			Method.REFERENCES.value -> {
+				val text_doc = params.get_obj("textDocument");
+				val uri = text_doc.get_str("uri", "");
+				val pos = params.get_obj("position");
+				val line = pos.get_num("line", 0) as usz;
+				val char_col = pos.get_num("character", 0) as usz;
+				val ctx = params.get_obj("context");
+				val include_decl = ctx["includeDeclaration"]?.bool_val ?: true;
+
+				val doc_res = self.docs.get_doc(uri);
+				if (doc_res is Document as doc && !doc.text.empty()) {
+					val analysis = self.get_analysis(doc.uri, doc.path, doc.text, true);
+					send_response(id, find_references_json(&analysis.index, doc.path, line, char_col, include_decl));
+				} else {
+					send_response(id, JsonValue.arr());
+				}
+			}
+
+			Method.DOCUMENT_HIGHLIGHT.value -> {
+				val text_doc = params.get_obj("textDocument");
+				val uri = text_doc.get_str("uri", "");
+				val pos = params.get_obj("position");
+				val line = pos.get_num("line", 0) as usz;
+				val char_col = pos.get_num("character", 0) as usz;
+
+				val doc_res = self.docs.get_doc(uri);
+				if (doc_res is Document as doc && !doc.text.empty()) {
+					val analysis = self.get_analysis(doc.uri, doc.path, doc.text);
+					send_response(id, analysis.document_highlights(line, char_col));
+				} else {
+					send_response(id, JsonValue.arr());
+				}
+			}
+
+			Method.PREPARE_RENAME.value -> {
+				val text_doc = params.get_obj("textDocument");
+				val uri = text_doc.get_str("uri", "");
+				val pos = params.get_obj("position");
+				val line = pos.get_num("line", 0) as usz;
+				val char_col = pos.get_num("character", 0) as usz;
+
+				val doc_res = self.docs.get_doc(uri);
+				if (doc_res is Document as doc && !doc.text.empty()) {
+					val analysis = self.get_analysis(doc.uri, doc.path, doc.text, true);
+					send_response(id, prepare_rename_json(&analysis.index, doc.path, line, char_col));
+				} else {
+					send_response(id, JsonValue.null_val());
+				}
+			}
+
+			Method.RENAME.value -> {
+				val text_doc = params.get_obj("textDocument");
+				val uri = text_doc.get_str("uri", "");
+				val pos = params.get_obj("position");
+				val line = pos.get_num("line", 0) as usz;
+				val char_col = pos.get_num("character", 0) as usz;
+				val new_name = params.get_str("newName", "");
+
+				val doc_res = self.docs.get_doc(uri);
+				if (doc_res is Document as doc && !doc.text.empty() && !new_name.empty()) {
+					val analysis = self.get_analysis(doc.uri, doc.path, doc.text, true);
+					send_response(id, rename_symbol_json(&analysis.index, doc.path, line, char_col, new_name));
+				} else {
+					send_response(id, JsonValue.null_val());
+				}
+			}
+
+			Method.CODE_ACTION.value -> {
+				val text_doc = params.get_obj("textDocument");
+				val uri = text_doc.get_str("uri", "");
+				val range = params.get_obj("range");
+				val s_pos = range.get_obj("start");
+				val e_pos = range.get_obj("end");
+				val s_line = s_pos.get_num("line", 0) as usz;
+				val s_col = s_pos.get_num("character", 0) as usz;
+				val e_line = e_pos.get_num("line", 0) as usz;
+				val e_col = e_pos.get_num("character", 0) as usz;
+				val ctx = params.get_obj("context");
+				val diags = ctx.get_arr("diagnostics");
+
+				val doc_res = self.docs.get_doc(uri);
+				if (doc_res is Document as doc && !doc.text.empty()) {
+					val analysis = self.get_analysis(doc.uri, doc.path, doc.text);
+					send_response(
+						id,
+						code_actions_json(
+							&analysis.index, analysis.tokens, doc.path, doc.text,
+							s_line, s_col, e_line, e_col, diags, &analysis.lint_fixes
+						)
+					);
+				} else {
+					send_response(id, JsonValue.arr());
+				}
+			}
+
+			Method.SIGNATURE_HELP.value -> {
+				val text_doc = params.get_obj("textDocument");
+				val uri = text_doc.get_str("uri", "");
+				val pos = params.get_obj("position");
+				val line = pos.get_num("line", 0) as usz;
+				val char_col = pos.get_num("character", 0) as usz;
+
+				val doc_res = self.docs.get_doc(uri);
+				if (doc_res is Document as doc && !doc.text.empty()) {
+					val analysis = self.get_analysis(doc.uri, doc.path, doc.text);
+					send_response(id, analysis.signature_help_at(line, char_col));
+				} else {
+					send_response(id, JsonValue.null_val());
+				}
+			}
+
+			Method.FORMATTING.value -> {
+				val text_doc = params.get_obj("textDocument");
+				val uri = text_doc.get_str("uri", "");
+				val doc_res = self.docs.get_doc(uri);
+				if (doc_res is Document as doc) {
+					val tmp_arena = Arena(65536);
+					send_response(id, AnalysisResult.format_document_with_arena(doc.text, tmp_arena));
+				} else {
+					send_response(id, JsonValue.arr());
+				}
+			}
+
+			Method.DOCUMENT_SYMBOL.value -> {
+				val text_doc = params.get_obj("textDocument");
+				val uri = text_doc.get_str("uri", "");
+				val doc_res = self.docs.get_doc(uri);
+				if (doc_res is Document as doc) {
+					val tmp_arena = Arena(65536);
+					send_response(id, AnalysisResult.document_symbols_with_arena(doc.text, tmp_arena));
+				} else {
+					send_response(id, JsonValue.arr());
+				}
+			}
+
+			Method.WORKSPACE_SYMBOL.value -> {
+				val query = params.get_str("query", "");
+				if (!self.cache.empty()) {
+					val last_idx = self.cache.len - 1;
+					send_response(id, self.cache.data[last_idx].analysis.workspace_symbols(query));
+				} else {
+					val entry = resolve_project_entry(self.workspace_root);
+					if (!entry.empty()) {
+						val src = self.vfs.read_file(entry) !: "";
+						if (!src.empty()) {
+							val ruleset = self.ensure_kblint_rules();
+							val a = AnalysisResult(entry, src, self.workspace_root, true, ruleset, &self.vfs);
+							send_response(id, a.workspace_symbols(query));
+						} else {
+							send_response(id, JsonValue.arr());
+						}
+					} else {
+						send_response(id, JsonValue.arr());
+					}
+				}
+			}
+
+			Method.COMPLETION.value -> {
+				val text_doc = params.get_obj("textDocument");
+				val uri = text_doc.get_str("uri", "");
+				val pos = params.get_obj("position");
+				val line = pos.get_num("line", 0) as usz;
+				val char_col = pos.get_num("character", 0) as usz;
+				val doc_res = self.docs.get_doc(uri);
+				if (doc_res is Document as doc) {
+					val analysis = self.get_analysis(doc.uri, doc.path, doc.text);
+					send_response(id, analysis.complete_at(line, char_col));
+				} else {
+					val empty_analysis = AnalysisResult("", "", self.workspace_root);
+					send_response(id, empty_analysis.complete_at(0, 0));
+				}
+			}
+
+			Method.INLAY_HINT.value -> {
+				val uri = params.get_obj("textDocument").get_str("uri", "");
+				val range_obj = params.get_obj("range");
+				val s_line = range_obj.get_obj("start").get_num("line", 0) as usz;
+				val e_line = range_obj.get_obj("end").get_num("line", 999999) as usz;
+				val doc_res = self.docs.get_doc(uri);
+				if (doc_res is Document as doc) {
+					val analysis = self.get_analysis(doc.uri, doc.path, doc.text);
+					send_response(id, analysis.inlay_hints(s_line, e_line));
+				} else {
+					send_response(id, JsonValue.arr());
+				}
+			}
+
+			else -> if (id != null && !id.is_null()) send_error(id, -32601, "Method '${method}' not found");
+		}
+		return true;
 	}
 
 	pub fn run(&self) {
 		init_stdio();
 
 		while (true) {
-			val raw_msg = read_message() !: err -> {
-				if (err is ProtocolErr.EndOfStream) break;
-				continue;
-			};
-
-			val msg = JsonValue.parse(raw_msg) !: continue;
-			defer JsonValue.free_tree(msg);
-			if (!msg.is_obj()) continue;
-
-			val method = msg.get_str("method", "");
-			val id = msg["id"];
-			val params = msg.get_obj("params");
-
-			when (method) {
-				Method.INITIALIZE.value -> {
-					val root_uri = params.get_str("rootUri", "");
-					if (!root_uri.empty()) {
-						self.workspace_root = uri_to_path(root_uri);
-					} else {
-						val root_path = params.get_str("rootPath", "");
-						if (!root_path.empty()) {
-							self.workspace_root = root_path;
-						} else {
-							val wf = params.get_arr("workspaceFolders");
-							val wf_uri = wf.at(0)?.get_str("uri", "") ?: "";
-							if (!wf_uri.empty()) self.workspace_root = uri_to_path(wf_uri);
-						}
-					}
-
-					val res = JsonValue.obj();
-					val caps = JsonValue.obj();
-
-					caps["textDocumentSync"] = JsonValue.num(1);
-					caps["hoverProvider"] = JsonValue.bool(true);
-					caps["definitionProvider"] = JsonValue.bool(true);
-					caps["referencesProvider"] = JsonValue.bool(true);
-					caps["documentHighlightProvider"] = JsonValue.bool(true);
-					caps["documentFormattingProvider"] = JsonValue.bool(true);
-					caps["documentSymbolProvider"] = JsonValue.bool(true);
-					caps["workspaceSymbolProvider"] = JsonValue.bool(true);
-					caps["inlayHintProvider"] = JsonValue.bool(true);
-
-					val rename_opts = JsonValue.obj();
-					rename_opts["prepareProvider"] = JsonValue.bool(true);
-					caps["renameProvider"] = rename_opts;
-
-					val ca_opts = JsonValue.obj();
-					val ca_kinds = JsonValue.arr();
-					ca_kinds += JsonValue.str("quickfix");
-					ca_kinds += JsonValue.str("refactor");
-					ca_kinds += JsonValue.str("refactor.rewrite");
-					ca_kinds += JsonValue.str("source.organizeImports");
-					ca_opts["codeActionKinds"] = ca_kinds;
-					caps["codeActionProvider"] = ca_opts;
-
-					val sig_opts = JsonValue.obj();
-					val sig_triggers = JsonValue.arr();
-					sig_triggers += JsonValue.str("(");
-					sig_triggers += JsonValue.str(",");
-					sig_opts["triggerCharacters"] = sig_triggers;
-					caps["signatureHelpProvider"] = sig_opts;
-
-					val comp = JsonValue.obj();
-					val triggers = JsonValue.arr();
-					triggers += JsonValue.str(".");
-					triggers += JsonValue.str(":");
-					triggers += JsonValue.str("(");
-					comp["triggerCharacters"] = triggers;
-					caps["completionProvider"] = comp;
-
-					val server_info = JsonValue.obj();
-					server_info["name"] = JsonValue.str("kobel-lsp");
-					server_info["version"] = JsonValue.str("2.0.0");
-
-					res["capabilities"] = caps;
-					res["serverInfo"] = server_info;
-					send_response(id, res);
-				}
-
-				Method.INITIALIZED.value -> {}
-
-				Method.SHUTDOWN.value -> {
-					self.is_shutdown = true;
-					self.invalidate_cache();
-					self.arena.reset();
-					send_response(id, JsonValue.null_val());
-				}
-
-				Method.EXIT.value -> {
-					self.invalidate_cache();
-					self.arena.free();
-					if (self.is_shutdown) Process.exit(0);
-					Process.exit(1);
-				}
-
-				Method.DID_OPEN.value -> {
-					val text_doc = params.get_obj("textDocument");
-					val uri = text_doc.get_str("uri", "");
-					val text = text_doc.get_str("text", "");
-					val version = text_doc.get_num("version", 0);
-
-					self.docs.set(uri, text, version);
-					self.invalidate_uri(uri);
-					val doc_res = self.docs.get_doc(uri);
-					if (doc_res is Document as doc) {
-						val analysis = self.get_analysis(uri, doc.path, text);
-						publish_diagnostics_for(uri, analysis);
-					}
-				}
-
-				Method.DID_CHANGE.value -> {
-					val text_doc = params.get_obj("textDocument");
-					val uri = text_doc.get_str("uri", "");
-					val version = text_doc.get_num("version", 0);
-					val changes = params.get_arr("contentChanges");
-					if (changes.arr_val.len > 0) {
-						val new_text = changes.at(0)?.get_str("text", "") ?: "";
-						self.docs.set(uri, new_text, version);
-						self.invalidate_cache();
-						val doc_res = self.docs.get_doc(uri);
-						if (doc_res is Document as doc) {
-							val analysis = self.get_analysis(uri, doc.path, new_text);
-							publish_diagnostics_for(uri, analysis);
-						}
-					}
-				}
-
-				Method.DID_SAVE.value -> {
-					val text_doc = params.get_obj("textDocument");
-					val uri = text_doc.get_str("uri", "");
-					self.invalidate_cache();
-					val doc_res = self.docs.get_doc(uri);
-					if (doc_res is Document as doc) {
-						val analysis = self.get_analysis(uri, doc.path, doc.text);
-						publish_diagnostics_for(uri, analysis);
-					}
-				}
-
-				Method.DID_CLOSE.value -> {
-					val text_doc = params.get_obj("textDocument");
-					val uri = text_doc.get_str("uri", "");
-					self.docs.remove(uri);
-					self.invalidate_uri(uri);
-
-					val p = JsonValue.obj();
-					p["uri"] = JsonValue.str(uri);
-					p["diagnostics"] = JsonValue.arr();
-					send_notification(Method.PUBLISH_DIAGNOSTICS.value, p);
-				}
-
-				Method.HOVER.value -> {
-					val text_doc = params.get_obj("textDocument");
-					val uri = text_doc.get_str("uri", "");
-					val pos = params.get_obj("position");
-					val line = pos.get_num("line", 0) as usz;
-					val char_col = pos.get_num("character", 0) as usz;
-
-					val doc_res = self.docs.get_doc(uri);
-					if (doc_res is Document as doc && !doc.text.empty()) {
-						val analysis = self.get_analysis(uri, doc.path, doc.text);
-						send_response(id, analysis.hover_at(line, char_col));
-					} else {
-						send_response(id, JsonValue.null_val());
-					}
-				}
-
-				Method.DEFINITION.value -> {
-					val text_doc = params.get_obj("textDocument");
-					val uri = text_doc.get_str("uri", "");
-					val pos = params.get_obj("position");
-					val line = pos.get_num("line", 0) as usz;
-					val char_col = pos.get_num("character", 0) as usz;
-
-					val doc_res = self.docs.get_doc(uri);
-					if (doc_res is Document as doc && !doc.text.empty()) {
-						val analysis = self.get_analysis(uri, doc.path, doc.text);
-						send_response(id, analysis.definition_at(uri, line, char_col));
-					} else {
-						send_response(id, JsonValue.null_val());
-					}
-				}
-
-				Method.REFERENCES.value -> {
-					val text_doc = params.get_obj("textDocument");
-					val uri = text_doc.get_str("uri", "");
-					val pos = params.get_obj("position");
-					val line = pos.get_num("line", 0) as usz;
-					val char_col = pos.get_num("character", 0) as usz;
-					val ctx = params.get_obj("context");
-					val include_decl = ctx["includeDeclaration"]?.bool_val ?: true;
-
-					val doc_res = self.docs.get_doc(uri);
-					if (doc_res is Document as doc && !doc.text.empty()) {
-						val analysis = self.get_analysis(uri, doc.path, doc.text, true);
-						send_response(id, find_references_json(&analysis.index, doc.path, line, char_col, include_decl));
-					} else {
-						send_response(id, JsonValue.arr());
-					}
-				}
-
-				Method.DOCUMENT_HIGHLIGHT.value -> {
-					val text_doc = params.get_obj("textDocument");
-					val uri = text_doc.get_str("uri", "");
-					val pos = params.get_obj("position");
-					val line = pos.get_num("line", 0) as usz;
-					val char_col = pos.get_num("character", 0) as usz;
-
-					val doc_res = self.docs.get_doc(uri);
-					if (doc_res is Document as doc && !doc.text.empty()) {
-						val analysis = self.get_analysis(uri, doc.path, doc.text);
-						send_response(id, analysis.document_highlights(line, char_col));
-					} else {
-						send_response(id, JsonValue.arr());
-					}
-				}
-
-				Method.PREPARE_RENAME.value -> {
-					val text_doc = params.get_obj("textDocument");
-					val uri = text_doc.get_str("uri", "");
-					val pos = params.get_obj("position");
-					val line = pos.get_num("line", 0) as usz;
-					val char_col = pos.get_num("character", 0) as usz;
-
-					val doc_res = self.docs.get_doc(uri);
-					if (doc_res is Document as doc && !doc.text.empty()) {
-						val analysis = self.get_analysis(uri, doc.path, doc.text, true);
-						send_response(id, prepare_rename_json(&analysis.index, doc.path, line, char_col));
-					} else {
-						send_response(id, JsonValue.null_val());
-					}
-				}
-
-				Method.RENAME.value -> {
-					val text_doc = params.get_obj("textDocument");
-					val uri = text_doc.get_str("uri", "");
-					val pos = params.get_obj("position");
-					val line = pos.get_num("line", 0) as usz;
-					val char_col = pos.get_num("character", 0) as usz;
-					val new_name = params.get_str("newName", "");
-
-					val doc_res = self.docs.get_doc(uri);
-					if (doc_res is Document as doc && !doc.text.empty() && !new_name.empty()) {
-						val analysis = self.get_analysis(uri, doc.path, doc.text, true);
-						send_response(id, rename_symbol_json(&analysis.index, doc.path, line, char_col, new_name));
-					} else {
-						send_response(id, JsonValue.null_val());
-					}
-				}
-
-				Method.CODE_ACTION.value -> {
-					val text_doc = params.get_obj("textDocument");
-					val uri = text_doc.get_str("uri", "");
-					val range = params.get_obj("range");
-					val s_pos = range.get_obj("start");
-					val e_pos = range.get_obj("end");
-					val s_line = s_pos.get_num("line", 0) as usz;
-					val s_col = s_pos.get_num("character", 0) as usz;
-					val e_line = e_pos.get_num("line", 0) as usz;
-					val e_col = e_pos.get_num("character", 0) as usz;
-					val ctx = params.get_obj("context");
-					val diags = ctx.get_arr("diagnostics");
-
-					val doc_res = self.docs.get_doc(uri);
-					if (doc_res is Document as doc && !doc.text.empty()) {
-						val analysis = self.get_analysis(uri, doc.path, doc.text);
-						send_response(
-							id,
-							code_actions_json(
-								&analysis.index, analysis.tokens, doc.path, doc.text,
-								s_line, s_col, e_line, e_col, diags, &analysis.lint_fixes
-							)
-						);
-					} else {
-						send_response(id, JsonValue.arr());
-					}
-				}
-
-				Method.SIGNATURE_HELP.value -> {
-					val text_doc = params.get_obj("textDocument");
-					val uri = text_doc.get_str("uri", "");
-					val pos = params.get_obj("position");
-					val line = pos.get_num("line", 0) as usz;
-					val char_col = pos.get_num("character", 0) as usz;
-
-					val doc_res = self.docs.get_doc(uri);
-					if (doc_res is Document as doc && !doc.text.empty()) {
-						val analysis = self.get_analysis(uri, doc.path, doc.text);
-						send_response(id, analysis.signature_help_at(line, char_col));
-					} else {
-						send_response(id, JsonValue.null_val());
-					}
-				}
-
-				Method.FORMATTING.value -> {
-					val text_doc = params.get_obj("textDocument");
-					val uri = text_doc.get_str("uri", "");
-					val doc_res = self.docs.get_doc(uri);
-					if (doc_res is Document as doc) {
-						send_response(id, AnalysisResult.format_document_with_arena(doc.text, self.arena));
-						self.arena.reset();
-					} else {
-						send_response(id, JsonValue.arr());
-					}
-				}
-
-				Method.DOCUMENT_SYMBOL.value -> {
-					val text_doc = params.get_obj("textDocument");
-					val uri = text_doc.get_str("uri", "");
-					val doc_res = self.docs.get_doc(uri);
-					if (doc_res is Document as doc) {
-						send_response(id, AnalysisResult.document_symbols_with_arena(doc.text, self.arena));
-						self.arena.reset();
-					} else {
-						send_response(id, JsonValue.arr());
-					}
-				}
-
-				Method.WORKSPACE_SYMBOL.value -> {
-					val query = params.get_str("query", "");
-					if (!self.cache.empty()) {
-						val last_idx = self.cache.len - 1;
-						send_response(id, self.cache.data[last_idx].analysis.workspace_symbols(query));
-					} else {
-						val entry = resolve_project_entry(self.workspace_root);
-						if (!entry.empty()) {
-							val src = Path(entry).read_text() !: "";
-							if (!src.empty()) {
-								var a = AnalysisResult(entry, src, self.workspace_root, true);
-								defer a.free();
-								send_response(id, a.workspace_symbols(query));
-							} else {
-								send_response(id, JsonValue.arr());
-							}
-						} else {
-							send_response(id, JsonValue.arr());
-						}
-					}
-				}
-
-				Method.COMPLETION.value -> {
-					val text_doc = params.get_obj("textDocument");
-					val uri = text_doc.get_str("uri", "");
-					val pos = params.get_obj("position");
-					val line = pos.get_num("line", 0) as usz;
-					val char_col = pos.get_num("character", 0) as usz;
-					val doc_res = self.docs.get_doc(uri);
-					if (doc_res is Document as doc) {
-						val analysis = self.get_analysis(uri, doc.path, doc.text);
-						send_response(id, analysis.complete_at(line, char_col));
-					} else {
-						var empty_analysis = AnalysisResult("", "", self.workspace_root);
-						defer empty_analysis.free();
-						send_response(id, empty_analysis.complete_at(0, 0));
-					}
-				}
-
-				Method.INLAY_HINT.value -> {
-					val uri = params.get_obj("textDocument").get_str("uri", "");
-					val range_obj = params.get_obj("range");
-					val s_line = range_obj.get_obj("start").get_num("line", 0) as usz;
-					val e_line = range_obj.get_obj("end").get_num("line", 999999) as usz;
-					val doc_res = self.docs.get_doc(uri);
-					if (doc_res is Document as doc) {
-						val analysis = self.get_analysis(uri, doc.path, doc.text);
-						send_response(id, analysis.inlay_hints(s_line, e_line));
-					} else {
-						send_response(id, JsonValue.arr());
-					}
-				}
-
-				else -> if (id != null && !id.is_null()) send_error(id, -32601, "Method '${method}' not found");
-			}
+			val prev_pool = self.req_pool.push();
+			val keep_running = self.handle_one_message();
+			HeapPool.pop(prev_pool);
+			self.req_pool.reset();
+			if (!keep_running) break;
 		}
 
-		self.invalidate_cache();
-		self.arena.free();
+		self.cleanup_all();
 	}
 
 }

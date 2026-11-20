@@ -13,6 +13,12 @@
 #include <fcntl.h>
 #include <direct.h>
 #include <sys/stat.h>
+__declspec(dllimport) void* __stdcall HeapCreate(uint32_t flOptions, size_t dwInitialSize, size_t dwMaximumSize);
+__declspec(dllimport) int __stdcall HeapDestroy(void* hHeap);
+__declspec(dllimport) void* __stdcall HeapAlloc(void* hHeap, uint32_t dwFlags, size_t dwBytes);
+__declspec(dllimport) void* __stdcall HeapReAlloc(void* hHeap, uint32_t dwFlags, void* lpMem, size_t dwBytes);
+__declspec(dllimport) int __stdcall HeapFree(void* hHeap, uint32_t dwFlags, void* lpMem);
+#define KOBEL_HEAP_NO_SERIALIZE 0x00000001u
 #else
 #include <dirent.h>
 #include <sys/stat.h>
@@ -30,6 +36,220 @@ typedef struct {
 	void* env;
 } kobel_closure;
 
+/* Scoped heap pool allocator: routes every Kobel allocation to the active pool
+ * (or the default CRT heap when NULL) while tagging each block with its owner
+ * pool so cross-pool realloc/free is always safe. */
+typedef struct kobel_heap_pool kobel_heap_pool;
+#ifdef _WIN32
+typedef struct {
+	kobel_heap_pool* pool;
+	size_t size;
+} kobel_alloc_hdr;
+
+struct kobel_heap_pool {
+	void* hHeap;
+	size_t live_bytes;
+	size_t alloc_count;
+};
+#else
+typedef struct kobel_alloc_hdr {
+	kobel_heap_pool* pool;
+	size_t size;
+	struct kobel_alloc_hdr* prev;
+	struct kobel_alloc_hdr* next;
+} kobel_alloc_hdr;
+
+struct kobel_heap_pool {
+	kobel_alloc_hdr* head;
+	size_t live_bytes;
+	size_t alloc_count;
+};
+#endif
+
+static kobel_heap_pool* kobel_active_pool = NULL;
+static size_t kobel_default_live_bytes = 0;
+
+static uint8_t* kobel_null_ptr(void) {
+	return NULL;
+}
+
+static size_t kobel_default_heap_bytes(void) {
+	return kobel_default_live_bytes;
+}
+
+static uint8_t* kobel_pool_create(void) {
+	kobel_heap_pool* p = (kobel_heap_pool*)malloc(sizeof(kobel_heap_pool));
+	if (!p) return NULL;
+#ifdef _WIN32
+	p->hHeap = HeapCreate(KOBEL_HEAP_NO_SERIALIZE, 0, 0);
+	if (!p->hHeap) {
+		free(p);
+		return NULL;
+	}
+#else
+	p->head = NULL;
+#endif
+	p->live_bytes = 0;
+	p->alloc_count = 0;
+	return (uint8_t*)p;
+}
+
+static void kobel_pool_destroy(uint8_t* raw) {
+	if (!raw) return;
+	kobel_heap_pool* p = (kobel_heap_pool*)raw;
+	if (kobel_active_pool == p) kobel_active_pool = NULL;
+#ifdef _WIN32
+	if (p->hHeap) HeapDestroy(p->hHeap);
+#else
+	kobel_alloc_hdr* cur = p->head;
+	while (cur) {
+		kobel_alloc_hdr* nxt = cur->next;
+		free(cur);
+		cur = nxt;
+	}
+#endif
+	free(p);
+}
+
+static void kobel_pool_reset(uint8_t* raw) {
+	if (!raw) return;
+	kobel_heap_pool* p = (kobel_heap_pool*)raw;
+#ifdef _WIN32
+	if (p->hHeap) HeapDestroy(p->hHeap);
+	p->hHeap = HeapCreate(KOBEL_HEAP_NO_SERIALIZE, 0, 0);
+#else
+	kobel_alloc_hdr* cur = p->head;
+	while (cur) {
+		kobel_alloc_hdr* nxt = cur->next;
+		free(cur);
+		cur = nxt;
+	}
+	p->head = NULL;
+#endif
+	p->live_bytes = 0;
+	p->alloc_count = 0;
+}
+
+static uint8_t* kobel_pool_push(uint8_t* raw) {
+	kobel_heap_pool* prev = kobel_active_pool;
+	kobel_active_pool = (kobel_heap_pool*)raw;
+	return (uint8_t*)prev;
+}
+
+static void kobel_pool_pop(uint8_t* prev) {
+	kobel_active_pool = (kobel_heap_pool*)prev;
+}
+
+static size_t kobel_pool_live_bytes(uint8_t* raw) {
+	if (!raw) return 0;
+	return ((kobel_heap_pool*)raw)->live_bytes;
+}
+
+static uint8_t* kobel_alloc(size_t size) {
+	size_t req = size == 0 ? 1 : size;
+	kobel_heap_pool* p = kobel_active_pool;
+	kobel_alloc_hdr* hdr = NULL;
+	if (p) {
+#ifdef _WIN32
+		if (p->hHeap) hdr = (kobel_alloc_hdr*)HeapAlloc(p->hHeap, 0, sizeof(kobel_alloc_hdr) + req);
+#else
+		hdr = (kobel_alloc_hdr*)malloc(sizeof(kobel_alloc_hdr) + req);
+#endif
+		if (!hdr) return NULL;
+		hdr->pool = p;
+		hdr->size = req;
+#ifndef _WIN32
+		hdr->prev = NULL;
+		hdr->next = p->head;
+		if (p->head) p->head->prev = hdr;
+		p->head = hdr;
+#endif
+		p->live_bytes += req;
+		p->alloc_count++;
+	} else {
+		hdr = (kobel_alloc_hdr*)malloc(sizeof(kobel_alloc_hdr) + req);
+		if (!hdr) return NULL;
+		hdr->pool = NULL;
+		hdr->size = req;
+#ifndef _WIN32
+		hdr->prev = NULL;
+		hdr->next = NULL;
+#endif
+		kobel_default_live_bytes += req;
+	}
+	return (uint8_t*)(hdr + 1);
+}
+
+static uint8_t* kobel_realloc(uint8_t* ptr, size_t size) {
+	if (!ptr) return kobel_alloc(size);
+	size_t req = size == 0 ? 1 : size;
+	kobel_alloc_hdr* old_hdr = ((kobel_alloc_hdr*)ptr) - 1;
+	kobel_heap_pool* p = old_hdr->pool;
+	size_t old_sz = old_hdr->size;
+	if (p) {
+#ifdef _WIN32
+		if (!p->hHeap) return NULL;
+		kobel_alloc_hdr* nh = (kobel_alloc_hdr*)HeapReAlloc(p->hHeap, 0, old_hdr, sizeof(kobel_alloc_hdr) + req);
+		if (!nh) return NULL;
+		nh->pool = p;
+		nh->size = req;
+		p->live_bytes = p->live_bytes - old_sz + req;
+		return (uint8_t*)(nh + 1);
+#else
+		if (old_hdr->prev) old_hdr->prev->next = old_hdr->next;
+		else p->head = old_hdr->next;
+		if (old_hdr->next) old_hdr->next->prev = old_hdr->prev;
+		kobel_alloc_hdr* nh = (kobel_alloc_hdr*)realloc(old_hdr, sizeof(kobel_alloc_hdr) + req);
+		if (!nh) {
+			old_hdr->prev = NULL;
+			old_hdr->next = p->head;
+			if (p->head) p->head->prev = old_hdr;
+			p->head = old_hdr;
+			return NULL;
+		}
+		nh->pool = p;
+		nh->size = req;
+		nh->prev = NULL;
+		nh->next = p->head;
+		if (p->head) p->head->prev = nh;
+		p->head = nh;
+		p->live_bytes = p->live_bytes - old_sz + req;
+		return (uint8_t*)(nh + 1);
+#endif
+	} else {
+		kobel_alloc_hdr* nh = (kobel_alloc_hdr*)realloc(old_hdr, sizeof(kobel_alloc_hdr) + req);
+		if (!nh) return NULL;
+		nh->pool = NULL;
+		nh->size = req;
+		kobel_default_live_bytes = kobel_default_live_bytes - old_sz + req;
+		return (uint8_t*)(nh + 1);
+	}
+}
+
+static void kobel_free(uint8_t* ptr) {
+	if (!ptr) return;
+	kobel_alloc_hdr* hdr = ((kobel_alloc_hdr*)ptr) - 1;
+	kobel_heap_pool* p = hdr->pool;
+	size_t sz = hdr->size;
+	if (p) {
+		if (p->live_bytes >= sz) p->live_bytes -= sz;
+		else p->live_bytes = 0;
+		if (p->alloc_count > 0) p->alloc_count--;
+#ifdef _WIN32
+		if (p->hHeap) HeapFree(p->hHeap, 0, hdr);
+#else
+		if (hdr->prev) hdr->prev->next = hdr->next;
+		else p->head = hdr->next;
+		if (hdr->next) hdr->next->prev = hdr->prev;
+		free(hdr);
+#endif
+	} else {
+		if (kobel_default_live_bytes >= sz) kobel_default_live_bytes -= sz;
+		else kobel_default_live_bytes = 0;
+		free(hdr);
+	}
+}
+
 #define KOBEL_STR(s) ((kobel_str){ (s), sizeof(s) - 1 })
 
 static inline kobel_str kobel_null_str(void) {
@@ -40,10 +260,23 @@ static inline kobel_str kobel_from_cstr(const char* s) {
 	return s ? (kobel_str){ s, strlen(s) } : (kobel_str){ NULL, 0 };
 }
 
+static kobel_str kobel_str_clone(kobel_str s) {
+	if (!s.data || s.len == 0) return KOBEL_STR("");
+	char* r = (char*)kobel_alloc(s.len + 1);
+	if (!r) return KOBEL_STR("");
+	memcpy(r, s.data, s.len);
+	r[s.len] = 0;
+	return (kobel_str){ r, s.len };
+}
+
+static void kobel_str_free(kobel_str s) {
+	if (s.data && s.len > 0) kobel_free((uint8_t*)s.data);
+}
+
 static inline const char* kobel_cstr(kobel_str s) {
 	if (!s.data) return "";
 	if (s.data[s.len] == 0) return s.data;
-	char* r = (char*)malloc(s.len + 1);
+	char* r = (char*)kobel_alloc(s.len + 1);
 	memcpy(r, s.data, s.len);
 	r[s.len] = 0;
 	return r;
@@ -85,7 +318,7 @@ static kobel_str kobel_concat(size_t count, ...) {
 	}
 	va_end(args);
 
-	char* r = (char*)malloc(total + 1);
+	char* r = (char*)kobel_alloc(total + 1);
 	size_t off = 0;
 	va_start(args, count);
 	for (size_t i = 0; i < count; i++) {
@@ -186,6 +419,18 @@ static int kobel_path_is_file(kobel_str p) {
 #else
 	return S_ISREG(st.st_mode);
 #endif
+}
+
+static int64_t kobel_path_mtime(kobel_str p) {
+	kobel_stat_t st;
+	if (!kobel_path_stat(p, &st)) return -1;
+	return (int64_t)st.st_mtime;
+}
+
+static int64_t kobel_path_size(kobel_str p) {
+	kobel_stat_t st;
+	if (!kobel_path_stat(p, &st)) return -1;
+	return (int64_t)st.st_size;
 }
 
 /* Maps C errno values to std.filesystem error kind codes (0 = none/unknown). */
@@ -406,7 +651,7 @@ static kobel_str kobel_fs_list_dir(kobel_str dir_path, int32_t* err_out) {
 
 	size_t cap = 1024;
 	size_t len = 0;
-	char* buf = (char*)malloc(cap);
+	char* buf = (char*)kobel_alloc(cap);
 	if (!buf) {
 		_findclose(handle);
 		if (err_out) *err_out = 7;
@@ -418,9 +663,9 @@ static kobel_str kobel_fs_list_dir(kobel_str dir_path, int32_t* err_out) {
 		size_t nlen = strlen(data.name);
 		while (len + nlen + 2 > cap) {
 			cap *= 2;
-			char* next_buf = (char*)realloc(buf, cap);
+			char* next_buf = (char*)kobel_realloc((uint8_t*)buf, cap);
 			if (!next_buf) {
-				free(buf);
+				kobel_free((uint8_t*)buf);
 				_findclose(handle);
 				if (err_out) *err_out = 7;
 				return (kobel_str){ NULL, 0 };
@@ -456,7 +701,7 @@ static kobel_str kobel_fs_list_dir(kobel_str dir_path, int32_t* err_out) {
 
 	size_t cap = 1024;
 	size_t len = 0;
-	char* buf = (char*)malloc(cap);
+	char* buf = (char*)kobel_alloc(cap);
 	if (!buf) {
 		closedir(d);
 		if (err_out) *err_out = 7;
@@ -469,9 +714,9 @@ static kobel_str kobel_fs_list_dir(kobel_str dir_path, int32_t* err_out) {
 		size_t nlen = strlen(ent->d_name);
 		while (len + nlen + 2 > cap) {
 			cap *= 2;
-			char* next_buf = (char*)realloc(buf, cap);
+			char* next_buf = (char*)kobel_realloc((uint8_t*)buf, cap);
 			if (!next_buf) {
-				free(buf);
+				kobel_free((uint8_t*)buf);
 				closedir(d);
 				if (err_out) *err_out = 7;
 				return (kobel_str){ NULL, 0 };
@@ -880,16 +1125,20 @@ void std__collections__HashSet_str_grow(std__collections__HashSet_str* self);
 void std__collections__HashSet_str_free(std__collections__HashSet_str self);
 bool std__collections__HashSet_str_plus_assign(std__collections__HashSet_str* self, kobel_str key);
 bool std__collections__HashSet_str_contains(std__collections__HashSet_str* self, kobel_str key);
-void std__memory__Heap_free_str(kobel_str* ptr);
-void std__memory__Heap_free_i32(int32_t* ptr);
 uint8_t* std__memory__Heap_create_u8(size_t count);
 __kobel_eu_mut_ptr_u8__std__memory__MemErr std__memory__Heap_try_create_u8(size_t count);
+kobel_str* std__memory__Heap_null_ptr_str(void);
 kobel_str* std__memory__Heap_create_str(size_t count);
 __kobel_eu_mut_ptr_str__std__memory__MemErr std__memory__Heap_try_create_str(size_t count);
 kobel_str* std__memory__Heap_resize_str(kobel_str* ptr, size_t count);
 __kobel_eu_mut_ptr_str__std__memory__MemErr std__memory__Heap_try_resize_str(kobel_str* ptr, size_t count);
+void std__memory__Heap_free_str(kobel_str* ptr);
+int32_t* std__memory__Heap_null_ptr_i32(void);
 int32_t* std__memory__Heap_create_i32(size_t count);
 __kobel_eu_mut_ptr_i32__std__memory__MemErr std__memory__Heap_try_create_i32(size_t count);
+void std__memory__Heap_free_i32(int32_t* ptr);
+size_t* std__memory__Heap_null_ptr_usz(void);
+bool* std__memory__Heap_null_ptr_bool(void);
 size_t* std__memory__Heap_create_usz(size_t count);
 __kobel_eu_mut_ptr_usz__std__memory__MemErr std__memory__Heap_try_create_usz(size_t count);
 bool* std__memory__Heap_create_bool(size_t count);
@@ -937,8 +1186,8 @@ size_t str_hash(kobel_str self) {
 
 __kobel_eu_mut_ptr_u8__std__memory__MemErr std__memory__Heap_try_alloc(size_t size) {
 size_t req = size == 0 ? 1 : size;
-uint8_t* __eu_elvis_1 = malloc(req);
-return __eu_elvis_1 != NULL ? (__kobel_eu_mut_ptr_u8__std__memory__MemErr){ .is_ok = true, .u = { .ok = __eu_elvis_1 } } : (__kobel_eu_mut_ptr_u8__std__memory__MemErr){ .is_ok = false, .u = { .err = (std__memory__MemErr){ .tag = 0, .__err_code = 1U, .__origin = { "lib/std/memory/heap.kb", 24, 31, "Heap_try_alloc" } } } };
+uint8_t* __eu_elvis_1 = kobel_alloc(req);
+return __eu_elvis_1 != NULL ? (__kobel_eu_mut_ptr_u8__std__memory__MemErr){ .is_ok = true, .u = { .ok = __eu_elvis_1 } } : (__kobel_eu_mut_ptr_u8__std__memory__MemErr){ .is_ok = false, .u = { .err = (std__memory__MemErr){ .tag = 0, .__err_code = 1U, .__origin = { "lib/std/memory/heap.kb", 28, 36, "Heap_try_alloc" } } } };
 }
 
 kobel_str std__string__str_from_bytes(uint8_t* buf, size_t len) {
@@ -1910,7 +2159,7 @@ std__collections__List_str_free(list);
 return __ret_tmp;
 }
 }
-std__collections__HashMap_str_i32 map = std__collections__HashMap_str_i32_init(16);
+std__collections__HashMap_str_i32 map = std__collections__HashMap_str_i32_init(0);
 std__collections__HashMap_str_i32_set(&map, KOBEL_STR("k1"), 10);
 if (!std__collections__HashMap_str_i32_contains(&map, KOBEL_STR("k1"))) {
 {
@@ -1928,7 +2177,7 @@ std__collections__List_str_free(list);
 return __ret_tmp;
 }
 }
-std__collections__HashSet_str set = std__collections__HashSet_str_init(16);
+std__collections__HashSet_str set = std__collections__HashSet_str_init(0);
 std__collections__HashSet_str_plus_assign(&set, KOBEL_STR("alpha"));
 if (!std__collections__HashSet_str_contains(&set, KOBEL_STR("alpha"))) {
 {
@@ -2025,6 +2274,9 @@ int main(void) {
 }
 
 std__collections__List_str std__collections__List_str_init(kobel_str* items_data, size_t items_len) {
+if (items_len == 0) {
+return (std__collections__List_str){ std__memory__Heap_null_ptr_str(), 0, 0 };
+}
 size_t cap = items_len < 4 ? 4 : items_len;
 kobel_str* buf = std__memory__Heap_create_str(cap);
 {
@@ -2067,6 +2319,11 @@ self->len++;
 }
 
 void std__collections__List_str_grow(std__collections__List_str* self) {
+if (self->cap == 0) {
+self->data = std__memory__Heap_create_str(4);
+self->cap = 4;
+return;
+}
 size_t new_cap = self->cap * 2;
 self->data = std__memory__Heap_resize_str(self->data, new_cap);
 self->cap = new_cap;
@@ -2103,11 +2360,13 @@ __for_i = __for_i - 1;
 }
 }
 }
-return (__kobel_eu_usz__std__collections__CollectionErr){ .is_ok = false, .u = { .err = (std__collections__CollectionErr){ .tag = 0, .__err_code = 2U, .__origin = { "lib/std/collections/list.kb", 155, 23, "List_str_index_of" } } } };
+return (__kobel_eu_usz__std__collections__CollectionErr){ .is_ok = false, .u = { .err = (std__collections__CollectionErr){ .tag = 0, .__err_code = 2U, .__origin = { "lib/std/collections/list.kb", 163, 23, "List_str_index_of" } } } };
 }
 
 void std__collections__List_str_free(std__collections__List_str self) {
-    std__memory__Heap_free_str(self.data);
+if (self.cap > 0) {
+std__memory__Heap_free_str(self.data);
+}
 }
 
 bool std__collections__List_str_contains(std__collections__List_str* self, kobel_str value) {
@@ -2127,6 +2386,9 @@ kobel_str std__collections__Array_str_get(std__collections__Array_str* self, siz
 }
 
 std__collections__HashMap_str_i32 std__collections__HashMap_str_i32_init(size_t init_cap) {
+if (init_cap == 0) {
+return (std__collections__HashMap_str_i32){ std__memory__Heap_null_ptr_str(), std__memory__Heap_null_ptr_i32(), std__memory__Heap_null_ptr_usz(), std__memory__Heap_null_ptr_bool(), 0, 0 };
+}
 size_t cap = init_cap;
 if (cap < 8) {
 cap = 8;
@@ -2301,6 +2563,9 @@ return false;
 }
 
 std__collections__HashSet_str std__collections__HashSet_str_init(size_t init_cap) {
+if (init_cap == 0) {
+return (std__collections__HashSet_str){ std__memory__Heap_null_ptr_str(), std__memory__Heap_null_ptr_usz(), std__memory__Heap_null_ptr_bool(), 0, 0 };
+}
 size_t cap = init_cap;
 if (cap < 8) {
 cap = 8;
@@ -2470,16 +2735,8 @@ idx = (idx + 1) % self->cap;
 return false;
 }
 
-void std__memory__Heap_free_str(kobel_str* ptr) {
-    free((uint8_t*)ptr);
-}
-
-void std__memory__Heap_free_i32(int32_t* ptr) {
-    free((uint8_t*)ptr);
-}
-
 uint8_t* std__memory__Heap_create_u8(size_t count) {
-    return __kobel_unwrap___kobel_eu_mut_ptr_u8__std__memory__MemErr(std__memory__Heap_try_create_u8(count), "lib/std/memory/heap.kb", 43, 63, "Heap_create_u8");
+    return __kobel_unwrap___kobel_eu_mut_ptr_u8__std__memory__MemErr(std__memory__Heap_try_create_u8(count), "lib/std/memory/heap.kb", 47, 63, "Heap_create_u8");
 }
 
 __kobel_eu_mut_ptr_u8__std__memory__MemErr std__memory__Heap_try_create_u8(size_t count) {
@@ -2492,8 +2749,12 @@ uint8_t* raw = __eu_prop_2.u.ok;
 return (__kobel_eu_mut_ptr_u8__std__memory__MemErr){ .is_ok = true, .u = { .ok = (uint8_t*)raw } };
 }
 
+kobel_str* std__memory__Heap_null_ptr_str(void) {
+    return (kobel_str*)kobel_null_ptr();
+}
+
 kobel_str* std__memory__Heap_create_str(size_t count) {
-    return __kobel_unwrap___kobel_eu_mut_ptr_str__std__memory__MemErr(std__memory__Heap_try_create_str(count), "lib/std/memory/heap.kb", 43, 63, "Heap_create_str");
+    return __kobel_unwrap___kobel_eu_mut_ptr_str__std__memory__MemErr(std__memory__Heap_try_create_str(count), "lib/std/memory/heap.kb", 47, 63, "Heap_create_str");
 }
 
 __kobel_eu_mut_ptr_str__std__memory__MemErr std__memory__Heap_try_create_str(size_t count) {
@@ -2507,21 +2768,29 @@ return (__kobel_eu_mut_ptr_str__std__memory__MemErr){ .is_ok = true, .u = { .ok 
 }
 
 kobel_str* std__memory__Heap_resize_str(kobel_str* ptr, size_t count) {
-    return __kobel_unwrap___kobel_eu_mut_ptr_str__std__memory__MemErr(std__memory__Heap_try_resize_str(ptr, count), "lib/std/memory/heap.kb", 53, 73, "Heap_resize_str");
+    return __kobel_unwrap___kobel_eu_mut_ptr_str__std__memory__MemErr(std__memory__Heap_try_resize_str(ptr, count), "lib/std/memory/heap.kb", 57, 73, "Heap_resize_str");
 }
 
 __kobel_eu_mut_ptr_str__std__memory__MemErr std__memory__Heap_try_resize_str(kobel_str* ptr, size_t count) {
 size_t bytes = count * 16;
 size_t req = bytes == 0 ? 1 : bytes;
-uint8_t* raw = realloc((uint8_t*)ptr, req);
+uint8_t* raw = kobel_realloc((uint8_t*)ptr, req);
 if (raw == NULL) {
-return (__kobel_eu_mut_ptr_str__std__memory__MemErr){ .is_ok = false, .u = { .err = (std__memory__MemErr){ .tag = 0, .__err_code = 1U, .__origin = { "lib/std/memory/heap.kb", 38, 54, "Heap_try_resize_str" } } } };
+return (__kobel_eu_mut_ptr_str__std__memory__MemErr){ .is_ok = false, .u = { .err = (std__memory__MemErr){ .tag = 0, .__err_code = 1U, .__origin = { "lib/std/memory/heap.kb", 42, 60, "Heap_try_resize_str" } } } };
 }
 return (__kobel_eu_mut_ptr_str__std__memory__MemErr){ .is_ok = true, .u = { .ok = (kobel_str*)raw } };
 }
 
+void std__memory__Heap_free_str(kobel_str* ptr) {
+    kobel_free((uint8_t*)ptr);
+}
+
+int32_t* std__memory__Heap_null_ptr_i32(void) {
+    return (int32_t*)kobel_null_ptr();
+}
+
 int32_t* std__memory__Heap_create_i32(size_t count) {
-    return __kobel_unwrap___kobel_eu_mut_ptr_i32__std__memory__MemErr(std__memory__Heap_try_create_i32(count), "lib/std/memory/heap.kb", 43, 63, "Heap_create_i32");
+    return __kobel_unwrap___kobel_eu_mut_ptr_i32__std__memory__MemErr(std__memory__Heap_try_create_i32(count), "lib/std/memory/heap.kb", 47, 63, "Heap_create_i32");
 }
 
 __kobel_eu_mut_ptr_i32__std__memory__MemErr std__memory__Heap_try_create_i32(size_t count) {
@@ -2534,8 +2803,20 @@ uint8_t* raw = __eu_prop_5.u.ok;
 return (__kobel_eu_mut_ptr_i32__std__memory__MemErr){ .is_ok = true, .u = { .ok = (int32_t*)raw } };
 }
 
+void std__memory__Heap_free_i32(int32_t* ptr) {
+    kobel_free((uint8_t*)ptr);
+}
+
+size_t* std__memory__Heap_null_ptr_usz(void) {
+    return (size_t*)kobel_null_ptr();
+}
+
+bool* std__memory__Heap_null_ptr_bool(void) {
+    return (bool*)kobel_null_ptr();
+}
+
 size_t* std__memory__Heap_create_usz(size_t count) {
-    return __kobel_unwrap___kobel_eu_mut_ptr_usz__std__memory__MemErr(std__memory__Heap_try_create_usz(count), "lib/std/memory/heap.kb", 43, 63, "Heap_create_usz");
+    return __kobel_unwrap___kobel_eu_mut_ptr_usz__std__memory__MemErr(std__memory__Heap_try_create_usz(count), "lib/std/memory/heap.kb", 47, 63, "Heap_create_usz");
 }
 
 __kobel_eu_mut_ptr_usz__std__memory__MemErr std__memory__Heap_try_create_usz(size_t count) {
@@ -2549,7 +2830,7 @@ return (__kobel_eu_mut_ptr_usz__std__memory__MemErr){ .is_ok = true, .u = { .ok 
 }
 
 bool* std__memory__Heap_create_bool(size_t count) {
-    return __kobel_unwrap___kobel_eu_mut_ptr_bool__std__memory__MemErr(std__memory__Heap_try_create_bool(count), "lib/std/memory/heap.kb", 43, 63, "Heap_create_bool");
+    return __kobel_unwrap___kobel_eu_mut_ptr_bool__std__memory__MemErr(std__memory__Heap_try_create_bool(count), "lib/std/memory/heap.kb", 47, 63, "Heap_create_bool");
 }
 
 __kobel_eu_mut_ptr_bool__std__memory__MemErr std__memory__Heap_try_create_bool(size_t count) {
@@ -2563,10 +2844,10 @@ return (__kobel_eu_mut_ptr_bool__std__memory__MemErr){ .is_ok = true, .u = { .ok
 }
 
 void std__memory__Heap_free_usz(size_t* ptr) {
-    free((uint8_t*)ptr);
+    kobel_free((uint8_t*)ptr);
 }
 
 void std__memory__Heap_free_bool(bool* ptr) {
-    free((uint8_t*)ptr);
+    kobel_free((uint8_t*)ptr);
 }
 

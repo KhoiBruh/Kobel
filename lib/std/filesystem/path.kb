@@ -20,6 +20,8 @@ extern "C" {
 	fn kobel_path_exists(path: str): i32;
 	fn kobel_path_is_dir(path: str): i32;
 	fn kobel_path_is_file(path: str): i32;
+	fn kobel_path_mtime(path: str): i64;
+	fn kobel_path_size(path: str): i64;
 	fn kobel_fs_mkdir(dir_path: str): i32;
 	fn kobel_fs_mkdir_all(dir_path: str): i32;
 	fn kobel_fs_remove(path: str): i32;
@@ -143,6 +145,10 @@ impl Path {
 	pub fn is_dir(*self) => kobel_path_is_dir(self.raw) != 0;
 
 	pub fn is_file(*self) => kobel_path_is_file(self.raw) != 0;
+
+	pub fn mtime(*self): i64 => kobel_path_mtime(self.raw);
+
+	pub fn file_size(*self): i64 => kobel_path_size(self.raw);
 
 	// ------------------------------------------------------------------------
 	// Filesystem directory manipulation

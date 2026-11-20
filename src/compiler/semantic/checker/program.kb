@@ -336,22 +336,41 @@ impl BodyChecker {
 			for (d in decl_p.errors) self.errors += d;
 		}
 
+		val filter_mod = !self.target_module.empty();
 		val inst_mark = self.symtab.gen.instances.len;
 		self.infer_arrow_returns(program_node);
+		val flush_mark = if (filter_mod) self.symtab.gen.instances.len else inst_mark;
 
 		if (program_node is Program as prog) {
 			for (decl in prog) {
+				val raw_decl = decl;
 				when (decl) {
 					is ModuleDecl as m -> self.symtab.set_current_module(m.full_path);
-					is FnDecl as f -> self.check_fn(decl);
-					is ImplDecl as im -> self.check_impl(decl);
-					is ObjectDecl as obj -> self.check_object(decl);
-					is ConstDecl as c -> self.check_const_node(c);
+					is FnDecl -> {
+						if (!filter_mod || self.symtab.current_module == self.target_module) {
+							self.check_fn(raw_decl);
+						}
+					}
+					is ImplDecl -> {
+						if (!filter_mod || self.symtab.current_module == self.target_module) {
+							self.check_impl(raw_decl);
+						}
+					}
+					is ObjectDecl -> {
+						if (!filter_mod || self.symtab.current_module == self.target_module) {
+							self.check_object(raw_decl);
+						}
+					}
+					is ConstDecl as c -> {
+						if (!filter_mod || self.symtab.current_module == self.target_module) {
+							self.check_const_node(c);
+						}
+					}
 				}
 			}
 		}
 
-		self.flush_instances(program_node, inst_mark);
+		self.flush_instances(program_node, flush_mark);
 	}
 
 	pub fn flush_instances(&self, program_node: &AstNode, from: usz) {

@@ -395,13 +395,16 @@ impl AnalysisResult {
 		source: str,
 		workspace_root: str,
 		include_workspace: bool = false,
-		ruleset: ?*KblintRuleSet = null
+		ruleset: ?*KblintRuleSet = null,
+		vfs: ?&SourceCache = null
 	) {
+		val owned_path = Heap.dup_str(path);
+		val owned_source = Heap.dup_str(source);
 		var diagnostics = List<LspDiagnostic>();
 		var arena = Arena(524288);
 
 		// 1. Lexical analysis
-		var lexer = Lexer(source);
+		var lexer = Lexer(owned_source);
 		val tokens = lexer.tokenize();
 
 		for (tok in tokens) {
@@ -417,24 +420,25 @@ impl AnalysisResult {
 		val prog = parser.parse_program();
 
 		if (parser.errors.len > 0) {
-			for (d in parser.errors) diagnostics += LspDiagnostic(d, source);
+			for (d in parser.errors) diagnostics += LspDiagnostic(d, owned_source);
 			parser.errors.free();
 			arena.free();
 			val empty_symtab = SymbolTable(Arena.empty());
 			return Self(
 				diagnostics, empty_symtab, false, tokens, SemanticIndex(),
-				path, source, Arena.empty(), "", List<str>()
+				owned_path, owned_source, Arena.empty(), "", List<str>()
 			);
 		}
 
 		var doc_mod = "";
 		if (prog is Program as p) doc_mod = p.declared_module_name();
-		if (doc_mod.empty()) doc_mod = path.base_name().path_to_module();
+		if (doc_mod.empty()) doc_mod = owned_path.base_name().path_to_module();
 
 		// 3. Module loading (current doc + project entry for full dependency graph)
-		val entry_dir = path.dir_of();
+		val entry_dir = owned_path.dir_of();
 		val proj_root = if (!workspace_root.empty()) workspace_root else (detect_project_root(entry_dir) !: "");
 		var extra_roots = List<str>();
+		defer extra_roots.free();
 		if (!proj_root.empty()) {
 			val root_p = Path(proj_root);
 			extra_roots += proj_root;
@@ -453,6 +457,7 @@ impl AnalysisResult {
 		}
 
 		var loader = ModuleLoader(entry_dir, extra_roots, arena);
+		loader.cache = vfs;
 		if (loader.has_module("std.traits")) loader.ensure_module("std.traits");
 		if (loader.has_module("std.string")) loader.ensure_module("std.string");
 		if (loader.has_module("std.range")) loader.ensure_module("std.range");
@@ -461,9 +466,10 @@ impl AnalysisResult {
 		val was_known = loader.is_known(doc_mod);
 		var use_in_place = was_known;
 		val pkg_files = loader.find_module_files(doc_mod) !: List<ModuleFile>();
+		defer pkg_files.free();
 		if (!was_known) {
 			for ((f_path, _) in pkg_files) {
-				if (paths_equal(f_path, path)) {
+				if (paths_equal(f_path, owned_path)) {
 					loader.ensure_module(doc_mod);
 					use_in_place = true;
 					break;
@@ -472,33 +478,37 @@ impl AnalysisResult {
 		}
 
 		if (use_in_place) {
-			// Module already loaded in canonical file order: substitute live editor buffer for `path`
-			val ov_res = loader.parse_source(path, source, doc_mod);
-			if (ov_res is &AstNode as ovp) {
-				val override_prog = *ovp;
-				loader.process_uses(override_prog, doc_mod);
-				var replaced = false;
-				for (i in 0..<loader.ordered.len) {
-					if (paths_equal(loader.ordered[i].path, path)) {
-						loader.ordered[i] = LoadedModule(doc_mod, path, override_prog, override_prog.span.file_id);
-						replaced = true;
-						break;
+			// If VFS already served the live buffer during `ensure_module`, avoid re-parsing it a second time.
+			val already_loaded_live = vfs != null && loader.ordered.any { lm -> paths_equal(lm.path, owned_path) };
+			if (!already_loaded_live) {
+				// Module already loaded in canonical file order: substitute live editor buffer for `owned_path`
+				val ov_res = loader.parse_source(owned_path, owned_source, doc_mod);
+				if (ov_res is &AstNode as ovp) {
+					val override_prog = *ovp;
+					loader.process_uses(override_prog, doc_mod);
+					var replaced = false;
+					for (i in 0..<loader.ordered.len) {
+						if (paths_equal(loader.ordered[i].path, owned_path)) {
+							loader.ordered[i] = LoadedModule(doc_mod, owned_path, override_prog, override_prog.span.file_id);
+							replaced = true;
+							break;
+						}
 					}
-				}
-				if (!replaced) {
-					loader.ordered += LoadedModule(doc_mod, path, override_prog, override_prog.span.file_id);
+					if (!replaced) {
+						loader.ordered += LoadedModule(doc_mod, owned_path, override_prog, override_prog.span.file_id);
+					}
 				}
 			}
 			full_prog = loader.build_merged_program();
 		} else {
 			var doc_prog: ?&AstNode = null;
-			val dp_res = loader.load_program(path, source);
+			val dp_res = loader.load_program(owned_path, owned_source);
 			if (dp_res is &AstNode as dp) doc_prog = *dp;
 
 			// Load any sibling files belonging to the same module if not already loaded
 			var pkg_dirty = false;
 			for ((f_path, f_src) in pkg_files) {
-				if (paths_equal(f_path, path)) continue;
+				if (paths_equal(f_path, owned_path)) continue;
 				var seen_path = false;
 				for (existing in loader.ordered) {
 					if (paths_equal(existing.path, f_path)) {
@@ -522,8 +532,8 @@ impl AnalysisResult {
 		// Optionally load project entry so reverse-dependencies on this file are indexed
 		if (include_workspace && !proj_root.empty()) {
 			val proj_entry = resolve_project_entry(proj_root);
-			if (!proj_entry.empty() && !paths_equal(proj_entry, path)) {
-				val entry_src = Path(proj_entry).read_text() !: "";
+			if (!proj_entry.empty() && !paths_equal(proj_entry, owned_path)) {
+				val entry_src = if (vfs != null) (vfs.read_file(proj_entry) !: "") else (Path(proj_entry).read_text() !: "");
 				if (!entry_src.empty()) {
 					val ep_res = loader.parse_source(proj_entry, entry_src);
 					if (ep_res is &AstNode as ep && *ep is Program as epp) {
@@ -540,14 +550,14 @@ impl AnalysisResult {
 
 		if (loader.errors.len > 0) {
 			for (d in loader.errors) {
-				if (is_error_for_doc(d, doc_mod, path)) diagnostics += LspDiagnostic(d, source);
+				if (is_error_for_doc(d, doc_mod, owned_path)) diagnostics += LspDiagnostic(d, owned_source);
 			}
 		}
 
 		var dep_paths = List<str>();
 		var seen_deps = HashSet<str>();
 		for (lm in loader.ordered) {
-			if (lm.path.empty() || paths_equal(lm.path, path)) continue;
+			if (lm.path.empty() || paths_equal(lm.path, owned_path)) continue;
 			if (seen_deps.add(lm.path)) dep_paths += lm.path;
 		}
 		seen_deps.free();
@@ -555,41 +565,44 @@ impl AnalysisResult {
 		val prog_ast = full_prog;
 		if (prog_ast != null) {
 			// Pre-index declarations and original unmangled names BEFORE DeclarationCollector mangles AST nodes in-place
-			var index = prepare_semantic_index(&loader, path, source);
+			var index = prepare_semantic_index(&loader, owned_path, owned_source, &tokens);
 
 			var decl_p = DeclarationCollector(arena);
 			decl_p.symtab.sources = loader.sources;
 			decl_p.collect_program(prog_ast);
 			if (decl_p.errors.len > 0) {
 				for (d in decl_p.errors) {
-					if (is_diag_for_doc(d, &loader, doc_mod, path)) diagnostics += LspDiagnostic(d, source);
+					if (is_diag_for_doc(d, &loader, doc_mod, owned_path)) diagnostics += LspDiagnostic(d, owned_source);
 				}
 			}
 
 			var body_p = BodyChecker(decl_p.symtab, decl_p);
+			if (!include_workspace && !doc_mod.empty()) {
+				body_p.target_module = doc_mod;
+			}
 			body_p.check_program(prog_ast);
 			if (body_p.errors.len > 0) {
 				for (d in body_p.errors) {
-					if (is_diag_for_doc(d, &loader, doc_mod, path)) diagnostics += LspDiagnostic(d, source);
+					if (is_diag_for_doc(d, &loader, doc_mod, owned_path)) diagnostics += LspDiagnostic(d, owned_source);
 				}
 			}
 
-			finish_semantic_index(&index, &loader, body_p.symtab, true, path, include_workspace);
+			finish_semantic_index(&index, &loader, body_p.symtab, true, owned_path, include_workspace);
 			var doc_ast: ?*AstNode = null;
 			for (lm in loader.ordered) {
-				if (paths_equal(lm.path, path)) {
+				if (paths_equal(lm.path, owned_path)) {
 					doc_ast = lm.program;
 					break;
 				}
 			}
 			val allow_mod_dead = loader.errors.empty() && decl_p.errors.empty();
 			collect_dead_code_diagnostics(
-				doc_ast, &index, tokens, path, doc_mod, allow_mod_dead, &diagnostics
+				doc_ast, &index, tokens, owned_path, doc_mod, allow_mod_dead, &diagnostics
 			);
 			var lint_fixes = List<LintFix>();
 			if (allow_mod_dead) {
 				collect_lint_diagnostics_and_fixes(
-					doc_ast, body_p.symtab, true, tokens, source, &diagnostics, &lint_fixes,
+					doc_ast, body_p.symtab, true, tokens, owned_source, &diagnostics, &lint_fixes,
 					proj_root, ruleset
 				);
 			}
@@ -598,14 +611,13 @@ impl AnalysisResult {
 				if (d.code == "unnecessary-mut-receiver") mut_self_lines += d.line + 1;
 			}
 			for (w in body_p.warnings) {
-				if (!is_diag_for_doc(w, &loader, doc_mod, path)) continue;
+				if (!is_diag_for_doc(w, &loader, doc_mod, owned_path)) continue;
 				if ("with '&self', but is never mutated" in w.message && w.line in mut_self_lines) continue;
-				diagnostics += LspDiagnostic(w, source);
+				diagnostics += LspDiagnostic(w, owned_source);
 			}
 			mut_self_lines.free();
 
 			loader.free_buffers();
-			extra_roots.free();
 			decl_p.errors.free();
 			body_p.errors.free();
 			body_p.warnings.free();
@@ -613,7 +625,7 @@ impl AnalysisResult {
 			body_p.non_null_marks.free();
 			return Self(
 				diagnostics, body_p.symtab, true, tokens, index,
-				path, source, arena, doc_mod, dep_paths, doc_ast, lint_fixes
+				owned_path, owned_source, arena, doc_mod, dep_paths, doc_ast, lint_fixes
 			);
 		}
 
@@ -622,7 +634,7 @@ impl AnalysisResult {
 		val empty_symtab = SymbolTable(Arena.empty());
 		return Self(
 			diagnostics, empty_symtab, false, tokens, SemanticIndex(),
-			path, source, Arena.empty(), doc_mod, dep_paths
+			owned_path, owned_source, Arena.empty(), doc_mod, dep_paths
 		);
 	}
 
@@ -636,6 +648,8 @@ impl AnalysisResult {
 		self.tokens.free();
 		self.dep_paths.free();
 		self.arena.free();
+		Heap.drop_str(self.file_path);
+		Heap.drop_str(self.source);
 	}
 
 	pub fn hover_at(*self, line0: usz, col0: usz): *JsonValue {

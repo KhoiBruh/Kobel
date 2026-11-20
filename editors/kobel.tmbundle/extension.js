@@ -198,7 +198,10 @@ const ANALYSIS_METHOD_WS = {
     'textDocument/prepareRename': true,
     'textDocument/rename': true
 };
-const MAX_SERVER_CACHE = 4;
+const MAX_SERVER_CACHE = 6;
+const WATCHDOG_INTERVAL_MS = 60000;
+const CRASH_WINDOW_MS = 60000;
+const MAX_CRASHES_IN_WINDOW = 3;
 const DEAD_CODE_CODES = new Set([
     'unused-import',
     'unused-variable',
@@ -260,6 +263,16 @@ function getLintSettings() {
     return { enabled, severityStr };
 }
 
+function getLspSettings() {
+    const cfg = vscode.workspace && typeof vscode.workspace.getConfiguration === 'function'
+        ? vscode.workspace.getConfiguration('kobel')
+        : null;
+    const rawMaxMb = cfg ? Number(cfg.get('lsp.maxMemoryMB', 1024)) : 1024;
+    const maxMemoryMB = Number.isFinite(rawMaxMb) && rawMaxMb >= 0 ? rawMaxMb : 1024;
+    const autoRestartOnBuild = cfg ? cfg.get('lsp.autoRestartOnBuild', true) !== false : true;
+    return { maxMemoryMB, autoRestartOnBuild };
+}
+
 function mapNamedSeverity(severityStr) {
     if (severityStr === 'hint') return vscode.DiagnosticSeverity.Hint;
     if (severityStr === 'information') return vscode.DiagnosticSeverity.Information;
@@ -293,24 +306,23 @@ function mapDiagnosticTags(rawTags) {
 }
 
 /**
- * Lightweight, zero-dependency Language Server Protocol Client for Kobel.
+ * Persistent, zero-dependency Language Server Protocol Client for Kobel.
  *
- * Manages worker lifetime cleanly so long-lived editor sessions stay tiny:
- * - Launches on demand and automatically sleeps back to 0 MB after `idleSleepMs`
- *   even while tabs stay open (VS Code retains published diagnostics).
- * - Skips re-analyzing unchanged tabs whose dependencies are clean (`stale=false`),
- *   while automatically invalidating dependents when a dependency file changes.
- * - Tracks the server's 4-slot LRU cache and recycles the worker before a cache
- *   miss when the worker analysis budget is full.
+ * Managed by the IDE for the entire workspace session:
+ * - Stays resident in the background (0% CPU while idle on stdin) so hover,
+ *   completion, inlay hints, and edits never suffer cold-start latency.
+ * - Tracks the server's 6-slot selective LRU cache and forwards filesystem
+ *   changes via `workspace/didChangeWatchedFiles` to keep the server VFS hot.
+ * - Runs a periodic memory watchdog (`kobel/memoryStats` -> `kobel/trimCache`)
+ *   and exponential-backoff crash recovery so the host machine stays safe.
  * - On Windows, runs a shadow copy inside build/ so `kobel build` never hits EBUSY.
  */
 class KobelLanguageClient {
     constructor(compilerPath, outputChannel, options = {}) {
         this.compilerPath = compilerPath;
         this.output = outputChannel;
-        this.idleShutdownMs = typeof options.idleShutdownMs === 'number' ? options.idleShutdownMs : 1000;
-        this.idleSleepMs = typeof options.idleSleepMs === 'number' ? options.idleSleepMs : 4000;
-        this.recycleThreshold = typeof options.recycleThreshold === 'number' ? options.recycleThreshold : 3;
+        this.watchdogIntervalMs = typeof options.watchdogIntervalMs === 'number'
+            ? options.watchdogIntervalMs : WATCHDOG_INTERVAL_MS;
         this.nextId = 1;
         this.pendingRequests = new Map();
         this.pendingSyncTimers = new Map();
@@ -319,7 +331,6 @@ class KobelLanguageClient {
         this.serverCache = [];
         this.docStates = new Map();
         this.pendingAnalyzedHashes = new Map();
-        this.analysisOpsCount = 0;
         this.diagnosticsCollection = vscode.languages.createDiagnosticCollection('kobel');
         this.rawDiagnostics = new Map();
         this.deadCodeStatusBar = (vscode.window && typeof vscode.window.createStatusBarItem === 'function' && vscode.StatusBarAlignment)
@@ -334,9 +345,11 @@ class KobelLanguageClient {
         this.isReady = false;
         this.startPromise = null;
         this.stopPromise = null;
-        this.idleTimer = null;
-        this.pendingRecycle = false;
-        this.recyclePromise = null;
+        this.expectedStop = false;
+        this.watchdogTimer = null;
+        this.crashRestartTimer = null;
+        this.crashTimestamps = [];
+        this.lastMemStats = null;
         this.tempHostBinary = null;
         this.disposed = false;
 
@@ -469,6 +482,23 @@ class KobelLanguageClient {
         this.serverCache = this.serverCache.filter(e => e.uri !== uri);
     }
 
+    cacheInvalidateForPath(changedUriStr, changedFsPath) {
+        const rootDir = getWorkspaceRootPath();
+        const normChanged = changedFsPath
+            ? normalizeFsPath(changedFsPath, rootDir)
+            : (changedUriStr ? normalizeFsPath(vscode.Uri.parse(changedUriStr).fsPath, rootDir) : '');
+        const changedSt = changedUriStr ? this.docStates.get(changedUriStr) : null;
+        const changedMod = changedSt ? changedSt.moduleName : '';
+        this.serverCache = this.serverCache.filter(e => {
+            if (e.uri === changedUriStr) return false;
+            const st = this.docStates.get(e.uri);
+            if (!st) return true;
+            if (changedMod && st.moduleName && st.moduleName === changedMod) return false;
+            if (normChanged && st.deps && st.deps.has(normChanged)) return false;
+            return true;
+        });
+    }
+
     cacheClear() {
         this.serverCache = [];
     }
@@ -527,36 +557,103 @@ class KobelLanguageClient {
         this.tempHostBinary = null;
     }
 
-    cancelIdleTimer() {
-        if (this.idleTimer) {
-            clearTimeout(this.idleTimer);
-            this.idleTimer = null;
+    startWatchdog() {
+        this.stopWatchdog();
+        if (this.disposed || this.watchdogIntervalMs <= 0) return;
+        this.watchdogTimer = setInterval(() => {
+            this.runMemoryWatchdog().catch(() => {});
+        }, this.watchdogIntervalMs);
+    }
+
+    stopWatchdog() {
+        if (this.watchdogTimer) {
+            clearInterval(this.watchdogTimer);
+            this.watchdogTimer = null;
+        }
+        if (this.crashRestartTimer) {
+            clearTimeout(this.crashRestartTimer);
+            this.crashRestartTimer = null;
         }
     }
 
-    scheduleIdleSleep() {
-        this.cancelIdleTimer();
-        if (this.disposed || !this.process) return;
-        const hasOpenDocs = this.openDocs.size > 0;
-        const delayMs = hasOpenDocs ? this.idleSleepMs : this.idleShutdownMs;
-        if (delayMs <= 0 || !Number.isFinite(delayMs)) return;
+    async runMemoryWatchdog() {
+        if (this.disposed || !this.isWorkerActive()) return;
+        if (this.pendingRequests.size > 0 || this.pendingSyncTimers.size > 0) return;
+        const { maxMemoryMB } = getLspSettings();
+        if (!maxMemoryMB || maxMemoryMB <= 0) return;
 
-        this.idleTimer = setTimeout(() => {
-            this.idleTimer = null;
-            if (!this.disposed && this.pendingRequests.size === 0 && this.pendingSyncTimers.size === 0 && this.process) {
-                const mode = this.openDocs.size === 0 ? 'no files open' : 'idle sleep';
-                this.log(`[Kobel LSP] Stopping worker (${mode}) to return heap memory to OS (diagnostics kept in IDE)`);
-                this.stopProcess(false).catch(() => {});
+        let stats;
+        try {
+            stats = await this.sendRequestRaw('kobel/memoryStats', {});
+        } catch (_) {
+            return;
+        }
+        if (!stats || this.disposed) return;
+        this.lastMemStats = stats;
+
+        const limitBytes = maxMemoryMB * 1024 * 1024;
+        const totalBytes = Number(stats.defaultHeapBytes || 0) + Number(stats.totalPoolBytes || 0);
+        if (totalBytes <= limitBytes * 0.75) return;
+
+        const totalMb = (totalBytes / 1048576).toFixed(1);
+        if (Number(stats.snapshotCount || 0) > 1) {
+            this.log(`[Kobel LSP] Watchdog trimming inactive cache (${totalMb} MB / ${maxMemoryMB} MB limit)`);
+            try {
+                const after = await this.sendRequestRaw('kobel/trimCache', { keep: 1 });
+                if (this.serverCache.length > 1) {
+                    this.serverCache = this.serverCache.slice(-1);
+                }
+                if (after) {
+                    this.lastMemStats = after;
+                    const afterBytes = Number(after.defaultHeapBytes || 0) + Number(after.totalPoolBytes || 0);
+                    if (afterBytes <= limitBytes) return;
+                }
+            } catch (_) {
+                return;
+            }
+        }
+
+        const currentBytes = Number(this.lastMemStats?.defaultHeapBytes || 0)
+            + Number(this.lastMemStats?.totalPoolBytes || 0);
+        if (currentBytes > limitBytes && this.pendingRequests.size === 0) {
+            const curMb = (currentBytes / 1048576).toFixed(1);
+            this.log(`[Kobel LSP] Watchdog restarting worker (${curMb} MB exceeded ${maxMemoryMB} MB ceiling)`);
+            await this.restart(this.compilerPath);
+        }
+    }
+
+    scheduleCrashRecovery(exitCode) {
+        if (this.disposed || this.expectedStop || this.openDocs.size === 0) return;
+        const now = Date.now();
+        this.crashTimestamps = this.crashTimestamps.filter(t => now - t < CRASH_WINDOW_MS);
+        this.crashTimestamps.push(now);
+        if (this.crashTimestamps.length > MAX_CRASHES_IN_WINDOW) {
+            this.log(`[Kobel LSP] Worker crashed ${this.crashTimestamps.length} times within 60s; pausing auto-restart`);
+            vscode.window.showErrorMessage(
+                `Kobel Language Server crashed repeatedly (exit ${exitCode}).`,
+                'Restart Server'
+            ).then(choice => {
+                if (choice === 'Restart Server') {
+                    this.crashTimestamps = [];
+                    this.restart(resolveCompilerPath());
+                }
+            });
+            return;
+        }
+        const delayMs = 1000 * Math.pow(2, this.crashTimestamps.length - 1);
+        this.log(`[Kobel LSP] Unexpected exit (${exitCode}); restarting persistent worker in ${delayMs}ms`);
+        if (this.crashRestartTimer) clearTimeout(this.crashRestartTimer);
+        this.crashRestartTimer = setTimeout(() => {
+            this.crashRestartTimer = null;
+            if (!this.disposed && !this.process && this.openDocs.size > 0) {
+                this.ensureStarted().catch(() => {});
             }
         }, delayMs);
     }
 
-    ensureStarted(priorityUri, skipRecycleWait = false) {
+    ensureStarted(priorityUri) {
         if (this.disposed) {
             return Promise.reject(new Error('Client disposed'));
-        }
-        if (!skipRecycleWait && this.recyclePromise) {
-            return this.recyclePromise.then(() => this.ensureStarted(priorityUri));
         }
         if (this.isReady && this.process) {
             return Promise.resolve();
@@ -583,14 +680,13 @@ class KobelLanguageClient {
             : undefined;
         const launchPath = this.prepareLaunchPath();
 
+        this.expectedStop = false;
         this.buffer = Buffer.alloc(0);
         this.syncedUris.clear();
         this.pendingAnalyzedHashes.clear();
         this.cacheClear();
-        this.analysisOpsCount = 0;
-        this.pendingRecycle = false;
 
-        this.log(`[Kobel LSP] Starting: "${launchPath}" lsp (cwd=${cwd || '<none>'})`);
+        this.log(`[Kobel LSP] Starting persistent worker: "${launchPath}" lsp (cwd=${cwd || '<none>'})`);
 
         try {
             this.process = spawn(launchPath, ['lsp'], {
@@ -622,7 +718,9 @@ class KobelLanguageClient {
                 this.process = null;
                 this.isReady = false;
                 this.syncedUris.clear();
+                this.stopWatchdog();
                 this.rejectAllPending(new Error(`Kobel LSP exited with code ${code}`));
+                this.scheduleCrashRecovery(code);
             }
         });
 
@@ -657,7 +755,8 @@ class KobelLanguageClient {
             this.isReady = true;
             this.sendNotification('initialized', {});
             const info = result?.serverInfo ? `${result.serverInfo.name} ${result.serverInfo.version}` : 'ok';
-            this.log(`[Kobel LSP] Server initialized (${info})`);
+            this.log(`[Kobel LSP] Persistent server initialized (${info})`);
+            this.startWatchdog();
 
             this.syncPriorityOpenDocs(priorityUri);
         } catch (err) {
@@ -709,7 +808,8 @@ class KobelLanguageClient {
 
     stopProcess(clearDiagnostics) {
         if (this.stopPromise) return this.stopPromise;
-        this.cancelIdleTimer();
+        this.expectedStop = true;
+        this.stopWatchdog();
         this.clearSyncTimers();
         this.rejectAllPending(new Error('Kobel LSP stopping'));
         if (clearDiagnostics) {
@@ -721,8 +821,6 @@ class KobelLanguageClient {
         this.isReady = false;
         this.syncedUris.clear();
         this.cacheClear();
-        this.analysisOpsCount = 0;
-        this.pendingRecycle = false;
 
         const proc = this.process;
         if (!proc) {
@@ -758,30 +856,16 @@ class KobelLanguageClient {
             const forceTimer = setTimeout(() => {
                 try { proc.kill(); } catch (_) {}
                 finish();
-            }, 350);
+            }, 400);
         });
         return this.stopPromise;
-    }
-
-    recycle(reason, priorityUri) {
-        if (this.disposed) return Promise.resolve();
-        if (this.recyclePromise) return this.recyclePromise;
-        this.log(`[Kobel LSP] Recycling worker (${reason}) to keep memory bounded`);
-        this.recyclePromise = (async () => {
-            await this.stopProcess(false);
-            if (!this.disposed && this.openDocs.size > 0) {
-                await this.ensureStarted(priorityUri, true).catch(() => {});
-            }
-        })().finally(() => {
-            this.recyclePromise = null;
-        });
-        return this.recyclePromise;
     }
 
     async restart(newCompilerPath) {
         if (newCompilerPath) {
             this.compilerPath = newCompilerPath;
         }
+        this.crashTimestamps = [];
         await this.stopProcess(true);
         if (!this.disposed && this.openDocs.size > 0) {
             await this.ensureStarted().catch(() => {});
@@ -908,7 +992,6 @@ class KobelLanguageClient {
             }
             st.analyzed = true;
             st.stale = false;
-            this.maybeTriggerDeferredMaintenance();
             return;
         }
 
@@ -927,7 +1010,6 @@ class KobelLanguageClient {
                 }
             }
             st.deps = nextDeps;
-            this.maybeTriggerDeferredMaintenance();
             return;
         }
 
@@ -940,19 +1022,6 @@ class KobelLanguageClient {
             } else {
                 entry.resolve(msg.result);
             }
-            this.maybeTriggerDeferredMaintenance();
-        }
-    }
-
-    maybeTriggerDeferredMaintenance() {
-        if (this.disposed || this.pendingRequests.size > 0) return;
-        if (this.pendingRecycle && this.process) {
-            this.pendingRecycle = false;
-            this.recycle('deferred threshold').catch(() => {});
-            return;
-        }
-        if (this.process && this.pendingSyncTimers.size === 0) {
-            this.scheduleIdleSleep();
         }
     }
 
@@ -970,7 +1039,6 @@ class KobelLanguageClient {
                 if (this.pendingRequests.has(id)) {
                     this.pendingRequests.delete(id);
                     reject(new Error(`LSP request '${method}' timed out`));
-                    this.maybeTriggerDeferredMaintenance();
                 }
             }, 15000);
 
@@ -990,10 +1058,6 @@ class KobelLanguageClient {
     }
 
     async sendRequest(method, params) {
-        if (this.recyclePromise) {
-            await this.recyclePromise;
-        }
-
         const docUri = params && params.textDocument && params.textDocument.uri;
         const hasAnalysisFlag = Object.prototype.hasOwnProperty.call(ANALYSIS_METHOD_WS, method);
         const needWs = hasAnalysisFlag ? ANALYSIS_METHOD_WS[method] : false;
@@ -1007,23 +1071,6 @@ class KobelLanguageClient {
             }
         }
 
-        const pendingTimerChange = docUri ? this.pendingSyncTimers.has(docUri) : false;
-        const isWorkspaceSymMiss = method === 'workspace/symbol' && this.serverCache.length === 0;
-        const isDocMiss = Boolean(
-            hasAnalysisFlag && targetDoc && (
-                !this.syncedUris.has(docUri)
-                || pendingTimerChange
-                || !this.cacheHas(docUri, targetDoc.version, needWs)
-            )
-        );
-
-        // Recycle before performing an uncached analysis if the current worker is at capacity.
-        if (this.process && this.isReady && (isDocMiss || isWorkspaceSymMiss)
-            && this.analysisOpsCount >= this.recycleThreshold && this.pendingRequests.size === 0) {
-            const label = docUri ? path.basename(targetDoc?.uri?.fsPath || docUri) : method;
-            await this.recycle(`before ${method} on ${label}`, docUri);
-        }
-
         await this.ensureStarted(docUri);
 
         if (docUri && targetDoc) {
@@ -1033,16 +1080,7 @@ class KobelLanguageClient {
                 this.flushDidChange(targetDoc);
             }
             if (hasAnalysisFlag && !this.cacheHas(docUri, targetDoc.version, needWs)) {
-                this.analysisOpsCount += needWs ? 2 : 1;
                 this.cacheRecord(docUri, targetDoc.version, needWs);
-                if (this.analysisOpsCount >= this.recycleThreshold && needWs) {
-                    this.pendingRecycle = true;
-                }
-            }
-        } else if (method === 'workspace/symbol' && this.serverCache.length === 0) {
-            this.analysisOpsCount += 2;
-            if (this.analysisOpsCount >= this.recycleThreshold) {
-                this.pendingRecycle = true;
             }
         }
 
@@ -1061,11 +1099,9 @@ class KobelLanguageClient {
         const key = doc.uri.toString();
         const text = doc.getText();
         const alreadyCached = this.cacheHas(key, doc.version, false);
-        this.cancelIdleTimer();
         this.syncedUris.add(key);
         this.pendingAnalyzedHashes.set(key, hashText(text));
         if (!alreadyCached) {
-            this.analysisOpsCount += 1;
             this.cacheRecord(key, doc.version, false);
         }
         this.sendNotification('textDocument/didOpen', {
@@ -1087,25 +1123,13 @@ class KobelLanguageClient {
             this.pendingSyncTimers.delete(key);
         }
 
-        // Skip analysis if IDE already holds up-to-date diagnostics and no dependency changed.
-        if (!this.needsAnalysis(doc)) {
+        // Skip re-analysis if IDE already holds up-to-date diagnostics and worker already knows this doc.
+        if (!this.needsAnalysis(doc) && this.syncedUris.has(key)) {
             return;
-        }
-
-        this.cancelIdleTimer();
-        if (this.recyclePromise) {
-            await this.recyclePromise;
         }
 
         const st = this.docStates.get(key);
         const forceRefresh = Boolean(st && st.stale);
-
-        // Recycle before analyzing another uncached/stale file if the worker budget is full.
-        const isMiss = forceRefresh || !this.syncedUris.has(key) || !this.cacheHas(key, doc.version, false);
-        if (this.process && this.isReady && isMiss
-            && this.analysisOpsCount >= this.recycleThreshold && this.pendingRequests.size === 0) {
-            await this.recycle(`opening ${path.basename(doc.uri.fsPath || key)} after ${this.analysisOpsCount} analyses`, key);
-        }
 
         try {
             await this.ensureStarted(key);
@@ -1130,8 +1154,7 @@ class KobelLanguageClient {
         const key = doc.uri.toString();
         this.openDocs.set(key, doc);
 
-        // Stay idle when re-opening a clean, unchanged tab: IDE already keeps previous diagnostics.
-        if (!this.needsAnalysis(doc)) {
+        if (!this.needsAnalysis(doc) && this.syncedUris.has(key)) {
             return;
         }
         await this.notifyDidOpen(doc);
@@ -1141,7 +1164,6 @@ class KobelLanguageClient {
         if (!isSupportedKobelDoc(doc) || this.disposed) return;
         const key = doc.uri.toString();
         this.openDocs.set(key, doc);
-        this.cancelIdleTimer();
         this.markPathAndDependentsStale(key, doc.uri.fsPath);
         if (this.pendingSyncTimers.has(key)) {
             clearTimeout(this.pendingSyncTimers.get(key));
@@ -1149,7 +1171,7 @@ class KobelLanguageClient {
         const timer = setTimeout(() => {
             this.pendingSyncTimers.delete(key);
             this.notifyDidChange(doc);
-        }, 180);
+        }, 150);
         this.pendingSyncTimers.set(key, timer);
     }
 
@@ -1168,7 +1190,6 @@ class KobelLanguageClient {
         if (!isSupportedKobelDoc(doc) || this.disposed) return;
         const key = doc.uri.toString();
         this.openDocs.set(key, doc);
-        this.cancelIdleTimer();
         this.markPathAndDependentsStale(key, doc.uri.fsPath);
 
         if (!this.process || !this.isReady) {
@@ -1188,15 +1209,9 @@ class KobelLanguageClient {
             this.sendDidOpenImmediate(doc);
             return;
         }
-        if (this.analysisOpsCount >= this.recycleThreshold && this.pendingRequests.size === 0) {
-            // Recycling sends the latest text via didOpen in a fresh worker with zero redundant pass.
-            await this.recycle(`editing ${path.basename(doc.uri.fsPath || key)}`, key);
-            return;
-        }
         const text = doc.getText();
         this.pendingAnalyzedHashes.set(key, hashText(text));
-        this.analysisOpsCount += 1;
-        this.cacheClear();
+        this.cacheInvalidateForPath(key, doc.uri.fsPath);
         this.cacheRecord(key, doc.version, false);
         this.sendNotification('textDocument/didChange', {
             textDocument: {
@@ -1213,10 +1228,14 @@ class KobelLanguageClient {
         this.markPathAndDependentsStale(key, doc.uri.fsPath);
         if (this.pendingSyncTimers.has(key) || this.needsAnalysis(doc)) {
             this.flushDidChange(doc);
+        } else if (this.isWorkerActive() && this.syncedUris.has(key)) {
+            this.sendNotification('textDocument/didSave', {
+                textDocument: { uri: key }
+            });
         }
     }
 
-    notifyExternalFileChange(uri) {
+    notifyExternalFileChange(uri, changeType = 2) {
         if (!uri || this.disposed) return;
         const uriStr = uri.toString();
         const st = this.docStates.get(uriStr);
@@ -1227,6 +1246,12 @@ class KobelLanguageClient {
             }
         }
         this.markPathAndDependentsStale(uriStr, uri.fsPath);
+        this.cacheInvalidateForPath(uriStr, uri.fsPath);
+        if (this.isWorkerActive()) {
+            this.sendNotification('workspace/didChangeWatchedFiles', {
+                changes: [{ uri: uriStr, type: changeType }]
+            });
+        }
     }
 
     notifyDidClose(doc) {
@@ -1249,24 +1274,12 @@ class KobelLanguageClient {
         this.diagnosticsCollection.delete(doc.uri);
         this.rawDiagnostics.delete(key);
         this.updateDeadCodeStatusBar();
-
-        if (this.openDocs.size === 0) {
-            this.scheduleIdleSleep();
-            return;
-        }
-
-        if (this.process && this.analysisOpsCount >= this.recycleThreshold) {
-            if (this.pendingRequests.size === 0) {
-                this.recycle(`closed ${path.basename(doc.uri.fsPath || key)}`).catch(() => {});
-            } else {
-                this.pendingRecycle = true;
-            }
-        }
     }
 
     dispose() {
         this.disposed = true;
-        this.cancelIdleTimer();
+        this.expectedStop = true;
+        this.stopWatchdog();
         this.clearSyncTimers();
         this.rejectAllPending(new Error('Client disposed'));
         if (this.process) {
@@ -1294,14 +1307,33 @@ function activate(context) {
     const compilerPath = resolveCompilerPath();
     const client = new KobelLanguageClient(compilerPath, outputChannel);
 
-    // 1. Document Synchronization
+    // 1. Document Synchronization & Binary Rebuild Watcher
     const watcher = vscode.workspace.createFileSystemWatcher('**/*.kb');
+    const binaryWatcher = vscode.workspace.createFileSystemWatcher('**/build/kobel{,.exe}');
+    let binaryRestartTimer = null;
+    const scheduleBinaryRestart = uri => {
+        if (!getLspSettings().autoRestartOnBuild) return;
+        const rootDir = getWorkspaceRootPath();
+        const changedNorm = normalizeFsPath(uri?.fsPath || '', rootDir);
+        const targetNorm = normalizeFsPath(resolveCompilerPath(), rootDir);
+        if (!changedNorm || changedNorm !== targetNorm) return;
+        if (binaryRestartTimer) clearTimeout(binaryRestartTimer);
+        binaryRestartTimer = setTimeout(() => {
+            binaryRestartTimer = null;
+            client.log('[Kobel LSP] Detected rebuilt compiler binary; restarting persistent worker');
+            client.restart(resolveCompilerPath());
+        }, 600);
+    };
     context.subscriptions.push(
         outputChannel,
         watcher,
-        watcher.onDidChange(uri => client.notifyExternalFileChange(uri)),
-        watcher.onDidCreate(uri => client.notifyExternalFileChange(uri)),
-        watcher.onDidDelete(uri => client.notifyExternalFileChange(uri)),
+        binaryWatcher,
+        { dispose: () => { if (binaryRestartTimer) clearTimeout(binaryRestartTimer); } },
+        watcher.onDidChange(uri => client.notifyExternalFileChange(uri, 2)),
+        watcher.onDidCreate(uri => client.notifyExternalFileChange(uri, 1)),
+        watcher.onDidDelete(uri => client.notifyExternalFileChange(uri, 3)),
+        binaryWatcher.onDidChange(scheduleBinaryRestart),
+        binaryWatcher.onDidCreate(scheduleBinaryRestart),
         vscode.workspace.onDidOpenTextDocument(doc => {
             if (isSupportedKobelDoc(doc)) client.notifyDidOpen(doc);
         }),
@@ -1438,13 +1470,6 @@ function activate(context) {
             {
                 async provideCodeActions(document, range, actionContext) {
                     try {
-                        // Do not wake a sleeping worker just for automatic cursor-move lightbulb checks
-                        // on an already-analyzed clean document.
-                        const autoTrigger = vscode.CodeActionTriggerKind ? vscode.CodeActionTriggerKind.Automatic : 2;
-                        if (!client.isWorkerActive() && !client.needsAnalysis(document)
-                            && (actionContext.triggerKind === undefined || actionContext.triggerKind === autoTrigger)) {
-                            return [];
-                        }
                         await client.flushDidChange(document);
                         const diags = (actionContext.diagnostics || []).map(d => {
                             const out = {
@@ -1500,9 +1525,6 @@ function activate(context) {
         vscode.languages.registerDocumentHighlightProvider('kobel', {
             async provideDocumentHighlights(document, position) {
                 try {
-                    if (!client.isWorkerActive() && !client.needsAnalysis(document)) {
-                        return [];
-                    }
                     await client.flushDidChange(document);
                     const res = await client.sendRequest('textDocument/documentHighlight', {
                         textDocument: { uri: document.uri.toString() },

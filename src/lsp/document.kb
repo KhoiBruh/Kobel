@@ -3,6 +3,7 @@ mod lsp;
 use std.string.*;
 use std.ascii.*;
 use std.collections.*;
+use std.memory.*;
 
 // ============================================================================
 // Document Representation
@@ -45,11 +46,48 @@ pub struct DocumentStore {
 impl DocumentStore {
 
 	pub fn set(&self, uri: str, text: str, version: i64) {
-		val p = uri_to_path(uri);
-		self.doc_map[uri] = Document(uri, p, text, version);
+		val existing = self.doc_map.get(uri);
+		if (existing != null) {
+			val cur = existing.read();
+			val prev = HeapPool.push_default();
+			Heap.drop_str(cur.text);
+			val dup_text = Heap.dup_str(text);
+			self.doc_map[cur.uri] = Document(cur.uri, cur.path, dup_text, version);
+			HeapPool.pop(prev);
+			return;
+		}
+		val p_tmp = uri_to_path(uri);
+		val prev = HeapPool.push_default();
+		val dup_uri = Heap.dup_str(uri);
+		val dup_path = Heap.dup_str(p_tmp);
+		val dup_text = Heap.dup_str(text);
+		self.doc_map[dup_uri] = Document(dup_uri, dup_path, dup_text, version);
+		HeapPool.pop(prev);
 	}
 
-	pub fn remove(&self, uri: str) => self.doc_map.remove(uri);
+	pub fn remove(&self, uri: str): bool {
+		val existing = self.doc_map.get(uri) ?: return false;
+		val cur = existing.read();
+		val prev = HeapPool.push_default();
+		val removed = self.doc_map.remove(cur.uri);
+		Heap.drop_str(cur.text);
+		Heap.drop_str(cur.path);
+		Heap.drop_str(cur.uri);
+		HeapPool.pop(prev);
+		return removed;
+	}
+
+	pub fn free(&self) {
+		val prev = HeapPool.push_default();
+		for ((_, doc) in self.doc_map) {
+			Heap.drop_str(doc.text);
+			Heap.drop_str(doc.path);
+			Heap.drop_str(doc.uri);
+		}
+		self.doc_map.free();
+		self.doc_map = HashMap<str, Document>();
+		HeapPool.pop(prev);
+	}
 
 	pub fn get_doc(*self, uri: str): Document ! DocumentErr {
 		val p = self.doc_map[uri] ?: return DocumentErr.NotFound;

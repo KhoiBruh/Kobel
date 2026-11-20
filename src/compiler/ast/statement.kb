@@ -8,32 +8,29 @@ mod compiler.ast;
 
 impl AstNode {
 
-	pub fn is_statement(*self) => when (self) {
-		is BlockStmt, ExprStmt, VarDeclStmt, DestructDeclStmt,
+	pub fn is_statement(*self) => self is [
+		BlockStmt, ExprStmt, VarDeclStmt, DestructDeclStmt,
 		IfStmt, WhileStmt, ForStmt,
 		ReturnStmt, BreakStmt, ContinueStmt,
-		WhenStmt, YieldStmt, DeferStmt -> true;
-		else -> false;
-	};
+		WhenStmt, YieldStmt, DeferStmt
+	];
 
-	pub fn is_control_flow(*self) => when (self) {
-		is ReturnStmt, BreakStmt, ContinueStmt,
-		YieldStmt, BlockStmt -> true;
-		else -> false;
-	};
+	pub fn is_control_flow(*self) => self is [
+		ReturnStmt, BreakStmt, ContinueStmt,
+		YieldStmt, BlockStmt
+	];
 
-	pub fn is_declaration(*self) => when (self) {
-		is ModuleDecl, UseDecl, FnDecl,
+	pub fn is_declaration(*self) => self is [
+		ModuleDecl, UseDecl, FnDecl,
 		StructDecl, TraitDecl, ImplDecl,
 		EnumDecl, FaultDecl, ConstDecl, ExternBlock,
-		Program -> true;
-		else -> false;
-	};
+		Program
+	];
 
-	pub fn is_type_node(*self) => when (self) {
-		is NamedType, PointerType, ArrayType, VariadicType, FnType, ErrorUnionType -> true;
-		else -> false;
-	};
+	pub fn is_type_node(*self) => self is [
+		NamedType, PointerType, ArrayType,
+		VariadicType, FnType, ErrorUnionType
+	];
 
 	pub fn is_expression(*self) => !self.is_statement()
 		&& !self.is_declaration()

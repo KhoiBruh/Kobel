@@ -18,7 +18,17 @@ pub struct HashMap<K: Hash, V> {
 
 impl HashMap<K: Hash, V> {
 
-	pub init(init_cap: usz = 16) {
+	pub init(init_cap: usz = 0) {
+		if (init_cap == 0) {
+			return Self(
+				Heap.null_ptr<K>(),
+				Heap.null_ptr<V>(),
+				Heap.null_ptr<usz>(),
+				Heap.null_ptr<bool>(),
+				0,
+				0
+			);
+		}
 		var cap = init_cap;
 		if (cap < 8) cap = 8;
 		val keys = Heap.create<K>(cap);
